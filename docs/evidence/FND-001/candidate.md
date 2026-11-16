@@ -1,17 +1,26 @@
 # FND-001 候选冻结记录
 
-> 当前提示（2026-11-16）：本文件记录第一轮候选；下列 PowerShell 示例存在 R3 变量问题，需按当前 DSH_START.md 修正后再复制执行，不能直接沿用。当前修复候选尚未生成，见 [提交复核](SUBMISSION_REVIEW_20261116.md)。
+> 当前（2026-11-16，v2.0.1 收尾）：本轮补验候选为 `2774b185ab75bfe38b6a36a07aa735d5ed4f559b`；第一轮记录保留在下方历史段。R1–R4 的修复与复验结果见 [REPORT](REPORT.md) 与新一轮 `runs/`。
 
 - 冻结时间：2026-11-16（Asia/Shanghai）
 - 工作分支：`dsh/knowledgeos-fnd-001`
-- 产品候选提交：`37ac57af64b6741d82ffa2663b43dc244529c567`
-- 证据/测试脚本修复提交：`22e7be2ffc1b1db6fe8247bb223e69ec6c7ecb5d`（harness v2；`git diff 37ac57a..22e7be2 -- packages/knowledgeos-panel` 为空，产品文件哈希不变）
-- 候选树：`899a018f7bb87af83603a877e8a810dedbeb7bb5`
+- 本轮收尾产品候选：`2774b185ab75bfe38b6a36a07aa735d5ed4f559b`（R1/R2/R4 修复；Host 半未变）
+- 第一轮产品候选：`37ac57af64b6741d82ffa2663b43dc244529c567`；第一轮证据脚本修复：`22e7be2ffc1b1db6fe8247bb223e69ec6c7ecb5d`
+- 第一轮候选树：`899a018f7bb87af83603a877e8a810dedbeb7bb5`
 - 起始提交：`6f23735d5f07fed7cef108f829290b823ad6ace0`（main）
-- 产品工作树：与 `37ac57a` 一致（后续只增加证据文档与测试脚本）
 - upstream.lock 固定提交：`39163dd30f703a79079e2d2446545cff3c453738`，版本 `0.2.2-rc.3`
 
-## 关键文件 SHA256
+## 本轮（收尾）关键文件 SHA256
+
+| 文件 | SHA256 | 变化 |
+|---|---|---|
+| `packages/knowledgeos-panel/lib/index.js` | `22757b15ec4352d9a26d848320dc31b3a96aba86446fb70fa51fc94ce2d26c6a` | 未变 |
+| `packages/knowledgeos-panel/lib/client.js` | `f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9` | R2 重建 |
+| `packages/knowledgeos-panel/src/client/Panel.tsx` | `e3aee6dd8c8e6ccc1b2e55a37020cfda5296446f496651d36b848855adc0ef13` | R2 修复 |
+| `scripts/fnd001/closeout-e2e.mjs` | `1e0d6bd33e2e8a545f8bc8dcff4c131169cd914a7fe9b18691005d1f4e9be99e` | 新增 R1/R2 生命周期脚本 |
+| 其余 Host/Client 文件 | 同下方历史表 | 未变 |
+
+## 历史（第一轮）关键文件 SHA256
 
 | 文件 | SHA256 |
 |---|---|
@@ -46,14 +55,18 @@
 ## 候选运行命令（复验）
 
 ```powershell
-$repo = "C:\Users\27363\Desktop\personal base\personal_konwledge-base"
-$build = "$repo\.cache\build\dsh-39163dd"
-$home = "$repo\.cache\dsh-home-fnd001"
-$env:DSH_HOME = $home
+$knowledgeosRepo = "C:\Users\27363\Desktop\personal base\personal_konwledge-base"
+$dshRoot = "$knowledgeosRepo\.cache\build\dsh-39163dd"
+$dshTestHome = "$knowledgeosRepo\.cache\dsh-home-fnd001"
+$env:DSH_HOME = $dshTestHome
 $env:DSH_CLIENT_COMMIT_HASH = "39163dd30f703a79079e2d2446545cff3c453738"
-cd $build
+# 确认隔离目录与只读自动变量未被改写
+"$env:DSH_HOME"; $HOME
+cd $dshRoot
 node --import tsx/esm apps/cli/src/bin.ts --profile knowledgeos-test --port 3099 --no-open
 ```
+
+`--from-default-profile web --dump-config` 只在首次创建 profile 时使用；继续运行或复验不得重复该初始化参数，避免重置 profile。`$HOME`/`$home` 是 PowerShell 只读自动变量，本单元所有可复制命令改用 `$dshTestHome`。
 
 打开启动日志中的 `dsh web: http://127.0.0.1:3099/?token=…`（日志含凭据，证据归档前必须脱敏），侧栏“知识库”即本单元入口。
 
