@@ -1,0 +1,21 @@
+dsh: startup failed: 2 required plugins did not activate
+
+Failed plugins (1):
+  webserver (required)
+    Package: @deepseek-ai/dsh-host-webserver
+    Error: listen EADDRINUSE: address already in use 127.0.0.1:3099
+        at Server.setupListenHandle [as _listen2] (node:net:2390:16)
+        at listenInCluster (node:net:2499:12)
+        at node:net:2728:7
+        at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+
+Plugins waiting for services (6):
+  Plugin                  Missing services
+  web-runtime (required)  webServer
+  open-in-app             webServer
+  directory-picker        webServer
+  harness-dev-context     webApp
+  client-hmr              webServer
+  knowledgeos-host        webServer
+
+Full diagnostics: C:\Users\27363\Desktop\personal base\personal_konwledge-base\.cache\dsh-home-fnd001\logs\startup-2026-11-16T04-17-10.352Z-16af196e-25db-42d7-b162-139ea5e31251.log

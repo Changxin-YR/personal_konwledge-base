@@ -1,0 +1,20 @@
+run-gates: build:artifacts running 8 gate(s) with 8 worker(s) from 12 local default worker(s) of 32 CPU(s).
+run-gates: start native addon
+run-gates: start Host Typert
+run-gates: PASS native addon (5.26s)
+run-gates: PASS Host Typert (32.06s)
+run-gates: start host compiler
+run-gates: PASS host compiler (5.28s)
+run-gates: start Host bundle
+run-gates: PASS Host bundle (29.39s)
+run-gates: start Desktop bundle
+run-gates: PASS Desktop bundle (4.08s)
+run-gates: start client compiler
+run-gates: PASS client compiler (101.43s)
+run-gates: start Client bundle
+run-gates: PASS Client bundle (19.26s)
+run-gates: start Web build
+run-gates: PASS Web build (12.17s)
+
+run-gates: 8 passed, 0 failed, 0 skipped in 208.04s.
+build: recorded 379 client artifact(s) with 3 public value(s)
