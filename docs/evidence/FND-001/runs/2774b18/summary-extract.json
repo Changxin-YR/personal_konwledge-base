@@ -1,0 +1,413 @@
+{
+  "closeout": {
+    "result": "PASS",
+    "steps": [
+      "R2 loading is not shown as a failure",
+      "R2 refresh then yields a newer success",
+      "R1 five reloads keep one entry and one panel",
+      "R1 ten enter/exit cycles keep one entry and one panel",
+      "R1 each mount issues exactly one status request",
+      "R1 60 seconds away produces no feature request",
+      "R1 60 seconds away produces no page error",
+      "R1 profile install resolves to this candidate checkout",
+      "R1 fixed CLI removed the bundle",
+      "R1 removed bundle left no dependency",
+      "R1 removed bundle left no layer",
+      "R1 status route is gone after removal",
+      "R1 removal was verified with a valid authenticated session",
+      "R1 Client entry and panel are gone after removal",
+      "R1 DSH navigation still renders after removal",
+      "R1 fixed CLI reinstalled the same candidate",
+      "R1 reinstall restored the bundle layer",
+      "R1 reinstall loaded the same candidate artifacts",
+      "R1 status route is live after reinstall",
+      "R1 reinstall restores exactly one entry",
+      "R1 reinstall restores one working panel",
+      "R1 reinstalled panel shows the fixed source build",
+      "R4 fixed source launch matches the documented entry"
+    ],
+    "step_count": 23,
+    "failures": [],
+    "fixtures": [
+      {
+        "id": "F2",
+        "kind": "controlled-3s-status-delay",
+        "label": "FIXTURE: controlled latency, not a real disconnect"
+      }
+    ],
+    "not_run": [],
+    "recovery": [],
+    "r2": {
+      "fixture": "F2",
+      "loadingConnection": "正在刷新 · 显示上次结果",
+      "loadingChip": "刷新中",
+      "refreshingVisible": true,
+      "checkedBefore": "2026-11-16T05:22:35.749Z",
+      "checkedAfter": "2026-11-16T05:22:38.848Z",
+      "requests": 1
+    },
+    "idle": {
+      "seconds": 60,
+      "requests": 0,
+      "pageErrors": 0
+    },
+    "install": {
+      "package": "knowledgeos-panel",
+      "resolved_spec": "link:C:/Users/27363/Desktop/personal base/personal_konwledge-base/packages/knowledgeos-panel",
+      "plugin_path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel",
+      "artifacts": {
+        "lib/index.js": "22757b15ec4352d9a26d848320dc31b3a96aba86446fb70fa51fc94ce2d26c6a",
+        "lib/client.js": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9"
+      }
+    },
+    "remove": {
+      "exit": 0,
+      "stdout": "✓ Lockfile passes supply-chain policies (verified 2m ago)\n\ndependencies:\n- knowledgeos-panel link:C:/Users/27363/Desktop/personal base/personal_konwledge-base/packages/knowledgeos-panel\n\nAlready up to date\nDone in 1.3s using pnpm v11.22.0",
+      "stderr": ""
+    },
+    "profile_after_remove_bundles": [
+      "@deepseek-ai/dsh-base",
+      "@deepseek-ai/dsh-web-app"
+    ],
+    "route_after_remove": {
+      "status": 404,
+      "contentType": null,
+      "bodyPrefix": ""
+    },
+    "client_after_remove": {
+      "entries": 0,
+      "panels": 0,
+      "navButtons": 4
+    },
+    "reinstall_exit": 0,
+    "artifacts_after_reinstall": {
+      "lib/index.js": "22757b15ec4352d9a26d848320dc31b3a96aba86446fb70fa51fc94ce2d26c6a",
+      "lib/client.js": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9"
+    },
+    "route_after_reinstall": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8"
+    },
+    "restored": {
+      "version": "0.2.2-rc.3",
+      "commit": "39163dd30f70",
+      "instance": "5b9a542d-8d79-438b-88ec-0d18c2c0d9dc"
+    },
+    "r4": {
+      "launch_argv": [
+        "--import",
+        "tsx/esm",
+        "apps/cli/src/bin.ts",
+        "--profile",
+        "knowledgeos-test",
+        "--port",
+        "3099",
+        "--no-open"
+      ],
+      "cli_version_exit": 0,
+      "cli_version": "0.2.2-rc.3",
+      "init_used_in_this_run": false,
+      "contains_web_positional": false
+    },
+    "host_starts": [
+      "initial",
+      "after-remove",
+      "after-reinstall"
+    ]
+  },
+  "browser": {
+    "result": "PASS",
+    "steps": [
+      {
+        "name": "T01 sidebar entry visible",
+        "ok": true
+      },
+      {
+        "name": "T02 panel shows Host version/commit",
+        "ok": true
+      },
+      {
+        "name": "T02 refresh fetched newer checked_at",
+        "ok": true
+      },
+      {
+        "name": "T04 exactly one entry after reload",
+        "ok": true
+      },
+      {
+        "name": "T04 repeated enter/exit has one entry and one panel",
+        "ok": true
+      },
+      {
+        "name": "T05 existing panels remain navigable",
+        "ok": true
+      },
+      {
+        "name": "T04 no status polling while panel is closed",
+        "ok": true
+      },
+      {
+        "name": "T07 anonymous request is rejected",
+        "ok": true
+      },
+      {
+        "name": "T07 authenticated request is 200",
+        "ok": true
+      },
+      {
+        "name": "T03 real disconnect makes the Host unreachable",
+        "ok": true
+      },
+      {
+        "name": "T03 error and stale marker are visible",
+        "ok": true
+      },
+      {
+        "name": "T03 retry while still down stays failed",
+        "ok": true
+      },
+      {
+        "name": "T03 Host restarted and route is reachable",
+        "ok": true
+      },
+      {
+        "name": "T03 retry after recovery reaches ready",
+        "ok": true
+      },
+      {
+        "name": "T02 host_instance_id changed after real restart",
+        "ok": true
+      },
+      {
+        "name": "T03 fixture 500 shows error and recovers",
+        "ok": true
+      },
+      {
+        "name": "T04 disabling the Host row removes the route",
+        "ok": true
+      },
+      {
+        "name": "T04 re-enabling the Host row restores one route",
+        "ok": true
+      }
+    ],
+    "failures": [],
+    "fixtures": [
+      {
+        "id": "F1",
+        "kind": "route-interception-500",
+        "label": "FIXTURE: not a real disconnect"
+      }
+    ],
+    "not_run": [],
+    "ready": {
+      "version": "0.2.2-rc.3",
+      "commit": "39163dd30f70",
+      "verified": "与锁定提交一致",
+      "instance": "5f08247c-9af7-4e45-806d-a3a543916ce9",
+      "checkedAt": "2026/11/16 13:18:09",
+      "checkedAtIso": "2026-11-16T05:18:09.205Z",
+      "startedAt": "2026/11/16 13:17:57"
+    },
+    "status_first": {
+      "schema_version": 1,
+      "product": "KnowledgeOS",
+      "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+      "upstream_version": "0.2.2-rc.3",
+      "expected_upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+      "upstream_commit_verified": true,
+      "host_instance_id": "5f08247c-9af7-4e45-806d-a3a543916ce9",
+      "started_at": "2026-11-16T05:17:57.218Z",
+      "checked_at": "2026-11-16T05:18:41.614Z",
+      "status": "ok"
+    },
+    "status_after_restart": {
+      "schema_version": 1,
+      "product": "KnowledgeOS",
+      "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+      "upstream_version": "0.2.2-rc.3",
+      "expected_upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+      "upstream_commit_verified": true,
+      "host_instance_id": "b5172045-588a-4a49-91e8-d2563b19b590",
+      "started_at": "2026-11-16T05:18:50.897Z",
+      "checked_at": "2026-11-16T05:18:54.670Z",
+      "status": "ok"
+    },
+    "instance_change": {
+      "instanceBefore": "5f08247c-9af7-4e45-806d-a3a543916ce9",
+      "instanceAfter": "b5172045-588a-4a49-91e8-d2563b19b590"
+    }
+  },
+  "host_contract": {
+    "result": "PASS",
+    "steps": [
+      {
+        "step": "authenticated-instance-1",
+        "anonymous": 401,
+        "authenticated": 200,
+        "entry": 303
+      },
+      {
+        "step": "authenticated-instance-2",
+        "anonymous": 401,
+        "authenticated": 200,
+        "entry": 303
+      },
+      {
+        "step": "contract-same-instance",
+        "exit_code": 0
+      },
+      {
+        "step": "contract-restart",
+        "exit_code": 0
+      }
+    ]
+  },
+  "remove_auth_probe": {
+    "result": "PASS",
+    "checks": {
+      "artifacts_before": {
+        "lib/index.js": "22757b15ec4352d9a26d848320dc31b3a96aba86446fb70fa51fc94ce2d26c6a",
+        "lib/client.js": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9"
+      },
+      "control": {
+        "entry_status": 303,
+        "status_valid_cookie": 200,
+        "status_invalid_cookie": 401,
+        "root_valid_cookie": 200,
+        "root_anonymous": 401
+      },
+      "remove": {
+        "exit": 0,
+        "stdout": "✓ Lockfile passes supply-chain policies (verified 3m ago)\n\ndependencies:\n- knowledgeos-panel link:C:/Users/27363/Desktop/personal base/personal_konwledge-base/packages/knowledgeos-panel\n\nAlready up to date\nDone in 369ms using pnpm v11.22.0",
+        "stderr": ""
+      },
+      "profile_after_remove": {
+        "dependency": null,
+        "bundles": [
+          "@deepseek-ai/dsh-base",
+          "@deepseek-ai/dsh-web-app"
+        ]
+      },
+      "removed": {
+        "entry_status": 303,
+        "root_valid_cookie": 200,
+        "root_anonymous": 401,
+        "feature_route_valid_cookie": 404,
+        "feature_route_anonymous": 404,
+        "feature_route_content_type": null,
+        "feature_route_body_prefix": ""
+      },
+      "reinstall": {
+        "exit": 0,
+        "stdout": "✓ Lockfile passes supply-chain policies (verified 7s ago)\n\ndependencies:\n+ knowledgeos-panel link:C:/Users/27363/Desktop/personal base/personal_konwledge-base/packages/knowledgeos-panel\n\nAlready up to date\nDone in 383ms using pnpm v11.22.0",
+        "stderr": ""
+      },
+      "profile_after_reinstall": {
+        "dependency": "link:C:/Users/27363/Desktop/personal base/personal_konwledge-base/packages/knowledgeos-panel",
+        "bundles": [
+          "@deepseek-ai/dsh-base",
+          "@deepseek-ai/dsh-web-app",
+          "knowledgeos-panel"
+        ]
+      },
+      "restored": {
+        "entry_status": 303,
+        "feature_route_valid_cookie": 200,
+        "feature_route_content_type": "application/json; charset=utf-8"
+      },
+      "artifacts_after": {
+        "lib/index.js": "22757b15ec4352d9a26d848320dc31b3a96aba86446fb70fa51fc94ce2d26c6a",
+        "lib/client.js": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9"
+      }
+    },
+    "steps": [
+      {
+        "name": "frozen artifacts present before cycle",
+        "ok": true
+      },
+      {
+        "name": "control: valid cookie reads the live route",
+        "ok": true
+      },
+      {
+        "name": "control: bogus cookie is rejected by the live route",
+        "ok": true
+      },
+      {
+        "name": "control: a fresh cookie authenticates the existing page route",
+        "ok": true
+      },
+      {
+        "name": "fixed CLI remove exited 0",
+        "ok": true
+      },
+      {
+        "name": "profile no longer references the bundle",
+        "ok": true
+      },
+      {
+        "name": "removed Host is reachable and the fresh cookie is valid",
+        "ok": true
+      },
+      {
+        "name": "removed feature route returns 404 (not 200, not an auth failure)",
+        "ok": true
+      },
+      {
+        "name": "removed feature route is not the KnowledgeOS payload",
+        "ok": true
+      },
+      {
+        "name": "fixed CLI reinstall exited 0",
+        "ok": true
+      },
+      {
+        "name": "profile links back to the candidate checkout",
+        "ok": true
+      },
+      {
+        "name": "reinstalled route is live with a valid cookie again",
+        "ok": true
+      },
+      {
+        "name": "reinstalled artifacts equal the frozen candidate bytes",
+        "ok": true
+      }
+    ]
+  },
+  "r4_launch": {
+    "actual_command_line": "\"D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe\" --import tsx/esm apps/cli/src/bin.ts --profile knowledgeos-test --port 3099 --no-open ",
+    "actual_argv_contains_web_positional": false,
+    "actual_argv_contains_init_flag": false,
+    "entry_url_shape": "http://127.0.0.1:3099/?token=<redacted>",
+    "cli_version": [
+      "{",
+      "  \"status\": 0,",
+      "  \"stdout\": \"0.2.2-rc.3\",",
+      "  \"stderr\": \"\"",
+      "}"
+    ],
+    "status_probe": "{\r\n  \"entry_status\": 303,\r\n  \"cookie_received\": true,\r\n  \"status_code\": 200,\r\n  \"content_type\": \"application/json; charset=utf-8\",\r\n  \"body_prefix\": \"{\\\"schema_version\\\":1,\\\"product\\\":\\\"KnowledgeOS\\\",\\\"upstream_commit\\\":\\\"39163dd30f703a79079e2d2446545cff3c453738\\\",\\\"upstream_versi\"\r\n}\r\n",
+    "port_after_stop": 0,
+    "desktop_pid_start": "2026-11-16T10:36:09.5251834+08:00"
+  },
+  "r3": {
+    "sampled_at": "2026-11-16T13:17:39.6689549+08:00",
+    "powershell_version": "5.1.26100.9818",
+    "process_id": 61956,
+    "repo": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base",
+    "home_before": "C:\\Users\\27363",
+    "home_after": "C:\\Users\\27363",
+    "home_unchanged": true,
+    "home_variable_options": "ReadOnly, AllScope",
+    "lowercase_home_same_variable": true,
+    "home_variable_options_after": "ReadOnly, AllScope",
+    "dsh_home": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\.cache\\dsh-home-fnd001",
+    "dsh_test_home": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\.cache\\dsh-home-fnd001",
+    "dsh_home_is_isolated": true,
+    "dsh_home_under_repo": true,
+    "dsh_home_exists": true,
+    "used_lowercase_home_assignment": false
+  }
+}

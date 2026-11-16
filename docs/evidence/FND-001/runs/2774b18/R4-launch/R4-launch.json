@@ -1,0 +1,34 @@
+﻿{
+    "sampled_at":  "2026-11-16T13:39:36.5853411+08:00",
+    "repo":  "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base",
+    "dsh_root":  "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\.cache\\build\\dsh-39163dd",
+    "dsh_home":  "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\.cache\\dsh-home-fnd001",
+    "started_at":  "2026-11-16T13:39:26.1690817+08:00",
+    "documented_command":  "node --import tsx/esm apps/cli/src/bin.ts --profile knowledgeos-test --port 3099 --no-open",
+    "process_id":  29164,
+    "exit_used":  "stopped by the probe after the route check",
+    "actual_command_line":  "\"D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe\" --import tsx/esm apps/cli/src/bin.ts --profile knowledgeos-test --port 3099 --no-open ",
+    "actual_argv_contains_web_positional":  false,
+    "actual_argv_contains_init_flag":  false,
+    "entry_url_shape":  "http://127.0.0.1:3099/?token=\u003credacted\u003e",
+    "entry_url_obtained":  true,
+    "entry_host":  "127.0.0.1",
+    "entry_port":  3099,
+    "children":  [
+                     {
+                         "ProcessId":  44252,
+                         "Name":  "conhost.exe",
+                         "CommandLine":  "\\??\\C:\\Windows\\system32\\conhost.exe 0x4"
+                     }
+                 ],
+    "status_probe":  "{\r\n  \"entry_status\": 303,\r\n  \"cookie_received\": true,\r\n  \"status_code\": 200,\r\n  \"content_type\": \"application/json; charset=utf-8\",\r\n  \"body_prefix\": \"{\\\"schema_version\\\":1,\\\"product\\\":\\\"KnowledgeOS\\\",\\\"upstream_commit\\\":\\\"39163dd30f703a79079e2d2446545cff3c453738\\\",\\\"upstream_versi\"\r\n}\r\n",
+    "cli_version":  [
+                        "{",
+                        "  \"status\": 0,",
+                        "  \"stdout\": \"0.2.2-rc.3\",",
+                        "  \"stderr\": \"\"",
+                        "}"
+                    ],
+    "port_3099_listening_after_stop":  0,
+    "desktop_pid_51900_start":  "2026-11-16T10:36:09.5251834+08:00"
+}

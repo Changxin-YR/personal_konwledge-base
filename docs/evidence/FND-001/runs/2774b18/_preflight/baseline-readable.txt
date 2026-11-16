@@ -1,0 +1,7 @@
+﻿sampled_at=2026-11-16T13:14:09.0931578+08:00
+desktop_pid_51900_start=2026-11-16T10:36:09.5251834+08:00
+desktop_pid_51900_name=DeepSeek Harness
+gui_listener_port_62739_owner_pid=57664
+gui_owner_start=2026-11-16T10:36:13.0828573+08:00
+gui_owner_name=DeepSeek Harness
+port_3099_free=True

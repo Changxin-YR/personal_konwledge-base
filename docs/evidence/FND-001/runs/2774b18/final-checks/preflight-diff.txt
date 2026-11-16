@@ -1,0 +1,15 @@
+﻿verification_start_head=e970f603b22790437f8cb828ad99464b9bcead82
+final_head=f25726fc7e4314ac6b385bc7976c0014203a28f6
+
+## git diff 2774b18..e970f60 --name-only -- packages scripts
+(end; empty above means no product/script change in the evidence commit)
+
+## git diff 2774b18..f25726f --name-only -- packages
+packages/knowledgeos-panel/README.md
+
+## git diff 2774b18..f25726f --stat -- product lib/src/package.json/build.mjs/cordis.patch.yml
+(end; empty above means product implementation unchanged)
+
+## git diff c2a6d43..f25726f --name-only
+docs/evidence/FND-001/architecture-review-closeout.md
+docs/evidence/FND-001/candidate.md

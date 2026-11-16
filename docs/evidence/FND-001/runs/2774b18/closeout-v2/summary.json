@@ -1,0 +1,36 @@
+{
+  "started_at": "2026-11-16T05:16:19.774Z",
+  "base": "http://127.0.0.1:3099",
+  "profile": "knowledgeos-test",
+  "dsh_root": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\.cache\\build\\dsh-39163dd",
+  "home": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\.cache\\dsh-home-fnd001",
+  "plugin_path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel",
+  "commit_hash": "39163dd30f703a79079e2d2446545cff3c453738",
+  "host_starts": [
+    {
+      "label": "initial",
+      "pid": 56124,
+      "at": "2026-11-16T05:16:28.146Z",
+      "entry_url_shape": "http://127.0.0.1:3099/?token=<redacted>"
+    }
+  ],
+  "steps": [
+    {
+      "name": "unexpected exception",
+      "ok": false,
+      "detail": {
+        "message": "Cannot read properties of undefined (reading 'push')"
+      },
+      "at": "2026-11-16T05:16:31.623Z"
+    }
+  ],
+  "failures": [
+    "unexpected exception: {\"message\":\"Cannot read properties of undefined (reading 'push')\"}"
+  ],
+  "not_run": [],
+  "recovery": [],
+  "r1": {},
+  "r2": {},
+  "finished_at": "2026-11-16T05:16:33.353Z",
+  "result": "FAIL"
+}

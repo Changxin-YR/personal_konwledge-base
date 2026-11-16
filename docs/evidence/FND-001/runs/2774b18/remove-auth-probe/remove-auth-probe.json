@@ -1,0 +1,241 @@
+{
+  "started_at": "2026-11-16T05:27:45.159Z",
+  "base": "http://127.0.0.1:3099",
+  "profile": "knowledgeos-test",
+  "plugin_path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel",
+  "host_starts": [
+    {
+      "label": "control-installed",
+      "pid": 61916,
+      "at": "2026-11-16T05:27:50.148Z"
+    },
+    {
+      "label": "after-remove",
+      "pid": 51840,
+      "at": "2026-11-16T05:27:57.625Z"
+    },
+    {
+      "label": "after-reinstall",
+      "pid": 60524,
+      "at": "2026-11-16T05:28:05.060Z"
+    }
+  ],
+  "steps": [
+    {
+      "name": "frozen artifacts present before cycle",
+      "ok": true,
+      "detail": {
+        "lib/index.js": "22757b15ec4352d9a26d848320dc31b3a96aba86446fb70fa51fc94ce2d26c6a",
+        "lib/client.js": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9"
+      },
+      "at": "2026-11-16T05:27:45.161Z"
+    },
+    {
+      "name": "control: valid cookie reads the live route",
+      "ok": true,
+      "detail": {
+        "entry_status": 303,
+        "status_valid_cookie": 200,
+        "status_invalid_cookie": 401,
+        "root_valid_cookie": 200,
+        "root_anonymous": 401
+      },
+      "at": "2026-11-16T05:27:50.797Z"
+    },
+    {
+      "name": "control: bogus cookie is rejected by the live route",
+      "ok": true,
+      "detail": {
+        "entry_status": 303,
+        "status_valid_cookie": 200,
+        "status_invalid_cookie": 401,
+        "root_valid_cookie": 200,
+        "root_anonymous": 401
+      },
+      "at": "2026-11-16T05:27:50.797Z"
+    },
+    {
+      "name": "control: a fresh cookie authenticates the existing page route",
+      "ok": true,
+      "detail": {
+        "entry_status": 303,
+        "status_valid_cookie": 200,
+        "status_invalid_cookie": 401,
+        "root_valid_cookie": 200,
+        "root_anonymous": 401
+      },
+      "at": "2026-11-16T05:27:50.797Z"
+    },
+    {
+      "name": "fixed CLI remove exited 0",
+      "ok": true,
+      "detail": {
+        "exit": 0,
+        "stdout": "✓ Lockfile passes supply-chain policies (verified 3m ago)\n\ndependencies:\n- knowledgeos-panel link:C:/Users/27363/Desktop/personal base/personal_konwledge-base/packages/knowledgeos-panel\n\nAlready up to date\nDone in 369ms using pnpm v11.22.0",
+        "stderr": ""
+      },
+      "at": "2026-11-16T05:27:52.677Z"
+    },
+    {
+      "name": "profile no longer references the bundle",
+      "ok": true,
+      "detail": {
+        "dependency": null,
+        "bundles": [
+          "@deepseek-ai/dsh-base",
+          "@deepseek-ai/dsh-web-app"
+        ]
+      },
+      "at": "2026-11-16T05:27:52.678Z"
+    },
+    {
+      "name": "removed Host is reachable and the fresh cookie is valid",
+      "ok": true,
+      "detail": {
+        "entry_status": 303,
+        "root_valid_cookie": 200,
+        "root_anonymous": 401,
+        "feature_route_valid_cookie": 404,
+        "feature_route_anonymous": 404,
+        "feature_route_content_type": null,
+        "feature_route_body_prefix": ""
+      },
+      "at": "2026-11-16T05:27:58.183Z"
+    },
+    {
+      "name": "removed feature route returns 404 (not 200, not an auth failure)",
+      "ok": true,
+      "detail": {
+        "entry_status": 303,
+        "root_valid_cookie": 200,
+        "root_anonymous": 401,
+        "feature_route_valid_cookie": 404,
+        "feature_route_anonymous": 404,
+        "feature_route_content_type": null,
+        "feature_route_body_prefix": ""
+      },
+      "at": "2026-11-16T05:27:58.183Z"
+    },
+    {
+      "name": "removed feature route is not the KnowledgeOS payload",
+      "ok": true,
+      "detail": {
+        "entry_status": 303,
+        "root_valid_cookie": 200,
+        "root_anonymous": 401,
+        "feature_route_valid_cookie": 404,
+        "feature_route_anonymous": 404,
+        "feature_route_content_type": null,
+        "feature_route_body_prefix": ""
+      },
+      "at": "2026-11-16T05:27:58.183Z"
+    },
+    {
+      "name": "fixed CLI reinstall exited 0",
+      "ok": true,
+      "detail": {
+        "exit": 0,
+        "stdout": "✓ Lockfile passes supply-chain policies (verified 7s ago)\n\ndependencies:\n+ knowledgeos-panel link:C:/Users/27363/Desktop/personal base/personal_konwledge-base/packages/knowledgeos-panel\n\nAlready up to date\nDone in 383ms using pnpm v11.22.0",
+        "stderr": ""
+      },
+      "at": "2026-11-16T05:28:00.117Z"
+    },
+    {
+      "name": "profile links back to the candidate checkout",
+      "ok": true,
+      "detail": {
+        "dependency": "link:C:/Users/27363/Desktop/personal base/personal_konwledge-base/packages/knowledgeos-panel",
+        "bundles": [
+          "@deepseek-ai/dsh-base",
+          "@deepseek-ai/dsh-web-app",
+          "knowledgeos-panel"
+        ]
+      },
+      "at": "2026-11-16T05:28:00.118Z"
+    },
+    {
+      "name": "reinstalled route is live with a valid cookie again",
+      "ok": true,
+      "detail": {
+        "entry_status": 303,
+        "feature_route_valid_cookie": 200,
+        "feature_route_content_type": "application/json; charset=utf-8"
+      },
+      "at": "2026-11-16T05:28:05.644Z"
+    },
+    {
+      "name": "reinstalled artifacts equal the frozen candidate bytes",
+      "ok": true,
+      "detail": {
+        "before": {
+          "lib/index.js": "22757b15ec4352d9a26d848320dc31b3a96aba86446fb70fa51fc94ce2d26c6a",
+          "lib/client.js": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9"
+        },
+        "after": {
+          "lib/index.js": "22757b15ec4352d9a26d848320dc31b3a96aba86446fb70fa51fc94ce2d26c6a",
+          "lib/client.js": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9"
+        }
+      },
+      "at": "2026-11-16T05:28:05.645Z"
+    }
+  ],
+  "checks": {
+    "artifacts_before": {
+      "lib/index.js": "22757b15ec4352d9a26d848320dc31b3a96aba86446fb70fa51fc94ce2d26c6a",
+      "lib/client.js": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9"
+    },
+    "control": {
+      "entry_status": 303,
+      "status_valid_cookie": 200,
+      "status_invalid_cookie": 401,
+      "root_valid_cookie": 200,
+      "root_anonymous": 401
+    },
+    "remove": {
+      "exit": 0,
+      "stdout": "✓ Lockfile passes supply-chain policies (verified 3m ago)\n\ndependencies:\n- knowledgeos-panel link:C:/Users/27363/Desktop/personal base/personal_konwledge-base/packages/knowledgeos-panel\n\nAlready up to date\nDone in 369ms using pnpm v11.22.0",
+      "stderr": ""
+    },
+    "profile_after_remove": {
+      "dependency": null,
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app"
+      ]
+    },
+    "removed": {
+      "entry_status": 303,
+      "root_valid_cookie": 200,
+      "root_anonymous": 401,
+      "feature_route_valid_cookie": 404,
+      "feature_route_anonymous": 404,
+      "feature_route_content_type": null,
+      "feature_route_body_prefix": ""
+    },
+    "reinstall": {
+      "exit": 0,
+      "stdout": "✓ Lockfile passes supply-chain policies (verified 7s ago)\n\ndependencies:\n+ knowledgeos-panel link:C:/Users/27363/Desktop/personal base/personal_konwledge-base/packages/knowledgeos-panel\n\nAlready up to date\nDone in 383ms using pnpm v11.22.0",
+      "stderr": ""
+    },
+    "profile_after_reinstall": {
+      "dependency": "link:C:/Users/27363/Desktop/personal base/personal_konwledge-base/packages/knowledgeos-panel",
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app",
+        "knowledgeos-panel"
+      ]
+    },
+    "restored": {
+      "entry_status": 303,
+      "feature_route_valid_cookie": 200,
+      "feature_route_content_type": "application/json; charset=utf-8"
+    },
+    "artifacts_after": {
+      "lib/index.js": "22757b15ec4352d9a26d848320dc31b3a96aba86446fb70fa51fc94ce2d26c6a",
+      "lib/client.js": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9"
+    }
+  },
+  "failures": [],
+  "finished_at": "2026-11-16T05:28:07.696Z",
+  "result": "PASS"
+}

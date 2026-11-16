@@ -1,0 +1,1 @@
+﻿powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\Users\27363\Desktop\personal base\personal_konwledge-base\docs\evidence\FND-001\runs\2774b18\R3\R3-home-variable-check.ps1"

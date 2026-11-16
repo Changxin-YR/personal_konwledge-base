@@ -1,0 +1,73 @@
+{
+  "sampled_report_worktree_revision": "current working tree (REPORT.md was edited by supervisor after run; command line moved)",
+  "launch_command_lines": [
+    {
+      "file": "candidate",
+      "line": 67,
+      "text": "node --import tsx/esm apps/cli/src/bin.ts --profile knowledgeos-test --port 3099 --no-open"
+    },
+    {
+      "file": "readme",
+      "line": 77,
+      "text": "node --import tsx/esm apps/cli/src/bin.ts --profile knowledgeos-test --port 3099 --no-open"
+    },
+    {
+      "file": "report",
+      "line": 115,
+      "text": "node --import tsx/esm apps/cli/src/bin.ts --profile knowledgeos-test --port 3099 --no-open"
+    }
+  ],
+  "init_command_lines": [
+    {
+      "file": "readme",
+      "line": 69,
+      "text": "node --import tsx/esm apps/cli/src/bin.ts --profile knowledgeos-test --from-default-profile web --dump-config"
+    }
+  ],
+  "plugin_command_lines": [
+    {
+      "file": "readme",
+      "line": 72,
+      "text": "node --import tsx/esm apps/cli/src/bin.ts plugin --profile knowledgeos-test add \"$knowledgeosRepo\\packages\\knowledgeos-panel\""
+    },
+    {
+      "file": "readme",
+      "line": 83,
+      "text": "node --import tsx/esm apps/cli/src/bin.ts plugin --profile knowledgeos-test remove knowledgeos-panel"
+    }
+  ],
+  "expected_argv": "--import tsx/esm apps/cli/src/bin.ts --profile knowledgeos-test --port 3099 --no-open",
+  "launch_lines_match_summary_argv": true,
+  "launch_line_count": 3,
+  "launch_uses_web_positional": false,
+  "launch_uses_from_default_profile": false,
+  "init": {
+    "occurrences": [
+      {
+        "file": "readme",
+        "line": 69,
+        "with_first_creation_comment": true
+      }
+    ],
+    "readme_first_creation_note": true,
+    "candidate_first_time_note": true
+  },
+  "report_has_from_default_profile": true,
+  "summary_r4": {
+    "launch_argv": [
+      "--import",
+      "tsx/esm",
+      "apps/cli/src/bin.ts",
+      "--profile",
+      "knowledgeos-test",
+      "--port",
+      "3099",
+      "--no-open"
+    ],
+    "cli_version": "0.2.2-rc.3",
+    "cli_version_exit": 0,
+    "contains_web_positional": false,
+    "init_used_in_this_run": false
+  },
+  "result": "PASS"
+}

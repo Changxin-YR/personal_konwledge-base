@@ -1,0 +1,16 @@
+{
+  "name": "dsh-profile-knowledgeos-test",
+  "private": true,
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app",
+        "knowledgeos-panel"
+      ]
+    }
+  },
+  "dependencies": {
+    "knowledgeos-panel": "link:C:/Users/27363/Desktop/personal base/personal_konwledge-base/packages/knowledgeos-panel"
+  }
+}

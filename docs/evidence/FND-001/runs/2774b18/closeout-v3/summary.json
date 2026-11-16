@@ -1,0 +1,516 @@
+{
+  "started_at": "2026-11-16T05:22:05.195Z",
+  "base": "http://127.0.0.1:3099",
+  "profile": "knowledgeos-test",
+  "dsh_root": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\.cache\\build\\dsh-39163dd",
+  "home": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\.cache\\dsh-home-fnd001",
+  "plugin_path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel",
+  "commit_hash": "39163dd30f703a79079e2d2446545cff3c453738",
+  "host_starts": [
+    {
+      "label": "initial",
+      "pid": 61532,
+      "at": "2026-11-16T05:22:28.804Z",
+      "entry_url_shape": "http://127.0.0.1:3099/?token=<redacted>"
+    },
+    {
+      "label": "after-remove",
+      "pid": 19688,
+      "at": "2026-11-16T05:24:14.798Z",
+      "entry_url_shape": "http://127.0.0.1:3099/?token=<redacted>"
+    },
+    {
+      "label": "after-reinstall",
+      "pid": 56052,
+      "at": "2026-11-16T05:24:24.408Z",
+      "entry_url_shape": "http://127.0.0.1:3099/?token=<redacted>"
+    }
+  ],
+  "steps": [
+    {
+      "name": "R2 loading is not shown as a failure",
+      "ok": true,
+      "detail": {
+        "fixture": "F2",
+        "loadingConnection": "正在刷新 · 显示上次结果",
+        "loadingChip": "刷新中",
+        "refreshingVisible": true,
+        "checkedBefore": "2026-11-16T05:22:35.749Z",
+        "checkedAfter": "2026-11-16T05:22:38.848Z",
+        "requests": 1
+      },
+      "at": "2026-11-16T05:22:39.288Z"
+    },
+    {
+      "name": "R2 refresh then yields a newer success",
+      "ok": true,
+      "detail": {
+        "checkedBefore": "2026-11-16T05:22:35.749Z",
+        "checkedAfter": "2026-11-16T05:22:38.848Z"
+      },
+      "at": "2026-11-16T05:22:39.288Z"
+    },
+    {
+      "name": "R1 five reloads keep one entry and one panel",
+      "ok": true,
+      "detail": {
+        "reloads": [
+          {
+            "index": 1,
+            "entries": 1,
+            "panels": 1
+          },
+          {
+            "index": 2,
+            "entries": 1,
+            "panels": 1
+          },
+          {
+            "index": 3,
+            "entries": 1,
+            "panels": 1
+          },
+          {
+            "index": 4,
+            "entries": 1,
+            "panels": 1
+          },
+          {
+            "index": 5,
+            "entries": 1,
+            "panels": 1
+          }
+        ]
+      },
+      "at": "2026-11-16T05:22:43.241Z"
+    },
+    {
+      "name": "R1 ten enter/exit cycles keep one entry and one panel",
+      "ok": true,
+      "detail": {
+        "cycles": [
+          {
+            "index": 1,
+            "entries": 1,
+            "panels": 1,
+            "requests": 1
+          },
+          {
+            "index": 2,
+            "entries": 1,
+            "panels": 1,
+            "requests": 1
+          },
+          {
+            "index": 3,
+            "entries": 1,
+            "panels": 1,
+            "requests": 1
+          },
+          {
+            "index": 4,
+            "entries": 1,
+            "panels": 1,
+            "requests": 1
+          },
+          {
+            "index": 5,
+            "entries": 1,
+            "panels": 1,
+            "requests": 1
+          },
+          {
+            "index": 6,
+            "entries": 1,
+            "panels": 1,
+            "requests": 1
+          },
+          {
+            "index": 7,
+            "entries": 1,
+            "panels": 1,
+            "requests": 1
+          },
+          {
+            "index": 8,
+            "entries": 1,
+            "panels": 1,
+            "requests": 1
+          },
+          {
+            "index": 9,
+            "entries": 1,
+            "panels": 1,
+            "requests": 1
+          },
+          {
+            "index": 10,
+            "entries": 1,
+            "panels": 1,
+            "requests": 1
+          }
+        ]
+      },
+      "at": "2026-11-16T05:23:02.103Z"
+    },
+    {
+      "name": "R1 each mount issues exactly one status request",
+      "ok": true,
+      "detail": {
+        "cycles": [
+          {
+            "index": 1,
+            "entries": 1,
+            "panels": 1,
+            "requests": 1
+          },
+          {
+            "index": 2,
+            "entries": 1,
+            "panels": 1,
+            "requests": 1
+          },
+          {
+            "index": 3,
+            "entries": 1,
+            "panels": 1,
+            "requests": 1
+          },
+          {
+            "index": 4,
+            "entries": 1,
+            "panels": 1,
+            "requests": 1
+          },
+          {
+            "index": 5,
+            "entries": 1,
+            "panels": 1,
+            "requests": 1
+          },
+          {
+            "index": 6,
+            "entries": 1,
+            "panels": 1,
+            "requests": 1
+          },
+          {
+            "index": 7,
+            "entries": 1,
+            "panels": 1,
+            "requests": 1
+          },
+          {
+            "index": 8,
+            "entries": 1,
+            "panels": 1,
+            "requests": 1
+          },
+          {
+            "index": 9,
+            "entries": 1,
+            "panels": 1,
+            "requests": 1
+          },
+          {
+            "index": 10,
+            "entries": 1,
+            "panels": 1,
+            "requests": 1
+          }
+        ]
+      },
+      "at": "2026-11-16T05:23:02.103Z"
+    },
+    {
+      "name": "R1 60 seconds away produces no feature request",
+      "ok": true,
+      "detail": {
+        "requests": 0,
+        "seconds": 60
+      },
+      "at": "2026-11-16T05:24:02.172Z"
+    },
+    {
+      "name": "R1 60 seconds away produces no page error",
+      "ok": true,
+      "detail": {
+        "pageErrors": 0
+      },
+      "at": "2026-11-16T05:24:02.172Z"
+    },
+    {
+      "name": "R1 profile install resolves to this candidate checkout",
+      "ok": true,
+      "detail": {
+        "package": "knowledgeos-panel",
+        "resolved_spec": "link:C:/Users/27363/Desktop/personal base/personal_konwledge-base/packages/knowledgeos-panel",
+        "plugin_path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel",
+        "artifacts": {
+          "lib/index.js": "22757b15ec4352d9a26d848320dc31b3a96aba86446fb70fa51fc94ce2d26c6a",
+          "lib/client.js": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9"
+        }
+      },
+      "at": "2026-11-16T05:24:02.277Z"
+    },
+    {
+      "name": "R1 fixed CLI removed the bundle",
+      "ok": true,
+      "detail": {
+        "exit": 0,
+        "stdout": "✓ Lockfile passes supply-chain policies (verified 2m ago)\n\ndependencies:\n- knowledgeos-panel link:C:/Users/27363/Desktop/personal base/personal_konwledge-base/packages/knowledgeos-panel\n\nAlready up to date\nDone in 1.3s using pnpm v11.22.0",
+        "stderr": ""
+      },
+      "at": "2026-11-16T05:24:05.603Z"
+    },
+    {
+      "name": "R1 removed bundle left no dependency",
+      "ok": true,
+      "at": "2026-11-16T05:24:05.605Z"
+    },
+    {
+      "name": "R1 removed bundle left no layer",
+      "ok": true,
+      "detail": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app"
+      ],
+      "at": "2026-11-16T05:24:05.606Z"
+    },
+    {
+      "name": "R1 status route is gone after removal",
+      "ok": true,
+      "detail": {
+        "status": 404,
+        "contentType": null,
+        "bodyPrefix": ""
+      },
+      "at": "2026-11-16T05:24:15.286Z"
+    },
+    {
+      "name": "R1 removal was verified with a valid authenticated session",
+      "ok": true,
+      "detail": {
+        "status": 404
+      },
+      "at": "2026-11-16T05:24:15.286Z"
+    },
+    {
+      "name": "R1 Client entry and panel are gone after removal",
+      "ok": true,
+      "detail": {
+        "entries": 0,
+        "panels": 0,
+        "navButtons": 4
+      },
+      "at": "2026-11-16T05:24:17.412Z"
+    },
+    {
+      "name": "R1 DSH navigation still renders after removal",
+      "ok": true,
+      "detail": {
+        "navButtons": 4
+      },
+      "at": "2026-11-16T05:24:17.412Z"
+    },
+    {
+      "name": "R1 fixed CLI reinstalled the same candidate",
+      "ok": true,
+      "detail": {
+        "exit": 0,
+        "stdout": "✓ Lockfile passes supply-chain policies (verified 13s ago)\n\ndependencies:\n+ knowledgeos-panel link:C:/Users/27363/Desktop/personal base/personal_konwledge-base/packages/knowledgeos-panel\n\nAlready up to date\nDone in 372ms using pnpm v11.22.0",
+        "stderr": ""
+      },
+      "at": "2026-11-16T05:24:19.431Z"
+    },
+    {
+      "name": "R1 reinstall restored the bundle layer",
+      "ok": true,
+      "detail": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app",
+        "knowledgeos-panel"
+      ],
+      "at": "2026-11-16T05:24:19.433Z"
+    },
+    {
+      "name": "R1 reinstall loaded the same candidate artifacts",
+      "ok": true,
+      "detail": {
+        "before": {
+          "lib/index.js": "22757b15ec4352d9a26d848320dc31b3a96aba86446fb70fa51fc94ce2d26c6a",
+          "lib/client.js": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9"
+        },
+        "after": {
+          "lib/index.js": "22757b15ec4352d9a26d848320dc31b3a96aba86446fb70fa51fc94ce2d26c6a",
+          "lib/client.js": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9"
+        }
+      },
+      "at": "2026-11-16T05:24:24.410Z"
+    },
+    {
+      "name": "R1 status route is live after reinstall",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8"
+      },
+      "at": "2026-11-16T05:24:25.040Z"
+    },
+    {
+      "name": "R1 reinstall restores exactly one entry",
+      "ok": true,
+      "at": "2026-11-16T05:24:25.456Z"
+    },
+    {
+      "name": "R1 reinstall restores one working panel",
+      "ok": true,
+      "at": "2026-11-16T05:24:25.550Z"
+    },
+    {
+      "name": "R1 reinstalled panel shows the fixed source build",
+      "ok": true,
+      "detail": {
+        "version": "0.2.2-rc.3",
+        "commit": "39163dd30f70",
+        "instance": "5b9a542d-8d79-438b-88ec-0d18c2c0d9dc"
+      },
+      "at": "2026-11-16T05:24:25.620Z"
+    },
+    {
+      "name": "R4 fixed source launch matches the documented entry",
+      "ok": true,
+      "detail": {
+        "launch_argv": [
+          "--import",
+          "tsx/esm",
+          "apps/cli/src/bin.ts",
+          "--profile",
+          "knowledgeos-test",
+          "--port",
+          "3099",
+          "--no-open"
+        ],
+        "cli_version_exit": 0,
+        "cli_version": "0.2.2-rc.3",
+        "init_used_in_this_run": false,
+        "contains_web_positional": false
+      },
+      "at": "2026-11-16T05:24:25.884Z"
+    }
+  ],
+  "failures": [],
+  "fixtures": [
+    {
+      "id": "F2",
+      "kind": "controlled-3s-status-delay",
+      "label": "FIXTURE: controlled latency, not a real disconnect"
+    }
+  ],
+  "not_run": [],
+  "recovery": [],
+  "r1": {
+    "idle": {
+      "seconds": 60,
+      "requests": 0,
+      "pageErrors": 0
+    },
+    "install": {
+      "package": "knowledgeos-panel",
+      "resolved_spec": "link:C:/Users/27363/Desktop/personal base/personal_konwledge-base/packages/knowledgeos-panel",
+      "plugin_path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel",
+      "artifacts": {
+        "lib/index.js": "22757b15ec4352d9a26d848320dc31b3a96aba86446fb70fa51fc94ce2d26c6a",
+        "lib/client.js": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9"
+      }
+    },
+    "remove": {
+      "exit": 0,
+      "stdout": "✓ Lockfile passes supply-chain policies (verified 2m ago)\n\ndependencies:\n- knowledgeos-panel link:C:/Users/27363/Desktop/personal base/personal_konwledge-base/packages/knowledgeos-panel\n\nAlready up to date\nDone in 1.3s using pnpm v11.22.0",
+      "stderr": ""
+    },
+    "profile_after_remove": {
+      "name": "dsh-profile-knowledgeos-test",
+      "private": true,
+      "dsh": {
+        "profile": {
+          "bundles": [
+            "@deepseek-ai/dsh-base",
+            "@deepseek-ai/dsh-web-app"
+          ]
+        }
+      }
+    },
+    "route_after_remove": {
+      "status": 404,
+      "contentType": null,
+      "bodyPrefix": ""
+    },
+    "client_after_remove": {
+      "entries": 0,
+      "panels": 0,
+      "navButtons": 4
+    },
+    "reinstall": {
+      "exit": 0,
+      "stdout": "✓ Lockfile passes supply-chain policies (verified 13s ago)\n\ndependencies:\n+ knowledgeos-panel link:C:/Users/27363/Desktop/personal base/personal_konwledge-base/packages/knowledgeos-panel\n\nAlready up to date\nDone in 372ms using pnpm v11.22.0",
+      "stderr": ""
+    },
+    "profile_after_add": {
+      "name": "dsh-profile-knowledgeos-test",
+      "private": true,
+      "dsh": {
+        "profile": {
+          "bundles": [
+            "@deepseek-ai/dsh-base",
+            "@deepseek-ai/dsh-web-app",
+            "knowledgeos-panel"
+          ]
+        }
+      },
+      "dependencies": {
+        "knowledgeos-panel": "link:C:/Users/27363/Desktop/personal base/personal_konwledge-base/packages/knowledgeos-panel"
+      }
+    },
+    "artifacts_after_reinstall": {
+      "lib/index.js": "22757b15ec4352d9a26d848320dc31b3a96aba86446fb70fa51fc94ce2d26c6a",
+      "lib/client.js": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9"
+    },
+    "route_after_reinstall": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8"
+    },
+    "restored": {
+      "version": "0.2.2-rc.3",
+      "commit": "39163dd30f70",
+      "instance": "5b9a542d-8d79-438b-88ec-0d18c2c0d9dc"
+    }
+  },
+  "r2": {
+    "fixture": "F2",
+    "loadingConnection": "正在刷新 · 显示上次结果",
+    "loadingChip": "刷新中",
+    "refreshingVisible": true,
+    "checkedBefore": "2026-11-16T05:22:35.749Z",
+    "checkedAfter": "2026-11-16T05:22:38.848Z",
+    "requests": 1
+  },
+  "r4": {
+    "launch_argv": [
+      "--import",
+      "tsx/esm",
+      "apps/cli/src/bin.ts",
+      "--profile",
+      "knowledgeos-test",
+      "--port",
+      "3099",
+      "--no-open"
+    ],
+    "cli_version_exit": 0,
+    "cli_version": "0.2.2-rc.3",
+    "init_used_in_this_run": false,
+    "contains_web_positional": false
+  },
+  "finished_at": "2026-11-16T05:24:27.369Z",
+  "result": "PASS"
+}

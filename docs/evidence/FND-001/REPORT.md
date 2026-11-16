@@ -1,119 +1,125 @@
 # FND-001 最终报告
 
-> 复核状态更新（2026-11-16）：本文件下文保留第一轮提交者对产品 37ac57a / 测试脚本 22e7be2 的报告。后续仓库复核确认完整 T04 尚缺证据并发现小范围问题，当前 FND-001 已重新登记为 in_progress，不能将下文原 PASS 视为现行验收结论。见 [提交复核](SUBMISSION_REVIEW_20261116.md) 与根目录 DSH_START.md。
-
 - `unit_id`: **FND-001**
-- `instruction_revision`: **2.0.0**
+- `instruction_revision`: **2.0.1**（收尾轮；第一轮为 2.0.0，记录保留在 Git 历史与下方链接）
 - `executor`: **DeepSeek Harness**
-- `result`: **PASS**
-- 产品候选：`37ac57af64b6741d82ffa2663b43dc244529c567`（12 个产品文件 SHA256 见 [candidate.md](candidate.md)）
-- 证据/测试脚本：`22e7be2ffc1b1db6fe8247bb223e69ec6c7ecb5d`（harness v2，仅修测试脚本与证据；产品文件未变）
+- `result`: **PASS（R1–R4 关闭后的本单元切片）**
+- 本轮产品候选：`2774b185ab75bfe38b6a36a07aa735d5ed4f559b`
+- 本轮测试/证据提交：`c2a6d4335a3947546815543cdc17ef992c8d74ae`（harness v4）+ `f25726fc7e4314ac6b385bc7976c0014203a28f6`（尾换行）
+- 第一轮历史：产品 `37ac57af64b6741d82ffa2663b43dc244529c567`、测试脚本 `22e7be2ffc1b1db6fe8247bb223e69ec6c7ecb5d`、提交 `66388994d41972e6dfd4e28361ac1854b5b12e47`
 - 工作分支：`dsh/knowledgeos-fnd-001`
 - 上游固定提交：`39163dd30f703a79079e2d2446545cff3c453738`（`0.2.2-rc.3`）
+- 本轮独立结论：[independent-verification-closeout.md](independent-verification-closeout.md)；复核依据：[SUBMISSION_REVIEW_20261116.md](SUBMISSION_REVIEW_20261116.md)
 
-## 1. 本轮完成的功能与入口
+## 1. 收尾结论
 
-**一个真实 DSH 主面板 + 一条只读 Host 状态链路。**
+第一轮已实现真实单面板与 Host 只读状态往返；本轮在同一 FND-001 内关闭仓库复核提出的 R1–R4，并保留原功能、原证据与 G1 历史：
 
-| 层 | 实现 | 入口/接口 |
+| 项 | 结果 | 实际证据 |
 |---|---|---|
-| 表现层 | React 主面板，含加载中、已连接、构建不匹配、失败/旧数据四种状态，刷新与重试 | 侧栏“知识库”→ 主面板 `knowledgeos` |
-| 应用/查询 | `buildStatusPayload()` 纯查询；`loadStatus()` 浏览器读取与形状校验 | — |
-| Host 适配 | WebServer exact 路由，沿用本机 DSH 连接认证 | `GET /knowledgeos/status`（`auth: required`） |
-| 组合 | out-of-tree bundle：`dsh.bundle.patch` 插入 Host 行，`dsh.client` 提供 closure-factory Client | profile `knowledgeos-test` |
+| R1 真实卸载/重装与完整生命周期 | **PASS** | 5 次整页重载、10 次进出均入口/面板各 1；每次挂载恰好 1 次状态请求；离开 60 秒 0 请求/0 pageerror；固定源码 CLI `plugin --profile knowledgeos-test remove` 后重启 Host，有效认证下路由 404、入口/面板 0、导航仍可用；同一路径 `add` 重装后路由 200、入口/面板各 1，卸载前后 `lib/index.js`/`lib/client.js` SHA256 相同 |
+| R2 刷新期间不得显示连接失败 | **PASS** | 受控 3 秒延迟下 loading 显示“正在刷新 · 显示上次结果”“刷新中”，无“失败”文案；随后成功且 `checked_at` 前进；真实断连仍显示错误/过期，重试恢复 |
+| R3 PowerShell 复验变量 | **PASS** | 全新 Windows PowerShell 5.1 进程中 `$HOME` 前后均为 `C:\Users\27363`；`$env:DSH_HOME` 指向 `.cache\dsh-home-fnd001`；`$home` 赋值被只读拒绝；candidate/README/test-plan 改用 `$dshTestHome` |
+| R4 固定源码启动说明统一 | **PASS** | 实际启动 argv 为 `--import tsx/esm apps/cli/src/bin.ts --profile knowledgeos-test --port 3099 --no-open`，无 `web` 位置参数、无 `--from-default-profile`；CLI `-V` 为 `0.2.2-rc.3`；`--from-default-profile web` 仅标注首次初始化 |
 
-可观察链路：打开侧栏入口 → DSH 加载 Client 插件 → 面板调用 Host → 显示真实版本/提交/实例/时间 → 失败显示错误并保留“已失去实时性”的旧数据 → 重试恢复。
-
-**未实现（保持范围外）**：数据库、注册登录、项目权限、资料导入、RAG/向量库、题库/遮挡、学习计划、六工作区、产品多智能体讨论、真实 GPT 业务调用、安装包。
+本轮未新增业务功能；仍只有一个侧栏入口、一个主面板、一条只读 Host 路由。
 
 ## 2. 分支、提交与环境
 
 | 项目 | 值 |
 |---|---|
 | 分支 | `dsh/knowledgeos-fnd-001` |
-| 产品提交 | `37ac57af64b6741d82ffa2663b43dc244529c567` |
-| 证据/脚本提交 | `22e7be2ffc1b1db6fe8247bb223e69ec6c7ecb5d` |
-| 上游 | `39163dd30f703a79079e2d2446545cff3c453738`，包版本 `0.2.2-rc.3` |
-| 运行时 | 从锁定源码构建的 `.cache/build/dsh-39163dd`；源码与上游检出逐文件一致（13912 文件，树摘要 `2a2a46c8…`） |
+| 本轮产品提交 | `2774b185ab75bfe38b6a36a07aa735d5ed4f559b` |
+| 本轮测试脚本 | `c2a6d4335a3947546815543cdc17ef992c8d74ae`（harness v4） |
+| 本轮证据/文档 | `f25726fc7e4314ac6b385bc7976c0014203a28f6` |
+| 上游 | `39163dd30f703a79079e2d2446545cff3c453738`，`0.2.2-rc.3` |
+| 运行时 | `.cache/build/dsh-39163dd`，由锁定源码复制；本轮复核 13912 个源文件与上游检出逐字节一致（树摘要 `2a2a46c8…`） |
 | OS / Node / pnpm | Windows 11 Pro / `v24.22.0` / `11.28.5` |
-| 独立 DSH_HOME | `.cache/dsh-home-fnd001` |
-| profile / 端口 | `knowledgeos-test` / `127.0.0.1:3099` |
-| 桌面 DSH | PID 51900 全程未停止、未重启、未安装插件（运行前后启动时间一致） |
+| 独立 DSH_HOME / profile / 端口 | `.cache/dsh-home-fnd001` / `knowledgeos-test` / `127.0.0.1:3099` |
+| 桌面 DSH | PID 51900，启动时间 `10:36:09` 全程未变；62739 仍监听 |
 
-启动命令（复验用）：
+## 3. 本轮证据
 
-```powershell
-$repo  = "C:\Users\27363\Desktop\personal base\personal_konwledge-base"
-$build = "$repo\.cache\build\dsh-39163dd"
-$env:DSH_HOME = "$repo\.cache\dsh-home-fnd001"
-$env:DSH_CLIENT_COMMIT_HASH = "39163dd30f703a79079e2d2446545cff3c453738"
-cd $build
-node --import tsx/esm apps/cli/src/bin.ts --profile knowledgeos-test --port 3099 --no-open
-```
+新证据目录：`runs/2774b18/`。
 
-## 3. 角色执行与独立复核
-
-| 角色 | 实际执行 | 结论 |
+| 证据 | 路径 | 结果 |
 |---|---|---|
-| 主管 | 锁定单元与范围、任务包、实现协调、候选冻结、证据核对、提交 | 完成 |
-| 架构审查 | 独立子角色长时间读取后未能收口，已终止且**未产出独立结论**；主管按锁定源码逐项复核并写 [architecture-review.md](architecture-review.md) | 独立架构复核缺口，如实保留 |
-| 实现者 | 主管本人（唯一生产代码写者） | 完成 |
-| 独立测试 | 独立子代理在固定候选上实跑；先建立测试计划，再执行；发现 G1 测试脚本缺陷并复测 | PASS（产品 + harness v2） |
+| R1/R2 生命周期与刷新 | `runs/2774b18/closeout-v3/summary.json`、`R1-*.png`、`R2-refreshing.png` | 20 步全 PASS；`result: PASS`，`recovery: []` |
+| R1 失败与旧版脚本问题 | `runs/2774b18/closeout/`、`closeout-v2/` | 保留第一次脚本缺陷证据，不计产品失败 |
+| R2 回归（真实断连） | `runs/2774b18/browser-v3/summary.json` | 18 步 PASS |
+| Host 契约 | `runs/2774b18/host-contract/` | 同实例/重启契约 exit 0；匿名 401、认证 200 |
+| 卸载认证边界 | `runs/2774b18/remove-auth-probe/` | 13 项 PASS：有效 Cookie 200、伪 Cookie 401、卸载后特性路由 404 且 Host/导航可达 |
+| R3 | `runs/2774b18/R3/` | HOME 不变、DSH_HOME 隔离 |
+| R4 | `runs/2774b18/R4-launch/`、`closeout-v3/summary.r4` | 真实 argv 无 `web`；CLI 版本正确；首次初始化参数未复用 |
+| 固定源码一致性 | `runs/2774b18/source-tree-closeout.json` | PASS，两树摘要相同 |
+| 最终检查 | `runs/2774b18/final-checks/` | `verify-plan`、`scope-check`、插件 `tsc` 均 exit 0 |
 
-独立复核报告：[independent-verification.md](independent-verification.md)。证据绑定“产品 `37ac57a` + 测试脚本 `22e7be2`”；测试者独立核对产品哈希未变，未使用主管自测总结代替运行。
+第一轮证据保留在 `runs/37ac57a/`，包括 G1 失败与修复复测；旧结论只在其候选/版本范围内有效。
 
-## 4. T01–T07 实际结果
+## 4. T01–T07 映射（本轮）
 
-| ID | 结果 | 实际证据（摘要） | 证据路径 |
+| ID | 本轮结果 | 依据 |
+|---|---|---|
+| T01 | PASS | 固定源码 `0.2.2-rc.3`，页面 origin 3099，侧栏入口/主面板真实加载；源码树与锁定检出一致 |
+| T02 | PASS | Host 契约同实例时间前进、重启实例变化；页面刷新取得新 `checked_at`；重装后实例为新值 |
+| T03 | PASS | 真实断连 error+stale、断连中重试仍失败、重启后恢复；F1 500 夹具与 F2 延迟夹具均标注 |
+| T04 | PASS（本轮补齐） | 5 次重载、10 次进出、60 秒静默、真实 bundle 卸载/重装、路由/入口移除与恢复 |
+| T05 | PASS | `verify-plan`/`scope-check` exit 0；卸载后导航仍可用；范围未扩大 |
+| T06 | PASS（本轮范围） | 插件 `tsc --noEmit` exit 0；重建后 `lib/client.js` 与 candidate 一致；未重跑全上游构建/`build:check` |
+| T07 | PASS | 匿名/伪 Cookie 401、认证 200、POST 405、恰好 10 字段、无凭据/路径/会话；仅 loopback |
+
+## 5. 缺陷与修复
+
+| ID | 类型 | 内容 | 处置 |
 |---|---|---|---|
-| T01 固定 DSH 真实加载 Host 与 Client | **PASS** | 源码构建版本 `0.2.2-rc.3`；页面 origin `127.0.0.1:3099`；侧栏入口 DOM=1；面板 `data-state=ready`；页面 8 个值与真实响应逐字段一致；6 张截图非空；源码树与锁定检出逐文件一致 | `runs/37ac57a/browser-rerun/`、`runs/37ac57a/page-match/`、`runs/37ac57a/T01/`、`build-evidence.md` |
-| T02 页面到 Host 真实只读往返 | **PASS** | 同实例两次查询 `host_instance_id` 不变、`checked_at` 前进；真实重启后实例变化、`started_at` 变晚；页面刷新取得新 `checked_at`；前端无硬编码成功 | `runs/37ac57a/host-contract/`、`runs/37ac57a/browser-rerun/summary.json`、`status-*.json` |
-| T03 失败与重试 | **PASS（产品）** | 真实停 Host：错误 + “旧数据已失去实时性”；断连中重试仍失败；同候选重启后重试恢复，`attempts=0`；F1 500 为浏览器路由夹具，summary 明确标 `FIXTURE: not a real disconnect` | `browser-rerun/04-panel-real-disconnect.png`、`05-panel-recovered.png`、`06-panel-fixture-500.png`、`summary.json` |
-| T04 面板与插件生命周期 | **PASS（实际执行子集）** | 整页重载后入口 1；5 次进出后入口/面板各 1；关闭面板 15 秒 0 次状态请求；禁用 `knowledgeos-host` 行路由 404，恢复 200；无重复注册异常 | `browser-rerun/summary.json`、`runs/37ac57a/T04/` |
-| T05 最小回归与范围 | **PASS** | 既有“插件/自动化任务/更多”面板可正常打开；`verify-plan.mjs` exit 0；`scope-check.mjs` exit 0（11 个包文件/6 个脚本）；无 DB/登录/模型/RAG/未来模块 | `runs/37ac57a/T05/` |
-| T06 构建与类型 | **PASS（实际执行范围）** | 上游 `build:artifacts` 8 gates 全过（主管执行，日志归档）；插件 `tsc --noEmit` exit 0（独立执行）；`lib/index.js`/`lib/client.js` SHA256 与候选一致；未重跑 `build.mjs`，未运行上游 `build:check` | `build-evidence.md`、`runs/37ac57a/build-artifacts.log`、`runs/37ac57a/T06/` |
-| T07 状态接口数据边界 | **PASS** | 匿名 401；无效 Cookie 401；认证 200；POST 405；恰好 10 字段；无 token/Cookie/环境变量/绝对路径/会话；仅 loopback | `runs/37ac57a/T07/`、`host-contract/`、`status-*.json` |
+| R2 | 产品缺陷 | refresh 进入 loading 时连接状态行误显示“旧数据（连接失败）” | 已修 `Panel.tsx`：loading 区分“正在连接/正在刷新·显示上次结果”，chip“刷新中”，刷新期间不出现失败文案；真实失败仍显示失败与过期 |
+| G1 | 测试脚本（第一轮） | 恢复点击命中全局连接指示器 | 第一轮已修复，历史保留 |
+| G2 | 测试脚本（本轮） | closeout summary 缺 `fixtures` 字段，R2 前抛 TypeError | `c2a6d43` 修复并复跑 |
+| G3 | 测试脚本（本轮） | closeout 默认 plugin 路径少一级；恢复未纳入门槛；未比较卸载/重装产物 | `f3aa05f`/`c2a6d43` 修复：默认路径、前后 SHA256、恢复即失败、F2 标注、写入即脱敏 |
+| G4 | 证据/计划 | architecture-review-closeout 末尾缺换行导致 `verify-plan` exit 1 | `f25726f` 修复，最终 exit 0 |
 
-### 明确 NOT_RUN（不计入 PASS）
+## 6. 剩余限制（NOT_RUN / 不新增门槛）
 
-- 桌面 Electron 冒烟（本单元最低门槛为 Web profile）。
-- 逐像素/人工目检（当前模型无图像输入；截图保留给用户查看）。
-- Client 模块请求字节与 `lib/client.js` 的哈希一致性（页面加载证据已有，但未做该单项）。
-- T04 的定时器计数、`dsh plugin remove` 卸载路径、完整 5 次重载/10 次进出/60 秒静默（实际为 1/5/15 秒子集）。
-- 上游 `build:check`、全仓测试、Windows 安装包、真实 GPT 调用。
+- Desktop Electron 冒烟：NOT_RUN（本单元最低门槛为 Web profile）。
+- 人工逐像素审美：NOT_RUN（当前模型无图像输入；截图保留给用户）。
+- 全局定时器精确归因：未做；以“离开面板 60 秒 0 本功能请求/0 pageerror”为观测边界，不冒称全局内存审计。
+- 上游 `build:check`、全仓测试、Windows 安装包、多人业务、真实 GPT：NOT_RUN，属于后续单元。
+- 第一轮 T01 的 client 模块字节哈希单项仍未补；本轮以产物 SHA256 与页面真实加载作为证据。
 
-## 5. 缺陷与复测
-
-**G1（测试脚本缺陷，已修复）**：v1 `browser-e2e.mjs` 用 `getByRole(/重新连接|重试/).first()` 恢复，命中 DSH 全局连接指示按钮（`insidePanel=false`），点击后面板未刷新，导致 v1 在“重启后恢复”处超时失败。独立测试用 `retry-repro` 证明面板自身 `[data-testid="kos-error-retry"]` 点击可 `loading→ready`，并用 `locator-probe` 记录 3 个匹配（第一个为全局按钮）。v2 只点面板自身控件，重跑 18/18 步 PASS。**产品代码未因该缺陷修改。**
-
-其余细节与限制见 `independent-verification.md` §4、§5。
-
-## 6. 用户复验步骤
-
-1. 确认真实运行环境（不启动第二个服务器来替代现有 GUI）：
+## 7. 用户复验步骤
 
 ```powershell
-cd "C:\Users\27363\Desktop\personal base\personal_konwledge-base"
+$knowledgeosRepo = "C:\Users\27363\Desktop\personal base\personal_konwledge-base"
+$dshRoot = "$knowledgeosRepo\.cache\build\dsh-39163dd"
+$dshTestHome = "$knowledgeosRepo\.cache\dsh-home-fnd001"
+$env:DSH_HOME = $dshTestHome
+$env:DSH_CLIENT_COMMIT_HASH = "39163dd30f703a79079e2d2446545cff3c453738"
+cd $knowledgeosRepo
+
+# 计划与范围
 node scripts/verify-plan.mjs
 node scripts/fnd001/scope-check.mjs .
-```
 
-2. 真实 Host 契约（启动/停止隔离实例，端口 3099）：
+# R1/R2 收尾（自动起停隔离 Host，需 Chrome）
+node scripts/fnd001/closeout-e2e.mjs --dsh-root ".cache\build\dsh-39163dd" --home ".cache\dsh-home-fnd001" --profile knowledgeos-test --port 3099 --playwright ".cache\panel-builder\node_modules\playwright" --plugin "packages\knowledgeos-panel" --out ".cache\manual-recheck\closeout"
 
-```powershell
+# 受影响回归
+node scripts/fnd001/browser-e2e.mjs --dsh-root ".cache\build\dsh-39163dd" --home ".cache\dsh-home-fnd001" --profile knowledgeos-test --port 3099 --playwright ".cache\panel-builder\node_modules\playwright" --out ".cache\manual-recheck\browser"
 node scripts/fnd001/host-contract-run.mjs --dsh-root ".cache\build\dsh-39163dd" --home ".cache\dsh-home-fnd001" --profile knowledgeos-test --port 3099 --out ".cache\manual-recheck\host-contract"
 ```
 
-3. 真实浏览器全链路（需要 Chrome；Playwright 在 `.cache/panel-builder`）：
+手动运行（固定源码，不依赖全局 `dsh`）：
 
 ```powershell
-node scripts/fnd001/browser-e2e.mjs --dsh-root ".cache\build\dsh-39163dd" --home ".cache\dsh-home-fnd001" --profile knowledgeos-test --port 3099 --playwright ".cache\panel-builder\node_modules\playwright" --out ".cache\manual-recheck\browser"
+cd $dshRoot
+node --import tsx/esm apps/cli/src/bin.ts --profile knowledgeos-test --port 3099 --no-open
 ```
 
-4. 手动打开：启动日志中的 `dsh web: http://127.0.0.1:3099/?token=…` → 侧栏“知识库” → 查看版本/提交/实例/查询时间 → 点击刷新 → 停止测试 Host 观察错误与旧数据 → 重启后点击重试。
+首次初始化才使用 `--profile knowledgeos-test --from-default-profile web --dump-config`；继续运行不得重复。启动日志中的 token 只用于本机打开，归档前脱敏。
 
-`docs/evidence/FND-001/runs/37ac57a/` 内已保存截图、HTTP 响应、契约输出、失败与复测记录；日志中的 token 已脱敏。
+## 8. 停止状态与历史
 
-## 7. 停止状态
-
-本单元已通过并停止。`active_unit` 保持 **FND-001**，未激活 FND-002 或任何后续功能；Codex 全面审查阶段仍锁定。本单元通过不等于 F01、F04、A01、A50 的完整需求或完整场景全部验收通过。
+- FND-001：`passed`；`execution_state.unit_state=awaiting_user`；`active_unit` 保持 FND-001；`auto_advance=false`；Codex locked。
+- 未激活 FND-002，未合并 main。
+- 第一轮报告与复核历史：[independent-verification.md](independent-verification.md)、[runs/37ac57a/](runs/37ac57a/)、[SUBMISSION_REVIEW_20261116.md](SUBMISSION_REVIEW_20261116.md)。其通过范围仅覆盖当时候选；本轮补验不改写为“之前已测”。
+- 本单元通过不等于 F01、F04、A01、A50 的完整需求或完整场景全部验收。

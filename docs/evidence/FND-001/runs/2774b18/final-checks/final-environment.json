@@ -1,0 +1,20 @@
+﻿{
+    "sampled_at":  "2026-11-16T13:41:48.5449964+08:00",
+    "desktop_pid_51900_present":  true,
+    "desktop_pid_51900_start":  "2026-11-16T10:36:09.5251834+08:00",
+    "baseline_desktop_start":  "2026-11-16T10:36:09.5251834+08:00",
+    "desktop_start_unchanged":  true,
+    "gui_port_62739_listener_pid":  57664,
+    "gui_listener_start":  "2026-11-16T10:36:13.0828573+08:00",
+    "baseline_gui_start":  "2026-11-16T10:36:13.0828573+08:00",
+    "gui_start_unchanged":  true,
+    "port_3099_listening":  0,
+    "port_3099_non_timewait":  0,
+    "profile_bundles":  [
+                            "@deepseek-ai/dsh-base",
+                            "@deepseek-ai/dsh-web-app",
+                            "knowledgeos-panel"
+                        ],
+    "profile_dependency":  "link:C:/Users/27363/Desktop/personal base/personal_konwledge-base/packages/knowledgeos-panel",
+    "git_head":  "2e546968eeba6326d463f1684fc61c620cd9017f"
+}

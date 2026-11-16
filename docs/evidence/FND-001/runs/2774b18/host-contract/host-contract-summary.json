@@ -1,0 +1,31 @@
+{
+  "result": "PASS",
+  "failures": [],
+  "steps": [
+    {
+      "step": "authenticated-instance-1",
+      "entry_status": 303,
+      "anonymous_status": 401,
+      "authenticated_status": 200,
+      "second_status": 200
+    },
+    {
+      "step": "authenticated-instance-2",
+      "entry_status": 303,
+      "anonymous_status": 401,
+      "authenticated_status": 200
+    },
+    {
+      "step": "contract-same-instance",
+      "exit_code": 0,
+      "output": "{\n  \"result\": \"PASS\",\n  \"mode\": \"same-instance\",\n  \"files\": [\n    \"C:\\\\Users\\\\27363\\\\Desktop\\\\personal base\\\\personal_konwledge-base\\\\docs\\\\evidence\\\\FND-001\\\\runs\\\\2774b18\\\\host-contract\\\\status-same-instance-a.json\",\n    \"C:\\\\Users\\\\27363\\\\Desktop\\\\personal base\\\\personal_konwledge-base\\\\docs\\\\evidence\\\\FND-001\\\\runs\\\\2774b18\\\\host-contract\\\\status-same-instance-b.json\"\n  ],\n  \"host_instance_id\": \"dc41acdc-c22c-4d7a-b753-53270ee3edc4\",\n  \"upstream_commit\": \"39163dd30f703a79079e2d2446545cff3c453738\",\n  \"upstream_version\": \"0.2.2-rc.3\",\n  \"checked_at_first\": \"2026-11-16T05:19:14.017Z\",\n  \"checked_at_second\": \"2026-11-16T05:19:15.535Z\"\n}"
+    },
+    {
+      "step": "contract-restart",
+      "exit_code": 0,
+      "output": "{\n  \"result\": \"PASS\",\n  \"mode\": \"restart\",\n  \"files\": [\n    \"C:\\\\Users\\\\27363\\\\Desktop\\\\personal base\\\\personal_konwledge-base\\\\docs\\\\evidence\\\\FND-001\\\\runs\\\\2774b18\\\\host-contract\\\\status-same-instance-a.json\",\n    \"C:\\\\Users\\\\27363\\\\Desktop\\\\personal base\\\\personal_konwledge-base\\\\docs\\\\evidence\\\\FND-001\\\\runs\\\\2774b18\\\\host-contract\\\\status-after-restart.json\"\n  ],\n  \"host_instance_id\": \"122706b9-8b26-4306-bdf1-9c642978278b\",\n  \"upstream_commit\": \"39163dd30f703a79079e2d2446545cff3c453738\",\n  \"upstream_version\": \"0.2.2-rc.3\",\n  \"checked_at_first\": \"2026-11-16T05:19:14.017Z\",\n  \"checked_at_second\": \"2026-11-16T05:19:21.420Z\"\n}"
+    }
+  ],
+  "out": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\docs\\evidence\\FND-001\\runs\\2774b18\\host-contract",
+  "finished_at": "2026-11-16T05:19:22.563Z"
+}

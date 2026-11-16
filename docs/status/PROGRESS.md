@@ -1,36 +1,39 @@
 # 实际进度
 
-更新：2026-11-16（Asia/Shanghai）。当前提示词 v2.0.1。
+更新：2026-11-16（Asia/Shanghai）。现行执行规范 v2.0.1（FND-001 收尾轮）。
 
-## 当前执行状态
+## 当前执行方式
 
-执行者 DeepSeek Harness；唯一入口 DSH_START.md；唯一单元 FND-001；状态 in_progress（第一轮提交后的收尾待执行）。工作分支 dsh/knowledgeos-fnd-001，main 尚未合入实现。auto_advance=false，Codex locked，FND-002 未激活。
+当前执行者：**DeepSeek Harness**。当前唯一入口：`DSH_START.md`。唯一已选单元：**FND-001**。执行状态 `awaiting_user`；本单元功能切片 `passed`，下一单元未激活。
 
-## 已完成的第一轮成果
+多智能体在同一功能内分担主管、架构、实现和独立测试。每次完成本功能的开发、测试与返修后提交报告并停止，由用户选择下一单元；不自动跨段。
 
-真实固定 DSH Web profile 已加载一个 KnowledgeOS 主面板和侧栏入口，Client 经现有本机认证访问 GET /knowledgeos/status。真实往返、实例重启变化、断连/恢复、认证拒绝及构建/类型有记录。
+Codex 全面检查修复阶段：**locked**。基础开发与逐功能测试完成后，才能由用户激活；当前不提供 Codex 可执行提示词。
 
-第一轮产品候选 37ac57af64b6741d82ffa2663b43dc244529c567；测试脚本修复 22e7be2ffc1b1db6fe8247bb223e69ec6c7ecb5d；本次复核提交 66388994d41972e6dfd4e28361ac1854b5b12e47。原报告和 runs/37ac57a 保留，不覆盖真实失败和复测。
+## FND-001 收尾结果（2026-11-16，v2.0.1）
 
-## 本轮尚需关闭
+**PASS（本单元切片，R1–R4 已关闭）。** 在从锁定提交 `39163dd30f703a79079e2d2446545cff3c453738` 构建的真实 DSH `0.2.2-rc.3` 上，同一面板/Host 只读链路完成真实卸载与重装、完整生命周期、刷新状态修复、PowerShell 隔离命令修正和固定源码启动说明统一。
 
-| ID | 现状 |
-|---|---|
-| R1 | 完整 bundle 卸载后 Host 路由与 Client 入口消失、重新安装恢复尚未实测；原 5 次重载/10 次进出/60 秒静默只跑了 1/5/15 秒 |
-| R2 | 正常刷新进入 loading 时连接状态行错误显示连接失败 |
-| R3 | 候选复验 PowerShell 变量与 HOME 冲突，待修正及实测 |
-| R4 | 包 README 启动形式与已跑通的固定源码入口不一致，待统一及实测 |
+- 本轮产品候选：`2774b185ab75bfe38b6a36a07aa735d5ed4f559b`；测试 harness：`c2a6d4335a3947546815543cdc17ef992c8d74ae`（v4）；文档修复：`f25726fc7e4314ac6b385bc7976c0014203a28f6`。
+- R1：5 次重载、10 次进出、每次 1 请求、60 秒 0 请求/0 pageerror；真实 CLI 卸载后路由 404、入口/面板消失、Host/导航可达；同路径重装后恢复，前后 `lib/` 哈希相同。
+- R2：loading 显示“刷新中/正在刷新·显示上次结果”，不再显示连接失败；真实失败仍显示错误与过期。
+- R3：全新 PowerShell 5.1 中 `$HOME` 不变、`DSH_HOME` 指向隔离目录；文档改用 `$dshTestHome`。
+- R4：固定源码启动 argv 无 `web` 位置参数、无初始化参数；CLI `-V=0.2.2-rc.3`；初始化命令仅首次使用。
+- 独立结论：[independent-verification-closeout.md](../evidence/FND-001/independent-verification-closeout.md)；报告：[REPORT.md](../evidence/FND-001/REPORT.md)；证据：`docs/evidence/FND-001/runs/2774b18/`。
+- 明确 NOT_RUN：运行期定时器注入计数、上游 `build:artifacts` 重跑/`build:check`、逐像素人工目检、Desktop Electron 冒烟、Windows 安装、真实 GPT。
 
-依据见 [提交复核](../evidence/FND-001/SUBMISSION_REVIEW_20261116.md)。本轮文档更新没有修改产品代码，没有执行新的 DSH 产品测试。此前无条件 PASS 不作为当前完整验收结论。
+本单元通过不等于 F01、F04、A01、A50 的完整需求或完整场景已验收；真实模型、六工作区完整遍历和 Windows 安装均未在本单元发生。
 
-## 整体范围
+## 功能与宏观阶段
 
-| 范围 | 状态 |
-|---|---|
-| FND-001 | 核心功能已实现，当前收尾 in_progress |
-| 其他 75 个单元 | planned，未激活 |
-| F01/F04、A01/A50 | 仅局部前置证据，不计完整通过 |
-| 44 项需求、66 个完整场景 | 尚无完整验收通过 |
-| Windows 安装包 | NOT_BUILT / NOT_RUN |
+| 范围 | 实现 | 产品运行验证 |
+|---|---|---|
+| FND-001 | passed（单面板 + Host 只读状态；R1–R4 收尾） | 真实 Web profile PASS（见 REPORT 与收尾独立报告） |
+| 其他全部工作单元 | planned，未激活 | NOT_RUN |
+| F01–F44 | F01/F04 仅 partial_foundation 证据 | 无需求被标记 verified |
+| P01–P14、A01–A52 | 待相应功能具备 | 全部 NOT_RUN |
+| Windows 安装包 | NOT_BUILT | NOT_RUN |
 
-Desktop、人工逐像素目检、精确定时器全局归因、全仓 build:check、未来账号/模型业务不新增为本轮门槛。只完成当前四项收尾和受影响回归，真实通过后更新为 awaiting_user 并停止，active_unit 保持 FND-001。
+## 下一次实际执行
+
+等待用户明确选择下一单元并原子替换唯一入口与执行登记；`active_unit` 保持 FND-001，不自动切换。数据库、登录、业务资料和模型调用等由各自后续单元实现。旧启动指令不再出现在工作树；历史记录只作当时证据。

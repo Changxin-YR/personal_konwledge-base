@@ -10,7 +10,7 @@
     "sha256": "b3585777975b6e3a7ba5f9d899f0f929988f1192e1216667a0bcdda4c5510804"
   },
   "active_unit": "FND-001",
-  "unit_state": "in_progress",
+  "unit_state": "awaiting_user",
   "execution_mode": "single_feature_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
