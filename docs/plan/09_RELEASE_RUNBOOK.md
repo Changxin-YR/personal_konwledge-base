@@ -1,10 +1,10 @@
 # 构建、安装、运行与发布
 
-当前尚无 KnowledgeOS 安装包。本页定义未来发布单元的交付要求；仅在对应单元由用户激活后执行。当前 DeepSeek Harness 的 FND-002 只完成本地持久化切片，不构建安装包；后期 Codex 全面审查是另一阶段。命令必须匹配当次锁定源码与实际产物。
+当前尚无 KnowledgeOS 安装包。本页定义未来发布单元的交付要求；仅在对应单元由用户激活后执行。当前 Codex 接管修复的 FND-002 仅覆盖本地持久化切片，不构建安装包；后期 Codex 全面审查是另一阶段。命令必须匹配当次锁定源码与实际产物。
 
 ## 1. 开发准备
 
-克隆用户仓库，先读 AGENTS 与唯一当前指令 DSH_START.md。源代码准备脚本只拉取固定官方提交；不替用户更新全局 DSH、不扫描个人电脑中其他项目、不安装未知 ASAR。
+克隆用户仓库，先读 AGENTS 与唯一当前指令 CODEX_START.md。源代码准备脚本只拉取固定官方提交；不替用户更新全局 DSH、不扫描个人电脑中其他项目、不安装未知 ASAR。
 
 ```sh
 git clone https://github.com/Changxin-YR/personal_konwledge-base.git

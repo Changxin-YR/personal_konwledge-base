@@ -3,9 +3,9 @@
   "updated_at": "2026-11-16",
   "timezone": "Asia/Shanghai",
   "mode": "single_feature_gated",
-  "current_executor": "deepseek_harness",
+  "current_executor": "codex",
   "active_unit_source": "config/execution_state.json",
-  "only_active_prompt": "DSH_START.md",
+  "only_active_prompt": "CODEX_START.md",
   "catalog_is_execution_authorization": false,
   "rules": {
     "max_active_units": 1,
@@ -13,7 +13,7 @@
     "allow_cross_unit_auto_advance": false,
     "allow_parallel_feature_implementation": false,
     "test_during_each_unit": true,
-    "codex_role": "after_deepseek_foundation_and_user_activation_review_and_fix"
+    "codex_role": "authorized_current_foundation_takeover_repair_then_wait_for_next_user_instruction"
   },
   "acceptance_semantics": {
     "acceptance_ids": "关联完整场景及当前可验证子集；不能仅因本单元测试通过就标完整场景PASS。",
@@ -324,10 +324,10 @@
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
       "status": "in_progress",
       "test_plan_status": "detailed_current_unit",
-      "instruction_revision": "2.1.1",
+      "instruction_revision": "3.0.0",
       "activated_at": "2026-11-16",
       "activation_basis": "explicit_user_selection",
-      "working_branch": "dsh/knowledgeos-fnd-002",
+      "working_branch": "codex/knowledgeos-takeover",
       "base_commit": "ce3a00ccd7c8cc46eaae6e660144730109cf93a0",
       "requirement_evidence_scope": {
         "F01": "partial_foundation_only_if_actual_tests_pass",
@@ -378,7 +378,8 @@
       ],
       "review_record": "docs/evidence/FND-002/SUBMISSION_REVIEW_20261116.md",
       "review_basis_commit": "cba39e4808fd41e6d7b076c3fbf080577c8b1114",
-      "current_review_scope": "repair database object prefix classification and independent evidence checks within FND-002"
+      "current_review_scope": "Codex onboarding; R1/R2 and confirmed defects in already implemented foundation paths; candidate-bound verification; no future feature activation",
+      "takeover_base_commit": "10c406713a64299d7c7a52695672bbadbe2c21cb"
     },
     {
       "id": "FND-003",
@@ -3561,7 +3562,7 @@
     {
       "id": "CHECK-004",
       "milestone": "M6",
-      "title": "DeepSeek基础开发整体验收交接",
+      "title": "基础功能整体验收与全面审查交接",
       "requirement_ids": [
         "F02",
         "F20",
@@ -3584,7 +3585,7 @@
       "scope": [
         "沿资料学习工程任务讨论完整闭环回归",
         "核对44需求66场景和所有单元状态",
-        "整理待用户批准的Codex审查交接材料"
+        "整理待用户激活的完整产品审查交接材料"
       ],
       "not_in_scope": [
         "未激活的其他功能",
@@ -3599,7 +3600,7 @@
         {
           "id": "CHECK-004-T02",
           "scenario": "扫描全部单元和验收",
-          "expected": "无遗漏/伪PASS；存在BLOCKED或NOT_RUN则如实保留，不宣布全部基础完成；不自动启动Codex"
+          "expected": "无遗漏/伪PASS；存在BLOCKED或NOT_RUN则如实保留，不宣布全部基础完成；不自动激活后续完整产品审查阶段"
         }
       ],
       "acceptance_ids": [

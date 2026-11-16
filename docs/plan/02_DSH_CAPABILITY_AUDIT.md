@@ -23,7 +23,7 @@
 
 上述事实见 S01–S05、S23。发布元数据独立见 [release API](https://api.github.com/repos/deepseek-ai/deepseek-harness/releases/tags/dsh-v0.2.2-rc.3)。
 
-**实施时固定完整 SHA，不自动追随 master 或 latest。** 官方 README 将项目标为 developer preview，明确可能发生不兼容变更。当前 DeepSeek Harness 执行者在锁定提交上建立适配验证；升级作为独立变更处理，重新跑兼容性检查。
+**实施时固定完整 SHA，不自动追随 master 或 latest。** 官方 README 将项目标为 developer preview，明确可能发生不兼容变更。当前 Codex 执行者在锁定提交上建立适配验证；升级作为独立变更处理，重新跑兼容性检查。
 
 本项目采用官方 DSH 基线，不沿用此前公司 Mandate、记忆沉淀、数字员工图编排的“已实现”结论。那些项目没有被导入，也不计入本项目进度。
 
@@ -66,7 +66,7 @@ KnowledgeOS 采用六个业务入口：今日计划、知识库、笔记、项�
 
 ### 3.2 不直接照搬概念示例
 
-官方 extension-cookbook 明确其中片段不完整，不能原样复制后声称可用。当前 DeepSeek Harness 执行者必须以本提交的类型、实际包导出和 `ui-plugin-manager` 等运行产品的源码为参照，完成编译与真实 Host/Client 加载测试。（S25）
+官方 extension-cookbook 明确其中片段不完整，不能原样复制后声称可用。当前 Codex 执行者必须以本提交的类型、实际包导出和 `ui-plugin-manager` 等运行产品的源码为参照，完成编译与真实 Host/Client 加载测试。（S25）
 
 UI token、字体、圆角、深浅色和两级导航按本项目需求执行；上游默认外观不是本项目最终设计。
 
@@ -175,7 +175,7 @@ Plugin Manager 可以复用安装/启停/移除与结果诊断，但文档和工
 
 KnowledgeOS 的插件入口需要管理员能力校验；协作者不得通过通用工具管理服务器插件。自定义插件应按可信代码处理，不宣称进程内插件是可隔离恶意代码的沙箱。
 
-F30、认证/授权、审计和迁移核心不能作为普通可选插件在产品内关掉。当前 DeepSeek Harness 执行者在 M0 验证现有管理器的保护扩展接口；若没有满足要求的声明机制，采用受控 KnowledgeOS 管理入口和最小补丁，记录补丁文件及回归用例。不以隐藏按钮代替服务端拒绝。
+F30、认证/授权、审计和迁移核心不能作为普通可选插件在产品内关掉。当前 Codex 执行者在 M0 验证现有管理器的保护扩展接口；若没有满足要求的声明机制，采用受控 KnowledgeOS 管理入口和最小补丁，记录补丁文件及回归用例。不以隐藏按钮代替服务端拒绝。
 
 ## 10. 资料导入、Office 转换与大 PDF
 
@@ -207,7 +207,7 @@ pnpm dsh web
 - `pnpm run package:desktop:win:x64:unsigned`
 - `pnpm run package:desktop:win:x64`
 
-这些是上游可核查的入口，不是已执行记录。当前 DeepSeek Harness 执行者应先读目标提交的 `AGENTS.md`、`docs/development.md`、`apps/desktop/windows-signing/README.md`，再按目标环境实际依赖运行；签名、安装、升级、回滚与卸载结果分别报告。不能把“源码能编译”“打包生成 exe”“Windows 安装后可用”混写成同一项通过。
+这些是上游可核查的入口，不是已执行记录。当前 Codex 执行者应先读目标提交的 `AGENTS.md`、`docs/development.md`、`apps/desktop/windows-signing/README.md`，再按目标环境实际依赖运行；签名、安装、升级、回滚与卸载结果分别报告。不能把“源码能编译”“打包生成 exe”“Windows 安装后可用”混写成同一项通过。
 
 本次没有现成 KnowledgeOS 安装包。后续包应由已记录版本与提交构建，保留校验值、manifest、安装说明与真实验收证据，并发布到用户仓库的 Release 资产或其明确目录。不要把大型二进制直接长期塞进 Git 历史。
 

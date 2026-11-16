@@ -1,18 +1,19 @@
 # FND-002 独立测试与验收计划
 
-> **v2.1.1 修订：** 原计划的 sqlite_master/LIKE 判据存在共同盲区，现已改为完整原始元数据与字面前缀分类，并补充下方 R1/R2 收尾用例。当前修复后测试尚未运行；原 v2.1.0 执行结果保留在对应 runs。实际测试脚本仍须由 DSH 按此计划修正。
+> **v2.1.1 修订：** 原计划的 sqlite_master/LIKE 判据存在共同盲区，现已改为完整原始元数据与字面前缀分类，并补充下方 R1/R2 收尾用例。当前修复后测试尚未运行；原 v2.1.0 执行结果保留在对应 runs。当前由 Codex 按 v3.0.0 接管并修正实际测试脚本；本段 v2.1.1 说明保留此前新增验收依据。
 
 | 项 | 值 |
 |---|---|
 | `unit_id` | FND-002（本地业务持久化最小闭环） |
-| 角色 | 独立测试与验收（非实现者；默认只读产品代码，本轮只写本文件） |
-| 指令 | `DSH_START.md` v2.1.1，`instruction_revision` 2.1.1，`active_unit` FND-002 |
-| 分支 / 计划基线 | `dsh/knowledgeos-fnd-002` / `a938fd4db016cd2869a74e5a235265ecef6e6a9d`（base `ce3a00c`） |
+| 角色 | 独立测试与验收（默认只读产品代码；测试文件按当前任务包分配独占写入，产品由唯一实现者修复） |
+| 指令 | `CODEX_START.md` v3.0.0，`instruction_revision` 3.0.0，`active_unit` FND-002 |
+| 当前分支 / 接管前基线 | `codex/knowledgeos-takeover` / `10c406713a64299d7c7a52695672bbadbe2c21cb`；记录实际接管 HEAD |
+| 历史计划基线 | 原 `dsh/knowledgeos-fnd-002`，`a938fd4db016cd2869a74e5a235265ecef6e6a9d`（base `ce3a00c`） |
 | 固定上游 | `39163dd30f703a79079e2d2446545cff3c453738`（`0.2.2-rc.3`，Node `>=24.9.0`） |
 | 编写时间 | 2026-11-16（Asia/Shanghai） |
 | 计划状态 | **READY** —— 编码前建立的可观察预期，不冒充运行结果 |
-| 运行状态 | **T01–T09 全部 NOT_RUN（本计划阶段 0 项执行、0 条证据）** |
-| 唯一写入 | 本文件；未修改产品源码、测试代码、profile 或桌面 DSH |
+| 运行状态 | **接管修复后的新候选 T01–T09 均 NOT_RUN**；原候选已有运行结果，另留在历史 runs |
+| 历史计划作者写入 | 当时仅本文件；本轮实际写入按当前 CODEX_START 与角色任务包执行 |
 
 > 本文件是计划，不是结果。所有 PASS/FAIL 只能在冻结候选上由独立角色实际执行后产生；执行前一律 `NOT_RUN`。实现者自测、夹具、静态页面、预置常量、实现者总结均不能替代独立验收。未执行或证据不足的项写 `NOT_RUN`/`FAIL`，不得用“应通过”填空。
 
@@ -22,35 +23,37 @@
 
 ### 1.1 依据
 
-- `DSH_START.md` §5（最小技术契约：5.1 配置/运行时/连接、5.2 schema v1、5.3 归属预检/迁移/回滚、5.4 HTTP 契约、5.5 认证与关闭）、§6（T01–T09）、§7（候选、证据、复验）。
+- `CODEX_START.md` §5（最小技术契约：5.1 配置/运行时/连接、5.2 schema v1、5.3 归属预检/迁移/回滚、5.4 HTTP 契约、5.5 认证与关闭）、§6（T01–T09）、§7（候选、证据、复验）。
 - `config/work_units.json` FND-002 `test_obligations`、`not_in_scope`、`acceptance_evidence_scope`。
 - `docs/plan/04_DATA_AND_STATE_CONTRACTS.md` §0、§1、§2.2（当前仅探针切片；正式业务契约仍有效但不授权提前建表）。
 - `docs/plan/05_API_AND_AI_CONTRACTS.md` §0、§2.1–§2.3（响应/幂等/错误正文）、§7（多智能体结构化结果：字段、证据、`NOT_RUN` 与 `BLOCKED` 分开）。
 - `docs/plan/11_AGENT_AND_PROMPT_PROTOCOL.md` §5（统一结果格式）、§6（候选冻结与独立验收）、§8（FND-002 角色应用）。
 - `docs/evidence/FND-002/architecture.md`（实际落点：`src/host/*`、`scripts/fnd002/`、`lib/storage.js`/`lib/test-support.js` 仅测试导入、错误映射、关闭日志 `knowledgeos-storage: closed`、`MIGRATION_V1_CHECKSUM`）。
-- `config/execution_state.json`（`unit_state=ready`、`auto_advance=false`）、`config/upstream.lock.json`。
+- `config/execution_state.json`（`unit_state=in_progress`、`auto_advance=false`）、`config/upstream.lock.json`。
 
-### 1.2 固定事实（执行时逐项核对，不得替换）
+### 1.2 当前约束与历史环境示例
 
-| 项 | 固定值 / 要求 |
+上游提交、候选指纹、数据隔离和行为断言必须保持；机器目录、shell、运行平台与桌面进程不属于必须复制的产品契约。下面的反斜杠路径和 PowerShell 命令来自原 Windows 测试环境。当前 Codex 从实际仓库解析绝对路径、核实构建与进程，按当前平台作必要适配并记录；不得将旧环境的“已存在”当成本机事实。最低门槛仍为真实固定版本 Node Web Host，无桌面安装不阻塞本轮。
+
+| 项 | 当前要求 / 示例 |
 |---|---|
-| 仓库 | `C:\Users\27363\Desktop\personal base\personal_konwledge-base` |
-| 固定源码运行时 | `.cache\build\dsh-39163dd`（已存在；不得用 `.cache\runtime-rc3` 或桌面 ASAR 顶替） |
-| 独立 `DSH_HOME` | `.cache\dsh-home-fnd002`（计划阶段尚未创建；执行时创建，不得指向 `%USERPROFILE%\.dsh`） |
+| 仓库 | 当前实际检出根目录；用 Git/脚本位置解析，不硬编码历史用户路径 |
+| 固定源码运行时 | 原环境示例 `.cache\build\dsh-39163dd`；核实实际路径、固定 SHA 与构建指纹，缺少时准备固定源码；不以其他版本或桌面 ASAR 顶替 |
+| 独立 `DSH_HOME` | `.cache\dsh-home-fnd002`（核实现有状态，需要时创建；不指向用户默认或桌面 profile） |
 | 测试 profile | `knowledgeos-storage-test`（只用于测试） |
 | 测试端口 | 优先 `3100`；被占用则选空闲本机端口并记录，不杀未知进程 |
 | 业务数据目录 | `.cache\knowledgeos-fnd002-data\<run_id>\`（绝对路径，由测试脚本解析后经可信 Host 配置传入；`<run_id>` 全 ASCII，如 `fnd002-20261116T070000Z-a1`） |
 | 数据库文件 | `<dataDir>\knowledgeos.sqlite`（不得落在 DSH_HOME/Session/KV/源码/构建目录） |
-| 桌面 DSH 保护 | 启动前记录 `127.0.0.1:62739` 监听 PID/进程起始时间；全程不停止、不重启、不向其 profile 安装插件 |
+| 桌面 DSH 保护（如实际存在） | 旧 Windows 实例端口曾为 62739；当前按实际进程/端口核实并保护，不停止、不重启、不安装插件；无实例记不适用，不要求创建 |
 | 数据性质 | 仅合成数据（`run_id` + 中文/引号/换行/emoji/SQL 片段）；禁止真实用户正文、真实库、凭据 |
 | 原始证据目录 | `.cache\fnd002-runs\<run_id>\`（被 `.gitignore` 覆盖；含 cookies/token/DB/WAL/日志） |
 | 脱敏证据目录 | `docs\evidence\FND-002\runs\<run_id>\`（只提交脱敏 JSON/文本/截图/哈希） |
 | 故障夹具目录 | `.cache\fnd002-fixtures\<run_id>\`（只含合成数据；提交 DDL/清单/哈希，不提交 DB 二进制） |
 
-### 1.3 本计划不做什么
+### 1.3 独立验收角色的边界
 
-1. 不修改 `packages/knowledgeos-panel/` 的产品代码、迁移或测试；不修改 profile 之外的任何配置；不操作桌面 DSH。
-2. 不预写运行结果、截图、日志或“通过”报告；本文件不含任何已执行结论。
+1. 独立验收者不修改产品代码或迁移；需要新增测试时按任务包取得独占测试文件授权。实现者按 CODEX_START 修复产品和获准脚本；验收中不并发修改候选。保护其他 profile 和实际桌面实例。
+2. 不预写新候选运行结果、截图、日志或“通过”报告；历史结果保留原候选与时间。
 3. 不用内存 Map、JSON 文件、模拟 HTTP 服务器、硬编码常量、启动夹具替代真实 Host/真实 HTTP/真实 SQLite。
 4. 不把本单元通过扩大为 F01/F42 或 A07/A49 完整验收，也不进入 FND-003（账号、ACL、RAG、jobs/outbox、安装包等）。
 5. 不把 Node Web Host 结果写成 Desktop/Electron 已验证；Desktop 探针不可用即单列 `NOT_RUN`。
@@ -60,7 +63,7 @@
 
 ## 2. 环境与前置
 
-### 2.1 预检 P0（任一关键项不满足即阻断对应测试，不得换环境冒充）
+### 2.1 预检 P0（必需项不满足只阻断相关测试；平台适配不降低断言）
 
 | ID | 检查 | 命令/操作 | 通过标准 |
 |---|---|---|---|
@@ -70,7 +73,7 @@
 | P0-4 | 候选冻结 | `git rev-parse HEAD`；`git status --porcelain`；`git rev-parse HEAD^{tree}`；逐文件 SHA-256 | 有提交写完整 commit；有未提交/未跟踪内容必须给逐文件 manifest 与哈希，不能只写 HEAD；实现者自测产物也在清单内 |
 | P0-5 | profile 隔离 | `$env:DSH_HOME` 实际值；`Test-Path $dshTestHome` | 位于仓库 `.cache\`；不指向桌面/默认 profile |
 | P0-6 | 端口 | `Get-NetTCPConnection -LocalPort 3100 -State Listen -ErrorAction SilentlyContinue` | 无监听；被占用则记录原占用 PID 并改用空闲端口，不杀进程 |
-| P0-7 | 桌面保护基线 | `Get-NetTCPConnection -LocalPort 62739 -State Listen`；`Get-Process -Id <PID>` | 记录 PID/启动时间；测试结束回读仍相同 |
+| P0-7 | 桌面保护基线（如存在） | 当前平台核实实际实例；Windows 示例 `Get-NetTCPConnection` / `Get-Process` | 有实例则记录并保护，结束后核对；无实例记不适用，不阻断 Node Host |
 | P0-8 | 认证材料 | 从 Host stdout 提取带 token 的入口 URL（仅写 `.local` 文件） | 能换取有效 Cookie；token/Cookie 不进入提交证据 |
 | P0-9 | 浏览器能力（T09 UI 子项） | Playwright/Edge/Chrome 可用性探测 | 不可用则 T09 的 UI 子项 `BLOCKED`，其余构建/范围断言仍执行 |
 | P0-10 | 桌面 Host 运行时（可选） | 若桌面 DSH 可安全只读探测则记录版本/驱动 | 不可用则 Desktop 项单列 `NOT_RUN`；不得用 Node 结果顶替 |
@@ -78,7 +81,7 @@
 ### 2.2 一次性环境准备（预期命令；实际参数以固定 CLI `--help` 为准并记录）
 
 ```powershell
-$knowledgeosRepo = 'C:\Users\27363\Desktop\personal base\personal_konwledge-base'
+$knowledgeosRepo = (git rev-parse --show-toplevel).Trim()
 $build           = Join-Path $knowledgeosRepo '.cache\build\dsh-39163dd'
 $dshTestHome     = Join-Path $knowledgeosRepo '.cache\dsh-home-fnd002'
 $runId           = 'fnd002-20261116T070000Z-a1'
@@ -420,7 +423,7 @@ $proc.Id | Set-Content "$raw\host\pid.txt"
 
 1. `PASS` 必须在冻结候选上由独立测试角色实跑，且断言全部满足、证据可复核；实现者自测只能标 `SELF-TEST`，不能替换 `PASS`。
 2. `FAIL` 必须给出可复现步骤、预期/实际、最小影响范围；不得删断言或改测试数据绕过。
-3. `BLOCKED` 仅用于真实外部条件（无 Desktop、无浏览器、端口/权限、真实上游缺失），须写明失败动作、错误、已尝试方案、最小解除条件；未尝试一律 `NOT_RUN`。
+3. `BLOCKED` 仅用于影响必需测试的真实外部条件（如无浏览器导致 UI 子项不可执行、端口/权限、固定上游缺失）；无 Desktop 仅将对应可选项记 NOT_RUN，不阻断 Node Host。本轮阻塞，须写明失败动作、错误、已尝试方案、最小解除条件；未尝试一律 `NOT_RUN`。
 4. `NOT_RUN` 是默认值；本计划阶段 T01–T09 全部 `NOT_RUN`，不得因“设计完整”改判。
 5. 一个子断言失败不得用其他子断言通过抵消；T04 的 5 类 fixture 必须逐类记录。
 6. 候选变化（源码/迁移/构建产物/测试脚本）使旧结论失效；修复后重跑受影响项并更新候选哈希。
@@ -429,7 +432,9 @@ $proc.Id | Set-Content "$raw\host\pid.txt"
 
 ---
 
-## 9. 需主管确认的模糊点
+## 9. 原计划待澄清项的当前适用说明
+
+下列八项保留初次写计划时的问题清单，不是要求用户重新确认。当前以 CODEX_START §5–§6 的冻结契约、已有实现与实际证据核对：成功/错误响应各自结构已明确；连接配置、迁移 checksum 与关闭必须有真实证据；非 JSON Content-Type 按 415；查询参数不得成为 SQL/路径/故障入口；幂等重放按 201/200 契约；Desktop 是可选未运行范围。已由契约解决的项目由主管登记依据，直接继续；只报告实际未解决的行为冲突，不沿用下面的历史“请确认”措辞停工。
 
 1. **“10 字段响应”**：本计划按“成功 5 字段 + 错误 5 字段的并集、单响应只出现一组”理解；请确认是否另有 10 字段单一对象要求。
 2. **Host 连接 PRAGMA 证据方式**：`journal_mode/foreign_keys/synchronous/busy_timeout` 属连接级；需确认候选是否提供仅测试/日志的打开诊断（不含绝对路径）作为 D6 证据；否则该子项只能 `FAIL`（证据不足），不得用独立连接代替。
@@ -445,8 +450,8 @@ $proc.Id | Set-Content "$raw\host\pid.txt"
 ## 10. 计划完成声明
 
 - 本文件完成 T01–T09 的目标、前置、可执行步骤、客观断言、失败判据、证据要求与“不能证明什么”，并明确区分真实 HTTP/真实 SQLite 与受控故障。
-- v2.1.1 修复后测试尚未运行，当前新候选 T01–T09 均为 `NOT_RUN`；旧候选原测试记录及本次反例 FAIL 分别保留，不能覆盖或计为新候选通过。
-- 唯一写入为本文件；未修改产品代码、测试、profile 或桌面 DSH。
+- 当前接管修复后的测试尚未运行，当前新候选 T01–T09 均为 `NOT_RUN`；旧候选原测试记录及本次反例 FAIL 分别保留，不能覆盖或计为新候选通过。
+- 此条是原计划编写时的事实：当时只写本文件。当前接管修复的实际写入范围与结果另按任务包及报告记录。
 - 下一步由主管冻结候选（提交或逐文件 manifest），独立测试角色再按本计划实跑并回填结果。
 
 ## v2.1.1 定点补充
@@ -455,4 +460,4 @@ R1 归入 T04：测试直接读取完整 sqlite_master type/name/sql、applicati
 
 R2 归入 T05/T09：actual 与断言使用同一个按幂等键过滤计数；实际 profile 加载文件的 SHA-256 与事先冻结候选逐值比较，并在独立临时副本上验证哈希不一致必然拒绝；运行开始/结束时间真实且非空。不要把哈希长度检查或工作目录自比较当加载一致性。
 
-独立角色先核对判据再执行，原 runs 文件不修改，新结果写入新候选目录。当前完整执行规范以唯一 DSH_START.md v2.1.1 与 work_units.json 为准，修复后的通过不能预先填写。
+独立角色先核对判据再执行，原 runs 文件不修改，新结果写入新候选目录。当前完整执行规范以唯一 CODEX_START.md v3.0.0 与 work_units.json 为准，修复后的通过不能预先填写。

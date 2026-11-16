@@ -1,5 +1,13 @@
 # 执行方式变更记录
 
+## v3.0.0 Codex 接管已有基础 · 2026-11-16
+
+用户明确授权暂停 DSH 开发执行，改由 Codex 先理解项目、修复现有问题，验证后等待新指令。随后确认此前 API 失效只是额度用完，明确无需处理；本轮不设 API 排查任务。DSH 作为产品 Host、profile 与固定上游保留。
+
+从 10c406713a64299d7c7a52695672bbadbe2c21cb 接续到 codex/knowledgeos-takeover。删除当前 DSH_START.md，建立唯一 CODEX_START.md v3.0.0，同步 AGENTS、执行状态、工作目录、现行规范和计划检查器；旧执行正文与旧分支保留 Git 历史。FND-002 仍 in_progress，R1/R2 OPEN，修复后复测 NOT_RUN；FND-001 仍 passed，FND-003 未激活，完整产品审查 not_started，auto_advance=false。
+
+此次仅准备接管指令和一致性门槛，没有修复产品源码或改动原始运行证据。具体检查结果见 CODEX_TAKEOVER_VALIDATION_20261116.md；计划检查不能代替产品测试。
+
 ## v2.1.1 FND-002 定点收尾 · 2026-11-16
 
 复核 cba39e4 及产品候选 1b99e39：已有真实九项/独立记录，但真实磁盘 SQLite 反例确认 NOT LIKE 'sqlite_%' 将 sqliteX_* 用户对象漏掉，非空外部库被初始化。同步保留旧覆盖价值和新 FAIL，FND-002 重新登记 in_progress，R1/R2 OPEN。

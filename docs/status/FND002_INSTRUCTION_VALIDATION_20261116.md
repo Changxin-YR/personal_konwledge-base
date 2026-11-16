@@ -1,6 +1,6 @@
 # FND-002 指令激活核对
 
-> 历史记录：以下是 v2.1.0 初次激活时的结构检查及哈希，仅适用于提交 a938fd4。当时未开发的状态不是当前状态；当前为 v2.1.1 收尾，见 [提交复核](../evidence/FND-002/SUBMISSION_REVIEW_20261116.md)。
+> 历史记录：以下是 v2.1.0 初次激活时的结构检查及哈希，仅适用于提交 a938fd4。当时未开发的状态不是当前状态；当前为 v3.0.0 Codex 接管修复，见 [提交复核](../evidence/FND-002/SUBMISSION_REVIEW_20261116.md)。
 
 日期：2026-11-16（Asia/Shanghai）。范围：第二部分执行方案、契约和状态一致性；不属于 FND-002 产品验收。
 
@@ -8,7 +8,7 @@
 
 - 继承已验收第一部分提交：`ce3a00ccd7c8cc46eaae6e660144730109cf93a0`。
 - 用户明确选择第二部分；工作分支：`dsh/knowledgeos-fnd-002`。
-- 唯一入口：[DSH_START.md](../../DSH_START.md)，instruction_revision `2.1.0`。
+- 唯一入口：[当时的 DSH_START.md](https://github.com/Changxin-YR/personal_konwledge-base/blob/a938fd4db016cd2869a74e5a235265ecef6e6a9d/DSH_START.md)，instruction_revision `2.1.0`。
 - 当前提示词 SHA-256：`0091884d2b62b0ecb78fff38de34bf26a998de1fa0a37201e6fb7868699b5523`。
 - 执行状态为 FND-002 / ready，目录状态 planned，九项产品测试 NOT_RUN；FND-001 仍 passed。
 - 一个活动单元、一个生产代码写者、auto_advance=false；Codex review locked。

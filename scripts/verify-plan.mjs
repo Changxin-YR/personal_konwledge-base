@@ -81,27 +81,41 @@ const units = new Map(catalog.units.map((item) => [item.id, item]));
 const finalOwners = new Map([...caseIds].map((id) => [id, []]));
 const unitTestIds = new Set();
 check('single current instruction', () => {
-  assert.equal(execution.executor, 'deepseek_harness', 'current executor must remain DeepSeek Harness');
-  assert.equal(execution.execution_phase, 'deepseek_foundation');
+  assert.equal(execution.executor, 'codex', 'current takeover executor must be Codex');
+  assert.equal(execution.execution_phase, 'codex_takeover_repair');
+  assert.equal(execution.active_unit, 'FND-002', 'takeover repair does not authorize the next feature');
   assert.equal(execution.execution_mode, 'single_feature_gated');
   assert.equal(execution.max_active_units, 1);
   assert.equal(execution.max_product_code_writers, 1);
   assert.equal(execution.auto_advance, false, 'automatic advance contradicts staged execution');
-  assert.equal(execution.active_instruction.path, 'DSH_START.md');
+  assert.equal(execution.active_instruction.path, 'CODEX_START.md');
   assert.equal(execution.active_instruction.sha256, createHash('sha256').update(activePrompt).digest('hex'), 'active prompt content changed without its state hash');
   for (const [key, value] of Object.entries({ instruction_revision: execution.instruction_revision, execution_phase: execution.execution_phase, executor: execution.executor, active_unit: execution.active_unit })) {
     assert(activePrompt.includes(`${key}: "${value}"`), `prompt metadata disagrees: ${key}`);
   }
   assert(activePrompt.includes('auto_advance: false'));
   const roots = readdirSync(root).filter((name) => /(?:START|PROMPT).*\.md$/i.test(name));
-  assert.deepEqual(roots, ['DSH_START.md'], 'only one root executable prompt is permitted');
+  assert.deepEqual(roots, ['CODEX_START.md'], 'only one root executable prompt is permitted');
+  assert.deepEqual(execution.retired_instruction_paths, ['DSH_START.md']);
   for (const path of execution.retired_instruction_paths) assert(!existsSync(resolve(root, path)), `retired prompt still exists: ${path}`);
-  assert.equal(execution.codex_review.state, 'locked');
+  assert.equal(execution.takeover.authorization, 'explicit_user_request');
+  assert.equal(execution.takeover.product_host, 'deepseek_harness', 'changing the developer does not remove the product host');
+  assert.equal(execution.takeover.stop_after_current_unit, true);
+  assert.equal(execution.codex_review.scope, 'full_product_review');
+  assert.equal(execution.codex_review.state, 'not_started', 'current repair is not the full product review');
   assert.equal(execution.codex_review.active_prompt, null);
 });
 check('work catalog scope', () => {
   assert.equal(catalog.mode, 'single_feature_gated');
   assert.equal(catalog.current_executor, execution.executor);
+  assert.equal(catalog.only_active_prompt, execution.active_instruction.path);
+  assert.equal(catalog.active_unit_source, 'config/execution_state.json');
+  assert.equal(catalog.rules.max_active_units, execution.max_active_units);
+  assert.equal(catalog.rules.max_implementation_writers, execution.max_product_code_writers);
+  assert.equal(catalog.rules.allow_cross_unit_auto_advance, false);
+  assert.equal(catalog.rules.allow_parallel_feature_implementation, false);
+  assert.equal(catalog.rules.test_during_each_unit, true);
+  assert.equal(catalog.rules.codex_role, 'authorized_current_foundation_takeover_repair_then_wait_for_next_user_instruction');
   assert.equal(catalog.catalog_is_execution_authorization, false);
   assert.equal(units.size, catalog.units.length, 'duplicate unit ids');
   assert(units.has(execution.active_unit), 'active unit is not in the catalog');
@@ -144,12 +158,28 @@ check('dependency order and final owners', () => {
 check('current unit execution state', () => {
   const unit = units.get(execution.active_unit);
   assert(unit, 'active unit not found');
+  assert.equal(unit.instruction_revision, execution.instruction_revision);
+  assert.equal(unit.working_branch, execution.working_branch);
+  assert.equal(unit.takeover_base_commit, execution.takeover.base_commit);
   assert(['ready', 'in_progress', 'blocked', 'awaiting_user'].includes(execution.unit_state));
   const running = catalog.units.filter((item) => item.status === 'in_progress');
   assert(running.length <= 1 && running.every((item) => item.id === unit.id), 'another feature is being developed');
   for (const dependency of unit.depends_on) assert.equal(units.get(dependency)?.status, 'passed', `active dependency not passed: ${dependency}`);
   const requiredStatus = { ready: 'planned', in_progress: 'in_progress', blocked: 'blocked', awaiting_user: 'passed' }[execution.unit_state];
   assert.equal(unit.status, requiredStatus, 'execution state and unit outcome disagree');
+  for (const item of catalog.units) {
+    if (!['FND-001', 'FND-002'].includes(item.id)) assert.equal(item.status, 'planned', `future unit changed during takeover: ${item.id}`);
+  }
+  assert(matrix.acceptance_cases.every((item) => item.status === 'NOT_RUN'), 'foundation repair must not certify complete product acceptance cases');
+  assert(matrix.requirements.every((item) => item.implementation_status !== 'verified'), 'foundation repair must not certify complete requirements');
+  if (unit.status === 'passed') {
+    assert.equal(unit.test_result_status, 'PASS', 'passed unit still has failed or missing test results');
+    assert.equal(unit.retest_status, 'PASS', 'new-candidate retests must pass before completion');
+    assert.deepEqual(unit.open_review_items, [], 'open findings prevent completion');
+    assert(Array.isArray(unit.closed_review_items) && ['R1', 'R2'].every((id) => unit.closed_review_items.includes(id)), 'R1/R2 need explicit closure');
+    assert(unit.completed_at && Number.isFinite(Date.parse(unit.completed_at)), 'completion needs an actual valid timestamp');
+    assert(unit.evidence_paths.every((path) => existsSync(resolve(root, path))), 'completion evidence path is missing');
+  }
   for (const test of unit.test_obligations) {
     const shortId = test.id.slice(unit.id.length + 1);
     assert(activePrompt.includes(`| ${shortId} |`) || activePrompt.includes(test.id), `current prompt omits local test ${test.id}`);
@@ -181,4 +211,4 @@ if (errors.length) {
   process.stderr.write(`${errors.join('\n')}\n`);
   process.exit(1);
 }
-process.stdout.write(`${JSON.stringify({ status: 'PASS', scope: 'plan_structure_traceability_and_execution_consistency_only', requirements: requirementIds.size, acceptanceCases: caseIds.size, workUnits: units.size, plannedUnitChecks: unitTestIds.size, executor: execution.executor, activeUnit: execution.active_unit, autoAdvance: execution.auto_advance, codexReview: execution.codex_review.state, markdownFiles, upstreamCommit: lock.upstream.commit, implementationVerifiedByThisCheck: false, productTestsExecuted: 0 }, null, 2)}\n`);
+process.stdout.write(`${JSON.stringify({ status: 'PASS', scope: 'plan_structure_traceability_and_execution_consistency_only', requirements: requirementIds.size, acceptanceCases: caseIds.size, workUnits: units.size, plannedUnitChecks: unitTestIds.size, executor: execution.executor, activeUnit: execution.active_unit, autoAdvance: execution.auto_advance, fullProductReview: execution.codex_review.state, markdownFiles, upstreamCommit: lock.upstream.commit, implementationVerifiedByThisCheck: false, productTestsExecuted: 0 }, null, 2)}\n`);

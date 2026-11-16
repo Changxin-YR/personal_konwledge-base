@@ -1,50 +1,71 @@
 ---
-instruction_revision: "2.1.1"
-execution_phase: "deepseek_foundation"
-executor: "deepseek_harness"
+instruction_revision: "3.0.0"
+execution_phase: "codex_takeover_repair"
+executor: "codex"
 active_unit: "FND-002"
 auto_advance: false
 ---
 
-# 当前执行指令：DeepSeek Harness · FND-002 数据库保护修正与复测
+# 当前执行指令：Codex 接管、理解项目与已有基础修复
 
-你是 KnowledgeOS 当前功能的开发主管。第二部分已经提交主体实现和真实运行证据，本次复核又发现一个可复现的数据库归属保护缺陷。继续同一个 FND-002，保留已有源码、真实 Host 接入和历史证据，完成 R1/R2 的定点修正及复测后停止。不要从头开发，不进入 FND-003，不调用 Codex。
+你是 KnowledgeOS 当前已实现基础功能的接管主管。用户已明确授权从 DSH 开发执行器切换到 Codex：先理解项目和已有结果，再检查、修复已有问题并实际验证；完成后停止，等待下一步指令。不要只交阅读总结或待确认方案；已授权范围内直接完成检查、修复、测试和提交推送。
 
-本文件 v2.1.1 已整体替换唯一入口中的 v2.1.0 正文。旧报告中的 PASS 是原候选在已覆盖用例上的提交结论，不能覆盖本次反例。当前已重新登记为 in_progress，表示收尾待执行；并不代表修复已经完成或新测试已通过。结束旧 revision 的派生任务，新的任务包统一标 FND-002 / v2.1.1。
+用户随后确认，先前“API 无效”仅因旧 API 额度用完，明确不需要处理。因此本轮不排查该 API、不索取或轮换密钥、不改模型提供方/路由/计费配置，也不把旧额度恢复列为接管前置条件。FND-002 自己的 HTTP 接口、认证和本地 Host 测试仍按既定验收执行。
 
-## 1. 当前基线与真实结论
+本次切换的是开发执行器。产品继续基于固定 DeepSeek Harness Host、profile、插件和现有客户端运行，不移除这些集成，不为改用 Codex 另建应用或更换架构。Codex 的开发模型身份也不代表产品 GPT 主 Agent 已经实现或可用。
+
+本文件 v3.0.0 是当前唯一可执行入口；旧 DSH_START.md 已从本分支工作树移除，只能在 Git 历史追溯。最新用户授权覆盖旧“DSH 专属执行 / Codex locked”规则；历史报告保留当时事实，不能反过来阻止本次接管。结束旧 revision 的派生任务，新任务统一标 FND-002 / v3.0.0。
+
+## 1. 当前基线与实际范围
 
 | 项目 | 本轮依据 |
 |---|---|
 | 仓库 | `https://github.com/Changxin-YR/personal_konwledge-base.git` |
-| 继续工作分支 | `dsh/knowledgeos-fnd-002`；不改第一部分分支、不自动合并 main |
-| 本次复核提交 | `cba39e4808fd41e6d7b076c3fbf080577c8b1114` |
-| 原产品候选 | `1b99e392593ef0213f68f8dfb45f5d34a06eac1b` |
-| 原九项证据 | `docs/evidence/FND-002/runs/1b99e39/`，保留其当时实际结果 |
-| 本次复核记录 | `docs/evidence/FND-002/SUBMISSION_REVIEW_20261116.md` |
-| 本次真实反例 | `docs/evidence/FND-002/reviews/cba39e4/root-prefix-result.json`，FAIL |
-| 固定上游 | `39163dd30f703a79079e2d2446545cff3c453738`，根包 `0.2.2-rc.3` |
-| 工具链 | Node >=24.9.0 API 基线，构建 pnpm 11.28.5；记录实际版本 |
-| 前置单元 | FND-001 保持 passed，既有面板/status 与历史证据保留 |
-| 当前状态 | FND-002 in_progress，R1/R2 OPEN；修复后的测试 NOT_RUN |
+| 工作分支 | `codex/knowledgeos-takeover`；从已推送的 FND-002 成果接续 |
+| 接管前基线 | `10c406713a64299d7c7a52695672bbadbe2c21cb`；接管文档提交为其后代，开工时记录实际 HEAD |
+| 产品候选 / 提交复核 | `1b99e392593ef0213f68f8dfb45f5d34a06eac1b` / `cba39e4808fd41e6d7b076c3fbf080577c8b1114` |
+| 原九项证据 | `docs/evidence/FND-002/runs/1b99e39/`；保留当时候选及实际结果 |
+| 已知问题依据 | `docs/evidence/FND-002/SUBMISSION_REVIEW_20261116.md` |
+| 已复现反例 | `docs/evidence/FND-002/reviews/cba39e4/root-prefix-result.json`，FAIL |
+| 固定 DSH 上游 | `39163dd30f703a79079e2d2446545cff3c453738`，根包 `0.2.2-rc.3` |
+| 工具链 | Node >=24.9.0 API 基线；构建 pnpm 11.28.5；记录实际环境版本 |
+| FND-001 | 已验收 passed；保留真实面板、只读 status、生命周期及历史证据 |
+| FND-002 | 主体已实现；当前 in_progress，R1/R2 OPEN，新候选复测 NOT_RUN |
+| FND-003 及以后 | 未激活；目录不是开工授权 |
 
-复核确认原候选 11 个关键文件 SHA-256 与提交一致，T01–T09 有 109 条实际断言，独立脚本有真实记录。这些证据继续说明已测行为。新反例显示：合法用户表 sqliteX_foreign_private 被错误过滤，非空库被标为本应用、升级为 v1 并新增两张表；因此当前单元整体不能 PASS。
+KnowledgeOS 的产品目标是个人知识、工程训练与小组协作，Windows 桌面优先，六个工作区、44 项需求和 66 项完整验收均已有文档；当前只完成了其中的基础切片。已有两部分不能宣称整个产品、M0、正式业务持久化、多用户权限或产品 AI 已完成。
 
-只读/计划检查通过不等于归属保护通过。本次反例是在真实磁盘 SQLite 上运行提交的 lib/storage.js；不是新一轮完整 Windows DSH Host 测试，也没有操作用户数据库。
+已有 FND-002 包含可信 dataDir、独立 SQLite 两表、已认证 Host 创建/读取、幂等、事务/迁移保护、重启读取与连接释放。旧候选九项测试有 109 条断言及独立运行记录，复核核对了 11 个关键文件指纹；新反例证明数据库归属判断仍有缺陷。因此保留已有成果，先关闭实际问题，不重写整个基础层。
 
-## 2. 读取、预检与隔离
+## 2. 项目理解、环境核对与接管记录
 
-先读 AGENTS、本文件、execution_state、PROGRESS、BLOCKERS、本次复核记录，再读当前 FND-002 工作单元及其 REPORT/candidate/independent-verification/test-plan。需求与架构仍按 F01/F42、03/04/05/11 读取；历史报告和证据不是另一份执行授权。
+### 2.1 先读这些依据，再动代码
 
-核对 remote、分支、远端和工作树，保留用户修改及后续提交，正常 fetch/同步；不 reset --hard、不 force push。核对 active_unit、revision、执行器、上游 SHA 和本文件 SHA-256 后运行 `node scripts/verify-plan.mjs`、`node scripts/prepare-upstream.mjs --check`、`node scripts/fnd002/scope-check.mjs`。
+按用途分批阅读，形成正确的现状判断；不把整个未来目录转成待执行队列：
 
-优先复用已核验的固定上游构建和隔离依赖，不无故重建整个上游、不改变版本锁。当前 in_progress 从已有成果恢复；blocked 只处理真实当前阻塞；若以后变为 passed / awaiting_user，只交接不重做。不能重算哈希、降低预期或改状态绕过检查。
+1. 执行边界：`AGENTS.md`、本文件、`config/execution_state.json`、`config/work_units.json` 当前 FND-002、`docs/status/PROGRESS.md` 与 `BLOCKERS.md`。
+2. 产品和架构：完整浏览 `docs/plan/01_REQUIREMENTS_BASELINE.md` 的范围与不变量、`03_ARCHITECTURE.md`；重点读 F01/F42、`04_DATA_AND_STATE_CONTRACTS.md`、`05_API_AND_AI_CONTRACTS.md` 的当前切片、`11_AGENT_AND_PROMPT_PROTOCOL.md`。`07_ACCEPTANCE_MATRIX.md` 的完整场景与本轮子检查分开。
+3. 已交付证据：FND-001 的 `ACCEPTANCE_REVIEW_20261116.md`；FND-002 的 `SUBMISSION_REVIEW_20261116.md`、`REPORT.md`、`candidate.md`、`architecture.md`、`test-plan.md`、`independent-verification.md` 和必要原始结果。
+4. 真实实现与测试：`packages/knowledgeos-panel/package.json`、锁文件、构建脚本、`src/host/{index,http,records,storage,config,test-support}.ts`、实际客户端入口和 `lib/`；`scripts/fnd002/{harness,run-all,scope-check,http-smoke,hold-lock}.mjs`；按影响读取 `scripts/fnd001/`。先用目录清单核实实际路径，不假设源码等于已加载产物。
+5. 上游：`config/upstream.lock.json`、`docs/plan/02_DSH_CAPABILITY_AUDIT.md`；在固定检出中读上游 AGENTS、开发规范及当前使用的 Host、WebServer、插件/profile 接口源码。没有证据时不要套用最新版本 API。
 
-沿用本轮专用 DSH_HOME `.cache/dsh-home-fnd002`、profile `knowledgeos-storage-test` 和本机端口 3100（占用时核实归属，必要时选择空闲端口并记录）。新测试用新 run_id 与独立合成数据目录；持久化重启在同一次测试内保持同一目录。操作进程前确认 PID、命令、profile、端口，不停止承载开发会话的 DSH。
+现有分层为表现/HTTP → 应用用例/领域规则，SQLite 和 DSH 通过适配器接入；Host index 负责组合与生命周期，http 负责传输校验和错误映射，records 负责用例与端口，storage 负责数据库和迁移，config 负责可信配置。内层不直接依赖 React、DSH 服务实例或数据库驱动。只按当前真实职责修复，不创建未来模块空壳、不拆微服务、不改框架。
 
-PowerShell 使用专用变量，禁止给 $HOME/$home 赋值；启动说明从实际仓库目录解析，初始化与继续启动分开。数据库、WAL/SHM/journal、凭据和真实正文不提交；不要覆盖 `runs/1b99e39/` 或本次失败证据。
+在 `docs/evidence/FND-002/codex-takeover.md` 写简明接管记录：实际 HEAD/分支、已实现能力与源码位置、未来未实现范围、当前调用链、R1/R2 复现依据、额外问题清单、环境与测试入口、修复顺序。随后继续执行；不等待用户再确认这份阅读总结。文件是事实记录，不是第二份启动提示词。
 
-## 3. 仅修复两个收尾项
+### 2.2 工作树与运行隔离
+
+核对 origin、分支、远端提交和工作树，正常 fetch 后检查差异。存在无关用户修改时保留，必要时使用隔离 worktree；不 reset --hard、不自动 stash/删除用户文件、不 force push。应在 `codex/knowledgeos-takeover` 及其合法后继提交工作；旧 dsh 分支和 main 保留历史。
+
+核对 active_unit、revision、executor、上游 SHA 与本文件实际 SHA-256，运行 `node scripts/verify-plan.mjs`、`node scripts/prepare-upstream.mjs --check`、`node scripts/fnd002/scope-check.mjs`。检查不通过时根据具体差异修复真实一致性问题；不得只改 hash、降低断言或改状态掩盖未授权内容。`--check` 的 NOT_PREPARED 表示尚未检出上游，不是产品测试结果；需要时按已提供脚本准备固定版本。
+
+优先复用核验过的固定上游构建和隔离依赖，不无故重建整个上游、升级版本或更改全局 DSH。当前 in_progress 从已有成果恢复；真实 blocked 只处理当前阻塞；如果这份指令已执行并变为 passed / awaiting_user，只核对交接后等待，不重新开发。
+
+沿用专用 DSH_HOME `.cache/dsh-home-fnd002`、profile `knowledgeos-storage-test` 和本机端口 3100；占用时核实归属，必要时选择空闲端口并记录。每轮用新的 run_id 与合成数据目录；同一持久化重启测试必须保持同一目录。操作进程前核实 PID、命令、profile、端口，仅停止自己的测试实例。
+
+历史证据有 Windows/PowerShell 路径。优先复用现有脚本；若当前 Codex 环境不同，仅对必要运行/测试入口作保持断言的最小兼容适配并记录，不能把平台受限写成 PASS。PowerShell 使用专用变量，不给 $HOME/$home 赋值。启动路径从实际仓库解析；不提交数据库、WAL/SHM/journal、凭据、私人路径或正文，不覆盖旧 runs 与失败证据。
+
+## 3. 先关闭已确认问题，再处理当前基础内的新发现
 
 ### R1：内部对象前缀识别与独立归属回归
 
@@ -73,15 +94,23 @@ PowerShell 使用专用变量，禁止给 $HOME/$home 赋值；启动说明从�
 
 同步当前文档的状态和适用范围，清除“已通过”与“实现尚未开始”并存等当前结论；历史证据保留对应候选和时间。R2 中旧候选哈希已经由独立报告补足，不能据此说旧记录全是假的；本轮修正是让新的验收脚本能可靠执行同一要求。
 
-## 4. 分工与修复顺序
+### 3.3 接管检查发现的其他问题
 
-所有角色只处理 FND-002 / v2.1.1，最多四个活跃角色，只有一个生产代码写者。主管锁定 R1/R2 与候选；架构角色确认最小修复且默认只读；实现者修改适配器和配套脚本；独立测试者先写判据，再对冻结候选实跑，不暗改产品实现。按 11 协议交付真实命令、退出码、文件指纹、实际结果与限制，不把口头同意当验收。
+在理解源码、复现和复测时检查已实现的 FND-001/FND-002 链路及配套运行说明。发现实际缺陷后先记录复现、预期、实际、影响和依据，再一次修复一项；现有行为错误、当前修复导致的回归及阻止真实验证的测试问题都在本轮范围内。新增缺陷使用明确 ID，纳入当前报告、候选和相应回归；未证实推测标为待核实，不凭感觉重构。
 
-顺序：核对已有成果与失败证据 → 独立写前缀回归 → 最小修复 R1 → 立即运行真实 SQLite 反例与正常库对照 → 修正 R2 → 构建/类型/范围检查并冻结候选 → 真实 Host 与本单元九项测试 → 独立复核 → 定点返修/复测 → 提交停止。
+可以修复上述已有链路中的必要问题，不限于只改 R1/R2 两行代码；但“未来尚未实现的功能”不算本轮缺陷。涉及新功能、新业务规则、公开远程服务、正式账号/权限、资料解析、RAG、模型、jobs/outbox、安装包或上游整体升级的建议只记录，不执行。涉及已确认产品行为的实质变更，给出具体冲突和最小选项，其余已授权修复继续做。
 
-数据库打开/归属路径影响本单元所有以业务库初始化为前提的测试，且主验收脚本也发生变化，因此在新候选上复跑既有 T01–T09，补 R1 的针对性断言和 R2 负例。复用原有小范围测试基础设施，不重做全上游测试或第一部分完整 5/10/60 秒生命周期矩阵；仅当具体代码变化产生新的影响时扩相关回归。
+## 4. 分工与逐项修复顺序
 
-允许修改当前 SQLite 适配器、必要构建产物、本轮测试/计划、脱敏证据及状态文档；保留现有分层模块化单体、应用端口、真实 handler、可信 dataDir、认证/来源保护和旧面板。不得顺带实现账号/权限、其他业务表、RAG/jobs/outbox/模型、安装包或上游重构。常规本单元修复、测试、提交推送持续自主完成，无需重复请求确认。
+所有角色围绕 FND-002 / v3.0.0，使用当前 Codex 环境实证可用的协作工具，最多四个活跃角色，只有一个生产代码写者。主管先确认工具与并发能力：架构角色只读检查契约/依赖与修复边界；独立测试者在实现前从需求写预期和反例；实现者逐项修复产品与获准脚本；主管整合候选、证据与状态。测试文件分配独占写入范围，验收期间冻结所有被测代码和测试。
+
+不要求另启 DSH 模型会话或恢复旧 API 额度。若当前 Codex 没有独立子代理工具，可以顺序完成实际可做工作并记录独立复核缺口；不虚构代理调用、测试或签字。完整门槛要求的独立复核缺失时，不宣称本单元通过。
+
+执行顺序：项目理解与基线核对 → 独立建立 R1 失败回归 → 最小修复 R1 → 立即跑真实 SQLite 反例与正常库对照 → 修复 R2 并验证证据比较器的拒绝能力 → 逐项处理已有基础内确认的新缺陷 → 构建/类型/范围检查并冻结候选 → 真实 Host 的 T01–T09 与独立复核 → 按失败定点修复并重测 → 提交与等待指令。
+
+数据库打开/归属路径影响本单元全部初始化场景，主验收脚本也需变化，所以新候选必须复跑 T01–T09，并补 R1 反例与 R2 负例。复用已有测试基础设施；第一部分只跑受影响回归，不无依据重跑全上游或完整 5/10/60 秒生命周期矩阵。额外修改影响哪条已实现行为，就补哪项真实验证。
+
+允许修改现有插件中与确认缺陷直接有关的源码、必要构建产物、本轮可复用测试/运行脚本、测试计划、脱敏证据及状态文档；保留分层模块化单体、应用端口、真实 handler、可信 dataDir、认证/来源保护和旧面板。公共配置/依赖/迁移由唯一写者串行处理；当前修复不需要新增业务表或改变历史 v1 迁移。已授权修复、测试、正常提交和工作分支推送持续完成，无需逐步请求确认。
 
 ## 5. 本轮保留的最小技术契约
 
@@ -282,14 +311,22 @@ Node Web Host 仍为最低运行门槛。Desktop、安装包、真实 GPT 等未
 
 公开提交前脱敏 Cookie/Token/私有绝对路径和真实正文；只提交合成测试数据的文本证据，不提交数据库和旁文件。报告里的复验命令从实际仓库解析，使用新输出目录，不能覆盖已提交历史证据。
 
-## 8. 收口与停止
+## 8. 收口、交付与强制停止
 
-R1/R2 均关闭、新候选 T01–T09 实际通过、新增前缀反例与正常库对照通过、实际加载指纹检查及负例有效、独立复核完成，才将 FND-002 恢复 passed、test_result_status=PASS、retest_status=PASS。补真实完成时间/evidence_paths，清空 open_review_items、记录 closed_review_items，将 execution_state 改 awaiting_user 并更新 state_reason。
+只有 R1/R2 和本轮新确认的阻碍交付缺陷全部关闭，新候选 T01–T09 实际通过，前缀反例与正常库对照通过，真实加载指纹比较及不一致负例有效，独立复核完成，才将 FND-002 改为 passed、test_result_status=PASS、retest_status=PASS。补实际完成时间/evidence_paths，清空 open_review_items，将 R1/R2 和新缺陷写入 closed_review_items 并链接各自关闭证据；execution_state 改为 awaiting_user，active_unit 仍是 FND-002。
 
-同步 README、PROGRESS、BLOCKERS、REPORT、candidate、当前独立结论与审查项解决状态。本次 SUBMISSION_REVIEW 和 FAIL 原始结果保留历史事实，可追加关闭依据，不删除或改写成旧候选已通过。当前结论不能仍并存 OPEN/待补验和 PASS。
+同步 README、PROGRESS、BLOCKERS、REPORT、candidate、当前独立结论及接管记录。原 SUBMISSION_REVIEW 和 FAIL 原始结果保留历史事实，可追加新候选关闭依据，不改成旧候选曾通过新用例。当前文档不能同时声称 OPEN/未复测与全部 PASS。
 
-若出现真实外部阻塞，说明失败动作、候选、影响测试、已尝试方案与最小解除条件，保留成果并停在 FND-002；单纯待修缺陷为 in_progress，不伪装成环境 BLOCKED。未运行必测不算通过，不推给未来 Codex。
+真实外部限制阻止必测时记 BLOCKED/NOT_RUN，写清失败动作、环境、候选、影响测试、已尝试方案和最小解除条件；完成当前范围内其余独立工作后交接。待修代码缺陷保持 in_progress，不伪装成环境阻塞。用户已排除的旧 API 额度不登记为本轮 blocker。
 
-运行 `node scripts/verify-plan.mjs` 和当前范围检查，正常提交/推送同一 `dsh/knowledgeos-fnd-002` 分支并回读远端。禁止 force push、自动合并 main、覆盖第一部分分支或新增备用 START/PROMPT。
+最终运行 `node scripts/verify-plan.mjs`、本轮范围检查及本次变更所需的检查，正常提交并推送 `codex/knowledgeos-takeover`，回读远端确认提交；仅提交本次负责的文件。不能 force push、自动合并 main、覆盖历史分支或新增备用 START/PROMPT。
 
-最终中文交接 R1/R2 结果、提交、九项测试和新反例证据、实际加载候选、复验命令、未运行范围与剩余限制，然后停止。active_unit 保持 FND-002，auto_advance=false，Codex locked，FND-003 继续未激活。
+最终用中文交付：
+
+1. 项目理解：已有能力、架构与未实现范围，各给具体路径。
+2. 问题闭环：R1/R2 和新发现的证据、根因、修改、复测结果；区分未证实推测。
+3. 验证：候选/实际加载指纹、T01–T09、额外回归、独立复核、环境与复验命令；失败、未运行和限制分别说明。
+4. Git：实际分支、提交、推送结果和关键文件；任何推送阻塞如实记录。
+5. 停止状态：通过则 awaiting_user，真实受阻则如实保留；可以说明下一单元建议，但不执行。
+
+到此停止。auto_advance=false，FND-003 及以后保持未激活；完整产品审查仍是 not_started。本轮接管修复完成不等于所有基础功能完成，也不授权继续开发。等待用户下一条明确任务后才替换唯一入口并调整活动单元。

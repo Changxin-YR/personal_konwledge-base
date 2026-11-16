@@ -1,13 +1,13 @@
 {
   "schema_version": "2.0",
-  "instruction_revision": "2.1.1",
+  "instruction_revision": "3.0.0",
   "updated_at": "2026-11-16",
   "timezone": "Asia/Shanghai",
-  "execution_phase": "deepseek_foundation",
-  "executor": "deepseek_harness",
+  "execution_phase": "codex_takeover_repair",
+  "executor": "codex",
   "active_instruction": {
-    "path": "DSH_START.md",
-    "sha256": "1e33057fa22995dc81b9b48b2d3ddf9b99c78361b5de93ce3bedd3ac5e27caa9"
+    "path": "CODEX_START.md",
+    "sha256": "efb33af0a2e99edb683cb19af03e0e78081a483316105768d0ec333c17f50760"
   },
   "active_unit": "FND-002",
   "unit_state": "in_progress",
@@ -17,17 +17,18 @@
   "auto_advance": false,
   "next_unit_requires": "explicit_user_selection_and_atomic_instruction_replacement",
   "retired_instruction_paths": [
-    "CODEX_START.md"
+    "DSH_START.md"
   ],
   "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
   "codex_review": {
-    "state": "locked",
+    "scope": "full_product_review",
+    "state": "not_started",
     "active_prompt": null,
-    "unlock_requires": [
+    "activation_requires": [
       "all_foundation_work_units_passed_with_per_feature_tests",
       "all_44_requirements_and_66_acceptance_states_honest_and_traceable",
       "no_blocked_or_not_run_result_counted_as_pass",
-      "explicit_user_activation_of_codex_review"
+      "explicit_user_activation_of_full_product_review"
     ]
   },
   "state_semantics": {
@@ -37,8 +38,8 @@
     "awaiting_user": "current unit has passed and awaits a user choice; active_unit is not advanced"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "FND-002 reopened after review reproduced a database ownership failure; R1/R2 repair and candidate-bound retest are required before completion.",
-  "working_branch": "dsh/knowledgeos-fnd-002",
+  "state_reason": "User authorized Codex to understand and repair the existing project, validate the current FND-002, then wait; R1/R2 remain open and new-candidate retests are NOT_RUN. Prior API quota exhaustion is explicitly out of scope.",
+  "working_branch": "codex/knowledgeos-takeover",
   "activation_basis": "explicit_user_selection_of_second_part_after_FND-001_acceptance",
   "base_commit": "ce3a00ccd7c8cc46eaae6e660144730109cf93a0",
   "prerequisite_acceptance": {
@@ -52,5 +53,16 @@
   },
   "review_basis_commit": "cba39e4808fd41e6d7b076c3fbf080577c8b1114",
   "review_record": "docs/evidence/FND-002/SUBMISSION_REVIEW_20261116.md",
-  "review_outcome": "reopened_current_unit"
+  "review_outcome": "reopened_current_unit",
+  "takeover": {
+    "authorization": "explicit_user_request",
+    "previous_executor": "deepseek_harness",
+    "previous_instruction_revision": "2.1.1",
+    "previous_instruction_path": "DSH_START.md",
+    "base_commit": "10c406713a64299d7c7a52695672bbadbe2c21cb",
+    "scope": "understand_existing_project_repair_current_foundation_validate_then_wait",
+    "product_host": "deepseek_harness",
+    "api_issue": "user_confirmed_previous_api_quota_exhausted_out_of_scope",
+    "stop_after_current_unit": true
+  }
 }

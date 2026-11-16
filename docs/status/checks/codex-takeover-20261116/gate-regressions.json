@@ -1,0 +1,102 @@
+{
+  "status": "PASS",
+  "scope": "plan_gate_regressions_only",
+  "started_at": "2026-11-16T08:51:48.701Z",
+  "finished_at": "2026-11-16T08:51:52.116Z",
+  "checks": 15,
+  "results": [
+    {
+      "name": "current valid plan",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    },
+    {
+      "name": "prompt hash drift",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "retired DSH prompt restored",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "DSH executor coherently restored",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "catalog executor mismatch",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "catalog stale prompt path",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "automatic advance enabled",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "parallel features permitted",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "second running feature",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "unapproved future activation after synthetic closure",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "completion while finding remains open",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "completion without candidate retest",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "full product review falsely activated",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "complete acceptance falsely passed",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "synthetic valid completed structure",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    }
+  ],
+  "realProjectStatesModified": false,
+  "implementationVerifiedByThisCheck": false,
+  "productTestsExecuted": 0
+}
