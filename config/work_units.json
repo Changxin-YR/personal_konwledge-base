@@ -20,7 +20,7 @@
     "final_acceptance_ids": "本单元负责组织该完整场景验收，须全部前置功能真实可用且实际执行通过；每个完整场景只有一个最终负责单元。",
     "unit_completion": "当前切片完成且测试复核通过；不是整项F需求已verified。",
     "requirement_verification": "关联必要完整验收全部PASS且有证据才可verified。",
-    "test_obligations": "未来单元条目是规划基础，不代表两项即可覆盖全部行为；激活时依据范围、风险和关联验收细化操作、断言、环境、证据，并同步唯一当前提示词。当前FND-001已细化为七项。"
+    "test_obligations": "未来单元条目是规划基础；激活时依据范围、风险和关联验收细化操作、断言、环境、证据并同步唯一当前提示词。FND-001 的七项保留为已验收历史；当前 FND-002 细化为九项必测。"
   },
   "units": [
     {
@@ -99,7 +99,7 @@
         "A01": "仅Host/Client真实挂载与只读状态往返；身份、真实模型工具读写不在本单元。",
         "A50": "仅一个面板的入口/基本导航/字体状态；六工作区与Windows全遍历不在本单元。"
       },
-      "test_plan_status": "detailed_current_unit",
+      "test_plan_status": "detailed_accepted_unit",
       "evidence_paths": [
         "docs/evidence/FND-001/REPORT.md",
         "docs/evidence/FND-001/independent-verification-closeout.md",
@@ -142,25 +142,174 @@
         "FND-001"
       ],
       "scope": [
-        "单独业务SQLite库和最小迁移",
-        "测试用记录经Host创建/读取",
-        "保留运行时驱动兼容性证据"
+        "独立本地 SQLite 文件、归属/版本预检和原子 v1 迁移",
+        "仅两张应用表：迁移账本与合成持久化探针记录",
+        "经真实 DSH 已认证 Host 创建/读取、最小幂等及重启后读取",
+        "事务回滚、迁移失败/不兼容保护、有界锁等待和连接释放",
+        "本轮范围检查、受影响 FND-001 回归与实际运行时兼容证据"
       ],
       "not_in_scope": [
-        "真实用户库迁移",
-        "所有业务表提前建完",
-        "协作服务"
+        "用户真实数据库迁移或清理",
+        "全部业务表、正式知识实体、账号/对象权限",
+        "产品模型调用、资料解析/RAG、jobs/audit/outbox",
+        "协作服务、数据库管理 UI、通用 ORM/配置平台",
+        "完整备份恢复产品、Windows 安装包",
+        "FND-003 或其他未激活工作单元"
       ],
       "test_obligations": [
         {
           "id": "FND-002-T01",
-          "scenario": "写入记录后重启Host再读取",
-          "expected": "记录完整且来源为业务库"
+          "scenario": "真实 Host 创建、读取与进程重启持久化",
+          "preconditions": "固定 DSH 的隔离 Web profile 正常运行；有效认证；本轮独立磁盘业务库已就绪。",
+          "steps": [
+            "通过真实 HTTP POST 创建带 run_id、中文、引号与换行的合成记录；GET 返回同一记录。",
+            "核实测试 PID/profile/端口后正常停止并重新启动 Host，保持同一业务库路径；重新取得有效认证后 GET 原 ID。",
+            "用独立 SQLite 只读连接核对业务库中的记录及计数，证明来源不是进程内 Map、启动夹具或固定返回值。"
+          ],
+          "expected": "首次提交成功后才回执；重启前后 ID、content、created_at 一致且只有一条记录；业务库与 DSH Session/KV 分离；没有删库、换路径或导入夹具伪造恢复。",
+          "evidence_required": [
+            "脱敏请求/响应",
+            "重启前后 PID、Host 实例标识与启动命令",
+            "独立 SQL 查询和记录计数",
+            "候选、库路径脱敏标识、命令与退出码"
+          ]
         },
         {
           "id": "FND-002-T02",
-          "scenario": "事务中途失败与不兼容schema",
-          "expected": "事务回滚，原数据保留，错误可定位"
+          "scenario": "真实 SQLite 事务中途失败与回滚",
+          "preconditions": "同一真实适配器和迁移代码，独立测试库内有已提交的基线记录。",
+          "steps": [
+            "在同一个事务中先成功写入，再通过确定的约束失败触发后续步骤异常；不是只执行一条失败 INSERT。",
+            "独立读取逻辑数据和事务状态，随后通过正常路径写入一条新记录。"
+          ],
+          "expected": "失败事务没有部分写入，原记录保留，异常没有被吞掉或返回成功；回滚后连接可用；回滚失败或状态不明时停止写入。故障仅在测试层注入，不暴露 HTTP SQL/force_fail/路径入口。",
+          "evidence_required": [
+            "失败点和真实 SQLite 错误",
+            "事务前后记录与事务状态",
+            "后续正常写入结果",
+            "明确的受控故障测试标记"
+          ]
+        },
+        {
+          "id": "FND-002-T03",
+          "scenario": "首次初始化、重复启动与真实运行时设置",
+          "preconditions": "新的隔离数据目录；实际 Host 使用的 Node 和 node:sqlite 可观测。",
+          "steps": [
+            "由真实 Host 新建业务库并执行 v1，查询 application_id、user_version、两张表、迁移账本以及 WAL/foreign_keys/synchronous/busy_timeout 实际值。",
+            "用相同连接配置的真实 SQLite 测试临时表验证外键生效，不为测试新增生产业务表。",
+            "写入记录后重复启动，比较 schema、迁移校验值和记录数量。"
+          ],
+          "expected": "真实文件库；仅 schema_migrations 和 storage_probe_records 两张应用表；v1 仅提交一次；重复启动不清空、不重复迁移；WAL、外键与耐久/锁等待配置真实生效；报告实际 Node/SQLite 版本。",
+          "evidence_required": [
+            "实际 Host 驱动探针",
+            "PRAGMA 与 schema/迁移账本查询",
+            "外键拒绝断言",
+            "首次与重复启动对比"
+          ]
+        },
+        {
+          "id": "FND-002-T04",
+          "scenario": "迁移失败、不兼容版本及数据库归属保护",
+          "preconditions": "只含合成数据的独立 fixture；采用本轮真实迁移运行器；复制前连接已安全关闭或使用可靠快照。",
+          "steps": [
+            "通过仅测试迁移计划在事务中途制造失败，比较表、版本、归属标识、迁移账本和原数据。",
+            "分别准备本应用未来 user_version、已知迁移 checksum 不匹配、application_id 不匹配或非空未知 schema 的测试库。",
+            "用实际 Host/适配器打开这些库，检查本轮写接口拒绝写入；保持 Host 可达对照；解除故障后按有效路径恢复。"
+          ],
+          "expected": "失败迁移不半提交；不兼容/归属不明库在修改性配置和迁移前被拒绝；不把 user_version=0 单独视为空库；不降级、改账本、删库或改路径造成功；原逻辑数据/schema/版本保留，错误可定位。",
+          "evidence_required": [
+            "fixture 来源与故障点",
+            "逻辑数据/schema/版本/账本前后比较",
+            "真实打开拒绝与写接口拒绝结果",
+            "恢复结果；不把 WAL 文件哈希变化直接当数据丢失"
+          ]
+        },
+        {
+          "id": "FND-002-T05",
+          "scenario": "最小创建幂等、重试与并发重复请求",
+          "preconditions": "真实 HTTP 接口，独立业务库；Idempotency-Key 与内容摘要契约已冻结。",
+          "steps": [
+            "同键同 content 连续提交，Host 重启后再提交；比较记录和返回值。",
+            "同键不同 content 提交，核对明确冲突且旧内容不变。",
+            "并发发出两个同键同内容创建请求，核对结果及唯一记录计数。"
+          ],
+          "expected": "首次 201；同键同内容重放 200 且同 ID/created_at；同键不同内容 409 IDEMPOTENCY_CONFLICT；并发不会生成两条；幂等存在真实业务库，不靠进程内缓存或把请求键当身份。",
+          "evidence_required": [
+            "请求与响应状态/记录 ID",
+            "重启后重放",
+            "冲突前后内容",
+            "并发结果与数据库唯一记录计数"
+          ]
+        },
+        {
+          "id": "FND-002-T06",
+          "scenario": "打开失败、有限锁等待与恢复",
+          "preconditions": "独立故障目录和真实磁盘库；忙等待默认 250 ms；使用独立辅助进程/连接持写锁。",
+          "steps": [
+            "用可重复的无效目标（例如父路径被普通文件占用）触发打开失败，不依赖测试账号恰好无写权限。",
+            "外部持锁时调用真实写接口，测量失败时间；先断言有限失败，再释放锁。",
+            "恢复正确路径/解除锁后经正常路径写读，并核对已有数据。"
+          ],
+          "expected": "无路径/内存回退，无成功空结果；锁竞争返回 503 STORAGE_BUSY/retryable=true，受控环境在 2 s 内结束；不能期待同一事件循环定时器解除同步阻塞；故障清除后恢复，原数据保留。",
+          "evidence_required": [
+            "实际故障与安全错误响应",
+            "独立持锁辅助进程/连接记录",
+            "实际耗时与配置",
+            "释放锁后的恢复及原数据比较"
+          ]
+        },
+        {
+          "id": "FND-002-T07",
+          "scenario": "数据库连接生命周期释放与重新打开",
+          "preconditions": "本轮 profile 已读写持久记录；能观察适配器真实句柄关闭。",
+          "steps": [
+            "按实际插件生命周期卸载/重载本功能实例，验证先停止接收新操作、撤销入口，再安全关闭连接。",
+            "使用驱动状态或仅测试观测证明 close；对幂等清理和已关闭句柄不再使用作断言。",
+            "重新挂载或重启同一隔离 profile，打开同一文件读取原记录并写入新记录。"
+          ],
+          "expected": "关闭真实发生，不以路由 404 代替 close 证据；无关闭后使用/遗留重试/重复注册；重新打开保留数据；插件释放/重装不会删除数据库。",
+          "evidence_required": [
+            "实际 disposer/句柄关闭观测",
+            "清理与重开记录",
+            "重开后原记录及正常写入",
+            "测试实例归属"
+          ]
+        },
+        {
+          "id": "FND-002-T08",
+          "scenario": "真实本机认证、来源保护和输入边界",
+          "preconditions": "真实 Host 在线；同轮有效认证请求能成功，服务端数据库计数可核对。",
+          "steps": [
+            "可信来源下匿名/坏认证分别调用读和写；同时执行合法认证对照。",
+            "携带有效 Cookie 测试外站 Origin、Origin:null、sec-fetch-site:cross-site；可信 Host、有效 Cookie、无 Origin 的 CLI 应可正常调用。",
+            "验证无效 JSON、非 JSON Content-Type、空/错误类型/超限 content、孤立 Unicode 代理项、超限 body、未知字段、缺失或非法幂等键、非法方法及不存在 ID。",
+            "通过真实接口保存含引号和 SQL 片段的合法文本，核对逐值一致及数据库结构未改变。"
+          ],
+          "expected": "沿用上游准入：可信来源缺/坏凭据 401，外站/null Origin/cross-site 为 403，数据库无写入；正确 CLI 不被误拒；错误按契约映射；GET 不写入；不接受 SQL、路径、版本、身份或故障开关，私有信息不泄露。",
+          "evidence_required": [
+            "真实 HTTP 状态/安全错误码",
+            "有效认证对照和前后记录计数",
+            "输入/来源边界结果",
+            "参数化文本保存结果；凭据脱敏"
+          ]
+        },
+        {
+          "id": "FND-002-T09",
+          "scenario": "构建、当前范围与 FND-001 受影响行为回归",
+          "preconditions": "冻结本轮源码、迁移、测试和实际加载产物；FND-001 历史证据保留。",
+          "steps": [
+            "实际构建当前插件并运行相关类型/行为检查；核对 profile 真正加载的 bundle 与候选指纹一致。",
+            "在当前候选验证原面板加载、真实 status 刷新、刷新中文案、真实失败/恢复；验证未配置 dataDir 的旧 profile 仍保留原只读状态功能。",
+            "运行本轮范围检查：仅允许 SQLite 适配层/可信配置/最小用例与真实路由，以及必要依赖；检查应用内层没有反向导入。"
+          ],
+          "expected": "原只读链路不退化，错误不假装存储就绪；构建/类型/实际加载均有真实证据；未夹带账号、ACL、资料解析、RAG、jobs/outbox、安装包或未来模块；旧 FND-001 禁 DB 检查只属历史范围，不被篡改或误当本轮门槛。",
+          "evidence_required": [
+            "构建/检查命令及退出码",
+            "源码/产物/加载路径指纹",
+            "面板状态与失败恢复证据",
+            "新范围检查和依赖差异",
+            "未配置业务目录的兼容回归"
+          ]
         }
       ],
       "acceptance_ids": [
@@ -170,7 +319,40 @@
       "final_acceptance_ids": [],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
       "status": "planned",
-      "test_plan_status": "planning_baseline_expand_on_activation"
+      "test_plan_status": "detailed_current_unit",
+      "instruction_revision": "2.1.0",
+      "activated_at": "2026-11-16",
+      "activation_basis": "explicit_user_selection",
+      "working_branch": "dsh/knowledgeos-fnd-002",
+      "base_commit": "ce3a00ccd7c8cc46eaae6e660144730109cf93a0",
+      "requirement_evidence_scope": {
+        "F01": "partial_foundation_only_if_actual_tests_pass",
+        "F42": "partial_foundation_only_if_actual_tests_pass"
+      },
+      "acceptance_evidence_scope": {
+        "A07": "仅持久化、事务/迁移失败后的数据保护前置能力；没有解析任务恢复完整验收。",
+        "A49": "仅本地存储与 Host 重启读取前置能力；没有 Windows 安装/升级/卸载完整验收。"
+      },
+      "engineering_defaults": {
+        "database": "node:sqlite DatabaseSync",
+        "schema_version": 1,
+        "application_id_hex": "0x4B4F5331",
+        "tables": [
+          "schema_migrations",
+          "storage_probe_records"
+        ],
+        "trusted_configuration": "Cordis Config.dataDir; explicit local absolute path when storage is enabled",
+        "database_filename": "knowledgeos.sqlite",
+        "journal_mode": "WAL",
+        "foreign_keys": true,
+        "synchronous": "FULL",
+        "busy_timeout_ms": 250,
+        "max_content_utf8_bytes": 4096,
+        "max_request_body_bytes": 16384,
+        "idempotency_header": "Idempotency-Key",
+        "probe_base_path": "/knowledgeos/foundation/records"
+      },
+      "test_result_status": "NOT_RUN"
     },
     {
       "id": "FND-003",

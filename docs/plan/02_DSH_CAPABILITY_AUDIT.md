@@ -4,7 +4,7 @@
 核对方式：GitHub 插件只读获取官方元数据、文档、清单和关键实现文件。没有安装依赖、启动上游、调用真实模型或执行 Windows 安装验收。  
 状态：**源码适配方向成立；运行可用性由对应已激活单元逐项确认。**
 
-执行范围说明：本页是上游能力证据与全周期适配目录，不是另一份启动指令。M0 标记表示基础阶段总体义务；当前 FND-001 只做单面板与 Host 只读状态，身份、存储、模型及发布检查分别在各自单元激活后执行。
+执行范围说明：本页是上游能力证据与全周期适配目录，不是另一份启动指令。M0 标记表示基础阶段总体义务；FND-001 单面板与 Host 只读状态已验收；当前 FND-002 只做独立业务持久化，身份、模型及发布检查仍在各自单元激活后执行。
 
 ## 1. 固定上游基线
 
@@ -295,3 +295,13 @@ Git 安装不会自动运行一般 `build` 命令；需要自包含 `prepare`，
 - **S27** [packages/client/modules/README.md](https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/client/modules/README.md)：外部Client构建/装载协议。
 - **S28** [packages/client/tsdown.client.ts](https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/client/tsdown.client.ts)：closure-factory构建preset。
 - **S29** [docs/user/develop/basic/publish.md](https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/docs/user/develop/basic/publish.md)：外部bundle/profile及源码/预构建安装方式。
+
+## 15. FND-002 写路由与可信配置补核
+
+以下是固定提交的源码事实和本轮设计依据，不是新产品测试通过声明。
+
+- [WebServer 源码](https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/host/webserver/src/index.ts) 的 resource 仅接 GET/HEAD；写路由使用实际 handler(req, res, peer?)。上游先授权再调用 handler；应用处理方法/body/业务错误，不借进程内 readResource 证明 HTTP 鉴权。
+- [来源策略](https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/client/connection/src/api-request-trust.ts) 校验 Host 和附带的 Origin/Fetch Metadata；外站/null Origin 与 cross-site 被拒，缺 Origin 的可信 CLI 继续认证。[连接准入](https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/client/connection/src/rpc-host.ts) 在凭据检查前执行来源策略，不能只调用底层 authenticate 而绕过该层。
+- [插件配置说明](https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/docs/user/develop/basic/config.md) 使用 Config 类型、同名 Schemastery validator 和 apply(ctx, config)。本轮可信 dataDir 由 Host row config 注入；导入真实 schema 库时声明依赖并验证运行，不仅修改类型 shim。
+- 固定上游 SQLite backend 的内部 KV 表与 schema helper 不是通用业务迁移 API；本项目另建自己的文件和迁移运行器。已有库的归属/未来版本保护必须先于修改性配置，不能机械照抄上游初始化顺序。
+- [Node v24.22.0 SQLite 文档](https://github.com/nodejs/node/blob/v24.22.0/doc/api/sqlite.md) 区分同步 DatabaseSync、忙等待、只读打开、连接状态与各 API 新增版本。本轮保持 DSH 的 >=24.9.0 API 基线；statement.close 等后续能力不能无条件依赖。实际 Node 和可用 Desktop 证据分别记录。
