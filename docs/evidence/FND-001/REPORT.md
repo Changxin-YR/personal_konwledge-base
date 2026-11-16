@@ -45,7 +45,7 @@
 
 | 证据 | 路径 | 结果 |
 |---|---|---|
-| R1/R2 生命周期与刷新 | `runs/2774b18/closeout-v3/summary.json`、`R1-*.png`、`R2-refreshing.png` | 20 步全 PASS；`result: PASS`，`recovery: []` |
+| R1/R2 生命周期与刷新 | `runs/2774b18/closeout-v3/summary.json`、`R1-*.png`、`R2-refreshing.png` | 23/23 步全 PASS；`result: PASS`，`recovery: []` |
 | R1 失败与旧版脚本问题 | `runs/2774b18/closeout/`、`closeout-v2/` | 保留第一次脚本缺陷证据，不计产品失败 |
 | R2 回归（真实断连） | `runs/2774b18/browser-v3/summary.json` | 18 步 PASS |
 | Host 契约 | `runs/2774b18/host-contract/` | 同实例/重启契约 exit 0；匿名 401、认证 200 |
