@@ -1,37 +1,32 @@
 # 实际进度
 
-更新：2026-11-16（Asia/Shanghai）。现行唯一执行提示词 v2.1.0（FND-002）。
+更新：2026-11-16（Asia/Shanghai）。现行唯一执行提示词 v2.1.1，当前单元仍为 FND-002。
 
-## 当前执行方式与真实状态
+## 当前结论
 
-当前执行者：**DeepSeek Harness**。唯一入口：`DSH_START.md`。唯一已选单元：**FND-002：本地业务持久化最小闭环**；工作分支 `dsh/knowledgeos-fnd-002`，继承 FND-001 验收基线 `ce3a00ccd7c8cc46eaae6e660144730109cf93a0`。
+**主体实现已提交，收尾修正进行中。** 复核 cba39e4 / 产品候选 1b99e39 后，真实磁盘 SQLite 反例证明 sqliteX_* 用户对象被错误过滤，非空外部库被当新库初始化。当前 execution_state 和单元状态均为 in_progress；test_result_status=FAIL 表示已有明确反例，修复后 retest_status=NOT_RUN。
 
-执行状态 `awaiting_user`；FND-002 单元 `passed`，`test_result_status=PASS`。产品候选 `1b99e392593ef0213f68f8dfb45f5d34a06eac1b`，证据提交 `df5ec3c52093616b85370d68e42b7d2b36982490`。下一单元未激活，Codex locked。
+唯一入口 `DSH_START.md`，继续分支 `dsh/knowledgeos-fnd-002`。R1 修正数据库对象前缀识别和独立归属回归；R2 修正可复用验收脚本的计数、真实加载指纹、时间与状态一致性。见 [提交复核](../evidence/FND-002/SUBMISSION_REVIEW_20261116.md)。
 
-## FND-002 结果（2026-11-16，v2.1.0）
+FND-001 仍 passed；FND-003 未激活；Codex locked；auto_advance=false。此次只更新审查、指令和状态，没有修改产品实现或原验收脚本。
 
-**PASS（本单元切片）。** 在固定源码 `0.2.2-rc.3` 的真实 Web Host 上，建立“已认证 HTTP → Host handler → 应用用例/端口 → 独立 SQLite → Host 重启后读取”的闭环，并完成事务回滚、迁移/归属保护、有界锁等待、幂等与并发、连接释放/重开、认证/来源/输入边界和 FND-001 回归。
+## 已有成果与证据
 
-- 只新增两张应用表：`schema_migrations`、`storage_probe_records`；只新增两条真实已认证路由。
-- `dataDir` 仅来自可信 profile config；缺省时旧 profile 的 status/面板保持可用，持久化接口 503 `STORAGE_UNAVAILABLE`。
-- 九项必测 T01–T09 全部实际 PASS；独立复核 check-db 73/73、boundary 59/59、view-objects 11/11、构建可复现、脱敏 PASS。
-- 修复本轮发现的实际缺陷：原候选 `d7a453d` 把“仅 VIEW 的非空库”当空白接管；新候选 `1b99e39` 检查全部非 `sqlite_%` schema 对象，并加固回滚失败 fail-closed。`d7a453d` 证据保留为历史/SUPERSEDED。
-- 证据：`docs/evidence/FND-002/REPORT.md`、`independent-verification.md`、`runs/1b99e39/`、`candidate.md`。
-- 未运行：Desktop Electron 探针、Host 级迁移失败、回滚自身失败构造、Windows 安装包、多人账号、真实 GPT。
+产品候选 1b99e39 已实现独立两表 SQLite、可信 dataDir、已认证 Host create/get、幂等与重启读取、事务/迁移保护和连接释放。原 T01–T09 共 109 条实际断言，独立 check-db 73/73、boundary 59/59、view-objects 11/11 均有记录；11 个候选 SHA-256 与提交相符。
 
-本单元通过不等于 F01/F42 整项需求或 A07/A49 完整场景通过；只形成前置局部证据。
+这些旧结果只证明已覆盖行为，不能覆盖新前缀反例。原 D0 的普通 VIEW 漏检已修，但前缀识别仍不正确；旧报告已标明其历史适用范围，原始 runs 不覆盖。当前新增的真实反例为 FAIL，不计入旧 PASS。
 
-## 功能与宏观阶段
+## 当前范围
 
-| 范围 | 实现/激活状态 | 产品运行验证 |
+| 范围 | 状态 | 验证说明 |
 |---|---|---|
-| FND-001 | passed，历史成果保留 | 真实 Web profile PASS |
-| FND-002 | passed（本轮） | 九项真实 Host/SQLite PASS |
-| FND-003 及其他工作单元 | planned，未激活 | NOT_RUN |
-| F01–F44 | 只有已完成切片的局部证据 | 无需求被标记 verified |
-| P01–P14、A01–A52 | 仍待各最终负责单元 | 全部 NOT_RUN；本轮不提前标 A07/A49 |
-| Windows 安装包 | NOT_BUILT | NOT_RUN |
+| FND-001 | passed | 原通过与历史证据保留 |
+| FND-002 | in_progress，R1/R2 OPEN | 旧覆盖记录保留；新反例 FAIL；修复后复测 NOT_RUN |
+| FND-003 及其他单元 | planned，未激活 | NOT_RUN |
+| F01–F44 | 局部基础能力 | 无需求被标记 verified |
+| P01–P14、A01–A52 | 待最终负责单元 | 完整场景仍 NOT_RUN |
+| Desktop/Windows 安装包/真实 GPT | 未运行或未构建 | 未新增为当前收尾门槛 |
 
-## 下一次实际执行
+## 下一步
 
-等待用户明确选择下一单元并原子替换唯一入口与执行登记；`active_unit` 保持 FND-002，不自动切换。常规本单元修复已完成，不自动开启 FND-003。
+DSH 按 v2.1.1 先建立独立失败回归，再最小修正，构建并冻结新候选，实际完成本单元九项测试和独立复核。R1/R2 关闭后才可恢复 passed / awaiting_user，active_unit 保持 FND-002，然后等待用户选择下一部分。

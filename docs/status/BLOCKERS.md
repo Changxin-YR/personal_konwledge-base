@@ -1,31 +1,20 @@
 # 阻塞与待验证条件
 
-更新：2026-11-16。FND-002 已在真实隔离 DSH Web Host 与真实 SQLite 上完成九项测试、独立复核和返修；当前无阻塞本单元交付的条件。
+更新：2026-11-16。FND-002 当前存在已复现的产品缺陷及已确认的证据检查问题，状态为 in_progress。尚无已确认的外部环境阻塞；待修缺陷不能被写成“当前无阻碍交付”。
 
-## FND-002 结果
+## 当前待关闭项
 
-| 项 | 状态 | 说明 |
-|---|---|---|
-| 独立业务 SQLite 文件 | CLOSED | `<dataDir>/knowledgeos.sqlite`，两表、归属/版本/账本、WAL/FK/FULL/250ms 均已实测 |
-| 已认证 create/get | CLOSED | 真实 Host handler；201/200/409/404/405/413/415/422/503 实测 |
-| 重启持久化 | CLOSED | Host 真正停止/重启后同一记录逐字节一致，独立只读 SQLite 核对 |
-| 事务/迁移/归属保护 | CLOSED | 事务回滚、迁移失败、未来版本、坏 checksum、错 application_id、未知表/视图均拒绝 |
-| 幂等/并发 | CLOSED | 同键同内容 200 同 ID/time；异内容 409；并发 201+200 且唯一行 |
-| 打开失败/锁等待/恢复 | CLOSED | 503 STORAGE_UNAVAILABLE；503 STORAGE_BUSY retryable，351 ms；释放后恢复 |
-| 连接释放/重开 | CLOSED | close 日志恰一次；重开保留数据并可写；不以 404 代替 close |
-| FND-001 回归 | CLOSED | panel/status/刷新/失败恢复/旧 profile 无 dataDir 行为均保留 |
+| ID | 状态 | 实际问题 | 最小解除条件 |
+|---|---|---|---|
+| R1 | OPEN | NOT LIKE 'sqlite_%' 漏掉 sqliteX_* 合法对象，未知非空库被写入本项目归属/版本及两表 | 精确前缀修复；独立原始元数据反例拒绝且不改库；正常库/内部索引对照通过；真实 Host 拒绝验证 |
+| R2 | OPEN | T05 actual 计数错位、T09 未比较真实加载候选哈希、summary.started_at=null，部分当前文档状态矛盾 | 证据脚本修正及哈希不一致负例有效；新候选运行结果和状态一致 |
 
-## 当前单元剩余限制（非阻塞）
+依据：[提交复核](../evidence/FND-002/SUBMISSION_REVIEW_20261116.md)。原记录在反例中未删除，但归属、版本、journal 与 schema 被修改；不能因此接受该行为。修复尚未执行，修复后测试 NOT_RUN。
 
-| 项目 | 状态 | 说明 |
-|---|---|---|
-| Desktop/Electron 探针 | NOT_RUN | 最低门槛为真实 Node Web Host；未另起桌面实例 |
-| Host 级迁移中途失败 | NOT_RUN | T04 用同一真实适配器/迁移代码在隔离 fixture 上执行 |
-| 回滚自身失败 fail-closed | 代码审查 + 正常路径 | 未安全构造故障；不能由正常重启证明断电零丢失 |
-| Windows 安装包、多人账号、真实 GPT | NOT_RUN | 范围外，后续单元 |
+## 历史结果与范围限制
 
-## 历史候选
+1b99e39 的九项/独立运行记录和 d7a453d 的旧失败/复测历史保留在原 runs；它们不是本次新反例通过证据。第一部分通过状态保留。
 
-`d7a453d` 的九项 PASS 与独立复核保留在 `docs/evidence/FND-002/runs/d7a453d/` 并标 SUPERSEDED；它把“仅 VIEW 的非空库”误判为空白，已由 `1b99e39` 修复并复测。
+Desktop/Electron、Host 级迁移中途失败、回滚自身失败故障构造及 Windows 安装包/未来账号/真实 GPT 仍按原报告记录未运行范围，不新增为本次修正门槛。普通重启不能证明突然断电零丢失。
 
-真实阻塞记录必须包含：当前 unit_id、失败动作与错误、时间、候选提交/指纹、影响测试、已尝试修复、最小解除条件和本单元剩余可做内容。未尝试写 NOT_CHECKED/NOT_RUN，不写 BLOCKED。FND-002 证据中的 token/Cookie 已脱敏；数据库、WAL/SHM、私有路径未进入公开证据。
+如出现真实外部阻塞，记录失败动作、错误、时间、候选、影响测试、已尝试方案、最小解除条件和本单元可继续内容。未尝试写 NOT_CHECKED/NOT_RUN。不得转入下一单元或用未来 Codex 替代当前修复。

@@ -1,97 +1,91 @@
 ---
-instruction_revision: "2.1.0"
+instruction_revision: "2.1.1"
 execution_phase: "deepseek_foundation"
 executor: "deepseek_harness"
 active_unit: "FND-002"
 auto_advance: false
 ---
 
-# 当前执行指令：DeepSeek Harness · FND-002 本地业务持久化最小闭环
+# 当前执行指令：DeepSeek Harness · FND-002 数据库保护修正与复测
 
-你是 KnowledgeOS 当前功能的开发主管。用户已经验收第一部分并明确选择第二部分。本轮只实现 FND-002：让一条合成验证记录经真实 DSH Host 写入独立 SQLite 业务库、读取，并在 Host 真正停止和重启后继续读取同一条记录；同时完成事务、迁移、错误及连接释放验证。先定义测试，再逐步实现和实测，返修到本单元通过后停止。
+你是 KnowledgeOS 当前功能的开发主管。第二部分已经提交主体实现和真实运行证据，本次复核又发现一个可复现的数据库归属保护缺陷。继续同一个 FND-002，保留已有源码、真实 Host 接入和历史证据，完成 R1/R2 的定点修正及复测后停止。不要从头开发，不进入 FND-003，不调用 Codex。
 
-这是唯一当前可执行提示词，已整体替换 FND-001 收尾指令；旧正文只存在于 Git 历史。结束旧任务的子智能体上下文，新任务包一律标 FND-002 / v2.1.0。不得同时执行旧指令，不调用 Codex，不自动开发 FND-003。
+本文件 v2.1.1 已整体替换唯一入口中的 v2.1.0 正文。旧报告中的 PASS 是原候选在已覆盖用例上的提交结论，不能覆盖本次反例。当前已重新登记为 in_progress，表示收尾待执行；并不代表修复已经完成或新测试已通过。结束旧 revision 的派生任务，新的任务包统一标 FND-002 / v2.1.1。
 
-## 1. 固定基线与执行状态
+## 1. 当前基线与真实结论
 
-| 项目 | 本轮约定 |
+| 项目 | 本轮依据 |
 |---|---|
-| 产品仓库 | `https://github.com/Changxin-YR/personal_konwledge-base.git` |
-| 当前工作分支 | `dsh/knowledgeos-fnd-002`；从已验收第一部分继承，main 尚未合入实现 |
-| 第一部分验收基线 | `ce3a00ccd7c8cc46eaae6e660144730109cf93a0`，FND-001 passed、R1–R4 CLOSED |
-| 第一部分验收记录 | `docs/evidence/FND-001/ACCEPTANCE_REVIEW_20261116.md` |
-| 官方上游 | `https://github.com/deepseek-ai/deepseek-harness.git` |
-| 固定上游 SHA | `39163dd30f703a79079e2d2446545cff3c453738`，根包 `0.2.2-rc.3` |
-| 工具链基线 | Node `>=24.9.0`，构建 pnpm `11.28.5`；记录实际运行版本，不自动跟随 latest |
-| 初始状态 | `execution_state.active_unit=FND-002`、`unit_state=ready`；目录中 FND-002 仍 planned，表示已选未开发 |
-| 并发与停止 | 一个活动单元、一个生产代码写者；`auto_advance=false`；Codex review locked |
+| 仓库 | `https://github.com/Changxin-YR/personal_konwledge-base.git` |
+| 继续工作分支 | `dsh/knowledgeos-fnd-002`；不改第一部分分支、不自动合并 main |
+| 本次复核提交 | `cba39e4808fd41e6d7b076c3fbf080577c8b1114` |
+| 原产品候选 | `1b99e392593ef0213f68f8dfb45f5d34a06eac1b` |
+| 原九项证据 | `docs/evidence/FND-002/runs/1b99e39/`，保留其当时实际结果 |
+| 本次复核记录 | `docs/evidence/FND-002/SUBMISSION_REVIEW_20261116.md` |
+| 本次真实反例 | `docs/evidence/FND-002/reviews/cba39e4/root-prefix-result.json`，FAIL |
+| 固定上游 | `39163dd30f703a79079e2d2446545cff3c453738`，根包 `0.2.2-rc.3` |
+| 工具链 | Node >=24.9.0 API 基线，构建 pnpm 11.28.5；记录实际版本 |
+| 前置单元 | FND-001 保持 passed，既有面板/status 与历史证据保留 |
+| 当前状态 | FND-002 in_progress，R1/R2 OPEN；修复后的测试 NOT_RUN |
 
-执行前核对 `config/execution_state.json` 的版本、active_unit、执行器、上游 SHA 及本文件 SHA-256，并运行计划检查。`ready` 才开始并同步本单元为 in_progress、更新 state_reason 和真实测试进度；`in_progress` 从真实进度恢复；`blocked` 先核对具体阻塞并继续本单元可做部分；若已为 `passed / awaiting_user`，只交接不重复开发。不得单独重算哈希、改测试预期或改状态来掩盖指令冲突。
+复核确认原候选 11 个关键文件 SHA-256 与提交一致，T01–T09 有 109 条实际断言，独立脚本有真实记录。这些证据继续说明已测行为。新反例显示：合法用户表 sqliteX_foreign_private 被错误过滤，非空库被标为本应用、升级为 v1 并新增两张表；因此当前单元整体不能 PASS。
 
-当前候选以此分支最新已核对的工作树为准；上述第一部分 SHA 只作继承依据，不授权 reset、覆盖后来提交或用户修改。FND-001 源码、产物、报告和失败/复测历史全部保留。
+只读/计划检查通过不等于归属保护通过。本次反例是在真实磁盘 SQLite 上运行提交的 lib/storage.js；不是新一轮完整 Windows DSH Host 测试，也没有操作用户数据库。
 
-## 2. 必读材料与启动预检
+## 2. 读取、预检与隔离
 
-按顺序读取：
+先读 AGENTS、本文件、execution_state、PROGRESS、BLOCKERS、本次复核记录，再读当前 FND-002 工作单元及其 REPORT/candidate/independent-verification/test-plan。需求与架构仍按 F01/F42、03/04/05/11 读取；历史报告和证据不是另一份执行授权。
 
-1. 仓库 `AGENTS.md`、本文件、`config/execution_state.json`、`docs/status/PROGRESS.md`、`docs/status/BLOCKERS.md`。
-2. 从 `config/work_units.json` 只提取 FND-002 和已通过的依赖 FND-001；读取第一部分验收记录、当前包 README 和真实启动说明。
-3. 需求 F01/F42、`03_ARCHITECTURE.md` 的分层与业务存储、`04_DATA_AND_STATE_CONTRACTS.md` 的本轮边界和事务、`05_API_AND_AI_CONTRACTS.md` 的本轮接口和通用幂等、`11_AGENT_AND_PROMPT_PROTOCOL.md`；A07/A49 只识别本轮前置证据边界。
-4. 固定 DSH 的 AGENTS、相关开发规范及下列真实入口：`packages/host/webserver/src/index.ts`、`packages/client/connection/src/api-request-trust.ts`、`rpc-host.ts`、`packages/storage/storage-sqlite/src/{index,schema}.ts`、`docs/user/develop/basic/config.md` 与 publish 配置覆盖规则。
+核对 remote、分支、远端和工作树，保留用户修改及后续提交，正常 fetch/同步；不 reset --hard、不 force push。核对 active_unit、revision、执行器、上游 SHA 和本文件 SHA-256 后运行 `node scripts/verify-plan.mjs`、`node scripts/prepare-upstream.mjs --check`、`node scripts/fnd002/scope-check.mjs`。
 
-核对 remote、当前分支、工作树和远端；正常 fetch/同步到 `dsh/knowledgeos-fnd-002`。遇到用户未提交修改先保留，用不覆盖的方式继续；不 reset --hard、不 force push、不自动合并 main。正常本单元开发、测试、返修、提交和推送已授权，不因常规实现细节反复请求确认。
+优先复用已核验的固定上游构建和隔离依赖，不无故重建整个上游、不改变版本锁。当前 in_progress 从已有成果恢复；blocked 只处理真实当前阻塞；若以后变为 passed / awaiting_user，只交接不重做。不能重算哈希、降低预期或改状态绕过检查。
 
-先运行 `node scripts/verify-plan.mjs`、`node scripts/prepare-upstream.mjs --check`。优先复用已核验的固定源码、隔离构建和锁定依赖；源码确未准备时再按现有 prepare 流程补齐。不要无故重建整个上游。若需要 build:check，遵循先 build:artifacts 后 build:check。
+沿用本轮专用 DSH_HOME `.cache/dsh-home-fnd002`、profile `knowledgeos-storage-test` 和本机端口 3100（占用时核实归属，必要时选择空闲端口并记录）。新测试用新 run_id 与独立合成数据目录；持久化重启在同一次测试内保持同一目录。操作进程前确认 PID、命令、profile、端口，不停止承载开发会话的 DSH。
 
-### 2.1 本轮隔离运行环境
+PowerShell 使用专用变量，禁止给 $HOME/$home 赋值；启动说明从实际仓库目录解析，初始化与继续启动分开。数据库、WAL/SHM/journal、凭据和真实正文不提交；不要覆盖 `runs/1b99e39/` 或本次失败证据。
 
-工程默认：新建专用 DSH_HOME `.cache/dsh-home-fnd002`、profile `knowledgeos-storage-test`，端口优先 3100；独立业务数据目录 `.cache/knowledgeos-fnd002-data/<run_id>/`，绝对路径由测试脚本解析后传给可信 Host 配置。业务数据目录与 DSH_HOME、Session/KV、源码缓存、构建产物分开。重启持久化测试必须保持同一 run_id 和同一路径，不能重启时另建目录。
+## 3. 仅修复两个收尾项
 
-这些是开发测试目录，不是正式发行版用户数据目录方案。端口被占用时选择空闲本机端口并记录，不杀未知进程。停止或重启前核实 PID、启动命令、profile、端口及进程归属；不停止承载开发会话的 DSH，不触碰默认 profile、用户真实数据库或其他仓库。
+### R1：内部对象前缀识别与独立归属回归
 
-PowerShell 使用 `$dshTestHome`、`$knowledgeosRepo`、`$knowledgeosDataDir` 等专用变量，禁止给 `$HOME` / `$home` 赋值。首次初始化与继续启动分开；显式 profile 启动不再额外追加旧 `web` 位置参数，`--from-default-profile web` 只按固定 CLI 首次初始化使用。先核验上游源码及构建来源，再使用 release 元数据，不能伪造锁定 SHA。
+已定位：`src/host/storage.ts` 的 `readDatabaseFacts()` 和 `#verify()` 都使用 `name NOT LIKE 'sqlite_%'`。LIKE 的下划线表示任意单字符，因此 sqliteX_* 也被漏掉。空白判定又依赖该错误对象集合，导致已有库被初始化。
 
-## 3. 允许范围与架构落点
+按以下顺序推进：
 
-沿用已有 out-of-tree `packages/knowledgeos-panel/` 和分层模块化单体，仅增加实际需要的几类文件：
+1. 独立测试者先确认本次真实反例，写出“不接管、不修改”的断言。原复现脚本位于 reviews/cba39e4，元数据绑定旧候选；新回归另存可复用脚本并正确绑定新候选，不能拿旧硬编码 SHA 标新结果。
+2. 同时修正预检与打开后的校验，只排除字面 `sqlite_` 前缀，例如正确使用 GLOB 或带 ESCAPE 的 LIKE。保留 table/view/index/trigger 的完整枚举；必要时将两处生产查询收敛到一个小 helper，避免再次漂移。不能只给 sqliteX_foreign_private 增加特判、改 fixture 名或放宽未知库规则。
+3. 归属/版本/对象拒绝必须发生在切换 journal_mode、迁移和写入之前。保持原 v1 SQL、checksum、application_id、user_version、两表与 API 契约；修正判断逻辑不需要虚构 v2、删库重建或修改历史迁移。
+4. 更新当前 test-plan 与新独立验证方法。旧 check-db/view-objects 也复制了错误 LIKE 查询；历史 runs 文件保留，不回写成修复版。新测试直接读取全部 sqlite_master 的 type/name/sql、PRAGMA 和哨兵数据，由独立判据识别字面前缀，不能只调用被测 readDatabaseFacts() 证明库为空。
+5. 最小回归包含：未知库中 sqliteX_foreign_private 表及原记录；仅含 sqliteX_view 的未知库；已知 v1 库中新增 sqliteX_ 索引/触发器。它们应拒绝，原数据、schema、归属、版本、账本及 journal_mode 不变。新空白库和含真实 sqlite_autoindex_* 的正常 v1 库应继续可用，不能修成“全部拒绝”。
+6. 在真实隔离 Host 上至少验证一个外来表 fixture：Host/status 正常可达，有效认证下业务读写返回 503 STORAGE_INCOMPATIBLE，库逻辑状态未改变。正常库再做真实写读/重启对照。故障夹具不暴露成 HTTP SQL/路径/force_fail 参数。
 
-| 位置/层 | 本轮责任 |
-|---|---|
-| Host 传输入口与组合根 | 可信配置、DSH 路由、输入/响应映射、实例生命周期与依赖装配 |
-| 应用用例与内层存储端口 | create/get 探针记录、输入约束、稳定错误与幂等行为；不导入 DSH、HTTP、React 或 SQLite |
-| SQLite 适配层 | 磁盘连接、归属/版本检查、两张表、最小迁移、参数化 SQL、事务与释放 |
-| 当前单元测试 | 真实 Host 请求、真实 SQLite 故障测试、独立候选验证与受影响回归 |
+原记录在已复现反例中没有删除；问题是未经确认修改了外部库归属、版本、journal 和结构。不要夸大为已发生数据删除，也不能因原记录尚在而接受该行为。
 
-具体文件名由架构角色在编码前记录，但不创建空领域目录、通用仓储基类、独立微服务、ORM、配置中心或第二套前端。`node:sqlite` 只进入 SQLite 适配层；HTTP handler 不拼 SQL；应用用例不绕过端口直接访问文件。
+### R2：修正本轮可复用证据检查
 
-保留 `/knowledgeos/status` 的既有只读运行诊断含义和面板行为。它表示 Host 状态，不能用它暗示数据库已可用。无需新增数据库管理页或六工作区；真实 HTTP 测试客户端即可完成本轮写读闭环。
+`scripts/fnd002/run-all.mjs` 有三处已确认的证据问题，应随新回归一起修正：
 
-本轮不实现 FND-003 账号、FND-004 对象授权、FND-005 产品模型调用、FND-006 jobs/outbox，也不开发资料导入、解析、RAG、真实知识实体、协作服务、备份恢复产品或 Windows 安装包。FND-002 探针不是知识条目，不伪造用户、所有者、空间或 service_id 来假装完成后续契约。
+- T05 的并发断言按 key 过滤计数，但 actual 写了全表计数。保存一个过滤后的值，并用同一值完成断言和证据记录。
+- T09 只检查依赖字符串包含包名、固定读取当前仓库目录，再判断哈希长度为 64。应从实际 profile 的安装/解析结果取得加载产物，将其 SHA-256 与事先冻结候选的指纹逐值比较；期望值不能来自同一个待检查文件现算现比。既有独立脚本的真实路径/重建方法可以复用，但必须核对当前来源。
+- summary.started_at 从不存在的 results 字段读取，实际为 null。保存真实运行开始/结束时间，并与逐项时间保持合理顺序；补记不能伪造之前的时间。
 
-### 3.1 必须适配的两个既有边界
+用独立临时产物/manifest 副本制造一个哈希不一致，确认比较器失败并阻止候选通过；不修改正在运行的 profile 产物、不制造未知进程故障。这个负例只验证新证据门槛，不变成额外业务功能。
 
-现有 `webServer.register({ resource })` 仅支持 GET/HEAD，POST 会被上游先拒绝。新写路由必须使用固定上游真实 `handler(req, res, peer?)` 注册并显式 `auth: 'required'`。按源码补齐当前 `src/cordis.d.ts` 的真实最小类型或使用可用公开类型，不能通过 `any`、虚构签名或假路由骗过编译。handler 自行处理方法、body 上限、JSON 校验、错误映射和完整响应生命周期。
+同步当前文档的状态和适用范围，清除“已通过”与“实现尚未开始”并存等当前结论；历史证据保留对应候选和时间。R2 中旧候选哈希已经由独立报告补足，不能据此说旧记录全是假的；本轮修正是让新的验收脚本能可靠执行同一要求。
 
-现有 `scripts/fnd001/scope-check.mjs` 会禁止整包出现 SQLite/新依赖，它只适用于第一部分历史候选。本轮保留它及历史结果，新增 `scripts/fnd002/` 的准确范围检查，允许本轮适配器和必要配置依赖，继续拒绝未来功能与依赖倒置。不要隐藏 SQLite 实现、删旧检查或将旧禁 DB 规则误当本轮验收失败；第一部分的行为回归仍须执行。
+## 4. 分工与修复顺序
 
-## 4. 多智能体分工与执行顺序
+所有角色只处理 FND-002 / v2.1.1，最多四个活跃角色，只有一个生产代码写者。主管锁定 R1/R2 与候选；架构角色确认最小修复且默认只读；实现者修改适配器和配套脚本；独立测试者先写判据，再对冻结候选实跑，不暗改产品实现。按 11 协议交付真实命令、退出码、文件指纹、实际结果与限制，不把口头同意当验收。
 
-先盘点 DSH 实际可用工具与并发槽位，最多四个活跃角色。角色名称是职责，不是可杜撰的 API。所有任务包写明 v2.1.0、FND-002、固定上游、分支/候选、允许路径、测试 ID 与停止条件，按 `11_AGENT_AND_PROMPT_PROTOCOL.md` 返回可核对结果。
+顺序：核对已有成果与失败证据 → 独立写前缀回归 → 最小修复 R1 → 立即运行真实 SQLite 反例与正常库对照 → 修正 R2 → 构建/类型/范围检查并冻结候选 → 真实 Host 与本单元九项测试 → 独立复核 → 定点返修/复测 → 提交停止。
 
-| 角色 | 责任与写入范围 |
-|---|---|
-| 主管 | 锁定单元、整合契约/候选/证据/状态；不与实现者同时改生产代码 |
-| 架构审查 | 先核查真实 DSH API、配置、数据目录和依赖方向，审查最小契约；默认只读生产代码 |
-| 实现者 | 唯一生产代码写者，按当前功能小步实现并运行针对性检查 |
-| 独立测试 | 在实现前依据目标建立断言，在冻结候选实跑；只写测试与证据，不暗改生产实现 |
+数据库打开/归属路径影响本单元所有以业务库初始化为前提的测试，且主验收脚本也发生变化，因此在新候选上复跑既有 T01–T09，补 R1 的针对性断言和 R2 负例。复用原有小范围测试基础设施，不重做全上游测试或第一部分完整 5/10/60 秒生命周期矩阵；仅当具体代码变化产生新的影响时扩相关回归。
 
-顺序：预检与契约记录 → 先写九项测试预期 → 最小数据库/迁移与对应测试 → create/get 及幂等真实往返 → 重启/故障/生命周期测试 → 受影响回归 → 冻结候选、独立复核 → 缺陷定点返修/复测 → 提交并停止。
+允许修改当前 SQLite 适配器、必要构建产物、本轮测试/计划、脱敏证据及状态文档；保留现有分层模块化单体、应用端口、真实 handler、可信 dataDir、认证/来源保护和旧面板。不得顺带实现账号/权限、其他业务表、RAG/jobs/outbox/模型、安装包或上游重构。常规本单元修复、测试、提交推送持续自主完成，无需重复请求确认。
 
-这几个步骤都属于同一个持久化功能，不是分派多个未来单元。实现者不能一次写完未来基础层再补测试。缺少独立角色的实际运行能力时可继续本单元实现和自测，但不能把自述替代独立验收后标 passed。
+## 5. 本轮保留的最小技术契约
 
-## 5. 本轮冻结的最小技术契约
-
-以下是根据既定架构选择的本轮工程默认，不冒称用户另行确认的新功能。架构角色在 `docs/evidence/FND-002/architecture.md` 记录实际落点及固定源码依据；若真实 API 与约定不一致，先记录证据并作保持行为的最小适配。不得擅自换数据库、扩大业务范围、删除必测项；实质范围冲突要明确报告。
+以下契约沿用已实现的当前功能，只补齐 R1 的正确识别与 R2 的证据要求，不重新选型或新建一套实现。架构角色在 `docs/evidence/FND-002/architecture.md` 记录实际落点及固定源码依据；若真实 API 与约定不一致，先记录证据并作保持行为的最小适配。不得擅自换数据库、扩大业务范围、删除必测项；实质范围冲突要明确报告。
 
 ### 5.1 可信配置、运行时与连接
 
@@ -116,7 +110,7 @@ PowerShell 使用 `$dshTestHome`、`$knowledgeosRepo`、`$knowledgeosDataDir` �
 
 ### 5.3 归属预检、迁移与回滚
 
-1. 新文件或真正空白库才可初始化。对已有库先进行只读归属/版本/账本预检，再执行任何修改性配置和迁移；未来版本、不同 application_id、已知 checksum 不符或非空未知 schema 均拒绝。空白要结合 application_id、user_version 和用户 schema 对象判断，不能仅见 user_version=0 就接管。
+1. 新文件或真正空白库才可初始化。对已有库先进行只读归属/版本/账本预检，再执行任何修改性配置和迁移；未来版本、不同 application_id、已知 checksum 不符或非空未知 schema 均拒绝。空白要结合 application_id、user_version 和全部用户 schema 对象判断，不能仅见 user_version=0 就接管。内部对象只能按字面 sqlite_ 保留前缀排除；sqliteX_* 等合法表、视图、索引、触发器必须参与判断，不能用未转义下划线的 LIKE 模式过滤。
 2. v1 DDL、应用标识/版本和迁移账本必须在同一个真实事务中提交。重复启动只校验，不清空、不重复迁移、不重新生成原记录。
 3. BEGIN/COMMIT/ROLLBACK 都用实际驱动验证。中途失败回滚整个事务；COMMIT 抛错也不能假定事务已经结束。必要时检查真实事务状态，回滚失败或状态不明时停止写入并报告，不能返回成功。
 4. 初始化/迁移失败后关闭部分打开的连接。本功能保持不可写，日志给出可定位原因；Host 仍可达时本轮接口返回明确不可用，status 的原语义不变。不得删除原库、自动降级、修改旧 checksum 或换空库绕过问题。
@@ -161,9 +155,9 @@ PowerShell 使用 `$dshTestHome`、`$knowledgeosRepo`、`$knowledgeosDataDir` �
 
 释放时先关闭新操作入口、撤销路由并让已接收请求完成或得到明确拒绝，再关闭数据库一次；解析 body 之后进入用例前也检查关闭状态，不能使用已关闭句柄。清理要幂等，部分初始化失败也不泄漏连接；重新挂载打开同一文件。禁用、卸载、重新安装或退出均不得删除业务库。测试清理仅处理自己创建且已关闭的隔离目录。
 
-## 6. 九项必测义务
+## 6. 九项必测义务（原范围与定点补充）
 
-以下与 `config/work_units.json` 的 FND-002-T01 至 T09 一致。编码前独立测试者把它们写成可执行 test-plan，并标记真实 HTTP、真实 SQLite 受控故障和可选运行环境；不删减预期来迁就实现。所有必测都要在本轮冻结候选上取得真实结果。
+测试 ID 不变，R1 归入 T04，R2 归入 T05/T09 和运行元数据。以下与当前 work_units.json 同步；旧覆盖结果仍留在原目录，新候选结果写入新目录。
 
 ### FND-002-T01：真实 Host 创建、读取与进程重启持久化
 
@@ -207,10 +201,12 @@ PowerShell 使用 `$dshTestHome`、`$knowledgeosRepo`、`$knowledgeosDataDir` �
 1. 通过仅测试迁移计划在事务中途制造失败，比较表、版本、归属标识、迁移账本和原数据。
 2. 分别准备本应用未来 user_version、已知迁移 checksum 不匹配、application_id 不匹配或非空未知 schema 的测试库。
 3. 用实际 Host/适配器打开这些库，检查本轮写接口拒绝写入；保持 Host 可达对照；解除故障后按有效路径恢复。
+4. R1 回归：以 sqliteX_foreign_private 表和合成哨兵记录构造未知非空库；另测仅 sqliteX_view 的库及合法 v1 库中新增 sqliteX_ 索引/触发器。测试直接读取全部 sqlite_master type/name/sql 和 PRAGMA，不用被测 helper 判断空白。
+5. 正常新库及带真实 sqlite_autoindex_* 的原 v1 库作为接受对照；在真实已认证 Host 上挂载外来表 fixture，验证 status 可达、业务读写 STORAGE_INCOMPATIBLE 且逻辑数据/归属/版本/journal/schema 未改。
 
-**断言：**失败迁移不半提交；不兼容/归属不明库在修改性配置和迁移前被拒绝；不把 user_version=0 单独视为空库；不降级、改账本、删库或改路径造成功；原逻辑数据/schema/版本保留，错误可定位。
+**断言：**失败迁移不半提交；不兼容/归属不明库在修改性配置和迁移前被拒绝；不把 user_version=0 单独视为空库；不降级、改账本、删库或改路径造成功；原逻辑数据/schema/版本保留，错误可定位。 只排除字面 sqlite_ 内部前缀，不能使用未转义下划线的 LIKE 模式漏掉 sqliteX_* 用户对象；拒绝发生在修改性配置前。
 
-**证据：**fixture 来源与故障点；逻辑数据/schema/版本/账本前后比较；真实打开拒绝与写接口拒绝结果；恢复结果；不把 WAL 文件哈希变化直接当数据丢失。
+**证据：**fixture 来源与故障点；逻辑数据/schema/版本/账本前后比较；真实打开拒绝与写接口拒绝结果；恢复结果；不把 WAL 文件哈希变化直接当数据丢失；新增前缀反例的独立原始元数据、原记录及 Host 拒绝对照；旧候选 FAIL 与新候选实际复测分别保存。
 
 ### FND-002-T05：最小创建幂等、重试与并发重复请求
 
@@ -220,7 +216,7 @@ PowerShell 使用 `$dshTestHome`、`$knowledgeosRepo`、`$knowledgeosDataDir` �
 2. 同键不同 content 提交，核对明确冲突且旧内容不变。
 3. 并发发出两个同键同内容创建请求，核对结果及唯一记录计数。
 
-**断言：**首次 201；同键同内容重放 200 且同 ID/created_at；同键不同内容 409 IDEMPOTENCY_CONFLICT；并发不会生成两条；幂等存在真实业务库，不靠进程内缓存或把请求键当身份。
+**断言：**首次 201；同键同内容重放 200 且同 ID/created_at；同键不同内容 409 IDEMPOTENCY_CONFLICT；并发不会生成两条；幂等存在真实业务库，不靠进程内缓存或把请求键当身份。 证据 actual 与断言使用同一按幂等键过滤的记录计数，不记录全表计数冒充该键计数。
 
 **证据：**请求与响应状态/记录 ID；重启后重放；冲突前后内容；并发结果与数据库唯一记录计数。
 
@@ -268,33 +264,32 @@ PowerShell 使用 `$dshTestHome`、`$knowledgeosRepo`、`$knowledgeosDataDir` �
 1. 实际构建当前插件并运行相关类型/行为检查；核对 profile 真正加载的 bundle 与候选指纹一致。
 2. 在当前候选验证原面板加载、真实 status 刷新、刷新中文案、真实失败/恢复；验证未配置 dataDir 的旧 profile 仍保留原只读状态功能。
 3. 运行本轮范围检查：仅允许 SQLite 适配层/可信配置/最小用例与真实路由，以及必要依赖；检查应用内层没有反向导入。
+4. 从实际 profile 解析加载产物，与事先冻结候选的 SHA-256 逐值比较；用独立临时副本制造哈希不一致，确认比较器拒绝；记录真实非空开始/结束时间。
 
-**断言：**原只读链路不退化，错误不假装存储就绪；构建/类型/实际加载均有真实证据；未夹带账号、ACL、资料解析、RAG、jobs/outbox、安装包或未来模块；旧 FND-001 禁 DB 检查只属历史范围，不被篡改或误当本轮门槛。
+**断言：**原只读链路不退化，错误不假装存储就绪；构建/类型/实际加载均有真实证据；未夹带账号、ACL、资料解析、RAG、jobs/outbox、安装包或未来模块；旧 FND-001 禁 DB 检查只属历史范围，不被篡改或误当本轮门槛。 仅判断哈希长度或仅计算工作目录自身哈希不能证明实际加载候选；测试摘要时间与逐项记录一致。
 
 **证据：**构建/检查命令及退出码；源码/产物/加载路径指纹；面板状态与失败恢复证据；新范围检查和依赖差异；未配置业务目录的兼容回归。
 
-## 7. 候选、证据与复验要求
+## 7. 候选与证据
 
-建立 `docs/evidence/FND-002/architecture.md`、`test-plan.md`、`candidate.md`、`REPORT.md`、`independent-verification.md`；运行证据归入 `runs/<candidate-or-run_id>/`。这些是设计/测试证据，不得成为第二份启动提示词。测试脚本放 `scripts/fnd002/` 或本包必要测试目录，注明确切启动方式。历史 FND-001 证据不得覆盖为本轮结果。
+保留 `runs/d7a453d/`、`runs/1b99e39/` 与 `reviews/cba39e4/`。新结果写 `docs/evidence/FND-002/runs/<new-candidate-or-round>/`；更新 test-plan/candidate/REPORT/独立结论，明确 R1/R2 的发现、修复和真实复测，不把新用例改写成之前已经覆盖。
 
-开发中每完成一个可验证动作立即运行对应测试，记录真实失败和定点修复。独立验收前冻结生产源码、迁移、测试脚本和实际加载产物：有提交写完整 commit；有未提交内容则另给逐文件 manifest/hash，不能只写 HEAD 掩盖脏工作树。测试者核对 profile 加载的 lib 与候选一致，期间不并发改生产代码。
+冻结完整源码、实际 lib、迁移及测试脚本；有未提交修改时给逐文件 manifest/hash，不能只写 HEAD。独立角色核对实际 profile 加载路径和冻结指纹，运行期间不并发修改产品。发生修复后重新冻结并复测受影响项；本轮门槛以新候选实际证据为准。
 
-修复使源码、迁移、构建产物或测试脚本变化后，重新冻结并复跑受影响项；只在说明未变依赖和适用原因后复用已有效证据。不要每次机械重建全上游、重复完整 FND-001 生命周期或运行不相关未来测试。T09 必须覆盖本轮受影响行为；发现实质生命周期变化再扩大相关回归。
+每项记录 PASS/FAIL/NOT_RUN/BLOCKED、前置合成数据、候选、实际命令/退出码、HTTP 或 UI 操作、期望与实际值、开始/结束时间、执行及复核角色、证据路径。真实 Host、真实 SQLite 受控故障与 Mock 分开；计划检查 PASS 不证明产品通过。
 
-每项结果记录测试 ID、PASS/FAIL/NOT_RUN/BLOCKED、候选、前置数据、命令/退出码或真实 UI/HTTP 操作、环境、实际值/期望值、证据路径、执行与独立复核角色。测试计划、空报告、Mock、静态页面或预置常量不能当 T01 真实端到端结果。受控故障明确标注，但必须作用于真实 SQLite。
+Node Web Host 仍为最低运行门槛。Desktop、安装包、真实 GPT 等未运行范围如实保留，不额外加为本次收尾阻塞，不用 Node 证据替代它们。F01/F42、A07/A49 仍只有基础子集；完整需求与场景不得提前 verified/PASS。
 
-最低门槛为固定真实 Node Web Host。Desktop Host 实际可用时补运行时探针，无法运行则单列 NOT_RUN；不要把 Node 成功改写成 Electron 已验证。Desktop/正式安装包/真实 GPT/未来账号功能不额外成为当前单元阻塞，也不能被计为已通过。
+公开提交前脱敏 Cookie/Token/私有绝对路径和真实正文；只提交合成测试数据的文本证据，不提交数据库和旁文件。报告里的复验命令从实际仓库解析，使用新输出目录，不能覆盖已提交历史证据。
 
-公开提交只包含合成测试内容、脱敏日志、必要截图/摘要和脚本；数据库及 WAL/SHM/journal、备份、Cookie、Token、私有路径和真实用户正文不上传。检查 .gitignore 和待提交文件，脱敏后保留可验证关联与计数，不能用脱敏删除失败事实。
+## 8. 收口与停止
 
-本轮只形成 F01/F42 以及 A07/A49 的前置局部证据。A07 的完整解析恢复、A49 的 Windows 安装/升级/卸载场景仍由其最终负责单元验证，不修改为 PASS；没有需求因为基础 SQLite 可用就变成 verified。
+R1/R2 均关闭、新候选 T01–T09 实际通过、新增前缀反例与正常库对照通过、实际加载指纹检查及负例有效、独立复核完成，才将 FND-002 恢复 passed、test_result_status=PASS、retest_status=PASS。补真实完成时间/evidence_paths，清空 open_review_items、记录 closed_review_items，将 execution_state 改 awaiting_user 并更新 state_reason。
 
-## 8. 收口、提交与停止
+同步 README、PROGRESS、BLOCKERS、REPORT、candidate、当前独立结论与审查项解决状态。本次 SUBMISSION_REVIEW 和 FAIL 原始结果保留历史事实，可追加关闭依据，不删除或改写成旧候选已通过。当前结论不能仍并存 OPEN/待补验和 PASS。
 
-只有本单元实现完成、T01–T09 实际通过、已发现当前缺陷关闭、独立复核完成且候选/证据一致，才将 `work_units.json` 的 FND-002 改为 passed、test_result_status 改为 PASS，补真实 evidence_paths/完成时间；execution_state 改为 awaiting_user 并更新 state_reason，active_unit 保持 FND-002，auto_advance 保持 false，Codex 保持 locked。同步 README、PROGRESS、BLOCKERS、当前报告，不并存“通过”和“待补测”的当前结论。
+若出现真实外部阻塞，说明失败动作、候选、影响测试、已尝试方案与最小解除条件，保留成果并停在 FND-002；单纯待修缺陷为 in_progress，不伪装成环境 BLOCKED。未运行必测不算通过，不推给未来 Codex。
 
-真实外部阻塞写明失败动作、错误、候选、影响测试、已尝试方案、最小解除条件及当前仍可做的内容。未尝试只是 NOT_CHECKED/NOT_RUN，不能编造 BLOCKED；必测没有完成不能以“非阻塞”名义 PASS。保留成果并停在当前单元，不用下一功能或未来 Codex 代替本轮修复。
+运行 `node scripts/verify-plan.mjs` 和当前范围检查，正常提交/推送同一 `dsh/knowledgeos-fnd-002` 分支并回读远端。禁止 force push、自动合并 main、覆盖第一部分分支或新增备用 START/PROMPT。
 
-运行 `node scripts/verify-plan.mjs` 与本轮范围检查，检查状态/哈希/测试引用一致，正常提交并推送 `dsh/knowledgeos-fnd-002`，回读远端确认提交。不要 force push、合并 main 或覆盖第一部分完成分支，不新增 CODEX_START/备用 PROMPT 文件。
-
-最终用中文交接：本轮 PASS/FAIL/BLOCKED、实际改动与架构落点、提交链接、九项测试结果/证据、运行环境和真实数据库验证方式、缺陷与复测、准确可复制的隔离启动/复验命令、NOT_RUN 与剩余限制。然后停止，等待用户选择下一单元；不自行开启 FND-003。
+最终中文交接 R1/R2 结果、提交、九项测试和新反例证据、实际加载候选、复验命令、未运行范围与剩余限制，然后停止。active_unit 保持 FND-002，auto_advance=false，Codex locked，FND-003 继续未激活。

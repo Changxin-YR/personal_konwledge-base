@@ -1,5 +1,7 @@
 # FND-002 最终报告
 
+> **当前复核状态（v2.1.1）：FND-002 已重新登记 in_progress，R1/R2 OPEN。** 以下正文保留 cba39e4 对 1b99e39 的历史提交结论；新的真实数据库前缀反例使整体 PASS 不再成立。参见 [提交复核](SUBMISSION_REVIEW_20261116.md)。原始运行记录不修改，修复与新候选复测尚未完成。
+
 - `unit_id`: **FND-002**
 - `instruction_revision`: **2.1.0**
 - `executor`: **DeepSeek Harness**

@@ -1,5 +1,7 @@
 # FND-002 候选冻结记录
 
+> **历史候选指纹：** 以下 1b99e39 是本次被审候选，11 个哈希已匹配，但数据库前缀反例 FAIL。当前 v2.1.1 修复后必须另冻结新候选；不拿本表旧哈希标新产物通过。见 [提交复核](SUBMISSION_REVIEW_20261116.md)。
+
 - unit：FND-002，instruction_revision 2.1.0
 - 分支：`dsh/knowledgeos-fnd-002`
 - 产品候选提交：`1b99e392593ef0213f68f8dfb45f5d34a06eac1b`（P2/P3 加固后；前序 `d7a453d` 的九项证据保留为历史）

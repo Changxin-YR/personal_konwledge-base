@@ -1,5 +1,7 @@
 # FND-002 架构与最小契约记录
 
+> **当前补充：** 既有层次、两表和 API 保留。v2.1.1 仅修正内部对象的字面 sqlite_ 前缀判断和证据检查；正文中的 sqlite_% 描述不能按未转义的 LIKE 模式实现。见 [提交复核](SUBMISSION_REVIEW_20261116.md)。
+
 - unit: FND-002，instruction_revision 2.1.0
 - 固定上游：`39163dd30f703a79079e2d2446545cff3c453738`（`0.2.2-rc.3`）
 - 运行环境：Windows 11 Pro、Node `24.22.0`、SQLite `3.53.4`（`node:sqlite`）

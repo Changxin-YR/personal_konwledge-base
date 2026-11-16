@@ -1,10 +1,12 @@
 # FND-002 独立测试与验收计划
 
+> **v2.1.1 修订：** 原计划的 sqlite_master/LIKE 判据存在共同盲区，现已改为完整原始元数据与字面前缀分类，并补充下方 R1/R2 收尾用例。当前修复后测试尚未运行；原 v2.1.0 执行结果保留在对应 runs。实际测试脚本仍须由 DSH 按此计划修正。
+
 | 项 | 值 |
 |---|---|
 | `unit_id` | FND-002（本地业务持久化最小闭环） |
 | 角色 | 独立测试与验收（非实现者；默认只读产品代码，本轮只写本文件） |
-| 指令 | `DSH_START.md` v2.1.0，`instruction_revision` 2.1.0，`active_unit` FND-002 |
+| 指令 | `DSH_START.md` v2.1.1，`instruction_revision` 2.1.1，`active_unit` FND-002 |
 | 分支 / 计划基线 | `dsh/knowledgeos-fnd-002` / `a938fd4db016cd2869a74e5a235265ecef6e6a9d`（base `ce3a00c`） |
 | 固定上游 | `39163dd30f703a79079e2d2446545cff3c453738`（`0.2.2-rc.3`，Node `>=24.9.0`） |
 | 编写时间 | 2026-11-16（Asia/Shanghai） |
@@ -193,7 +195,7 @@ $proc.Id | Set-Content "$raw\host\pid.txt"
 - **前置**：全新空 `dataDir`（不存在或空目录）；Host 由固定 Node 启动。
 - **步骤**
   1. 启动 Host 并 POST 1 条记录（证明初始化后可写）。
-  2. 独立只读连接查询：`PRAGMA application_id`、`PRAGMA user_version`、`sqlite_master`（`type='table' AND name NOT LIKE 'sqlite_%'`）、两表 `pragma table_info` 与 DDL、`schema_migrations` 全行、`storage_probe_records` 计数。
+  2. 独立只读连接查询：`PRAGMA application_id`、`PRAGMA user_version`、`sqlite_master` 全量 `type/name/sql`（记录原始对象，再按字面 `sqlite_` 前缀分类，不能先用 LIKE 过滤）、两表 `pragma table_info` 与 DDL、`schema_migrations` 全行、`storage_probe_records` 计数。
   3. 记录 Host 实际 Node/SQLite 版本（启动日志或仅测试探针），以及打开诊断中的 `journal_mode/foreign_keys/synchronous/busy_timeout`（若实现提供；见 §9 待确认项）。
   4. 测试进程用**同一连接配置函数**打开同一库，回读四项 PRAGMA，并与导出 `MIGRATION_V1_CHECKSUM` 对照；从冻结候选的规范 v1 SQL 字节独立重算 SHA-256（获取方式见 §9）。
   5. 外键生效：在同一适配器连接创建两张 TEMP 表（父/子带 FK），插入后删除父行，断言真实 `SQLITE_CONSTRAINT_FOREIGNKEY`；事务回滚并 `DROP`，不新增生产表。
@@ -366,7 +368,7 @@ $proc.Id | Set-Content "$raw\host\pid.txt"
 |---|---|---|---|
 | D1 | 归属标识 | `PRAGMA application_id` | `1263489841`（`0x4B4F5331`） |
 | D2 | 应用版本 | `PRAGMA user_version` | `1` |
-| D3 | 表集合 | `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name` | 恰 `schema_migrations`、`storage_probe_records` |
+| D3 | 完整 schema 对象及用户对象分类 | `SELECT type, name, sql FROM sqlite_master ORDER BY type, name`；保存原始结果后独立识别字面 `sqlite_` 内部前缀 | 用户对象恰为 `schema_migrations`、`storage_probe_records` 两表；真实自动索引允许，其他用户表/视图/索引/触发器均须识别 |
 | D4 | 迁移账本 | `SELECT version, checksum, applied_at FROM schema_migrations` | 恰 1 行；version=1；checksum=64 小写 hex=SHA-256(规范 v1 SQL)=导出常量；applied_at UTC |
 | D5 | 字段/约束 | `pragma table_info` + DDL | 两表字段与 PK/UNIQUE/NOT NULL 与 §5.2 完全一致 |
 | D6 | 连接配置 | Host 打开诊断（实际连接） | `journal_mode=wal`、`foreign_keys=1`、`synchronous=2`、`busy_timeout=250` |
@@ -443,6 +445,14 @@ $proc.Id | Set-Content "$raw\host\pid.txt"
 ## 10. 计划完成声明
 
 - 本文件完成 T01–T09 的目标、前置、可执行步骤、客观断言、失败判据、证据要求与“不能证明什么”，并明确区分真实 HTTP/真实 SQLite 与受控故障。
-- 计划阶段未运行任何产品测试、未产生任何 PASS/FAIL；T01–T09 与全部子用例状态均为 `NOT_RUN`。
+- v2.1.1 修复后测试尚未运行，当前新候选 T01–T09 均为 `NOT_RUN`；旧候选原测试记录及本次反例 FAIL 分别保留，不能覆盖或计为新候选通过。
 - 唯一写入为本文件；未修改产品代码、测试、profile 或桌面 DSH。
 - 下一步由主管冻结候选（提交或逐文件 manifest），独立测试角色再按本计划实跑并回填结果。
+
+## v2.1.1 定点补充
+
+R1 归入 T04：测试直接读取完整 sqlite_master type/name/sql、application_id、user_version、journal_mode、迁移账本和哨兵数据，不能复用产品 readDatabaseFacts 作为唯一判据。覆盖 sqliteX_foreign_private 外来表、仅 sqliteX_view 的库、合法 v1 库中新增 sqliteX_ 索引/触发器；应在修改前拒绝且逻辑状态保留。正常空白库与含真实 sqlite_autoindex_* 的合法库须继续可用。至少一个外来表 fixture 经真实已认证 Host 验证 STORAGE_INCOMPATIBLE，同时 status 可达且库未改。
+
+R2 归入 T05/T09：actual 与断言使用同一个按幂等键过滤计数；实际 profile 加载文件的 SHA-256 与事先冻结候选逐值比较，并在独立临时副本上验证哈希不一致必然拒绝；运行开始/结束时间真实且非空。不要把哈希长度检查或工作目录自比较当加载一致性。
+
+独立角色先核对判据再执行，原 runs 文件不修改，新结果写入新候选目录。当前完整执行规范以唯一 DSH_START.md v2.1.1 与 work_units.json 为准，修复后的通过不能预先填写。

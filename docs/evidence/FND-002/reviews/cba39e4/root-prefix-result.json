@@ -1,0 +1,98 @@
+{
+  "check": "FND-002 unknown nonempty database must be rejected before modification",
+  "source_commit": "cba39e4808fd41e6d7b076c3fbf080577c8b1114",
+  "product_candidate": "1b99e392593ef0213f68f8dfb45f5d34a06eac1b",
+  "runtime": "v24.22.1",
+  "fixture": "new synthetic disk SQLite database; no user data",
+  "expected": {
+    "accepted": false,
+    "failure_code": "STORAGE_INCOMPATIBLE",
+    "original_logical_metadata_unchanged": true
+  },
+  "before": {
+    "application_id": 0,
+    "user_version": 0,
+    "journal_mode": "delete",
+    "all_objects": [
+      {
+        "type": "table",
+        "name": "sqliteX_foreign_private"
+      }
+    ],
+    "user_objects_with_literal_prefix": [
+      {
+        "type": "table",
+        "name": "sqliteX_foreign_private"
+      }
+    ],
+    "original_rows": [
+      {
+        "note": "foreign existing data"
+      }
+    ]
+  },
+  "readDatabaseFacts_before": {
+    "applicationId": 0,
+    "userVersion": 0,
+    "tables": [],
+    "objects": [],
+    "ledger": []
+  },
+  "actual": {
+    "accepted": true,
+    "failure_code": null,
+    "original_logical_metadata_unchanged": false
+  },
+  "after": {
+    "application_id": 1263489841,
+    "user_version": 1,
+    "journal_mode": "wal",
+    "all_objects": [
+      {
+        "type": "index",
+        "name": "sqlite_autoindex_storage_probe_records_1"
+      },
+      {
+        "type": "index",
+        "name": "sqlite_autoindex_storage_probe_records_2"
+      },
+      {
+        "type": "table",
+        "name": "schema_migrations"
+      },
+      {
+        "type": "table",
+        "name": "sqliteX_foreign_private"
+      },
+      {
+        "type": "table",
+        "name": "storage_probe_records"
+      }
+    ],
+    "user_objects_with_literal_prefix": [
+      {
+        "type": "table",
+        "name": "schema_migrations"
+      },
+      {
+        "type": "table",
+        "name": "sqliteX_foreign_private"
+      },
+      {
+        "type": "table",
+        "name": "storage_probe_records"
+      }
+    ],
+    "original_rows": [
+      {
+        "note": "foreign existing data"
+      }
+    ]
+  },
+  "observations": [
+    "knowledgeos-storage: opened node=24.22.1 sqlite=3.53.4 journal=wal foreign_keys=1 synchronous=2 busy_timeout=250 tables=2",
+    "knowledgeos-storage: closed"
+  ],
+  "result": "FAIL",
+  "limitation": "Adapter-only local real SQLite check; not a fresh full DSH Host run"
+}

@@ -214,14 +214,17 @@
           "steps": [
             "通过仅测试迁移计划在事务中途制造失败，比较表、版本、归属标识、迁移账本和原数据。",
             "分别准备本应用未来 user_version、已知迁移 checksum 不匹配、application_id 不匹配或非空未知 schema 的测试库。",
-            "用实际 Host/适配器打开这些库，检查本轮写接口拒绝写入；保持 Host 可达对照；解除故障后按有效路径恢复。"
+            "用实际 Host/适配器打开这些库，检查本轮写接口拒绝写入；保持 Host 可达对照；解除故障后按有效路径恢复。",
+            "R1 回归：以 sqliteX_foreign_private 表和合成哨兵记录构造未知非空库；另测仅 sqliteX_view 的库及合法 v1 库中新增 sqliteX_ 索引/触发器。测试直接读取全部 sqlite_master type/name/sql 和 PRAGMA，不用被测 helper 判断空白。",
+            "正常新库及带真实 sqlite_autoindex_* 的原 v1 库作为接受对照；在真实已认证 Host 上挂载外来表 fixture，验证 status 可达、业务读写 STORAGE_INCOMPATIBLE 且逻辑数据/归属/版本/journal/schema 未改。"
           ],
-          "expected": "失败迁移不半提交；不兼容/归属不明库在修改性配置和迁移前被拒绝；不把 user_version=0 单独视为空库；不降级、改账本、删库或改路径造成功；原逻辑数据/schema/版本保留，错误可定位。",
+          "expected": "失败迁移不半提交；不兼容/归属不明库在修改性配置和迁移前被拒绝；不把 user_version=0 单独视为空库；不降级、改账本、删库或改路径造成功；原逻辑数据/schema/版本保留，错误可定位。 只排除字面 sqlite_ 内部前缀，不能使用未转义下划线的 LIKE 模式漏掉 sqliteX_* 用户对象；拒绝发生在修改性配置前。",
           "evidence_required": [
             "fixture 来源与故障点",
             "逻辑数据/schema/版本/账本前后比较",
             "真实打开拒绝与写接口拒绝结果",
-            "恢复结果；不把 WAL 文件哈希变化直接当数据丢失"
+            "恢复结果；不把 WAL 文件哈希变化直接当数据丢失",
+            "新增前缀反例的独立原始元数据、原记录及 Host 拒绝对照；旧候选 FAIL 与新候选实际复测分别保存"
           ]
         },
         {
@@ -233,7 +236,7 @@
             "同键不同 content 提交，核对明确冲突且旧内容不变。",
             "并发发出两个同键同内容创建请求，核对结果及唯一记录计数。"
           ],
-          "expected": "首次 201；同键同内容重放 200 且同 ID/created_at；同键不同内容 409 IDEMPOTENCY_CONFLICT；并发不会生成两条；幂等存在真实业务库，不靠进程内缓存或把请求键当身份。",
+          "expected": "首次 201；同键同内容重放 200 且同 ID/created_at；同键不同内容 409 IDEMPOTENCY_CONFLICT；并发不会生成两条；幂等存在真实业务库，不靠进程内缓存或把请求键当身份。 证据 actual 与断言使用同一按幂等键过滤的记录计数，不记录全表计数冒充该键计数。",
           "evidence_required": [
             "请求与响应状态/记录 ID",
             "重启后重放",
@@ -300,9 +303,10 @@
           "steps": [
             "实际构建当前插件并运行相关类型/行为检查；核对 profile 真正加载的 bundle 与候选指纹一致。",
             "在当前候选验证原面板加载、真实 status 刷新、刷新中文案、真实失败/恢复；验证未配置 dataDir 的旧 profile 仍保留原只读状态功能。",
-            "运行本轮范围检查：仅允许 SQLite 适配层/可信配置/最小用例与真实路由，以及必要依赖；检查应用内层没有反向导入。"
+            "运行本轮范围检查：仅允许 SQLite 适配层/可信配置/最小用例与真实路由，以及必要依赖；检查应用内层没有反向导入。",
+            "从实际 profile 解析加载产物，与事先冻结候选的 SHA-256 逐值比较；用独立临时副本制造哈希不一致，确认比较器拒绝；记录真实非空开始/结束时间。"
           ],
-          "expected": "原只读链路不退化，错误不假装存储就绪；构建/类型/实际加载均有真实证据；未夹带账号、ACL、资料解析、RAG、jobs/outbox、安装包或未来模块；旧 FND-001 禁 DB 检查只属历史范围，不被篡改或误当本轮门槛。",
+          "expected": "原只读链路不退化，错误不假装存储就绪；构建/类型/实际加载均有真实证据；未夹带账号、ACL、资料解析、RAG、jobs/outbox、安装包或未来模块；旧 FND-001 禁 DB 检查只属历史范围，不被篡改或误当本轮门槛。 仅判断哈希长度或仅计算工作目录自身哈希不能证明实际加载候选；测试摘要时间与逐项记录一致。",
           "evidence_required": [
             "构建/检查命令及退出码",
             "源码/产物/加载路径指纹",
@@ -318,9 +322,9 @@
       ],
       "final_acceptance_ids": [],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
-      "status": "passed",
+      "status": "in_progress",
       "test_plan_status": "detailed_current_unit",
-      "instruction_revision": "2.1.0",
+      "instruction_revision": "2.1.1",
       "activated_at": "2026-11-16",
       "activation_basis": "explicit_user_selection",
       "working_branch": "dsh/knowledgeos-fnd-002",
@@ -352,14 +356,29 @@
         "idempotency_header": "Idempotency-Key",
         "probe_base_path": "/knowledgeos/foundation/records"
       },
-      "test_result_status": "PASS",
-      "completed_at": "2026-11-16",
-      "evidence_paths": [
-        "docs/evidence/FND-002/REPORT.md",
-        "docs/evidence/FND-002/independent-verification.md",
-        "docs/evidence/FND-002/runs/1b99e39/",
-        "docs/evidence/FND-002/candidate.md"
-      ]
+      "test_result_status": "FAIL",
+      "previous_submission": {
+        "reported_result": "PASS",
+        "reported_completed_at": "2026-11-16",
+        "reviewed_commit": "cba39e4808fd41e6d7b076c3fbf080577c8b1114",
+        "product_candidate": "1b99e392593ef0213f68f8dfb45f5d34a06eac1b",
+        "evidence_paths": [
+          "docs/evidence/FND-002/REPORT.md",
+          "docs/evidence/FND-002/independent-verification.md",
+          "docs/evidence/FND-002/runs/1b99e39/",
+          "docs/evidence/FND-002/candidate.md"
+        ],
+        "review_outcome": "current_unit_reopened_after_reproducible_database_ownership_failure"
+      },
+      "reopened_at": "2026-11-16",
+      "retest_status": "NOT_RUN",
+      "open_review_items": [
+        "R1",
+        "R2"
+      ],
+      "review_record": "docs/evidence/FND-002/SUBMISSION_REVIEW_20261116.md",
+      "review_basis_commit": "cba39e4808fd41e6d7b076c3fbf080577c8b1114",
+      "current_review_scope": "repair database object prefix classification and independent evidence checks within FND-002"
     },
     {
       "id": "FND-003",
