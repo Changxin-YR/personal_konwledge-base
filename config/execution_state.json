@@ -1,16 +1,16 @@
 {
   "schema_version": "2.0",
-  "instruction_revision": "2.0.0",
+  "instruction_revision": "2.0.1",
   "updated_at": "2026-11-16",
   "timezone": "Asia/Shanghai",
   "execution_phase": "deepseek_foundation",
   "executor": "deepseek_harness",
   "active_instruction": {
     "path": "DSH_START.md",
-    "sha256": "2c20eca5372cb5dd067b633daf4a6e1fbfc78e295df2aa927c8b9c3d189b5a63"
+    "sha256": "b3585777975b6e3a7ba5f9d899f0f929988f1192e1216667a0bcdda4c5510804"
   },
   "active_unit": "FND-001",
-  "unit_state": "awaiting_user",
+  "unit_state": "in_progress",
   "execution_mode": "single_feature_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -36,5 +36,8 @@
     "blocked": "real current-unit dependency blocks completion",
     "awaiting_user": "current unit has passed and awaits a user choice; active_unit is not advanced"
   },
-  "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system."
+  "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
+  "review_basis_commit": "66388994d41972e6dfd4e28361ac1854b5b12e47",
+  "state_reason": "FND-001 reopened for required lifecycle evidence and scoped corrections; no new product execution claimed.",
+  "review_record": "docs/evidence/FND-001/SUBMISSION_REVIEW_20261116.md"
 }

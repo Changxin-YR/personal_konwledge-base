@@ -1,5 +1,7 @@
 # FND-001 候选冻结记录
 
+> 当前提示（2026-11-16）：本文件记录第一轮候选；下列 PowerShell 示例存在 R3 变量问题，需按当前 DSH_START.md 修正后再复制执行，不能直接沿用。当前修复候选尚未生成，见 [提交复核](SUBMISSION_REVIEW_20261116.md)。
+
 - 冻结时间：2026-11-16（Asia/Shanghai）
 - 工作分支：`dsh/knowledgeos-fnd-001`
 - 产品候选提交：`37ac57af64b6741d82ffa2663b43dc244529c567`

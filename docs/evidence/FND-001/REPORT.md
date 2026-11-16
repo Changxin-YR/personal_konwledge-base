@@ -1,5 +1,7 @@
 # FND-001 最终报告
 
+> 复核状态更新（2026-11-16）：本文件下文保留第一轮提交者对产品 37ac57a / 测试脚本 22e7be2 的报告。后续仓库复核确认完整 T04 尚缺证据并发现小范围问题，当前 FND-001 已重新登记为 in_progress，不能将下文原 PASS 视为现行验收结论。见 [提交复核](SUBMISSION_REVIEW_20261116.md) 与根目录 DSH_START.md。
+
 - `unit_id`: **FND-001**
 - `instruction_revision`: **2.0.0**
 - `executor`: **DeepSeek Harness**
