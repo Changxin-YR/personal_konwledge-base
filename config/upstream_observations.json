@@ -1,0 +1,333 @@
+{
+  "audit_date": "2026-11-16",
+  "timezone": "Asia/Shanghai",
+  "repository": "https://github.com/deepseek-ai/deepseek-harness.git",
+  "branch": "master",
+  "commit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "source_version": "0.2.2-rc.3",
+  "license": "MIT",
+  "method": "GitHub connector read-only; no installation, builds, live model calls or Windows runtime tests",
+  "sources": [
+    {
+      "id": "S01",
+      "path": "README.md",
+      "scope": "项目定位、开发预览、官方启动命令",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/README.md"
+    },
+    {
+      "id": "S02",
+      "path": "package.json",
+      "scope": "版本、Node、pnpm、源码构建与桌面命令",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/package.json"
+    },
+    {
+      "id": "S03",
+      "path": "LICENSE",
+      "scope": "上游许可证",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/LICENSE"
+    },
+    {
+      "id": "S04",
+      "path": "AGENTS.md",
+      "scope": "源码约束与测试门槛",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/AGENTS.md"
+    },
+    {
+      "id": "S05",
+      "path": "docs/architecture.md",
+      "scope": "Cordis、profile/bundle、Host/Client、扩展点",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/docs/architecture.md"
+    },
+    {
+      "id": "S06",
+      "path": "packages/client/ui-layout/src/client/index.ts",
+      "scope": "root/main/sidebar/shell.overlay slots",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/client/ui-layout/src/client/index.ts"
+    },
+    {
+      "id": "S07",
+      "path": "packages/client/ui-plugin-manager/src/client/index.ts",
+      "scope": "可复用全局主面板与导航注册代码范式",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/client/ui-plugin-manager/src/client/index.ts"
+    },
+    {
+      "id": "S08",
+      "path": "packages/client/ui-plugin-manager/package.json",
+      "scope": "dsh.client及./client导出",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/client/ui-plugin-manager/package.json"
+    },
+    {
+      "id": "S09",
+      "path": "docs/subsystems/client-modules.md",
+      "scope": "客户端模块发现与bundle加载",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/docs/subsystems/client-modules.md"
+    },
+    {
+      "id": "S10",
+      "path": "packages/llm/llm/src/index.ts",
+      "scope": "registerAdapter/prepareCall/llm.stream实现",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/llm/llm/src/index.ts"
+    },
+    {
+      "id": "S11",
+      "path": "packages/llm/llm/README.md",
+      "scope": "模型调用、日志、不含限流的边界",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/llm/llm/README.md"
+    },
+    {
+      "id": "S12",
+      "path": "packages/llm/llm-pi-ai/README.md",
+      "scope": "多提供方路由、凭据、默认参数、快照",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/llm/llm-pi-ai/README.md"
+    },
+    {
+      "id": "S13",
+      "path": "packages/core/tools/src/index.ts",
+      "scope": "scoped工具注册、restriction与最终guard",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/core/tools/src/index.ts"
+    },
+    {
+      "id": "S14",
+      "path": "packages/boot/plugin-manager/README.md",
+      "scope": "插件生命周期、profile级影响、Host信任边界",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/boot/plugin-manager/README.md"
+    },
+    {
+      "id": "S15",
+      "path": "packages/boot/plugin-manager/src/tools.ts",
+      "scope": "模型侧插件管理真实入口与结果处理",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/boot/plugin-manager/src/tools.ts"
+    },
+    {
+      "id": "S16",
+      "path": "packages/schedule/schedule/README.md",
+      "scope": "计划任务持久化、重复投递、Host级权限",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/schedule/schedule/README.md"
+    },
+    {
+      "id": "S17",
+      "path": "packages/storage/storage-domain/README.md",
+      "scope": "KV领域存储与无跨表事务限制",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/storage/storage-domain/README.md"
+    },
+    {
+      "id": "S18",
+      "path": "packages/storage/storage-sqlite/README.md",
+      "scope": "同步SQLite JSON记录存储",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/storage/storage-sqlite/README.md"
+    },
+    {
+      "id": "S19",
+      "path": "packages/host/authentication-token/README.md",
+      "scope": "启动token、共享浏览器Peer",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/host/authentication-token/README.md"
+    },
+    {
+      "id": "S20",
+      "path": "packages/host/authentication-desktop/README.md",
+      "scope": "Desktop共享owner Peer",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/host/authentication-desktop/README.md"
+    },
+    {
+      "id": "S21",
+      "path": "packages/document/office-kit/README.md",
+      "scope": "Office转换、临时输出、队列及限制",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/document/office-kit/README.md"
+    },
+    {
+      "id": "S22",
+      "path": "packages/document/tool-office/README.md",
+      "scope": "模型工具转换入口与权限/输出范围",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/document/tool-office/README.md"
+    },
+    {
+      "id": "S23",
+      "path": "apps/desktop/package.json",
+      "scope": "Electron、Windows打包脚本",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/apps/desktop/package.json"
+    },
+    {
+      "id": "S24",
+      "path": "apps/desktop/README.md",
+      "scope": "桌面载体、共享home、签名与升级限制",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/apps/desktop/README.md"
+    },
+    {
+      "id": "S25",
+      "path": "docs/cookbook/extension-cookbook.md",
+      "scope": "扩展方式、不得照抄概念片段",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/docs/cookbook/extension-cookbook.md"
+    },
+    {
+      "id": "S26",
+      "path": "packages/storage/storage-sqlite/src/schema.ts",
+      "scope": "node:sqlite真实驱动与schema初始化",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/storage/storage-sqlite/src/schema.ts"
+    },
+    {
+      "id": "S27",
+      "path": "packages/client/modules/README.md",
+      "scope": "外部Client构建/装载协议",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/client/modules/README.md"
+    },
+    {
+      "id": "S28",
+      "path": "packages/client/tsdown.client.ts",
+      "scope": "closure-factory构建preset",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/client/tsdown.client.ts"
+    },
+    {
+      "id": "S29",
+      "path": "docs/user/develop/basic/publish.md",
+      "scope": "外部bundle/profile及源码/预构建安装方式",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/docs/user/develop/basic/publish.md"
+    }
+  ],
+  "observations": [
+    {
+      "id": "U01",
+      "claim": "上游存在可读完整源码；默认分支master，固定提交39163dd30f703a79079e2d2446545cff3c453738，源码package版本0.2.2-rc.3。",
+      "evidence": "metadata_and_source",
+      "sources": [
+        "S01",
+        "S02"
+      ],
+      "result": "verified_by_read"
+    },
+    {
+      "id": "U02",
+      "claim": "核心为Cordis全插件结构；profile和bundle组合支持源码外插件，官方应用由dsh profile启动。",
+      "evidence": "official_documentation",
+      "sources": [
+        "S04",
+        "S05"
+      ],
+      "result": "verified_by_read"
+    },
+    {
+      "id": "U03",
+      "claim": "React UI通过dsh.client、./client导出、main keyed slot和sidebar.panellist可注册全局业务面板。",
+      "evidence": "source_and_official_documentation",
+      "sources": [
+        "S06",
+        "S07",
+        "S08",
+        "S09"
+      ],
+      "result": "verified_by_read"
+    },
+    {
+      "id": "U04",
+      "claim": "ctx.llm是受支持的模型派发入口；prepareCall固定adapter代际和默认参数，但无应用级并发限流。",
+      "evidence": "source_and_official_documentation",
+      "sources": [
+        "S10",
+        "S11",
+        "S12"
+      ],
+      "result": "verified_by_read"
+    },
+    {
+      "id": "U05",
+      "claim": "DSH工具支持agent.ctx作用域、工具限制和最终guard；这些不等同于KnowledgeOS账户与对象ACL。",
+      "evidence": "source_plus_design_inference",
+      "sources": [
+        "S13",
+        "S19",
+        "S20"
+      ],
+      "result": "verified_boundary"
+    },
+    {
+      "id": "U06",
+      "claim": "插件管理影响整个profile，安装的Host插件在进程内且workspace sandbox之外运行。",
+      "evidence": "source_and_official_documentation",
+      "sources": [
+        "S14",
+        "S15"
+      ],
+      "result": "verified_by_read"
+    },
+    {
+      "id": "U07",
+      "claim": "schedule可被暂停/删除，Host-wide且无任务级授权；崩溃后可重复投递；不可直接承载F30策略。",
+      "evidence": "official_documentation_plus_design_inference",
+      "sources": [
+        "S16"
+      ],
+      "result": "verified_boundary"
+    },
+    {
+      "id": "U08",
+      "claim": "storage-domain与storage-sqlite为KV/JSON文档，缺少跨表事务、二级索引和跨进程推送。",
+      "evidence": "official_documentation",
+      "sources": [
+        "S17",
+        "S18"
+      ],
+      "result": "verified_by_read"
+    },
+    {
+      "id": "U09",
+      "claim": "默认浏览器Cookie共享Peer，Desktop共享owner Peer；不能代表10人独立账户。",
+      "evidence": "official_documentation_plus_design_inference",
+      "sources": [
+        "S19",
+        "S20"
+      ],
+      "result": "verified_boundary"
+    },
+    {
+      "id": "U10",
+      "claim": "Office转换和预览可复用；产物临时存储，KnowledgeOS需保存永久原件和派生版本。",
+      "evidence": "official_documentation_plus_design_inference",
+      "sources": [
+        "S21",
+        "S22"
+      ],
+      "result": "verified_boundary"
+    },
+    {
+      "id": "U11",
+      "claim": "Windows桌面使用Electron，有win-x64打包和unsigned脚本；源码能力不证明安装验收通过。",
+      "evidence": "source_and_official_documentation",
+      "sources": [
+        "S23",
+        "S24"
+      ],
+      "result": "verified_by_read"
+    },
+    {
+      "id": "U12",
+      "claim": "Node要求>=24.9.0，packageManager为pnpm@11.28.5；Electron依赖版本与产品版本不同。",
+      "evidence": "source",
+      "sources": [
+        "S02",
+        "S23"
+      ],
+      "result": "verified_by_read"
+    },
+    {
+      "id": "U13",
+      "claim": "最近核验release dsh-v0.2.2-rc.3为prerelease，发布于2026-11-13T07:56:55Z，该release资产列表为空。",
+      "evidence": "github_release_metadata",
+      "sources": [],
+      "url": "https://api.github.com/repos/deepseek-ai/deepseek-harness/releases/tags/dsh-v0.2.2-rc.3",
+      "result": "verified_by_read"
+    },
+    {
+      "id": "U14",
+      "claim": "SQLite真实驱动直接使用node:sqlite DatabaseSync；此层未见Electron兼容包装。外部Client需DSH closure-factory格式及共享模块协议，不能默认使用普通Vite页面包。",
+      "evidence": "source_and_official_documentation",
+      "sources": [
+        "S26",
+        "S27",
+        "S28",
+        "S29"
+      ],
+      "result": "verified_by_read"
+    }
+  ],
+  "runtime_validation": "not_run",
+  "recommendations_status": "design_proposals_to_validate_in_M0"
+}

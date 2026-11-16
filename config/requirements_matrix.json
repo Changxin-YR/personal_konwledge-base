@@ -1,0 +1,1635 @@
+{
+  "schema_version": "1.0",
+  "date": "2026-11-16",
+  "timezone": "Asia/Shanghai",
+  "design_coverage": "44/44 requirements mapped; implementation not verified",
+  "status_vocabulary": [
+    "planned",
+    "in_progress",
+    "implemented_unverified",
+    "verified",
+    "blocked"
+  ],
+  "milestones": {
+    "M0": "上游与真实挂载PoC、身份链、接口契约",
+    "M1": "资料、阅读、权限与版本",
+    "M2": "知识、笔记、训练",
+    "M3": "代码、工程与架构师训练",
+    "M4": "计划、协作、评分提醒",
+    "M5": "AI工具、插件与讨论",
+    "M6": "恢复、备份、发布与全量验收"
+  },
+  "requirements": [
+    {
+      "id": "F01",
+      "title": "DSH、一体化、Windows、约十人、四领域",
+      "owner_module": "platform",
+      "milestone": "M0",
+      "acceptance_ids": [
+        "A01",
+        "A03",
+        "A49",
+        "A50",
+        "A51"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F02",
+      "title": "独立工程能力、架构师备考、长期知识积累",
+      "owner_module": "product",
+      "milestone": "M0",
+      "acceptance_ids": [
+        "A03",
+        "A16",
+        "A52"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F03",
+      "title": "注册登录、个人空间、方向目标",
+      "owner_module": "identity",
+      "milestone": "M0",
+      "acceptance_ids": [
+        "A02",
+        "A03"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F04",
+      "title": "知识资产归知识库、笔记独立",
+      "owner_module": "content",
+      "milestone": "M1",
+      "acceptance_ids": [
+        "P01",
+        "A04",
+        "A50"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F05",
+      "title": "多格式和压缩包导入",
+      "owner_module": "materials",
+      "milestone": "M1",
+      "acceptance_ids": [
+        "P02",
+        "A05"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F06",
+      "title": "约40MB、730页整本与拆分",
+      "owner_module": "materials",
+      "milestone": "M1",
+      "acceptance_ids": [
+        "P02",
+        "A06"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F07",
+      "title": "进度、失败、复核、页引用和版本",
+      "owner_module": "materials",
+      "milestone": "M1",
+      "acceptance_ids": [
+        "P02",
+        "A06",
+        "A07",
+        "A09",
+        "A45"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F08",
+      "title": "格式转换、原件保留和核对",
+      "owner_module": "materials",
+      "milestone": "M1",
+      "acceptance_ids": [
+        "A08"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F09",
+      "title": "目录搜索书签批注位置恢复",
+      "owner_module": "reader",
+      "milestone": "M1",
+      "acceptance_ids": [
+        "P03",
+        "A09"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F10",
+      "title": "术语语境解释积累练习复习",
+      "owner_module": "knowledge",
+      "milestone": "M2",
+      "acceptance_ids": [
+        "P01",
+        "P03",
+        "A10"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F11",
+      "title": "任意长文遮挡保存揭示继续",
+      "owner_module": "training",
+      "milestone": "M2",
+      "acceptance_ids": [
+        "P01",
+        "P04",
+        "A45"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F12",
+      "title": "基础选择快答无须组卷",
+      "owner_module": "training",
+      "milestone": "M2",
+      "acceptance_ids": [
+        "P01",
+        "P05",
+        "A13"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F13",
+      "title": "轻量本体与关系方向约束",
+      "owner_module": "knowledge",
+      "milestone": "M2",
+      "acceptance_ids": [
+        "A11"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F14",
+      "title": "关系证据确认纠正复核",
+      "owner_module": "knowledge",
+      "milestone": "M2",
+      "acceptance_ids": [
+        "A11",
+        "A12",
+        "A45"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F15",
+      "title": "GitHub优先兼容GitLab/Gitee",
+      "owner_module": "engineering",
+      "milestone": "M3",
+      "acceptance_ids": [
+        "A19"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F16",
+      "title": "文件模块项目关键流程讲解",
+      "owner_module": "engineering",
+      "milestone": "M3",
+      "acceptance_ids": [
+        "P07",
+        "A20"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F17",
+      "title": "业务软件思维需求约束取舍",
+      "owner_module": "engineering",
+      "milestone": "M3",
+      "acceptance_ids": [
+        "P07",
+        "A20"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F18",
+      "title": "发现复现定位修复验证回归",
+      "owner_module": "engineering",
+      "milestone": "M3",
+      "acceptance_ids": [
+        "P07",
+        "A21"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F19",
+      "title": "独立作答分层提示首次表现迁移",
+      "owner_module": "training_engineering",
+      "milestone": "M3",
+      "acceptance_ids": [
+        "P07",
+        "A13",
+        "A15",
+        "A21"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F20",
+      "title": "持续长期记录与反馈依据",
+      "owner_module": "learning_feedback",
+      "milestone": "M3",
+      "acceptance_ids": [
+        "P07",
+        "A16",
+        "A52"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F21",
+      "title": "私人笔记大纲脑图双向同步",
+      "owner_module": "notes",
+      "milestone": "M2",
+      "acceptance_ids": [
+        "A04",
+        "A17"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F22",
+      "title": "选择判断填空",
+      "owner_module": "training",
+      "milestone": "M2",
+      "acceptance_ids": [
+        "P03",
+        "A13"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F23",
+      "title": "训练复测评估与辅助程度",
+      "owner_module": "learning_feedback",
+      "milestone": "M3",
+      "acceptance_ids": [
+        "A14",
+        "A15",
+        "A16"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F24",
+      "title": "个人错题错因状态复习",
+      "owner_module": "training",
+      "milestone": "M2",
+      "acceptance_ids": [
+        "P01",
+        "P03",
+        "P05",
+        "P14",
+        "A14",
+        "A45"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F25",
+      "title": "复习默认学习时间10%可调",
+      "owner_module": "today",
+      "milestone": "M4",
+      "acceptance_ids": [
+        "P06"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F26",
+      "title": "学习方向调整须本人确认",
+      "owner_module": "today",
+      "milestone": "M4",
+      "acceptance_ids": [
+        "P05",
+        "A18"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F27",
+      "title": "架构知识案例论文模拟复盘",
+      "owner_module": "training",
+      "milestone": "M3",
+      "acceptance_ids": [
+        "A03",
+        "A22"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F28",
+      "title": "当日计划可行动任务时间依赖",
+      "owner_module": "today",
+      "milestone": "M4",
+      "acceptance_ids": [
+        "P06",
+        "P10",
+        "A23",
+        "A52"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F29",
+      "title": "任务时间成果和ABCD依据",
+      "owner_module": "today",
+      "milestone": "M4",
+      "acceptance_ids": [
+        "P06",
+        "P08",
+        "P14",
+        "A24"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F30",
+      "title": "连续三低分不可关闭小时强提醒",
+      "owner_module": "today",
+      "milestone": "M4",
+      "acceptance_ids": [
+        "P09",
+        "P10",
+        "P11",
+        "A25",
+        "A26",
+        "A27",
+        "A28",
+        "A29"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F31",
+      "title": "私人使用与项目邀请协作",
+      "owner_module": "collaboration",
+      "milestone": "M4",
+      "acceptance_ids": [
+        "A02",
+        "A30",
+        "A34",
+        "A51"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F32",
+      "title": "七天邀请权限与同刻到期",
+      "owner_module": "identity",
+      "milestone": "M1",
+      "acceptance_ids": [
+        "P13",
+        "A33",
+        "A34",
+        "A46"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F33",
+      "title": "指定人员任务标准期限审核人",
+      "owner_module": "collaboration",
+      "milestone": "M4",
+      "acceptance_ids": [
+        "P08",
+        "A30",
+        "A31",
+        "A51"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F34",
+      "title": "互审和管理员派发的终审",
+      "owner_module": "collaboration",
+      "milestone": "M4",
+      "acceptance_ids": [
+        "P08",
+        "A31",
+        "A32",
+        "A33",
+        "A42",
+        "A51"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F35",
+      "title": "复议改判记录与影响修正",
+      "owner_module": "collaboration",
+      "milestone": "M4",
+      "acceptance_ids": [
+        "P11",
+        "A24",
+        "A31",
+        "A32"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F36",
+      "title": "授权管理统计和纠正",
+      "owner_module": "management",
+      "milestone": "M4",
+      "acceptance_ids": [
+        "A02",
+        "A35"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F37",
+      "title": "AI流程及插件管理",
+      "owner_module": "ai_runtime",
+      "milestone": "M5",
+      "acceptance_ids": [
+        "A01",
+        "A18",
+        "A27",
+        "A36",
+        "A37",
+        "A52"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F38",
+      "title": "GPT主Agent及其他席位2/3评审",
+      "owner_module": "discussion",
+      "milestone": "M5",
+      "acceptance_ids": [
+        "P12",
+        "A38",
+        "A39",
+        "A41",
+        "A42"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F39",
+      "title": "分阶段最多五轮冻结暂停",
+      "owner_module": "discussion",
+      "milestone": "M5",
+      "acceptance_ids": [
+        "P12",
+        "A38",
+        "A39",
+        "A40",
+        "A42"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F40",
+      "title": "真实账户模型配置限制用量",
+      "owner_module": "ai_runtime",
+      "milestone": "M5",
+      "acceptance_ids": [
+        "P12",
+        "A01",
+        "A37",
+        "A40",
+        "A41"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F41",
+      "title": "30天回收还原期满清理",
+      "owner_module": "lifecycle",
+      "milestone": "M6",
+      "acceptance_ids": [
+        "P13",
+        "A43",
+        "A44"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F42",
+      "title": "断网保留恢复继续",
+      "owner_module": "platform",
+      "milestone": "M6",
+      "acceptance_ids": [
+        "P14",
+        "A07",
+        "A29",
+        "A36",
+        "A47",
+        "A49"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F43",
+      "title": "权限导出备份恢复",
+      "owner_module": "lifecycle",
+      "milestone": "M6",
+      "acceptance_ids": [
+        "A48",
+        "A49"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    },
+    {
+      "id": "F44",
+      "title": "来源更新撤权删除关联影响",
+      "owner_module": "lifecycle",
+      "milestone": "M6",
+      "acceptance_ids": [
+        "P11",
+        "P13",
+        "A12",
+        "A14",
+        "A33",
+        "A44",
+        "A45",
+        "A46",
+        "A47",
+        "A48",
+        "A52"
+      ],
+      "implementation_status": "planned",
+      "evidence_paths": []
+    }
+  ],
+  "acceptance_cases": [
+    {
+      "id": "P01",
+      "title": "核心功能入口可发现",
+      "requirement_ids": [
+        "F04",
+        "F10",
+        "F11",
+        "F12",
+        "F24"
+      ],
+      "preconditions": "用户已登录、有个人知识库。",
+      "steps": "从知识库首页分别打开专业术语、遮挡背诵、基础快答、错题复习；从今日计划再次打开同一内容。",
+      "expected": "四个入口直接可见；目标页面可操作；两个入口使用相同对象与个人记录。",
+      "level": "e2e",
+      "evidence_required": "真实 UI 截图/录屏、对象标识、操作结果",
+      "status": "NOT_RUN",
+      "final_milestone": "M2"
+    },
+    {
+      "id": "P02",
+      "title": "大 PDF 部分可用",
+      "requirement_ids": [
+        "F05",
+        "F06",
+        "F07"
+      ],
+      "preconditions": "准备有权使用的约 730 页、40 MB 真实 PDF。",
+      "steps": "导入全书；部分章节解析完成后打开阅读；观察剩余处理；取消并恢复部分处理。",
+      "expected": "已完成章节可阅读；未处理与待复核分开显示；来源页与版本正确；最终结果与原件核对。",
+      "level": "real_fixture",
+      "evidence_required": "输入哈希、页数、大小、解析范围、耗时/内存记录、抽查页映射",
+      "status": "NOT_RUN",
+      "final_milestone": "M1"
+    },
+    {
+      "id": "P03",
+      "title": "术语到练习保留阅读位置",
+      "requirement_ids": [
+        "F09",
+        "F10",
+        "F22",
+        "F24"
+      ],
+      "preconditions": "同一资料授权给两名测试用户。",
+      "steps": "甲阅读选词解释，保存术语并做题；乙回答同题；返回阅读。",
+      "expected": "解释与题目有来源；首次答案及辅助程度分别保存；甲乙个人表现互不影响；阅读位置恢复。",
+      "level": "e2e",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M2"
+    },
+    {
+      "id": "P04",
+      "title": "跨页长文遮挡恢复",
+      "requirement_ids": [
+        "F11"
+      ],
+      "preconditions": "有至少跨三页的长片段且长度超出普通短摘录。",
+      "steps": "鼠标跨页选择，设置多个遮挡组，分页练习并揭示部分答案；关闭重开。",
+      "expected": "原选区完整，无静默截断；遮挡组、揭示/提示记录、版本及练习位置恢复。",
+      "level": "e2e",
+      "evidence_required": "完整选区与原文范围比对、录屏、持久化记录",
+      "status": "NOT_RUN",
+      "final_milestone": "M2"
+    },
+    {
+      "id": "P05",
+      "title": "错题、不确定与争议分流",
+      "requirement_ids": [
+        "F12",
+        "F24",
+        "F26"
+      ],
+      "preconditions": "准备正确、有歧义两类来源可追溯题目。",
+      "steps": "分别答错、答对但不确定、提示后答对、报告争议；查看后续计划。",
+      "expected": "四种表现区分；正式错题属于本人；争议题不参与正式能力判定；学习方向未自动改变。",
+      "level": "e2e",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M2"
+    },
+    {
+      "id": "P06",
+      "title": "复习预算与统一计时",
+      "requirement_ids": [
+        "F25",
+        "F28",
+        "F29"
+      ],
+      "preconditions": "当天学习预算120分钟、复习比例10%，复习队列超过12分钟；一任务兼有学习和项目用途。",
+      "steps": "生成今日计划；执行兼用任务并查看两处记录。",
+      "expected": "约12分钟用于复习，超额待安排；承诺项目任务不被挤占；执行时长与成果不重复计入。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M4"
+    },
+    {
+      "id": "P07",
+      "title": "工程诊断完整证据链",
+      "requirement_ids": [
+        "F16",
+        "F17",
+        "F18",
+        "F19",
+        "F20"
+      ],
+      "preconditions": "固定仓库提交与可复现缺陷，任务标准已给定。",
+      "steps": "独立分析，提交首次假设，分层求助，复现定位，给出取舍，外部修改并导入验证，做迁移题。",
+      "expected": "首次表现不覆盖；每次提示可回看；验证关联准确提交/命令/结果；修复与迁移结论各有依据。",
+      "level": "real_fixture",
+      "evidence_required": "固定提交、复现步骤、原始答案、提示记录、补丁及实际测试日志",
+      "status": "NOT_RUN",
+      "final_milestone": "M3"
+    },
+    {
+      "id": "P08",
+      "title": "管理员任务的同伴预审",
+      "requirement_ids": [
+        "F29",
+        "F33",
+        "F34"
+      ],
+      "preconditions": "管理员派发任务；指定同伴可预审。",
+      "steps": "负责人提交；同伴通过；观察任务与日评分；管理员终审。",
+      "expected": "预审后仍待管理员；不提前正式完成；关键评分可暂缓；终审后按真实提交时间结算。",
+      "level": "e2e",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M4"
+    },
+    {
+      "id": "P09",
+      "title": "待结算不能拼接低分",
+      "requirement_ids": [
+        "F30"
+      ],
+      "preconditions": "三个计划日顺序为C、待审核、D。",
+      "steps": "运行触发判断；中间日分别结算C和B；另测争议日。",
+      "expected": "初始不触发；结算C后满足连续三低分；结算B后不满足；争议日不被跳过。",
+      "level": "integration",
+      "evidence_required": "可控时钟与日序列、触发结果、重算日志",
+      "status": "NOT_RUN",
+      "final_milestone": "M4"
+    },
+    {
+      "id": "P10",
+      "title": "执行时段有限与逐任务豁免",
+      "requirement_ids": [
+        "F28",
+        "F30"
+      ],
+      "preconditions": "已有三低分、在提醒时段、两项可行动任务。",
+      "steps": "开始第一项有限执行时段；到期不交成果；认可其外部阻塞；查看第二项。",
+      "expected": "规则始终启用；执行状态到期重新判断；第一项阻塞不豁免第二项；不可永久挂起。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M4"
+    },
+    {
+      "id": "P11",
+      "title": "复议改判修正提醒与结论",
+      "requirement_ids": [
+        "F30",
+        "F35",
+        "F44"
+      ],
+      "preconditions": "C、C、D已触发并发出一次提醒，有依赖该结果的项目进度和案例。",
+      "steps": "对中间C复议并改为B。",
+      "expected": "原裁决和已发提醒留档；日评分、序列、项目进度重算；失去依据的待发提醒取消；案例标记复核。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M4"
+    },
+    {
+      "id": "P12",
+      "title": "两赞成一调用失败",
+      "requirement_ids": [
+        "F38",
+        "F39",
+        "F40"
+      ],
+      "preconditions": "三个固定评审席位、同一候选版本。",
+      "steps": "两席赞成，第三席调用失败；重试后产生有效反对且没有未处理重大阻断。",
+      "expected": "失败时受阻不能冻结；全员有效评审后重新按2/3门槛判断；失败不算反对或弃权票。",
+      "level": "integration",
+      "evidence_required": "受控错误测试及至少一次真实多席调用证据、版本和席位结果",
+      "status": "NOT_RUN",
+      "final_milestone": "M5"
+    },
+    {
+      "id": "P13",
+      "title": "邀请与删除恢复不复活授权",
+      "requirement_ids": [
+        "F32",
+        "F41",
+        "F44"
+      ],
+      "preconditions": "七天邀请，第六天兑换后被分享资料进入回收站。",
+      "steps": "恢复资料；越过原第七天截止；再次尝试旧分享与权限。",
+      "expected": "恢复先预览；旧分享须重新确认；授权到原截止即失效；过期或撤销授权不会恢复。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M6"
+    },
+    {
+      "id": "P14",
+      "title": "断网恢复无重复入账",
+      "requirement_ids": [
+        "F24",
+        "F29",
+        "F42"
+      ],
+      "preconditions": "一次训练提交或任务提交在远端成功，但客户端未收到响应。",
+      "steps": "断网并重启，再联网重试相同操作。",
+      "expected": "草稿和原结果保留；先核实服务端结果与权限；仅一次作答/提交/评分，不重复记时。",
+      "level": "integration",
+      "evidence_required": "故障注入点、幂等标识、前后记录数、恢复截图",
+      "status": "NOT_RUN",
+      "final_milestone": "M4"
+    },
+    {
+      "id": "A01",
+      "title": "真实 DSH 挂载和一次调用",
+      "requirement_ids": [
+        "F01",
+        "F37",
+        "F40"
+      ],
+      "preconditions": "锁定官方上游完整提交；测试账户与真实模型凭据可用。",
+      "steps": "从真实DSH入口挂载KnowledgeOS，携带当前身份调用一个只读业务工具，再做一个受控写入。",
+      "expected": "入口与调用链真实存在；身份到达业务层；结果回到UI；工具权限有效；记录真实模型/适配器。",
+      "level": "real_environment",
+      "evidence_required": "上游提交、扩展入口、调用请求/响应脱敏记录、真实UI及持久化结果",
+      "status": "NOT_RUN",
+      "final_milestone": "M0"
+    },
+    {
+      "id": "A02",
+      "title": "身份链与个人隔离",
+      "requirement_ids": [
+        "F03",
+        "F31",
+        "F36"
+      ],
+      "preconditions": "本人管理员、成员甲、成员乙三个独立身份；各有私有资料。",
+      "steps": "注册登录、退出重登；分别通过UI、API、搜索、AI工具与导出尝试跨人读取。",
+      "expected": "只访问已获授权内容；管理员统计不等于自动读取全部私有正文/学习记录；会话身份不能由请求任意替换。",
+      "level": "integration",
+      "evidence_required": "权限矩阵、三个真实身份结果、拒绝记录",
+      "status": "NOT_RUN",
+      "final_milestone": "M6"
+    },
+    {
+      "id": "A03",
+      "title": "领域目标与三条主线",
+      "requirement_ids": [
+        "F01",
+        "F02",
+        "F03",
+        "F27"
+      ],
+      "preconditions": "新用户或清洁配置。",
+      "steps": "设置软件工程/架构/硬件/AI方向、学习目标；打开工程训练、架构备考、知识积累入口。",
+      "expected": "四领域与三个目标均可表达；目标不会导致他人记录混入；首批范围不被UI删减。",
+      "level": "e2e",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M3"
+    },
+    {
+      "id": "A04",
+      "title": "内容归属与引用",
+      "requirement_ids": [
+        "F04",
+        "F21"
+      ],
+      "preconditions": "一原始资料、一私人笔记、一项目。",
+      "steps": "笔记引用资料；项目引用笔记；移除笔记中的资料引用。",
+      "expected": "资料原件仍在知识库；笔记仍在笔记模块；引用删除不删除原件；对象不重复创建。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M2"
+    },
+    {
+      "id": "A05",
+      "title": "导入格式和压缩包边界",
+      "requirement_ids": [
+        "F05"
+      ],
+      "preconditions": "PDF、docx、Markdown、UTF-8文本、含多文件ZIP与损坏/路径异常样本。",
+      "steps": "逐种导入；在ZIP选择部分内容；尝试越界路径与超限内容。",
+      "expected": "支持范围内内容可处理；只导入所选文件；失败具体且可恢复；异常包不覆盖工作目录或其他用户文件。",
+      "level": "integration",
+      "evidence_required": "样本清单与哈希、导入结果、失败原因",
+      "status": "NOT_RUN",
+      "final_milestone": "M1"
+    },
+    {
+      "id": "A06",
+      "title": "大文件全量与拆分一致",
+      "requirement_ids": [
+        "F06",
+        "F07"
+      ],
+      "preconditions": "与P02相同合法大文件，章节切分方案固定。",
+      "steps": "分别全量与拆分导入；抽查首/中/尾、表格/图片/代码页和跨页内容。",
+      "expected": "来源页可回溯；拆分保留原书位置；差异显式报告；UI可响应；记录耗时与峰值内存，不用小夹具冒充实测。",
+      "level": "real_fixture",
+      "evidence_required": "真实输入元数据、页面抽查表、性能观测",
+      "status": "NOT_RUN",
+      "final_milestone": "M1"
+    },
+    {
+      "id": "A07",
+      "title": "解析中断续跑与失败可见",
+      "requirement_ids": [
+        "F07",
+        "F42"
+      ],
+      "preconditions": "多页导入已部分完成。",
+      "steps": "中断工作进程后重启；注入单页失败并重试。",
+      "expected": "复用已完成成果；无重复页/章节；失败与未处理可辨；重试不会把错误页静默标成功。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M1"
+    },
+    {
+      "id": "A08",
+      "title": "转换保留原件与质量",
+      "requirement_ids": [
+        "F08"
+      ],
+      "preconditions": "包含表格、图片、代码的Word/PDF及原件哈希。",
+      "steps": "执行格式转换、预览并反馈异常；比较前后原件哈希。",
+      "expected": "原件不变；转换结果独立；缺失内容或格式问题可核对；不声称转换完全无损。",
+      "level": "real_fixture",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M1"
+    },
+    {
+      "id": "A09",
+      "title": "中文阅读检索与定位",
+      "requirement_ids": [
+        "F07",
+        "F09"
+      ],
+      "preconditions": "冻结的中文资料、同义词/标点/代码混合查询与预期证据页。",
+      "steps": "检索关键词，跳到原页；建立书签批注，退出重开。",
+      "expected": "命中均有可复现页段；阅读位置/批注恢复；结果只来自可见且已解析内容；报告查询集与实际检索表现。",
+      "level": "real_fixture",
+      "evidence_required": "固定查询集、来源版本/页段、命中记录与位置恢复截图",
+      "status": "NOT_RUN",
+      "final_milestone": "M1"
+    },
+    {
+      "id": "A10",
+      "title": "语境术语与易混概念",
+      "requirement_ids": [
+        "F10"
+      ],
+      "preconditions": "同一词在两个专业语境出现。",
+      "steps": "分别选中解释，比较易混概念，加入个人积累并复习。",
+      "expected": "说明匹配语境且带依据；两语境不错误合并；临时查词不强制保存；个人补充可编辑。",
+      "level": "e2e",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M2"
+    },
+    {
+      "id": "A11",
+      "title": "知识关系类型与方向",
+      "requirement_ids": [
+        "F13",
+        "F14"
+      ],
+      "preconditions": "配置对象类型及允许关系，准备正反方向与跨权限样本。",
+      "steps": "手工/AI提出正确关系、反向错误关系、无证据关系与指向不可见对象的关系。",
+      "expected": "违反类型或方向拒绝；AI建议先待确认；证据可核查；不可见目标不泄露正文。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M2"
+    },
+    {
+      "id": "A12",
+      "title": "关系纠正与来源变化",
+      "requirement_ids": [
+        "F14",
+        "F44"
+      ],
+      "preconditions": "一条已确认且有源证据的关系。",
+      "steps": "人工纠正；升级源版本；删除来源；查看历史。",
+      "expected": "保留原关系与改正依据；受影响版本待复核；不得静默承认新证据或留下无提示的有效关系。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M6"
+    },
+    {
+      "id": "A13",
+      "title": "三种题型与首次答案",
+      "requirement_ids": [
+        "F12",
+        "F19",
+        "F22"
+      ],
+      "preconditions": "各有选择/判断/填空题，答案版本明确。",
+      "steps": "提交首次答案，查看解释后重答；填空含等价表达与无法确定的结果。",
+      "expected": "首次答案保留；二次作答区分；判分规则透明；有争议的开放表达不凭模型强行计错。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M2"
+    },
+    {
+      "id": "A14",
+      "title": "个人错题状态与题目争议",
+      "requirement_ids": [
+        "F23",
+        "F24",
+        "F44"
+      ],
+      "preconditions": "甲答错、乙答对同一道题，随后题目答案被纠正。",
+      "steps": "分别查看错题；纠正题目并重算受影响评价。",
+      "expected": "乙不进入甲错题；错因/复习各自独立；改题不覆盖历史答案；受影响能力结论可更正。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M2"
+    },
+    {
+      "id": "A15",
+      "title": "独立表现、提示与迁移",
+      "requirement_ids": [
+        "F19",
+        "F23"
+      ],
+      "preconditions": "用户先独立作答，允许分层提示；有等难度迁移题。",
+      "steps": "保存初答，按层提示后答对，再无提示作迁移题。",
+      "expected": "记录独立和辅助差异；不把提示后答对当首次独立掌握；迁移结果独立保存。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M2"
+    },
+    {
+      "id": "A16",
+      "title": "长期反馈可追溯且不过期",
+      "requirement_ids": [
+        "F02",
+        "F20",
+        "F23"
+      ],
+      "preconditions": "至少跨31天的正常知识、学习和工程记录；混合自评和证据。",
+      "steps": "查看反馈依据与历史；运行回收站清理。",
+      "expected": "正常记录不因满30天删除；反馈区分自评/训练/工程证据与数据不足；可跳回依据和版本。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M3"
+    },
+    {
+      "id": "A17",
+      "title": "大纲脑图双向同步",
+      "requirement_ids": [
+        "F21"
+      ],
+      "preconditions": "多级私人笔记树，有两个视图同时打开。",
+      "steps": "在大纲编辑、脑图移动/编辑节点，删除有子节点的节点并撤销/还原。",
+      "expected": "同一内容立即一致；删除展示子节点影响；无重复节点；仅导航受两级限制，笔记内容可多层。",
+      "level": "e2e",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M2"
+    },
+    {
+      "id": "A18",
+      "title": "方向调整需本人确认",
+      "requirement_ids": [
+        "F26",
+        "F37"
+      ],
+      "preconditions": "错题分析建议改学习方向；用户未授权方向变更。",
+      "steps": "AI生成建议、尝试直接应用；用户分别拒绝与明确确认。",
+      "expected": "确认前计划方向不变；拒绝保留原方案；确认后有变更记录及影响范围，幅度符合配置。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M5"
+    },
+    {
+      "id": "A19",
+      "title": "仓库三平台与只读默认",
+      "requirement_ids": [
+        "F15"
+      ],
+      "preconditions": "GitHub真实测试仓库；GitLab/Gitee各有合法测试入口或明确环境阻塞。",
+      "steps": "读取固定提交；校验平台适配；让AI请求直接推代码。",
+      "expected": "默认仅分析；仓库/提交记录准确；缺凭据的平台标集成待验证；没有授权不执行写入。",
+      "level": "real_environment",
+      "evidence_required": "平台/提交清单、适配测试、真实读取证据或可复现阻塞",
+      "status": "NOT_RUN",
+      "final_milestone": "M3"
+    },
+    {
+      "id": "A20",
+      "title": "逐层代码与业务解释",
+      "requirement_ids": [
+        "F16",
+        "F17"
+      ],
+      "preconditions": "固定提交包含入口、模块、数据库和关键流程。",
+      "steps": "逐个请求文件、模块、项目架构、正常/异常业务流程及设计取舍。",
+      "expected": "解释引用可打开的文件/版本/范围；调用链与实际代码吻合；未知点标明，不能凭README推断全部实现。",
+      "level": "real_fixture",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M3"
+    },
+    {
+      "id": "A21",
+      "title": "修复证据与回归边界",
+      "requirement_ids": [
+        "F18",
+        "F19"
+      ],
+      "preconditions": "复现前失败、修复后通过的明确场景，另有未执行回归项。",
+      "steps": "导入前后测试和补丁；提交工程案例。",
+      "expected": "结论只覆盖实际验证范围；未执行回归不能标通过；无真实测试时仅为待验证修复。",
+      "level": "real_fixture",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M3"
+    },
+    {
+      "id": "A22",
+      "title": "架构师四种训练",
+      "requirement_ids": [
+        "F27"
+      ],
+      "preconditions": "知识题、案例分析、论文训练、模拟复盘各一份合法材料。",
+      "steps": "依次训练、保存与复盘，并关联工程案例。",
+      "expected": "四种入口可用；过程与反馈有来源；不把AI论文评分包装为官方判卷。",
+      "level": "e2e",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M3"
+    },
+    {
+      "id": "A23",
+      "title": "可行动任务与前置条件",
+      "requirement_ids": [
+        "F28"
+      ],
+      "preconditions": "有依赖未完成、待审、外部阻塞和可执行任务，容量已限定。",
+      "steps": "生成计划；改变前置状态和截止期。",
+      "expected": "今日承诺和当前可执行分开；依赖未满足不提示立即执行；任务变化影响可行动列表而不丢历史。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M4"
+    },
+    {
+      "id": "A24",
+      "title": "日评分规则版本与待结算",
+      "requirement_ids": [
+        "F29",
+        "F35"
+      ],
+      "preconditions": "当日计划已承诺，有成果权重及显示过的规则版本。",
+      "steps": "完成部分任务、关键项待审；改变未来规则；完成终审。",
+      "expected": "关键项足以改变档位时待结算；保留当日规则；时间不单独决定档位；历史重算有原因和记录。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M4"
+    },
+    {
+      "id": "A25",
+      "title": "小时频率、时段与合并",
+      "requirement_ids": [
+        "F30"
+      ],
+      "preconditions": "三低分；两个可行动任务；明确Asia/Shanghai时段；可控时钟。",
+      "steps": "进入时段、多个事件同时触发、59分钟和60分钟再次检查、离开后重进时段。",
+      "expected": "首次可发状态提醒一次；同一发送后不足一小时不再发；多任务合并；非约定时段不发。",
+      "level": "integration",
+      "evidence_required": "可控时钟序列、发送流水、去重键",
+      "status": "NOT_RUN",
+      "final_milestone": "M4"
+    },
+    {
+      "id": "A26",
+      "title": "休息请假与低分序列",
+      "requirement_ids": [
+        "F30"
+      ],
+      "preconditions": "包含A/B/C/D、休息、请假、未结算的计划日序列。",
+      "steps": "按顺序和乱序补结算，覆盖C/休息/C/D、C/B/C/D、C/争议/C/D。",
+      "expected": "休息与批准请假排除；A/B中断；未结算与争议不跨越；补结算不补发历史积压通知。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M4"
+    },
+    {
+      "id": "A27",
+      "title": "强提醒不可关闭及真实送达",
+      "requirement_ids": [
+        "F30",
+        "F37"
+      ],
+      "preconditions": "个人、管理员、AI工具和插件路径均可测试。",
+      "steps": "从设置/API/工具尝试停用；另模拟应用关闭、休眠、OS通知权限受限再恢复。",
+      "expected": "应用内不能禁用规则；展示真实送达限制；不拦截OS退出；恢复不补发堆积；规则仍按条件运行。",
+      "level": "e2e",
+      "evidence_required": "权限拒绝、设置截图、Windows实际送达/恢复记录",
+      "status": "NOT_RUN",
+      "final_milestone": "M6"
+    },
+    {
+      "id": "A28",
+      "title": "执行结束、阻塞与自动结束",
+      "requirement_ids": [
+        "F30"
+      ],
+      "preconditions": "触发状态，有有限执行时段及已认可阻塞。",
+      "steps": "执行到期；只阻塞一个任务；完成全部可行动事项；纠正评分。",
+      "expected": "逐项重新判断；其他可行动任务仍可提醒；无可行动项或无三低分时结束对应催促并记录原因。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M4"
+    },
+    {
+      "id": "A29",
+      "title": "重启、多窗口与时钟边界",
+      "requirement_ids": [
+        "F30",
+        "F42"
+      ],
+      "preconditions": "同账户两个窗口或实例，提醒刚发送。",
+      "steps": "重启、并发触发、跨午夜、联网恢复，模拟时钟变化。",
+      "expected": "不产生重复提醒；计划日与时区规则一致；可靠发送记录保存；时钟变化不导致积压突发。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M4"
+    },
+    {
+      "id": "A30",
+      "title": "任务派发权限与标准",
+      "requirement_ids": [
+        "F31",
+        "F33"
+      ],
+      "preconditions": "项目有管理员、负责人、非成员。",
+      "steps": "指定人员、期限、标准和审核人，发布；非成员尝试读取/认领/改标准。",
+      "expected": "任务结构完整；只授权对象可操作；标准变更版本化并明确适用提交；非成员无泄露。",
+      "level": "e2e",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M4"
+    },
+    {
+      "id": "A31",
+      "title": "退回重提与审核迟到",
+      "requirement_ids": [
+        "F33",
+        "F34",
+        "F35"
+      ],
+      "preconditions": "任务已按期提交，审核人晚于期限处理。",
+      "steps": "退回、重新提交、同伴审核、管理员终审。",
+      "expected": "原提交时间不改；退回带标准与依据；新提交新版本；逾期/受阻/退回/失败分别表达。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M4"
+    },
+    {
+      "id": "A32",
+      "title": "普通任务审核与管理员改判",
+      "requirement_ids": [
+        "F34",
+        "F35"
+      ],
+      "preconditions": "非管理员派发协作任务，预先指定审核人。",
+      "steps": "指定人审核；用户复议；有权限管理员纠正。",
+      "expected": "原审核路径有效；改判留档且有理由；用户可看结果与复议状态；不得静默覆盖。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M4"
+    },
+    {
+      "id": "A33",
+      "title": "材料失权不能判成员失败",
+      "requirement_ids": [
+        "F32",
+        "F34",
+        "F44"
+      ],
+      "preconditions": "审核中所需资料即将过期。",
+      "steps": "等待到期后审核人打开提交并尝试结算。",
+      "expected": "显示等待材料授权；不能因不可见自动判失败；补齐授权后再按标准审核。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M4"
+    },
+    {
+      "id": "A34",
+      "title": "邀请码同刻到期及权限分离",
+      "requirement_ids": [
+        "F31",
+        "F32"
+      ],
+      "preconditions": "默认七天邀请、只读和编辑两种权限，以及未授权分享管理的成员。",
+      "steps": "第六天兑换；到期前后读取；编辑者尝试删除原件、邀人、改范围。",
+      "expected": "剩余期限明确；原第七天统一到期；编辑不含管理；撤销立即作用于后续请求与缓存。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M1"
+    },
+    {
+      "id": "A35",
+      "title": "授权统计与纠正行动",
+      "requirement_ids": [
+        "F36"
+      ],
+      "preconditions": "管理员仅获某项目进度/投入/阻塞记录的授权。",
+      "steps": "查看统计，追踪某项时间，要求补充或调整任务；尝试查看私人学习记录。",
+      "expected": "统计可追到授权事件；纠正留记录；私人内容不自动开放；投入记录不等同键鼠监控。",
+      "level": "e2e",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M4"
+    },
+    {
+      "id": "A36",
+      "title": "AI业务工具权限与幂等",
+      "requirement_ids": [
+        "F37",
+        "F42"
+      ],
+      "preconditions": "有权限/无权限两个身份和一次操作重试。",
+      "steps": "通过对话导入、创建练习、安排复习；重放请求；越权操作。",
+      "expected": "执行结果落业务对象；重试不重复；越权拒绝；学习方向确认与F30规则不能被提示词绕过。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M5"
+    },
+    {
+      "id": "A37",
+      "title": "插件生命周期",
+      "requirement_ids": [
+        "F37",
+        "F40"
+      ],
+      "preconditions": "受支持测试插件，记录安装来源和版本。",
+      "steps": "通过已授权流程安装、启用、停用、移除；注入失败。",
+      "expected": "状态和版本真实；失败可见且不会显示成功；移除不误删KnowledgeOS用户数据；运行中的任务有清楚结果。",
+      "level": "real_environment",
+      "evidence_required": "真实插件状态前后、失败记录、数据完整性核对",
+      "status": "NOT_RUN",
+      "final_milestone": "M5"
+    },
+    {
+      "id": "A38",
+      "title": "席位、门槛和重大阻断",
+      "requirement_ids": [
+        "F38",
+        "F39"
+      ],
+      "preconditions": "冻结评审席位N=3、4、5及候选版本。",
+      "steps": "分别产生有效票、缺席、弃权/无效答复、重复票和未处理重大阻断。",
+      "expected": "赞成门槛分别为2/3/4；所有既定席位完成有效评审才可通过；同席一票；重大阻断未处理不冻结。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M5"
+    },
+    {
+      "id": "A39",
+      "title": "改稿使旧票失效",
+      "requirement_ids": [
+        "F38",
+        "F39"
+      ],
+      "preconditions": "一个版本已获得赞成票。",
+      "steps": "修改方案后请求冻结；重新评审新版本；查看旧版历史。",
+      "expected": "旧票保留但不算新版本；新版本按完整规则评审；冻结内容与评审版本一致。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M5"
+    },
+    {
+      "id": "A40",
+      "title": "五轮上限与受阻处理",
+      "requirement_ids": [
+        "F39",
+        "F40"
+      ],
+      "preconditions": "某阶段多轮未达标或模型持续失败。",
+      "steps": "运行到第五轮；尝试继续第六轮；恢复缺失席位。",
+      "expected": "第五轮后待用户裁定，展示最佳稿与分歧；不降门槛/删席位/无限重试；重试与新轮次规则有记录。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M5"
+    },
+    {
+      "id": "A41",
+      "title": "模型真实用量与额度",
+      "requirement_ids": [
+        "F38",
+        "F40"
+      ],
+      "preconditions": "可用模型、用量缺失、额度耗尽三种情况。",
+      "steps": "真实调用主Agent与评审席位，读取用量，触发限额。",
+      "expected": "GPT主Agent配置真实可用；模型与实际调用一致；未知用量标未知；限额受阻且不伪造投票；不虚构免费额度。",
+      "level": "real_environment",
+      "evidence_required": "实际提供商/模型、脱敏调用与用量、限额错误",
+      "status": "NOT_RUN",
+      "final_milestone": "M5"
+    },
+    {
+      "id": "A42",
+      "title": "冻结成果与实际任务分离",
+      "requirement_ids": [
+        "F34",
+        "F38",
+        "F39"
+      ],
+      "preconditions": "一个满足冻结门槛的方案和一个尚未执行的修复任务。",
+      "steps": "冻结方案并生成任务建议。",
+      "expected": "正式方案进入知识库；任务先草案，发布需权限；投票不能把修复任务标完成；变更保留阶段历史。",
+      "level": "e2e",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M5"
+    },
+    {
+      "id": "A43",
+      "title": "回收站30天边界",
+      "requirement_ids": [
+        "F41"
+      ],
+      "preconditions": "普通资料与已删除资料，分别处于删除后29天、30天边界。",
+      "steps": "显示影响；还原；执行期满清理；查看普通旧内容。",
+      "expected": "仅回收站内容受30天规则；边界按已约定时间解释；清理范围明确；永久删除后产品无正文恢复入口。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M6"
+    },
+    {
+      "id": "A44",
+      "title": "恢复冲突和分享复核",
+      "requirement_ids": [
+        "F41",
+        "F44"
+      ],
+      "preconditions": "删除后原路径已被占用，旧分享有有效/过期/撤销三种。",
+      "steps": "预览并恢复内容与关联。",
+      "expected": "重名处理明确；不覆盖新内容；不复活过期或撤销授权；有效旧分享也需重新确认再开放。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M6"
+    },
+    {
+      "id": "A45",
+      "title": "资料新版本与历史证据",
+      "requirement_ids": [
+        "F07",
+        "F11",
+        "F14",
+        "F24",
+        "F44"
+      ],
+      "preconditions": "资料已有引用、题目、遮挡、图谱边和已审核提交。",
+      "steps": "导入大幅变更的新版本；查看各关联。",
+      "expected": "历史提交仍指旧版；新旧可区分；受影响训练/关系/遮挡待复核；不得靠新行号偷换旧证据。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M6"
+    },
+    {
+      "id": "A46",
+      "title": "撤权阻断衍生缓存泄露",
+      "requirement_ids": [
+        "F32",
+        "F44"
+      ],
+      "preconditions": "资料被搜索索引、AI摘要、答案和引用缓存使用。",
+      "steps": "撤销授权后从搜索、直接URL、工具、摘要、答案、导出尝试读取。",
+      "expected": "受控内容按当前权限阻断；不靠UI隐藏；原创笔记仍可保留但其受限引用不可绕权呈现。",
+      "level": "integration",
+      "evidence_required": "各读取路径拒绝结果、缓存/索引处理证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M6"
+    },
+    {
+      "id": "A47",
+      "title": "断网草稿和授权变化",
+      "requirement_ids": [
+        "F42",
+        "F44"
+      ],
+      "preconditions": "用户编辑中断网，期间服务端撤权或他人更新。",
+      "steps": "离线继续草稿，联网后同步。",
+      "expected": "草稿保留；先验证当前权限和版本；冲突可处理；不能用旧授权自动提交/覆盖服务端内容。",
+      "level": "integration",
+      "evidence_required": "测试记录、关键状态与操作证据",
+      "status": "NOT_RUN",
+      "final_milestone": "M6"
+    },
+    {
+      "id": "A48",
+      "title": "导出与备份恢复",
+      "requirement_ids": [
+        "F43",
+        "F44"
+      ],
+      "preconditions": "两身份混合资料，含版本/引用/训练/任务，授权状态不同。",
+      "steps": "各自导出；创建备份；在清洁环境恢复；检查关联、冲突与撤权对象。",
+      "expected": "只导出有权内容；恢复后可读可定位且记录一致；已撤销授权不复活；密钥不进入明文仓库；输出恢复报告。",
+      "level": "real_environment",
+      "evidence_required": "导出范围、备份哈希、清洁环境恢复记录、关系/权限校验",
+      "status": "NOT_RUN",
+      "final_milestone": "M6"
+    },
+    {
+      "id": "A49",
+      "title": "Windows安装升级卸载",
+      "requirement_ids": [
+        "F01",
+        "F42",
+        "F43"
+      ],
+      "preconditions": "Windows隔离测试环境、可还原快照、候选安装包和已有用户数据。",
+      "steps": "安装运行，升级，失败回退，卸载后按约定处理用户数据；检查离线重启。",
+      "expected": "可实际启动与使用；升级迁移不丢数据；回退边界明确；未实测步骤不写PASS；发布包可校验且对应源码提交。",
+      "level": "real_environment",
+      "evidence_required": "系统/包版本、SHA256、安装与升级记录、数据前后比对",
+      "status": "NOT_RUN",
+      "final_milestone": "M6"
+    },
+    {
+      "id": "A50",
+      "title": "两级导航与风格验收",
+      "requirement_ids": [
+        "F01",
+        "F04"
+      ],
+      "preconditions": "六工作区均有可操作页面。",
+      "steps": "遍历所有入口与子页，在常见Windows窗口尺寸和缩放检查；展开阅读/AI面板。",
+      "expected": "最多两级应用导航；子页归属清晰；四核心入口显著；无三个常驻侧栏；字体/冷玉青/适度圆角一致。",
+      "level": "e2e",
+      "evidence_required": "全入口截图、窗口尺寸/缩放、交互录屏",
+      "status": "NOT_RUN",
+      "final_milestone": "M6"
+    },
+    {
+      "id": "A51",
+      "title": "约十人协作与竞争更新",
+      "requirement_ids": [
+        "F01",
+        "F31",
+        "F33",
+        "F34"
+      ],
+      "preconditions": "约十个隔离身份、不同项目范围与并发审核/编辑。",
+      "steps": "并发读取提交与竞争修改同一任务，单身份离线后重试。",
+      "expected": "身份与项目不串；冲突可见；不能双重终审/重复计分；记录实际响应情况，不宣称未测并发容量。",
+      "level": "real_environment",
+      "evidence_required": "身份/权限配置、竞争操作轨迹、最终记录一致性",
+      "status": "NOT_RUN",
+      "final_milestone": "M4"
+    },
+    {
+      "id": "A52",
+      "title": "全生命周期端到端闭环",
+      "requirement_ids": [
+        "F02",
+        "F20",
+        "F28",
+        "F37",
+        "F44"
+      ],
+      "preconditions": "真实上游运行、真实资料、真实模型、三个协作身份、固定代码提交。",
+      "steps": "导入阅读→术语/笔记/练习→复习→工程训练→提交终审→评分提醒→讨论冻结→版本更新→导出恢复。",
+      "expected": "全部环节可回溯同一对象和证据；权限、版本、个人表现和状态贯穿一致；每个外部依赖均有真实成功证据或明确阻塞。",
+      "level": "real_environment",
+      "evidence_required": "全程录屏/运行报告、来源/模型/提交/版本标识及恢复结果",
+      "status": "NOT_RUN",
+      "final_milestone": "M6"
+    }
+  ],
+  "milestone_semantics": {
+    "requirements.milestone": "primary_implementation_stage; not the date of full verification",
+    "acceptance_cases.final_milestone": "earliest stage where the complete scenario is expected; partial-stage probes cannot mark it PASS",
+    "verified_rule": "all linked required acceptance cases PASS with real evidence; blocked/not-run do not pass"
+  }
+}

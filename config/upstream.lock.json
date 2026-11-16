@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "product": "KnowledgeOS",
+  "audited_at": "2026-11-16",
+  "upstream": {
+    "repository": "https://github.com/deepseek-ai/deepseek-harness.git",
+    "default_branch_at_audit": "master",
+    "commit": "39163dd30f703a79079e2d2446545cff3c453738",
+    "tree": "5740b68dc7112a9b8489be01c39814e874118dbd",
+    "package_version": "0.2.2-rc.3",
+    "node_engine": ">=24.9.0",
+    "package_manager": "pnpm@11.28.5",
+    "license": "MIT",
+    "stability": "developer_preview",
+    "checkout_directory": ".cache/upstream/deepseek-harness"
+  },
+  "integration_status": "NOT_RUN",
+  "upgrade_policy": "explicit_change_record_and_targeted_revalidation",
+  "sources": [
+    "https://github.com/deepseek-ai/deepseek-harness/commit/39163dd30f703a79079e2d2446545cff3c453738",
+    "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/package.json",
+    "https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/AGENTS.md"
+  ]
+}
