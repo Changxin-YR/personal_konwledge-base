@@ -35,9 +35,9 @@
 | 上游 SHA | `39163dd30f703a79079e2d2446545cff3c453738` |
 | 上游版本 | `0.2.2-rc.3` |
 | 独立运行时 | `.cache\build\dsh-39163dd`（从锁定源码构建；**不使用** `.cache\runtime-rc3`，其 client-modules 内嵌 commit `6b729fe` ≠ 锁定 SHA） |
-| 运行时启动（主管定） | 在 `.cache\build\dsh-39163dd` 根目录执行：`node --import tsx/esm apps/cli/src/bin.ts --profile knowledgeos-test web --port 3099 --no-open` |
+| 运行时启动（主管更正） | 在 `.cache\build\dsh-39163dd` 根目录执行：`node --import tsx/esm apps/cli/src/bin.ts --profile knowledgeos-test --port 3099 --no-open`（角色名即 profile 名，不再重复 `web` token；带 `web` 会被 launcher 当作多余参数而退出） |
 | 候选插件 | `packages\knowledgeos-panel`（只读，不得修改） |
-| 独立 `DSH_HOME` | `.cache\dsh-home-fnd001`（计划编写时尚未创建） |
+| 独立 `DSH_HOME` | `.cache\dsh-home-fnd001`（已创建并安装 `knowledgeos-panel` bundle） |
 | 测试 profile | `knowledgeos-test`（只用于测试，不复用桌面 profile） |
 | 测试 Web 端口 | 3099（避开当前桌面 62739 与 3080） |
 | 不得操作 | 不停止/重启当前桌面 DSH；不向其 profile 安装插件 |
