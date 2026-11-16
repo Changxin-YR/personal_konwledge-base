@@ -72,12 +72,13 @@ function readDatabaseFacts(path) {
   try {
     const applicationId = Number(db.prepare("PRAGMA application_id").get()?.application_id ?? 0);
     const userVersion = Number(db.prepare("PRAGMA user_version").get()?.user_version ?? 0);
-    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all().map((row) => row.name);
+    const objects = db.prepare("SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name").all().map((row) => ({ type: row.type, name: row.name }));
+    const tables = objects.filter((object) => object.type === "table").map((object) => object.name);
     let ledger = [];
     if (tables.includes("schema_migrations")) {
       ledger = db.prepare("SELECT version, checksum, applied_at FROM schema_migrations ORDER BY version").all();
     }
-    return { applicationId, userVersion, tables, ledger };
+    return { applicationId, userVersion, tables, objects, ledger };
   } finally {
     db.close();
   }
@@ -138,7 +139,7 @@ var ProbeStorage = class {
   }
   #precheck(path) {
     const facts = readDatabaseFacts(path);
-    if (facts.applicationId === 0 && facts.userVersion === 0 && facts.tables.length === 0) return "blank";
+    if (facts.applicationId === 0 && facts.userVersion === 0 && facts.objects.length === 0) return "blank";
     if (facts.applicationId !== APPLICATION_ID) {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "database belongs to another application");
     }
@@ -153,7 +154,8 @@ var ProbeStorage = class {
   }
   #assertKnownSchema(facts) {
     const expected = [...PROBE_SUPPORTED_TABLES];
-    if (facts.tables.length !== expected.length || facts.tables.some((name, index) => name !== expected[index])) {
+    const onlyExpectedTables = facts.objects.length === expected.length && facts.objects.every((object, index) => object.type === "table" && object.name === expected[index]);
+    if (!onlyExpectedTables) {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown schema");
     }
     const entry = facts.ledger[0];
@@ -166,7 +168,7 @@ var ProbeStorage = class {
     if (journal !== "wal") throw new RecordsError("STORAGE_INCOMPATIBLE", "WAL journal mode is not available");
     db.exec("PRAGMA foreign_keys=ON");
     db.exec("PRAGMA synchronous=FULL");
-    db.exec("PRAGMA busy_timeout=250");
+    db.exec(`PRAGMA busy_timeout=${BUSY_TIMEOUT_MS}`);
   }
   #readPragmas(db) {
     return {
@@ -188,25 +190,32 @@ var ProbeStorage = class {
       db.exec("COMMIT");
       committed = true;
     } catch (error) {
-      if (!committed) this.#rollback(db, error);
+      if (!committed) {
+        const rolledBack = this.#rollback(db);
+        if (!rolledBack) {
+          throw new RecordsError("STORAGE_UNAVAILABLE", "storage transaction state is unknown", false, { cause: error });
+        }
+      }
       throw error instanceof RecordsError ? error : new RecordsError("STORAGE_INCOMPATIBLE", "storage migration failed", false, { cause: error });
     }
   }
   #verify(db) {
     const applicationId = Number(db.prepare("PRAGMA application_id").get()?.application_id ?? 0);
     const userVersion = Number(db.prepare("PRAGMA user_version").get()?.user_version ?? 0);
-    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all().map((row) => row.name);
+    const objects = db.prepare("SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name").all().map((row) => ({ type: row.type, name: row.name }));
+    const tables = objects.filter((object) => object.type === "table").map((object) => object.name);
     const ledger = tables.includes("schema_migrations") ? db.prepare("SELECT version, checksum, applied_at FROM schema_migrations ORDER BY version").all().map((row) => ({ version: Number(row.version), checksum: String(row.checksum), applied_at: String(row.applied_at) })) : [];
-    this.#assertKnownSchema({ applicationId, userVersion, tables, ledger });
+    this.#assertKnownSchema({ applicationId, userVersion, tables, objects, ledger });
   }
-  #rollback(db, original) {
+  #rollback(db) {
     try {
       db.exec("ROLLBACK");
+      return true;
     } catch (rollbackError) {
       this.#state = "unavailable";
       this.#failure = new RecordsError("STORAGE_UNAVAILABLE", "storage transaction state is unknown", false, { cause: rollbackError });
       this.#log("knowledgeos-storage: rollback failed; writes disabled");
-      void original;
+      return false;
     }
   }
   #ensureReady() {
@@ -259,7 +268,12 @@ var ProbeStorage = class {
       inTransaction = false;
       return { kind: "created", record: { id: input.id, content: input.content, created_at: input.createdAt } };
     } catch (error) {
-      if (inTransaction) this.#rollback(db, error);
+      if (inTransaction) {
+        const rolledBack = this.#rollback(db);
+        if (!rolledBack) {
+          throw new RecordsError("STORAGE_UNAVAILABLE", "storage transaction state is unknown", false, { cause: error });
+        }
+      }
       if (primarySqliteCode(error) === 19) {
         const raced = this.#selectByKey(db, input.idempotencyKey);
         if (raced !== void 0) {
@@ -299,12 +313,20 @@ var ProbeStorage = class {
     const db = this.#ensureReady();
     db.exec("BEGIN IMMEDIATE");
     let primaryCode;
+    let failed = false;
     try {
       db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash2("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
       db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash2("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
     } catch (error) {
+      failed = true;
       primaryCode = primarySqliteCode(error);
-      db.exec("ROLLBACK");
+      if (!this.#rollback(db)) {
+        throw new RecordsError("STORAGE_UNAVAILABLE", "storage transaction state is unknown", false, { cause: error });
+      }
+    }
+    if (!failed) {
+      this.#rollback(db);
+      throw new RecordsError("INTERNAL_ERROR", "transaction probe did not fail");
     }
     const rows = Number(db.prepare("SELECT count(*) AS count FROM storage_probe_records WHERE id IN (?, ?)").get(input.firstId, input.failingId).count);
     return { rolledBack: primaryCode === 19, primaryCode, rows };

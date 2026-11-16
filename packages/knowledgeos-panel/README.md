@@ -69,10 +69,10 @@ Exactly two application tables:
 
 v1 DDL, the ledger row, `application_id`, and `user_version` commit in one
 transaction. Existing databases are prechecked read-only for ownership,
-version, table set, and ledger checksum; future versions, a different
-application id, a bad checksum, or unknown non-empty schema are rejected
-without deleting or rewriting the file. Close is idempotent, leaves the file,
-and logs `knowledgeos-storage: closed`.
+version, schema objects, and ledger checksum; future versions, a different
+application id, a bad checksum, or any unknown non-empty schema (table, view,
+or trigger) are rejected without deleting or rewriting the file. Close is
+idempotent, leaves the file, and logs `knowledgeos-storage: closed`.
 
 ## Build
 

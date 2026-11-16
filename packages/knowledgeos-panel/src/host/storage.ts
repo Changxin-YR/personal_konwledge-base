@@ -73,6 +73,7 @@ export interface DatabaseFacts {
   readonly applicationId: number
   readonly userVersion: number
   readonly tables: readonly string[]
+  readonly objects: readonly { type: string; name: string }[]
   readonly ledger: readonly { version: number; checksum: string; applied_at: string }[]
 }
 
@@ -105,12 +106,14 @@ export function readDatabaseFacts(path: string): DatabaseFacts {
   try {
     const applicationId = Number((db.prepare('PRAGMA application_id').get() as { application_id?: number } | undefined)?.application_id ?? 0)
     const userVersion = Number((db.prepare('PRAGMA user_version').get() as { user_version?: number } | undefined)?.user_version ?? 0)
-    const tables = (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all() as { name: string }[]).map(row => row.name)
+    const objects = (db.prepare("SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name").all() as { type: string; name: string }[])
+      .map(row => ({ type: row.type, name: row.name }))
+    const tables = objects.filter(object => object.type === 'table').map(object => object.name)
     let ledger: { version: number; checksum: string; applied_at: string }[] = []
     if (tables.includes('schema_migrations')) {
       ledger = db.prepare('SELECT version, checksum, applied_at FROM schema_migrations ORDER BY version').all() as typeof ledger
     }
-    return { applicationId, userVersion, tables, ledger }
+    return { applicationId, userVersion, tables, objects, ledger }
   } finally {
     db.close()
   }
@@ -181,7 +184,7 @@ export class ProbeStorage implements ProbeStorePort {
 
   #precheck(path: string): 'blank' | 'existing' {
     const facts = readDatabaseFacts(path)
-    if (facts.applicationId === 0 && facts.userVersion === 0 && facts.tables.length === 0) return 'blank'
+    if (facts.applicationId === 0 && facts.userVersion === 0 && facts.objects.length === 0) return 'blank'
     if (facts.applicationId !== APPLICATION_ID) {
       throw new RecordsError('STORAGE_INCOMPATIBLE', 'database belongs to another application')
     }
@@ -197,7 +200,9 @@ export class ProbeStorage implements ProbeStorePort {
 
   #assertKnownSchema(facts: DatabaseFacts): void {
     const expected = [...PROBE_SUPPORTED_TABLES]
-    if (facts.tables.length !== expected.length || facts.tables.some((name, index) => name !== expected[index])) {
+    const onlyExpectedTables = facts.objects.length === expected.length
+      && facts.objects.every((object, index) => object.type === 'table' && object.name === expected[index])
+    if (!onlyExpectedTables) {
       throw new RecordsError('STORAGE_INCOMPATIBLE', 'database contains an unknown schema')
     }
     const entry = facts.ledger[0]
@@ -211,7 +216,7 @@ export class ProbeStorage implements ProbeStorePort {
     if (journal !== 'wal') throw new RecordsError('STORAGE_INCOMPATIBLE', 'WAL journal mode is not available')
     db.exec('PRAGMA foreign_keys=ON')
     db.exec('PRAGMA synchronous=FULL')
-    db.exec('PRAGMA busy_timeout=250')
+    db.exec(`PRAGMA busy_timeout=${BUSY_TIMEOUT_MS}`)
   }
 
   #readPragmas(db: DatabaseSync): {
@@ -242,7 +247,12 @@ export class ProbeStorage implements ProbeStorePort {
       db.exec('COMMIT')
       committed = true
     } catch (error: unknown) {
-      if (!committed) this.#rollback(db, error)
+      if (!committed) {
+        const rolledBack = this.#rollback(db)
+        if (!rolledBack) {
+          throw new RecordsError('STORAGE_UNAVAILABLE', 'storage transaction state is unknown', false, { cause: error })
+        }
+      }
       throw error instanceof RecordsError
         ? error
         : new RecordsError('STORAGE_INCOMPATIBLE', 'storage migration failed', false, { cause: error })
@@ -252,22 +262,25 @@ export class ProbeStorage implements ProbeStorePort {
   #verify(db: DatabaseSync): void {
     const applicationId = Number((db.prepare('PRAGMA application_id').get() as { application_id?: number } | undefined)?.application_id ?? 0)
     const userVersion = Number((db.prepare('PRAGMA user_version').get() as { user_version?: number } | undefined)?.user_version ?? 0)
-    const tables = (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all() as { name: string }[]).map(row => row.name)
+    const objects = (db.prepare("SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name").all() as { type: string; name: string }[])
+      .map(row => ({ type: row.type, name: row.name }))
+    const tables = objects.filter(object => object.type === 'table').map(object => object.name)
     const ledger = tables.includes('schema_migrations')
       ? (db.prepare('SELECT version, checksum, applied_at FROM schema_migrations ORDER BY version').all() as Record<string, unknown>[])
           .map(row => ({ version: Number(row.version), checksum: String(row.checksum), applied_at: String(row.applied_at) }))
       : []
-    this.#assertKnownSchema({ applicationId, userVersion, tables, ledger })
+    this.#assertKnownSchema({ applicationId, userVersion, tables, objects, ledger })
   }
 
-  #rollback(db: DatabaseSync, original: unknown): void {
+  #rollback(db: DatabaseSync): boolean {
     try {
       db.exec('ROLLBACK')
+      return true
     } catch (rollbackError: unknown) {
       this.#state = 'unavailable'
       this.#failure = new RecordsError('STORAGE_UNAVAILABLE', 'storage transaction state is unknown', false, { cause: rollbackError })
       this.#log('knowledgeos-storage: rollback failed; writes disabled')
-      void original
+      return false
     }
   }
 
@@ -330,7 +343,12 @@ export class ProbeStorage implements ProbeStorePort {
       inTransaction = false
       return { kind: 'created', record: { id: input.id, content: input.content, created_at: input.createdAt } }
     } catch (error: unknown) {
-      if (inTransaction) this.#rollback(db, error)
+      if (inTransaction) {
+        const rolledBack = this.#rollback(db)
+        if (!rolledBack) {
+          throw new RecordsError('STORAGE_UNAVAILABLE', 'storage transaction state is unknown', false, { cause: error })
+        }
+      }
       if (primarySqliteCode(error) === 19) {
         // A concurrent request may have committed the same key first.
         const raced = this.#selectByKey(db, input.idempotencyKey)
@@ -379,6 +397,7 @@ export class ProbeStorage implements ProbeStorePort {
     const db = this.#ensureReady()
     db.exec('BEGIN IMMEDIATE')
     let primaryCode: number | undefined
+    let failed = false
     try {
       db.prepare('INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)')
         .run(input.firstId, input.firstKey, createHash('sha256').update(input.content).digest('hex'), input.content, new Date().toISOString())
@@ -386,8 +405,15 @@ export class ProbeStorage implements ProbeStorePort {
       db.prepare('INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)')
         .run(input.firstId, input.failingKey, createHash('sha256').update(input.content).digest('hex'), input.content, new Date().toISOString())
     } catch (error: unknown) {
+      failed = true
       primaryCode = primarySqliteCode(error)
-      db.exec('ROLLBACK')
+      if (!this.#rollback(db)) {
+        throw new RecordsError('STORAGE_UNAVAILABLE', 'storage transaction state is unknown', false, { cause: error })
+      }
+    }
+    if (!failed) {
+      this.#rollback(db)
+      throw new RecordsError('INTERNAL_ERROR', 'transaction probe did not fail')
     }
     const rows = Number((db.prepare('SELECT count(*) AS count FROM storage_probe_records WHERE id IN (?, ?)').get(input.firstId, input.failingId) as { count: number }).count)
     return { rolledBack: primaryCode === 19, primaryCode, rows }

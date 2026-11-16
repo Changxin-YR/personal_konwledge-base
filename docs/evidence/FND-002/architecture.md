@@ -75,6 +75,11 @@ Host 半继续编译为 `lib/index.js`；`lib/storage.js` 与 `lib/test-support.
 
 T02/T04/T06 的受控故障只在测试进程内通过 `lib/storage.js`/`lib/test-support.js` 或独立 SQLite 连接注入；HTTP 不接受 SQL、路径、迁移版本、force_fail、db_path 或身份字段。故障作用于真实 SQLite 文件，不引入内存/JSON 回退。
 
+两个实现边界决定：
+
+- **配置错误 fail loud**：`dataDir` 缺省是受支持模式（status 可用、持久化 503）；显式但为空或相对路径属于插件配置错误，在 Loader 装载时拒绝，不注册半可用实例。打开/归属/迁移失败则保留 Host 可达并让持久化接口返回 503。
+- **测试钩子不可路由**：`ProbeStorage` 的迁移覆盖与事务故障方法仅由测试脚本直接导入 `lib/storage.js`/`lib/test-support.js`；`index.ts` 不引用它们，HTTP 的未知字段会被 422 拒绝。迁移账本、视图/触发器等全部非 `sqlite_%` schema 对象参与空白判定与归属校验。
+
 ## 8. 本轮不实现
 
 账号/对象权限、正式知识实体、资料解析、RAG、产品模型、jobs/outbox、协作服务、数据库管理 UI、备份恢复、Windows 安装包、FND-003。

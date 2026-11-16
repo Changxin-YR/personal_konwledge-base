@@ -103,6 +103,10 @@ async function createFixture(dataDir, kind) {
   const path = join(dataDir, 'knowledgeos.sqlite')
   const db = new DatabaseSync(path)
   try {
+    if (kind === 'unknown-view') {
+      db.exec('CREATE VIEW foreign_view AS SELECT 1 AS value')
+      return path
+    }
     db.exec(MIGRATION_V1_SQL)
     db.prepare('INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)')
       .run(1, kind === 'bad-checksum' ? '0'.repeat(64) : MIGRATION_V1_CHECKSUM, new Date().toISOString())
@@ -295,7 +299,7 @@ try {
     expect(detail, failFacts.tables.length === 0 && failFacts.userVersion === 0 && failFacts.applicationId === 0, 'failed migration leaves no tables/version', failFacts)
 
     const fixtures = {}
-    for (const kind of ['future', 'bad-checksum', 'wrong-app', 'unknown-schema']) {
+    for (const kind of ['future', 'bad-checksum', 'wrong-app', 'unknown-schema', 'unknown-view']) {
       const dir = join(DATA_ROOT, `t04-${kind}`)
       const path = await createFixture(dir, kind)
       const factsBefore = readDatabaseFacts(path)
