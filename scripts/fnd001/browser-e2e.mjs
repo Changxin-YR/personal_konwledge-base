@@ -150,6 +150,34 @@ async function waitForStatus(cookie, statuses, timeoutMs = 30_000) {
 
 const { chromium } = await import(pathToFileURL(join(playwrightDir, 'index.mjs')).href)
 const entryButton = page => page.getByRole('button', { name: ENTRY_NAME, exact: true })
+const readyPanel = page => page.locator('[data-testid="knowledgeos-panel"][data-state="ready"]')
+
+/**
+ * Recover the panel after a Host restart. A reconnect can remount the panel or
+ * reload the page, so retry the visible action and reopen the entry if needed.
+ */
+async function recoverPanel(page) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    if (await readyPanel(page).count() > 0) return attempt
+    // Only the panel's own controls: the global connection indicator also
+    // matches a text search for "重新连接" but cannot refresh this panel.
+    const retry = page.locator('[data-testid="kos-error-retry"]')
+    const refresh = page.locator('[data-testid="kos-refresh"]')
+    if (await retry.count() > 0) await retry.click({ timeout: 5_000 }).catch(() => {})
+    else if (await refresh.count() > 0) await refresh.click({ timeout: 5_000 }).catch(() => {})
+    await sleep(2_000)
+    if (await readyPanel(page).count() > 0) return attempt
+    if (await page.locator('[data-testid="knowledgeos-panel"]').count() === 0) {
+      const entry = entryButton(page)
+      if (await entry.count() > 0) {
+        await dismissPreviewNotice(page)
+        await entry.click({ timeout: 10_000 }).catch(() => {})
+        await sleep(2_000)
+      }
+    }
+  }
+  return -1
+}
 let browser = null
 let context = null
 let page = null
@@ -295,9 +323,9 @@ try {
   await page.locator('[data-testid="kos-stale"]').waitFor({ timeout: 30_000 })
   const staleVersion = await page.locator('[data-testid="kos-version"]').innerText().catch(() => '')
   record('T03 error and stale marker are visible', staleVersion === versionBefore, { staleVersion, versionBefore })
-  const retryWhileDown = await page.getByRole('button', { name: '重试', exact: true }).count()
+  const retryWhileDown = await page.locator('[data-testid="kos-error-retry"]').count()
   if (retryWhileDown > 0) {
-    await page.getByRole('button', { name: '重试', exact: true }).click()
+    await page.locator('[data-testid="kos-error-retry"]').click()
     await page.locator('[data-testid="kos-error"]').waitFor({ timeout: 30_000 })
   }
   record('T03 retry while still down stays failed', true, { retryButton: retryWhileDown })
@@ -308,8 +336,9 @@ try {
   summary.entry_url_shape_after_restart = restarted.url.replace(/token=[^&]+/u, 'token=<redacted>')
   const up = await waitForStatus(cookie, [200], 90_000)
   record('T03 Host restarted and route is reachable', up.status === 200, { status: up.status })
-  await page.getByRole('button', { name: /重新连接|重试/ }).first().click()
-  await page.locator('[data-testid="knowledgeos-panel"][data-state="ready"]').waitFor({ timeout: 60_000 })
+  const recoveryAttempts = await recoverPanel(page)
+  record('T03 retry after recovery reaches ready', recoveryAttempts >= 0, { attempts: recoveryAttempts })
+  await readyPanel(page).waitFor({ timeout: 60_000 })
   const instanceAfter = await page.locator('[data-testid="kos-instance"]').innerText()
   record('T02 host_instance_id changed after real restart', instanceAfter !== instanceBefore, { instanceBefore, instanceAfter })
   summary.status_after_restart = JSON.parse((await requestStatus(cookie)).text)
@@ -323,9 +352,8 @@ try {
   await page.locator('[data-testid="kos-error"]').waitFor({ timeout: 30_000 })
   await page.screenshot({ path: join(outDir, '06-panel-fixture-500.png'), fullPage: true })
   await page.unroute('**/knowledgeos/status')
-  await page.getByRole('button', { name: /重新连接|重试/ }).first().click()
-  await page.locator('[data-testid="knowledgeos-panel"][data-state="ready"]').waitFor({ timeout: 30_000 })
-  record('T03 fixture 500 shows error and recovers', true, { fixture: 'F1' })
+  const fixtureRecovery = await recoverPanel(page)
+  record('T03 fixture 500 shows error and recovers', fixtureRecovery >= 0, { fixture: 'F1', attempts: fixtureRecovery })
 
   // T04 Host lifecycle: disable the inserted Host row through the profile patch.
   const patchPath = join(home, 'profiles', profile, 'cordis.patch.yml')
