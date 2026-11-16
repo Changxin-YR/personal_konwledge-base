@@ -22,7 +22,7 @@ KnowledgeOS 当前是分层模块化单体：Host/HTTP → 应用用例/端口 �
 - 独立真实 Host/HTTP/生命周期：**59/59 PASS**，含双进程并发、认证/来源边界、close/reopen 和旧 profile。
 - 独立对象回归：**11/11 PASS**。
 - `verify-plan`、`prepare-upstream --check`、`scope-check`、TypeScript、构建、profile 实际加载指纹、篡改负例和 FND-001 浏览器回归：均 PASS。
-- 证据脱敏：PASS；无残留 token、Cookie、SQLite/WAL/SHM 或私有绝对路径。
+- 原证据脱敏扫描PASS覆盖token/Cookie/数据库文件。后续复核发现3处私有路径残留，本次发布修订已替换为占位符；断言、时间、业务值和候选hash保持。详见ACCEPTANCE_REVIEW_20261116.md。
 
 证据根：`docs/evidence/FND-002/runs/codex-takeover-20261116-r2/`；候选指纹见 `candidate.md`；接管理解记录见 `codex-takeover.md`。
 

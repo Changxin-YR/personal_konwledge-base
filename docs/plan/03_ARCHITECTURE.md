@@ -2,7 +2,7 @@
 
 版本：2.1，2026-11-16。本文是目标架构与适配原则，尚不代表运行验证完成。真实 DSH 能力及固定源码依据见 [上游核对](02_DSH_CAPABILITY_AUDIT.md)。
 
-当前由 **Codex 接管已有基础，理解项目后逐项修复并立即测试，完成后等待用户指令**。DSH 作为产品 Host 和固定上游继续使用；后续功能与完整产品审查尚未激活。当前唯一执行入口为仓库根 `CODEX_START.md`，工作单元与激活状态以执行索引所指的状态文件为准。本页描述的后续模块、层次和部署能力不构成本次全部开工指令。
+当前由 **Codex 开发已激活的 FND-003 身份切片，逐项测试并在交付后等待用户指令**。DSH 作为产品 Host 和固定上游继续使用；后续功能与完整产品审查尚未激活。当前唯一执行入口为仓库根 `CODEX_START.md`，工作单元与激活状态以执行索引所指的状态文件为准。本页描述的后续模块、层次和部署能力不构成本次全部开工指令。
 
 ## 1. 从需求确定架构
 
@@ -55,15 +55,13 @@ flowchart TD
 
 随着真实功能加入，用 import 规则或已有类型构建检查防止依赖逆转。一个简单查询可以只经过入口和应用接口；无需为了符合图示给每个函数生成实体、仓储和抽象基类。
 
-### 1.3 当前只处理 FND-002
+### 1.3 当前只处理 FND-003
 
-FND-001 的真实单面板与 Host 只读状态已验收，继续保留。FND-002 主体已提交，目前只修正归属保护和证据检查，既定功能仍为 **真实 Host → 创建/读取用例与内层端口 → 独立业务 SQLite → Host 重启后读取同一记录**，以合成探针验证本地持久化基础。
+FND-001 面板/status与FND-002持久化及R1/R2修复已验收。当前复用同一DSH loopback Host和业务库，增加可信owner初始化、业务注册登录/会话、本人方向目标与personal空间。仅新增原子v2身份迁移，保留v1 SQL/checksum/记录及未知库拒绝规则。
 
-沿用现有 out-of-tree 包，按实际需要增加应用用例、存储端口、SQLite 适配器和 Host 装配。SQL、迁移和 node:sqlite 留在适配层；应用内层不导入 DSH、React、HTTP 或具体驱动。仅建立迁移账本与探针两张表，不为这个小闭环创建空模块、独立服务、通用 ORM 或第二套界面。
+精确初始化页/POST要求DSH required且实际owner及本机来源；普通账号页和业务路由不依赖owner壳。业务路由使用anonymous DSH准入加Connection来源保护，再验证独立KnowledgeOS Cookie产生actor；不注册成DSH认证provider/Peer，不开放原生RPC/文件/插件能力。普通账号与产品管理员都不自动得到owner权限。
 
-配置使用可信 Cordis config 的 dataDir；未配置时保留第一部分状态功能，持久化接口明确不可用。新增写路由使用固定上游支持的 handler 并保留认证/来源保护，不能复用只读 resource 接 POST。先定义测试，再逐步实现；迁移、回滚、幂等、真实重启与资源释放各有证据。身份、对象授权、资料导入、审计/outbox 和模型仍待各自单元激活。
-
-后文的 M0–M6 均表示宏观归属；不能将“某阶段最终需要”解释为“当前单元立即全部实现”。
+沿入口→用例/端口→SQLite/密码/会话适配的依赖方向，只增加当前真实职责。异步KDF在事务外，账号/凭据/空间同事务，业务库保持一个受控写连接。完整ACL/共享profile、模型、审计/outbox和其他业务仍各自待激活。当前精确契约与十二项测试在唯一CODEX_START及work_units中维护。
 
 ### 1.4 两种运行形态
 
@@ -87,7 +85,7 @@ Windows 桌面进程启动私有 DSH Host，KnowledgeOS 领域服务和数据库
 
 共享服务优先使用专用 `knowledgeos-server` DSH profile，只挂载经清点的 WebServer、连接认证、KnowledgeOS API/权限/数据库/任务插件及必要模型能力。**禁止直接采用原生 web-app 的全量 controller 集合并分发 owner 凭据。** 该能力在身份/共享服务工作单元激活时验证，属于 M0 的阶段义务，不是 FND-001 的实现内容。验证须证明最小 profile 可启动和拒绝非白名单路径；若具体装配能力不足，记录 ADR，以独立单体业务服务承载同一用例和领域规则。不能用“暂时同一个 owner”跨过鉴权门槛，也不能因此拆成分布式微服务。
 
-DSH 自带 token/desktop 认证与匿名安装标识不能直接作为 KnowledgeOS 的成员系统。新账户 Provider 必须从认证后的服务端会话生成主体；产品管理员也不自动成为 DSH `owner`。上游 RemoteAccess 可以复用作为入口控制，但业务层仍检查对象、版本、授权期限和派生资料访问。
+DSH 自带 token/desktop 认证与匿名安装标识不能直接作为 KnowledgeOS 的成员系统。KnowledgeOS认证适配器必须从认证后的服务端会话生成主体；本轮不将它注册为DSH的ConnectionAuthentication Provider；产品管理员也不自动成为 DSH `owner`。上游 RemoteAccess 可以复用作为入口控制，但业务层仍检查对象、版本、授权期限和派生资料访问。
 
 上游通用 `session/attachment` 是存储级访问，普通 `/api/file` 也不是项目资料 ACL 接口。因此共享端不公开这些入口；知识原件、页图、答案、附件、导出和模型材料均经 KnowledgeOS 文件/内容接口读。详见上游的 [RemoteAccess 说明](https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/api/remote-access/README.md) 和 [Session controller 说明](https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/packages/api/session-controller/README.md)。
 
@@ -164,7 +162,7 @@ F30 独立运行在规划归属服务的策略模块。多窗口、多设备只�
 
 目标职责可映射为 `packages/client`、`packages/application`、`packages/domain`、`packages/adapters` 以及 `profiles/`、`tests/`。API/DSH/SQLite/文件/模型适配可在 adapters 内按职责分目录，后台任务消费者通过应用用例工作；只有出现独立构建或发布需要时才拆成新包。这些是本项目的规划名称，不冒充上游已有包。
 
-**只创建当前工作单元需要的目录和文件。** 已完成的 FND-001 和当前 FND-002 均不要求先建齐上述所有包。每个新单元在架构检查中注明新增职责、依赖和测试位置，防止为了“分层”制造空接口或让一个模块顺带实现未激活功能。
+**只创建当前工作单元需要的目录和文件。** 已完成的 FND-001/FND-002 与当前 FND-003 均不要求先建齐上述所有包。每个新单元在架构检查中注明新增职责、依赖和测试位置，防止为了“分层”制造空接口或让一个模块顺带实现未激活功能。
 
 固定上游源在 `.cache/upstream/deepseek-harness` 由锁文件重建。当前接入单元先验证 out-of-tree 插件/Bundle + profile 的实际开发装载路径，打包路径在对应单元验证；若上游构建器要求工作区集成，使用可重建的集成工作树，将本仓库扩展挂入上游工作区，所有必要变更记录为可重复补丁/装配脚本。禁用复制一份来源不明的 ASAR 作为源码基线。
 

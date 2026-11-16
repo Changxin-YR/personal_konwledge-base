@@ -1,16 +1,16 @@
 {
   "schema_version": "2.0",
-  "instruction_revision": "3.0.0",
+  "instruction_revision": "3.1.0",
   "updated_at": "2026-11-16",
   "timezone": "Asia/Shanghai",
-  "execution_phase": "codex_takeover_repair",
+  "execution_phase": "codex_foundation",
   "executor": "codex",
   "active_instruction": {
     "path": "CODEX_START.md",
-    "sha256": "efb33af0a2e99edb683cb19af03e0e78081a483316105768d0ec333c17f50760"
+    "sha256": "03dc8b7f5efea53c3ffcec6cfc72f6feb7199b4e6f547ebd08e344792c0a8c47"
   },
-  "active_unit": "FND-002",
-  "unit_state": "awaiting_user",
+  "active_unit": "FND-003",
+  "unit_state": "ready",
   "execution_mode": "single_feature_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,22 +38,22 @@
     "awaiting_user": "current unit has passed and awaits a user choice; active_unit is not advanced"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Codex 接管后的 R1/R2 已修复；新候选 T01-T09、独立 SQLite/Host/对象复核及证据脱敏均通过，当前单元等待用户下一步指令。",
-  "working_branch": "codex/knowledgeos-takeover",
-  "activation_basis": "explicit_user_selection_of_second_part_after_FND-001_acceptance",
-  "base_commit": "ce3a00ccd7c8cc46eaae6e660144730109cf93a0",
+  "state_reason": "FND-002 closure accepted after candidate/evidence review and independent R1/R2 probes; FND-003 identity slice explicitly selected, not implemented or tested yet.",
+  "working_branch": "codex/knowledgeos-fnd-003",
+  "activation_basis": "explicit_user_request_for_next_step_after_verified_FND002_closure",
+  "base_commit": "3535f16b1a429d32cd2c80f6c1462ce556fcb509",
   "prerequisite_acceptance": {
-    "unit_id": "FND-001",
+    "unit_id": "FND-002",
     "status": "passed",
-    "accepted_base_commit": "ce3a00ccd7c8cc46eaae6e660144730109cf93a0",
-    "review_basis_commit": "6ded30f2a1dacec8b4f6b977ee3d2ccbd503df4f",
-    "review_record": "docs/evidence/FND-001/ACCEPTANCE_REVIEW_20261116.md",
-    "initial_review_basis_commit": "66388994d41972e6dfd4e28361ac1854b5b12e47",
+    "accepted_base_commit": "3535f16b1a429d32cd2c80f6c1462ce556fcb509",
+    "product_fix_commit": "a03c9e3312707bd146e29953c2cf8153e498dd40",
+    "review_basis_commit": "3535f16b1a429d32cd2c80f6c1462ce556fcb509",
+    "review_record": "docs/evidence/FND-002/ACCEPTANCE_REVIEW_20261116.md",
     "review_outcome": "accepted_prerequisite_unit"
   },
-  "review_basis_commit": "cba39e4808fd41e6d7b076c3fbf080577c8b1114",
-  "review_record": "docs/evidence/FND-002/SUBMISSION_REVIEW_20261116.md",
-  "review_outcome": "passed_current_unit",
+  "review_basis_commit": "3535f16b1a429d32cd2c80f6c1462ce556fcb509",
+  "review_record": "docs/evidence/FND-002/ACCEPTANCE_REVIEW_20261116.md",
+  "review_outcome": "accepted_prerequisite_unit",
   "takeover": {
     "authorization": "explicit_user_request",
     "previous_executor": "deepseek_harness",
@@ -63,6 +63,9 @@
     "scope": "understand_existing_project_repair_current_foundation_validate_then_wait",
     "product_host": "deepseek_harness",
     "api_issue": "user_confirmed_previous_api_quota_exhausted_out_of_scope",
-    "stop_after_current_unit": true
+    "stop_after_current_unit": true,
+    "state": "completed_historical_phase",
+    "completed_at": "2026-11-16",
+    "closure_commit": "3535f16b1a429d32cd2c80f6c1462ce556fcb509"
   }
 }

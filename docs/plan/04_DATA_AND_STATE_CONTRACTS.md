@@ -1,19 +1,21 @@
 # KnowledgeOS｜数据与状态契约
 
-> 执行范围：本页为产品目标契约，按已激活功能逐项实现。当前仅执行 CODEX_START.md 中的 FND-002 持久化边界；M0 不授权一次开发全部数据库、身份、模型或打包功能。未来 API/表清单不授权提前开发。
+> 执行范围：本页为产品目标契约，按已激活功能逐项实现。当前仅执行 CODEX_START.md 中的 FND-003 身份与个人空间边界；M0 不授权一次开发全部数据库、身份、模型或打包功能。未来 API/表清单不授权提前开发。
 
 - 版本：1.0，2026-11-16（Asia/Shanghai）。
 - 状态：**planned**。以下为拟实现的 KnowledgeOS 数据规则，不代表 DSH 已提供这些业务能力，也不代表已运行验证。
 - 适用：`Changxin-YR/personal_konwledge-base`；DSH 固定上游 `39163dd30f703a79079e2d2446545cff3c453738`。
 - 需求权威：`01_REQUIREMENTS_BASELINE.md`；验收权威：`07_ACCEPTANCE_MATRIX.md`。本文件负责数据一致性、版本、事务和状态转换。
 
-## 0. FND-002 当前基础切片
+## 0. FND-003 当前身份切片
 
-当前只对合成基础设施探针实现独立业务 SQLite、v1 原子迁移、真实 Host 写读/重启、回滚、幂等与资源释放。两张应用表为 `schema_migrations` 和 `storage_probe_records`，精确字段、应用标识、输入上限与九项必测见唯一 [CODEX_START.md](../../CODEX_START.md)。本节是适用范围说明，不是第二份执行入口。
+FND-002两表/v1及归属修复已验收。当前在同一knowledgeos.sqlite新增原子v2身份迁移，实际职责限定为service_identity、users、password_credentials、auth_sessions和spaces；保留application_id、旧v1 SQL/checksum/账本和探针记录。当前精确字段与默认值在唯一 [CODEX_START.md](../../CODEX_START.md) 冻结。
 
-探针不是正式知识条目，不伪造 owner/scope/service 等用户字段；其幂等范围仅为本库的探针创建键。下文正式业务的所有权、revision、业务变更/审计/outbox 同事务等约束仍保留，随对应身份、权限及 FND-006 等单元落实；本轮不提前创建那些表，也不宣称正式业务事务已经完成。
+账号/凭据/personal空间同事务创建；首次管理员还需可信DSH owner本机请求和一次性标记。普通注册始终member，初始化状态不由“用户表为空”推断。服务端会话确定本人，用户输入不能覆盖角色/owner/service/space。密码安全派生，会话仅存原令牌哈希，退出持久撤销；偏好带revision。个人空间不提前实现知识内容或项目权限。
 
-现有库先只读确认归属、版本和迁移校验值，再做修改性配置/迁移；未来版本或非空未知库不得接管、降级、删库或另建空库假报成功。逻辑数据、schema 和迁移账本共同证明保护结果，不能仅比较运行中 WAL 主文件的字节哈希。
+本轮注册用规范登录名唯一约束防重复，登录每次新会话、退出幂等、偏好更新版本前置；通用业务幂等、审计/outbox属于后续FND-006等工作，不在本轮建空平台。这是明确的当前适用边界，不代表下文全周期规则已完成或被删除。
+
+已有库先只读验证归属、版本、全部对象和迁移checksum，再做修改性配置/v2迁移。R1字面sqlite_前缀保护保留；未知/未来/错配库拒绝，不删库、不改路径假成功。未配置dataDir保留原status，身份路由明确503。
 
 ## 1. 数据权威与部署边界
 

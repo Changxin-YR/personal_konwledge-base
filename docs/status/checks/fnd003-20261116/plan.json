@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "scope": "plan_structure_traceability_and_execution_consistency_only",
+  "requirements": 44,
+  "acceptanceCases": 66,
+  "workUnits": 76,
+  "plannedUnitChecks": 174,
+  "executor": "codex",
+  "activeUnit": "FND-003",
+  "autoAdvance": false,
+  "fullProductReview": "not_started",
+  "markdownFiles": 45,
+  "upstreamCommit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "implementationVerifiedByThisCheck": false,
+  "productTestsExecuted": 0
+}

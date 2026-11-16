@@ -4,7 +4,7 @@
 
 用户已授权从 DSH 开发执行器切换到 Codex，先理解项目、修复已有基础并验证，随后等待指令。用户进一步明确旧 API 只是额度用完且无需处理，因此本次不包含 API 排查或凭据配置任务。DSH 的产品 Host、profile、插件和固定上游保留。
 
-接管前基线：`10c406713a64299d7c7a52695672bbadbe2c21cb`。工作分支：`codex/knowledgeos-takeover`。唯一入口：[CODEX_START.md](../../CODEX_START.md)，revision `3.0.0`；旧 DSH_START.md 从本分支工作树移除，旧正文与旧分支留作 Git 历史。
+接管前基线：`10c406713a64299d7c7a52695672bbadbe2c21cb`。工作分支：`codex/knowledgeos-takeover`。唯一入口：[当时的CODEX_START.md](https://github.com/Changxin-YR/personal_konwledge-base/blob/4562034c9b4da48ee7b0d1447f7ae7663908240f/CODEX_START.md)，revision `3.0.0`；旧 DSH_START.md 从本分支工作树移除，旧正文与旧分支留作 Git 历史。
 
 ## 实际执行的验证
 
@@ -40,4 +40,4 @@
 
 产品源码、构建产物、原 FND-001/FND-002 测试脚本、版本锁、完整需求矩阵及原始 runs/reviews 未作修改。FND-001 仍 passed；FND-002 仍 in_progress、R1/R2 OPEN、test_result_status=FAIL、retest_status=NOT_RUN；其余单元未激活，全部完整场景仍 NOT_RUN。
 
-本次完成的是可直接交给 Codex 的接管指令与门槛。产品修复、真实 Host 复测和新候选独立验收尚待 Codex 按唯一入口执行，完成后停在 FND-002 等待用户。
+本次完成的是可直接交给 Codex 的接管指令与门槛。以上是接管准备提交当时的状态；后续产品修复已验收，见 [FND-002验收复核](../evidence/FND-002/ACCEPTANCE_REVIEW_20261116.md)。本记录不改变当时检查范围。

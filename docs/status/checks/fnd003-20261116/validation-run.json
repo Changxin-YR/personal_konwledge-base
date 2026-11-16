@@ -1,0 +1,35 @@
+{
+  "status": "PASS",
+  "scope": "FND003_instruction_and_plan_gate_validation_only",
+  "node_version": "v24.22.1",
+  "platform": "Linux",
+  "commands": [
+    {
+      "command": "node scripts/verify-plan.mjs",
+      "started_at": "2026-11-16T10:37:52.087789+00:00",
+      "finished_at": "2026-11-16T10:37:52.310622+00:00",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "command": "node scripts/test-verify-plan.mjs",
+      "started_at": "2026-11-16T10:37:52.311204+00:00",
+      "finished_at": "2026-11-16T10:37:58.644090+00:00",
+      "exit_code": 0,
+      "stderr": ""
+    }
+  ],
+  "input_sha256": {
+    "CODEX_START.md": "03dc8b7f5efea53c3ffcec6cfc72f6feb7199b4e6f547ebd08e344792c0a8c47",
+    "AGENTS.md": "08681aee4037a60c8301df4ed627130c1116e4b8066ac4440a07b861a53b3bc2",
+    "config/execution_state.json": "1500898b7434fb19987660b2053909ea9b4429e2ead48008fc91910cce4b246e",
+    "config/work_units.json": "47d987059e6f96c618d087951bedc2c5f94b6b9a32326960a752969dc0acdc46",
+    "scripts/verify-plan.mjs": "9f5e3ad8fa4c40f56a4909d0e2e8d2b5c55617cf9cc63f39ee287dce12385fea",
+    "scripts/test-verify-plan.mjs": "7309c79e74ee74668ee98085b8782a835f0f4275a4b3654e6e9ee72736932846",
+    "config/requirements_matrix.json": "d8e4af214c0f1fa4ba762455d6b592ef48eb97f7e6c21c47bd57e35a92febefa",
+    "config/upstream.lock.json": "8ef94dfbf9353e3c1d30e7ae579b3bd05d3901fca7c7ded28c2b497520548f18"
+  },
+  "productTestsExecuted": 0,
+  "implementationVerifiedByThisCheck": false,
+  "FND003_product_test_status": "NOT_RUN"
+}

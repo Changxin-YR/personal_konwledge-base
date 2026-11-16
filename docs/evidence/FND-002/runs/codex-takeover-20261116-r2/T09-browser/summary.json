@@ -2,8 +2,8 @@
   "started_at": "2026-11-16T09:35:52.254Z",
   "base": "http://127.0.0.1:3100",
   "profile": "knowledgeos-storage-test",
-  "dsh_root": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\.cache\\build\\dsh-39163dd",
-  "home": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\.cache\\dsh-home-fnd002",
+  "dsh_root": "<private-local-path>",
+  "home": "<private-local-path>",
   "commit_hash": "39163dd30f703a79079e2d2446545cff3c453738",
   "steps": [
     {
@@ -227,5 +227,3 @@
   "finished_at": "2026-11-16T09:37:01.178Z",
   "result": "PASS"
 }
-
-

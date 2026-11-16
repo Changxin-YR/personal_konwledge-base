@@ -13,14 +13,14 @@
     "allow_cross_unit_auto_advance": false,
     "allow_parallel_feature_implementation": false,
     "test_during_each_unit": true,
-    "codex_role": "authorized_current_foundation_takeover_repair_then_wait_for_next_user_instruction"
+    "codex_role": "active_feature_development_and_test_then_wait_for_user_selection"
   },
   "acceptance_semantics": {
     "acceptance_ids": "关联完整场景及当前可验证子集；不能仅因本单元测试通过就标完整场景PASS。",
     "final_acceptance_ids": "本单元负责组织该完整场景验收，须全部前置功能真实可用且实际执行通过；每个完整场景只有一个最终负责单元。",
     "unit_completion": "当前切片完成且测试复核通过；不是整项F需求已verified。",
     "requirement_verification": "关联必要完整验收全部PASS且有证据才可verified。",
-    "test_obligations": "未来单元条目是规划基础；激活时依据范围、风险和关联验收细化操作、断言、环境、证据并同步唯一当前提示词。FND-001 的七项保留为已验收历史；当前 FND-002 细化为九项必测。"
+    "test_obligations": "未来单元条目是规划基础，激活时细化操作/断言/环境/证据。FND-001七项、FND-002九项保留通过历史；当前FND-003十二项仅为待执行义务。"
   },
   "units": [
     {
@@ -407,25 +407,225 @@
         "FND-002"
       ],
       "scope": [
-        "可信本机初始化",
-        "注册/登录/退出",
-        "个人空间与方向目标基础字段",
-        "请求身份从认证会话产生"
+        "固定DSH loopback Host上的可信owner一次性管理员初始化",
+        "普通账号注册/登录/退出、随机业务会话及持久撤销",
+        "本人方向目标/时区偏好及唯一个人空间、小型真实账号页面",
+        "同一业务SQLite原子v2身份迁移，保留v1与已通过保护",
+        "业务Cookie与DSH owner分离、来源防伪、输入/KDF/限流边界",
+        "十二项实际验证及受影响旧链路回归"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "完整对象ACL/邀请码/共享服务profile与远程部署",
+        "资料/题目/学习计划/评分/模型/RAG/jobs/audit/outbox平台",
+        "用户管理/密码重置/角色修改/账号删除",
+        "全量六工作区/Windows安装包/上游升级",
+        "FND-004及其他未激活工作单元"
       ],
       "test_obligations": [
         {
           "id": "FND-003-T01",
-          "scenario": "两个独立账号登录/退出/重登",
-          "expected": "身份独立，首次管理员初始化不能被远端抢占"
+          "scenario": "可信本机初始化与管理员唯一性",
+          "preconditions": "固定上游的隔离 loopback Host、全新合成业务库、实际 DSH owner 凭据；普通业务上下文不含 DSH 凭据。",
+          "steps": [
+            "匿名、仅业务 Cookie、伪造角色或非 owner Peer 请求初始化均拒绝；非 loopback listener/socket 的判断使用受控适配器用例，不开启公网测试。",
+            "有效 owner 在正确来源下初始化；重启后再次初始化应冲突。",
+            "两个有效 owner 请求并发初始化；独立查询初始化标记、管理员、凭据和空间。"
+          ],
+          "expected": "初始化页及 POST 均要求真实 owner 与本机来源；最多一次成功，管理员/凭据/个人空间/完成标记同事务；普通注册永远不能抢首个管理员。",
+          "evidence_required": [
+            "真实 HTTP 正反对照",
+            "并发返回与独立 SQL",
+            "初始化前后及重启后标记",
+            "来源适配器受控测试单列"
+          ]
         },
         {
           "id": "FND-003-T02",
-          "scenario": "篡改请求user_id并使用注销凭据",
-          "expected": "不得冒用他人，注销后请求拒绝，凭据不进日志"
+          "scenario": "三个独立业务身份注册登录与个人空间",
+          "preconditions": "已初始化管理员，两个新普通账号，三个相互隔离且没有 DSH Cookie 的业务客户端。",
+          "steps": [
+            "管理员正常业务登录；甲乙注册后各自登录、退出、重登。",
+            "同规范登录名以不同大小写/首尾空白重复或并发注册。",
+            "独立核对每个账号唯一凭据和 personal 空间；检查注册不自动登录。"
+          ],
+          "expected": "角色由服务端决定，普通账号仅 member；重复注册冲突且不更改旧密码/空间；三个身份和空间互不混入，密码及会话不出现在安全响应。",
+          "evidence_required": [
+            "三个 Cookie jar 的脱敏身份标识",
+            "登录/退出/重登 HTTP 记录",
+            "唯一性与原子性 SQL",
+            "普通账号角色断言"
+          ]
+        },
+        {
+          "id": "FND-003-T03",
+          "scenario": "业务身份与 DSH 宿主权限分离",
+          "preconditions": "独立 owner 上下文、仅业务 Cookie 的上下文、匿名上下文，同一真实 Host。",
+          "steps": [
+            "仅 DSH owner Cookie 调 /knowledge/v1/me 和 /spaces；仅业务 Cookie 调初始化与原 status/probe。",
+            "仅业务 Cookie 尝试真实 DSH /api 代表性 RPC、/connect 无有效 token、原生文件/插件管理入口；先从固定路由清单选择实际存在路径。",
+            "向 me/preferences 和其他身份接口加入 user_id/role/owner_id/service_id/space_id 等禁止字段。"
+          ],
+          "expected": "业务会话不注册为 DSH provider/Peer；owner Cookie 不自动产生业务 actor；业务账号不能获得 owner RPC、文件或插件能力，伪造身份字段拒绝且他人数据不变。",
+          "evidence_required": [
+            "实际路由与准入表",
+            "干净上下文 Cookie 名清单但不含值",
+            "401/403或真实未注册路径404及合法对照",
+            "独立数据库前后比较"
+          ]
+        },
+        {
+          "id": "FND-003-T04",
+          "scenario": "会话生成、到期、注销和重启",
+          "preconditions": "真实业务会话、可控制时钟的纯规则测试和实际数据库/HTTP验证。",
+          "steps": [
+            "测试伪造令牌、客户端指定会话、同账号再次登录的新令牌及会话固定防护；再次登录或主动切换账号后重放该客户端旧token应拒绝，其他客户端原会话仍有效。",
+            "退出后重放旧 Cookie，重复退出；Host 重启后再重放。",
+            "在到期边界验证 now>=expires_at；通过隔离合成记录制造到期/撤销/disabled 用户并从真实 HTTP 校验；其他客户端保持有效。"
+          ],
+          "expected": "会话原始令牌只在Cookie，库中仅哈希；成功登录在同一事务撤销当前请求携带的有效本系统旧会话并创建新会话，其他客户端不受影响；注销持久化且立即生效，重启不复活。",
+          "evidence_required": [
+            "Cookie 属性及哈希存储检查",
+            "旧令牌重放/到期 HTTP",
+            "重启前后 session 行",
+            "受控时间测试注明类型"
+          ]
+        },
+        {
+          "id": "FND-003-T05",
+          "scenario": "来源、防伪、媒体类型与请求界限",
+          "preconditions": "真实 Host；注册、登录、退出、偏好更新和初始化各有正确请求对照。",
+          "steps": [
+            "携带有效凭据测试外站 Origin、Origin:null、错误 Host、cross-site、缺 X-KnowledgeOS-Request、自定义头错误及 simple form Content-Type。",
+            "验证同源浏览器与可信 CLI 无 Origin 但正确专用头的合法请求；GET 不写入。",
+            "确认不放宽 CORS，不凭 Forwarded/X-Forwarded-For 推断本机或安全传输；Connection 缺失/停用时身份能力不放行。"
+          ],
+          "expected": "变更使用 JSON、专用请求头及来源防护；不依赖 SameSite 单一控制；拒绝请求不产生账号/会话/偏好写入；已有 FND-002 CLI 约定保持。",
+          "evidence_required": [
+            "跨来源真实 HTTP 矩阵",
+            "拒绝前后 SQL 计数",
+            "实际 Connection 依赖与缺失时行为",
+            "合法浏览器和CLI对照"
+          ]
+        },
+        {
+          "id": "FND-003-T06",
+          "scenario": "领域、目标、私人空间及版本冲突",
+          "preconditions": "三个身份各有 personal 空间；偏好由用户主动保存。",
+          "steps": [
+            "选择四领域及三条学习主线，保存中文目标和时区，刷新与重启后读取。",
+            "甲乙及管理员分别读取 /me 与 /spaces；向请求夹带其他人的标识。",
+            "同一用户两个会话用同一 expected_revision 并发更新，检查冲突与原草稿保留。"
+          ],
+          "expected": "四领域/三目标可表达，资料持久保存且仅本人可见；管理员标签不赋予他人私人偏好；一次更新成功另一次409，不静默覆盖，不生成未来计划/评分。",
+          "evidence_required": [
+            "真实页面及HTTP保存/重读",
+            "独立 SQL 与重启",
+            "并发revision结果",
+            "三个身份返回集合"
+          ]
+        },
+        {
+          "id": "FND-003-T07",
+          "scenario": "密码、输入和公开证据保护",
+          "preconditions": "明确的 DTO、密码工程默认值、只含合成数据的账号。",
+          "steps": [
+            "验证密码最短/最长、空白与Unicode逐值处理、孤立代理项、错误UTF-8、超限body、未知字段、SQL文本与用户名规范化边界。",
+            "验证相同密码不同salt、库中无明文密码或原会话令牌；未知账号与错密码返回同一安全错误。",
+            "扫描实际输出/日志/截图/JSON嵌套stdout，确认不含合成秘密原值、Cookie、token、私有绝对路径或数据库旁文件。"
+          ],
+          "expected": "成熟异步密码KDF、随机salt与版本参数；不截断/trim密码，不用普通SHA当密码存储；严格参数化与输入限额；证据发布检查覆盖嵌套字符串。",
+          "evidence_required": [
+            "KDF参数/版本与行为测试",
+            "原始数据库独立检查的脱敏结论",
+            "输入边界HTTP",
+            "秘密/路径扫描范围与结果"
+          ]
+        },
+        {
+          "id": "FND-003-T08",
+          "scenario": "新库与 v1 到 v2 无损迁移",
+          "preconditions": "新合成库、FND-002 v1库含哨兵及幂等记录、未来版本/归属冲突/prefix外来对象fixture。",
+          "steps": [
+            "新库完成v1再v2；旧v1升级，比较v1 SQL/checksum/迁移时间及探针数据，重复启动。",
+            "检查v2表、外键、唯一约束、持久service_id；身份表仅在正确版本和归属下接受。",
+            "重跑R1四类拒绝和正常对照，增加伪v2/迁移校验不匹配；在修改性配置前拒绝。"
+          ],
+          "expected": "application_id和v1历史不变，新增原子v2且只执行一次；不删库重建、不换路径、不把用户表自动接管；保留真实探针行为与数据。",
+          "evidence_required": [
+            "迁移前后独立SQL",
+            "v1/v2规范checksum",
+            "重复启动账本",
+            "未知/未来/prefix拒绝与未改库对照"
+          ]
+        },
+        {
+          "id": "FND-003-T09",
+          "scenario": "身份事务失败与恢复",
+          "preconditions": "生产同一路径的独立故障fixture；测试注入不经HTTP暴露。",
+          "steps": [
+            "在管理员初始化、普通注册、v2迁移的真实事务中途分别制造确定约束失败。",
+            "核对账号/凭据/空间/初始化标记/账本没有部分提交，原v1记录保留。",
+            "解除故障通过正常HTTP/启动路径完成操作；COMMIT/ROLLBACK异常按实际驱动策略记录。"
+          ],
+          "expected": "失败不创建孤立身份或半初始化；正常恢复不需要清库；KDF不在SQL事务内，异常不伪报成功；测试钩子不发布为请求参数。",
+          "evidence_required": [
+            "失败点与真实SQLite错误",
+            "多表/标记原子前后比较",
+            "恢复结果",
+            "不能构造的故障如实标限制"
+          ]
+        },
+        {
+          "id": "FND-003-T10",
+          "scenario": "登录注册限流与有界KDF负载",
+          "preconditions": "冻结的可信限流/KDF并发与队列默认值，隔离Host；计时测试注明实际版本。",
+          "steps": [
+            "同规范账号及不同账号连续失败登录/注册，验证两级限制并观察Retry-After。",
+            "并发请求超过KDF并发/等待上限；分别取消排队和已开始计算的HTTP请求，统计真实KDF活动峰值与队列，确认在运行的计算直到回调完成才归还槽位，已取消请求不写库。",
+            "受控时钟验证恢复规则，至少一轮真实HTTP触发及恢复；同时调用轻量status观察异步KDF没有长时间同步阻塞。"
+          ],
+          "expected": "返回明确429/繁忙且不泄漏账号存在性；无永久锁死、无无界内存或Promise队列；排队取消及时移除，已开始KDF在真实回调完成后释放名额，取消洪泛也不能突破实际2并发；关闭停止新任务且取消结果不写库，恢复后合法登录正常。",
+          "evidence_required": [
+            "真实HTTP限制与合法对照",
+            "并发/队列峰值和拒绝记录",
+            "受控时钟测试",
+            "实际status响应、真实KDF峰值、取消后回调/槽位及无写库证据"
+          ]
+        },
+        {
+          "id": "FND-003-T11",
+          "scenario": "真实账号界面与身份切换",
+          "preconditions": "实际Host提供小型账号页与受保护初始化页；owner及三个业务浏览器上下文分离。",
+          "steps": [
+            "真实浏览器完成初始化、普通注册、登录、方向/目标保存、刷新与退出，至少验证甲乙独立上下文。",
+            "使用延迟响应构造退出/切换账号期间的旧请求完成，确保页面不恢复上一账号内容。",
+            "观察加载、输入失败、未初始化、未配置存储、过期和服务不可用状态；1366x768与1920x1080检查表单。"
+          ],
+          "expected": "用户可以真实完成身份闭环；页面遵守既定冷玉青/企业字体/两级以内布局；无owner壳依赖、无六工作区占位；退出清理数据且迟到结果不串号。",
+          "evidence_required": [
+            "浏览器操作和截图",
+            "相互隔离上下文证明",
+            "迟到响应/过期/失败恢复",
+            "真实结果与受控故障分别标记"
+          ]
+        },
+        {
+          "id": "FND-003-T12",
+          "scenario": "构建、真实加载、释放及既有回归",
+          "preconditions": "冻结新候选源码、v1/v2迁移、测试、依赖锁、构建产物和实际profile。",
+          "steps": [
+            "运行类型/构建/FND003范围检查，解析profile实际安装目录/导出路径，对照事先冻结的产物SHA；临时不一致副本应失败。",
+            "核对卸载关闭、未配置dataDir旧profile、真实面板/status刷新和受影响探针写读/幂等/重启/忙锁与R1回归。",
+            "运行计划一致性检查及准确证据链接/脱敏检查，确保没有FND004+实现、没有把历史两表检查改成假通过。"
+          ],
+          "expected": "一个受控数据库写连接与正确分层；新旧身份路由不扩大owner权限；构建、实际加载和用户行为各自留证；只更新当前单元，未来功能未激活。",
+          "evidence_required": [
+            "构建/类型/范围命令与退出码",
+            "候选及实际安装/加载manifest",
+            "不一致负例",
+            "生命周期及已有行为回归",
+            "计划和证据卫生结果"
+          ]
         }
       ],
       "acceptance_ids": [
@@ -435,7 +635,43 @@
       "final_acceptance_ids": [],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
       "status": "planned",
-      "test_plan_status": "planning_baseline_expand_on_activation"
+      "test_plan_status": "detailed_current_unit",
+      "instruction_revision": "3.1.0",
+      "activated_at": "2026-11-16",
+      "activation_basis": "explicit_user_next_step_request",
+      "working_branch": "codex/knowledgeos-fnd-003",
+      "base_commit": "3535f16b1a429d32cd2c80f6c1462ce556fcb509",
+      "test_result_status": "NOT_RUN",
+      "independent_review_status": "NOT_RUN",
+      "completed_test_ids": [],
+      "open_review_items": [],
+      "requirement_evidence_scope": {
+        "F03": "identity_and_personal_preferences_slice_only; not full requirement verification"
+      },
+      "acceptance_evidence_scope": {
+        "A02": "本轮只验证三个真实身份、本人偏好/空间隔离与owner权限分离，不包含资料/搜索/AI/导出的完整权限。",
+        "A03": "本轮表达四领域和三条主线并持久保存，不代表主线业务入口已实现。"
+      },
+      "engineering_defaults": {
+        "schema_version": 2,
+        "application_id_hex": "0x4B4F5331",
+        "new_identity_tables": [
+          "service_identity",
+          "users",
+          "password_credentials",
+          "auth_sessions",
+          "spaces"
+        ],
+        "bootstrap": "DSH required + admitted owner + loopback listener/socket + source/custom-header protections; atomic once",
+        "password_kdf": "node:crypto asynchronous scrypt N=131072 r=8 p=1 salt>=16B key=32B maxmem=192MiB",
+        "session": "opaque CSPRNG 32B token; SHA256-only storage; absolute 12h lifetime; successful login atomically replaces the valid old session carried by this request only",
+        "csrf": "JSON + X-KnowledgeOS-Request: 1 + strict supplied Origin / Fetch-Metadata / Connection source checks; no permissive CORS",
+        "api_base": "/knowledge/v1",
+        "account_page": "/knowledgeos/account",
+        "setup_page": "/knowledgeos/setup",
+        "max_request_body_bytes": 16384,
+        "kdf_resource_limits": "2 real running scrypt tasks + 8 queued; queued cancellation removes task; running task retains slot until actual callback; cancelled results cannot write DB"
+      }
     },
     {
       "id": "FND-004",

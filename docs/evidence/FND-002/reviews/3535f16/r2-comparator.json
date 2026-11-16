@@ -1,0 +1,22 @@
+{
+  "review": "FND-002 R2 comparator",
+  "node": "v24.22.1",
+  "generated_at": "2026-11-16T10:14:18.622Z",
+  "cases": [
+    {
+      "case": "profile-linked candidate",
+      "exit_code": 0,
+      "artifact_count": 3,
+      "result": "PASS"
+    },
+    {
+      "case": "tampered temporary copy",
+      "exit_code": 1,
+      "result": "FAIL",
+      "failed_artifacts": [
+        "lib/index.js"
+      ]
+    }
+  ],
+  "result": "PASS"
+}

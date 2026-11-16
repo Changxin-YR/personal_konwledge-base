@@ -1,14 +1,22 @@
-# FND-002 当前进度
+# 实际进度
 
-更新：2026-11-16。Codex 已接管 `codex/knowledgeos-takeover`，完成已有项目理解、R1/R2 修复、新候选真实复测和独立复核。当前单元为 `awaiting_user`，`auto_advance=false`。
+更新：2026-11-16（Asia/Shanghai）。唯一指令CODEX_START.md v3.1.0，执行器Codex，当前FND-003 ready / planned，auto_advance=false。
 
-FND-002 已实现本地 SQLite 持久化探针：可信 dataDir、两表 v1 迁移、归属/版本/对象预检、真实认证 Host create/get、幂等、事务回滚、有限锁等待、重启读取和连接释放。架构落点见 `packages/knowledgeos-panel/src/host/{index,http,records,storage,config}.ts`。
+## 已完成基础
 
-本轮关闭：
+FND-001已验收。FND-002修复提交a03c9e3及交接头3535f16已复核接受：11个候选哈希匹配，T01–T09有113条通过断言，独立SQLite 73/73、Host/HTTP 59/59、对象11/11记录一致；本次另实跑R1新6/6、旧反例4失败及R2哈希比较正反对照。见 [验收复核](../evidence/FND-002/ACCEPTANCE_REVIEW_20261116.md)。完整Host记录由原执行机产生，本次没有重跑整套Windows Host验收。
 
-- R1：以完整 `sqlite_master` 枚举后按字面 `startsWith('sqlite_')` 过滤，预检和打开后校验一致；`sqliteX_*` 表/视图/索引/触发器均拒绝且库不改，空白库与真实 `sqlite_autoindex_*` 对照继续可用。
-- R2：T05 证据保存按幂等键过滤的计数；T09 比较 profile 实际加载产物与冻结 manifest 的 SHA-256，并通过篡改副本负例；summary 使用真实套件开始时间；负例临时文件不进入证据目录。
+## 当前仅激活FND-003
 
-新候选证据：`docs/evidence/FND-002/runs/codex-takeover-20261116-r2/`。主 T01–T09 为 9/9 PASS；独立 SQLite 73/73、真实 Host/HTTP 59/59、对象回归 11/11、构建/类型/范围/浏览器回归和脱敏检查均 PASS。旧候选结果仍保留在历史目录，不能替代本轮结果。
+工作分支codex/knowledgeos-fnd-003，从3535f16接续。范围是本机初始化、注册登录/退出、业务会话、本人方向目标/个人空间、账号页与必要v2迁移。只准备了执行契约和十二项测试义务，产品源码尚未实施，本轮测试全部NOT_RUN。
 
-FND-001 保持 passed。FND-003 及后续功能、正式业务实体、账号/ACL、多用户、模型/RAG、jobs/outbox、安装包和 Desktop/Electron 未激活或未运行。
+| 范围 | 当前状态 |
+|---|---|
+| FND-001 | passed |
+| FND-002 | passed，R1/R2 CLOSED，历史证据保留 |
+| FND-003 | ready / planned；产品测试、独立运行NOT_RUN |
+| FND-004及以后 | planned，未激活 |
+| 44项完整需求与66个完整场景 | 未提前verified/PASS |
+| 完整产品审查、Desktop/Windows安装、真实模型 | 未启动或未运行 |
+
+Codex依唯一入口逐项开发和测试，完成后停在FND-003等待下一次用户指令。旧API额度问题继续排除。

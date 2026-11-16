@@ -1,18 +1,20 @@
 # KnowledgeOS｜API 与 AI 执行契约
 
-> 执行范围：本页为产品目标契约，按已激活功能逐项实现。当前仅执行 CODEX_START.md 中的 FND-002 持久化边界；M0 不授权一次开发全部数据库、身份、模型或打包功能。未来 API/表清单不授权提前开发。
+> 执行范围：本页为产品目标契约，按已激活功能逐项实现。当前仅执行 CODEX_START.md 中的 FND-003 身份与个人空间边界；M0 不授权一次开发全部数据库、身份、模型或打包功能。未来 API/表清单不授权提前开发。
 
 - 版本：1.0，2026-11-16（Asia/Shanghai）。
 - 状态：**planned**。本文件中的 `/knowledge/v1/...`、工具名、事件名和响应字段均是拟新增的 KnowledgeOS 接口，不能当作 DSH 已存在的 API 调用。
 - 数据语义见 `04_DATA_AND_STATE_CONTRACTS.md`；DSH 真实可复用接口见 `02_DSH_CAPABILITY_AUDIT.md`；最终函数签名以锁定源码与 M0 适配验证为准。
 
-## 0. FND-002 当前基础接口
+## 0. FND-003 当前身份接口
 
-本轮新增项目自定义 `POST /knowledgeos/foundation/records` 和 `GET /knowledgeos/foundation/records/{id}`，只服务合成存储探针。使用固定 DSH WebServer 的 `handler` 和 `auth: required`；`resource` 仅适用于 GET/HEAD，不能承接 POST。复用上游 Host/Origin/Connection 认证，不另造 Cookie 机制；可信 Host 和有效凭据下的无 Origin CLI 仍应可用。
+原 `/knowledgeos/status` 与 `/knowledgeos/foundation/records` 继续保持既有DSH准入和探针契约。新 `/knowledge/v1` 只实现auth/status、auth/bootstrap、auth/register、auth/login、auth/logout、me、me/preferences、spaces；精确方法/响应及十二项测试在唯一 [CODEX_START.md](../../CODEX_START.md) 冻结。
 
-创建沿用 `Idempotency-Key`：本轮键在独立库的探针表内唯一，content 原值 UTF-8 的 SHA-256 为请求摘要，同键同内容返回原记录，同键不同内容报冲突。该键不是身份；本轮诊断 request_id 也不是幂等键。精确请求/响应、字节限制、错误映射与测试在唯一 [CODEX_START.md](../../CODEX_START.md) 中冻结。
+bootstrap和设置页为DSH required，再检查本次peer是owner、listener和socket均loopback、来源及专用请求头。其他业务路由使用anonymous DSH准入但保留Connection来源防护；需要身份的操作再验证独立业务Cookie。业务Cookie不注册DSH provider、不转成owner，DSH Cookie也不能代替业务actor。普通账号页面不要求先进入DSH owner壳。
 
-这不是下文 `/knowledge/v1` 正式产品身份/权限 API 的完整实现。本地 DSH 连接不代表 KnowledgeOS 多人账号已完成；正式 service/actor/scope、审计、outbox 与异步 operation 仍随对应单元实现。不得把所有通用目标字段硬塞进本轮探针或因此扩大范围。
+身份变更采用JSON+X-KnowledgeOS-Request:1及来源/Fetch-Metadata检查，禁止宽松CORS；每次会话检查撤销/到期/账号状态。注册不自动登录、重名冲突；登录创建新会话、退出幂等；偏好使用expected_revision。本轮不引入通用Idempotency-Key/operation/audit/outbox平台，相关全周期目标随后逐单元落实。
+
+本机身份闭环不等于完整对象ACL/共享服务已完成。FND-004、真实模型、资料业务仍未激活；旧API额度问题不参与本轮验收。
 
 ## 1. 调用边界和身份链
 

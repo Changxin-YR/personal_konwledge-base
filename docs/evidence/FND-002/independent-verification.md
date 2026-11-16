@@ -10,11 +10,11 @@
 - `view-objects.mjs`：**11/11 PASS**；对象扫描使用完整 `sqlite_master` 加字面 `startsWith('sqlite_')`，不复用旧 LIKE 判据。
 - `regression-sqlite-prefix.mjs`：当前 `lib/storage.js` **6/6 PASS**；冻结旧 baseline A–D **4 项失败**，证明回归能区分旧候选与修复候选。
 - T09 加载产物 checker：profile 实际 `lib/index.js`、`lib/storage.js`、`lib/client.js` 与冻结 manifest 逐项匹配；临时篡改副本退出码 1，被正确拒绝。
-- 脱敏/卫生扫描：PASS；无原始 token、Cookie、数据库、WAL/SHM 或私有绝对路径。
+- 原脱敏扫描PASS覆盖token/Cookie/数据库；后续复核补清理3处路径。具体发布范围与复核见ACCEPTANCE_REVIEW_20261116.md，不能用原扫描证明其未检查的路径。
 
 ## 证据路径
 
-`docs/evidence/FND-002/runs/codex-takeover-20261116-r2/` 保存主结果、独立脚本、输出、Host 日志、浏览器截图和脱敏报告；`docs/evidence/FND-002/runs/codex-takeover-r1/r1-regression.json` 保存 R1 当前候选回归；旧 `runs/1b99e39/`、`runs/d7a453d/` 和 `SUBMISSION_REVIEW_20261116.md` 保留历史事实。
+`docs/evidence/FND-002/runs/codex-takeover-20261116-r2/` 保存主结果、独立脚本、文本输出、浏览器截图和脱敏报告；若干Host原始.log未发布，文件名只作原执行机引用；`docs/evidence/FND-002/runs/codex-takeover-r1/r1-regression.json` 保存 R1 当前候选回归；旧 `runs/1b99e39/`、`runs/d7a453d/` 和 `SUBMISSION_REVIEW_20261116.md` 保留历史事实。
 
 ## 限制
 

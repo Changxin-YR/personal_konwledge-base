@@ -1,0 +1,198 @@
+{
+  "status": "PASS",
+  "scope": "plan_gate_regressions_only",
+  "started_at": "2026-11-16T10:37:52.435Z",
+  "finished_at": "2026-11-16T10:37:58.634Z",
+  "checks": 31,
+  "results": [
+    {
+      "name": "current valid plan",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    },
+    {
+      "name": "valid in-progress structure",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    },
+    {
+      "name": "valid blocked structure",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    },
+    {
+      "name": "prompt hash drift",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "retired DSH prompt restored",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "DSH executor coherently restored",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "completed takeover phase restored",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "catalog executor mismatch",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "catalog stale prompt path",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "automatic advance enabled",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "parallel features permitted",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "multiple product writers permitted",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "second running feature",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "unit state and outcome disagree",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "unit base differs from accepted base",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "prerequisite no longer passed",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "historical R1 reopened",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "historical R2 closure removed",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "test obligation removed",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "unapproved future activation after synthetic closure",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "completion while finding remains open",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "completion without product test pass",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "completion without independent review",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "completion with a missing test id",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "completion with a duplicate test id",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "completion without valid timestamp",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "completion with missing evidence path",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "full product review falsely activated",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "complete acceptance falsely passed",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "complete requirement falsely verified",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "synthetic valid completed structure",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    }
+  ],
+  "realProjectStatesModified": false,
+  "implementationVerifiedByThisCheck": false,
+  "productTestsExecuted": 0
+}

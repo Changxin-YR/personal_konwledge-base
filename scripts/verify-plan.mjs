@@ -80,10 +80,11 @@ check('release claims', () => {
 const units = new Map(catalog.units.map((item) => [item.id, item]));
 const finalOwners = new Map([...caseIds].map((id) => [id, []]));
 const unitTestIds = new Set();
+const currentTestIds = Array.from({ length: 12 }, (_, index) => `FND-003-T${String(index + 1).padStart(2, '0')}`);
 check('single current instruction', () => {
-  assert.equal(execution.executor, 'codex', 'current takeover executor must be Codex');
-  assert.equal(execution.execution_phase, 'codex_takeover_repair');
-  assert.equal(execution.active_unit, 'FND-002', 'takeover repair does not authorize the next feature');
+  assert.equal(execution.executor, 'codex', 'current foundation executor must be Codex');
+  assert.equal(execution.execution_phase, 'codex_foundation', 'the completed takeover phase is no longer active');
+  assert.equal(execution.active_unit, 'FND-003', 'current authorization does not include the next feature');
   assert.equal(execution.execution_mode, 'single_feature_gated');
   assert.equal(execution.max_active_units, 1);
   assert.equal(execution.max_product_code_writers, 1);
@@ -100,9 +101,9 @@ check('single current instruction', () => {
   for (const path of execution.retired_instruction_paths) assert(!existsSync(resolve(root, path)), `retired prompt still exists: ${path}`);
   assert.equal(execution.takeover.authorization, 'explicit_user_request');
   assert.equal(execution.takeover.product_host, 'deepseek_harness', 'changing the developer does not remove the product host');
-  assert.equal(execution.takeover.stop_after_current_unit, true);
+  assert.equal(execution.takeover.state, 'completed_historical_phase');
   assert.equal(execution.codex_review.scope, 'full_product_review');
-  assert.equal(execution.codex_review.state, 'not_started', 'current repair is not the full product review');
+  assert.equal(execution.codex_review.state, 'not_started', 'current feature is not the full product review');
   assert.equal(execution.codex_review.active_prompt, null);
 });
 check('work catalog scope', () => {
@@ -115,7 +116,7 @@ check('work catalog scope', () => {
   assert.equal(catalog.rules.allow_cross_unit_auto_advance, false);
   assert.equal(catalog.rules.allow_parallel_feature_implementation, false);
   assert.equal(catalog.rules.test_during_each_unit, true);
-  assert.equal(catalog.rules.codex_role, 'authorized_current_foundation_takeover_repair_then_wait_for_next_user_instruction');
+  assert.equal(catalog.rules.codex_role, 'active_feature_development_and_test_then_wait_for_user_selection');
   assert.equal(catalog.catalog_is_execution_authorization, false);
   assert.equal(units.size, catalog.units.length, 'duplicate unit ids');
   assert(units.has(execution.active_unit), 'active unit is not in the catalog');
@@ -155,12 +156,29 @@ check('dependency order and final owners', () => {
   };
   for (const id of units.keys()) visit(id);
 });
+check('accepted foundation history', () => {
+  assert.equal(units.get('FND-001')?.status, 'passed', 'FND-001 acceptance must remain passed');
+  const previous = units.get('FND-002');
+  assert.equal(previous?.status, 'passed', 'FND-002 acceptance must remain passed');
+  assert.equal(previous.test_result_status, 'PASS', 'FND-002 accepted tests must remain PASS');
+  assert.equal(previous.retest_status, 'PASS', 'FND-002 accepted retests must remain PASS');
+  assert.deepEqual(previous.open_review_items, [], 'FND-002 still has open findings');
+  assert(Array.isArray(previous.closed_review_items) && ['R1', 'R2'].every((id) => previous.closed_review_items.includes(id)), 'FND-002 R1/R2 need historical closure');
+  assert(previous.completed_at && Number.isFinite(Date.parse(previous.completed_at)), 'FND-002 completion timestamp is missing');
+  assert(previous.evidence_paths?.length && previous.evidence_paths.every((path) => existsSync(resolve(root, path))), 'FND-002 accepted evidence is missing');
+  assert.equal(execution.prerequisite_acceptance.unit_id, 'FND-002');
+  assert.equal(execution.prerequisite_acceptance.status, 'passed');
+  assert.match(execution.base_commit, /^[a-f0-9]{40}$/);
+  assert.equal(execution.prerequisite_acceptance.accepted_base_commit, execution.base_commit, 'accepted prerequisite and current base disagree');
+  assert(activePrompt.includes(execution.base_commit), 'current base commit is missing from the active instruction');
+});
 check('current unit execution state', () => {
   const unit = units.get(execution.active_unit);
   assert(unit, 'active unit not found');
   assert.equal(unit.instruction_revision, execution.instruction_revision);
   assert.equal(unit.working_branch, execution.working_branch);
-  assert.equal(unit.takeover_base_commit, execution.takeover.base_commit);
+  assert.equal(unit.base_commit, execution.base_commit, 'current unit and execution base_commit disagree');
+  assert.deepEqual(unit.test_obligations.map((test) => test.id).sort(), currentTestIds, 'FND-003 requires exactly T01-T12');
   assert(['ready', 'in_progress', 'blocked', 'awaiting_user'].includes(execution.unit_state));
   const running = catalog.units.filter((item) => item.status === 'in_progress');
   assert(running.length <= 1 && running.every((item) => item.id === unit.id), 'another feature is being developed');
@@ -168,17 +186,20 @@ check('current unit execution state', () => {
   const requiredStatus = { ready: 'planned', in_progress: 'in_progress', blocked: 'blocked', awaiting_user: 'passed' }[execution.unit_state];
   assert.equal(unit.status, requiredStatus, 'execution state and unit outcome disagree');
   for (const item of catalog.units) {
-    if (!['FND-001', 'FND-002'].includes(item.id)) assert.equal(item.status, 'planned', `future unit changed during takeover: ${item.id}`);
+    if (!['FND-001', 'FND-002', 'FND-003'].includes(item.id)) assert.equal(item.status, 'planned', `future unit changed before authorization: ${item.id}`);
   }
-  assert(matrix.acceptance_cases.every((item) => item.status === 'NOT_RUN'), 'foundation repair must not certify complete product acceptance cases');
-  assert(matrix.requirements.every((item) => item.implementation_status !== 'verified'), 'foundation repair must not certify complete requirements');
+  assert(matrix.acceptance_cases.every((item) => item.status === 'NOT_RUN'), 'foundation slice must not certify complete product acceptance cases');
+  assert(matrix.requirements.every((item) => item.implementation_status !== 'verified'), 'foundation slice must not certify complete requirements');
+  assert(['NOT_RUN', 'PASS', 'FAIL', 'BLOCKED'].includes(unit.test_result_status), 'invalid current test result');
+  assert(['NOT_RUN', 'PASS', 'FAIL', 'BLOCKED'].includes(unit.independent_review_status), 'invalid independent review result');
+  assert(Array.isArray(unit.completed_test_ids) && new Set(unit.completed_test_ids).size === unit.completed_test_ids.length && unit.completed_test_ids.every((id) => currentTestIds.includes(id)), 'completed test ids must be a unique current-unit subset');
   if (unit.status === 'passed') {
     assert.equal(unit.test_result_status, 'PASS', 'passed unit still has failed or missing test results');
-    assert.equal(unit.retest_status, 'PASS', 'new-candidate retests must pass before completion');
+    assert.equal(unit.independent_review_status, 'PASS', 'independent review must pass before completion');
+    assert.deepEqual([...unit.completed_test_ids].sort(), currentTestIds, 'completion requires all twelve current test ids');
     assert.deepEqual(unit.open_review_items, [], 'open findings prevent completion');
-    assert(Array.isArray(unit.closed_review_items) && ['R1', 'R2'].every((id) => unit.closed_review_items.includes(id)), 'R1/R2 need explicit closure');
     assert(unit.completed_at && Number.isFinite(Date.parse(unit.completed_at)), 'completion needs an actual valid timestamp');
-    assert(unit.evidence_paths.every((path) => existsSync(resolve(root, path))), 'completion evidence path is missing');
+    assert(unit.evidence_paths?.length && unit.evidence_paths.every((path) => existsSync(resolve(root, path))), 'completion evidence path is missing');
   }
   for (const test of unit.test_obligations) {
     const shortId = test.id.slice(unit.id.length + 1);

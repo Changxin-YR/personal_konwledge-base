@@ -1,52 +1,39 @@
 # KnowledgeOS
 
-基于 DeepSeek Harness 的个人知识、工程训练与小组协作平台。Windows 桌面端优先，目标约 10 人以内；产品范围保持已确认的 F01–F44。
+基于 DeepSeek Harness 的个人知识、工程训练与小组协作平台。Windows 桌面端优先，协作目标约10人以内；产品范围以已确认 F01–F44 为准。
 
 ## 当前唯一执行入口
 
-**[CODEX_START.md](CODEX_START.md)** — 当前交给 Codex 的唯一可执行提示词。
+**[CODEX_START.md](CODEX_START.md)** — Codex v3.1.0，仅执行 **FND-003：注册登录与个人身份**。当前工作分支 `codex/knowledgeos-fnd-003`，状态 ready / planned；产品实现与本轮十二项测试尚未执行。
 
-当前模式：**分段、单功能、开发与测试同行**。用户已授权改由 Codex 接管：先理解已有项目，修复并验证已有基础，完成后等待新指令。DSH 仍是产品运行底座；旧 API 额度问题不在本轮范围。完整产品审查没有被提前激活。
+本轮交付可信本机管理员初始化、普通注册/登录/退出、服务端业务会话、本人方向目标与个人空间、小型账号页。沿用分层模块化单体及DSH运行底座；逐项开发测试，完成后停止等用户，不自动进入FND-004。旧API额度问题不处理。
 
-当前 **FND-002：本地业务持久化最小闭环** 进入 v3.0.0 Codex 接管修复，状态 `in_progress`。复核提交 `cba39e4` 发现可复现的未知非空库归属判断缺陷，R1/R2 待修；已完成的主体实现及真实测试历史保留。接管工作分支 `codex/knowledgeos-takeover`，FND-001 保持 passed，FND-003 未激活。
+## 已验收基础
+
+FND-001 的真实面板/status及生命周期已通过。FND-002 的 R1 数据库前缀保护与 R2 证据检查已修复，前置提交 `3535f16b1a429d32cd2c80f6c1462ce556fcb509`；候选11个哈希匹配，九项测试113条断言及独立运行已核对，本次另在合成库重跑R1正反对照和R2比较器。见 [FND-002 验收复核](docs/evidence/FND-002/ACCEPTANCE_REVIEW_20261116.md)。这些基础成果不代表账号或完整产品已经完成。
 
 ## 文件职责
 
-| 入口 | 用途 |
+| 文件 | 职责 |
 |---|---|
-| [执行状态](config/execution_state.json) | 唯一 active_unit、执行引擎、指令哈希与下一阶段锁 |
-| [执行索引](docs/plan/00_EXECUTION_INDEX.md) | 按当前功能选择需要阅读的规范 |
-| [需求基线](docs/plan/01_REQUIREMENTS_BASELINE.md) | 六个工作区与 44 项既定功能 |
-| [总体架构](docs/plan/03_ARCHITECTURE.md) | 从需求推导的分层模块化单体及依赖方向 |
-| [逐功能工作目录](docs/plan/06_IMPLEMENTATION_PLAN.md) | 后续单元、前置依赖、开发与测试边界；目录不等于激活 |
-| [验收矩阵](docs/plan/07_ACCEPTANCE_MATRIX.md) | 66 个完整场景与各自最终验收阶段 |
-| [多智能体与提示词协议](docs/plan/11_AGENT_AND_PROMPT_PROTOCOL.md) | 同一功能的角色分工、任务包、证据和返修规则 |
-| [实际进度](docs/status/PROGRESS.md) | 已执行结果与本次交接 |
+| [执行状态](config/execution_state.json) | 当前执行器、单元、指令哈希和停止状态 |
+| [执行索引](docs/plan/00_EXECUTION_INDEX.md) | 当前功能的阅读入口 |
+| [需求基线](docs/plan/01_REQUIREMENTS_BASELINE.md) | 六工作区、44项既定功能及不变量 |
+| [总体架构](docs/plan/03_ARCHITECTURE.md) | 分层、部署和身份依赖边界 |
+| [工作单元](config/work_units.json) | 当前细化范围及未激活未来目录 |
+| [验收矩阵](docs/plan/07_ACCEPTANCE_MATRIX.md) | 66个完整场景；局部通过不得提前升级 |
+| [协作协议](docs/plan/11_AGENT_AND_PROMPT_PROTOCOL.md) | 单功能、单写者、独立测试与候选 |
+| [进度](docs/status/PROGRESS.md) | 已完成和当前待执行事项 |
 
-工作树只保留现行执行入口。被替代的指令由 Git 历史保留，不生成备用执行副本。
+旧提示词只保留Git历史，工作树不保留第二个执行入口。固定上游 `39163dd30f703a79079e2d2446545cff3c453738`、版本 `0.2.2-rc.3`，见 [版本锁](config/upstream.lock.json)。
 
-## 当前实际状态
-
-2026-11-16：**第二部分主体已实现，当前仍需修正数据库保护及证据检查。** 新反例表明 sqliteX_* 用户对象会被错误过滤，外部非空库被初始化；当前不能沿用原候选整体 PASS。见 [本次提交复核](docs/evidence/FND-002/SUBMISSION_REVIEW_20261116.md)、[当前报告与历史记录](docs/evidence/FND-002/REPORT.md)。真实 Host 写读、重启、回滚及面板回归等既有证据继续保留；本轮修复和新候选测试尚未执行。
-
-官方上游固定为 `39163dd30f703a79079e2d2446545cff3c453738`，根包版本 `0.2.2-rc.3`；工具链与证据见 [版本锁](config/upstream.lock.json) 和 [DSH 能力核对](docs/plan/02_DSH_CAPABILITY_AUDIT.md)。
-
-## 现有辅助命令
+## 开工与验证
 
 ```sh
 node scripts/verify-plan.mjs
 node scripts/prepare-upstream.mjs --check
-node scripts/prepare-upstream.mjs --prepare
 ```
 
-第一项检查指令一致性、当前单元、需求/验收映射与文档链接。`--check` 只读且不联网；尚未检出时返回 `NOT_PREPARED`。`--prepare` 只准备固定上游源码，不安装依赖、不修改全局 DSH 配置、不开始下一个功能。
+计划检查只证明指令、状态、映射和链接一致。`--check`只读；NOT_PREPARED时按已有准备脚本获取固定源码。FND-001/FND-002历史检查留存；FND-003需建立相应身份/v2范围检查，不能将历史“两表/v1”门槛改成假通过。
 
-M0–M6 是总体归属，不是一条连续执行命令。`scripts/fnd001/` 与通过记录保留；其禁数据库范围检查只适用于第一部分历史候选。`scripts/fnd002/` 提供本轮 SQLite 范围检查、真实 Host/HTTP/SQLite 九项验收与锁辅助；FND-002 目前按唯一提示词修正 R1/R2 并复测，FND-003 及以后仍未激活。
-
-## 产品与发布
-
-六个一级入口：今日计划、知识库、笔记、项目协作、智能讨论、管理与设置。界面遵循最多两级导航、冷玉青色、企业常用字体、适度圆角。
-
-正常知识与学习记录长期保留，30 天清理只适用于回收站；F30 采用应用内不可关闭、按约定条件和时段执行的强提醒规则。
-
-源码、方案和脱敏证据存 Git。后续经激活并完成的 Windows 安装包/插件包存本仓库 GitHub Releases，附提交、SHA-256 和验证范围；私人资料、数据库、备份及凭据不上传公开仓库。
+正常知识和学习记录长期保存，30天仅适用于回收站。产品界面使用冷玉青、企业常用字体、适度圆角和最多两层导航。源码、方案与脱敏证据存Git；安装包仅在发布单元实际激活和验证后发布至本仓库Releases。私密资料、数据库、备份和凭据不上传公开仓库。

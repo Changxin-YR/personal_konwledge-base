@@ -1,0 +1,146 @@
+{
+  "review": "FND-002 R1",
+  "run": "independent-review-3535f16",
+  "generatedAt": "2026-11-16T10:12:58.464Z",
+  "node": "v24.22.1",
+  "module": {
+    "path": "packages/knowledgeos-panel/lib/storage.js",
+    "sha256": "2b4ff2c9f78801e16af25f1923a44850c671ffeec89b702c5fd5e16c0c68ce65"
+  },
+  "oracle": {
+    "description": "independent sqlite_master scan; internal objects are filtered only by literal startsWith('sqlite_')",
+    "predicate": "name.startsWith('sqlite_')"
+  },
+  "summary": {
+    "total": 6,
+    "pass": 6,
+    "fail": 0
+  },
+  "verdict": "ALL PASS",
+  "cases": [
+    {
+      "case": "A",
+      "description": "unknown table sqliteX_foreign_private with sentinel",
+      "expected": "reject STORAGE_INCOMPATIBLE and preserve database",
+      "actual": {
+        "accepted": false,
+        "failureCode": "STORAGE_INCOMPATIBLE",
+        "unchanged": true
+      },
+      "pass": true,
+      "failureMessage": "database belongs to another application",
+      "userObjects": [
+        "table:sqliteX_foreign_private"
+      ],
+      "oracleInternalObjects": [],
+      "semanticsUnchanged": true
+    },
+    {
+      "case": "B",
+      "description": "unknown view sqliteX_view",
+      "expected": "reject STORAGE_INCOMPATIBLE and preserve database",
+      "actual": {
+        "accepted": false,
+        "failureCode": "STORAGE_INCOMPATIBLE",
+        "unchanged": true
+      },
+      "pass": true,
+      "failureMessage": "database belongs to another application",
+      "userObjects": [
+        "view:sqliteX_view"
+      ],
+      "oracleInternalObjects": [],
+      "semanticsUnchanged": true
+    },
+    {
+      "case": "C",
+      "description": "v1 plus sqliteX_user_index",
+      "expected": "reject STORAGE_INCOMPATIBLE and preserve database",
+      "actual": {
+        "accepted": false,
+        "failureCode": "STORAGE_INCOMPATIBLE",
+        "unchanged": true
+      },
+      "pass": true,
+      "failureMessage": "database contains an unknown schema",
+      "userObjects": [
+        "index:sqliteX_user_index",
+        "table:schema_migrations",
+        "table:storage_probe_records"
+      ],
+      "oracleInternalObjects": [
+        "sqlite_autoindex_storage_probe_records_1",
+        "sqlite_autoindex_storage_probe_records_2"
+      ],
+      "semanticsUnchanged": true
+    },
+    {
+      "case": "D",
+      "description": "v1 plus sqliteX_user_trigger",
+      "expected": "reject STORAGE_INCOMPATIBLE and preserve database",
+      "actual": {
+        "accepted": false,
+        "failureCode": "STORAGE_INCOMPATIBLE",
+        "unchanged": true
+      },
+      "pass": true,
+      "failureMessage": "database contains an unknown schema",
+      "userObjects": [
+        "table:schema_migrations",
+        "table:storage_probe_records",
+        "trigger:sqliteX_user_trigger"
+      ],
+      "oracleInternalObjects": [
+        "sqlite_autoindex_storage_probe_records_1",
+        "sqlite_autoindex_storage_probe_records_2"
+      ],
+      "semanticsUnchanged": true
+    },
+    {
+      "case": "E",
+      "description": "truly blank database",
+      "expected": "accept and support read/write",
+      "actual": {
+        "accepted": true,
+        "schemaOk": true,
+        "hasAutoindex": true,
+        "write": {
+          "kind": "created",
+          "readBackOk": true
+        },
+        "persisted": true
+      },
+      "pass": true,
+      "failureMessage": null,
+      "userObjects": [],
+      "oracleInternalObjects": [],
+      "semanticsUnchanged": false
+    },
+    {
+      "case": "F",
+      "description": "v1 with sqlite_autoindex control",
+      "expected": "accept and support read/write",
+      "actual": {
+        "accepted": true,
+        "schemaOk": true,
+        "hasAutoindex": true,
+        "write": {
+          "kind": "created",
+          "readBackOk": true
+        },
+        "persisted": true
+      },
+      "pass": true,
+      "failureMessage": null,
+      "userObjects": [
+        "table:schema_migrations",
+        "table:storage_probe_records"
+      ],
+      "oracleInternalObjects": [
+        "sqlite_autoindex_storage_probe_records_1",
+        "sqlite_autoindex_storage_probe_records_2"
+      ],
+      "semanticsUnchanged": false
+    }
+  ]
+}
