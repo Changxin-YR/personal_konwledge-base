@@ -49,8 +49,8 @@
 |---|---|
 | `node node_modules/typescript/bin/tsc -p tsconfig.json` | 退出码 0 |
 | `node build.mjs` | 退出码 0 |
-| `lib/index.js` | 2255 bytes，sha256 `22757b15ec4352d9a26d848320dc31b3a96aba86446fb70fa51fc94ce2d26c6a` |
-| `lib/client.js` | 20762 bytes，sha256 `ff99f29f1415651c83c16c1c9667cc0a6dd5e130b7c589fe670bae8f6dd50d88` |
+| `lib/index.js` | 2255 bytes，sha256 `22757b15ec4352d9a26d848320dc31b3a96aba86446fb70fa51fc94ce2d26c6a`（本轮未改 Host） |
+| `lib/client.js` | 21412 bytes，sha256 `f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9`（R2 面板状态修复后） |
 
 构建产物与 `candidate.md` 记录一致，且 profile 以 `link:` 指向本目录，运行时加载的就是这两个文件。
 

@@ -131,7 +131,18 @@ export function KnowledgeOsPanel(): JSX.Element {
   const data = state.data
   const phase = state.phase
   const chipClass = phase === 'ready' ? 'kos-chip--ok' : phase === 'error' ? 'kos-chip--error' : 'kos-chip--loading'
-  const chipText = phase === 'ready' ? '已连接' : phase === 'error' ? '连接失败' : '连接中'
+  const chipText = phase === 'ready'
+    ? '已连接'
+    : phase === 'error'
+      ? '连接失败'
+      : data === undefined ? '连接中' : '刷新中'
+  // Loading must not read as a failure: it either has no result yet or is
+  // refreshing the last successful result without changing its validity.
+  const connectionText = phase === 'ready'
+    ? '已连接本机 Host'
+    : phase === 'loading'
+      ? data === undefined ? '正在连接本机 Host…' : '正在刷新 · 显示上次结果'
+      : data === undefined ? '连接失败' : '旧数据（连接失败）'
   const verified = data === undefined ? null : data.upstream_commit_verified
   const verification = verificationFace(verified)
   const stale = state.phase === 'error' && state.data !== undefined
@@ -173,6 +184,10 @@ export function KnowledgeOsPanel(): JSX.Element {
         </div>
       ) : null}
 
+      {phase === 'loading' && data !== undefined ? (
+        <p className="kos-note" role="status" data-testid="kos-refreshing">正在刷新，以下为上次成功结果，尚不能视为当前连接状态。</p>
+      ) : null}
+
       <div className="kos-card">
         {data === undefined ? (
           phase === 'loading'
@@ -180,7 +195,7 @@ export function KnowledgeOsPanel(): JSX.Element {
             : <div className="kos-empty">尚无可用状态数据。请点击重试。</div>
         ) : (
           <dl>
-            <div className="kos-row"><dt>连接状态</dt><dd data-testid="kos-connection">{phase === 'ready' ? '已连接本机 Host' : '旧数据（连接失败）'}</dd></div>
+            <div className="kos-row"><dt>连接状态</dt><dd data-testid="kos-connection">{connectionText}</dd></div>
             <div className="kos-row"><dt>DSH 版本</dt><dd className="kos-mono" data-testid="kos-version">{data.upstream_version}</dd></div>
             <div className="kos-row"><dt>上游提交</dt><dd className="kos-mono" data-testid="kos-commit">{shortCommit(data.upstream_commit)}</dd></div>
             <div className="kos-row"><dt>提交校验</dt><dd className={verification.className} data-testid="kos-verified">{verification.text}</dd></div>

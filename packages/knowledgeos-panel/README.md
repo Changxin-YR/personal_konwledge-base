@@ -53,11 +53,32 @@ resolves only the shell's shared `react` modules through the factory's
 
 ## Install into an isolated profile
 
+Use the fixed source checkout that matches `config/upstream.lock.json`; do not
+assume a globally installed `dsh` has that version.
+
 ```powershell
-$env:DSH_HOME = "<isolated-home>"
-dsh --profile knowledgeos-test --from-default-profile web --dump-config
-dsh plugin --profile knowledgeos-test add <path-to-this-package>
-dsh --profile knowledgeos-test web --port 3099 --no-open
+$knowledgeosRepo = "<path-to-this-repository>"
+$dshRoot = "$knowledgeosRepo\.cache\build\dsh-39163dd"
+$dshTestHome = "$knowledgeosRepo\.cache\dsh-home-fnd001"
+$env:DSH_HOME = $dshTestHome
+
+# First creation only: initializes the profile from the shipped web template.
+# Do not repeat this on later runs; it would replace the existing profile.
+node --import tsx/esm apps/cli/src/bin.ts --profile knowledgeos-test --from-default-profile web --dump-config
+
+# Install this checkout into the profile.
+node --import tsx/esm apps/cli/src/bin.ts plugin --profile knowledgeos-test add "$knowledgeosRepo\packages\knowledgeos-panel"
+
+# Run the fixed source build. No extra `web` positional: with an explicit
+# profile the remaining tokens are app arguments, and a stray `web` is rejected.
+cd $dshRoot
+node --import tsx/esm apps/cli/src/bin.ts --profile knowledgeos-test --port 3099 --no-open
+```
+
+Remove the bundle with the same CLI and restart the test Host:
+
+```powershell
+node --import tsx/esm apps/cli/src/bin.ts plugin --profile knowledgeos-test remove knowledgeos-panel
 ```
 
 The bundle's `cordis.patch.yml` inserts one Host row; removing the bundle

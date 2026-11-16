@@ -72,12 +72,12 @@ Set-Location $repo
 $build  = Join-Path $repo ".cache\build\dsh-39163dd"    # 从锁定源码构建的运行时根目录
 $cli    = "apps/cli/src/bin.ts"                          # 相对 $build
 $plugin = Join-Path $repo "packages\knowledgeos-panel"   # 候选插件（只读）
-$home   = Join-Path $repo ".cache\dsh-home-fnd001"
+$dshTestHome = Join-Path $repo ".cache\dsh-home-fnd001"
 $base   = "http://127.0.0.1:3099"
 $cand   = "<candidate-tag>"                       # 冻结时填写，例如 cand-6f23735-a1b2c3d4
 $run    = Join-Path $repo "docs\evidence\FND-001\runs\$cand"
 New-Item -ItemType Directory -Force "$run\host","$run\http","$run\net","$run\screens","$run\tools" | Out-Null
-$env:DSH_HOME = $home
+$env:DSH_HOME = $dshTestHome
 ```
 
 > 3099 被占用时的回退端口：3097（记录变更，仍避开 62739/3080）；不得改用桌面端口。
@@ -93,7 +93,7 @@ $env:DSH_HOME = $home
 | P0-4b | 排除旧 npm 运行时 | 核对 `.cache\runtime-rc3` 的 client-modules 内嵌 commit | 主管已确认其为 `6b729fe`≠锁定 SHA；仅作对照，**不得用于测试** | 误用即 FAIL |
 | P0-5 | 桌面保护 | `Get-NetTCPConnection -LocalPort 62739 -State Listen`；`Get-Process -Id <PID>` | 记录 PID 与开始时间，作为“未被干扰”基线 | 不得停止/重启桌面实例 |
 | P0-6 | 端口空闲 | `Get-NetTCPConnection -LocalPort 3099 -ErrorAction SilentlyContinue` | 无监听 | 换 3097 并记录 |
-| P0-7 | Home 隔离 | `$env:DSH_HOME` 必须位于 `$repo\.cache\`；`Get-ChildItem $home` | 不指向 `%USERPROFILE%\.dsh` | 指错即停止 |
+| P0-7 | Home 隔离 | `$env:DSH_HOME` 必须位于 `$repo\.cache\`；`Get-ChildItem $dshTestHome` | 不指向 `%USERPROFILE%\.dsh` | 指错即停止 |
 | P0-8 | 候选记录 | `git rev-parse HEAD`；`git status --porcelain`；`git rev-parse HEAD^{tree}`；`Get-FileHash` 关键文件 | 见 §9.3 | 工作树不干净时记录 manifest，不混入用户改动 |
 | P0-9 | 浏览器能力 | 确认系统 Edge/Chrome 路径；确认 Playwright 可用（`npx playwright --version`），记录 `channel` 或 `executablePath` | 可用 Playwright 驱动 Chrome/Edge（不使用 Electron）；不可用时安装到证据工具目录，不改插件 `package.json` | 无 UI 能力则 T01/T02/T04 的 UI 断言 BLOCKED，不得改判 |
 | P0-10 | 无模型凭据依赖 | 确认本单元不触发真实模型调用 | 全程无模型请求 | 出现模型调用说明越界，记缺陷 |

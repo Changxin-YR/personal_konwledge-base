@@ -229,7 +229,8 @@ window.__ModuleLoader__.load({
 		  const data = state.data;
 		  const phase = state.phase;
 		  const chipClass = phase === "ready" ? "kos-chip--ok" : phase === "error" ? "kos-chip--error" : "kos-chip--loading";
-		  const chipText = phase === "ready" ? "\u5DF2\u8FDE\u63A5" : phase === "error" ? "\u8FDE\u63A5\u5931\u8D25" : "\u8FDE\u63A5\u4E2D";
+		  const chipText = phase === "ready" ? "\u5DF2\u8FDE\u63A5" : phase === "error" ? "\u8FDE\u63A5\u5931\u8D25" : data === void 0 ? "\u8FDE\u63A5\u4E2D" : "\u5237\u65B0\u4E2D";
+		  const connectionText = phase === "ready" ? "\u5DF2\u8FDE\u63A5\u672C\u673A Host" : phase === "loading" ? data === void 0 ? "\u6B63\u5728\u8FDE\u63A5\u672C\u673A Host\u2026" : "\u6B63\u5728\u5237\u65B0 \xB7 \u663E\u793A\u4E0A\u6B21\u7ED3\u679C" : data === void 0 ? "\u8FDE\u63A5\u5931\u8D25" : "\u65E7\u6570\u636E\uFF08\u8FDE\u63A5\u5931\u8D25\uFF09";
 		  const verified = data === void 0 ? null : data.upstream_commit_verified;
 		  const verification = verificationFace(verified);
 		  const stale = state.phase === "error" && state.data !== void 0;
@@ -271,13 +272,14 @@ window.__ModuleLoader__.load({
 		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Host \u672A\u62A5\u544A\u6784\u5EFA\u63D0\u4EA4\u3002" }),
 		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: "\u5F53\u524D\u53EA\u80FD\u786E\u8BA4\u7248\u672C\u53F7\uFF0C\u65E0\u6CD5\u6838\u9A8C\u662F\u5426\u4E0E\u9501\u5B9A\u63D0\u4EA4\u4E00\u81F4\u3002" })
 		    ] }) : null,
+		    phase === "loading" && data !== void 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "kos-note", role: "status", "data-testid": "kos-refreshing", children: "\u6B63\u5728\u5237\u65B0\uFF0C\u4EE5\u4E0B\u4E3A\u4E0A\u6B21\u6210\u529F\u7ED3\u679C\uFF0C\u5C1A\u4E0D\u80FD\u89C6\u4E3A\u5F53\u524D\u8FDE\u63A5\u72B6\u6001\u3002" }) : null,
 		    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "kos-card", children: data === void 0 ? phase === "loading" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "kos-empty", "data-testid": "kos-loading", children: [
 		      "\u6B63\u5728\u901A\u8FC7 Host \u670D\u52A1\u8BFB\u53D6\u8FD0\u884C\u72B6\u6001\u2026",
 		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "kos-skeleton" })
 		    ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "kos-empty", children: "\u5C1A\u65E0\u53EF\u7528\u72B6\u6001\u6570\u636E\u3002\u8BF7\u70B9\u51FB\u91CD\u8BD5\u3002" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("dl", { children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "kos-row", children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("dt", { children: "\u8FDE\u63A5\u72B6\u6001" }),
-		        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("dd", { "data-testid": "kos-connection", children: phase === "ready" ? "\u5DF2\u8FDE\u63A5\u672C\u673A Host" : "\u65E7\u6570\u636E\uFF08\u8FDE\u63A5\u5931\u8D25\uFF09" })
+		        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("dd", { "data-testid": "kos-connection", children: connectionText })
 		      ] }),
 		      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "kos-row", children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("dt", { children: "DSH \u7248\u672C" }),
