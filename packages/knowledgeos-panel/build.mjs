@@ -32,10 +32,26 @@ await build({
   format: 'esm',
   platform: 'node',
   target: 'node22',
-  external: ['node:*'],
+  external: ['node:*', '@deepseek-ai/schemastery'],
   sourcemap: false,
   logLevel: 'warning',
 })
+
+// Test-only entries: the real adapter and its controlled-failure helpers.
+for (const [entry, outfile] of [['src/host/storage.ts', 'lib/storage.js'], ['src/host/test-support.ts', 'lib/test-support.js']]) {
+  await build({
+    absWorkingDir: root,
+    entryPoints: [entry],
+    outfile,
+    bundle: true,
+    format: 'esm',
+    platform: 'node',
+    target: 'node22',
+    external: ['node:*', '@deepseek-ai/schemastery'],
+    sourcemap: false,
+    logLevel: 'warning',
+  })
+}
 
 await build({
   absWorkingDir: root,
@@ -73,7 +89,7 @@ ${indented}
 await writeFile(join(libDir, 'client.js'), envelope, 'utf8')
 await rm(clientBody, { force: true })
 
-for (const file of ['lib/index.js', 'lib/client.js']) {
+for (const file of ['lib/index.js', 'lib/storage.js', 'lib/test-support.js', 'lib/client.js']) {
   const bytes = await readFile(join(root, file))
   const digest = createHash('sha256').update(bytes).digest('hex')
   console.log(`${file}  ${bytes.length} bytes  sha256=${digest}`)

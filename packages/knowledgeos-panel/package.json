@@ -2,7 +2,7 @@
   "name": "knowledgeos-panel",
   "version": "0.1.0",
   "private": true,
-  "description": "KnowledgeOS FND-001: one real DSH panel backed by a read-only Host runtime-status service",
+  "description": "KnowledgeOS foundation slice: real DSH panel, read-only host status, and an SQLite-backed persistence probe",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -12,12 +12,20 @@
     "./client": {
       "default": "./lib/client.js"
     },
+    "./storage": {
+      "default": "./lib/storage.js"
+    },
+    "./test-support": {
+      "default": "./lib/test-support.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
     "cordis.patch.yml",
     "lib/index.js",
     "lib/client.js",
+    "lib/storage.js",
+    "lib/test-support.js",
     "src",
     "build.mjs",
     "tsconfig.json",
@@ -39,9 +47,13 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "devDependencies": {
+    "@types/node": "^24.10.1",
     "@types/react": "18.3.27",
     "@types/react-dom": "18.3.7",
     "esbuild": "0.25.12",
     "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "3.19.0"
   }
 }

@@ -5,6 +5,18 @@
  * and type-checked out of tree, so only the used surface is declared here.
  */
 declare module '@deepseek-ai/cordis' {
+  /** One named HTTP route with its own response lifecycle. */
+  export interface WebRoute {
+    kind: 'exact' | 'prefix'
+    path: string
+    auth?: 'anonymous' | 'required' | 'deny'
+    handler: (
+      req: import('node:http').IncomingMessage,
+      res: import('node:http').ServerResponse,
+      peer?: unknown,
+    ) => void | Promise<void>
+  }
+
   /** One named Web route answered by a Fetch resource. */
   export interface WebResourceRoute {
     kind: 'exact' | 'prefix'
@@ -15,7 +27,7 @@ declare module '@deepseek-ai/cordis' {
 
   /** Web carrier service mounted by the Web profile. */
   export interface WebServer {
-    register(route: WebResourceRoute): () => void
+    register(route: WebRoute | WebResourceRoute): () => void
   }
 
   /** Release identity the running Host publishes to client modules. */
@@ -33,6 +45,6 @@ declare module '@deepseek-ai/cordis' {
   export interface Context {
     webServer: WebServer
     clientModules: ClientModules
-    effect(effect: () => () => void, label?: string): void
+    effect(effect: () => (() => void) | Promise<void>, label?: string): void
   }
 }
