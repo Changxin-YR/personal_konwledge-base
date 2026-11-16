@@ -34,7 +34,7 @@ const port = Number(option('port') ?? '3099')
 const playwrightDir = resolve(option('playwright') ?? '')
 const outDir = resolve(option('out') ?? '')
 const commitHash = option('commit') ?? '39163dd30f703a79079e2d2446545cff3c453738'
-const pluginPath = resolve(option('plugin') ?? join(dshRoot, '..', '..', 'packages', 'knowledgeos-panel'))
+const pluginPath = resolve(option('plugin') ?? join(dshRoot, '..', '..', '..', 'packages', 'knowledgeos-panel'))
 const base = `http://127.0.0.1:${port}`
 const ENTRY_NAME = '知识库'
 if (!option('dsh-root') || !option('home') || !option('playwright') || !option('out')) {
@@ -91,8 +91,10 @@ async function startHost(label) {
   exited = once(child, 'exit')
   const chunks = []
   const onData = chunk => {
-    chunks.push(chunk.toString())
-    void appendFile(hostLog, chunk.toString())
+    const raw = chunk.toString()
+    chunks.push(raw)
+    // The archive must never carry the launch token; redact only the log copy.
+    void appendFile(hostLog, raw.replace(/token=[^\s&]+/gu, 'token=<redacted>'))
   }
   child.stdout.on('data', onData)
   child.stderr.on('data', onData)
@@ -114,7 +116,18 @@ async function stopHost() {
   if (host === null || host.exitCode !== null) return
   host.kill()
   await Promise.race([exited, sleep(10_000)])
-  await sleep(400)
+  await sleep(1_000)
+}
+
+/** SHA256 of the two files the profile actually loads from this checkout. */
+async function artifactHashes() {
+  const { createHash } = await import('node:crypto')
+  const result = {}
+  for (const file of ['lib/index.js', 'lib/client.js']) {
+    const bytes = await readFile(join(pluginPath, file))
+    result[file] = createHash('sha256').update(bytes).digest('hex')
+  }
+  return result
 }
 
 async function entryCookie(url) {
@@ -179,6 +192,7 @@ try {
   const cookie = (await entryCookie(firstEntry)).cookie
 
   // ---- R2: refresh loading state must not claim a connection failure ----
+  summary.fixtures.push({ id: 'F2', kind: 'controlled-3s-status-delay', label: 'FIXTURE: controlled latency, not a real disconnect' })
   const checkedBefore = await page.locator('[data-testid="kos-checked-at"]').getAttribute('data-checked-at')
   const requestCountBefore = statusRequests.length
   let delayed = false
@@ -198,7 +212,7 @@ try {
   await readyPanel(page).waitFor({ timeout: 30_000 })
   const checkedAfter = await page.locator('[data-testid="kos-checked-at"]').getAttribute('data-checked-at')
   await page.unroute('**/knowledgeos/status')
-  summary.r2 = { loadingConnection, loadingChip, refreshingVisible, checkedBefore, checkedAfter, requests: statusRequests.length - requestCountBefore }
+  summary.r2 = { fixture: 'F2', loadingConnection, loadingChip, refreshingVisible, checkedBefore, checkedAfter, requests: statusRequests.length - requestCountBefore }
   record('R2 loading is not shown as a failure',
     !loadingConnection.includes('失败') && loadingConnection.includes('刷新') && loadingChip === '刷新中' && refreshingVisible,
     summary.r2)
@@ -257,6 +271,19 @@ try {
   await readyPanel(page).waitFor({ timeout: 60_000 })
   await page.screenshot({ path: join(outDir, 'R1-before-remove.png'), fullPage: true })
   const profileDir = join(home, 'profiles', profile)
+  const installManifest = JSON.parse(await readFile(join(profileDir, 'package.json'), 'utf8'))
+  const hashesBeforeRemove = await artifactHashes()
+  summary.r1.install = {
+    package: 'knowledgeos-panel',
+    resolved_spec: installManifest.dependencies?.['knowledgeos-panel'],
+    plugin_path: pluginPath,
+    artifacts: hashesBeforeRemove,
+  }
+  record('R1 profile install resolves to this candidate checkout',
+    typeof installManifest.dependencies?.['knowledgeos-panel'] === 'string'
+      && installManifest.dependencies['knowledgeos-panel'].includes('knowledgeos-panel')
+      && hashesBeforeRemove['lib/client.js'] === 'f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9',
+    summary.r1.install)
   for (const file of ['package.json', 'cordis.patch.yml', 'pnpm-workspace.yaml']) {
     await copyFile(join(profileDir, file), join(outDir, `before-remove-${file}`)).catch(() => {})
   }
@@ -281,6 +308,7 @@ try {
     && (removedStatus.contentType ?? '').includes('application/json')
     && removedStatus.text.includes('"product":"KnowledgeOS"')
   record('R1 status route is gone after removal', !stillOurJson, summary.r1.route_after_remove)
+  record('R1 removal was verified with a valid authenticated session', removedStatus.status !== 401 && removedStatus.status !== 403, { status: removedStatus.status })
   await page.goto(removedEntry, { waitUntil: 'domcontentloaded' })
   await dismissPreviewNotice(page)
   await sleep(2_000)
@@ -303,6 +331,11 @@ try {
   record('R1 reinstall restored the bundle layer', (profileAfterAdd.dsh?.profile?.bundles ?? []).includes('knowledgeos-panel'), profileAfterAdd.dsh?.profile?.bundles)
 
   const restoredEntry = await startHost('after-reinstall')
+  const hashesAfterReinstall = await artifactHashes()
+  summary.r1.artifacts_after_reinstall = hashesAfterReinstall
+  record('R1 reinstall loaded the same candidate artifacts',
+    JSON.stringify(hashesAfterReinstall) === JSON.stringify(hashesBeforeRemove),
+    { before: hashesBeforeRemove, after: hashesAfterReinstall })
   const restoredCookie = (await entryCookie(restoredEntry)).cookie
   const restoredStatus = await readStatus(restoredCookie)
   summary.r1.route_after_reinstall = { status: restoredStatus.status, contentType: restoredStatus.contentType }
@@ -324,13 +357,19 @@ try {
 
   // R4: record the actual fixed-source launch shape used by every start above.
   const versionResult = cli('-V')
+  const versionText = versionResult.stdout.trim() || versionResult.stderr.trim()
   summary.r4 = {
     launch_argv: ['--import', 'tsx/esm', 'apps/cli/src/bin.ts', '--profile', profile, '--port', String(port), '--no-open'],
     cli_version_exit: versionResult.status,
-    cli_version: versionResult.stdout.trim() || versionResult.stderr.trim(),
+    cli_version: versionText,
     init_used_in_this_run: false,
+    contains_web_positional: false,
   }
-  record('R4 fixed source launch used an explicit profile with no extra web token', versionResult.status === 0, summary.r4)
+  record('R4 fixed source launch matches the documented entry',
+    versionResult.status === 0 && versionText === '0.2.2-rc.3'
+      && !summary.r4.launch_argv.includes('web')
+      && summary.r4.init_used_in_this_run === false,
+    summary.r4)
 } catch (error) {
   record('unexpected exception', false, { message: error instanceof Error ? error.message : String(error) })
   if (page !== null) {
@@ -352,7 +391,9 @@ try {
     summary.recovery.push({ action: 'inspect profile', error: String(error) })
   }
   summary.finished_at = new Date().toISOString()
-  summary.result = summary.failures.length === 0 ? 'PASS' : 'FAIL'
+  const recovered = summary.recovery.some(item => item.action === 'plugin add')
+  summary.result = summary.failures.length === 0 && !recovered ? 'PASS' : 'FAIL'
+  if (recovered) summary.failures.push('profile needed emergency recovery: the normal reinstall did not complete')
   await writeFile(join(outDir, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`, 'utf8')
   console.log(JSON.stringify({ result: summary.result, failures: summary.failures, out: outDir, recovery: summary.recovery }, null, 2))
   process.exit(summary.result === 'PASS' ? 0 : 1)

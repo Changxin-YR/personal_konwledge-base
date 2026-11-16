@@ -61,6 +61,8 @@ $knowledgeosRepo = "<path-to-this-repository>"
 $dshRoot = "$knowledgeosRepo\.cache\build\dsh-39163dd"
 $dshTestHome = "$knowledgeosRepo\.cache\dsh-home-fnd001"
 $env:DSH_HOME = $dshTestHome
+# Source launch contract: the checked-out fixed commit, not an arbitrary value.
+$env:DSH_CLIENT_COMMIT_HASH = "39163dd30f703a79079e2d2446545cff3c453738"
 
 # First creation only: initializes the profile from the shipped web template.
 # Do not repeat this on later runs; it would replace the existing profile.

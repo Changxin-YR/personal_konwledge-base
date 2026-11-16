@@ -101,8 +101,9 @@ async function startHost() {
   hostExit = once(child, 'exit')
   const chunks = []
   const onData = chunk => {
-    chunks.push(chunk.toString())
-    void appendFile(hostLog, chunk.toString())
+    const raw = chunk.toString()
+    chunks.push(raw)
+    void appendFile(hostLog, raw.replace(/token=[^\s&]+/gu, 'token=<redacted>'))
   }
   child.stdout.on('data', onData)
   child.stderr.on('data', onData)
