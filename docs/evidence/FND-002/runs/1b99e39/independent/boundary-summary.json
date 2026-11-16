@@ -1,0 +1,407 @@
+{
+  "role": "independent",
+  "port": 3100,
+  "data_dir": "<repo>\\.cache\\knowledgeos-fnd002-data\\indep-boundary-1b99e39",
+  "checks": [
+    {
+      "name": "live: entry cookie issued by the isolated Host",
+      "ok": true,
+      "actual": [
+        "dsh-auth…"
+      ]
+    },
+    {
+      "name": "live: authenticated create is 201",
+      "ok": true,
+      "actual": 201
+    },
+    {
+      "name": "live: success body shape",
+      "ok": true,
+      "actual": {
+        "request_id": "0e645633-8bed-42df-a039-1ecd36e58356",
+        "schema_version": 1
+      }
+    },
+    {
+      "name": "live: independent read-only SQLite sees the HTTP-created row",
+      "ok": true,
+      "actual": [
+        {
+          "id": "46a63505-4af6-4eff-a879-f2403a4ad5dd",
+          "content": "独立验收 中文 \"q\" 's'\n第二行",
+          "created_at": "2026-11-16T07:34:45.780Z",
+          "idempotency_key": "941e7522-b0da-456e-a518-1929043846b2"
+        }
+      ]
+    },
+    {
+      "name": "live: created_at is server UTC ISO 8601",
+      "ok": true,
+      "actual": "2026-11-16T07:34:45.780Z"
+    },
+    {
+      "name": "live: anonymous GET is 401",
+      "ok": true,
+      "actual": 401
+    },
+    {
+      "name": "live: anonymous POST is 401",
+      "ok": true,
+      "actual": 401
+    },
+    {
+      "name": "live: bad cookie POST is 401",
+      "ok": true,
+      "actual": 401
+    },
+    {
+      "name": "live: valid cookie + foreign-origin is 403",
+      "ok": true,
+      "actual": 403
+    },
+    {
+      "name": "live: valid cookie + null-origin is 403",
+      "ok": true,
+      "actual": 403
+    },
+    {
+      "name": "live: valid cookie + cross-site is 403",
+      "ok": true,
+      "actual": 403
+    },
+    {
+      "name": "live: rejected sources wrote nothing",
+      "ok": true,
+      "actual": 1
+    },
+    {
+      "name": "live: trusted CLI without Origin writes 201",
+      "ok": true,
+      "actual": 201
+    },
+    {
+      "name": "live: DB has exactly the two accepted rows",
+      "ok": true,
+      "actual": 2
+    },
+    {
+      "name": "live: first create 201 / replay 200 same id+created_at",
+      "ok": true,
+      "actual": [
+        201,
+        200
+      ]
+    },
+    {
+      "name": "live: same key different content is 409 IDEMPOTENCY_CONFLICT",
+      "ok": true,
+      "actual": {
+        "code": "IDEMPOTENCY_CONFLICT",
+        "message": "idempotency key was used with different content",
+        "request_id": "b07c3d5c-aa98-4ae0-b976-559525204279",
+        "retryable": false,
+        "safe_details": {}
+      }
+    },
+    {
+      "name": "live: conflict did not overwrite the original",
+      "ok": true,
+      "actual": true
+    },
+    {
+      "name": "live: concurrent same-key is 200+201",
+      "ok": true,
+      "actual": [
+        200,
+        201
+      ]
+    },
+    {
+      "name": "live: concurrent same-key persisted exactly one row",
+      "ok": true,
+      "actual": 1
+    },
+    {
+      "name": "live: unknown id is 404 NOT_FOUND",
+      "ok": true,
+      "actual": {
+        "code": "NOT_FOUND",
+        "message": "record not found",
+        "request_id": "2d9720b3-d4f8-4ff6-911b-a28db1311342",
+        "retryable": false,
+        "safe_details": {}
+      }
+    },
+    {
+      "name": "live: invalid JSON is 400 INVALID_JSON",
+      "ok": true,
+      "actual": {
+        "code": "INVALID_JSON",
+        "message": "request body is not valid JSON",
+        "request_id": "c342fd4c-cc09-4fcc-94ae-4c74d4dad4da",
+        "retryable": false,
+        "safe_details": {}
+      }
+    },
+    {
+      "name": "live: 404 error body leaks no path/SQL/stack",
+      "ok": true,
+      "actual": []
+    },
+    {
+      "name": "live: 400 error body leaks no path/SQL/stack",
+      "ok": true,
+      "actual": []
+    },
+    {
+      "name": "live: SQL-looking text accepted 201 and stored verbatim",
+      "ok": true,
+      "actual": {
+        "status": 201,
+        "stored": "'\"; DROP TABLE storage_probe_records; --\n\"quoted\" 中文"
+      }
+    },
+    {
+      "name": "live: schema still only two application tables",
+      "ok": true,
+      "actual": [
+        "schema_migrations",
+        "storage_probe_records"
+      ]
+    },
+    {
+      "name": "live: success body is exactly data+meta with frozen sub-keys",
+      "ok": true,
+      "actual": {
+        "successKeys": "data,meta",
+        "successDataKeys": "content,created_at,id",
+        "successMetaKeys": "request_id,schema_version"
+      }
+    },
+    {
+      "name": "live: error body is exactly the five frozen fields",
+      "ok": true,
+      "actual": "code,message,request_id,retryable,safe_details"
+    },
+    {
+      "name": "live: GET does not write",
+      "ok": true,
+      "actual": 5
+    },
+    {
+      "name": "live: missing Content-Type is 415",
+      "ok": true,
+      "actual": {
+        "status": 415,
+        "code": "UNSUPPORTED_MEDIA_TYPE"
+      }
+    },
+    {
+      "name": "live: invalid UTF-8 bytes are 400 INVALID_JSON",
+      "ok": true,
+      "actual": {
+        "status": 400,
+        "code": "INVALID_JSON"
+      }
+    },
+    {
+      "name": "live: 1-byte content is accepted 201",
+      "ok": true,
+      "actual": 201
+    },
+    {
+      "name": "live: exactly 4096-byte content is accepted 201",
+      "ok": true,
+      "actual": 201
+    },
+    {
+      "name": "live: 4096-byte 4-byte-emoji content is accepted 201 (UTF-8 byte limit)",
+      "ok": true,
+      "actual": 201
+    },
+    {
+      "name": "live: 4100-byte emoji content is rejected 422",
+      "ok": true,
+      "actual": 422
+    },
+    {
+      "name": "live: chunked body over 16384 bytes is 413 PAYLOAD_TOO_LARGE",
+      "ok": true,
+      "actual": {
+        "status": 413,
+        "code": "PAYLOAD_TOO_LARGE"
+      }
+    },
+    {
+      "name": "live: query-parameter injection is not a fault switch (201 or clean rejection, never 500)",
+      "ok": true,
+      "actual": 201
+    },
+    {
+      "name": "live: PUT collection is 405 with Allow: POST",
+      "ok": true,
+      "actual": {
+        "status": 405,
+        "allow": "POST"
+      }
+    },
+    {
+      "name": "live: PATCH collection is 405 with Allow: POST",
+      "ok": true,
+      "actual": {
+        "status": 405,
+        "allow": "POST"
+      }
+    },
+    {
+      "name": "live: DELETE detail is 405 with Allow: GET",
+      "ok": true,
+      "actual": {
+        "status": 405,
+        "allow": "GET"
+      }
+    },
+    {
+      "name": "live: GET collection is 405",
+      "ok": true,
+      "actual": {
+        "status": 405,
+        "allow": "POST"
+      }
+    },
+    {
+      "name": "live: accepted boundary writes are exactly the 3/4 expected rows",
+      "ok": true,
+      "actual": {
+        "actual": 9,
+        "expected": 9
+      }
+    },
+    {
+      "name": "live: two independent processes, same key -> 200+201",
+      "ok": true,
+      "actual": {
+        "statuses": [
+          200,
+          201
+        ],
+        "pids": [
+          30328,
+          55332
+        ]
+      }
+    },
+    {
+      "name": "live: two independent processes, same key -> exactly one row",
+      "ok": true,
+      "actual": 1
+    },
+    {
+      "name": "live: both process responses share one id/created_at",
+      "ok": true,
+      "actual": {
+        "id1": "2027713d-1961-432b-97bb-90406820062d",
+        "id2": "2027713d-1961-432b-97bb-90406820062d"
+      }
+    },
+    {
+      "name": "lifecycle: record created before unload",
+      "ok": true,
+      "actual": 201
+    },
+    {
+      "name": "lifecycle: storage opened once in this Host process before unload",
+      "ok": true,
+      "actual": 1
+    },
+    {
+      "name": "lifecycle: driver close log emitted exactly once on unload",
+      "ok": true,
+      "actual": 1
+    },
+    {
+      "name": "lifecycle: no \"close failed\" line",
+      "ok": true
+    },
+    {
+      "name": "lifecycle: routes no longer serve this API after unload (not a 404 API answer; SPA fallback only)",
+      "ok": true,
+      "actual": {
+        "get": 404,
+        "getType": null,
+        "post": 405,
+        "postType": null
+      }
+    },
+    {
+      "name": "lifecycle: unload wrote nothing to the database",
+      "ok": true,
+      "actual": 1
+    },
+    {
+      "name": "lifecycle: still exactly one close after 1s (no repeated close)",
+      "ok": true,
+      "actual": 1
+    },
+    {
+      "name": "lifecycle: storage reopened once after re-enable",
+      "ok": true,
+      "actual": 2
+    },
+    {
+      "name": "lifecycle: original record readable after reopen",
+      "ok": true,
+      "actual": 200
+    },
+    {
+      "name": "lifecycle: new write works after reopen",
+      "ok": true,
+      "actual": 201
+    },
+    {
+      "name": "lifecycle: DB preserved through unload/reload (2 rows)",
+      "ok": true,
+      "actual": 2
+    },
+    {
+      "name": "legacy: no dataDir -> POST is 503 STORAGE_UNAVAILABLE",
+      "ok": true,
+      "actual": {
+        "code": "STORAGE_UNAVAILABLE",
+        "message": "storage is unavailable",
+        "request_id": "51d5140b-c637-48c7-8326-b9906dcbcd22",
+        "retryable": false,
+        "safe_details": {}
+      }
+    },
+    {
+      "name": "legacy: no dataDir -> GET is 503 STORAGE_UNAVAILABLE",
+      "ok": true,
+      "actual": {
+        "code": "STORAGE_UNAVAILABLE",
+        "message": "storage is unavailable",
+        "request_id": "b3bdc41a-19d4-4bf4-9cbe-f3f8835c7385",
+        "retryable": false,
+        "safe_details": {}
+      }
+    },
+    {
+      "name": "legacy: original /knowledgeos/status still 200 KnowledgeOS",
+      "ok": true,
+      "actual": "KnowledgeOS"
+    },
+    {
+      "name": "legacy: no business database created under the old DSH_HOME",
+      "ok": true,
+      "actual": false
+    }
+  ],
+  "failures": 0,
+  "result": "PASS",
+  "host_logs": [
+    "phase1",
+    "phase2",
+    "phase3"
+  ]
+}

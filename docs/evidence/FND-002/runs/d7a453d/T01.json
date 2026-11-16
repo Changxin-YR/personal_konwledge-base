@@ -1,0 +1,118 @@
+{
+  "id": "T01",
+  "name": "真实 Host 创建、读取与进程重启持久化",
+  "status": "PASS",
+  "started": "2026-11-16T07:19:46.991Z",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "first create is 201",
+      "actual": 201
+    },
+    {
+      "ok": true,
+      "message": "created content is exact"
+    },
+    {
+      "ok": true,
+      "message": "GET returns same id",
+      "actual": 200
+    },
+    {
+      "ok": true,
+      "message": "Host PID changed after restart",
+      "actual": {
+        "before": 57656,
+        "after": 55992
+      }
+    },
+    {
+      "ok": true,
+      "message": "Host instance id changed",
+      "actual": "874c9075-663d-4369-9bc3-c40aa2588f5f"
+    },
+    {
+      "ok": true,
+      "message": "GET after restart is 200",
+      "actual": 200
+    },
+    {
+      "ok": true,
+      "message": "record is byte-identical after restart",
+      "actual": {
+        "id": "9a6b930a-ca89-4bd8-9a2e-c013ecc56fae",
+        "content": "d7a453d 中文记录 \"double\" 'single'\n第二行\\backslash",
+        "created_at": "2026-11-16T07:19:53.346Z"
+      }
+    },
+    {
+      "ok": true,
+      "message": "business DB ownership/version",
+      "actual": {
+        "applicationId": 1263489841,
+        "userVersion": 1,
+        "tables": [
+          "schema_migrations",
+          "storage_probe_records"
+        ],
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-16T07:19:52.462Z"
+          }
+        ]
+      }
+    },
+    {
+      "ok": true,
+      "message": "exactly one row in business DB",
+      "actual": 1
+    },
+    {
+      "ok": true,
+      "message": "independent SQLite read finds the record"
+    },
+    {
+      "ok": true,
+      "message": "DSH_HOME has no business DB copy"
+    }
+  ],
+  "details": {
+    "requests": {
+      "create": {
+        "data": {
+          "id": "9a6b930a-ca89-4bd8-9a2e-c013ecc56fae",
+          "content": "d7a453d 中文记录 \"double\" 'single'\n第二行\\backslash",
+          "created_at": "2026-11-16T07:19:53.346Z"
+        },
+        "meta": {
+          "request_id": "2a017080-a73d-419a-b404-4e4b6516927f",
+          "schema_version": 1
+        }
+      },
+      "read": {
+        "data": {
+          "id": "9a6b930a-ca89-4bd8-9a2e-c013ecc56fae",
+          "content": "d7a453d 中文记录 \"double\" 'single'\n第二行\\backslash",
+          "created_at": "2026-11-16T07:19:53.346Z"
+        },
+        "meta": {
+          "request_id": "88334762-d32f-4d61-a406-2269e053a66e",
+          "schema_version": 1
+        }
+      }
+    },
+    "after": {
+      "pid": 55992,
+      "instance": "874c9075-663d-4369-9bc3-c40aa2588f5f",
+      "rowCount": 1
+    }
+  },
+  "evidence": [
+    "t01-before.log",
+    "t01-after.log",
+    "T01.json"
+  ],
+  "finished": "2026-11-16T07:19:59.671Z"
+}

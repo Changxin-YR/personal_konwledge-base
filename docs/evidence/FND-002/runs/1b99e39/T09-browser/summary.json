@@ -1,0 +1,229 @@
+{
+  "started_at": "2026-11-16T07:33:23.467Z",
+  "base": "http://127.0.0.1:3100",
+  "profile": "knowledgeos-storage-test",
+  "dsh_root": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\.cache\\build\\dsh-39163dd",
+  "home": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\.cache\\dsh-home-fnd002",
+  "commit_hash": "39163dd30f703a79079e2d2446545cff3c453738",
+  "steps": [
+    {
+      "name": "T01 sidebar entry visible",
+      "ok": true,
+      "detail": {
+        "count": 1
+      },
+      "at": "2026-11-16T07:33:36.282Z"
+    },
+    {
+      "name": "T02 panel shows Host version/commit",
+      "ok": true,
+      "detail": {
+        "version": "0.2.2-rc.3",
+        "commit": "39163dd30f70",
+        "verified": "与锁定提交一致",
+        "instance": "cba68afa-0f35-41f2-98cd-f0f95572e2ed",
+        "checkedAt": "2026/11/16 15:33:36",
+        "checkedAtIso": "2026-11-16T07:33:36.336Z",
+        "startedAt": "2026/11/16 15:33:28"
+      },
+      "at": "2026-11-16T07:33:36.384Z"
+    },
+    {
+      "name": "T02 refresh fetched newer checked_at",
+      "ok": true,
+      "detail": {
+        "before": "2026-11-16T07:33:36.336Z",
+        "after": "2026-11-16T07:33:37.889Z"
+      },
+      "at": "2026-11-16T07:33:39.422Z"
+    },
+    {
+      "name": "T04 exactly one entry after reload",
+      "ok": true,
+      "at": "2026-11-16T07:33:46.622Z"
+    },
+    {
+      "name": "T04 repeated enter/exit has one entry and one panel",
+      "ok": true,
+      "detail": {
+        "entries": 1,
+        "panels": 1,
+        "otherLabel": "插件"
+      },
+      "at": "2026-11-16T07:33:47.194Z"
+    },
+    {
+      "name": "T05 existing panels remain navigable",
+      "ok": true,
+      "detail": {
+        "navigation": [
+          {
+            "label": "插件",
+            "textLength": 107
+          },
+          {
+            "label": "自动化任务",
+            "textLength": 109
+          },
+          {
+            "label": "更多",
+            "textLength": 215
+          }
+        ]
+      },
+      "at": "2026-11-16T07:33:49.918Z"
+    },
+    {
+      "name": "T04 no status polling while panel is closed",
+      "ok": true,
+      "detail": {
+        "requests": 0,
+        "window_ms": 15000
+      },
+      "at": "2026-11-16T07:34:04.971Z"
+    },
+    {
+      "name": "T07 anonymous request is rejected",
+      "ok": true,
+      "detail": {
+        "status": 401
+      },
+      "at": "2026-11-16T07:34:05.040Z"
+    },
+    {
+      "name": "T07 authenticated request is 200",
+      "ok": true,
+      "detail": {
+        "status": 200
+      },
+      "at": "2026-11-16T07:34:05.040Z"
+    },
+    {
+      "name": "T03 real disconnect makes the Host unreachable",
+      "ok": true,
+      "detail": {
+        "status": "error"
+      },
+      "at": "2026-11-16T07:34:05.577Z"
+    },
+    {
+      "name": "T03 error and stale marker are visible",
+      "ok": true,
+      "detail": {
+        "staleVersion": "0.2.2-rc.3",
+        "versionBefore": "0.2.2-rc.3"
+      },
+      "at": "2026-11-16T07:34:05.639Z"
+    },
+    {
+      "name": "T03 retry while still down stays failed",
+      "ok": true,
+      "detail": {
+        "retryButton": 1
+      },
+      "at": "2026-11-16T07:34:05.682Z"
+    },
+    {
+      "name": "T03 Host restarted and route is reachable",
+      "ok": true,
+      "detail": {
+        "status": 200
+      },
+      "at": "2026-11-16T07:34:14.836Z"
+    },
+    {
+      "name": "T03 retry after recovery reaches ready",
+      "ok": true,
+      "detail": {
+        "attempts": 0
+      },
+      "at": "2026-11-16T07:34:16.874Z"
+    },
+    {
+      "name": "T02 host_instance_id changed after real restart",
+      "ok": true,
+      "detail": {
+        "instanceBefore": "cba68afa-0f35-41f2-98cd-f0f95572e2ed",
+        "instanceAfter": "4016b20d-a8c2-4ac0-875e-4c97d76afb19"
+      },
+      "at": "2026-11-16T07:34:16.881Z"
+    },
+    {
+      "name": "T03 fixture 500 shows error and recovers",
+      "ok": true,
+      "detail": {
+        "fixture": "F1",
+        "attempts": 0
+      },
+      "at": "2026-11-16T07:34:19.070Z"
+    },
+    {
+      "name": "T04 disabling the Host row removes the route",
+      "ok": true,
+      "detail": {
+        "status": 404
+      },
+      "at": "2026-11-16T07:34:23.302Z"
+    },
+    {
+      "name": "T04 re-enabling the Host row restores one route",
+      "ok": true,
+      "detail": {
+        "status": 200
+      },
+      "at": "2026-11-16T07:34:27.806Z"
+    }
+  ],
+  "failures": [],
+  "fixtures": [
+    {
+      "id": "F1",
+      "kind": "route-interception-500",
+      "label": "FIXTURE: not a real disconnect"
+    }
+  ],
+  "artifacts": {},
+  "not_run": [],
+  "entry_url_shape": "http://127.0.0.1:3100/?token=<redacted>",
+  "notice_overlay_removals": 2,
+  "preview_notice_dismissed": "continue-button",
+  "ready": {
+    "version": "0.2.2-rc.3",
+    "commit": "39163dd30f70",
+    "verified": "与锁定提交一致",
+    "instance": "cba68afa-0f35-41f2-98cd-f0f95572e2ed",
+    "checkedAt": "2026/11/16 15:33:36",
+    "checkedAtIso": "2026-11-16T07:33:36.336Z",
+    "startedAt": "2026/11/16 15:33:28"
+  },
+  "cookie_names": [
+    "<redacted>"
+  ],
+  "status_first": {
+    "schema_version": 1,
+    "product": "KnowledgeOS",
+    "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+    "upstream_version": "0.2.2-rc.3",
+    "expected_upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+    "upstream_commit_verified": true,
+    "host_instance_id": "cba68afa-0f35-41f2-98cd-f0f95572e2ed",
+    "started_at": "2026-11-16T07:33:28.118Z",
+    "checked_at": "2026-11-16T07:34:05.036Z",
+    "status": "ok"
+  },
+  "entry_url_shape_after_restart": "http://127.0.0.1:3100/?token=<redacted>",
+  "status_after_restart": {
+    "schema_version": 1,
+    "product": "KnowledgeOS",
+    "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+    "upstream_version": "0.2.2-rc.3",
+    "expected_upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+    "upstream_commit_verified": true,
+    "host_instance_id": "4016b20d-a8c2-4ac0-875e-4c97d76afb19",
+    "started_at": "2026-11-16T07:34:13.410Z",
+    "checked_at": "2026-11-16T07:34:16.884Z",
+    "status": "ok"
+  },
+  "finished_at": "2026-11-16T07:34:28.676Z",
+  "result": "PASS"
+}

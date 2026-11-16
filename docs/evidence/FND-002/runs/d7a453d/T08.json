@@ -1,0 +1,263 @@
+{
+  "id": "T08",
+  "name": "真实本机认证、来源保护和输入边界",
+  "status": "PASS",
+  "started": "2026-11-16T07:21:28.374Z",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "authenticated baseline write"
+    },
+    {
+      "ok": true,
+      "message": "anonymous read/write are 401",
+      "actual": [
+        401,
+        401
+      ]
+    },
+    {
+      "ok": true,
+      "message": "bad cookie is 401",
+      "actual": 401
+    },
+    {
+      "ok": true,
+      "message": "foreign-origin is 403",
+      "actual": 403
+    },
+    {
+      "ok": true,
+      "message": "null-origin is 403",
+      "actual": 403
+    },
+    {
+      "ok": true,
+      "message": "cross-site is 403",
+      "actual": 403
+    },
+    {
+      "ok": true,
+      "message": "rejected sources wrote nothing"
+    },
+    {
+      "ok": true,
+      "message": "trusted CLI without Origin writes",
+      "actual": 201
+    },
+    {
+      "ok": true,
+      "message": "invalid-json is 400 INVALID_JSON",
+      "actual": {
+        "status": 400,
+        "code": "INVALID_JSON"
+      }
+    },
+    {
+      "ok": true,
+      "message": "wrong-media is 415 UNSUPPORTED_MEDIA_TYPE",
+      "actual": {
+        "status": 415,
+        "code": "UNSUPPORTED_MEDIA_TYPE"
+      }
+    },
+    {
+      "ok": true,
+      "message": "empty-content is 422 INPUT_INVALID",
+      "actual": {
+        "status": 422,
+        "code": "INPUT_INVALID"
+      }
+    },
+    {
+      "ok": true,
+      "message": "wrong-content-type is 422 INPUT_INVALID",
+      "actual": {
+        "status": 422,
+        "code": "INPUT_INVALID"
+      }
+    },
+    {
+      "ok": true,
+      "message": "content-too-long is 422 INPUT_INVALID",
+      "actual": {
+        "status": 422,
+        "code": "INPUT_INVALID"
+      }
+    },
+    {
+      "ok": true,
+      "message": "lone-surrogate is 422 INPUT_INVALID",
+      "actual": {
+        "status": 422,
+        "code": "INPUT_INVALID"
+      }
+    },
+    {
+      "ok": true,
+      "message": "body-too-large is 413 PAYLOAD_TOO_LARGE",
+      "actual": {
+        "status": 413,
+        "code": "PAYLOAD_TOO_LARGE"
+      }
+    },
+    {
+      "ok": true,
+      "message": "unknown-field is 422 INPUT_INVALID",
+      "actual": {
+        "status": 422,
+        "code": "INPUT_INVALID"
+      }
+    },
+    {
+      "ok": true,
+      "message": "missing-key is 422 INPUT_INVALID",
+      "actual": {
+        "status": 422,
+        "code": "INPUT_INVALID"
+      }
+    },
+    {
+      "ok": true,
+      "message": "invalid-key is 422 INPUT_INVALID",
+      "actual": {
+        "status": 422,
+        "code": "INPUT_INVALID"
+      }
+    },
+    {
+      "ok": true,
+      "message": "put-base is 405 METHOD_NOT_ALLOWED",
+      "actual": {
+        "status": 405,
+        "code": "METHOD_NOT_ALLOWED"
+      }
+    },
+    {
+      "ok": true,
+      "message": "post-id is 405 METHOD_NOT_ALLOWED",
+      "actual": {
+        "status": 405,
+        "code": "METHOD_NOT_ALLOWED"
+      }
+    },
+    {
+      "ok": true,
+      "message": "missing-record is 404 NOT_FOUND",
+      "actual": {
+        "status": 404,
+        "code": "NOT_FOUND"
+      }
+    },
+    {
+      "ok": true,
+      "message": "invalid-id is 422 INPUT_INVALID",
+      "actual": {
+        "status": 422,
+        "code": "INPUT_INVALID"
+      }
+    },
+    {
+      "ok": true,
+      "message": "SQL-looking text is accepted as data",
+      "actual": 201
+    },
+    {
+      "ok": true,
+      "message": "SQL-looking text round-trips exactly"
+    },
+    {
+      "ok": true,
+      "message": "table structure is unchanged after SQL-looking text",
+      "actual": "schema_migrations,storage_probe_records"
+    },
+    {
+      "ok": true,
+      "message": "error body leaks no SQL/path/stack",
+      "actual": "{\"code\":\"NOT_FOUND\",\"message\":\"record not found\",\"request_id\":\"787648c2-7e30-473c-a77a-099ae608e4e7\",\"retryable\":false,\"safe_details\":{}}"
+    },
+    {
+      "ok": true,
+      "message": "error body leaks no SQL/path/stack",
+      "actual": "{\"code\":\"INVALID_JSON\",\"message\":\"request body is not valid JSON\",\"request_id\":\"6a4d81e7-aa72-4410-a2db-96d402cf2a76\",\"retryable\":false,\"safe_details\":{}}"
+    }
+  ],
+  "details": {
+    "cases": [
+      {
+        "name": "invalid-json",
+        "status": 400,
+        "code": "INVALID_JSON"
+      },
+      {
+        "name": "wrong-media",
+        "status": 415,
+        "code": "UNSUPPORTED_MEDIA_TYPE"
+      },
+      {
+        "name": "empty-content",
+        "status": 422,
+        "code": "INPUT_INVALID"
+      },
+      {
+        "name": "wrong-content-type",
+        "status": 422,
+        "code": "INPUT_INVALID"
+      },
+      {
+        "name": "content-too-long",
+        "status": 422,
+        "code": "INPUT_INVALID"
+      },
+      {
+        "name": "lone-surrogate",
+        "status": 422,
+        "code": "INPUT_INVALID"
+      },
+      {
+        "name": "body-too-large",
+        "status": 413,
+        "code": "PAYLOAD_TOO_LARGE"
+      },
+      {
+        "name": "unknown-field",
+        "status": 422,
+        "code": "INPUT_INVALID"
+      },
+      {
+        "name": "missing-key",
+        "status": 422,
+        "code": "INPUT_INVALID"
+      },
+      {
+        "name": "invalid-key",
+        "status": 422,
+        "code": "INPUT_INVALID"
+      },
+      {
+        "name": "put-base",
+        "status": 405,
+        "code": "METHOD_NOT_ALLOWED"
+      },
+      {
+        "name": "post-id",
+        "status": 405,
+        "code": "METHOD_NOT_ALLOWED"
+      },
+      {
+        "name": "missing-record",
+        "status": 404,
+        "code": "NOT_FOUND"
+      },
+      {
+        "name": "invalid-id",
+        "status": 422,
+        "code": "INPUT_INVALID"
+      }
+    ],
+    "countBefore": 1,
+    "countAfter": 3
+  },
+  "evidence": [],
+  "finished": "2026-11-16T07:21:33.671Z"
+}

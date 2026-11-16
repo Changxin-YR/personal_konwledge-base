@@ -1,0 +1,4 @@
+knowledgeos-storage: opened node=24.22.0 sqlite=3.53.4 journal=wal foreign_keys=1 synchronous=2 busy_timeout=250 tables=2
+dsh web: http://127.0.0.1:3100/?token=<redacted>
+knowledgeos-storage: closed
+knowledgeos-storage: opened node=24.22.0 sqlite=3.53.4 journal=wal foreign_keys=1 synchronous=2 busy_timeout=250 tables=2

@@ -1,0 +1,2 @@
+knowledgeos-storage: unavailable code=STORAGE_UNAVAILABLE
+dsh web: http://127.0.0.1:3100/?token=<redacted>

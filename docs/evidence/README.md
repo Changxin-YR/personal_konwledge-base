@@ -8,6 +8,6 @@
 
 公开仓库只存脱敏证据与摘要，真实教材、私人作答、模型密钥、会话令牌和未经授权项目源文件留在本机。旧证据保留其时间与范围，旧可执行指令只在Git历史中追溯。
 
-FND-001 已完成第一轮接入与 v2.0.1 收尾：`SUBMISSION_REVIEW_20261116.md` 记录复核，`REPORT.md` 是当前汇总，`independent-verification-closeout.md` 是本轮独立结论，`runs/37ac57a/` 与 `runs/2774b18/` 分别保留两轮的失败/复测事实。任何本单元通过都不等于 F01/F04 或 A01/A50 完整场景通过。`EXECUTION_V2_VALIDATION.md` 是文档/脚本结构检查记录，不是产品证据。
+FND-001 已完成第一轮接入与 v2.0.1 收尾；FND-002 已完成真实 SQLite 持久化最小闭环并通过独立复核（产品 `1b99e39`，证据 `runs/1b99e39/`）。`SUBMISSION_REVIEW_20261116.md`、两轮 `REPORT.md`、`independent-verification*.md` 与对应 `runs/` 保留当时候选和失败/复测事实。任何单元通过都不等于 F01/F04/F42 或 A01/A07/A49/A50 完整场景通过。`EXECUTION_V2_VALIDATION.md` 是文档/脚本结构检查记录，不是产品证据。
 
 当前 FND-002 已获用户选择，唯一指令 v2.1.0 已细化九项义务，产品实现/测试仍未开始。DSH 实际执行后在 `docs/evidence/FND-002/` 记录架构、test-plan、候选、运行记录及独立结论；不要先创建虚假的 PASS 报告。T01 为真实 Host 写读与重启；故障用例作用于真实 SQLite 并显式标注注入。F01/F42、A07/A49 仅获得对应基础子集证据，完整场景状态不由本轮提前更新。

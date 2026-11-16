@@ -1,0 +1,334 @@
+{
+  "id": "T04",
+  "name": "迁移失败、不兼容版本及数据库归属保护",
+  "status": "PASS",
+  "started": "2026-11-16T07:32:17.016Z",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "failed migration is incompatible",
+      "actual": "STORAGE_INCOMPATIBLE"
+    },
+    {
+      "ok": true,
+      "message": "failed migration leaves no tables/version",
+      "actual": {
+        "applicationId": 0,
+        "userVersion": 0,
+        "tables": [],
+        "objects": [],
+        "ledger": []
+      }
+    },
+    {
+      "ok": true,
+      "message": "future is rejected",
+      "actual": "STORAGE_INCOMPATIBLE"
+    },
+    {
+      "ok": true,
+      "message": "future fixture is unchanged",
+      "actual": {
+        "applicationId": 1263489841,
+        "userVersion": 2,
+        "tables": [
+          "schema_migrations",
+          "storage_probe_records"
+        ],
+        "objects": [
+          {
+            "type": "table",
+            "name": "schema_migrations"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records"
+          }
+        ],
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-16T07:32:17.046Z"
+          }
+        ]
+      }
+    },
+    {
+      "ok": true,
+      "message": "bad-checksum is rejected",
+      "actual": "STORAGE_INCOMPATIBLE"
+    },
+    {
+      "ok": true,
+      "message": "bad-checksum fixture is unchanged",
+      "actual": {
+        "applicationId": 1263489841,
+        "userVersion": 1,
+        "tables": [
+          "schema_migrations",
+          "storage_probe_records"
+        ],
+        "objects": [
+          {
+            "type": "table",
+            "name": "schema_migrations"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records"
+          }
+        ],
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "0000000000000000000000000000000000000000000000000000000000000000",
+            "applied_at": "2026-11-16T07:32:17.086Z"
+          }
+        ]
+      }
+    },
+    {
+      "ok": true,
+      "message": "wrong-app is rejected",
+      "actual": "STORAGE_INCOMPATIBLE"
+    },
+    {
+      "ok": true,
+      "message": "wrong-app fixture is unchanged",
+      "actual": {
+        "applicationId": 12345,
+        "userVersion": 1,
+        "tables": [
+          "schema_migrations",
+          "storage_probe_records"
+        ],
+        "objects": [
+          {
+            "type": "table",
+            "name": "schema_migrations"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records"
+          }
+        ],
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-16T07:32:17.128Z"
+          }
+        ]
+      }
+    },
+    {
+      "ok": true,
+      "message": "unknown-schema is rejected",
+      "actual": "STORAGE_INCOMPATIBLE"
+    },
+    {
+      "ok": true,
+      "message": "unknown-schema fixture is unchanged",
+      "actual": {
+        "applicationId": 0,
+        "userVersion": 0,
+        "tables": [
+          "foreign_business",
+          "schema_migrations",
+          "storage_probe_records"
+        ],
+        "objects": [
+          {
+            "type": "table",
+            "name": "foreign_business"
+          },
+          {
+            "type": "table",
+            "name": "schema_migrations"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records"
+          }
+        ],
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-16T07:32:17.173Z"
+          }
+        ]
+      }
+    },
+    {
+      "ok": true,
+      "message": "unknown-view is rejected",
+      "actual": "STORAGE_INCOMPATIBLE"
+    },
+    {
+      "ok": true,
+      "message": "unknown-view fixture is unchanged",
+      "actual": {
+        "applicationId": 0,
+        "userVersion": 0,
+        "tables": [],
+        "objects": [
+          {
+            "type": "view",
+            "name": "foreign_view"
+          }
+        ],
+        "ledger": []
+      }
+    },
+    {
+      "ok": true,
+      "message": "Host returns STORAGE_INCOMPATIBLE for future version",
+      "actual": {
+        "code": "STORAGE_INCOMPATIBLE",
+        "message": "storage is incompatible with this build",
+        "request_id": "7e4362c9-f86e-4736-a342-dcb06806072c",
+        "retryable": false,
+        "safe_details": {}
+      }
+    },
+    {
+      "ok": true,
+      "message": "Host status stays reachable"
+    },
+    {
+      "ok": true,
+      "message": "valid path recovers after incompatible fixture",
+      "actual": 201
+    }
+  ],
+  "details": {
+    "failing": "STORAGE_INCOMPATIBLE",
+    "fixtures": {
+      "future": {
+        "applicationId": 1263489841,
+        "userVersion": 2,
+        "tables": [
+          "schema_migrations",
+          "storage_probe_records"
+        ],
+        "objects": [
+          {
+            "type": "table",
+            "name": "schema_migrations"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records"
+          }
+        ],
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-16T07:32:17.046Z"
+          }
+        ]
+      },
+      "bad-checksum": {
+        "applicationId": 1263489841,
+        "userVersion": 1,
+        "tables": [
+          "schema_migrations",
+          "storage_probe_records"
+        ],
+        "objects": [
+          {
+            "type": "table",
+            "name": "schema_migrations"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records"
+          }
+        ],
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "0000000000000000000000000000000000000000000000000000000000000000",
+            "applied_at": "2026-11-16T07:32:17.086Z"
+          }
+        ]
+      },
+      "wrong-app": {
+        "applicationId": 12345,
+        "userVersion": 1,
+        "tables": [
+          "schema_migrations",
+          "storage_probe_records"
+        ],
+        "objects": [
+          {
+            "type": "table",
+            "name": "schema_migrations"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records"
+          }
+        ],
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-16T07:32:17.128Z"
+          }
+        ]
+      },
+      "unknown-schema": {
+        "applicationId": 0,
+        "userVersion": 0,
+        "tables": [
+          "foreign_business",
+          "schema_migrations",
+          "storage_probe_records"
+        ],
+        "objects": [
+          {
+            "type": "table",
+            "name": "foreign_business"
+          },
+          {
+            "type": "table",
+            "name": "schema_migrations"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records"
+          }
+        ],
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-16T07:32:17.173Z"
+          }
+        ]
+      },
+      "unknown-view": {
+        "applicationId": 0,
+        "userVersion": 0,
+        "tables": [],
+        "objects": [
+          {
+            "type": "view",
+            "name": "foreign_view"
+          }
+        ],
+        "ledger": []
+      }
+    }
+  },
+  "evidence": [
+    "t04-host-future.log",
+    "t04-host-valid.log",
+    "T04.json"
+  ],
+  "finished": "2026-11-16T07:32:33.811Z"
+}

@@ -1,0 +1,5 @@
+# FND-002 isolated test profile overlay.
+# The trusted dataDir belongs to this test run only; no HTTP parameter can set it.
+- id: knowledgeos-host
+  config:
+    dataDir: "C:/Users/27363/Desktop/personal base/personal_konwledge-base/.cache/knowledgeos-fnd002-data/dev1"

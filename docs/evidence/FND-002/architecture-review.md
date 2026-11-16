@@ -120,3 +120,12 @@
 2. **P3 至少在冻结记录中限定**：当前实现能阻止“语句级失败后继续成功写入”，但 COMMIT/ROLLBACK 自身失败未被实测，且回滚失败后的成功返回路径理论上未闭合。要么在 catch 中加 `#state` 判断（小改动），要么把该组合列为已知未覆盖边界。
 3. **P1/P4/P5/P6 不阻断冻结**：P1 需主管确认“非法配置 fail-fast”还是“降级 503”；P4/P5 记录为清理项；P6 记录为契约外行为。
 4. 冻结后由独立测试按 `test-plan.md` 实跑 T01–T09；`architecture.md` 与 `test-plan.md` 的 PASS 回填必须引用真实候选、命令、退出码和证据路径。本审查不构成任何测试 PASS。
+
+## 复核后处置（主管记录）
+
+- P2（未知 VIEW/触发器）：已修复。空白/归属预检现在检查全部非 sqlite_% schema 对象并精确要求两张表；新增 unknown-view fixture，独立专项 11/11 PASS。
+- P3（回滚失败仍可能返回成功）：已修复。#rollback 返回结果，迁移与 create 路径在回滚失败时 fail-closed；事务探针始终结束事务。
+- P1（空/相对 dataDir）：保留 fail-loud。缺省是受支持模式；显式空/相对路径是配置错误，在 Loader 拒绝，不注册半可用实例。打开/迁移/归属失败仍保持 Host 可达并返回 503。
+- P4（测试钩子）：保留在 storage.ts/lib/storage.js 并由测试直接导入；index.ts 不引用，HTTP 未知字段 422，无路由可达。
+- P5（常量/failingId）：BUSY_TIMEOUT_MS 已用于连接配置；ailingId 仅用于探针计数查询；#verify 已校验 application_id/user_version/账本/对象集合。
+- D5 口径：迁移/归属/账本不匹配统一 503 STORAGE_INCOMPATIBLE；路径/打开失败为 503 STORAGE_UNAVAILABLE。

@@ -1,0 +1,40 @@
+FND-002 T09 独立构建复现（独立验收角色实跑）
+=============================================
+
+目的：证明 profile 实际加载的产物与冻结候选的源码/指纹一致，且可由候选源码原样重建，
+而不是只看缓存文件或主管声明。
+
+方法：把候选包的 src、package.json、build.mjs、tsconfig.json 复制到隔离临时目录
+（.cache/indep-build/knowledgeos-panel，node_modules 以 junction 指向候选包自带依赖），
+不触碰产品目录，在其中执行真实构建脚本 build.mjs，再逐文件比较 SHA-256。
+运行结束后删除临时目录；产品 packages/knowledgeos-panel 未被修改。
+
+环境：Windows 11 Pro，Node v24.22.0，esbuild 0.25.12（候选包 node_modules）
+候选：d7a453d6dfbdaee4c495b5d920086608fb9c8e1f（工作树 = 8df9d70 证据提交）
+
+命令：
+  $tmp = ".cache\indep-build\knowledgeos-panel"
+  Copy-Item packages\knowledgeos-panel 的 src/package.json/build.mjs/tsconfig.json -> $tmp
+  New-Item -ItemType Junction -Path "$tmp\node_modules" -Target "packages\knowledgeos-panel\node_modules"
+  cd $tmp; node build.mjs
+
+实际输出（exit 0）：
+  lib/index.js        26309 bytes  sha256=47d715aa005700ee1ff56f5ec3901e1e5d7331c4d3ede0795889788c9958afb8
+  lib/storage.js      13435 bytes  sha256=43693f03e970142132171d843766d061ad301a39960a4eb46e1b973d75b6f3a1
+  lib/test-support.js 13959 bytes  sha256=4acca0aead0aaf0561a3f704b8340103bc08881c60a96369163d00978f9d8f57
+  lib/client.js       21412 bytes  sha256=f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9
+
+对照 candidate.md：
+  lib/index.js        47d715aa005700ee1ff56f5ec3901e1e5d7331c4d3ede0795889788c9958afb8  一致
+  lib/storage.js      43693f03e970142132171d843766d061ad301a39960a4eb46e1b973d75b6f3a1  一致
+  lib/client.js       f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9  一致
+  （lib/test-support.js 不在 candidate.md 的 11 个指纹内，但重建与加载一致）
+
+另外：profile knowledgeos-storage-test 的 package.json 依赖
+  "knowledgeos-panel": "link:C:/.../packages/knowledgeos-panel"
+把 profile node_modules/knowledgeos-panel 链接到候选包；对该路径直接取 SHA-256，
+lib/index.js、lib/storage.js、lib/client.js 与 candidate.md 完全相同（见 check-db.output.txt
+的 T09 检查项）。结论：不存在“构建成功但 profile 加载旧产物”。
+
+类型检查：packages/knowledgeos-panel/node_modules/typescript/bin/tsc -p tsconfig.json
+退出码 0（独立验收角色另行执行，见主报告环境/命令表）。

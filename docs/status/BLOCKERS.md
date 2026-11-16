@@ -1,36 +1,31 @@
 # 阻塞与待验证条件
 
-更新：2026-11-16。当前激活 FND-002，指令 ready；尚未运行本轮产品环境探针或测试，没有已确认的 FND-002 外部阻塞，也不能据此声称环境已通过。
+更新：2026-11-16。FND-002 已在真实隔离 DSH Web Host 与真实 SQLite 上完成九项测试、独立复核和返修；当前无阻塞本单元交付的条件。
 
-## FND-002 待实测条件
+## FND-002 结果
 
-| 条件 | 当前状态 | 执行时确认 |
+| 项 | 状态 | 说明 |
 |---|---|---|
-| 分支与固定上游/构建、工具链 | NOT_CHECKED（本轮运行环境） | 保留已有成果，核对实际来源后复用 |
-| 独立 DSH_HOME/profile 与可信 dataDir | NOT_CHECKED | 新测试环境不干扰开发会话或第一部分历史数据 |
-| 真实 node:sqlite 与业务库权限/配置 | NOT_RUN | T01/T03/T06 取得实际运行证据 |
-| 九项必测及独立复核 | NOT_RUN | 本轮候选冻结后逐项运行；不能用第一部分 PASS 替代 |
+| 独立业务 SQLite 文件 | CLOSED | `<dataDir>/knowledgeos.sqlite`，两表、归属/版本/账本、WAL/FK/FULL/250ms 均已实测 |
+| 已认证 create/get | CLOSED | 真实 Host handler；201/200/409/404/405/413/415/422/503 实测 |
+| 重启持久化 | CLOSED | Host 真正停止/重启后同一记录逐字节一致，独立只读 SQLite 核对 |
+| 事务/迁移/归属保护 | CLOSED | 事务回滚、迁移失败、未来版本、坏 checksum、错 application_id、未知表/视图均拒绝 |
+| 幂等/并发 | CLOSED | 同键同内容 200 同 ID/time；异内容 409；并发 201+200 且唯一行 |
+| 打开失败/锁等待/恢复 | CLOSED | 503 STORAGE_UNAVAILABLE；503 STORAGE_BUSY retryable，351 ms；释放后恢复 |
+| 连接释放/重开 | CLOSED | close 日志恰一次；重开保留数据并可写；不以 404 代替 close |
+| FND-001 回归 | CLOSED | panel/status/刷新/失败恢复/旧 profile 无 dataDir 行为均保留 |
 
-未来账号、真实 GPT、Desktop 不可用或安装包未构建，不自动作为本轮阻塞；实际涉及当前必测的失败按下方规则登记。
-
-## FND-001 历史收尾项（已关闭）
-
-| ID | 状态 | 实际问题 | 本轮处置 |
-|---|---|---|---|
-| R1 | CLOSED | 首轮只有 Host 行禁用/恢复，未验证完整 bundle 卸载；原定 5/10/60 秒实际为 1/5/15 | 真实 CLI remove 后重启 Host：有效认证下路由 404、入口/面板 0、导航可用；同路径重装后恢复；5 次重载、10 次进出、60 秒静默均实测通过 |
-| R2 | CLOSED | loading 保留旧数据时连接状态行误显示“旧数据（连接失败）” | 区分 loading/ready/error；刷新中显示“刷新中/正在刷新·显示上次结果”，真实失败才显示失败与过期 |
-| R3 | CLOSED | candidate.md 对 `$home` 赋值，与 PowerShell 只读自动变量冲突 | 改用 `$dshTestHome`；全新 PowerShell 5.1 验证 `$HOME` 不变、`DSH_HOME` 隔离 |
-| R4 | CLOSED | README 在显式 profile 后仍含 `web` 位置参数；全局 `dsh` 版本不可假定 | 统一为固定源码入口；运行命令无 `web`/无初始化参数；初始化 `--from-default-profile web` 仅首次 |
-
-## FND-001 历史剩余限制（已在其报告列明）
+## 当前单元剩余限制（非阻塞）
 
 | 项目 | 状态 | 说明 |
 |---|---|---|
-| T04 运行期定时器注入计数 | NOT_RUN | 以离开面板 60 秒 0 本功能请求/0 pageerror 为观测边界；不做全局内存审计 |
-| 上游 `build:artifacts` 本轮重跑、`build:check` | NOT_RUN | 复用首轮构建日志；固定源码树 13912 文件逐字节复核一致 |
-| 逐像素/人工目检、Desktop Electron 冒烟 | NOT_RUN | 当前模型无图像输入；本单元最低门槛为 Web profile |
-| Windows 安装包、多人账号、真实 GPT | NOT_RUN | 属于后续单元，不构成本单元虚假阻塞 |
+| Desktop/Electron 探针 | NOT_RUN | 最低门槛为真实 Node Web Host；未另起桌面实例 |
+| Host 级迁移中途失败 | NOT_RUN | T04 用同一真实适配器/迁移代码在隔离 fixture 上执行 |
+| 回滚自身失败 fail-closed | 代码审查 + 正常路径 | 未安全构造故障；不能由正常重启证明断电零丢失 |
+| Windows 安装包、多人账号、真实 GPT | NOT_RUN | 范围外，后续单元 |
 
-真实阻塞记录必须包含：当前 unit_id、失败动作与错误、时间、候选提交/指纹、影响测试、已尝试修复、最小解除条件和本单元剩余可做内容。未尝试写 NOT_CHECKED/NOT_RUN，不写 BLOCKED。禁止以“先做下一个功能”等方式绕过当前单元门槛。
+## 历史候选
 
-不复制凭据、Cookie、用户正文或完整环境变量到公开证据。FND-001 两轮证据中的 `token=` 与 `dsh-auth-` 已脱敏并扫描确认。
+`d7a453d` 的九项 PASS 与独立复核保留在 `docs/evidence/FND-002/runs/d7a453d/` 并标 SUPERSEDED；它把“仅 VIEW 的非空库”误判为空白，已由 `1b99e39` 修复并复测。
+
+真实阻塞记录必须包含：当前 unit_id、失败动作与错误、时间、候选提交/指纹、影响测试、已尝试修复、最小解除条件和本单元剩余可做内容。未尝试写 NOT_CHECKED/NOT_RUN，不写 BLOCKED。FND-002 证据中的 token/Cookie 已脱敏；数据库、WAL/SHM、私有路径未进入公开证据。

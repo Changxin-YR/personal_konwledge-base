@@ -1,0 +1,35 @@
+FND-002 T09 独立构建复现（独立验收角色实跑，候选 1b99e39）
+=========================================================
+
+目的：证明 profile 实际加载的产物与冻结候选 1b99e392593ef0213f68f8dfb45f5d34a06eac1b
+的源码/指纹一致，且可由候选源码原样重建。
+
+方法：把候选包的 src、package.json、build.mjs、tsconfig.json 复制到隔离临时目录
+（.cache/indep-build-1b99e39/knowledgeos-panel，node_modules 以 junction 指向候选包自带依赖），
+不触碰产品目录，在其中执行真实构建脚本 build.mjs，再逐文件比较 SHA-256。
+运行结束后删除临时目录；产品 packages/knowledgeos-panel 未被修改。
+
+环境：Windows 11 Pro，Node v24.22.0，esbuild 0.25.12（候选包 node_modules）
+产品候选：1b99e392593ef0213f68f8dfb45f5d34a06eac1b（工作树 = df5ec3c 证据提交）
+
+实际输出（exit 0）：
+  lib/index.js        27403 bytes  sha256=1a32e6012e61fa73d8a7b404007e63c834b8b40b4514a702f6c7cced5a9cec2c
+  lib/storage.js      14504 bytes  sha256=40fa07f07550d9b20cfe24b80d27844a27f40ce7ce9fd7c8c6c9a84a9e3f9d65
+  lib/test-support.js 15028 bytes  sha256=6dcd5a3763edf3cab879d6b8358b98c5665a1f62c7f3bbe3c9954baba43bde9b
+  lib/client.js       21412 bytes  sha256=f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9
+
+对照 candidate.md：
+  lib/index.js    1a32e601…  一致
+  lib/storage.js  40fa07f0…  一致
+  lib/client.js   f0eb568f…  一致（面板未改）
+  （lib/test-support.js 不在 11 个指纹内，但重建/加载一致）
+
+profile 加载路径：profile 的 package.json 依赖
+"knowledgeos-panel": "link:C:/.../packages/knowledgeos-panel"；
+对该路径直接取 SHA-256，lib/index.js、lib/storage.js、lib/client.js 与 candidate.md 相同
+（见 check-db.output.txt 的 T09 检查项）。不存在“构建成功但 profile 加载旧产物”。
+
+与历史候选 d7a453d 的差异：本轮新增 P2/P3 加固（objects 归属判定、rollback fail-closed、
+事务探针收尾），因此 lib/index.js、lib/storage.js、lib/test-support.js、src/host/storage.ts、
+scripts/fnd002/run-all.mjs 哈希变化；lib/client.js、http.ts、records.ts、config.ts、index.ts、
+package.json、scope-check.mjs 未变。

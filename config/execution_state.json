@@ -10,7 +10,7 @@
     "sha256": "0091884d2b62b0ecb78fff38de34bf26a998de1fa0a37201e6fb7868699b5523"
   },
   "active_unit": "FND-002",
-  "unit_state": "ready",
+  "unit_state": "awaiting_user",
   "execution_mode": "single_feature_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -37,7 +37,7 @@
     "awaiting_user": "current unit has passed and awaits a user choice; active_unit is not advanced"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "User explicitly selected FND-002. The sole current instruction is replaced atomically; implementation and product tests have not started.",
+  "state_reason": "FND-002 passed after nine real Host/SQLite tests and independent verification; no further unit activated.",
   "working_branch": "dsh/knowledgeos-fnd-002",
   "activation_basis": "explicit_user_selection_of_second_part_after_FND-001_acceptance",
   "base_commit": "ce3a00ccd7c8cc46eaae6e660144730109cf93a0",

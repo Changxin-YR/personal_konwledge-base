@@ -1,0 +1,93 @@
+{
+  "id": "T05",
+  "name": "最小创建幂等、重试与并发重复请求",
+  "status": "PASS",
+  "started": "2026-11-16T07:32:34.661Z",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "first create 201",
+      "actual": 201
+    },
+    {
+      "ok": true,
+      "message": "same key/content replays 200 with same id/time",
+      "actual": {
+        "data": {
+          "id": "ab3ebe63-1177-4925-ae98-12a252b3f9ae",
+          "content": "幂等 1b99e39 \"x\"",
+          "created_at": "2026-11-16T07:32:42.396Z"
+        },
+        "meta": {
+          "request_id": "a47ef17c-ef65-463b-8e43-7d16da52418b",
+          "schema_version": 1
+        }
+      }
+    },
+    {
+      "ok": true,
+      "message": "replay works after Host restart",
+      "actual": {
+        "data": {
+          "id": "ab3ebe63-1177-4925-ae98-12a252b3f9ae",
+          "content": "幂等 1b99e39 \"x\"",
+          "created_at": "2026-11-16T07:32:42.396Z"
+        },
+        "meta": {
+          "request_id": "a903c1e7-bae4-475d-9e4a-f8ad60d0153f",
+          "schema_version": 1
+        }
+      }
+    },
+    {
+      "ok": true,
+      "message": "same key different content is 409",
+      "actual": {
+        "code": "IDEMPOTENCY_CONFLICT",
+        "message": "idempotency key was used with different content",
+        "request_id": "e8730ba6-4a1c-4c10-86bd-f64c557eae12",
+        "retryable": false,
+        "safe_details": {}
+      }
+    },
+    {
+      "ok": true,
+      "message": "conflict did not overwrite original"
+    },
+    {
+      "ok": true,
+      "message": "concurrent same-key yields 201+200",
+      "actual": [
+        200,
+        201
+      ]
+    },
+    {
+      "ok": true,
+      "message": "concurrent same-key makes exactly one row",
+      "actual": 2
+    },
+    {
+      "ok": true,
+      "message": "different key same content is a new row"
+    }
+  ],
+  "details": {
+    "first": {
+      "id": "ab3ebe63-1177-4925-ae98-12a252b3f9ae",
+      "content": "幂等 1b99e39 \"x\"",
+      "created_at": "2026-11-16T07:32:42.396Z"
+    },
+    "replay": {
+      "id": "ab3ebe63-1177-4925-ae98-12a252b3f9ae",
+      "content": "幂等 1b99e39 \"x\"",
+      "created_at": "2026-11-16T07:32:42.396Z"
+    },
+    "statuses": [
+      200,
+      201
+    ]
+  },
+  "evidence": [],
+  "finished": "2026-11-16T07:32:49.913Z"
+}

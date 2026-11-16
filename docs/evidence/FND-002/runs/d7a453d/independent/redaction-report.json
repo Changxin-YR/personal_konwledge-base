@@ -1,0 +1,22 @@
+{
+  "role": "independent",
+  "run_dir": "docs/evidence/FND-002/runs/d7a453d",
+  "scanned_files": 53,
+  "text_evidence_files": 41,
+  "verifier_scripts_not_rewritten": [
+    "independent/boundary.mjs",
+    "independent/check-db.mjs",
+    "independent/post-once.mjs",
+    "independent/redact-runs.mjs",
+    "independent/redaction-report.json",
+    "independent/view-only-d7a453d.mjs"
+  ],
+  "secrets_found_before": 0,
+  "changed_files": [],
+  "remaining_raw_secrets": [],
+  "token_occurrences_not_redacted": [],
+  "dsh_auth_occurrences_not_redacted": [],
+  "db_or_cookie_like_files": [],
+  "sqlite_header_files": [],
+  "result": "PASS"
+}

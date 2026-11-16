@@ -8,7 +8,7 @@
 
 当前模式：**分段、单功能、开发与测试同行**。先由 DeepSeek Harness 完成各功能基础开发和逐项验证；全部基础范围完成后，由用户确认进入 Codex 全面审查与修复阶段。当前没有启用 Codex 开发或审查指令。
 
-当前已由用户激活 **FND-002：本地业务持久化最小闭环**（提示词 v2.1.0），状态为 `ready / planned`，产品测试 `NOT_RUN`。工作分支为 `dsh/knowledgeos-fnd-002`，继承 FND-001 已验收提交 `ce3a00ccd7c8cc46eaae6e660144730109cf93a0`；main 尚未合入实现。仅执行第二部分，第一部分保持 passed。
+当前已由用户激活 **FND-002：本地业务持久化最小闭环**（提示词 v2.1.0）。状态为 **passed / awaiting_user**，九项真实 Host/SQLite 测试与独立复核已完成；产品候选 `1b99e392593ef0213f68f8dfb45f5d34a06eac1b`。工作分支为 `dsh/knowledgeos-fnd-002`，继承 FND-001 已验收提交 `ce3a00ccd7c8cc46eaae6e660144730109cf93a0`；main 尚未合入实现。仅执行第二部分，第一部分保持 passed；FND-003 未激活。
 
 ## 文件职责
 
@@ -27,7 +27,7 @@
 
 ## 当前实际状态
 
-2026-11-16：**第二部分指令已就绪，尚未开始持久化实现或产品测试。FND-001 保持通过，R1–R4 已关闭。** 真实单面板与 Host 状态往返、完整插件卸载/重装、5 次重载/10 次进出/60 秒静默、刷新显示修复和复验命令均有对应证据。见 [验收复核](docs/evidence/FND-001/ACCEPTANCE_REVIEW_20261116.md) 和 [最终报告](docs/evidence/FND-001/REPORT.md)。其他业务功能与 Windows 安装包尚未开发；本单元通过不等于完整产品通过。
+2026-11-16：**FND-002 已完成并通过（passed / awaiting_user），FND-001 保持通过，FND-003 未激活。** 真实 Host 已认证 HTTP → 应用用例/端口 → 独立 SQLite → Host 重启读取闭环、事务回滚、迁移/归属保护、有限锁等待、幂等/并发、连接释放与旧 profile 兼容均有证据。见 [FND-002 报告](docs/evidence/FND-002/REPORT.md)、[独立复核](docs/evidence/FND-002/independent-verification.md) 和 [FND-001 报告](docs/evidence/FND-001/REPORT.md)。其他业务功能与 Windows 安装包尚未开发；本单元通过不等于完整产品通过。
 
 官方上游固定为 `39163dd30f703a79079e2d2446545cff3c453738`，根包版本 `0.2.2-rc.3`；工具链与证据见 [版本锁](config/upstream.lock.json) 和 [DSH 能力核对](docs/plan/02_DSH_CAPABILITY_AUDIT.md)。
 
@@ -41,7 +41,7 @@ node scripts/prepare-upstream.mjs --prepare
 
 第一项检查指令一致性、当前单元、需求/验收映射与文档链接。`--check` 只读且不联网；尚未检出时返回 `NOT_PREPARED`。`--prepare` 只准备固定上游源码，不安装依赖、不修改全局 DSH 配置、不开始下一个功能。
 
-M0–M6 是总体归属，不是一条连续执行命令。`scripts/fnd001/` 与通过记录保留；其禁数据库范围检查只适用于第一部分历史候选。第二部分按唯一提示词增加真实持久化、九项必测及当前范围检查，完成后停止；FND-003 及以后仍未激活。
+M0–M6 是总体归属，不是一条连续执行命令。`scripts/fnd001/` 与通过记录保留；其禁数据库范围检查只适用于第一部分历史候选。`scripts/fnd002/` 提供本轮 SQLite 范围检查、真实 Host/HTTP/SQLite 九项验收与锁辅助；FND-002 已通过并停止，FND-003 及以后仍未激活。
 
 ## 产品与发布
 

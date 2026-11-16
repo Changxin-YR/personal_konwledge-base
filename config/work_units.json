@@ -318,7 +318,7 @@
       ],
       "final_acceptance_ids": [],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
-      "status": "planned",
+      "status": "passed",
       "test_plan_status": "detailed_current_unit",
       "instruction_revision": "2.1.0",
       "activated_at": "2026-11-16",
@@ -352,7 +352,14 @@
         "idempotency_header": "Idempotency-Key",
         "probe_base_path": "/knowledgeos/foundation/records"
       },
-      "test_result_status": "NOT_RUN"
+      "test_result_status": "PASS",
+      "completed_at": "2026-11-16",
+      "evidence_paths": [
+        "docs/evidence/FND-002/REPORT.md",
+        "docs/evidence/FND-002/independent-verification.md",
+        "docs/evidence/FND-002/runs/1b99e39/",
+        "docs/evidence/FND-002/candidate.md"
+      ]
     },
     {
       "id": "FND-003",

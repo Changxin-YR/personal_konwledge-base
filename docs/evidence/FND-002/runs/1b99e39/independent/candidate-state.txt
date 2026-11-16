@@ -1,0 +1,33 @@
+﻿FND-002 当前候选冻结与工作树状态快照（独立验收角色）
+时间：2026-11-16 15:36:02
+HEAD：df5ec3c52093616b85370d68e42b7d2b36982490
+分支：dsh/knowledgeos-fnd-002
+产品候选：1b99e392593ef0213f68f8dfb45f5d34a06eac1b
+证据提交：df5ec3c52093616b85370d68e42b7d2b36982490
+
+git diff 1b99e39..df5ec3c -- packages scripts：EMPTY
+git status --porcelain（仅独立验收新增的未跟踪证据文件）：
+  ?? docs/evidence/FND-002/independent-verification.md
+  ?? docs/evidence/FND-002/runs/
+
+11 个冻结文件当前 SHA256 与 candidate.md 对照：
+  [MATCH] packages/knowledgeos-panel/lib/index.js  1a32e6012e61fa73d8a7b404007e63c834b8b40b4514a702f6c7cced5a9cec2c
+  [MATCH] packages/knowledgeos-panel/lib/storage.js  40fa07f07550d9b20cfe24b80d27844a27f40ce7ce9fd7c8c6c9a84a9e3f9d65
+  [MATCH] packages/knowledgeos-panel/lib/client.js  f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9
+  [MATCH] packages/knowledgeos-panel/package.json  48a6f24ff44437ebaee238ee53c96422fdcc7968f645582fb95b5585a52f1c55
+  [MATCH] packages/knowledgeos-panel/src/host/storage.ts  1f0f913f6ffb08edc86924e490c34f1e1db68226b710f00408b187355a79116e
+  [MATCH] packages/knowledgeos-panel/src/host/http.ts  a20bd13760e141314ab46886440fc7157c0640788c4f45d72cd8d2f5b02f1ce6
+  [MATCH] packages/knowledgeos-panel/src/host/records.ts  658553efd04345b770879ef5225da61463630fbbadf2818b2ba1ebb7373bf675
+  [MATCH] packages/knowledgeos-panel/src/host/config.ts  1e108b328f02e7c9ef25851577b0160d71399b05030b991b306635f7bafc76ed
+  [MATCH] packages/knowledgeos-panel/src/host/index.ts  0e91c7cddbc19a34aa645742a5d80d9b7cf8fa0a32b3c1601288dacdf355afd7
+  [MATCH] scripts/fnd002/run-all.mjs  918c4385d966ccc96f97814e1e3bfc300c16fdc6d2d2421134474d369522a4e6
+  [MATCH] scripts/fnd002/scope-check.mjs  d7e3a7aa173f7414d25deb4c439c8fdb8f02cc2c28574eafc15ab1d3eea6a68e
+
+profile 加载路径 lib SHA256（=C:\Users\27363\Desktop\personal base\personal_konwledge-base\.cache\dsh-home-fnd002\profiles\knowledgeos-storage-test\node_modules\knowledgeos-panel）：
+  lib/index.js  1a32e6012e61fa73d8a7b404007e63c834b8b40b4514a702f6c7cced5a9cec2c
+  lib/storage.js  40fa07f07550d9b20cfe24b80d27844a27f40ce7ce9fd7c8c6c9a84a9e3f9d65
+  lib/client.js  f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9
+  lib/test-support.js  6dcd5a3763edf3cab879d6b8358b98c5665a1f62c7f3bbe3c9954baba43bde9b
+
+桌面 DSH：PID 51900 start=11/16/2026 10:36:09；GUI 端口 62739 由 PID 57664（start=11/16/2026 10:36:13）监听
+端口 3100/3099 LISTENING 数：0

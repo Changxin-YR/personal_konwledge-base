@@ -1,0 +1,31 @@
+FND-002 证据脱敏记录（独立验收角色执行）
+=========================================
+
+命令：
+  node docs/evidence/FND-002/runs/d7a453d/independent/redact-runs.mjs
+  （第一遍：扫描整个 runs/d7a453d，收集明文 token / dsh-auth 值并替换为 <redacted>；
+    第二遍：复扫，要求 0 残留。）
+
+第一遍实际结果（2026-11-16 15:2x，退出码 1 = 仍有残留需复扫，非产品失败）：
+- 发现 15 个不同的明文机密值（entry URL 的 token；T09 summary 中的 dsh-auth cookie 名）。
+- 被改写的证据文件（每个 1 处）：
+  t01-after.log、t01-before.log、t02-http.log、t03-first.log、t03-repeat.log、
+  t04-host-future.log、t04-host-valid.log、t05-restart.log、t05.log、t06-invalid.log、
+  t06-lock-host.log、t07.log、t08.log、T09-old-profile.log、T09-browser/summary.json
+- 说明：第一遍同时误改了我的独立验收脚本 independent/boundary.mjs（把测试用坏 Cookie
+  字符串与 redact 正则当成了机密）。已立即把该脚本恢复为原始内容，并在第二遍起把
+  independent/*.mjs 与 redaction-report.json 排除出“可改写”范围；脚本本身不含真实机密。
+
+第二遍实际结果（最终，见 redaction-report.json）：
+  scanned_files=48，text_evidence_files=37
+  secrets_found_before=0（明文机密已全部清除）
+  changed_files=[]，remaining_raw_secrets=[]
+  token 未脱敏出现=0，dsh-auth 未脱敏出现=0
+  db_or_cookie_like_files=[]，sqlite_header_files=[]
+  result=PASS（exit 0）
+
+补充核验：
+- 数据库/WAL/SHM/Cookie 文件未进入证据目录：runs/d7a453d 下没有任何 .sqlite/.db/-wal/-shm/
+  .journal 文件，也没有任何文件以 "SQLite format 3" 魔数开头；真实库都在 .cache/knowledgeos-fnd002-data/**。
+- T09-browser 的 6 张 PNG 为面板截图，不含地址栏/凭据文本。
+- 原始终端 token 仅出现在运行期 Host 日志；脱敏后证据保留 request_id、状态码、计数等可复核关联。

@@ -1,0 +1,69 @@
+{
+  "id": "T06",
+  "name": "打开失败、有限锁等待与恢复",
+  "status": "PASS",
+  "started": "2026-11-16T07:20:57.170Z",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "invalid target is STORAGE_UNAVAILABLE",
+      "actual": {
+        "code": "STORAGE_UNAVAILABLE",
+        "message": "storage is unavailable",
+        "request_id": "ee3ef8ce-ce9d-468d-a8ea-93d067bf2c98",
+        "retryable": false,
+        "safe_details": {}
+      }
+    },
+    {
+      "ok": true,
+      "message": "no fallback database was created"
+    },
+    {
+      "ok": true,
+      "message": "Host status remains reachable"
+    },
+    {
+      "ok": true,
+      "message": "baseline before lock"
+    },
+    {
+      "ok": true,
+      "message": "locked write is STORAGE_BUSY retryable",
+      "actual": {
+        "code": "STORAGE_BUSY",
+        "message": "storage is busy; retry the same request",
+        "request_id": "160f1537-945e-4021-a18d-15b9a33ad701",
+        "retryable": true,
+        "safe_details": {}
+      }
+    },
+    {
+      "ok": true,
+      "message": "busy wait is bounded (250ms default, under 2s)",
+      "actual": 365
+    },
+    {
+      "ok": true,
+      "message": "write recovers after lock release",
+      "actual": 201
+    },
+    {
+      "ok": true,
+      "message": "original data survives lock"
+    }
+  ],
+  "details": {
+    "elapsed": 365,
+    "busy": {
+      "code": "STORAGE_BUSY",
+      "message": "storage is busy; retry the same request",
+      "request_id": "160f1537-945e-4021-a18d-15b9a33ad701",
+      "retryable": true,
+      "safe_details": {}
+    },
+    "recovered": 201
+  },
+  "evidence": [],
+  "finished": "2026-11-16T07:21:13.320Z"
+}

@@ -1,0 +1,67 @@
+{
+  "run_id": "1b99e39",
+  "out": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\docs\\evidence\\FND-002\\runs\\1b99e39",
+  "candidate": "1b99e39",
+  "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "data_root": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\.cache\\knowledgeos-fnd002-data\\1b99e39",
+  "started_at": null,
+  "finished_at": "2026-11-16T07:34:34.851Z",
+  "result": "PASS",
+  "results": [
+    {
+      "id": "T01",
+      "name": "真实 Host 创建、读取与进程重启持久化",
+      "status": "PASS",
+      "evidence": "T01.json"
+    },
+    {
+      "id": "T02",
+      "name": "真实 SQLite 事务中途失败与回滚",
+      "status": "PASS",
+      "evidence": "T02.json"
+    },
+    {
+      "id": "T03",
+      "name": "首次初始化、重复启动与真实运行时设置",
+      "status": "PASS",
+      "evidence": "T03.json"
+    },
+    {
+      "id": "T04",
+      "name": "迁移失败、不兼容版本及数据库归属保护",
+      "status": "PASS",
+      "evidence": "T04.json"
+    },
+    {
+      "id": "T05",
+      "name": "最小创建幂等、重试与并发重复请求",
+      "status": "PASS",
+      "evidence": "T05.json"
+    },
+    {
+      "id": "T06",
+      "name": "打开失败、有限锁等待与恢复",
+      "status": "PASS",
+      "evidence": "T06.json"
+    },
+    {
+      "id": "T07",
+      "name": "数据库连接生命周期释放与重新打开",
+      "status": "PASS",
+      "evidence": "T07.json"
+    },
+    {
+      "id": "T08",
+      "name": "真实本机认证、来源保护和输入边界",
+      "status": "PASS",
+      "evidence": "T08.json"
+    },
+    {
+      "id": "T09",
+      "name": "构建、类型、当前范围与 FND-001 受影响回归",
+      "status": "PASS",
+      "evidence": "T09.json"
+    }
+  ],
+  "failures": []
+}

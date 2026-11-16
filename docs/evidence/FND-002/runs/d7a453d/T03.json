@@ -1,0 +1,127 @@
+{
+  "id": "T03",
+  "name": "首次初始化、重复启动与真实运行时设置",
+  "status": "PASS",
+  "started": "2026-11-16T07:20:07.201Z",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "first init record created",
+      "actual": 201
+    },
+    {
+      "ok": true,
+      "message": "Host logged actual storage runtime settings",
+      "actual": "knowledgeos-storage: opened node=24.22.0 sqlite=3.53.4 journal=wal foreign_keys=1 synchronous=2 busy_timeout=250 tables=2"
+    },
+    {
+      "ok": true,
+      "message": "Host connection reports WAL/foreign_keys/FULL/250ms",
+      "actual": {
+        "node": "24.22.0",
+        "sqlite": "3.53.4",
+        "journal": "wal",
+        "foreign_keys": "1",
+        "synchronous": "2",
+        "busy_timeout": "250",
+        "tables": "2"
+      }
+    },
+    {
+      "ok": true,
+      "message": "reported Node is the actual runtime",
+      "actual": "24.22.0"
+    },
+    {
+      "ok": true,
+      "message": "application_id/user_version",
+      "actual": {
+        "applicationId": 1263489841,
+        "userVersion": 1,
+        "tables": [
+          "schema_migrations",
+          "storage_probe_records"
+        ],
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-16T07:20:12.005Z"
+          }
+        ]
+      }
+    },
+    {
+      "ok": true,
+      "message": "only two application tables",
+      "actual": [
+        "schema_migrations",
+        "storage_probe_records"
+      ]
+    },
+    {
+      "ok": true,
+      "message": "one matching migration ledger row",
+      "actual": [
+        {
+          "version": 1,
+          "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+          "applied_at": "2026-11-16T07:20:12.005Z"
+        }
+      ]
+    },
+    {
+      "ok": true,
+      "message": "foreign keys reject an orphan row on a real connection"
+    },
+    {
+      "ok": true,
+      "message": "repeat start does not rewrite the ledger",
+      "actual": [
+        {
+          "version": 1,
+          "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+          "applied_at": "2026-11-16T07:20:12.005Z"
+        }
+      ]
+    },
+    {
+      "ok": true,
+      "message": "repeat start preserves the record",
+      "actual": 1
+    },
+    {
+      "ok": true,
+      "message": "record readable after repeat start",
+      "actual": 200
+    }
+  ],
+  "details": {
+    "pragmas": {
+      "node": "24.22.0",
+      "sqlite": "3.53.4",
+      "journal": "wal",
+      "foreign_keys": "1",
+      "synchronous": "2",
+      "busy_timeout": "250",
+      "tables": "2"
+    },
+    "facts": {
+      "applicationId": 1263489841,
+      "userVersion": 1,
+      "tables": [
+        "schema_migrations",
+        "storage_probe_records"
+      ],
+      "ledger": [
+        {
+          "version": 1,
+          "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+          "applied_at": "2026-11-16T07:20:12.005Z"
+        }
+      ]
+    }
+  },
+  "evidence": [],
+  "finished": "2026-11-16T07:20:19.535Z"
+}

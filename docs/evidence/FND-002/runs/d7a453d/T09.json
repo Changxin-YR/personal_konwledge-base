@@ -1,0 +1,100 @@
+{
+  "id": "T09",
+  "name": "构建、类型、当前范围与 FND-001 受影响回归",
+  "status": "PASS",
+  "started": "2026-11-16T07:21:34.512Z",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "verify-plan exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "fnd002-scope-check exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "plugin-typecheck exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "profile links the candidate package",
+      "actual": "link:C:/Users/27363/Desktop/personal base/personal_konwledge-base/packages/knowledgeos-panel"
+    },
+    {
+      "ok": true,
+      "message": "lib/index.js loaded from candidate",
+      "actual": "47d715aa005700ee1ff56f5ec3901e1e5d7331c4d3ede0795889788c9958afb8"
+    },
+    {
+      "ok": true,
+      "message": "lib/storage.js loaded from candidate",
+      "actual": "43693f03e970142132171d843766d061ad301a39960a4eb46e1b973d75b6f3a1"
+    },
+    {
+      "ok": true,
+      "message": "lib/client.js loaded from candidate",
+      "actual": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9"
+    },
+    {
+      "ok": true,
+      "message": "FND-001 panel/status browser regression exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "old profile without dataDir returns STORAGE_UNAVAILABLE",
+      "actual": {
+        "code": "STORAGE_UNAVAILABLE",
+        "message": "storage is unavailable",
+        "request_id": "13e1e931-4e1b-4587-a1c6-6ed76e3c1503",
+        "retryable": false,
+        "safe_details": {}
+      }
+    },
+    {
+      "ok": true,
+      "message": "old profile keeps the original status behavior"
+    },
+    {
+      "ok": true,
+      "message": "old profile did not create a business database"
+    }
+  ],
+  "details": {
+    "checks": [
+      {
+        "name": "verify-plan",
+        "status": 0,
+        "stdout": "{\n  \"status\": \"PASS\",\n  \"scope\": \"plan_structure_traceability_and_execution_consistency_only\",\n  \"requirements\": 44,\n  \"acceptanceCases\": 66,\n  \"workUnits\": 76,\n  \"plannedUnitChecks\": 164,\n  \"executor\": \"deepseek_harness\",\n  \"activeUnit\": \"FND-002\",\n  \"autoAdvance\": false,\n  \"codexReview\": \"locked\",\n  \"markdownFiles\": 37,\n  \"upstreamCommit\": \"39163dd30f703a79079e2d2446545cff3c453738\",\n  \"implementationVerifiedByThisCheck\": false,\n  \"productTestsExecuted\": 0\n}\n",
+        "stderr": ""
+      },
+      {
+        "name": "fnd002-scope-check",
+        "status": 0,
+        "stdout": "{\n  \"result\": \"PASS\",\n  \"failures\": [],\n  \"notes\": [\n    \"checked 7 host files\"\n  ],\n  \"allowed_tables\": [\n    \"schema_migrations\",\n    \"storage_probe_records\"\n  ],\n  \"runtime_dependencies\": [\n    \"@deepseek-ai/schemastery\"\n  ]\n}\n",
+        "stderr": ""
+      },
+      {
+        "name": "plugin-typecheck",
+        "status": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "name": "fnd001-browser-regression",
+        "status": 0,
+        "stdout": "PASS T01 sidebar entry visible {\"count\":1}\nPASS T02 panel shows Host version/commit {\"version\":\"0.2.2-rc.3\",\"commit\":\"39163dd30f70\",\"verified\":\"与锁定提交一致\",\"instance\":\"5e18bc09-4aaf-4ffc-bcc6-ec8ea5b02ecc\",\"checkedAt\":\"2026/11/16 15:21:48\",\"checkedAtIso\":\"2026-11-16T07:21:48.821Z\",\"startedAt\":\"2026/11/16 15:21:40\"}\nPASS T02 refresh fetched newer checked_at {\"before\":\"2026-11-16T07:21:48.821Z\",\"after\":\"2026-11-16T07:21:50.320Z\"}\nPASS T04 exactly one entry after reload\nPASS T04 repeated enter/exit has one entry and one panel {\"entries\":1,\"panels\":1,\"otherLabel\":\"插件\"}\nPASS T05 existing panels remain navigable {\"navigation\":[{\"label\":\"插件\",\"textLength\":107},{\"label\":\"自动化任务\",\"textLength\":109},{\"label\":\"更多\",\"textLength\":215}]}\nPASS T04 no status polling while panel is closed {\"requests\":0,\"window_ms\":15000}\nPASS T07 anonymous request is rejected {\"status\":401}\nPASS T07 authenticated request is 200 {\"status\":200}\nPASS T03 real disconnect makes the Host unreachable {\"status\":\"error\"}\nPASS T03 error and stale marker are visible {\"staleVersion\":\"0.2.2-rc.3\",\"versionBefore\":\"0.2.2-rc.3\"}\nPASS T03 retry while still down stays failed {\"retryButton\":1}\nPASS T03 Host restarted and route is reachable {\"status\":200}\nPASS T03 retry after recovery reaches ready {\"attempts\":0}\nPASS T02 host_instance_id changed after real restart {\"instanceBefore\":\"5e18bc09-4aaf-4ffc-bcc6-ec8ea5b02ecc\",\"instanceAfter\":\"3cacab57-36b1-4b03-8a38-bef02cd11724\"}\nPASS T03 fixture 500 shows error and recovers {\"fixture\":\"F1\",\"attempts\":0}\nPASS T04 disabling the Host row removes the route {\"status\":404}\nPASS T04 re-enabling the Host row restores one route {\"status\":200}\n{\n  \"result\": \"PASS\",\n  \"failures\": [],\n  \"not_run\": [],\n  \"out\": \"C:\\\\Users\\\\27363\\\\Desktop\\\\personal base\\\\personal_konwledge-base\\\\docs\\\\evidence\\\\FND-002\\\\runs\\\\d7a453d\\\\T09-browser\"\n}\n",
+        "stderr": ""
+      }
+    ]
+  },
+  "evidence": [
+    "T09-browser/",
+    "T09.json"
+  ],
+  "finished": "2026-11-16T07:22:50.396Z"
+}

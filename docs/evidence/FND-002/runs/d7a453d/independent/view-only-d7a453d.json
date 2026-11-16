@@ -1,0 +1,30 @@
+{
+  "role": "independent",
+  "candidate": "d7a453d6dfbdaee4c495b5d920086608fb9c8e1f (superseded)",
+  "artifact": "packages/knowledgeos-panel/lib/storage.js",
+  "artifact_sha256": "43693f03e970142132171d843766d061ad301a39960a4eb46e1b973d75b6f3a1",
+  "fixture": "database whose only user object is a VIEW; application_id=0; user_version=0",
+  "before": {
+    "applicationId": 0,
+    "userVersion": 0,
+    "tables": [],
+    "ledger": []
+  },
+  "opened": true,
+  "after": {
+    "applicationId": 1263489841,
+    "userVersion": 1,
+    "tables": [
+      "schema_migrations",
+      "storage_probe_records"
+    ],
+    "ledger": [
+      {
+        "version": 1,
+        "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+        "applied_at": "2026-11-16T07:36:35.765Z"
+      }
+    ]
+  },
+  "conclusion": "DEFECT in d7a453d: a view-only non-empty database is treated as blank and migrated (contract §5.3.1 requires rejection)."
+}

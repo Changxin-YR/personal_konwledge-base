@@ -1,0 +1,28 @@
+﻿FND-002 候选漂移记录（独立验收角色在验证结束后快照）
+时间：2026-11-16 15:28:59
+HEAD：8df9d70d7804c1ed4eb62b4f651438366301bca0
+分支：dsh/knowledgeos-fnd-002
+
+git status --porcelain：
+   M docs/evidence/FND-002/architecture.md
+   M packages/knowledgeos-panel/README.md
+   M packages/knowledgeos-panel/lib/index.js
+   M packages/knowledgeos-panel/lib/storage.js
+   M packages/knowledgeos-panel/lib/test-support.js
+   M packages/knowledgeos-panel/src/host/storage.ts
+   M scripts/fnd002/run-all.mjs
+  ?? docs/evidence/FND-002/architecture-review.md
+  ?? docs/evidence/FND-002/runs/
+
+11 个冻结文件当前 SHA256（对照 candidate.md）：
+  [SAME] packages/knowledgeos-panel/lib/client.js  now=f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9  frozen=f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9
+  [DRIFT] packages/knowledgeos-panel/lib/index.js  now=1a32e6012e61fa73d8a7b404007e63c834b8b40b4514a702f6c7cced5a9cec2c  frozen=47d715aa005700ee1ff56f5ec3901e1e5d7331c4d3ede0795889788c9958afb8
+  [DRIFT] packages/knowledgeos-panel/lib/storage.js  now=40fa07f07550d9b20cfe24b80d27844a27f40ce7ce9fd7c8c6c9a84a9e3f9d65  frozen=43693f03e970142132171d843766d061ad301a39960a4eb46e1b973d75b6f3a1
+  [SAME] packages/knowledgeos-panel/package.json  now=48a6f24ff44437ebaee238ee53c96422fdcc7968f645582fb95b5585a52f1c55  frozen=48a6f24ff44437ebaee238ee53c96422fdcc7968f645582fb95b5585a52f1c55
+  [SAME] packages/knowledgeos-panel/src/host/config.ts  now=1e108b328f02e7c9ef25851577b0160d71399b05030b991b306635f7bafc76ed  frozen=1e108b328f02e7c9ef25851577b0160d71399b05030b991b306635f7bafc76ed
+  [SAME] packages/knowledgeos-panel/src/host/http.ts  now=a20bd13760e141314ab46886440fc7157c0640788c4f45d72cd8d2f5b02f1ce6  frozen=a20bd13760e141314ab46886440fc7157c0640788c4f45d72cd8d2f5b02f1ce6
+  [SAME] packages/knowledgeos-panel/src/host/index.ts  now=0e91c7cddbc19a34aa645742a5d80d9b7cf8fa0a32b3c1601288dacdf355afd7  frozen=0e91c7cddbc19a34aa645742a5d80d9b7cf8fa0a32b3c1601288dacdf355afd7
+  [SAME] packages/knowledgeos-panel/src/host/records.ts  now=658553efd04345b770879ef5225da61463630fbbadf2818b2ba1ebb7373bf675  frozen=658553efd04345b770879ef5225da61463630fbbadf2818b2ba1ebb7373bf675
+  [DRIFT] packages/knowledgeos-panel/src/host/storage.ts  now=1f0f913f6ffb08edc86924e490c34f1e1db68226b710f00408b187355a79116e  frozen=b90d19b213b46b95b08617629943ab13f85ac5893a60c3c1e7e52575e29b8d6c
+  [DRIFT] scripts/fnd002/run-all.mjs  now=918c4385d966ccc96f97814e1e3bfc300c16fdc6d2d2421134474d369522a4e6  frozen=ad9ebe25b002d018f5e0ca610be4e539bd832f231ade9d87ab61acbe34d1655e
+  [SAME] scripts/fnd002/scope-check.mjs  now=d7e3a7aa173f7414d25deb4c439c8fdb8f02cc2c28574eafc15ab1d3eea6a68e  frozen=d7e3a7aa173f7414d25deb4c439c8fdb8f02cc2c28574eafc15ab1d3eea6a68e
