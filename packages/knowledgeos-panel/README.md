@@ -64,6 +64,9 @@ $env:DSH_HOME = $dshTestHome
 # Source launch contract: the checked-out fixed commit, not an arbitrary value.
 $env:DSH_CLIENT_COMMIT_HASH = "39163dd30f703a79079e2d2446545cff3c453738"
 
+# Resolve every relative CLI path below from the fixed source root.
+cd $dshRoot
+
 # First creation only: initializes the profile from the shipped web template.
 # Do not repeat this on later runs; it would replace the existing profile.
 node --import tsx/esm apps/cli/src/bin.ts --profile knowledgeos-test --from-default-profile web --dump-config
@@ -73,7 +76,6 @@ node --import tsx/esm apps/cli/src/bin.ts plugin --profile knowledgeos-test add 
 
 # Run the fixed source build. No extra `web` positional: with an explicit
 # profile the remaining tokens are app arguments, and a stray `web` is rejected.
-cd $dshRoot
 node --import tsx/esm apps/cli/src/bin.ts --profile knowledgeos-test --port 3099 --no-open
 ```
 

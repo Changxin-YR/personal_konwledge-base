@@ -105,7 +105,8 @@
         "docs/evidence/FND-001/independent-verification-closeout.md",
         "docs/evidence/FND-001/build-evidence.md",
         "docs/evidence/FND-001/runs/2774b18/",
-        "docs/evidence/FND-001/candidate.md"
+        "docs/evidence/FND-001/candidate.md",
+        "docs/evidence/FND-001/ACCEPTANCE_REVIEW_20261116.md"
       ],
       "previous_submission": {
         "reported_result": "PASS",
@@ -114,13 +115,20 @@
         "review_outcome": "core_implemented_closeout_required"
       },
       "reopened_at": "2026-11-16",
-      "open_review_items": [
+      "open_review_items": [],
+      "completed_at": "2026-11-16",
+      "closed_review_items": [
         "R1",
         "R2",
         "R3",
         "R4"
       ],
-      "completed_at": "2026-11-16"
+      "closure_review": {
+        "reviewed_commit": "6ded30f2a1dacec8b4f6b977ee3d2ccbd503df4f",
+        "result": "PASS",
+        "record": "docs/evidence/FND-001/ACCEPTANCE_REVIEW_20261116.md",
+        "reviewed_at": "2026-11-16"
+      }
     },
     {
       "id": "FND-002",

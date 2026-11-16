@@ -44,7 +44,7 @@
 |---|---|
 | Windows | Windows 11 Pro |
 | Node | v24.22.0 |
-| pnpm | 11.28.5（DSH runtime 自带，仅用于上游安装/构建与 profile 安装） |
+| pnpm | 上游安装/构建工具链为 11.28.5；本轮 profile CLI remove/add 的实际 stdout 为 11.22.0，两者分别记录 |
 | 固定 DSH 源码 | `.cache/build/dsh-39163dd`，从 `.cache/upstream/deepseek-harness`（commit `39163dd`）复制 |
 | 上游构建 | `pnpm run build:artifacts`：8 gates passed，0 failed；客户端产物记录 379 个 |
 | 构建提交注入 | `DSH_CLIENT_COMMIT_HASH=39163dd30f703a79079e2d2446545cff3c453738`（源码启动契约；运行 Host 时同样注入） |

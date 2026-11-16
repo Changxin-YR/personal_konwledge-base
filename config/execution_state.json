@@ -37,7 +37,9 @@
     "awaiting_user": "current unit has passed and awaits a user choice; active_unit is not advanced"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "review_basis_commit": "66388994d41972e6dfd4e28361ac1854b5b12e47",
-  "state_reason": "FND-001 reopened for required lifecycle evidence and scoped corrections; no new product execution claimed.",
-  "review_record": "docs/evidence/FND-001/SUBMISSION_REVIEW_20261116.md"
+  "review_basis_commit": "6ded30f2a1dacec8b4f6b977ee3d2ccbd503df4f",
+  "state_reason": "FND-001 closeout accepted: R1-R4 closed with candidate-bound evidence; awaiting explicit user selection of the next unit.",
+  "review_record": "docs/evidence/FND-001/ACCEPTANCE_REVIEW_20261116.md",
+  "initial_review_basis_commit": "66388994d41972e6dfd4e28361ac1854b5b12e47",
+  "review_outcome": "accepted_current_unit"
 }

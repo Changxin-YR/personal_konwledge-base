@@ -35,7 +35,8 @@
 | 本轮证据/文档 | `f25726fc7e4314ac6b385bc7976c0014203a28f6` |
 | 上游 | `39163dd30f703a79079e2d2446545cff3c453738`，`0.2.2-rc.3` |
 | 运行时 | `.cache/build/dsh-39163dd`，由锁定源码复制；本轮复核 13912 个源文件与上游检出逐字节一致（树摘要 `2a2a46c8…`） |
-| OS / Node / pnpm | Windows 11 Pro / `v24.22.0` / `11.28.5` |
+| OS / Node | Windows 11 Pro / `v24.22.0` |
+| pnpm | 上游构建工具链 `11.28.5`；本轮 profile CLI remove/add 的实际 stdout 为 `11.22.0`，分别记录 |
 | 独立 DSH_HOME / profile / 端口 | `.cache/dsh-home-fnd001` / `knowledgeos-test` / `127.0.0.1:3099` |
 | 桌面 DSH | PID 51900，启动时间 `10:36:09` 全程未变；62739 仍监听 |
 
@@ -119,6 +120,8 @@ node --import tsx/esm apps/cli/src/bin.ts --profile knowledgeos-test --port 3099
 首次初始化才使用 `--profile knowledgeos-test --from-default-profile web --dump-config`；继续运行不得重复。启动日志中的 token 只用于本机打开，归档前脱敏。
 
 ## 8. 停止状态与历史
+
+当前状态与源码/原始结果已在后续 [验收复核](ACCEPTANCE_REVIEW_20261116.md) 中核对。文档目录顺序和旧状态文字已同步；没有因此改动产品候选或增加新的运行验收声明。
 
 - FND-001：`passed`；`execution_state.unit_state=awaiting_user`；`active_unit` 保持 FND-001；`auto_advance=false`；Codex locked。
 - 未激活 FND-002，未合并 main。

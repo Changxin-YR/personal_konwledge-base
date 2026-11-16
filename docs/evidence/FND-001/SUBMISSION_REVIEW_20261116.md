@@ -1,5 +1,7 @@
 # FND-001 第一轮提交复核记录
 
+> 后续关闭结果：R1–R4 已在修复候选 2774b18 上完成收尾，提交 6ded30f 已通过本轮证据复核。当前状态为 passed / awaiting_user，见 [验收复核](ACCEPTANCE_REVIEW_20261116.md) 和 [最终报告](REPORT.md)。下文完整保留首次复核时的事实；OPEN 和 in_progress 描述当时状态，不是当前未完成项。
+
 日期：2026-11-16（Asia/Shanghai）。复核对象：开发分支 `dsh/knowledgeos-fnd-001` 的提交 `66388994d41972e6dfd4e28361ac1854b5b12e47`。
 
 **结论：真实基础接入已经实现，完整验收待补齐。** 当前功能需要小范围修正与补验，暂不激活 FND-002。本文件是证据记录，唯一执行入口仍为根目录 `DSH_START.md`。
@@ -24,7 +26,7 @@
 
 ## 3. 收尾项
 
-| ID | 当前状态 | 已确认事实 | 影响 |
+| ID | 首次复核时状态 | 已确认事实 | 影响 |
 |---|---|---|---|
 | R1 | OPEN | 原 test-plan §6.4 D5/D6、§10 要求真实插件卸载后路由/入口消失；报告承认未执行。计划 5/10/60 秒实际为 1/5/15 秒 | T04 完整门槛缺证据，Host 行禁用不能替代 Client bundle 卸载 |
 | R2 | OPEN | Panel.tsx 的 refresh 保留数据进入 loading，连接状态行却仅区分 ready 与其他状态 | 正常刷新时显示“旧数据（连接失败）”，与顶部“连接中”矛盾 |
@@ -43,10 +45,10 @@ R2 是源码可直接推出的状态显示问题，本次未在浏览器重新�
 - [PowerShell 大小写规则](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_case-sensitivity)：变量名不区分大小写；[HOME 初始化源码](https://github.com/PowerShell/PowerShell/blob/cb9cf48b76cf2fdafb2f2a5e4c64dad4da526486/src/System.Management.Automation/engine/SessionState.cs) 将 HOME 设为 ReadOnly / AllScope。
 - [固定 DSH CLI](https://github.com/deepseek-ai/deepseek-harness/blob/39163dd30f703a79079e2d2446545cff3c453738/apps/cli/src/args.ts)：显式 profile 后的位置参数透传给应用，from-default-profile 为初始化选项。
 
-## 5. 状态与边界
+## 5. 首次复核时的状态与边界（历史）
 
 保留代码和原始运行记录，FND-001 重新登记为 in_progress（当前功能收尾待执行），唯一提示词更新为 v2.0.1。原完成日期作为第一轮提交者声明保留，不作为当前验收完成时间。其余 75 个单元仍 planned，Codex locked，auto_advance=false。
 
 精确定时器全局归因可记录观测局限；Desktop、人工逐像素目检、全仓 build:check、Windows 安装、多人业务、真实 GPT 不新增为本轮阻塞。收尾只关闭四项问题并完成受影响回归。
 
-本次文档更新不表示 R1–R4 已关闭，也不表示产品重新验收通过。真实完成时间、修复候选和测试结果应由 DSH 实际执行后填写。
+首次复核当时的文档更新不表示问题已经关闭。后续 DSH 已完成修复与真实补验，关闭依据见本文件顶部链接；此处保留历史处理过程。
