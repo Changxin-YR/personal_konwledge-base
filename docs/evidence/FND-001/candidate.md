@@ -5,6 +5,7 @@
 - 冻结时间：2026-11-16（Asia/Shanghai）
 - 工作分支：`dsh/knowledgeos-fnd-001`
 - 本轮收尾产品候选：`2774b185ab75bfe38b6a36a07aa735d5ed4f559b`（R1/R2/R4 修复；Host 半未变）
+- 本轮测试脚本/证据提交：`c2a6d4335a3947546815543cdc17ef992c8d74ae`（closeout harness v4；产品 `lib/` 哈希未变）
 - 第一轮产品候选：`37ac57af64b6741d82ffa2663b43dc244529c567`；第一轮证据脚本修复：`22e7be2ffc1b1db6fe8247bb223e69ec6c7ecb5d`
 - 第一轮候选树：`899a018f7bb87af83603a877e8a810dedbeb7bb5`
 - 起始提交：`6f23735d5f07fed7cef108f829290b823ad6ace0`（main）
@@ -17,7 +18,7 @@
 | `packages/knowledgeos-panel/lib/index.js` | `22757b15ec4352d9a26d848320dc31b3a96aba86446fb70fa51fc94ce2d26c6a` | 未变 |
 | `packages/knowledgeos-panel/lib/client.js` | `f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9` | R2 重建 |
 | `packages/knowledgeos-panel/src/client/Panel.tsx` | `e3aee6dd8c8e6ccc1b2e55a37020cfda5296446f496651d36b848855adc0ef13` | R2 修复 |
-| `scripts/fnd001/closeout-e2e.mjs` | `1e0d6bd33e2e8a545f8bc8dcff4c131169cd914a7fe9b18691005d1f4e9be99e` | 新增 R1/R2 生命周期脚本 |
+| `scripts/fnd001/closeout-e2e.mjs` | `31c272358bef58e03100767e5bd6336441db3d643d2bb7717e65b0faa2fc4f67` | 新增 R1/R2 生命周期脚本 |
 | 其余 Host/Client 文件 | 同下方历史表 | 未变 |
 
 ## 历史（第一轮）关键文件 SHA256
