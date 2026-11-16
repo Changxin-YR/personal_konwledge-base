@@ -390,7 +390,7 @@
         "docs/evidence/FND-002/runs/codex-takeover-20261116-r2/"
       ],
       "closure_review": {
-        "reviewed_commit": "pending-final-commit",
+        "reviewed_commit": "a03c9e3312707bd146e29953c2cf8153e498dd40",
         "result": "PASS",
         "record": "docs/evidence/FND-002/independent-verification.md",
         "reviewed_at": "2026-11-16"

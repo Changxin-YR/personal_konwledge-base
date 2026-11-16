@@ -34,7 +34,7 @@ Desktop/Electron、Windows 安装、突然断电零丢失、OS 级 fd 泄漏、H
 
 - 分支：`codex/knowledgeos-takeover`
 - 接管提交：`4562034c9b4da48ee7b0d1447f7ae7663908240f`
-- 最终修复提交：待提交后回填
+- 最终修复提交：`a03c9e3312707bd146e29953c2cf8153e498dd40`
 - 推送：待最终提交后确认远端
 
 ## 复验
