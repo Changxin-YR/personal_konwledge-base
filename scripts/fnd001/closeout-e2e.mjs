@@ -57,6 +57,7 @@ const summary = {
   host_starts: [],
   steps: [],
   failures: [],
+  fixtures: [],
   not_run: [],
   recovery: [],
   r1: {},
