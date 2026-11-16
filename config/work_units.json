@@ -322,7 +322,7 @@
       ],
       "final_acceptance_ids": [],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
-      "status": "in_progress",
+      "status": "passed",
       "test_plan_status": "detailed_current_unit",
       "instruction_revision": "3.0.0",
       "activated_at": "2026-11-16",
@@ -356,7 +356,7 @@
         "idempotency_header": "Idempotency-Key",
         "probe_base_path": "/knowledgeos/foundation/records"
       },
-      "test_result_status": "FAIL",
+      "test_result_status": "PASS",
       "previous_submission": {
         "reported_result": "PASS",
         "reported_completed_at": "2026-11-16",
@@ -371,15 +371,30 @@
         "review_outcome": "current_unit_reopened_after_reproducible_database_ownership_failure"
       },
       "reopened_at": "2026-11-16",
-      "retest_status": "NOT_RUN",
-      "open_review_items": [
-        "R1",
-        "R2"
-      ],
+      "retest_status": "PASS",
+      "open_review_items": [],
       "review_record": "docs/evidence/FND-002/SUBMISSION_REVIEW_20261116.md",
       "review_basis_commit": "cba39e4808fd41e6d7b076c3fbf080577c8b1114",
       "current_review_scope": "Codex onboarding; R1/R2 and confirmed defects in already implemented foundation paths; candidate-bound verification; no future feature activation",
-      "takeover_base_commit": "10c406713a64299d7c7a52695672bbadbe2c21cb"
+      "takeover_base_commit": "10c406713a64299d7c7a52695672bbadbe2c21cb",
+      "closed_review_items": [
+        "R1",
+        "R2"
+      ],
+      "completed_at": "2026-11-16",
+      "evidence_paths": [
+        "docs/evidence/FND-002/codex-takeover.md",
+        "docs/evidence/FND-002/candidate.md",
+        "docs/evidence/FND-002/REPORT.md",
+        "docs/evidence/FND-002/independent-verification.md",
+        "docs/evidence/FND-002/runs/codex-takeover-20261116-r2/"
+      ],
+      "closure_review": {
+        "reviewed_commit": "pending-final-commit",
+        "result": "PASS",
+        "record": "docs/evidence/FND-002/independent-verification.md",
+        "reviewed_at": "2026-11-16"
+      }
     },
     {
       "id": "FND-003",

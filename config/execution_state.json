@@ -10,7 +10,7 @@
     "sha256": "efb33af0a2e99edb683cb19af03e0e78081a483316105768d0ec333c17f50760"
   },
   "active_unit": "FND-002",
-  "unit_state": "in_progress",
+  "unit_state": "awaiting_user",
   "execution_mode": "single_feature_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "awaiting_user": "current unit has passed and awaits a user choice; active_unit is not advanced"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "User authorized Codex to understand and repair the existing project, validate the current FND-002, then wait; R1/R2 remain open and new-candidate retests are NOT_RUN. Prior API quota exhaustion is explicitly out of scope.",
+  "state_reason": "Codex 接管后的 R1/R2 已修复；新候选 T01-T09、独立 SQLite/Host/对象复核及证据脱敏均通过，当前单元等待用户下一步指令。",
   "working_branch": "codex/knowledgeos-takeover",
   "activation_basis": "explicit_user_selection_of_second_part_after_FND-001_acceptance",
   "base_commit": "ce3a00ccd7c8cc46eaae6e660144730109cf93a0",
@@ -53,7 +53,7 @@
   },
   "review_basis_commit": "cba39e4808fd41e6d7b076c3fbf080577c8b1114",
   "review_record": "docs/evidence/FND-002/SUBMISSION_REVIEW_20261116.md",
-  "review_outcome": "reopened_current_unit",
+  "review_outcome": "passed_current_unit",
   "takeover": {
     "authorization": "explicit_user_request",
     "previous_executor": "deepseek_harness",

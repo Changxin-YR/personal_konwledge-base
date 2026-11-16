@@ -1,0 +1,17 @@
+PASS view-only DB is refused (STORAGE_INCOMPATIBLE) :: {"available":false,"code":"STORAGE_INCOMPATIBLE"}
+PASS view-only DB is not migrated or rewritten :: {"objects":[{"type":"view","name":"foreign_view"}],"applicationId":0,"userVersion":0}
+PASS view-only DB still has no application tables :: []
+PASS valid v1 + extra VIEW is refused (STORAGE_INCOMPATIBLE) :: {"available":false,"code":"STORAGE_INCOMPATIBLE"}
+PASS valid v1 + extra VIEW is left byte-logically unchanged :: {"objects":[{"type":"table","name":"schema_migrations"},{"type":"table","name":"storage_probe_records"},{"type":"view","name":"foreign_view"}],"applicationId":1263489841,"userVersion":1}
+PASS valid v1 DB still opens (no over-rejection)
+PASS valid v1 DB accepts a write :: "created"
+PASS valid v1 DB reopens with the record
+PASS blank directory still initializes
+PASS blank initialization creates exactly two application tables :: [{"type":"table","name":"schema_migrations"},{"type":"table","name":"storage_probe_records"}]
+PASS blank initialization ledger checksum :: [{"version":1,"checksum":"033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a","applied_at":"2026-11-16T09:48:20.011Z"}]
+{
+  "result": "PASS",
+  "failures": 0,
+  "checked": 11
+}
+

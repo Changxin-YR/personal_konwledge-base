@@ -1,0 +1,232 @@
+{
+  "id": "T09",
+  "name": "构建、类型、当前范围与 FND-001 受影响回归",
+  "status": "PASS",
+  "started": "2026-11-16T09:35:50.824Z",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "verify-plan exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "fnd002-scope-check exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "plugin-typecheck exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "profile-loaded artifacts match the frozen candidate hashes",
+      "actual": {
+        "result": "PASS",
+        "profile_dir": "<profile-dir>",
+        "package_dir": "<candidate-package-dir>",
+        "resolved_spec": "<profile-link-to-candidate-package>",
+        "expected_source": "scripts/fnd002/expected-artifacts.json",
+        "expected_candidate": "codex-takeover-20261116-r2",
+        "artifacts": [
+          {
+            "path": "lib/index.js",
+            "expected": "0104a95183d9d707f08b1f9e993bee221a2cd89ee23b84506795500cd4502eac",
+            "actual": "0104a95183d9d707f08b1f9e993bee221a2cd89ee23b84506795500cd4502eac",
+            "match": true
+          },
+          {
+            "path": "lib/storage.js",
+            "expected": "2b4ff2c9f78801e16af25f1923a44850c671ffeec89b702c5fd5e16c0c68ce65",
+            "actual": "2b4ff2c9f78801e16af25f1923a44850c671ffeec89b702c5fd5e16c0c68ce65",
+            "match": true
+          },
+          {
+            "path": "lib/client.js",
+            "expected": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9",
+            "actual": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9",
+            "match": true
+          }
+        ],
+        "failures": []
+      }
+    },
+    {
+      "ok": true,
+      "message": "loaded package path came from the profile link",
+      "actual": "<candidate-package-dir>"
+    },
+    {
+      "ok": true,
+      "message": "tampered artifact copy is rejected",
+      "actual": 1
+    },
+    {
+      "ok": true,
+      "message": "FND-001 panel/status browser regression exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "old profile without dataDir returns STORAGE_UNAVAILABLE",
+      "actual": {
+        "code": "STORAGE_UNAVAILABLE",
+        "message": "storage is unavailable",
+        "request_id": "c3db1f95-b8da-4d20-ba13-409619f813c5",
+        "retryable": false,
+        "safe_details": {}
+      }
+    },
+    {
+      "ok": true,
+      "message": "old profile keeps the original status behavior"
+    },
+    {
+      "ok": true,
+      "message": "old profile did not create a business database"
+    }
+  ],
+  "details": {
+    "negative_artifact": {
+      "status": 1,
+      "result": "FAIL",
+      "failures": [
+        "loaded artifact mismatch lib/index.js: expected 0104a95183d9d707f08b1f9e993bee221a2cd89ee23b84506795500cd4502eac, actual a9cbf23478fc3cfb7bc92a87b031b4feda0631e1761c9d459ef83b15533b3d91"
+      ]
+    },
+    "checks": [
+      {
+        "name": "verify-plan",
+        "status": 0,
+        "stdout": "{\n  \"status\": \"PASS\",\n  \"scope\": \"plan_structure_traceability_and_execution_consistency_only\",\n  \"requirements\": 44,\n  \"acceptanceCases\": 66,\n  \"workUnits\": 76,\n  \"plannedUnitChecks\": 164,\n  \"executor\": \"codex\",\n  \"activeUnit\": \"FND-002\",\n  \"autoAdvance\": false,\n  \"fullProductReview\": \"not_started\",\n  \"markdownFiles\": 43,\n  \"upstreamCommit\": \"39163dd30f703a79079e2d2446545cff3c453738\",\n  \"implementationVerifiedByThisCheck\": false,\n  \"productTestsExecuted\": 0\n}\n",
+        "stderr": ""
+      },
+      {
+        "name": "fnd002-scope-check",
+        "status": 0,
+        "stdout": "{\n  \"result\": \"PASS\",\n  \"failures\": [],\n  \"notes\": [\n    \"checked 7 host files\"\n  ],\n  \"allowed_tables\": [\n    \"schema_migrations\",\n    \"storage_probe_records\"\n  ],\n  \"runtime_dependencies\": [\n    \"@deepseek-ai/schemastery\"\n  ]\n}\n",
+        "stderr": ""
+      },
+      {
+        "name": "plugin-typecheck",
+        "status": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "name": "loaded-artifacts",
+        "status": 0,
+        "report": {
+          "result": "PASS",
+          "profile_dir": "<profile-dir>",
+          "package_dir": "<candidate-package-dir>",
+          "resolved_spec": "<profile-link-to-candidate-package>",
+          "expected_source": "scripts/fnd002/expected-artifacts.json",
+          "expected_candidate": "codex-takeover-20261116-r2",
+          "artifacts": [
+            {
+              "path": "lib/index.js",
+              "expected": "0104a95183d9d707f08b1f9e993bee221a2cd89ee23b84506795500cd4502eac",
+              "actual": "0104a95183d9d707f08b1f9e993bee221a2cd89ee23b84506795500cd4502eac",
+              "match": true
+            },
+            {
+              "path": "lib/storage.js",
+              "expected": "2b4ff2c9f78801e16af25f1923a44850c671ffeec89b702c5fd5e16c0c68ce65",
+              "actual": "2b4ff2c9f78801e16af25f1923a44850c671ffeec89b702c5fd5e16c0c68ce65",
+              "match": true
+            },
+            {
+              "path": "lib/client.js",
+              "expected": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9",
+              "actual": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9",
+              "match": true
+            }
+          ],
+          "failures": []
+        },
+        "stderr": ""
+      },
+      {
+        "name": "loaded-artifacts-negative",
+        "status": 1,
+        "report": {
+          "result": "FAIL",
+          "profile_dir": "<profile-dir>",
+          "package_dir": "<candidate-package-dir>",
+          "resolved_spec": null,
+          "expected_source": "scripts/fnd002/expected-artifacts.json",
+          "expected_candidate": "codex-takeover-20261116-r2",
+          "artifacts": [
+            {
+              "path": "lib/index.js",
+              "expected": "0104a95183d9d707f08b1f9e993bee221a2cd89ee23b84506795500cd4502eac",
+              "actual": "a9cbf23478fc3cfb7bc92a87b031b4feda0631e1761c9d459ef83b15533b3d91",
+              "match": false
+            },
+            {
+              "path": "lib/storage.js",
+              "expected": "2b4ff2c9f78801e16af25f1923a44850c671ffeec89b702c5fd5e16c0c68ce65",
+              "actual": "2b4ff2c9f78801e16af25f1923a44850c671ffeec89b702c5fd5e16c0c68ce65",
+              "match": true
+            },
+            {
+              "path": "lib/client.js",
+              "expected": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9",
+              "actual": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9",
+              "match": true
+            }
+          ],
+          "failures": [
+            "loaded artifact mismatch lib/index.js: expected 0104a95183d9d707f08b1f9e993bee221a2cd89ee23b84506795500cd4502eac, actual a9cbf23478fc3cfb7bc92a87b031b4feda0631e1761c9d459ef83b15533b3d91"
+          ]
+        },
+        "stderr": ""
+      },
+      {
+        "name": "fnd001-browser-regression",
+        "status": 0,
+        "stdout": "PASS T01 sidebar entry visible {\"count\":1}\nPASS T02 panel shows Host version/commit {\"version\":\"0.2.2-rc.3\",\"commit\":\"39163dd30f70\",\"verified\":\"与锁定提交一致\",\"instance\":\"766379fd-3c18-4518-a1de-c350023ead1a\",\"checkedAt\":\"2026/11/16 17:36:05\",\"checkedAtIso\":\"2026-11-16T09:36:05.431Z\",\"startedAt\":\"2026/11/16 17:35:56\"}\nPASS T02 refresh fetched newer checked_at {\"before\":\"2026-11-16T09:36:05.431Z\",\"after\":\"2026-11-16T09:36:06.951Z\"}\nPASS T04 exactly one entry after reload\nPASS T04 repeated enter/exit has one entry and one panel {\"entries\":1,\"panels\":1,\"otherLabel\":\"插件\"}\nPASS T05 existing panels remain navigable {\"navigation\":[{\"label\":\"插件\",\"textLength\":107},{\"label\":\"自动化任务\",\"textLength\":109},{\"label\":\"更多\",\"textLength\":352}]}\nPASS T04 no status polling while panel is closed {\"requests\":0,\"window_ms\":15000}\nPASS T07 anonymous request is rejected {\"status\":401}\nPASS T07 authenticated request is 200 {\"status\":200}\nPASS T03 real disconnect makes the Host unreachable {\"status\":\"error\"}\nPASS T03 error and stale marker are visible {\"staleVersion\":\"0.2.2-rc.3\",\"versionBefore\":\"0.2.2-rc.3\"}\nPASS T03 retry while still down stays failed {\"retryButton\":1}\nPASS T03 Host restarted and route is reachable {\"status\":200}\nPASS T03 retry after recovery reaches ready {\"attempts\":0}\nPASS T02 host_instance_id changed after real restart {\"instanceBefore\":\"766379fd-3c18-4518-a1de-c350023ead1a\",\"instanceAfter\":\"10c7eec1-aea8-4d5d-a692-df7c3710eec8\"}\nPASS T03 fixture 500 shows error and recovers {\"fixture\":\"F1\",\"attempts\":1}\nPASS T04 disabling the Host row removes the route {\"status\":404}\nPASS T04 re-enabling the Host row restores one route {\"status\":200}\n{\n  \"result\": \"PASS\",\n  \"failures\": [],\n  \"not_run\": [],\n  \"out\": \"C:\\\\Users\\\\27363\\\\Desktop\\\\personal base\\\\personal_konwledge-base\\\\docs\\\\evidence\\\\FND-002\\\\runs\\\\codex-takeover-20261116-r2\\\\T09-browser\"\n}\n",
+        "stderr": ""
+      }
+    ],
+    "loaded_artifacts": {
+      "result": "PASS",
+      "profile_dir": "<profile-dir>",
+      "package_dir": "<candidate-package-dir>",
+      "resolved_spec": "<profile-link-to-candidate-package>",
+      "expected_source": "scripts/fnd002/expected-artifacts.json",
+      "expected_candidate": "codex-takeover-20261116-r2",
+      "artifacts": [
+        {
+          "path": "lib/index.js",
+          "expected": "0104a95183d9d707f08b1f9e993bee221a2cd89ee23b84506795500cd4502eac",
+          "actual": "0104a95183d9d707f08b1f9e993bee221a2cd89ee23b84506795500cd4502eac",
+          "match": true
+        },
+        {
+          "path": "lib/storage.js",
+          "expected": "2b4ff2c9f78801e16af25f1923a44850c671ffeec89b702c5fd5e16c0c68ce65",
+          "actual": "2b4ff2c9f78801e16af25f1923a44850c671ffeec89b702c5fd5e16c0c68ce65",
+          "match": true
+        },
+        {
+          "path": "lib/client.js",
+          "expected": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9",
+          "actual": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9",
+          "match": true
+        }
+      ],
+      "failures": []
+    }
+  },
+  "evidence": [
+    "T09-browser/",
+    "T09.json"
+  ],
+  "finished": "2026-11-16T09:37:07.169Z"
+}
+
+
+

@@ -1,0 +1,146 @@
+{
+  "review": "FND-002 R1",
+  "run": "pre-fix-baseline",
+  "generatedAt": "2026-11-16T09:20:21.215Z",
+  "node": "v24.22.0",
+  "module": {
+    "path": "docs/evidence/FND-002/reviews/v211-baseline/storage-baseline.js",
+    "sha256": "bcbda1f4a20aa0e18e1eba128f014e6f56adce544d7a542d62a2f6e48a86ee69"
+  },
+  "oracle": {
+    "description": "independent sqlite_master scan; internal objects are filtered only by literal startsWith('sqlite_')",
+    "predicate": "name.startsWith('sqlite_')"
+  },
+  "summary": {
+    "total": 6,
+    "pass": 2,
+    "fail": 4
+  },
+  "verdict": "FAIL",
+  "cases": [
+    {
+      "case": "A",
+      "description": "unknown table sqliteX_foreign_private with sentinel",
+      "expected": "reject STORAGE_INCOMPATIBLE and preserve database",
+      "actual": {
+        "accepted": true,
+        "failureCode": null,
+        "unchanged": false
+      },
+      "pass": false,
+      "failureMessage": null,
+      "userObjects": [
+        "table:sqliteX_foreign_private"
+      ],
+      "oracleInternalObjects": [],
+      "semanticsUnchanged": false
+    },
+    {
+      "case": "B",
+      "description": "unknown view sqliteX_view",
+      "expected": "reject STORAGE_INCOMPATIBLE and preserve database",
+      "actual": {
+        "accepted": true,
+        "failureCode": null,
+        "unchanged": false
+      },
+      "pass": false,
+      "failureMessage": null,
+      "userObjects": [
+        "view:sqliteX_view"
+      ],
+      "oracleInternalObjects": [],
+      "semanticsUnchanged": false
+    },
+    {
+      "case": "C",
+      "description": "v1 plus sqliteX_user_index",
+      "expected": "reject STORAGE_INCOMPATIBLE and preserve database",
+      "actual": {
+        "accepted": true,
+        "failureCode": null,
+        "unchanged": false
+      },
+      "pass": false,
+      "failureMessage": null,
+      "userObjects": [
+        "index:sqliteX_user_index",
+        "table:schema_migrations",
+        "table:storage_probe_records"
+      ],
+      "oracleInternalObjects": [
+        "sqlite_autoindex_storage_probe_records_1",
+        "sqlite_autoindex_storage_probe_records_2"
+      ],
+      "semanticsUnchanged": false
+    },
+    {
+      "case": "D",
+      "description": "v1 plus sqliteX_user_trigger",
+      "expected": "reject STORAGE_INCOMPATIBLE and preserve database",
+      "actual": {
+        "accepted": true,
+        "failureCode": null,
+        "unchanged": false
+      },
+      "pass": false,
+      "failureMessage": null,
+      "userObjects": [
+        "table:schema_migrations",
+        "table:storage_probe_records",
+        "trigger:sqliteX_user_trigger"
+      ],
+      "oracleInternalObjects": [
+        "sqlite_autoindex_storage_probe_records_1",
+        "sqlite_autoindex_storage_probe_records_2"
+      ],
+      "semanticsUnchanged": false
+    },
+    {
+      "case": "E",
+      "description": "truly blank database",
+      "expected": "accept and support read/write",
+      "actual": {
+        "accepted": true,
+        "schemaOk": true,
+        "hasAutoindex": true,
+        "write": {
+          "kind": "created",
+          "readBackOk": true
+        },
+        "persisted": true
+      },
+      "pass": true,
+      "failureMessage": null,
+      "userObjects": [],
+      "oracleInternalObjects": [],
+      "semanticsUnchanged": false
+    },
+    {
+      "case": "F",
+      "description": "v1 with sqlite_autoindex control",
+      "expected": "accept and support read/write",
+      "actual": {
+        "accepted": true,
+        "schemaOk": true,
+        "hasAutoindex": true,
+        "write": {
+          "kind": "created",
+          "readBackOk": true
+        },
+        "persisted": true
+      },
+      "pass": true,
+      "failureMessage": null,
+      "userObjects": [
+        "table:schema_migrations",
+        "table:storage_probe_records"
+      ],
+      "oracleInternalObjects": [
+        "sqlite_autoindex_storage_probe_records_1",
+        "sqlite_autoindex_storage_probe_records_2"
+      ],
+      "semanticsUnchanged": false
+    }
+  ]
+}

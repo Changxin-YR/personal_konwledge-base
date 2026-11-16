@@ -97,6 +97,18 @@ function toRecord(row: StoredRow): ProbeRecord {
 }
 
 /**
+ * Read every non-internal schema object. SQLite reserves names starting with
+ * the literal `sqlite_`; a `LIKE 'sqlite_%'` pattern would also hide legitimate
+ * names such as `sqliteX_foreign_private` because `_` is a wildcard.
+ * @param db - open database handle.
+ * @returns user tables, indexes, views, and triggers.
+ */
+function readSchemaObjects(db: DatabaseSync): { type: string; name: string }[] {
+  return (db.prepare('SELECT type, name FROM sqlite_master ORDER BY type, name').all() as { type: string; name: string }[])
+    .filter(object => !object.name.startsWith('sqlite_'))
+}
+
+/**
  * Read ownership/version facts from one database file.
  * @param path - database file path.
  * @returns raw facts with no writes.
@@ -106,8 +118,7 @@ export function readDatabaseFacts(path: string): DatabaseFacts {
   try {
     const applicationId = Number((db.prepare('PRAGMA application_id').get() as { application_id?: number } | undefined)?.application_id ?? 0)
     const userVersion = Number((db.prepare('PRAGMA user_version').get() as { user_version?: number } | undefined)?.user_version ?? 0)
-    const objects = (db.prepare("SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name").all() as { type: string; name: string }[])
-      .map(row => ({ type: row.type, name: row.name }))
+    const objects = readSchemaObjects(db)
     const tables = objects.filter(object => object.type === 'table').map(object => object.name)
     let ledger: { version: number; checksum: string; applied_at: string }[] = []
     if (tables.includes('schema_migrations')) {
@@ -262,8 +273,7 @@ export class ProbeStorage implements ProbeStorePort {
   #verify(db: DatabaseSync): void {
     const applicationId = Number((db.prepare('PRAGMA application_id').get() as { application_id?: number } | undefined)?.application_id ?? 0)
     const userVersion = Number((db.prepare('PRAGMA user_version').get() as { user_version?: number } | undefined)?.user_version ?? 0)
-    const objects = (db.prepare("SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name").all() as { type: string; name: string }[])
-      .map(row => ({ type: row.type, name: row.name }))
+    const objects = readSchemaObjects(db)
     const tables = objects.filter(object => object.type === 'table').map(object => object.name)
     const ledger = tables.includes('schema_migrations')
       ? (db.prepare('SELECT version, checksum, applied_at FROM schema_migrations ORDER BY version').all() as Record<string, unknown>[])

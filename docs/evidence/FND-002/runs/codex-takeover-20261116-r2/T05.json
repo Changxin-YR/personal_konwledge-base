@@ -1,0 +1,102 @@
+{
+  "id": "T05",
+  "name": "最小创建幂等、重试与并发重复请求",
+  "status": "PASS",
+  "started": "2026-11-16T09:34:57.323Z",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "first create 201",
+      "actual": 201
+    },
+    {
+      "ok": true,
+      "message": "same key/content replays 200 with same id/time",
+      "actual": {
+        "data": {
+          "id": "e13af29c-adef-45ef-8c7b-08672356897f",
+          "content": "幂等 codex-takeover-20261116-r2 \"x\"",
+          "created_at": "2026-11-16T09:35:04.528Z"
+        },
+        "meta": {
+          "request_id": "6b3bf272-efb8-41ce-8388-b51fb7a372e7",
+          "schema_version": 1
+        }
+      }
+    },
+    {
+      "ok": true,
+      "message": "replay works after Host restart",
+      "actual": {
+        "data": {
+          "id": "e13af29c-adef-45ef-8c7b-08672356897f",
+          "content": "幂等 codex-takeover-20261116-r2 \"x\"",
+          "created_at": "2026-11-16T09:35:04.528Z"
+        },
+        "meta": {
+          "request_id": "faba3c20-4206-4c60-9982-1de51b37c384",
+          "schema_version": 1
+        }
+      }
+    },
+    {
+      "ok": true,
+      "message": "same key different content is 409",
+      "actual": {
+        "code": "IDEMPOTENCY_CONFLICT",
+        "message": "idempotency key was used with different content",
+        "request_id": "8e8f8041-e2b4-48ed-aa0f-b27f8e177093",
+        "retryable": false,
+        "safe_details": {}
+      }
+    },
+    {
+      "ok": true,
+      "message": "conflict did not overwrite original"
+    },
+    {
+      "ok": true,
+      "message": "concurrent same-key yields 201+200",
+      "actual": [
+        200,
+        201
+      ]
+    },
+    {
+      "ok": true,
+      "message": "concurrent same-key makes exactly one row",
+      "actual": {
+        "filteredCount": 1,
+        "statuses": [
+          200,
+          201
+        ]
+      }
+    },
+    {
+      "ok": true,
+      "message": "different key same content is a new row"
+    }
+  ],
+  "details": {
+    "first": {
+      "id": "e13af29c-adef-45ef-8c7b-08672356897f",
+      "content": "幂等 codex-takeover-20261116-r2 \"x\"",
+      "created_at": "2026-11-16T09:35:04.528Z"
+    },
+    "replay": {
+      "id": "e13af29c-adef-45ef-8c7b-08672356897f",
+      "content": "幂等 codex-takeover-20261116-r2 \"x\"",
+      "created_at": "2026-11-16T09:35:04.528Z"
+    },
+    "statuses": [
+      200,
+      201
+    ],
+    "filteredCount": 1
+  },
+  "evidence": [],
+  "finished": "2026-11-16T09:35:12.843Z"
+}
+
+

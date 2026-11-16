@@ -52,12 +52,15 @@ function primarySqliteCode(error) {
 function toRecord(row) {
   return { id: row.id, content: row.content, created_at: row.created_at };
 }
+function readSchemaObjects(db) {
+  return db.prepare("SELECT type, name FROM sqlite_master ORDER BY type, name").all().filter((object) => !object.name.startsWith("sqlite_"));
+}
 function readDatabaseFacts(path) {
   const db = new DatabaseSync(path, { readOnly: true });
   try {
     const applicationId = Number(db.prepare("PRAGMA application_id").get()?.application_id ?? 0);
     const userVersion = Number(db.prepare("PRAGMA user_version").get()?.user_version ?? 0);
-    const objects = db.prepare("SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name").all().map((row) => ({ type: row.type, name: row.name }));
+    const objects = readSchemaObjects(db);
     const tables = objects.filter((object) => object.type === "table").map((object) => object.name);
     let ledger = [];
     if (tables.includes("schema_migrations")) {
@@ -187,7 +190,7 @@ var ProbeStorage = class {
   #verify(db) {
     const applicationId = Number(db.prepare("PRAGMA application_id").get()?.application_id ?? 0);
     const userVersion = Number(db.prepare("PRAGMA user_version").get()?.user_version ?? 0);
-    const objects = db.prepare("SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name").all().map((row) => ({ type: row.type, name: row.name }));
+    const objects = readSchemaObjects(db);
     const tables = objects.filter((object) => object.type === "table").map((object) => object.name);
     const ledger = tables.includes("schema_migrations") ? db.prepare("SELECT version, checksum, applied_at FROM schema_migrations ORDER BY version").all().map((row) => ({ version: Number(row.version), checksum: String(row.checksum), applied_at: String(row.applied_at) })) : [];
     this.#assertKnownSchema({ applicationId, userVersion, tables, objects, ledger });

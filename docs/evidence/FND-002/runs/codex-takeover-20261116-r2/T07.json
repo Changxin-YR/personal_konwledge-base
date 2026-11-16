@@ -1,0 +1,62 @@
+{
+  "id": "T07",
+  "name": "数据库连接生命周期释放与重新打开",
+  "status": "PASS",
+  "started": "2026-11-16T09:35:28.202Z",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "record before unload"
+    },
+    {
+      "ok": true,
+      "message": "storage close logged exactly once",
+      "actual": 1
+    },
+    {
+      "ok": true,
+      "message": "route is gone after plugin unload",
+      "actual": 404
+    },
+    {
+      "ok": true,
+      "message": "create route no longer serves this API after unload",
+      "actual": {
+        "status": 405
+      }
+    },
+    {
+      "ok": true,
+      "message": "no write after unload",
+      "actual": 1
+    },
+    {
+      "ok": true,
+      "message": "no repeated close"
+    },
+    {
+      "ok": true,
+      "message": "record readable after reopen",
+      "actual": 200
+    },
+    {
+      "ok": true,
+      "message": "write works after reopen",
+      "actual": 201
+    },
+    {
+      "ok": true,
+      "message": "database preserved through unload/reload",
+      "actual": 2
+    }
+  ],
+  "details": {
+    "closes": 1,
+    "read": 200,
+    "write": 201
+  },
+  "evidence": [],
+  "finished": "2026-11-16T09:35:40.145Z"
+}
+
+

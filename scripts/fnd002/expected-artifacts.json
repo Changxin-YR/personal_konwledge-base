@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "candidate": "codex-takeover-20261116-r2",
+  "note": "Frozen before the acceptance run. Generated from the candidate build; the checker never derives these values from the files it checks.",
+  "artifacts": {
+    "lib/index.js": "0104a95183d9d707f08b1f9e993bee221a2cd89ee23b84506795500cd4502eac",
+    "lib/storage.js": "2b4ff2c9f78801e16af25f1923a44850c671ffeec89b702c5fd5e16c0c68ce65",
+    "lib/client.js": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9"
+  }
+}

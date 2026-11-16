@@ -1,0 +1,109 @@
+{
+  "role": "independent",
+  "candidate": "codex-takeover-20261116-r2",
+  "root": "<repo>\\.cache\\knowledgeos-fnd002-data\\indep-viewobjects-codex-takeover-20261116-r2",
+  "checks": [
+    {
+      "name": "view-only DB is refused (STORAGE_INCOMPATIBLE)",
+      "ok": true,
+      "actual": {
+        "available": false,
+        "code": "STORAGE_INCOMPATIBLE"
+      }
+    },
+    {
+      "name": "view-only DB is not migrated or rewritten",
+      "ok": true,
+      "actual": {
+        "objects": [
+          {
+            "type": "view",
+            "name": "foreign_view"
+          }
+        ],
+        "applicationId": 0,
+        "userVersion": 0
+      }
+    },
+    {
+      "name": "view-only DB still has no application tables",
+      "ok": true,
+      "actual": []
+    },
+    {
+      "name": "valid v1 + extra VIEW is refused (STORAGE_INCOMPATIBLE)",
+      "ok": true,
+      "actual": {
+        "available": false,
+        "code": "STORAGE_INCOMPATIBLE"
+      }
+    },
+    {
+      "name": "valid v1 + extra VIEW is left byte-logically unchanged",
+      "ok": true,
+      "actual": {
+        "objects": [
+          {
+            "type": "table",
+            "name": "schema_migrations"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records"
+          },
+          {
+            "type": "view",
+            "name": "foreign_view"
+          }
+        ],
+        "applicationId": 1263489841,
+        "userVersion": 1
+      }
+    },
+    {
+      "name": "valid v1 DB still opens (no over-rejection)",
+      "ok": true
+    },
+    {
+      "name": "valid v1 DB accepts a write",
+      "ok": true,
+      "actual": "created"
+    },
+    {
+      "name": "valid v1 DB reopens with the record",
+      "ok": true
+    },
+    {
+      "name": "blank directory still initializes",
+      "ok": true
+    },
+    {
+      "name": "blank initialization creates exactly two application tables",
+      "ok": true,
+      "actual": [
+        {
+          "type": "table",
+          "name": "schema_migrations"
+        },
+        {
+          "type": "table",
+          "name": "storage_probe_records"
+        }
+      ]
+    },
+    {
+      "name": "blank initialization ledger checksum",
+      "ok": true,
+      "actual": [
+        {
+          "version": 1,
+          "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+          "applied_at": "2026-11-16T09:48:20.011Z"
+        }
+      ]
+    }
+  ],
+  "failures": 0,
+  "result": "PASS"
+}
+

@@ -1,0 +1,74 @@
+{
+  "id": "T02",
+  "name": "真实 SQLite 事务中途失败与回滚",
+  "status": "PASS",
+  "started": "2026-11-16T09:34:11.677Z",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "storage opens"
+    },
+    {
+      "ok": true,
+      "message": "baseline committed"
+    },
+    {
+      "ok": true,
+      "message": "controlled SQLite constraint failure rolled back",
+      "actual": {
+        "rolledBack": true,
+        "primaryCode": 19,
+        "rows": 0
+      }
+    },
+    {
+      "ok": true,
+      "message": "no partial write from failed transaction",
+      "actual": {
+        "rolledBack": true,
+        "primaryCode": 19,
+        "rows": 0
+      }
+    },
+    {
+      "ok": true,
+      "message": "baseline survives rollback"
+    },
+    {
+      "ok": true,
+      "message": "connection usable after rollback"
+    },
+    {
+      "ok": true,
+      "message": "reopen sees both committed rows",
+      "actual": 2
+    },
+    {
+      "ok": true,
+      "message": "HTTP fault switch is not accepted",
+      "actual": {
+        "code": "INPUT_INVALID",
+        "message": "body may contain only the content field",
+        "request_id": "1cf636ee-6eb6-4fde-bf06-c228bee7c413",
+        "retryable": false,
+        "safe_details": {}
+      }
+    },
+    {
+      "ok": true,
+      "message": "rejected fault request writes nothing"
+    }
+  ],
+  "details": {
+    "probe": {
+      "rolledBack": true,
+      "primaryCode": 19,
+      "rows": 0
+    },
+    "rows": 2
+  },
+  "evidence": [],
+  "finished": "2026-11-16T09:34:17.082Z"
+}
+
+

@@ -1,0 +1,79 @@
+PASS T01: exactly one persisted row :: 1
+PASS T01: same id as HTTP response :: "195ff627-fc08-4dde-9559-af0eec8f44d3"
+PASS T01: same content (UTF-8, quotes, newline) as HTTP response :: "codex-takeover-20261116-r2 中文记录 \"double\" 'single'\n第二行\\backslash"
+PASS T01: same created_at before/after restart :: "2026-11-16T09:34:04.850Z"
+PASS T01: application_id/user_version :: {"applicationId":1263489841,"userVersion":1}
+PASS T01: only two application tables :: ["schema_migrations","storage_probe_records"]
+PASS T01: migration ledger checksum :: [{"version":1,"checksum":"033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a","applied_at":"2026-11-16T09:34:04.104Z"}]
+PASS T01: DB is a real file outside DSH_HOME :: "<repo>\\.cache\\knowledgeos-fnd002-data\\codex-takeover-20261116-r2\\t01"
+PASS T01: request_digest equals SHA-256 of stored content bytes :: "e8bd1603fe524aaf149a2fd2cd4bb4a7f2efffa06e566751fdae74999350cbc6"
+PASS T01: journal_mode=WAL persisted for the real file :: "wal"
+PASS T01: no business DB/WAL/SHM under either DSH_HOME :: []
+PASS T03: application_id=1263489841 :: 1263489841
+PASS T03: user_version=1 :: 1
+PASS T03: exactly two tables :: ["schema_migrations","storage_probe_records"]
+PASS T03: no user objects beyond the two tables (no stray views/triggers) :: [{"type":"table","name":"schema_migrations"},{"type":"table","name":"storage_probe_records"}]
+PASS T03: exactly one migration ledger row with frozen checksum :: [{"version":1,"checksum":"033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a","applied_at":"2026-11-16T09:34:22.367Z"}]
+PASS T03: journal_mode persisted as WAL :: "wal"
+PASS T03: real SQLite version is 3.53.4 :: "3.53.4"
+PASS T03: repeat start kept exactly one record :: 1
+PASS T03: schema_migrations field/constraint shape :: "version:INTEGER:nn0:pk1,checksum:TEXT:nn1:pk0,applied_at:TEXT:nn1:pk0"
+PASS T03: storage_probe_records field/constraint shape :: "id:TEXT:nn1:pk1,idempotency_key:TEXT:nn1:pk0,request_digest:TEXT:nn1:pk0,content:TEXT:nn1:pk0,created_at:TEXT:nn1:pk0"
+PASS T03: idempotency_key is covered by a real UNIQUE index :: ["sqlite_autoindex_storage_probe_records_2","sqlite_autoindex_storage_probe_records_1"]
+PASS T03: both tables are STRICT as frozen :: ["schema_migrations","storage_probe_records"]
+PASS T03: canonical v1 SQL is extractable from the frozen artifact :: 321
+PASS T03: independent SHA-256 of canonical SQL equals frozen 033dcf95… :: "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a"
+PASS T03: independent checksum equals the ledger checksum :: "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a"
+PASS T03: Host opened storage on both starts :: ["t03-first.log","t03-repeat.log"]
+PASS T03: Host log runtime node (actual process) :: "24.22.0"
+PASS T03: Host log sqlite=3.53.4 :: "3.53.4"
+PASS T03: Host log journal=wal :: "wal"
+PASS T03: Host log foreign_keys=1 :: "1"
+PASS T03: Host log synchronous=2 (FULL) :: "2"
+PASS T03: Host log busy_timeout=250 :: "250"
+PASS T03: both starts report the same settings
+PASS T03: foreign_keys=ON rejects orphan row on an independent real connection :: {"rejected":true,"fkOn":1}
+PASS T05: total rows = 3 (first + concurrent + different key) :: 3
+PASS T05: no duplicate idempotency_key rows :: []
+PASS T05: concurrent content stored twice under two distinct keys (one per key) :: [{"id":"07c5ccd1-042d-4b81-a68e-f475cc065c87","idempotency_key":"5188061a-af7a-4234-ae1c-bf665357798d","content":"concurrent"},{"id":"7bf47380-f4c3-40a8-858d-dc4c00f7c50f","idempotency_key":"3660d3e3-ee53-4daf-b34c-4692fae315b8","content":"concurrent"}]
+PASS T05: unique index actually covers idempotency_key :: ["sqlite_autoindex_storage_probe_records_2"]
+PASS T05: recorded concurrent statuses are 200+201 :: [200,201]
+PASS T07: database file preserved through unload/reload with 2 records :: 2
+PASS T07: driver close logged exactly once :: 1
+PASS T07: storage opened twice (mount + remount) :: 2
+PASS T07: no "close failed" line :: 0
+PASS T07: close happens after first open and before remount open :: ["opened","closed","opened"]
+PASS T07: log files exist as evidence :: ["t07.log"]
+PASS T08: baseline + CLI + SQL-looking = 3 rows only :: 3
+PASS T08: SQL-looking text stored verbatim :: [{"content":"'\"; DROP TABLE storage_probe_records; --\n\"quoted\" 中文"}]
+PASS T08: schema unchanged after SQL-looking text :: ["schema_migrations","storage_probe_records"]
+PASS T08: request_digest is SHA-256 of content bytes :: "584ca28f09439c45e3f3dc09659ffd40b7cbf6ba1b7b996f40b0257c4f83c56b"
+PASS T08: recorded case matrix is complete :: 14
+PASS T02: only baseline + after rows (no partial write) :: [{"id":"11111111-1111-4111-8111-111111111111","content":"baseline"},{"id":"77777777-7777-4777-8777-777777777777","content":"after"}]
+PASS T04: six incompatible fixtures recorded (incl. R1 sqliteX table) :: ["future","bad-checksum","wrong-app","unknown-schema","unknown-view","r1-foreign-table"]
+PASS T06: before-lock + after-lock rows persisted (original data survives lock) :: ["before-lock","after-lock"]
+PASS T09: candidate.md lists the 11 frozen file hashes :: 11
+PASS T09: profile dependency links the candidate package :: "link:<repo>/packages/knowledgeos-panel"
+PASS T09: profile node_modules resolves the plugin :: "<repo>\\.cache\\dsh-home-fnd002\\profiles\\knowledgeos-storage-test\\node_modules\\knowledgeos-panel"
+PASS T09: lib/index.js matches the frozen candidate hash :: {"frozen":"0104a95183d9d707f08b1f9e993bee221a2cd89ee23b84506795500cd4502eac","fromPackage":"0104a95183d9d707f08b1f9e993bee221a2cd89ee23b84506795500cd4502eac","fromProfile":"0104a95183d9d707f08b1f9e993bee221a2cd89ee23b84506795500cd4502eac"}
+PASS T09: lib/storage.js matches the frozen candidate hash :: {"frozen":"2b4ff2c9f78801e16af25f1923a44850c671ffeec89b702c5fd5e16c0c68ce65","fromPackage":"2b4ff2c9f78801e16af25f1923a44850c671ffeec89b702c5fd5e16c0c68ce65","fromProfile":"2b4ff2c9f78801e16af25f1923a44850c671ffeec89b702c5fd5e16c0c68ce65"}
+PASS T09: lib/client.js matches the frozen candidate hash :: {"frozen":"f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9","fromPackage":"f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9","fromProfile":"f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9"}
+PASS T09: lib/test-support.js loaded from the same package :: "d1bde89bb37f0ddd1bab673e9b02c3c98420e43d78de29979c4379dd64d9a967"
+PASS T09: packages/knowledgeos-panel/src/host/storage.ts matches the frozen candidate hash :: "24d0e351b34f1ef39d6b6906e91aed185ca2f912ffd0868eba5c88c121cb3b54"
+PASS T09: packages/knowledgeos-panel/src/host/http.ts matches the frozen candidate hash :: "a20bd13760e141314ab46886440fc7157c0640788c4f45d72cd8d2f5b02f1ce6"
+PASS T09: packages/knowledgeos-panel/src/host/records.ts matches the frozen candidate hash :: "658553efd04345b770879ef5225da61463630fbbadf2818b2ba1ebb7373bf675"
+PASS T09: packages/knowledgeos-panel/src/host/config.ts matches the frozen candidate hash :: "1e108b328f02e7c9ef25851577b0160d71399b05030b991b306635f7bafc76ed"
+PASS T09: packages/knowledgeos-panel/src/host/index.ts matches the frozen candidate hash :: "0e91c7cddbc19a34aa645742a5d80d9b7cf8fa0a32b3c1601288dacdf355afd7"
+PASS T09: packages/knowledgeos-panel/package.json matches the frozen candidate hash :: "48a6f24ff44437ebaee238ee53c96422fdcc7968f645582fb95b5585a52f1c55"
+PASS T09: scripts/fnd002/run-all.mjs matches the frozen candidate hash :: "06fbfd60de3ea14cc4cf630c76306843d0d6f899b0c7d5a8fef52a86daccb872"
+PASS T09: scripts/fnd002/scope-check.mjs matches the frozen candidate hash :: "d7e3a7aa173f7414d25deb4c439c8fdb8f02cc2c28574eafc15ab1d3eea6a68e"
+PASS T09: FND-001 panel browser regression PASS with no failures/not_run :: {"result":"PASS","failures":0,"not_run":0}
+PASS T09: browser evidence includes 6 screenshots :: 6
+PASS T09: legacy profile did not create a business database :: []
+PASS D9: DDL from two independent initializations is identical :: ["schema_migrations","storage_probe_records"]
+{
+  "result": "PASS",
+  "failures": 0,
+  "checked": 73
+}
+

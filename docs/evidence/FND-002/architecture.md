@@ -1,11 +1,11 @@
 # FND-002 架构与最小契约记录
 
-> **当前补充：** 既有层次、两表和 API 保留。v2.1.1 确定的字面 sqlite_ 前缀与证据检查修复仍待执行，现由 Codex 按 v3.0.0 接管；DSH 产品 Host 保持。正文中的 sqlite_% 描述不能按未转义的 LIKE 模式实现。见 [提交复核](SUBMISSION_REVIEW_20261116.md)。
+> **当前补充：** 既有层次、两表和 API 保留。Codex v3.0.0 已完成字面 `sqlite_` 前缀修复与证据检查修复；DSH 产品 Host 保持。正文中的 sqlite_% 描述不能按未转义的 LIKE 模式实现。见本目录新候选 evidence。
 
-- unit: FND-002，instruction_revision 2.1.0
+- unit: FND-002，instruction_revision 3.0.0
 - 固定上游：`39163dd30f703a79079e2d2446545cff3c453738`（`0.2.2-rc.3`）
 - 运行环境：Windows 11 Pro、Node `24.22.0`、SQLite `3.53.4`（`node:sqlite`）
-- 分支：`dsh/knowledgeos-fnd-002`
+- 分支：`codex/knowledgeos-takeover`
 - 范围：真实已认证 HTTP → Host handler → 应用用例/端口 → 独立 SQLite 文件 → Host 重启后读取；不进入 FND-003。
 
 ## 1. 固定源码依据

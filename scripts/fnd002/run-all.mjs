@@ -9,8 +9,9 @@
  */
 import { spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
+import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import {
@@ -45,6 +46,7 @@ mkdirSync(OUT, { recursive: true })
 mkdirSync(DATA_ROOT, { recursive: true })
 const originalPatch = existsSync(PATCH_PATH) ? readFileSync(PATCH_PATH, 'utf8') : '[]\n'
 const results = []
+const SUITE_STARTED = new Date().toISOString()
 const failures = []
 let current = null
 
@@ -107,6 +109,11 @@ async function createFixture(dataDir, kind) {
       db.exec('CREATE VIEW foreign_view AS SELECT 1 AS value')
       return path
     }
+    if (kind === 'r1-foreign-table') {
+      db.exec('CREATE TABLE sqliteX_foreign_private (id INTEGER PRIMARY KEY, secret TEXT NOT NULL)')
+      db.prepare('INSERT INTO sqliteX_foreign_private (id, secret) VALUES (?, ?)').run(1, 't04-r1-sentinel')
+      return path
+    }
     db.exec(MIGRATION_V1_SQL)
     db.prepare('INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)')
       .run(1, kind === 'bad-checksum' ? '0'.repeat(64) : MIGRATION_V1_CHECKSUM, new Date().toISOString())
@@ -150,7 +157,7 @@ async function run(id, name, fn) {
   } finally {
     detail.finished = new Date().toISOString()
     writeFileSync(join(OUT, `${id}.json`), `${JSON.stringify(detail, null, 2)}\n`, 'utf8')
-    results.push({ id, name, status: detail.status, evidence: `${id}.json` })
+    results.push({ id, name, status: detail.status, started: detail.started, finished: detail.finished, evidence: `${id}.json` })
     await shutdown()
   }
 }
@@ -299,7 +306,7 @@ try {
     expect(detail, failFacts.tables.length === 0 && failFacts.userVersion === 0 && failFacts.applicationId === 0, 'failed migration leaves no tables/version', failFacts)
 
     const fixtures = {}
-    for (const kind of ['future', 'bad-checksum', 'wrong-app', 'unknown-schema', 'unknown-view']) {
+    for (const kind of ['future', 'bad-checksum', 'wrong-app', 'unknown-schema', 'unknown-view', 'r1-foreign-table']) {
       const dir = join(DATA_ROOT, `t04-${kind}`)
       const path = await createFixture(dir, kind)
       const factsBefore = readDatabaseFacts(path)
@@ -315,6 +322,14 @@ try {
     expect(detail, rejected.status === 503 && rejected.json?.code === 'STORAGE_INCOMPATIBLE', 'Host returns STORAGE_INCOMPATIBLE for future version', rejected.json)
     const status = await api(cookie, 'GET', '/knowledgeos/status')
     expect(detail, status.status === 200 && status.json?.product === 'KnowledgeOS', 'Host status stays reachable')
+    const foreignDir = join(DATA_ROOT, 't04-r1-foreign-table')
+    const foreignBefore = fixtures['r1-foreign-table'].factsBefore
+    const foreignCookie = await boot(foreignDir, 't04-host-r1-foreign-table')
+    const foreignRejected = await api(foreignCookie, 'POST', '/knowledgeos/foundation/records', createHeaders(crypto.randomUUID()), JSON.stringify({ content: 'no-r1' }))
+    expect(detail, foreignRejected.status === 503 && foreignRejected.json?.code === 'STORAGE_INCOMPATIBLE', 'Host rejects sqliteX foreign table before writes', foreignRejected.json)
+    const foreignStatus = await api(foreignCookie, 'GET', '/knowledgeos/status')
+    expect(detail, foreignStatus.status === 200 && foreignStatus.json?.product === 'KnowledgeOS', 'Host status stays reachable for sqliteX fixture')
+    expect(detail, JSON.stringify(readDatabaseFacts(dbPath(foreignDir))) === JSON.stringify(foreignBefore), 'sqliteX fixture remains unchanged after Host rejection', readDatabaseFacts(dbPath(foreignDir)))
     const validDir = join(DATA_ROOT, 't04-valid')
     rmSync(validDir, { recursive: true, force: true })
     const cookie2 = await boot(validDir, 't04-host-valid')
@@ -351,10 +366,11 @@ try {
     ])
     const statuses = [a.status, b.status].sort()
     expect(detail, statuses[0] === 200 && statuses[1] === 201, 'concurrent same-key yields 201+200', statuses)
-    expect(detail, rowCount(dbPath(dataDir), 'WHERE idempotency_key = ?', [concurrentKey]) === 1, 'concurrent same-key makes exactly one row', rowCount(dbPath(dataDir)))
+    const filteredCount = rowCount(dbPath(dataDir), 'WHERE idempotency_key = ?', [concurrentKey])
+    expect(detail, filteredCount === 1, 'concurrent same-key makes exactly one row', { filteredCount, statuses })
     const other = await api(cookie2, 'POST', '/knowledgeos/foundation/records', createHeaders(crypto.randomUUID()), JSON.stringify({ content: 'concurrent' }))
     expect(detail, other.status === 201 && other.json.data.id !== (a.json?.data?.id ?? b.json?.data?.id), 'different key same content is a new row')
-    detail.details = { first: first.json.data, replay: replay.json.data, statuses }
+    detail.details = { ...detail.details, first: first.json.data, replay: replay.json.data, statuses, filteredCount }
   })
 
   await run('T06', '打开失败、有限锁等待与恢复', async detail => {
@@ -512,13 +528,42 @@ try {
     runCheck('verify-plan', process.execPath, ['scripts/verify-plan.mjs'])
     runCheck('fnd002-scope-check', process.execPath, ['scripts/fnd002/scope-check.mjs'])
     runCheck('plugin-typecheck', process.execPath, ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.json'], join(REPO, 'packages', 'knowledgeos-panel'))
-    const profileManifest = JSON.parse(readFileSync(join(PROFILE_DIR, 'package.json'), 'utf8'))
-    const spec = profileManifest.dependencies?.['knowledgeos-panel'] ?? ''
-    expect(detail, spec.includes('knowledgeos-panel'), 'profile links the candidate package', spec)
-    const loadedDir = join(REPO, 'packages', 'knowledgeos-panel')
-    for (const file of ['lib/index.js', 'lib/storage.js', 'lib/client.js']) {
-      const hash = createHash('sha256').update(readFileSync(join(loadedDir, file))).digest('hex')
-      expect(detail, hash.length === 64, `${file} loaded from candidate`, hash)
+    const expectedArtifacts = join(REPO, 'scripts', 'fnd002', 'expected-artifacts.json')
+    const artifactChecker = join(REPO, 'scripts', 'fnd002', 'check-loaded-artifacts.mjs')
+    const sanitizeArtifactReport = report => report === undefined ? undefined : {
+      ...report,
+      profile_dir: '<profile-dir>',
+      package_dir: '<candidate-package-dir>',
+      resolved_spec: report.resolved_spec === null ? null : '<profile-link-to-candidate-package>',
+      expected_source: 'scripts/fnd002/expected-artifacts.json',
+    }
+    const loadedRun = spawnSync(process.execPath, [artifactChecker, '--profile-dir', PROFILE_DIR, '--expected', expectedArtifacts], {
+      cwd: REPO, encoding: 'utf8', timeout: 120_000, windowsHide: true,
+    })
+    let loaded = undefined
+    try { loaded = JSON.parse(loadedRun.stdout) } catch { loaded = undefined }
+    checks.push({ name: 'loaded-artifacts', status: loadedRun.status, report: sanitizeArtifactReport(loaded), stderr: loadedRun.stderr?.slice(-2000) })
+    expect(detail, loadedRun.status === 0 && loaded?.result === 'PASS', 'profile-loaded artifacts match the frozen candidate hashes', sanitizeArtifactReport(loaded) ?? '<invalid checker output>')
+    expect(detail, loaded?.package_dir !== undefined && loaded.package_dir.includes('knowledgeos-panel'), 'loaded package path came from the profile link', loaded?.package_dir ? '<candidate-package-dir>' : undefined)
+
+    const negativeDir = mkdtempSync(join(tmpdir(), 'fnd002-t09-negative-'))
+    let negativeRun
+    try {
+      mkdirSync(join(negativeDir, 'lib'), { recursive: true })
+      for (const file of ['lib/index.js', 'lib/storage.js', 'lib/client.js']) {
+        writeFileSync(join(negativeDir, file), readFileSync(join(loaded.package_dir, file)))
+      }
+      writeFileSync(join(negativeDir, 'lib/index.js'), `${readFileSync(join(negativeDir, 'lib/index.js'), 'utf8')}\n`, 'utf8')
+      negativeRun = spawnSync(process.execPath, [
+        artifactChecker, '--profile-dir', PROFILE_DIR, '--expected', expectedArtifacts, '--actual-dir', negativeDir,
+      ], { cwd: REPO, encoding: 'utf8', timeout: 120_000, windowsHide: true })
+      let negativeReport
+      try { negativeReport = JSON.parse(negativeRun.stdout) } catch { negativeReport = undefined }
+      checks.push({ name: 'loaded-artifacts-negative', status: negativeRun.status, report: sanitizeArtifactReport(negativeReport), stderr: negativeRun.stderr?.slice(-2000) })
+      expect(detail, negativeRun.status !== 0, 'tampered artifact copy is rejected', negativeRun.status)
+      detail.details.negative_artifact = { status: negativeRun.status, result: negativeReport?.result, failures: negativeReport?.failures }
+    } finally {
+      rmSync(negativeDir, { recursive: true, force: true })
     }
 
     const browser = spawnSync(process.execPath, [
@@ -539,7 +584,15 @@ try {
     const oldStatus = await api(oldCookie, 'GET', '/knowledgeos/status')
     expect(detail, oldStatus.status === 200 && oldStatus.json?.product === 'KnowledgeOS', 'old profile keeps the original status behavior')
     expect(detail, !existsSync(join(OLD_HOME, 'knowledgeos.sqlite')), 'old profile did not create a business database')
-    detail.details = { checks }
+    detail.details = {
+      ...detail.details,
+      checks,
+      loaded_artifacts: sanitizeArtifactReport(loaded),
+      negative_artifact: {
+        ...(detail.details.negative_artifact ?? {}),
+        status: negativeRun?.status ?? null,
+      },
+    }
     detail.evidence = ['T09-browser/', 'T09.json']
   })
 } finally {
@@ -547,11 +600,11 @@ try {
   writeFileSync(PATCH_PATH, originalPatch, 'utf8')
   const summary = {
     run_id: RUN_ID,
-    out: OUT,
+    out: OUT.startsWith(`${REPO}\\`) ? OUT.slice(REPO.length + 1).replaceAll('\\\\', '/') : '<evidence-output>',
     candidate: option('candidate') ?? null,
     upstream_commit: UPSTREAM_COMMIT,
-    data_root: DATA_ROOT,
-    started_at: results[0]?.started ?? null,
+    data_root: '<isolated-data-root>',
+    started_at: SUITE_STARTED,
     finished_at: new Date().toISOString(),
     result: failures.length === 0 && results.length > 0 && results.every(item => item.status === 'PASS')
       && (ONLY !== undefined || results.length === 9) ? 'PASS' : 'FAIL',
