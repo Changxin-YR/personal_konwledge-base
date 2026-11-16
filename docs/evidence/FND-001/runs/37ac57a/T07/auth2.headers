@@ -1,0 +1,10 @@
+HTTP/1.1 200 OK
+cache-control: no-store
+content-type: application/json; charset=utf-8
+x-content-type-options: nosniff
+Vary: Accept-Encoding
+Date: Mon, 16 Nov 2026 04:16:38 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+

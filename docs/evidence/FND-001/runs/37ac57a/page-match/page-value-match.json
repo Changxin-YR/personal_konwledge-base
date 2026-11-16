@@ -1,0 +1,36 @@
+{
+  "result": "PASS",
+  "captured_at": "2026-11-16T04:26:31.935Z",
+  "http_status": 200,
+  "response": {
+    "schema_version": 1,
+    "product": "KnowledgeOS",
+    "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+    "upstream_version": "0.2.2-rc.3",
+    "expected_upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+    "upstream_commit_verified": true,
+    "host_instance_id": "824989dd-592f-4a34-8912-e0eba897e25a",
+    "started_at": "2026-11-16T04:26:21.202Z",
+    "checked_at": "2026-11-16T04:26:31.912Z",
+    "status": "ok"
+  },
+  "displayed": {
+    "version": "0.2.2-rc.3",
+    "commit": "39163dd30f70",
+    "verified": "与锁定提交一致",
+    "instance": "824989dd-592f-4a34-8912-e0eba897e25a",
+    "checkedAtIso": "2026-11-16T04:26:31.912Z",
+    "checkedAtText": "2026/11/16 12:26:31",
+    "startedAtText": "2026/11/16 12:26:21"
+  },
+  "comparisons": {
+    "version": true,
+    "commit": true,
+    "verified": true,
+    "instance": true,
+    "checkedAtIso": true,
+    "checkedAtText": true,
+    "startedAtText": true,
+    "responseIsSameInstance": true
+  }
+}

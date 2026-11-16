@@ -8,4 +8,4 @@
 
 公开仓库只存脱敏证据与摘要，真实教材、私人作答、模型密钥、会话令牌和未经授权项目源文件留在本机。旧证据保留其时间与范围，旧可执行指令只在Git历史中追溯。
 
-当前尚未运行FND-001，不预建伪造通过报告。执行规则v2的文档/脚本检查记录为 `EXECUTION_V2_VALIDATION.md`，不能当成产品证据。
+FND-001 已在真实 DSH Web profile 完成开发、测试与独立复核，证据见 `FND-001/`（入口 `REPORT.md`，独立结论 `independent-verification.md`，运行记录 `runs/37ac57a/`）。该单元通过只覆盖单面板与 Host 只读状态切片，不等于 F01/F04 或 A01/A50 完整场景通过。执行规则 v2 的文档/脚本检查记录为 `EXECUTION_V2_VALIDATION.md`，不能当成产品证据。

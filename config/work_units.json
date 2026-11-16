@@ -90,7 +90,7 @@
       ],
       "final_acceptance_ids": [],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
-      "status": "planned",
+      "status": "passed",
       "requirement_evidence_scope": {
         "F01": "partial_foundation",
         "F04": "partial_foundation"
@@ -99,7 +99,14 @@
         "A01": "仅Host/Client真实挂载与只读状态往返；身份、真实模型工具读写不在本单元。",
         "A50": "仅一个面板的入口/基本导航/字体状态；六工作区与Windows全遍历不在本单元。"
       },
-      "test_plan_status": "detailed_current_unit"
+      "test_plan_status": "detailed_current_unit",
+      "completed_at": "2026-11-16",
+      "evidence_paths": [
+        "docs/evidence/FND-001/REPORT.md",
+        "docs/evidence/FND-001/independent-verification.md",
+        "docs/evidence/FND-001/build-evidence.md",
+        "docs/evidence/FND-001/runs/37ac57a/"
+      ]
     },
     {
       "id": "FND-002",

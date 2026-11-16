@@ -1,0 +1,24 @@
+﻿ docs/evidence/FND-001/architecture-review.md       |  57 ++
+ docs/evidence/FND-001/test-plan.md                 | 997 +++++++++++++++++++++
+ packages/knowledgeos-panel/README.md               |  64 ++
+ packages/knowledgeos-panel/build.mjs               |  80 ++
+ packages/knowledgeos-panel/cordis.patch.yml        |   8 +
+ packages/knowledgeos-panel/lib/client.js           | 359 ++++++++
+ packages/knowledgeos-panel/lib/index.js            |  68 ++
+ packages/knowledgeos-panel/package-lock.json       | 554 ++++++++++++
+ packages/knowledgeos-panel/package.json            |  47 +
+ packages/knowledgeos-panel/src/client/Panel.tsx    | 202 +++++
+ packages/knowledgeos-panel/src/client/contracts.ts |  30 +
+ packages/knowledgeos-panel/src/client/icon.tsx     |  31 +
+ packages/knowledgeos-panel/src/client/index.ts     |  35 +
+ .../knowledgeos-panel/src/client/status-client.ts  | 122 +++
+ packages/knowledgeos-panel/src/cordis.d.ts         |  38 +
+ packages/knowledgeos-panel/src/host/index.ts       |  65 ++
+ packages/knowledgeos-panel/src/host/status.ts      |  87 ++
+ packages/knowledgeos-panel/tsconfig.json           |  22 +
+ scripts/fnd001/browser-e2e.mjs                     | 354 ++++++++
+ scripts/fnd001/host-contract-run.mjs               | 141 +++
+ scripts/fnd001/host-probe.mjs                      |  76 ++
+ scripts/fnd001/scope-check.mjs                     |  48 +
+ scripts/fnd001/status-contract.mjs                 | 109 +++
+ 23 files changed, 3594 insertions(+)

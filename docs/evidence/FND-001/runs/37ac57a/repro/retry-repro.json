@@ -1,0 +1,228 @@
+{
+  "events": [
+    {
+      "at": "2026-11-16T04:05:19.881Z",
+      "name": "host-1-entry",
+      "detail": {
+        "cookie": true
+      }
+    },
+    {
+      "at": "2026-11-16T04:05:19.900Z",
+      "name": "node-status-before",
+      "detail": {
+        "status": 200,
+        "body": "{\"schema_version\":1,\"product\":\"KnowledgeOS\",\"upstream_commit\":\"39163dd30f703a79079e2d2446545cff3c453738\",\"upstream_version\":\"0.2.2-rc.3\",\"expected_upstream_commit\":\"39163dd30f703a79079e2d2446545cff3c453738\",\"upstream_commit_verified\":true,\"host_instance_id\":\"92217637-ec56-4794-8a05-cd6e2db77e1e\",\"started_at\":\"2026-11-16T04:05:18.662Z\",\"checked_at\":\"2026-11-16T04:05:19.890Z\",\"status\":\"ok\"}"
+      }
+    },
+    {
+      "at": "2026-11-16T04:06:29.608Z",
+      "name": "panel-ready-before",
+      "detail": {
+        "state": "ready",
+        "instance": "92217637-ec56-4794-8a05-cd6e2db77e1e",
+        "checkedAt": "2026-11-16T04:05:29.542Z",
+        "error": null,
+        "failedAt": null
+      }
+    },
+    {
+      "at": "2026-11-16T04:06:29.620Z",
+      "name": "console-error",
+      "detail": {
+        "text": "Failed to load resource: net::ERR_CONNECTION_RESET"
+      }
+    },
+    {
+      "at": "2026-11-16T04:06:30.014Z",
+      "name": "console-error",
+      "detail": {
+        "text": "WebSocket connection to 'ws://127.0.0.1:3099/api/remote.mux' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "at": "2026-11-16T04:06:30.138Z",
+      "name": "node-status-down",
+      "detail": {
+        "status": "error",
+        "body": "TypeError: fetch failed"
+      }
+    },
+    {
+      "at": "2026-11-16T04:06:30.173Z",
+      "name": "console-error",
+      "detail": {
+        "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "at": "2026-11-16T04:06:30.216Z",
+      "name": "panel-error-after-disconnect",
+      "detail": {
+        "state": "error",
+        "instance": "92217637-ec56-4794-8a05-cd6e2db77e1e",
+        "checkedAt": "2026-11-16T04:05:29.542Z",
+        "error": "无法读取 Host 运行状态。\n\n无法连接本机 Host 服务：Failed to fetch\n\n失败时间：2026/11/16 12:06:30\n\n下方为上次成功获取的数据，已失去实时性。\n\n重试",
+        "failedAt": "失败时间：2026/11/16 12:06:30"
+      }
+    },
+    {
+      "at": "2026-11-16T04:06:31.011Z",
+      "name": "console-error",
+      "detail": {
+        "text": "WebSocket connection to 'ws://127.0.0.1:3099/api/remote.mux' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "at": "2026-11-16T04:06:32.623Z",
+      "name": "console-error",
+      "detail": {
+        "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "at": "2026-11-16T04:06:32.646Z",
+      "name": "console-error",
+      "detail": {
+        "text": "WebSocket connection to 'ws://127.0.0.1:3099/api/remote.mux' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "at": "2026-11-16T04:06:35.138Z",
+      "name": "console-error",
+      "detail": {
+        "text": "WebSocket connection to 'ws://127.0.0.1:3099/api/remote.mux' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "at": "2026-11-16T04:06:35.627Z",
+      "name": "console-error",
+      "detail": {
+        "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "at": "2026-11-16T04:06:38.634Z",
+      "name": "console-error",
+      "detail": {
+        "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "at": "2026-11-16T04:06:41.637Z",
+      "name": "console-error",
+      "detail": {
+        "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "at": "2026-11-16T04:06:43.459Z",
+      "name": "host-2-entry",
+      "detail": {
+        "cookieLength": 224
+      }
+    },
+    {
+      "at": "2026-11-16T04:06:43.482Z",
+      "name": "node-status-after-restart",
+      "detail": {
+        "status": 200,
+        "body": {
+          "schema_version": 1,
+          "product": "KnowledgeOS",
+          "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+          "upstream_version": "0.2.2-rc.3",
+          "expected_upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+          "upstream_commit_verified": true,
+          "host_instance_id": "803c7fd5-7c8e-4101-9c90-f1328b86bcd4",
+          "started_at": "2026-11-16T04:06:41.683Z",
+          "checked_at": "2026-11-16T04:06:43.471Z",
+          "status": "ok"
+        }
+      }
+    },
+    {
+      "at": "2026-11-16T04:09:44.618Z",
+      "name": "retry-panel-retry",
+      "detail": {
+        "clicked": "kos-error-retry",
+        "transitions": [
+          "loading",
+          "ready"
+        ],
+        "final": {
+          "state": "ready",
+          "instance": "803c7fd5-7c8e-4101-9c90-f1328b86bcd4",
+          "checkedAt": "2026-11-16T04:06:43.631Z",
+          "error": null,
+          "failedAt": null
+        },
+        "network": [
+          {
+            "at": 1794802003542,
+            "kind": "request",
+            "url": "http://127.0.0.1:3099/knowledgeos/status"
+          },
+          {
+            "at": 1794802003633,
+            "kind": "response",
+            "status": 200
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-11-16T04:10:53.519Z",
+      "name": "after-reload",
+      "detail": {
+        "state": "ready",
+        "instance": "803c7fd5-7c8e-4101-9c90-f1328b86bcd4",
+        "checkedAt": "2026-11-16T04:09:53.486Z",
+        "error": null,
+        "failedAt": null
+      }
+    }
+  ],
+  "statusEvents": [
+    {
+      "at": 1794801929541,
+      "kind": "request",
+      "url": "http://127.0.0.1:3099/knowledgeos/status"
+    },
+    {
+      "at": 1794801929552,
+      "kind": "response",
+      "status": 200
+    },
+    {
+      "at": 1794801990170,
+      "kind": "request",
+      "url": "http://127.0.0.1:3099/knowledgeos/status"
+    },
+    {
+      "at": 1794801990173,
+      "kind": "requestfailed",
+      "failure": "net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "at": 1794802003542,
+      "kind": "request",
+      "url": "http://127.0.0.1:3099/knowledgeos/status"
+    },
+    {
+      "at": 1794802003633,
+      "kind": "response",
+      "status": 200
+    },
+    {
+      "at": 1794802193485,
+      "kind": "request",
+      "url": "http://127.0.0.1:3099/knowledgeos/status"
+    },
+    {
+      "at": 1794802193491,
+      "kind": "response",
+      "status": 200
+    }
+  ]
+}

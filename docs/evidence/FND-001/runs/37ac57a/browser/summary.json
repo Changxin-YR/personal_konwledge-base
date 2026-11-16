@@ -1,0 +1,179 @@
+{
+  "started_at": "2026-11-16T04:00:43.052Z",
+  "base": "http://127.0.0.1:3099",
+  "profile": "knowledgeos-test",
+  "dsh_root": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\.cache\\build\\dsh-39163dd",
+  "home": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\.cache\\dsh-home-fnd001",
+  "commit_hash": "39163dd30f703a79079e2d2446545cff3c453738",
+  "steps": [
+    {
+      "name": "T01 sidebar entry visible",
+      "ok": true,
+      "detail": {
+        "count": 1
+      },
+      "at": "2026-11-16T04:01:11.988Z"
+    },
+    {
+      "name": "T02 panel shows Host version/commit",
+      "ok": true,
+      "detail": {
+        "version": "0.2.2-rc.3",
+        "commit": "39163dd30f70",
+        "verified": "与锁定提交一致",
+        "instance": "aea35fd9-a847-4254-b74e-b46c15d5eef0",
+        "checkedAt": "2026/11/16 12:01:12",
+        "checkedAtIso": "2026-11-16T04:01:12.061Z",
+        "startedAt": "2026/11/16 12:00:52"
+      },
+      "at": "2026-11-16T04:01:12.123Z"
+    },
+    {
+      "name": "T02 refresh fetched newer checked_at",
+      "ok": true,
+      "detail": {
+        "before": "2026-11-16T04:01:12.061Z",
+        "after": "2026-11-16T04:01:13.677Z"
+      },
+      "at": "2026-11-16T04:01:15.214Z"
+    },
+    {
+      "name": "T04 exactly one entry after reload",
+      "ok": true,
+      "at": "2026-11-16T04:01:26.093Z"
+    },
+    {
+      "name": "T04 repeated enter/exit has one entry and one panel",
+      "ok": true,
+      "detail": {
+        "entries": 1,
+        "panels": 1,
+        "otherLabel": "插件"
+      },
+      "at": "2026-11-16T04:01:26.632Z"
+    },
+    {
+      "name": "T05 existing panels remain navigable",
+      "ok": true,
+      "detail": {
+        "navigation": [
+          {
+            "label": "插件",
+            "textLength": 107
+          },
+          {
+            "label": "自动化任务",
+            "textLength": 109
+          },
+          {
+            "label": "更多",
+            "textLength": 215
+          }
+        ]
+      },
+      "at": "2026-11-16T04:01:29.336Z"
+    },
+    {
+      "name": "T04 no status polling while panel is closed",
+      "ok": true,
+      "detail": {
+        "requests": 0,
+        "window_ms": 15000
+      },
+      "at": "2026-11-16T04:01:44.404Z"
+    },
+    {
+      "name": "T07 anonymous request is rejected",
+      "ok": true,
+      "detail": {
+        "status": 401
+      },
+      "at": "2026-11-16T04:01:47.413Z"
+    },
+    {
+      "name": "T07 authenticated request is 200",
+      "ok": true,
+      "detail": {
+        "status": 200
+      },
+      "at": "2026-11-16T04:01:47.413Z"
+    },
+    {
+      "name": "T03 real disconnect makes the Host unreachable",
+      "ok": true,
+      "detail": {
+        "status": "error"
+      },
+      "at": "2026-11-16T04:01:47.969Z"
+    },
+    {
+      "name": "T03 error and stale marker are visible",
+      "ok": true,
+      "detail": {
+        "staleVersion": "0.2.2-rc.3",
+        "versionBefore": "0.2.2-rc.3"
+      },
+      "at": "2026-11-16T04:01:48.043Z"
+    },
+    {
+      "name": "T03 retry while still down stays failed",
+      "ok": true,
+      "detail": {
+        "retryButton": 1
+      },
+      "at": "2026-11-16T04:01:48.091Z"
+    },
+    {
+      "name": "T03 Host restarted and route is reachable",
+      "ok": true,
+      "detail": {
+        "status": 200
+      },
+      "at": "2026-11-16T04:02:38.756Z"
+    },
+    {
+      "name": "unexpected exception",
+      "ok": false,
+      "detail": {
+        "message": "locator.waitFor: Timeout 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"knowledgeos-panel\"][data-state=\"ready\"]') to be visible\u001b[22m\n"
+      },
+      "at": "2026-11-16T04:03:38.806Z"
+    }
+  ],
+  "failures": [
+    "unexpected exception: {\"message\":\"locator.waitFor: Timeout 60000ms exceeded.\\nCall log:\\n\\u001b[2m  - waiting for locator('[data-testid=\\\"knowledgeos-panel\\\"][data-state=\\\"ready\\\"]') to be visible\\u001b[22m\\n\"}"
+  ],
+  "fixtures": [],
+  "artifacts": {},
+  "not_run": [],
+  "entry_url_shape": "http://127.0.0.1:3099/?token=<redacted>",
+  "notice_overlay_removals": 2,
+  "preview_notice_dismissed": "absent",
+  "ready": {
+    "version": "0.2.2-rc.3",
+    "commit": "39163dd30f70",
+    "verified": "与锁定提交一致",
+    "instance": "aea35fd9-a847-4254-b74e-b46c15d5eef0",
+    "checkedAt": "2026/11/16 12:01:12",
+    "checkedAtIso": "2026-11-16T04:01:12.061Z",
+    "startedAt": "2026/11/16 12:00:52"
+  },
+  "cookie_names": [
+    "dsh-auth-<redacted>"
+  ],
+  "status_first": {
+    "schema_version": 1,
+    "product": "KnowledgeOS",
+    "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+    "upstream_version": "0.2.2-rc.3",
+    "expected_upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+    "upstream_commit_verified": true,
+    "host_instance_id": "aea35fd9-a847-4254-b74e-b46c15d5eef0",
+    "started_at": "2026-11-16T04:00:52.757Z",
+    "checked_at": "2026-11-16T04:01:47.404Z",
+    "status": "ok"
+  },
+  "entry_url_shape_after_restart": "http://127.0.0.1:3099/?token=<redacted>",
+  "finished_at": "2026-11-16T04:03:40.167Z",
+  "result": "FAIL"
+}

@@ -1,0 +1,83 @@
+{
+  "events": [
+    {
+      "at": "2026-11-16T04:15:25.319Z",
+      "name": "matching-buttons-at-disconnect",
+      "detail": [
+        {
+          "index": 15,
+          "ariaLabel": "连接中断，正在重试，点击立即重连",
+          "text": "重新连接中...",
+          "dataTestId": null,
+          "insidePanel": false,
+          "visible": true,
+          "html": "<button type=\"button\" class=\"hwfHwW_indicator hwfHwW_warning\" data-phase=\"connecting\" aria-label=\"连接中断，正在重试，点击立即重连\"><span class=\"hwfHwW_icon\" aria-hidden=\"true\"><svg class=\"Fm39sa_spinner\" data-state=\"ongoing\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" aria-hi"
+        },
+        {
+          "index": 16,
+          "ariaLabel": "",
+          "text": "重试",
+          "dataTestId": "kos-error-retry",
+          "insidePanel": true,
+          "visible": true,
+          "html": "<button type=\"button\" class=\"kos-button\" data-testid=\"kos-error-retry\">重试</button>"
+        },
+        {
+          "index": 17,
+          "ariaLabel": "",
+          "text": "重新连接",
+          "dataTestId": "kos-refresh",
+          "insidePanel": true,
+          "visible": true,
+          "html": "<button type=\"button\" class=\"kos-button kos-button--ghost\" data-testid=\"kos-refresh\">重新连接</button>"
+        }
+      ]
+    },
+    {
+      "at": "2026-11-16T04:15:25.328Z",
+      "name": "candidate-locator-count",
+      "detail": {
+        "count": 3
+      }
+    },
+    {
+      "at": "2026-11-16T04:15:30.402Z",
+      "name": "after-candidate-locator-click",
+      "detail": {
+        "panelStateBefore": "error",
+        "failedAtBefore": "失败时间：2026/11/16 12:15:22",
+        "failedAtAfter": "失败时间：2026/11/16 12:15:22",
+        "panelRefreshed": false
+      }
+    }
+  ],
+  "candidates": [
+    {
+      "index": 15,
+      "ariaLabel": "连接中断，正在重试，点击立即重连",
+      "text": "重新连接中...",
+      "dataTestId": null,
+      "insidePanel": false,
+      "visible": true,
+      "html": "<button type=\"button\" class=\"hwfHwW_indicator hwfHwW_warning\" data-phase=\"connecting\" aria-label=\"连接中断，正在重试，点击立即重连\"><span class=\"hwfHwW_icon\" aria-hidden=\"true\"><svg class=\"Fm39sa_spinner\" data-state=\"ongoing\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" aria-hi"
+    },
+    {
+      "index": 16,
+      "ariaLabel": "",
+      "text": "重试",
+      "dataTestId": "kos-error-retry",
+      "insidePanel": true,
+      "visible": true,
+      "html": "<button type=\"button\" class=\"kos-button\" data-testid=\"kos-error-retry\">重试</button>"
+    },
+    {
+      "index": 17,
+      "ariaLabel": "",
+      "text": "重新连接",
+      "dataTestId": "kos-refresh",
+      "insidePanel": true,
+      "visible": true,
+      "html": "<button type=\"button\" class=\"kos-button kos-button--ghost\" data-testid=\"kos-refresh\">重新连接</button>"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "result": "PASS",
+  "scanned": 84,
+  "changed": [
+    { "file": "browser\\host.log", "applied": { "launch-token": 2 } },
+    { "file": "browser\\summary.json", "applied": { "cookie-name": 1 } },
+    { "file": "browser-rerun\\host.log", "applied": { "launch-token": 2 } },
+    { "file": "browser-rerun\\summary.json", "applied": { "cookie-name": 1 } },
+    { "file": "locator-probe\\host.log", "applied": { "launch-token": 1 } },
+    { "file": "page-match\\host.log", "applied": { "launch-token": 1 } },
+    { "file": "repro\\host.log", "applied": { "launch-token": 2 } },
+    { "file": "T07\\host.stdout.log", "applied": { "launch-token": 1 } }
+  ],
+  "residual": [],
+  "note": "Replaces values only: token=<redacted>, dsh-auth-<redacted>. Result fields (status text, instance ids, times, codes) are preserved. A second, byte-level scan including UTF-16 files is recorded in redaction-verify.json."
+}

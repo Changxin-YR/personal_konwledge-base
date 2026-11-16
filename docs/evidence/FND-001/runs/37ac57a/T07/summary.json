@@ -1,0 +1,11 @@
+{
+    "auth_code":  "200",
+    "auth2_code":  "200",
+    "unauth_code":  "401",
+    "invalid_cookie_code":  "401",
+    "post_code":  "405",
+    "contract_exit":  0,
+    "forbidden_scan_exit":  0,
+    "cookie_name_length":  52,
+    "note":  "cookie name only recorded; value never written to evidence"
+}

@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "product": "KnowledgeOS",
+  "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "upstream_version": "0.2.2-rc.3",
+  "expected_upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "upstream_commit_verified": true,
+  "host_instance_id": "aea35fd9-a847-4254-b74e-b46c15d5eef0",
+  "started_at": "2026-11-16T04:00:52.757Z",
+  "checked_at": "2026-11-16T04:01:47.404Z",
+  "status": "ok"
+}

@@ -1,0 +1,3 @@
+﻿== lib hashes before ==
+22757b15ec4352d9a26d848320dc31b3a96aba86446fb70fa51fc94ce2d26c6a  C:\Users\27363\Desktop\personal base\personal_konwledge-base\packages\knowledgeos-panel\lib\index.js
+ff99f29f1415651c83c16c1c9667cc0a6dd5e130b7c589fe670bae8f6dd50d88  C:\Users\27363\Desktop\personal base\personal_konwledge-base\packages\knowledgeos-panel\lib\client.js

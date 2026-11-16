@@ -2,10 +2,11 @@
 
 - 冻结时间：2026-11-16（Asia/Shanghai）
 - 工作分支：`dsh/knowledgeos-fnd-001`
-- 候选提交：`37ac57af64b6741d82ffa2663b43dc244529c567`
+- 产品候选提交：`37ac57af64b6741d82ffa2663b43dc244529c567`
+- 证据/测试脚本修复提交：`22e7be2ffc1b1db6fe8247bb223e69ec6c7ecb5d`（harness v2；`git diff 37ac57a..22e7be2 -- packages/knowledgeos-panel` 为空，产品文件哈希不变）
 - 候选树：`899a018f7bb87af83603a877e8a810dedbeb7bb5`
 - 起始提交：`6f23735d5f07fed7cef108f829290b823ad6ace0`（main）
-- 工作树：干净（`git status --short` 无输出）
+- 产品工作树：与 `37ac57a` 一致（后续只增加证据文档与测试脚本）
 - upstream.lock 固定提交：`39163dd30f703a79079e2d2446545cff3c453738`，版本 `0.2.2-rc.3`
 
 ## 关键文件 SHA256
