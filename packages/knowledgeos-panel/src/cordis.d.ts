@@ -1,0 +1,38 @@
+/**
+ * Minimal declarations for the Cordis Host services this bundle consumes.
+ *
+ * The real signatures live in the pinned DSH packages; this bundle is built
+ * and type-checked out of tree, so only the used surface is declared here.
+ */
+declare module '@deepseek-ai/cordis' {
+  /** One named Web route answered by a Fetch resource. */
+  export interface WebResourceRoute {
+    kind: 'exact' | 'prefix'
+    path: string
+    auth?: 'anonymous' | 'required' | 'deny'
+    resource: (request: Request, peer?: unknown) => Promise<Response>
+  }
+
+  /** Web carrier service mounted by the Web profile. */
+  export interface WebServer {
+    register(route: WebResourceRoute): () => void
+  }
+
+  /** Release identity the running Host publishes to client modules. */
+  export interface HostReleaseInfo {
+    version: string
+    commit?: string
+  }
+
+  /** Client-module registry service owned by the Web composition. */
+  export interface ClientModules {
+    graph(): { release?: HostReleaseInfo }
+  }
+
+  /** Host plugin context subset used by this bundle's Host half. */
+  export interface Context {
+    webServer: WebServer
+    clientModules: ClientModules
+    effect(effect: () => () => void, label?: string): void
+  }
+}
