@@ -1,10 +1,10 @@
 # 构建、安装、运行与发布
 
-当前是执行方案，尚无 KnowledgeOS 安装包。本页定义 Codex 后续交付步骤，命令必须匹配当次锁定源码与实际产物。
+当前是执行方案，尚无 KnowledgeOS 安装包。本页定义未来发布单元的交付要求；仅在对应单元由用户激活后执行。当前 DeepSeek Harness 的 FND-001 不构建安装包；后期 Codex 全面审查是另一阶段。命令必须匹配当次锁定源码与实际产物。
 
 ## 1. 开发准备
 
-克隆用户仓库，先读 AGENTS 与 CODEX_START。源代码准备脚本只拉取固定官方提交；不替用户更新全局 DSH、不扫描个人电脑中其他项目、不安装未知 ASAR。
+克隆用户仓库，先读 AGENTS 与唯一当前指令 DSH_START.md。源代码准备脚本只拉取固定官方提交；不替用户更新全局 DSH、不扫描个人电脑中其他项目、不安装未知 ASAR。
 
 ```sh
 git clone https://github.com/Changxin-YR/personal_konwledge-base.git
@@ -28,7 +28,7 @@ node scripts/prepare-upstream.mjs --prepare
 | KnowledgeOS 插件/Bundle 包 | 开发与已有兼容 DSH 用户 | 构建后的 tarball、兼容 SHA/版本、安装/卸载方法、已知限制 |
 | 协作服务部署包 | 约十人共享空间 | 专用服务配置、数据库/文件目录规则、HTTPS 接入、运行/备份/恢复脚本 |
 
-桌面使用独立应用 ID、名称、安装路径和 userData/DSH_HOME，不能覆盖用户已有 DSH 或公司 Mandate。是否能通过纯配置完成品牌与 profile 注入由 M0 验证；必要的薄补丁单独记录，禁止篡改上游许可证与版权。
+桌面使用独立应用 ID、名称、安装路径和 userData/DSH_HOME，不能覆盖用户已有 DSH 或公司 Mandate。品牌与安装 profile 的纯配置可行性在对应桌面/发布单元验证；必要的薄补丁单独记录，禁止篡改上游许可证与版权。
 
 ## 3. Windows 构建
 

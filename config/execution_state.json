@@ -1,0 +1,40 @@
+{
+  "schema_version": "2.0",
+  "instruction_revision": "2.0.0",
+  "updated_at": "2026-11-16",
+  "timezone": "Asia/Shanghai",
+  "execution_phase": "deepseek_foundation",
+  "executor": "deepseek_harness",
+  "active_instruction": {
+    "path": "DSH_START.md",
+    "sha256": "2c20eca5372cb5dd067b633daf4a6e1fbfc78e295df2aa927c8b9c3d189b5a63"
+  },
+  "active_unit": "FND-001",
+  "unit_state": "ready",
+  "execution_mode": "single_feature_gated",
+  "max_active_units": 1,
+  "max_product_code_writers": 1,
+  "auto_advance": false,
+  "next_unit_requires": "explicit_user_selection_and_atomic_instruction_replacement",
+  "retired_instruction_paths": [
+    "CODEX_START.md"
+  ],
+  "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "codex_review": {
+    "state": "locked",
+    "active_prompt": null,
+    "unlock_requires": [
+      "all_foundation_work_units_passed_with_per_feature_tests",
+      "all_44_requirements_and_66_acceptance_states_honest_and_traceable",
+      "no_blocked_or_not_run_result_counted_as_pass",
+      "explicit_user_activation_of_codex_review"
+    ]
+  },
+  "state_semantics": {
+    "ready": "current selected unit not yet started",
+    "in_progress": "current unit implementation/test/rework only",
+    "blocked": "real current-unit dependency blocks completion",
+    "awaiting_user": "current unit has passed and awaits a user choice; active_unit is not advanced"
+  },
+  "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system."
+}

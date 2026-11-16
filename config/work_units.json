@@ -1,0 +1,3379 @@
+{
+  "schema_version": "2.0",
+  "updated_at": "2026-11-16",
+  "timezone": "Asia/Shanghai",
+  "mode": "single_feature_gated",
+  "current_executor": "deepseek_harness",
+  "active_unit_source": "config/execution_state.json",
+  "only_active_prompt": "DSH_START.md",
+  "catalog_is_execution_authorization": false,
+  "rules": {
+    "max_active_units": 1,
+    "max_implementation_writers": 1,
+    "allow_cross_unit_auto_advance": false,
+    "allow_parallel_feature_implementation": false,
+    "test_during_each_unit": true,
+    "codex_role": "after_deepseek_foundation_and_user_activation_review_and_fix"
+  },
+  "acceptance_semantics": {
+    "acceptance_ids": "关联完整场景及当前可验证子集；不能仅因本单元测试通过就标完整场景PASS。",
+    "final_acceptance_ids": "本单元负责组织该完整场景验收，须全部前置功能真实可用且实际执行通过；每个完整场景只有一个最终负责单元。",
+    "unit_completion": "当前切片完成且测试复核通过；不是整项F需求已verified。",
+    "requirement_verification": "关联必要完整验收全部PASS且有证据才可verified。",
+    "test_obligations": "未来单元条目是规划基础，不代表两项即可覆盖全部行为；激活时依据范围、风险和关联验收细化操作、断言、环境、证据，并同步唯一当前提示词。当前FND-001已细化为七项。"
+  },
+  "units": [
+    {
+      "id": "FND-001",
+      "milestone": "M0",
+      "title": "一个真实DSH面板与只读Host状态",
+      "requirement_ids": [
+        "F01",
+        "F04"
+      ],
+      "depends_on": [],
+      "scope": [
+        "核对锁定源码与现有工具链",
+        "只挂载一个KnowledgeOS Client面板",
+        "面板读取本项目只读Host状态接口，展示真实上游版本/SHA、实例与查询信息、连接状态",
+        "记录加载与清理生命周期"
+      ],
+      "not_in_scope": [
+        "数据库",
+        "注册登录",
+        "六页面空壳",
+        "资料与学习功能",
+        "产品模型调用",
+        "安装包",
+        "第二工作单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "FND-001-T01",
+          "scenario": "固定 DSH 真实加载 Host 与 Client",
+          "expected": "启动命令、构建/运行日志、实际页面证据均指向固定上游；不是独立假页面"
+        },
+        {
+          "id": "FND-001-T02",
+          "scenario": "页面到 Host 的真实只读往返",
+          "expected": "响应含服务端查询时刻/实例标识，独立重启测试实例后标识变化；前端不硬编码成功"
+        },
+        {
+          "id": "FND-001-T03",
+          "scenario": "失败与重试",
+          "expected": "控制连接/服务失败后页面显示错误和旧数据状态；恢复后重试取得新响应；区分故障夹具与真实断连证据"
+        },
+        {
+          "id": "FND-001-T04",
+          "scenario": "面板和插件生命周期",
+          "expected": "重复进入/退出、合法重载/卸载后不重复注册入口、不遗留监听/定时器；异常有可见原因"
+        },
+        {
+          "id": "FND-001-T05",
+          "scenario": "最小回归与范围",
+          "expected": "DSH 既有基本导航仍可用；只一个新面板；未引入DB/登录/模型业务和其他未来功能"
+        },
+        {
+          "id": "FND-001-T06",
+          "scenario": "构建与类型",
+          "expected": "当前改动相关编译/类型/测试真实运行；使用构建产物的上游检查符合先build:artifacts后build:check约定，不把全仓耗时测试当默认"
+        },
+        {
+          "id": "FND-001-T07",
+          "scenario": "状态接口数据边界",
+          "expected": "响应只含约定元数据，不泄露凭据、环境变量、文件或会话；未授权连接仍由现有本机认证拒绝"
+        }
+      ],
+      "acceptance_ids": [
+        "A01",
+        "A50"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "requirement_evidence_scope": {
+        "F01": "partial_foundation",
+        "F04": "partial_foundation"
+      },
+      "acceptance_evidence_scope": {
+        "A01": "仅Host/Client真实挂载与只读状态往返；身份、真实模型工具读写不在本单元。",
+        "A50": "仅一个面板的入口/基本导航/字体状态；六工作区与Windows全遍历不在本单元。"
+      },
+      "test_plan_status": "detailed_current_unit"
+    },
+    {
+      "id": "FND-002",
+      "milestone": "M0",
+      "title": "本地业务持久化最小闭环",
+      "requirement_ids": [
+        "F01",
+        "F42"
+      ],
+      "depends_on": [
+        "FND-001"
+      ],
+      "scope": [
+        "单独业务SQLite库和最小迁移",
+        "测试用记录经Host创建/读取",
+        "保留运行时驱动兼容性证据"
+      ],
+      "not_in_scope": [
+        "真实用户库迁移",
+        "所有业务表提前建完",
+        "协作服务"
+      ],
+      "test_obligations": [
+        {
+          "id": "FND-002-T01",
+          "scenario": "写入记录后重启Host再读取",
+          "expected": "记录完整且来源为业务库"
+        },
+        {
+          "id": "FND-002-T02",
+          "scenario": "事务中途失败与不兼容schema",
+          "expected": "事务回滚，原数据保留，错误可定位"
+        }
+      ],
+      "acceptance_ids": [
+        "A49",
+        "A07"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "FND-003",
+      "milestone": "M0",
+      "title": "注册登录与个人身份",
+      "requirement_ids": [
+        "F03"
+      ],
+      "depends_on": [
+        "FND-002"
+      ],
+      "scope": [
+        "可信本机初始化",
+        "注册/登录/退出",
+        "个人空间与方向目标基础字段",
+        "请求身份从认证会话产生"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "FND-003-T01",
+          "scenario": "两个独立账号登录/退出/重登",
+          "expected": "身份独立，首次管理员初始化不能被远端抢占"
+        },
+        {
+          "id": "FND-003-T02",
+          "scenario": "篡改请求user_id并使用注销凭据",
+          "expected": "不得冒用他人，注销后请求拒绝，凭据不进日志"
+        }
+      ],
+      "acceptance_ids": [
+        "A02",
+        "A03"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "FND-004",
+      "milestone": "M0",
+      "title": "对象权限与共享入口边界",
+      "requirement_ids": [
+        "F03",
+        "F31",
+        "F32",
+        "F36"
+      ],
+      "depends_on": [
+        "FND-003"
+      ],
+      "scope": [
+        "个人/项目范围和对象动作权限",
+        "共享服务最小profile路由清单",
+        "未公开原生owner/file/session附件/shell接口"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "FND-004-T01",
+          "scenario": "甲乙通过已实现API猜测彼此对象ID",
+          "expected": "拒绝越权且不泄露标题/正文"
+        },
+        {
+          "id": "FND-004-T02",
+          "scenario": "普通成员调用全局Host路径与无权限动作",
+          "expected": "拒绝或路由不存在，管理员标签不自动获得私人正文"
+        }
+      ],
+      "acceptance_ids": [
+        "A02",
+        "A34",
+        "A46"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "FND-005",
+      "milestone": "M0",
+      "title": "一次真实GPT业务工具调用",
+      "requirement_ids": [
+        "F01",
+        "F37",
+        "F40"
+      ],
+      "depends_on": [
+        "FND-004"
+      ],
+      "scope": [
+        "受控DSH模型适配",
+        "一个测试业务工具的只读和可逆写入",
+        "保留真实provider/model与非敏感调用证据"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "FND-005-T01",
+          "scenario": "由真实模型调用只读及受控写入工具",
+          "expected": "身份到达领域层，结果回到UI并可重新读取"
+        },
+        {
+          "id": "FND-005-T02",
+          "scenario": "凭据缺失/权限拒绝/重复动作",
+          "expected": "明确受阻或拒绝，同键不重复写入，不静默换模型"
+        }
+      ],
+      "acceptance_ids": [
+        "A01",
+        "A41"
+      ],
+      "final_acceptance_ids": [
+        "A01"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "FND-006",
+      "milestone": "M0",
+      "title": "持久后台任务与事务事件",
+      "requirement_ids": [
+        "F07",
+        "F42",
+        "F44"
+      ],
+      "depends_on": [
+        "FND-004"
+      ],
+      "scope": [
+        "最小jobs/outbox/租约实现",
+        "一个可中断的无业务副作用测试任务",
+        "统一幂等和恢复协议"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "FND-006-T01",
+          "scenario": "任务运行中终止Host后重启",
+          "expected": "从已提交检查点恢复，结果不重复提交"
+        },
+        {
+          "id": "FND-006-T02",
+          "scenario": "事件重复投递/租约竞争",
+          "expected": "唯一业务结果，错误和重试次数可见"
+        }
+      ],
+      "acceptance_ids": [
+        "A07",
+        "A29"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "LIB-001",
+      "milestone": "M1",
+      "title": "PDF原件导入与不可变版本",
+      "requirement_ids": [
+        "F04",
+        "F05",
+        "F07"
+      ],
+      "depends_on": [
+        "FND-004",
+        "FND-006"
+      ],
+      "scope": [
+        "选择PDF并持久保存原件",
+        "新建资料与版本",
+        "显示接收结果和可操作错误"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "LIB-001-T01",
+          "scenario": "导入PDF后重启读取元数据与原件",
+          "expected": "字节/哈希一致，归属和权限正确"
+        },
+        {
+          "id": "LIB-001-T02",
+          "scenario": "损坏输入、磁盘失败和重复提交",
+          "expected": "失败可见，原件不被覆盖，同动作不重复建资料"
+        }
+      ],
+      "acceptance_ids": [
+        "A05",
+        "A45"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "LIB-002",
+      "milestone": "M1",
+      "title": "PDF分段解析与断点恢复",
+      "requirement_ids": [
+        "F06",
+        "F07",
+        "F42"
+      ],
+      "depends_on": [
+        "LIB-001"
+      ],
+      "scope": [
+        "按页/章解析并保存进度",
+        "区分可用、未处理、失败、待复核",
+        "取消与局部重试"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "LIB-002-T01",
+          "scenario": "解析中终止进程并恢复",
+          "expected": "已提交页保留，未完成范围继续，错误页不伪装成功"
+        },
+        {
+          "id": "LIB-002-T02",
+          "scenario": "重复处理同版本页面与撤销任务",
+          "expected": "结果幂等，迟到结果不能重新发布已取消任务"
+        }
+      ],
+      "acceptance_ids": [
+        "P02",
+        "A06",
+        "A07"
+      ],
+      "final_acceptance_ids": [
+        "A07"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "LIB-003",
+      "milestone": "M1",
+      "title": "Markdown与常见文本导入",
+      "requirement_ids": [
+        "F05",
+        "F07"
+      ],
+      "depends_on": [
+        "LIB-001"
+      ],
+      "scope": [
+        "复用原件/版本模型接入Markdown和常见文本",
+        "保留结构块与字符定位"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "LIB-003-T01",
+          "scenario": "中英混合、长段与不同编码样本导入",
+          "expected": "内容与结构可回读，编码异常有提示"
+        },
+        {
+          "id": "LIB-003-T02",
+          "scenario": "相同文件更新为新版本",
+          "expected": "旧版本不覆盖，定位字段保存"
+        }
+      ],
+      "acceptance_ids": [
+        "A05"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "LIB-004",
+      "milestone": "M1",
+      "title": "Word转换与质量核对",
+      "requirement_ids": [
+        "F05",
+        "F08"
+      ],
+      "depends_on": [
+        "LIB-001",
+        "LIB-003"
+      ],
+      "scope": [
+        "接入Office转换",
+        "原件与转换结果分别保存",
+        "临时产物转存",
+        "质量问题供预览"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "LIB-004-T01",
+          "scenario": "含表格图片的Word转换后结束原Session",
+          "expected": "结果仍可访问，原件存在，偏差可标注"
+        },
+        {
+          "id": "LIB-004-T02",
+          "scenario": "转换失败/取消/源版本变化",
+          "expected": "结果不覆盖旧版，不出现空白成功"
+        }
+      ],
+      "acceptance_ids": [
+        "A05",
+        "A08"
+      ],
+      "final_acceptance_ids": [
+        "A08"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "LIB-005",
+      "milestone": "M1",
+      "title": "压缩包选择导入",
+      "requirement_ids": [
+        "F05"
+      ],
+      "depends_on": [
+        "LIB-002",
+        "LIB-003",
+        "LIB-004"
+      ],
+      "scope": [
+        "压缩包清单与文件选择",
+        "复用格式流水线",
+        "限制穿越、符号链接逃逸和展开资源"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "LIB-005-T01",
+          "scenario": "混合PDF/Word/文本压缩包选择部分文件",
+          "expected": "只导入选中内容，各结果独立可追踪"
+        },
+        {
+          "id": "LIB-005-T02",
+          "scenario": "路径穿越、嵌套超限和超大展开",
+          "expected": "安全拒绝并保留可恢复状态"
+        }
+      ],
+      "acceptance_ids": [
+        "A05"
+      ],
+      "final_acceptance_ids": [
+        "A05"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "READ-001",
+      "milestone": "M1",
+      "title": "原页阅读与引用定位",
+      "requirement_ids": [
+        "F07",
+        "F09"
+      ],
+      "depends_on": [
+        "LIB-002",
+        "LIB-003",
+        "LIB-004"
+      ],
+      "scope": [
+        "显示原页/结构文本",
+        "虚拟化加载",
+        "版本、页码、片段定位与高亮",
+        "未解析范围可见"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "READ-001-T01",
+          "scenario": "从已解析章节进入原页并点击引用",
+          "expected": "定位到绑定版本和精确页段"
+        },
+        {
+          "id": "READ-001-T02",
+          "scenario": "部分可用、页加载失败、旧版本引用",
+          "expected": "状态明确，不偷偷切换为新版本"
+        }
+      ],
+      "acceptance_ids": [
+        "P02",
+        "A09",
+        "A45"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "READ-002",
+      "milestone": "M1",
+      "title": "目录书签与阅读位置恢复",
+      "requirement_ids": [
+        "F09"
+      ],
+      "depends_on": [
+        "READ-001"
+      ],
+      "scope": [
+        "目录跳转",
+        "个人书签",
+        "关闭重开后恢复阅读位置"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "READ-002-T01",
+          "scenario": "跨章跳转并重启应用",
+          "expected": "恢复本人阅读位置和书签"
+        },
+        {
+          "id": "READ-002-T02",
+          "scenario": "两用户阅读同资料",
+          "expected": "位置及书签互不覆盖"
+        }
+      ],
+      "acceptance_ids": [
+        "P03",
+        "A09"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "READ-003",
+      "milestone": "M1",
+      "title": "原文批注",
+      "requirement_ids": [
+        "F09"
+      ],
+      "depends_on": [
+        "READ-002"
+      ],
+      "scope": [
+        "选区批注、修改与删除",
+        "绑定原文版本与个人/项目可见范围"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "READ-003-T01",
+          "scenario": "新增批注后定位并更改",
+          "expected": "位置不漂移，revision冲突保留草稿"
+        },
+        {
+          "id": "READ-003-T02",
+          "scenario": "他人无权或来源失权",
+          "expected": "批注及受限原文不泄露"
+        }
+      ],
+      "acceptance_ids": [
+        "A09",
+        "A46"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "SEARCH-001",
+      "milestone": "M1",
+      "title": "中文检索与可复现来源",
+      "requirement_ids": [
+        "F07",
+        "F09"
+      ],
+      "depends_on": [
+        "READ-003"
+      ],
+      "scope": [
+        "中文短词/长词、中英术语及代码标识符索引",
+        "带版本页段的结果",
+        "权限前过滤与返回复验"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "SEARCH-001-T01",
+          "scenario": "固定查询集对比人工标注页段",
+          "expected": "报告全部查询结果，点击命中能复现来源"
+        },
+        {
+          "id": "SEARCH-001-T02",
+          "scenario": "跨用户查询与撤权后重查",
+          "expected": "结果摘要/数量不暴露无权内容，旧索引不能越权"
+        }
+      ],
+      "acceptance_ids": [
+        "A09",
+        "A46"
+      ],
+      "final_acceptance_ids": [
+        "A09"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "LIB-006",
+      "milestone": "M1",
+      "title": "大PDF整本与拆分导入",
+      "requirement_ids": [
+        "F05",
+        "F06",
+        "F07"
+      ],
+      "depends_on": [
+        "LIB-005",
+        "READ-002",
+        "SEARCH-001"
+      ],
+      "scope": [
+        "接通整本/分章导入选项",
+        "原页映射",
+        "在真实约40MB/730页规模下验证已实现流水线"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "LIB-006-T01",
+          "scenario": "真实大文件部分处理时阅读并取消/续跑",
+          "expected": "已完成章节先可用，未完成和待复核可区分"
+        },
+        {
+          "id": "LIB-006-T02",
+          "scenario": "整本与拆分结果对照",
+          "expected": "原页引用不变，记录资源耗用/失败范围，合成资料不得冒充真实教材"
+        }
+      ],
+      "acceptance_ids": [
+        "P02",
+        "A06"
+      ],
+      "final_acceptance_ids": [
+        "P02",
+        "A06"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "SHARE-001",
+      "milestone": "M1",
+      "title": "邀请码授权与同刻到期",
+      "requirement_ids": [
+        "F31",
+        "F32"
+      ],
+      "depends_on": [
+        "LIB-001",
+        "FND-004"
+      ],
+      "scope": [
+        "创建/兑换/撤销邀请码",
+        "默认七天和绝对截止",
+        "编辑与管理权限分开",
+        "整组续期语义"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "SHARE-001-T01",
+          "scenario": "第六天兑换并在到期前后访问",
+          "expected": "只获得剩余期限，到原截止时刻统一失效"
+        },
+        {
+          "id": "SHARE-001-T02",
+          "scenario": "并发最后名额及编辑者删除/转邀",
+          "expected": "名额只用一次，未授管理动作被拒绝"
+        }
+      ],
+      "acceptance_ids": [
+        "P13",
+        "A34"
+      ],
+      "final_acceptance_ids": [
+        "A34"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "NOTE-001",
+      "milestone": "M2",
+      "title": "独立笔记编辑与资料引用",
+      "requirement_ids": [
+        "F04",
+        "F21"
+      ],
+      "depends_on": [
+        "READ-001",
+        "FND-004"
+      ],
+      "scope": [
+        "创建/编辑个人笔记",
+        "引用知识库版本",
+        "普通/读书/项目/复盘类型",
+        "保存与冲突恢复"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "NOTE-001-T01",
+          "scenario": "引用资料后编辑并重开笔记",
+          "expected": "原始笔记独立保存，引用仍指向原资料"
+        },
+        {
+          "id": "NOTE-001-T02",
+          "scenario": "移除引用/并发编辑/无权访问",
+          "expected": "不删除资料原件，冲突不静默覆盖，权限正确"
+        }
+      ],
+      "acceptance_ids": [
+        "A04",
+        "A17"
+      ],
+      "final_acceptance_ids": [
+        "A04"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "NOTE-002",
+      "milestone": "M2",
+      "title": "笔记层级大纲",
+      "requirement_ids": [
+        "F21"
+      ],
+      "depends_on": [
+        "NOTE-001"
+      ],
+      "scope": [
+        "同一节点模型的缩进/提升/排序/移动",
+        "删除父节点影响预览"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "NOTE-002-T01",
+          "scenario": "多层节点移动和撤销",
+          "expected": "父子/顺序一致，不产生环"
+        },
+        {
+          "id": "NOTE-002-T02",
+          "scenario": "删除父节点/并发移动",
+          "expected": "明确后代影响，冲突保留双方内容"
+        }
+      ],
+      "acceptance_ids": [
+        "A17"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "NOTE-003",
+      "milestone": "M2",
+      "title": "脑图与大纲双向视图",
+      "requirement_ids": [
+        "F21"
+      ],
+      "depends_on": [
+        "NOTE-002"
+      ],
+      "scope": [
+        "同一节点数据的脑图视图",
+        "布局与内容分离",
+        "脑图编辑回写统一模型"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "NOTE-003-T01",
+          "scenario": "两视图轮流创建/改名/移动/删除",
+          "expected": "相同ID内容一致且不复制记录"
+        },
+        {
+          "id": "NOTE-003-T02",
+          "scenario": "刷新及布局变动",
+          "expected": "内容层级与布局均可恢复，原件引用不被误删"
+        }
+      ],
+      "acceptance_ids": [
+        "A17"
+      ],
+      "final_acceptance_ids": [
+        "A17"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "KNOW-001",
+      "milestone": "M2",
+      "title": "语境专业术语卡",
+      "requirement_ids": [
+        "F10"
+      ],
+      "depends_on": [
+        "READ-002",
+        "FND-005"
+      ],
+      "scope": [
+        "选词解释、专业/通俗定义、易混概念与来源",
+        "临时查词和正式条目分开"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "KNOW-001-T01",
+          "scenario": "同一词在不同段落解释",
+          "expected": "解释显示当前语境和原文依据"
+        },
+        {
+          "id": "KNOW-001-T02",
+          "scenario": "保存术语/返回阅读/来源不足",
+          "expected": "不丢阅读位置，不编造来源"
+        }
+      ],
+      "acceptance_ids": [
+        "P03",
+        "A10"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "KNOW-002",
+      "milestone": "M2",
+      "title": "知识条目与证据",
+      "requirement_ids": [
+        "F13",
+        "F14"
+      ],
+      "depends_on": [
+        "KNOW-001",
+        "NOTE-001"
+      ],
+      "scope": [
+        "知识对象类型、领域、正文和来源",
+        "人工确认/纠正",
+        "版本记录"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "KNOW-002-T01",
+          "scenario": "从资料或笔记形成知识条目",
+          "expected": "来源与确认人可查，原创与摘录区别明确"
+        },
+        {
+          "id": "KNOW-002-T02",
+          "scenario": "正文改版/非法来源",
+          "expected": "旧版本保留，受限来源不被公开复制"
+        }
+      ],
+      "acceptance_ids": [
+        "A11",
+        "A12"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "KNOW-003",
+      "milestone": "M2",
+      "title": "受约束本体关系",
+      "requirement_ids": [
+        "F13",
+        "F14"
+      ],
+      "depends_on": [
+        "KNOW-002"
+      ],
+      "scope": [
+        "关系类型与起终类型/方向约束",
+        "AI建议待确认",
+        "图与列表共用关系记录"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "KNOW-003-T01",
+          "scenario": "合法与非法方向关系提交",
+          "expected": "合法记录可查，非法关系明确拒绝"
+        },
+        {
+          "id": "KNOW-003-T02",
+          "scenario": "确认/拒绝/纠正AI建议",
+          "expected": "保留依据与版本，未确认建议不当作事实"
+        }
+      ],
+      "acceptance_ids": [
+        "A11",
+        "A12"
+      ],
+      "final_acceptance_ids": [
+        "A11"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "LEARN-001",
+      "milestone": "M2",
+      "title": "三种题型与首次作答",
+      "requirement_ids": [
+        "F19",
+        "F22",
+        "F24"
+      ],
+      "depends_on": [
+        "KNOW-002",
+        "FND-004"
+      ],
+      "scope": [
+        "选择/判断/填空题及来源",
+        "个人作答",
+        "先保存首次答案再展示解析"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "LEARN-001-T01",
+          "scenario": "两人做同一题并更改后续答案",
+          "expected": "题目共用，首次答案和各人历史不覆盖"
+        },
+        {
+          "id": "LEARN-001-T02",
+          "scenario": "重复提交/无权答案揭示",
+          "expected": "同动作只计一次，未经许可不能读答案"
+        }
+      ],
+      "acceptance_ids": [
+        "A13",
+        "A14"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "LEARN-002",
+      "milestone": "M2",
+      "title": "段落与章节基础快答",
+      "requirement_ids": [
+        "F12",
+        "F19",
+        "F22"
+      ],
+      "depends_on": [
+        "LEARN-001",
+        "READ-002",
+        "FND-005"
+      ],
+      "scope": [
+        "从段落/章节/术语启动小题量练习",
+        "范围可调",
+        "题目质量状态"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "LEARN-002-T01",
+          "scenario": "无需组卷直接从阅读启动快答",
+          "expected": "范围清楚，首次答案和解析来源保存"
+        },
+        {
+          "id": "LEARN-002-T02",
+          "scenario": "来源不足/有争议题",
+          "expected": "可复核但不进入正式能力评价"
+        }
+      ],
+      "acceptance_ids": [
+        "P05",
+        "A13"
+      ],
+      "final_acceptance_ids": [
+        "A13"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "LEARN-003",
+      "milestone": "M2",
+      "title": "个人错题与争议处理",
+      "requirement_ids": [
+        "F23",
+        "F24",
+        "F26",
+        "F44"
+      ],
+      "depends_on": [
+        "LEARN-002"
+      ],
+      "scope": [
+        "错因、答对不确定、提示后完成、争议状态分开",
+        "纠正题目后保留历史并重算影响"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "LEARN-003-T01",
+          "scenario": "甲错乙对同题并纠正标准答案",
+          "expected": "错题归属独立，历史不改写，受影响结论可更正"
+        },
+        {
+          "id": "LEARN-003-T02",
+          "scenario": "错题生成后检查用户方向目标",
+          "expected": "不自动改变方向，争议题暂停评价"
+        }
+      ],
+      "acceptance_ids": [
+        "P05",
+        "A14"
+      ],
+      "final_acceptance_ids": [
+        "P05",
+        "A14"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "LEARN-004",
+      "milestone": "M2",
+      "title": "任意长文遮挡背诵",
+      "requirement_ids": [
+        "F11"
+      ],
+      "depends_on": [
+        "READ-001",
+        "FND-002"
+      ],
+      "scope": [
+        "任意跨页选区与遮挡分组",
+        "提示/揭示/独立回忆分别记录",
+        "保存进度"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "LEARN-004-T01",
+          "scenario": "至少跨三页且超过短摘录长度的选区",
+          "expected": "全文范围保留，无静默截断，可分页练习"
+        },
+        {
+          "id": "LEARN-004-T02",
+          "scenario": "揭示部分后退出重进/源版本改变",
+          "expected": "恢复位置与组合，旧版本保留，不能自动漂移"
+        }
+      ],
+      "acceptance_ids": [
+        "P04",
+        "A45"
+      ],
+      "final_acceptance_ids": [
+        "P04"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "LEARN-005",
+      "milestone": "M2",
+      "title": "辅助程度与迁移复测",
+      "requirement_ids": [
+        "F19",
+        "F23"
+      ],
+      "depends_on": [
+        "LEARN-003"
+      ],
+      "scope": [
+        "分层提示、独立表现和延后复测",
+        "等难度迁移题记录"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "LEARN-005-T01",
+          "scenario": "先独立错后提示对再迁移作答",
+          "expected": "三次表现分别记录，不把提示后成功当首次独立掌握"
+        },
+        {
+          "id": "LEARN-005-T02",
+          "scenario": "题目失效/证据不足",
+          "expected": "评价明确受限，不给无依据能力结论"
+        }
+      ],
+      "acceptance_ids": [
+        "A15"
+      ],
+      "final_acceptance_ids": [
+        "A15"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "LEARN-006",
+      "milestone": "M2",
+      "title": "术语到练习的阅读闭环",
+      "requirement_ids": [
+        "F09",
+        "F10",
+        "F22",
+        "F24"
+      ],
+      "depends_on": [
+        "KNOW-001",
+        "LEARN-003",
+        "READ-002"
+      ],
+      "scope": [
+        "术语卡关联已有题库/错题流程",
+        "回到原阅读位置",
+        "按用户保留进度"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "LEARN-006-T01",
+          "scenario": "甲选词、练习、返回；乙做同题",
+          "expected": "保留阅读位置与来源，两人答案错题独立"
+        },
+        {
+          "id": "LEARN-006-T02",
+          "scenario": "术语取消收藏或练习失败",
+          "expected": "不删知识原件，已保存表现仍可查"
+        }
+      ],
+      "acceptance_ids": [
+        "P03",
+        "A10"
+      ],
+      "final_acceptance_ids": [
+        "P03",
+        "A10"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "UI-001",
+      "milestone": "M2",
+      "title": "四个学习入口与同对象导航",
+      "requirement_ids": [
+        "F04",
+        "F10",
+        "F11",
+        "F12",
+        "F24"
+      ],
+      "depends_on": [
+        "LEARN-004",
+        "LEARN-006",
+        "NOTE-003",
+        "KNOW-003"
+      ],
+      "scope": [
+        "知识库四显著入口",
+        "今日计划仅增加学习快捷入口",
+        "共用对象跳转",
+        "本单元不实现每日评分/任务管理"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "UI-001-T01",
+          "scenario": "从两入口打开同一个错题/背诵对象",
+          "expected": "ID与状态相同，入口可发现且实际可操作"
+        },
+        {
+          "id": "UI-001-T02",
+          "scenario": "切换工作区及窄窗口",
+          "expected": "导航最多两级，不新增三套常驻侧栏"
+        }
+      ],
+      "acceptance_ids": [
+        "P01",
+        "A50"
+      ],
+      "final_acceptance_ids": [
+        "P01"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "REPO-001",
+      "milestone": "M3",
+      "title": "GitHub固定提交只读接入",
+      "requirement_ids": [
+        "F15"
+      ],
+      "depends_on": [
+        "FND-004",
+        "FND-006"
+      ],
+      "scope": [
+        "仓库连接、resolveRef、readTree/readBlob",
+        "固定commit文件快照",
+        "凭据引用"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "REPO-001-T01",
+          "scenario": "读取授权仓库固定提交",
+          "expected": "来源SHA/路径/内容可复现"
+        },
+        {
+          "id": "REPO-001-T02",
+          "scenario": "无权限、超量、恶意README",
+          "expected": "清楚失败，不执行仓库脚本或写远端"
+        }
+      ],
+      "acceptance_ids": [
+        "A19"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "REPO-002",
+      "milestone": "M3",
+      "title": "GitLab只读适配",
+      "requirement_ids": [
+        "F15"
+      ],
+      "depends_on": [
+        "REPO-001"
+      ],
+      "scope": [
+        "在相同仓库接口接入GitLab",
+        "独立凭据和平台错误处理"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "REPO-002-T01",
+          "scenario": "真实可用GitLab仓库固定ref读取",
+          "expected": "与统一DTO一致且来源可核验"
+        },
+        {
+          "id": "REPO-002-T02",
+          "scenario": "没有凭据或权限撤销",
+          "expected": "标平台BLOCKED，不以DTO夹具当真实集成通过"
+        }
+      ],
+      "acceptance_ids": [
+        "A19"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "REPO-003",
+      "milestone": "M3",
+      "title": "Gitee只读适配",
+      "requirement_ids": [
+        "F15"
+      ],
+      "depends_on": [
+        "REPO-002"
+      ],
+      "scope": [
+        "在统一接口接入Gitee",
+        "核对三平台能力与只读行为"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "REPO-003-T01",
+          "scenario": "真实Gitee与既有两平台读取",
+          "expected": "树与文件引用均带真实commit及平台身份"
+        },
+        {
+          "id": "REPO-003-T02",
+          "scenario": "平台速率限制/访问拒绝",
+          "expected": "不写仓库、不无限重试，真实验证分平台记录"
+        }
+      ],
+      "acceptance_ids": [
+        "A19"
+      ],
+      "final_acceptance_ids": [
+        "A19"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "EXPLAIN-001",
+      "milestone": "M3",
+      "title": "单文件代码讲解",
+      "requirement_ids": [
+        "F16",
+        "F17"
+      ],
+      "depends_on": [
+        "REPO-001",
+        "FND-005"
+      ],
+      "scope": [
+        "对选中文件做业务职责与代码讲解",
+        "源事实/推断分开",
+        "引用行段"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "EXPLAIN-001-T01",
+          "scenario": "固定代码样本提问",
+          "expected": "答案引用精确commit/path/行段，能回读"
+        },
+        {
+          "id": "EXPLAIN-001-T02",
+          "scenario": "缺上下文或代码冲突",
+          "expected": "明示不足，不编造调用关系"
+        }
+      ],
+      "acceptance_ids": [
+        "A20",
+        "P07"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "EXPLAIN-002",
+      "milestone": "M3",
+      "title": "模块与关键业务流程讲解",
+      "requirement_ids": [
+        "F16",
+        "F17"
+      ],
+      "depends_on": [
+        "EXPLAIN-001"
+      ],
+      "scope": [
+        "文件间调用/数据路径",
+        "项目业务流程",
+        "约束与设计取舍说明"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "EXPLAIN-002-T01",
+          "scenario": "从文件扩展到模块再到关键流程",
+          "expected": "每个关键判断能回溯代码或标记推断"
+        },
+        {
+          "id": "EXPLAIN-002-T02",
+          "scenario": "缺失模块/循环调用/异常路径",
+          "expected": "说明实际边界，不以只读分析宣称运行通过"
+        }
+      ],
+      "acceptance_ids": [
+        "A20"
+      ],
+      "final_acceptance_ids": [
+        "A20"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "ENGINEER-001",
+      "milestone": "M3",
+      "title": "独立问题诊断记录",
+      "requirement_ids": [
+        "F17",
+        "F18",
+        "F19"
+      ],
+      "depends_on": [
+        "EXPLAIN-002",
+        "LEARN-005"
+      ],
+      "scope": [
+        "业务理解、发现、复现假设与根因步骤",
+        "先保留自己的分析",
+        "分层提示"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "ENGINEER-001-T01",
+          "scenario": "一次可复现问题逐步分析",
+          "expected": "初始判断、证据与假设变化均保留"
+        },
+        {
+          "id": "ENGINEER-001-T02",
+          "scenario": "不可复现或只有自述",
+          "expected": "状态待验证，不自动认定根因已确认"
+        }
+      ],
+      "acceptance_ids": [
+        "P07",
+        "A21"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "ENGINEER-002",
+      "milestone": "M3",
+      "title": "修复与回归证据",
+      "requirement_ids": [
+        "F18",
+        "F19",
+        "F20"
+      ],
+      "depends_on": [
+        "ENGINEER-001"
+      ],
+      "scope": [
+        "方案取舍、外部修改证据、验证和回归",
+        "形成案例草稿"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "ENGINEER-002-T01",
+          "scenario": "授权环境中的真实修复与复验",
+          "expected": "提交/命令/环境/结果绑定到实际改动"
+        },
+        {
+          "id": "ENGINEER-002-T02",
+          "scenario": "只有补丁没有执行证据",
+          "expected": "状态已修改待验证，不显示修复完成"
+        }
+      ],
+      "acceptance_ids": [
+        "A21",
+        "P07"
+      ],
+      "final_acceptance_ids": [
+        "A21"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "FEEDBACK-001",
+      "milestone": "M3",
+      "title": "长期反馈与工程闭环",
+      "requirement_ids": [
+        "F02",
+        "F20",
+        "F23"
+      ],
+      "depends_on": [
+        "ENGINEER-002",
+        "LEARN-005"
+      ],
+      "scope": [
+        "汇总答题/工程/迁移证据并区分自评",
+        "回看完整诊断链",
+        "正常记录不按30天清理"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "FEEDBACK-001-T01",
+          "scenario": "查看一次工程诊断及其能力反馈",
+          "expected": "每个判断能回到首次分析、提示和真实验证记录"
+        },
+        {
+          "id": "FEEDBACK-001-T02",
+          "scenario": "证据不足/历史跨30天",
+          "expected": "明确不足，正常知识与表现仍保留"
+        }
+      ],
+      "acceptance_ids": [
+        "P07",
+        "A16"
+      ],
+      "final_acceptance_ids": [
+        "P07",
+        "A16"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "EXAM-001",
+      "milestone": "M3",
+      "title": "架构师案例分析训练",
+      "requirement_ids": [
+        "F27"
+      ],
+      "depends_on": [
+        "LEARN-005",
+        "EXPLAIN-002"
+      ],
+      "scope": [
+        "案例题、个人分析、提示与评分依据",
+        "关联架构知识"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "EXAM-001-T01",
+          "scenario": "完成案例训练并复核",
+          "expected": "首次作答与辅助程度保留，解释有依据"
+        },
+        {
+          "id": "EXAM-001-T02",
+          "scenario": "模型评语与正式考试结论",
+          "expected": "界面不把模型评价当官方成绩"
+        }
+      ],
+      "acceptance_ids": [
+        "A22",
+        "A03"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "EXAM-002",
+      "milestone": "M3",
+      "title": "架构师论文训练",
+      "requirement_ids": [
+        "F27"
+      ],
+      "depends_on": [
+        "EXAM-001",
+        "NOTE-001"
+      ],
+      "scope": [
+        "提纲/正文/论点与项目证据",
+        "版本对照和反馈"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "EXAM-002-T01",
+          "scenario": "完成论文草稿与一轮修订",
+          "expected": "原稿、意见、取舍与修订可追溯"
+        },
+        {
+          "id": "EXAM-002-T02",
+          "scenario": "缺真实项目或来源",
+          "expected": "提示补充，不生成虚构工程经历"
+        }
+      ],
+      "acceptance_ids": [
+        "A22"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "EXAM-003",
+      "milestone": "M3",
+      "title": "模拟训练与目标入口",
+      "requirement_ids": [
+        "F01",
+        "F02",
+        "F03",
+        "F27"
+      ],
+      "depends_on": [
+        "EXAM-002",
+        "FEEDBACK-001",
+        "UI-001"
+      ],
+      "scope": [
+        "组合知识/案例/论文模拟与复盘",
+        "核对四领域、工程/备考/知识三目标的可达入口"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "EXAM-003-T01",
+          "scenario": "新用户设置方向并进入三主线",
+          "expected": "方向可表达且只展示本人可见记录"
+        },
+        {
+          "id": "EXAM-003-T02",
+          "scenario": "完成一次模拟与复盘",
+          "expected": "三类训练各有记录/依据，不只做空菜单"
+        }
+      ],
+      "acceptance_ids": [
+        "A03",
+        "A22"
+      ],
+      "final_acceptance_ids": [
+        "A03",
+        "A22"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "PROJECT-001",
+      "milestone": "M4",
+      "title": "项目成员与任务派发",
+      "requirement_ids": [
+        "F31",
+        "F33"
+      ],
+      "depends_on": [
+        "SHARE-001",
+        "FND-004"
+      ],
+      "scope": [
+        "项目成员管理",
+        "指定负责人、标准、期限与审核路径",
+        "个人与项目任务归属"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "PROJECT-001-T01",
+          "scenario": "授权人给指定成员派任务",
+          "expected": "标准/期限/审核人明确，其他人不能伪造派发"
+        },
+        {
+          "id": "PROJECT-001-T02",
+          "scenario": "邀请过期或项目移除",
+          "expected": "后续动作按当前权限拒绝，私人空间不被加入项目"
+        }
+      ],
+      "acceptance_ids": [
+        "A30",
+        "A51"
+      ],
+      "final_acceptance_ids": [
+        "A30"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "PROJECT-002",
+      "milestone": "M4",
+      "title": "提交、退回和管理员终审",
+      "requirement_ids": [
+        "F29",
+        "F33",
+        "F34",
+        "F35"
+      ],
+      "depends_on": [
+        "PROJECT-001"
+      ],
+      "scope": [
+        "不可变提交版本",
+        "同伴预审",
+        "管理员派发任务终审",
+        "退回和再提交"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "PROJECT-002-T01",
+          "scenario": "同伴通过管理员任务",
+          "expected": "仍待管理员终审，不能计正式完成"
+        },
+        {
+          "id": "PROJECT-002-T02",
+          "scenario": "退回重提及审核迟到",
+          "expected": "旧意见和提交保留，成员提交时间不被改写"
+        }
+      ],
+      "acceptance_ids": [
+        "P08",
+        "A31"
+      ],
+      "final_acceptance_ids": [
+        "P08",
+        "A31"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "PROJECT-003",
+      "milestone": "M4",
+      "title": "普通审核与管理员改判",
+      "requirement_ids": [
+        "F34",
+        "F35"
+      ],
+      "depends_on": [
+        "PROJECT-002"
+      ],
+      "scope": [
+        "普通任务指定审核人裁决",
+        "管理员按授权改判",
+        "原因与旧裁决保留"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "PROJECT-003-T01",
+          "scenario": "普通任务按指定路径审核",
+          "expected": "结论由有权审核人形成"
+        },
+        {
+          "id": "PROJECT-003-T02",
+          "scenario": "管理员改判并并发旧版本写入",
+          "expected": "新旧结果可追踪，过期写入拒绝"
+        }
+      ],
+      "acceptance_ids": [
+        "A32"
+      ],
+      "final_acceptance_ids": [
+        "A32"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "PROJECT-004",
+      "milestone": "M4",
+      "title": "复议与材料失权处理",
+      "requirement_ids": [
+        "F32",
+        "F34",
+        "F35",
+        "F44"
+      ],
+      "depends_on": [
+        "PROJECT-003"
+      ],
+      "scope": [
+        "复议附原裁决",
+        "材料到期进入待授权",
+        "发布裁决变更事件供评分订阅"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "PROJECT-004-T01",
+          "scenario": "发起复议并更正结果",
+          "expected": "原裁决不覆盖，相关对象版本可查"
+        },
+        {
+          "id": "PROJECT-004-T02",
+          "scenario": "审核前材料授权失效",
+          "expected": "显示等待授权，不能直接判成员失败"
+        }
+      ],
+      "acceptance_ids": [
+        "A33",
+        "P11"
+      ],
+      "final_acceptance_ids": [
+        "A33"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "PLAN-001",
+      "milestone": "M4",
+      "title": "今日承诺与可行动任务",
+      "requirement_ids": [
+        "F28"
+      ],
+      "depends_on": [
+        "PROJECT-001",
+        "UI-001"
+      ],
+      "scope": [
+        "每日承诺、预计时长、前置依赖与等待他人",
+        "同任务引用"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "PLAN-001-T01",
+          "scenario": "依赖未满足/待审核/可执行任务混合",
+          "expected": "现在可行动列表正确，下一步明确"
+        },
+        {
+          "id": "PLAN-001-T02",
+          "scenario": "项目与今日计划打开同任务",
+          "expected": "同一ID和权威状态，不复制业务结果"
+        }
+      ],
+      "acceptance_ids": [
+        "A23",
+        "P06"
+      ],
+      "final_acceptance_ids": [
+        "A23"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "PLAN-002",
+      "milestone": "M4",
+      "title": "有限执行时段与投入记录",
+      "requirement_ids": [
+        "F28",
+        "F29"
+      ],
+      "depends_on": [
+        "PLAN-001"
+      ],
+      "scope": [
+        "开始/结束执行与planned_end_at",
+        "进度和阻塞",
+        "重叠时段计时口径"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "PLAN-002-T01",
+          "scenario": "从项目和计划重复开始同任务",
+          "expected": "不重复记录投入，结束时间必有"
+        },
+        {
+          "id": "PLAN-002-T02",
+          "scenario": "执行到期/阻塞未认可",
+          "expected": "重新判定可行动，不能永久running免催"
+        }
+      ],
+      "acceptance_ids": [
+        "P10",
+        "A28",
+        "P06"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "PLAN-003",
+      "milestone": "M4",
+      "title": "每日复习预算与统一计时",
+      "requirement_ids": [
+        "F25",
+        "F28",
+        "F29"
+      ],
+      "depends_on": [
+        "PLAN-002",
+        "LEARN-003",
+        "LEARN-004"
+      ],
+      "scope": [
+        "默认学习时间10%的可调复习",
+        "优先级与超额待安排",
+        "复习和项目投入同口径"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "PLAN-003-T01",
+          "scenario": "120分钟学习计划配超量复习",
+          "expected": "默认约12分钟，超出待安排，不挤占承诺任务"
+        },
+        {
+          "id": "PLAN-003-T02",
+          "scenario": "同任务兼具学习和项目用途",
+          "expected": "实际投入只记录一次"
+        }
+      ],
+      "acceptance_ids": [
+        "P06"
+      ],
+      "final_acceptance_ids": [
+        "P06"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "SCORE-001",
+      "milestone": "M4",
+      "title": "ABCD结算与规则版本",
+      "requirement_ids": [
+        "F29",
+        "F35"
+      ],
+      "depends_on": [
+        "PROJECT-004",
+        "PLAN-003"
+      ],
+      "scope": [
+        "透明的默认评分规则与当日承诺版本",
+        "待审区间/争议处理",
+        "裁决更正后新评分版本"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "SCORE-001-T01",
+          "scenario": "待审可能改变档位",
+          "expected": "暂缓结算，不将等待审核计失败"
+        },
+        {
+          "id": "SCORE-001-T02",
+          "scenario": "规则修改或裁决更正",
+          "expected": "历史依据保留，产生新结算版本不静默改分"
+        }
+      ],
+      "acceptance_ids": [
+        "A24",
+        "P09"
+      ],
+      "final_acceptance_ids": [
+        "A24"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "REMIND-001",
+      "milestone": "M4",
+      "title": "连续低分条件与任务豁免",
+      "requirement_ids": [
+        "F30"
+      ],
+      "depends_on": [
+        "SCORE-001",
+        "PLAN-002"
+      ],
+      "scope": [
+        "确定性F30判断",
+        "休息/批准请假/未知日屏障",
+        "有限执行与逐任务阻塞处理"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "REMIND-001-T01",
+          "scenario": "C、待审、D及跨休息日序列",
+          "expected": "未知日不跳过拼接，休息/请假按规则排除"
+        },
+        {
+          "id": "REMIND-001-T02",
+          "scenario": "执行到期且仍有别的可行动任务",
+          "expected": "重新触发判定，一个阻塞不豁免所有事项"
+        }
+      ],
+      "acceptance_ids": [
+        "P09",
+        "A26",
+        "P10"
+      ],
+      "final_acceptance_ids": [
+        "P09",
+        "A26"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "REMIND-002",
+      "milestone": "M4",
+      "title": "小时提醒发布与恢复去重",
+      "requirement_ids": [
+        "F28",
+        "F30",
+        "F42"
+      ],
+      "depends_on": [
+        "REMIND-001",
+        "FND-006"
+      ],
+      "scope": [
+        "约定时段与用户级发送账本",
+        "应用通知中心",
+        "多窗口/重启/时钟处理",
+        "外部弹窗unknown记录"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "REMIND-002-T01",
+          "scenario": "进入可发送状态、多次触发、跨窗口",
+          "expected": "首次提醒，之后至少3600秒，多个任务合并同逻辑通知"
+        },
+        {
+          "id": "REMIND-002-T02",
+          "scenario": "执行/阻塞/完成、休眠恢复、补历史分",
+          "expected": "有限豁免和自动结束生效，不补发积压，不声称未知外部送达成功"
+        }
+      ],
+      "acceptance_ids": [
+        "P10",
+        "A25",
+        "A28",
+        "A29"
+      ],
+      "final_acceptance_ids": [
+        "P10",
+        "A25",
+        "A28",
+        "A29"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "REMIND-003",
+      "milestone": "M4",
+      "title": "复议改判联动取消提醒",
+      "requirement_ids": [
+        "F30",
+        "F35",
+        "F44"
+      ],
+      "depends_on": [
+        "REMIND-002",
+        "PROJECT-004"
+      ],
+      "scope": [
+        "裁决更正后重算日分/序列/待发提醒",
+        "影响案例标待复核",
+        "历史通知保留说明"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "REMIND-003-T01",
+          "scenario": "触发序列中C改B",
+          "expected": "取消无依据待发通知，结束对应提醒，旧发送记录保留"
+        },
+        {
+          "id": "REMIND-003-T02",
+          "scenario": "更正与发送竞争",
+          "expected": "发布前复核版本，过期结果不能生成新通知"
+        }
+      ],
+      "acceptance_ids": [
+        "P11"
+      ],
+      "final_acceptance_ids": [
+        "P11"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "ADMIN-001",
+      "milestone": "M4",
+      "title": "授权统计与纠正操作",
+      "requirement_ids": [
+        "F36"
+      ],
+      "depends_on": [
+        "PROJECT-004",
+        "PLAN-003",
+        "FEEDBACK-001"
+      ],
+      "scope": [
+        "按项目授权查看进度/投入/卡点",
+        "可追踪纠正操作",
+        "私人学习记录单独授权"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "ADMIN-001-T01",
+          "scenario": "管理员与成员查看同统计页",
+          "expected": "只见其授权范围，统计不泄露私人成果正文"
+        },
+        {
+          "id": "ADMIN-001-T02",
+          "scenario": "按卡点采取有权纠正",
+          "expected": "动作记录原因和对象，不能绕过任务审核"
+        }
+      ],
+      "acceptance_ids": [
+        "A35",
+        "A02"
+      ],
+      "final_acceptance_ids": [
+        "A35"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "SYNC-001",
+      "milestone": "M4",
+      "title": "训练与任务断网对账",
+      "requirement_ids": [
+        "F24",
+        "F29",
+        "F42"
+      ],
+      "depends_on": [
+        "PROJECT-004",
+        "PLAN-003",
+        "LEARN-003"
+      ],
+      "scope": [
+        "保留草稿和待提交操作",
+        "幂等键查询既有结果",
+        "恢复后版本/权限复验"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "SYNC-001-T01",
+          "scenario": "服务已提交但响应丢失后重连",
+          "expected": "核对既有结果，不重复答题/提交/计时/评分"
+        },
+        {
+          "id": "SYNC-001-T02",
+          "scenario": "离线时权限或对象版本变化",
+          "expected": "保留个人输入，受限操作不能伪装成功"
+        }
+      ],
+      "acceptance_ids": [
+        "P14"
+      ],
+      "final_acceptance_ids": [
+        "P14"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "CONCURRENCY-001",
+      "milestone": "M4",
+      "title": "约十人协作竞争验证",
+      "requirement_ids": [
+        "F01",
+        "F31",
+        "F33",
+        "F34"
+      ],
+      "depends_on": [
+        "ADMIN-001",
+        "SYNC-001",
+        "REMIND-003"
+      ],
+      "scope": [
+        "对已经实现的协作功能做十独立身份并发验证",
+        "修复当前混合提交/审核/授权竞争缺陷"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "CONCURRENCY-001-T01",
+          "scenario": "10个独立身份混合读取提交审核",
+          "expected": "权限保持、无丢失更新/重复结果，记录真实负载条件"
+        },
+        {
+          "id": "CONCURRENCY-001-T02",
+          "scenario": "相同revision并发修改与邀请码竞争",
+          "expected": "只有符合条件的写入成功，拒绝结果可解释"
+        }
+      ],
+      "acceptance_ids": [
+        "A51"
+      ],
+      "final_acceptance_ids": [
+        "A51"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "AI-001",
+      "milestone": "M5",
+      "title": "AI业务动作与权限票据",
+      "requirement_ids": [
+        "F37",
+        "F42"
+      ],
+      "depends_on": [
+        "FND-005",
+        "SYNC-001"
+      ],
+      "scope": [
+        "将已完成业务接入受控工具",
+        "同人工API权限",
+        "按已有授权直接执行或提供具体动作票据"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "AI-001-T01",
+          "scenario": "授权范围内导入/草稿/复习动作",
+          "expected": "执行并回到真实业务结果，幂等且可审计"
+        },
+        {
+          "id": "AI-001-T02",
+          "scenario": "模型要求越权/重复/版本过期动作",
+          "expected": "领域层拒绝或对账，不由模型决定授权"
+        }
+      ],
+      "acceptance_ids": [
+        "A36"
+      ],
+      "final_acceptance_ids": [
+        "A36"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "AI-002",
+      "milestone": "M5",
+      "title": "学习方向建议的本人确认",
+      "requirement_ids": [
+        "F26",
+        "F37"
+      ],
+      "depends_on": [
+        "AI-001",
+        "FEEDBACK-001"
+      ],
+      "scope": [
+        "基于错题的方向建议",
+        "可查看依据/影响",
+        "拒绝与确认状态",
+        "小幅变更限制"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "AI-002-T01",
+          "scenario": "AI建议后未确认或用户拒绝",
+          "expected": "方向不变，不通过普通计划更新旁路"
+        },
+        {
+          "id": "AI-002-T02",
+          "scenario": "本人确认有效版本建议",
+          "expected": "按已说明幅度调整并留记录"
+        }
+      ],
+      "acceptance_ids": [
+        "A18"
+      ],
+      "final_acceptance_ids": [
+        "A18"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "DISCUSS-001",
+      "milestone": "M5",
+      "title": "阶段方案与独立评审席位",
+      "requirement_ids": [
+        "F38",
+        "F39",
+        "F40"
+      ],
+      "depends_on": [
+        "FND-005",
+        "KNOW-002"
+      ],
+      "scope": [
+        "主GPT方案版本",
+        "固定评审席位配置",
+        "材料范围与调用状态",
+        "不提前冻结"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "DISCUSS-001-T01",
+          "scenario": "启动阶段并收集各席意见",
+          "expected": "每席输入/版本/模型/状态可查"
+        },
+        {
+          "id": "DISCUSS-001-T02",
+          "scenario": "一席超时或无效结构输出",
+          "expected": "保持失败或受阻，不补造赞成票"
+        }
+      ],
+      "acceptance_ids": [
+        "P12",
+        "A38",
+        "A41"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "DISCUSS-002",
+      "milestone": "M5",
+      "title": "投票门槛与版本冻结",
+      "requirement_ids": [
+        "F38",
+        "F39"
+      ],
+      "depends_on": [
+        "DISCUSS-001"
+      ],
+      "scope": [
+        "全部席位有效、ceil(2N/3)、重大阻断处理的确定性检查",
+        "哈希绑定",
+        "新版本旧票隔离"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "DISCUSS-002-T01",
+          "scenario": "两赞成一失败及两赞成一有效反对",
+          "expected": "前者受阻，后者仅在无重大阻断时达门槛"
+        },
+        {
+          "id": "DISCUSS-002-T02",
+          "scenario": "改稿、席位缺失、冻结并发",
+          "expected": "旧票不能用于新版本，不能临时缩分母凑票"
+        }
+      ],
+      "acceptance_ids": [
+        "P12",
+        "A38",
+        "A39"
+      ],
+      "final_acceptance_ids": [
+        "P12",
+        "A38",
+        "A39"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "DISCUSS-003",
+      "milestone": "M5",
+      "title": "五轮上限与受阻恢复",
+      "requirement_ids": [
+        "F39",
+        "F40"
+      ],
+      "depends_on": [
+        "DISCUSS-002"
+      ],
+      "scope": [
+        "阶段轮次、有限传输重试、配额阻塞",
+        "第五轮用户裁定",
+        "禁止自动继续下一阶段"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "DISCUSS-003-T01",
+          "scenario": "第五轮仍未通过",
+          "expected": "交付最佳稿和分歧并等待裁定，不产生第六轮"
+        },
+        {
+          "id": "DISCUSS-003-T02",
+          "scenario": "传输重试/取消/额度不足",
+          "expected": "不伪增轮次，不替换模型或降低条件"
+        }
+      ],
+      "acceptance_ids": [
+        "A40"
+      ],
+      "final_acceptance_ids": [
+        "A40"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "DISCUSS-004",
+      "milestone": "M5",
+      "title": "冻结成果与任务草案交接",
+      "requirement_ids": [
+        "F34",
+        "F38",
+        "F39"
+      ],
+      "depends_on": [
+        "DISCUSS-003",
+        "PROJECT-004",
+        "KNOW-002"
+      ],
+      "scope": [
+        "冻结方案入知识库",
+        "生成待发布任务草案",
+        "设计结论与任务实际验收分开"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "DISCUSS-004-T01",
+          "scenario": "方案冻结并生成任务草案",
+          "expected": "版本与讨论可追踪，有权限者发布任务"
+        },
+        {
+          "id": "DISCUSS-004-T02",
+          "scenario": "投票通过但工程未执行",
+          "expected": "任务仍未验收，不能自动计正式完成"
+        }
+      ],
+      "acceptance_ids": [
+        "A42"
+      ],
+      "final_acceptance_ids": [
+        "A42"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "MODEL-001",
+      "milestone": "M5",
+      "title": "真实模型配置与用量",
+      "requirement_ids": [
+        "F38",
+        "F40"
+      ],
+      "depends_on": [
+        "DISCUSS-003",
+        "AI-001"
+      ],
+      "scope": [
+        "展示真实路由/defaults/限制与可获得用量",
+        "未知价格明确",
+        "业务预算与账户限制分开"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "MODEL-001-T01",
+          "scenario": "真实调用后核对provider记录",
+          "expected": "显示实际模型与已知用量，凭据原文不记录"
+        },
+        {
+          "id": "MODEL-001-T02",
+          "scenario": "主GPT不可用或价格未知",
+          "expected": "明确受阻/未知，不静默降级或显示虚构免费额度"
+        }
+      ],
+      "acceptance_ids": [
+        "A41"
+      ],
+      "final_acceptance_ids": [
+        "A41"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "PLUGIN-001",
+      "milestone": "M5",
+      "title": "受控插件生命周期",
+      "requirement_ids": [
+        "F37",
+        "F40"
+      ],
+      "depends_on": [
+        "AI-001",
+        "REMIND-003"
+      ],
+      "scope": [
+        "可信来源插件安装/启用/停用/移除",
+        "权限、版本和失败恢复",
+        "核心功能保护"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "PLUGIN-001-T01",
+          "scenario": "管理员管理一个可选插件",
+          "expected": "生命周期可回查，失败回到明确状态"
+        },
+        {
+          "id": "PLUGIN-001-T02",
+          "scenario": "普通用户或AI尝试停用F30/鉴权/审计",
+          "expected": "服务拒绝，移除依赖/覆盖profile不能从产品入口绕过"
+        }
+      ],
+      "acceptance_ids": [
+        "A37",
+        "A27"
+      ],
+      "final_acceptance_ids": [
+        "A37"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "LIFE-001",
+      "milestone": "M6",
+      "title": "回收站与30天清理",
+      "requirement_ids": [
+        "F41",
+        "F44"
+      ],
+      "depends_on": [
+        "LIB-006",
+        "KNOW-003",
+        "LEARN-004"
+      ],
+      "scope": [
+        "删除影响预览",
+        "回收站期限",
+        "停止正常访问",
+        "到期永久清理与blob引用检查"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "LIFE-001-T01",
+          "scenario": "正常对象跨30天及回收对象边界",
+          "expected": "正常数据不删，回收对象按期限处理"
+        },
+        {
+          "id": "LIFE-001-T02",
+          "scenario": "共用blob尚有有效引用",
+          "expected": "不误删其他内容，已删引用明确失效"
+        }
+      ],
+      "acceptance_ids": [
+        "A43"
+      ],
+      "final_acceptance_ids": [
+        "A43"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "LIFE-002",
+      "milestone": "M6",
+      "title": "恢复资料与分享复核",
+      "requirement_ids": [
+        "F32",
+        "F41",
+        "F44"
+      ],
+      "depends_on": [
+        "LIFE-001",
+        "SHARE-001"
+      ],
+      "scope": [
+        "恢复位置/重名/关联预览",
+        "正文恢复和分享恢复分开",
+        "旧授权不复活"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "LIFE-002-T01",
+          "scenario": "邀请码到期后删除恢复资料",
+          "expected": "正文可恢复，过期或撤销授权仍无效"
+        },
+        {
+          "id": "LIFE-002-T02",
+          "scenario": "恢复与旧分享冲突",
+          "expected": "旧分享需重新确认，影响范围可见"
+        }
+      ],
+      "acceptance_ids": [
+        "P13",
+        "A44"
+      ],
+      "final_acceptance_ids": [
+        "P13",
+        "A44"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "LIFE-003",
+      "milestone": "M6",
+      "title": "来源变化的派生影响",
+      "requirement_ids": [
+        "F07",
+        "F11",
+        "F14",
+        "F24",
+        "F44"
+      ],
+      "depends_on": [
+        "LIFE-002",
+        "KNOW-003",
+        "LEARN-003",
+        "LEARN-004"
+      ],
+      "scope": [
+        "新版本/删除事件对关系、遮挡、题目和能力评价的复核",
+        "旧证据保留"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "LIFE-003-T01",
+          "scenario": "纠正关系后更新/删除其来源",
+          "expected": "历史与修正依据保留，受影响结果待复核"
+        },
+        {
+          "id": "LIFE-003-T02",
+          "scenario": "资料新版本影响题目和遮挡",
+          "expected": "不漂移、不覆写历史，必要评价产生新版本"
+        }
+      ],
+      "acceptance_ids": [
+        "A12",
+        "A45"
+      ],
+      "final_acceptance_ids": [
+        "A12",
+        "A45"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "LIFE-004",
+      "milestone": "M6",
+      "title": "撤权后的派生缓存关闭",
+      "requirement_ids": [
+        "F32",
+        "F44"
+      ],
+      "depends_on": [
+        "LIFE-003",
+        "AI-001",
+        "SEARCH-001"
+      ],
+      "scope": [
+        "对已建搜索、页图、答案、AI材料、长任务和订阅执行当前ACL复验",
+        "清理索引不能延迟拒绝"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "LIFE-004-T01",
+          "scenario": "撤权时已有缓存/流/后台任务",
+          "expected": "后续受控读取与发布停止，不能重放受限正文"
+        },
+        {
+          "id": "LIFE-004-T02",
+          "scenario": "枚举无权对象及旧幂等回执",
+          "expected": "不泄露正文、标题或数量，合法本人草稿不误删"
+        }
+      ],
+      "acceptance_ids": [
+        "A46"
+      ],
+      "final_acceptance_ids": [
+        "A46"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "LIFE-005",
+      "milestone": "M6",
+      "title": "离线草稿与授权变化整体验证",
+      "requirement_ids": [
+        "F42",
+        "F44"
+      ],
+      "depends_on": [
+        "LIFE-004",
+        "SYNC-001"
+      ],
+      "scope": [
+        "验证各已实现页面断网保留",
+        "共享材料离线期限",
+        "重连对账与权限复验"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "LIFE-005-T01",
+          "scenario": "编辑或练习断网且授权到期",
+          "expected": "个人草稿保留，受控共享内容到期后不可继续访问"
+        },
+        {
+          "id": "LIFE-005-T02",
+          "scenario": "恢复联网与版本冲突",
+          "expected": "先核对结果/权限，不重复提交，不静默覆盖"
+        }
+      ],
+      "acceptance_ids": [
+        "A47"
+      ],
+      "final_acceptance_ids": [
+        "A47"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "EXPORT-001",
+      "milestone": "M6",
+      "title": "按权限导出",
+      "requirement_ids": [
+        "F43",
+        "F44"
+      ],
+      "depends_on": [
+        "LIFE-004"
+      ],
+      "scope": [
+        "资料/笔记/学习/项目选定范围导出",
+        "来源和关联manifest",
+        "不导出凭据"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "EXPORT-001-T01",
+          "scenario": "按可见范围选择导出",
+          "expected": "结果与预览一致，必要关联可查"
+        },
+        {
+          "id": "EXPORT-001-T02",
+          "scenario": "导出中撤权或内容已删",
+          "expected": "结果复验，受限正文不进入文件"
+        }
+      ],
+      "acceptance_ids": [
+        "A48"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "BACKUP-001",
+      "milestone": "M6",
+      "title": "一致性备份与恢复",
+      "requirement_ids": [
+        "F43",
+        "F44"
+      ],
+      "depends_on": [
+        "EXPORT-001",
+        "LIFE-005"
+      ],
+      "scope": [
+        "数据库与blob一致快照",
+        "新目录恢复预览",
+        "schema/哈希/关联检查",
+        "撤销信息复核"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "BACKUP-001-T01",
+          "scenario": "备份后新目录实际恢复",
+          "expected": "原件/引用/学习/审核/评分/提醒关联可用"
+        },
+        {
+          "id": "BACKUP-001-T02",
+          "scenario": "恢复旧备份且撤销信息不可证明",
+          "expected": "旧分享关闭再确认，不复活会话/邀请，不忽略WAL"
+        }
+      ],
+      "acceptance_ids": [
+        "A48"
+      ],
+      "final_acceptance_ids": [
+        "A48"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "WINDOWS-001",
+      "milestone": "M6",
+      "title": "KnowledgeOS候选安装包",
+      "requirement_ids": [
+        "F01",
+        "F42",
+        "F43"
+      ],
+      "depends_on": [
+        "BACKUP-001",
+        "PLUGIN-001",
+        "MODEL-001",
+        "DISCUSS-004"
+      ],
+      "scope": [
+        "独立产品ID/数据目录",
+        "插件与上游runtime闭包装配",
+        "真实干净安装与二次启动"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "WINDOWS-001-T01",
+          "scenario": "安装候选包并重启",
+          "expected": "实际Host数据库/转换/插件可用，不覆盖其他DSH或公司应用"
+        },
+        {
+          "id": "WINDOWS-001-T02",
+          "scenario": "资源路径/驱动不可用或未签名",
+          "expected": "明确报告真实状态，构建成功不冒充安装通过"
+        }
+      ],
+      "acceptance_ids": [
+        "A49"
+      ],
+      "final_acceptance_ids": [],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "WINDOWS-002",
+      "milestone": "M6",
+      "title": "Windows升级回退与卸载",
+      "requirement_ids": [
+        "F01",
+        "F42",
+        "F43"
+      ],
+      "depends_on": [
+        "WINDOWS-001"
+      ],
+      "scope": [
+        "升级保留数据与迁移中断",
+        "兼容回退/备份恢复",
+        "卸载默认保留用户数据"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "WINDOWS-002-T01",
+          "scenario": "真实旧候选版升级并核对数据",
+          "expected": "资料和任务关联完整，重复启动不重复迁移"
+        },
+        {
+          "id": "WINDOWS-002-T02",
+          "scenario": "失败升级、回退、卸载",
+          "expected": "不静默清库，不强行旧版读取未来schema"
+        }
+      ],
+      "acceptance_ids": [
+        "A49"
+      ],
+      "final_acceptance_ids": [
+        "A49"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "CHECK-001",
+      "milestone": "M6",
+      "title": "全入口视觉与导航检查",
+      "requirement_ids": [
+        "F01",
+        "F04"
+      ],
+      "depends_on": [
+        "WINDOWS-001",
+        "UI-001",
+        "DISCUSS-004",
+        "ADMIN-001"
+      ],
+      "scope": [
+        "逐一检查已实现六工作区",
+        "两级导航、字体、冷玉青、圆角",
+        "Windows尺寸缩放深浅色"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "CHECK-001-T01",
+          "scenario": "遍历所有入口、详情及阅读/AI辅助栏",
+          "expected": "功能可达，子页归属清楚，无三套常驻侧栏"
+        },
+        {
+          "id": "CHECK-001-T02",
+          "scenario": "1366x768/1920x1080和常见缩放",
+          "expected": "文字可读、不截断关键操作，焦点和错误态可用"
+        }
+      ],
+      "acceptance_ids": [
+        "A50"
+      ],
+      "final_acceptance_ids": [
+        "A50"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "CHECK-002",
+      "milestone": "M6",
+      "title": "全通路私人权限验证",
+      "requirement_ids": [
+        "F03",
+        "F31",
+        "F36"
+      ],
+      "depends_on": [
+        "EXPORT-001",
+        "AI-001",
+        "ADMIN-001",
+        "LIFE-004"
+      ],
+      "scope": [
+        "三个真实身份覆盖UI/API/搜索/AI工具/导出",
+        "修复当前访问边界漏口"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "CHECK-002-T01",
+          "scenario": "甲乙及管理员遍历私人对象访问路径",
+          "expected": "仅获授权内容可读，管理员统计不越权读取正文"
+        },
+        {
+          "id": "CHECK-002-T02",
+          "scenario": "注销/撤权/身份替换与重登",
+          "expected": "请求主体不可伪造，已失效访问被阻止"
+        }
+      ],
+      "acceptance_ids": [
+        "A02"
+      ],
+      "final_acceptance_ids": [
+        "A02"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "CHECK-003",
+      "milestone": "M6",
+      "title": "强提醒所有入口与真实送达",
+      "requirement_ids": [
+        "F30",
+        "F37"
+      ],
+      "depends_on": [
+        "WINDOWS-001",
+        "PLUGIN-001",
+        "REMIND-003"
+      ],
+      "scope": [
+        "所有应用内角色/设置/API/AI/插件停用尝试",
+        "真实Windows后台/托盘/休眠恢复",
+        "原生通知与应用账本分开"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "CHECK-003-T01",
+          "scenario": "从所有产品入口尝试关闭F30",
+          "expected": "规则无法停用，时段/任务条件仍按约定执行"
+        },
+        {
+          "id": "CHECK-003-T02",
+          "scenario": "关闭应用、休眠、系统通知受限后恢复",
+          "expected": "不拦截OS退出，不补积压，记录真实送达限制和unknown"
+        }
+      ],
+      "acceptance_ids": [
+        "A27"
+      ],
+      "final_acceptance_ids": [
+        "A27"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    },
+    {
+      "id": "CHECK-004",
+      "milestone": "M6",
+      "title": "DeepSeek基础开发整体验收交接",
+      "requirement_ids": [
+        "F02",
+        "F20",
+        "F28",
+        "F37",
+        "F44"
+      ],
+      "depends_on": [
+        "WINDOWS-002",
+        "CHECK-001",
+        "CHECK-002",
+        "CHECK-003",
+        "BACKUP-001",
+        "LIFE-003",
+        "CONCURRENCY-001",
+        "DISCUSS-004",
+        "EXAM-003",
+        "REPO-003"
+      ],
+      "scope": [
+        "沿资料学习工程任务讨论完整闭环回归",
+        "核对44需求66场景和所有单元状态",
+        "整理待用户批准的Codex审查交接材料"
+      ],
+      "not_in_scope": [
+        "未激活的其他功能",
+        "自动开始下一单元"
+      ],
+      "test_obligations": [
+        {
+          "id": "CHECK-004-T01",
+          "scenario": "真实完整学习与工程/协作路径",
+          "expected": "每项结果可回到来源/作答/提交/审核，状态和权限一致"
+        },
+        {
+          "id": "CHECK-004-T02",
+          "scenario": "扫描全部单元和验收",
+          "expected": "无遗漏/伪PASS；存在BLOCKED或NOT_RUN则如实保留，不宣布全部基础完成；不自动启动Codex"
+        }
+      ],
+      "acceptance_ids": [
+        "A52"
+      ],
+      "final_acceptance_ids": [
+        "A52"
+      ],
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "status": "planned",
+      "test_plan_status": "planning_baseline_expand_on_activation"
+    }
+  ]
+}
