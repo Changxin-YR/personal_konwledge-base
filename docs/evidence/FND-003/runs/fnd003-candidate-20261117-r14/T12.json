@@ -1,0 +1,128 @@
+{
+  "id": "T12",
+  "name": "构建、真实加载、释放及既有回归",
+  "status": "PASS",
+  "started": "2026-11-17T07:12:50.216Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "verify-plan exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "scope-check exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "typecheck exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "build exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "loaded-artifacts exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "frozen candidate manifest matches source and loaded artifacts",
+      "actual": []
+    },
+    {
+      "ok": true,
+      "message": "real profile installation artifacts match the frozen candidate",
+      "actual": {
+        "loaded_root": "<repo>packages\\knowledgeos-panel",
+        "mismatches": []
+      }
+    },
+    {
+      "ok": true,
+      "message": "tampered artifact differs from frozen candidate"
+    },
+    {
+      "ok": true,
+      "message": "loaded-artifacts checker rejects a tampered installation with non-zero exit",
+      "actual": {
+        "status": 1
+      }
+    },
+    {
+      "ok": true,
+      "message": "existing status and records routes remain functional",
+      "actual": {
+        "status": 200,
+        "record": 201,
+        "reread": 200
+      }
+    },
+    {
+      "ok": true,
+      "message": "unconfigured profile preserves status and returns explicit unavailable",
+      "actual": {
+        "unavailable": {
+          "code": "STORAGE_UNAVAILABLE",
+          "message": "storage is unavailable",
+          "request_id": "966d2cb6-aaff-491a-b330-c3c1a77aec5a",
+          "retryable": false,
+          "safe_details": {}
+        },
+        "status": 200
+      }
+    }
+  ],
+  "details": {
+    "checks": [
+      {
+        "name": "verify-plan",
+        "status": 0,
+        "stdout": "{\n  \"status\": \"PASS\",\n  \"scope\": \"plan_structure_traceability_and_execution_consistency_only\",\n  \"requirements\": 44,\n  \"acceptanceCases\": 66,\n  \"workUnits\": 76,\n  \"plannedUnitChecks\": 174,\n  \"executor\": \"codex\",\n  \"activeUnit\": \"FND-003\",\n  \"autoAdvance\": false,\n  \"fullProductReview\": \"not_started\",\n  \"markdownFiles\": 54,\n  \"upstreamCommit\": \"39163dd30f703a79079e2d2446545cff3c453738\",\n  \"implementationVerifiedByThisCheck\": false,\n  \"productTestsExecuted\": 0\n}\n",
+        "stderr": ""
+      },
+      {
+        "name": "scope-check",
+        "status": 0,
+        "stdout": "{\n  \"result\": \"PASS\",\n  \"failures\": [],\n  \"checked\": [\n    \"packages/knowledgeos-panel/src/host/identity.ts\",\n    \"packages/knowledgeos-panel/src/host/identity-http.ts\",\n    \"packages/knowledgeos-panel/src/host/identity-peer.ts\",\n    \"packages/knowledgeos-panel/src/host/storage.ts\",\n    \"scripts/fnd003/harness.mjs\",\n    \"scripts/fnd003/run-all.mjs\",\n    \"packages/knowledgeos-panel/src/host/index.ts\",\n    \"packages/knowledgeos-panel/src/host/identity.ts\",\n    \"packages/knowledgeos-panel/src/host/identity-http.ts\",\n    \"packages/knowledgeos-panel/src/host/identity-peer.ts\",\n    \"packages/knowledgeos-panel/src/host/storage.ts\",\n    \"packages/knowledgeos-panel/src/client/Panel.tsx\"\n  ]\n}\n",
+        "stderr": ""
+      },
+      {
+        "name": "typecheck",
+        "status": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "name": "build",
+        "status": 0,
+        "stdout": "lib/index.js  94556 bytes  sha256=2955a68a69a8fe6e5b174deb1dc6613bcdd476e79380a667b483babe7c1ee59f\nlib/storage.js  33495 bytes  sha256=8ede815fc780ae1f52bb0daf02d73b914c3643b4572f2fccf57961305e7e83ab\nlib/test-support.js  48397 bytes  sha256=f3ca16ac77e2bc5432c34c348e8feb965a29a833ba206e529f32e1270196913d\nlib/client.js  21691 bytes  sha256=dfa4a5e2fb8afcaf85657f22048185e3cb86444db87e8e6e4ec1d4b0bbe2e1a9\n",
+        "stderr": ""
+      },
+      {
+        "name": "loaded-artifacts",
+        "status": 0,
+        "stdout": "{\n  \"manifest\": \"docs/evidence/FND-003/candidate-manifest-r14.json\",\n  \"profile_dir\": \".cache/dsh-home-fnd003/profiles/knowledgeos-identity-test\",\n  \"source_mismatches\": [],\n  \"loaded_mismatches\": [],\n  \"loaded_root\": \"C:\\\\Users\\\\27363\\\\Desktop\\\\personal base\\\\personal_konwledge-base\\\\packages\\\\knowledgeos-panel\",\n  \"result\": \"PASS\"\n}\n",
+        "stderr": ""
+      },
+      {
+        "name": "tampered-loaded-artifacts",
+        "status": 1,
+        "stdout": "ages/knowledgeos-panel/src/host/test-support.ts\",\n      \"installed_path\": \"C:\\\\Users\\\\27363\\\\Desktop\\\\personal base\\\\personal_konwledge-base\\\\docs\\\\evidence\\\\FND-003\\\\runs\\\\fnd003-candidate-20261117-r14\\\\tampered-package\\\\src\\\\host\\\\test-support.ts\",\n      \"error\": \"Error: ENOENT: no such file or directory, open 'C:\\\\Users\\\\27363\\\\Desktop\\\\personal base\\\\personal_konwledge-base\\\\docs\\\\evidence\\\\FND-003\\\\runs\\\\fnd003-candidate-20261117-r14\\\\tampered-package\\\\src\\\\host\\\\test-support.ts'\"\n    },\n    {\n      \"file\": \"packages/knowledgeos-panel/src/client/Panel.tsx\",\n      \"installed_path\": \"C:\\\\Users\\\\27363\\\\Desktop\\\\personal base\\\\personal_konwledge-base\\\\docs\\\\evidence\\\\FND-003\\\\runs\\\\fnd003-candidate-20261117-r14\\\\tampered-package\\\\src\\\\client\\\\Panel.tsx\",\n      \"error\": \"Error: ENOENT: no such file or directory, open 'C:\\\\Users\\\\27363\\\\Desktop\\\\personal base\\\\personal_konwledge-base\\\\docs\\\\evidence\\\\FND-003\\\\runs\\\\fnd003-candidate-20261117-r14\\\\tampered-package\\\\src\\\\client\\\\Panel.tsx'\"\n    }\n  ],\n  \"loaded_root\": \"C:\\\\Users\\\\27363\\\\Desktop\\\\personal base\\\\personal_konwledge-base\\\\docs\\\\evidence\\\\FND-003\\\\runs\\\\fnd003-candidate-20261117-r14\\\\tampered-package\",\n  \"result\": \"FAIL\"\n}\n",
+        "stderr": ""
+      }
+    ],
+    "loaded_package": "packages/knowledgeos-panel",
+    "loaded_root": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel",
+    "manifest": "fnd003-candidate-20261117-r14",
+    "negative_artifact": "a64a198ba1d05fb9c67dabeb89e28f77211a583e07da5a74bc0163def9d29127",
+    "lifecycle": "closed after each Host run"
+  },
+  "evidence": [],
+  "finished": "2026-11-17T07:13:23.276Z"
+}

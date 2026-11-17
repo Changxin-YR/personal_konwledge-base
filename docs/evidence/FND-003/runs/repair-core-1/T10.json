@@ -1,0 +1,92 @@
+{
+  "id": "T10",
+  "name": "登录注册限流与有界 KDF 负载",
+  "status": "FAIL",
+  "started": "2026-11-17T06:03:32.602Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "real HTTP account limit returns 429 with dynamic Retry-After",
+      "actual": [
+        {
+          "status": 401,
+          "retry_after": null
+        },
+        {
+          "status": 401,
+          "retry_after": null
+        },
+        {
+          "status": 401,
+          "retry_after": null
+        },
+        {
+          "status": 401,
+          "retry_after": null
+        },
+        {
+          "status": 401,
+          "retry_after": null
+        },
+        {
+          "status": 429,
+          "retry_after": "899"
+        }
+      ]
+    },
+    {
+      "ok": true,
+      "message": "mixed successful and failed authentication attempts hit the real source limit",
+      "actual": {
+        "successes": 22,
+        "limited": 429,
+        "retry_after": 50
+      }
+    },
+    {
+      "ok": true,
+      "message": "source limiter recovers after a normal Host restart",
+      "actual": 200
+    },
+    {
+      "ok": true,
+      "message": "controlled limiter window blocks at five failures"
+    },
+    {
+      "ok": true,
+      "message": "KDF cancellation starts with two running and at least one queued task",
+      "actual": {
+        "runningAtCancel": 2,
+        "queuedAtCancel": 8,
+        "peakRunning": 2,
+        "peakQueued": 7
+      }
+    },
+    {
+      "ok": false,
+      "message": "queued cancellation removes work while running scrypt callbacks finish and release slots",
+      "actual": {
+        "queuedCancelled": 1,
+        "started": 9,
+        "completed": 9,
+        "outcomes": [
+          "ok",
+          "ok",
+          20,
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok"
+        ]
+      }
+    }
+  ],
+  "details": {},
+  "evidence": [],
+  "error": "Error: queued cancellation removes work while running scrypt callbacks finish and release slots: {\"queuedCancelled\":1,\"started\":9,\"completed\":9,\"outcomes\":[\"ok\",\"ok\",20,\"ok\",\"ok\",\"ok\",\"ok\",\"ok\",\"ok\",\"ok\"]}\n    at expect (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:75:25)\n    at file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:325:5\n    at async run (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:81:32)\n    at async file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:303:3",
+  "finished": "2026-11-17T06:04:06.411Z"
+}

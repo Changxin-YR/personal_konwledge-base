@@ -1,0 +1,22 @@
+{
+  "run_id": "repair-t11-fixed-1",
+  "candidate": null,
+  "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "port": 3101,
+  "profile": "knowledgeos-identity-test",
+  "started_at": "2026-11-17T06:31:27.681Z",
+  "finished_at": "2026-11-17T06:31:58.814Z",
+  "result": "FAIL",
+  "results": [
+    {
+      "id": "T11",
+      "name": "真实账号界面与身份切换",
+      "status": "FAIL",
+      "evidence": "T11.json"
+    }
+  ],
+  "failures": [
+    "T11: late /me response cannot expose Alice data during Bob switch: {\"state\":\"正在登录…\",\"profileHidden\":true,\"saveDisabled\":true,\"fields\":[\"\",\"\",\"\",\"\",\"\"]}"
+  ],
+  "out": "docs/evidence/FND-003/runs/repair-t11-fixed-1"
+}

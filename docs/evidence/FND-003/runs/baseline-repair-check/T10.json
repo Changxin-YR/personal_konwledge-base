@@ -1,0 +1,43 @@
+{
+  "id": "T10",
+  "name": "登录注册限流与有界 KDF 负载",
+  "status": "FAIL",
+  "started": "2026-11-17T05:37:09.082Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": false,
+      "message": "real HTTP login limit returns 429 and Retry-After",
+      "actual": [
+        {
+          "status": 500,
+          "retry_after": null
+        },
+        {
+          "status": 500,
+          "retry_after": null
+        },
+        {
+          "status": 500,
+          "retry_after": null
+        },
+        {
+          "status": 500,
+          "retry_after": null
+        },
+        {
+          "status": 500,
+          "retry_after": null
+        },
+        {
+          "status": 500,
+          "retry_after": null
+        }
+      ]
+    }
+  ],
+  "details": {},
+  "evidence": [],
+  "error": "Error: real HTTP login limit returns 429 and Retry-After: [{\"status\":500,\"retry_after\":null},{\"status\":500,\"retry_after\":null},{\"status\":500,\"retry_after\":null},{\"status\":500,\"retry_after\":null},{\"status\":500,\"retry_after\":null},{\"status\":500,\"retry_after\":null}]\n    at expect (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:75:25)\n    at file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:270:5\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async run (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:81:32)\n    at async file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:267:3",
+  "finished": "2026-11-17T05:38:20.440Z"
+}

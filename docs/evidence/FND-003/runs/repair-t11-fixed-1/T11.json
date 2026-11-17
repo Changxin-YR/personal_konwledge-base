@@ -1,0 +1,71 @@
+{
+  "id": "T11",
+  "name": "真实账号界面与身份切换",
+  "status": "FAIL",
+  "started": "2026-11-17T06:31:27.683Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "browser sees owner setup page"
+    },
+    {
+      "ok": true,
+      "message": "browser registration succeeds",
+      "actual": "注册成功，请登录"
+    },
+    {
+      "ok": true,
+      "message": "browser Alice login succeeds",
+      "actual": {
+        "state": "已登录 · member",
+        "message": "登录成功"
+      }
+    },
+    {
+      "ok": true,
+      "message": "browser preference save succeeds"
+    },
+    {
+      "ok": true,
+      "message": "second browser context is a separate identity"
+    },
+    {
+      "ok": true,
+      "message": "logout immediately clears profile, revision-backed editing and passwords",
+      "actual": {
+        "profileHidden": true,
+        "saveDisabled": true,
+        "fields": [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    {
+      "ok": false,
+      "message": "late /me response cannot expose Alice data during Bob switch",
+      "actual": {
+        "state": "正在登录…",
+        "profileHidden": true,
+        "saveDisabled": true,
+        "fields": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    }
+  ],
+  "details": {},
+  "evidence": [],
+  "error": "Error: late /me response cannot expose Alice data during Bob switch: {\"state\":\"正在登录…\",\"profileHidden\":true,\"saveDisabled\":true,\"fields\":[\"\",\"\",\"\",\"\",\"\"]}\n    at expect (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:75:25)\n    at file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:354:1952\n    at async run (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:81:32)\n    at async file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:346:3",
+  "finished": "2026-11-17T06:31:58.073Z"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "T11",
+  "name": "真实账号界面与身份切换",
+  "status": "FAIL",
+  "started": "2026-11-17T06:17:06.817Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "browser sees owner setup page"
+    },
+    {
+      "ok": true,
+      "message": "browser registration succeeds",
+      "actual": "注册成功，请登录"
+    }
+  ],
+  "details": {},
+  "evidence": [],
+  "error": "page.waitForFunction: Timeout 10000ms exceeded.\n    at C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd003\\run-all.mjs:336:681\n    at async run (C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd003\\run-all.mjs:81:32)\n    at async file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:330:3",
+  "finished": "2026-11-17T06:17:26.717Z"
+}

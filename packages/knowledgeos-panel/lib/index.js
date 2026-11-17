@@ -416,6 +416,7 @@ var ProbeStorage = class {
   #dataDir;
   #log;
   #migrationOverride;
+  #failureAt;
   #db;
   #state = "unavailable";
   #failure;
@@ -425,7 +426,11 @@ var ProbeStorage = class {
     this.#log = options.log ?? (() => {
     });
     this.#migrationOverride = options.migrationOverride;
+    this.#failureAt = options.failureAt;
     this.#open();
+  }
+  #injectFailure(point) {
+    if (this.#failureAt === point) throw new Error(`controlled storage failure at ${point}`);
   }
   get available() {
     return this.#state === "ready";
@@ -503,31 +508,29 @@ var ProbeStorage = class {
     if (facts.ledger.length !== 2 || v1?.checksum !== MIGRATION_V1_CHECKSUM || v2?.checksum !== MIGRATION_V2_CHECKSUM) throw new RecordsError("STORAGE_INCOMPATIBLE", "v2 migration ledger does not match this build");
   }
   #assertV2Definitions(db) {
-    const definitions = new Map(db.prepare("SELECT name, sql FROM sqlite_master WHERE type='table'").all().map((row) => [row.name, row.sql ?? ""]));
-    const expectedColumns = {
-      password_credentials: ["id", "algorithm", "version", "n", "r", "p", "maxmem", "salt", "derived_key", "created_at"],
-      users: ["id", "login_name", "display_name", "credential_ref", "role", "status", "timezone", "planning_home_service_id", "domains", "learning_tracks", "goal_text", "revision", "created_at", "updated_at"],
-      service_identity: ["id", "service_id", "bootstrap_admin_user_id", "initialized_at"],
-      auth_sessions: ["id", "user_id", "token_hash", "created_at", "expires_at", "revoked_at"],
-      spaces: ["id", "service_id", "kind", "owner_user_id", "status", "revision", "created_at", "updated_at"]
-    };
-    for (const [table, columns] of Object.entries(expectedColumns)) {
-      const actual = db.prepare(`PRAGMA table_info(${table})`).all().map((row) => row.name);
-      if (actual.join(",") !== columns.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", `v2 table definition is not accepted: ${table}`);
+    const expected = new DatabaseSync(":memory:");
+    try {
+      expected.exec(MIGRATION_V2_SQL);
+      const normalize = (value) => String(value ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+      const signature = (source, table) => {
+        const columns = source.prepare(`PRAGMA table_info(${table})`).all().map((row) => ({ cid: Number(row.cid), name: String(row.name), type: String(row.type), notnull: Number(row.notnull), pk: Number(row.pk) }));
+        const indexes = source.prepare(`PRAGMA index_list(${table})`).all().map((index) => ({
+          unique: Number(index.unique),
+          origin: String(index.origin),
+          columns: source.prepare(`PRAGMA index_info(${JSON.stringify(String(index.name))})`).all().map((row) => ({ seqno: Number(row.seqno), name: row.name === null ? null : String(row.name) }))
+        })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+        const foreignKeys = source.prepare(`PRAGMA foreign_key_list(${table})`).all().map((row) => ({ id: Number(row.id), seq: Number(row.seq), table: String(row.table), from: String(row.from), to: String(row.to), on_update: String(row.on_update), on_delete: String(row.on_delete), match: String(row.match) })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+        const sql = source.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name = ?").get(table)?.sql ?? "";
+        return { columns, indexes, foreignKeys, sql: normalize(sql) };
+      };
+      for (const table of ["password_credentials", "users", "service_identity", "auth_sessions", "spaces"]) {
+        const actual = signature(db, table);
+        const expectedSignature = signature(expected, table);
+        if (JSON.stringify(actual) !== JSON.stringify(expectedSignature)) throw new RecordsError("STORAGE_INCOMPATIBLE", `v2 table constraints are not accepted: ${table}`);
+      }
+    } finally {
+      expected.close();
     }
-    const requiredFragments = [
-      ["users", "REFERENCES password_credentials"],
-      ["users", "CHECK (role IN ('admin', 'member'))"],
-      ["users", "CHECK (status IN ('active', 'disabled'))"],
-      ["auth_sessions", "REFERENCES users"],
-      ["auth_sessions", "token_hash TEXT NOT NULL UNIQUE"],
-      ["spaces", "REFERENCES service_identity(service_id)"],
-      ["spaces", "REFERENCES users(id)"],
-      ["spaces", "CHECK (kind = 'personal')"],
-      ["service_identity", "CHECK (id = 1)"],
-      ["password_credentials", "derived_key BLOB NOT NULL"]
-    ];
-    for (const [table, fragment] of requiredFragments) if (!definitions.get(table)?.includes(fragment)) throw new RecordsError("STORAGE_INCOMPATIBLE", `v2 constraint definition is not accepted: ${table}`);
   }
   #configure(db) {
     const journal = String(db.prepare("PRAGMA journal_mode=WAL").get()?.journal_mode ?? "").toLowerCase();
@@ -566,8 +569,11 @@ var ProbeStorage = class {
     db.exec("BEGIN IMMEDIATE");
     try {
       db.exec(MIGRATION_V2_SQL);
+      this.#injectFailure("v2:after-schema");
       db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID2());
+      this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      this.#injectFailure("v2:after-ledger");
       db.exec(`PRAGMA application_id = ${APPLICATION_ID}`);
       db.exec("PRAGMA user_version = 2");
       db.exec("COMMIT");
@@ -679,9 +685,13 @@ var ProbeStorage = class {
       const spaceId = randomUUID2();
       const credentialId = randomUUID2();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
+      this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
+      this.#injectFailure("bootstrap:after-user");
       db.prepare(`INSERT INTO spaces (id, service_id, kind, owner_user_id, status, revision, created_at, updated_at) VALUES (?, ?, 'personal', ?, 'active', 1, ?, ?)`).run(spaceId, serviceId, userId, now, now);
+      this.#injectFailure("bootstrap:after-space");
       db.prepare("UPDATE service_identity SET bootstrap_admin_user_id = ?, initialized_at = ? WHERE id = 1 AND initialized_at IS NULL").run(userId, now);
+      this.#injectFailure("bootstrap:after-identity");
       db.exec("COMMIT");
       tx = false;
       const user = this.#profileByUser(db, userId);
@@ -711,8 +721,11 @@ var ProbeStorage = class {
       const spaceId = randomUUID2();
       const credentialId = randomUUID2();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
+      this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
+      this.#injectFailure("register:after-user");
       db.prepare(`INSERT INTO spaces (id, service_id, kind, owner_user_id, status, revision, created_at, updated_at) VALUES (?, ?, 'personal', ?, 'active', 1, ?, ?)`).run(spaceId, serviceId, userId, now, now);
+      this.#injectFailure("register:after-space");
       db.exec("COMMIT");
       tx = false;
       const user = this.#profileByUser(db, userId);
@@ -878,10 +891,11 @@ var KDF_CONFIG = {
   saltBytes: 16
 };
 var IdentityError = class extends Error {
-  constructor(code, message, retryable = false) {
+  constructor(code, message, retryable = false, retryAfterMs) {
     super(message);
     this.code = code;
     this.retryable = retryable;
+    this.retryAfterMs = retryAfterMs;
     this.name = "IdentityError";
   }
 };
@@ -945,6 +959,10 @@ var KdfScheduler = class {
   #maxRunning = 2;
   #maxQueued = 8;
   #running = 0;
+  #peakRunning = 0;
+  #started = 0;
+  #completed = 0;
+  #queuedCancelled = 0;
   #queue = [];
   #closing = false;
   get running() {
@@ -952,6 +970,18 @@ var KdfScheduler = class {
   }
   get queued() {
     return this.#queue.length;
+  }
+  get peakRunning() {
+    return this.#peakRunning;
+  }
+  get started() {
+    return this.#started;
+  }
+  get completed() {
+    return this.#completed;
+  }
+  get queuedCancelled() {
+    return this.#queuedCancelled;
   }
   async derive(password, salt, signal) {
     if (this.#closing) throw new IdentityError("STORAGE_UNAVAILABLE", "password service is closing", true);
@@ -965,6 +995,7 @@ var KdfScheduler = class {
         const index = this.#queue.indexOf(item);
         if (index !== -1) {
           this.#queue.splice(index, 1);
+          this.#queuedCancelled += 1;
           reject(new DOMException("aborted", "AbortError"));
         }
       };
@@ -973,11 +1004,16 @@ var KdfScheduler = class {
   }
   async #start(password, salt, signal) {
     this.#running += 1;
+    this.#peakRunning = Math.max(this.#peakRunning, this.#running);
+    this.#started += 1;
     try {
       return await new Promise((resolve, reject) => {
         nodeScrypt(password, salt, KDF_CONFIG.keyLen, { N: KDF_CONFIG.n, r: KDF_CONFIG.r, p: KDF_CONFIG.p, maxmem: KDF_CONFIG.maxmem }, (error, derived) => {
           if (error) reject(error);
-          else resolve(derived);
+          else {
+            this.#completed += 1;
+            resolve(derived);
+          }
         });
       });
     } finally {
@@ -1005,7 +1041,7 @@ async function verifyPassword(scheduler, password, credential, signal) {
   const derived = await scheduler.derive(password, credential.salt, signal);
   return derived.length === credential.derivedKey.length && timingSafeEqual(derived, credential.derivedKey);
 }
-var AuthRateLimiter = class {
+var AuthRateLimiter = class _AuthRateLimiter {
   #byLogin = /* @__PURE__ */ new Map();
   #bySource = /* @__PURE__ */ new Map();
   #maxKeys = 4096;
@@ -1019,12 +1055,29 @@ var AuthRateLimiter = class {
       map.delete(key);
     }
   }
+  static ACCOUNT_WINDOW_MS = 15 * 60 * 1e3;
+  static SOURCE_WINDOW_MS = 60 * 1e3;
+  static SOURCE_LIMIT = 30;
+  static ACCOUNT_FAILURE_LIMIT = 5;
+  #retryAfter(bucket, windowMs, now) {
+    if (bucket === void 0) return 1e3;
+    return Math.max(1e3, bucket.windowStarted + windowMs - now);
+  }
   check(loginName, source, now = Date.now()) {
-    this.#prune(this.#byLogin, now, 15 * 60 * 1e3);
-    this.#prune(this.#bySource, now, 60 * 1e3);
+    this.#prune(this.#byLogin, now, _AuthRateLimiter.ACCOUNT_WINDOW_MS);
+    this.#prune(this.#bySource, now, _AuthRateLimiter.SOURCE_WINDOW_MS);
     const account = this.#byLogin.get(loginName);
     const client = this.#bySource.get(source);
-    if ((account?.count ?? 0) >= 5 || (client?.count ?? 0) >= 30) throw new IdentityError("AUTH_RATE_LIMITED", "authentication attempts are temporarily limited", true);
+    if ((account?.count ?? 0) >= _AuthRateLimiter.ACCOUNT_FAILURE_LIMIT) throw new IdentityError("AUTH_RATE_LIMITED", "authentication attempts are temporarily limited", true, this.#retryAfter(account, _AuthRateLimiter.ACCOUNT_WINDOW_MS, now));
+    if ((client?.count ?? 0) >= _AuthRateLimiter.SOURCE_LIMIT) throw new IdentityError("AUTH_RATE_LIMITED", "authentication attempts are temporarily limited", true, this.#retryAfter(client, _AuthRateLimiter.SOURCE_WINDOW_MS, now));
+  }
+  /** Count every syntactically valid authentication attempt before KDF work. */
+  attempt(loginName, source, now = Date.now()) {
+    this.check(loginName, source, now);
+    const current = this.#bySource.get(source);
+    if (current === void 0 || now - current.windowStarted >= _AuthRateLimiter.SOURCE_WINDOW_MS) this.#bySource.set(source, { count: 1, windowStarted: now });
+    else current.count += 1;
+    this.#bound(this.#bySource);
   }
   failure(loginName, source, now = Date.now()) {
     const bump = (map, key, windowMs) => {
@@ -1032,10 +1085,8 @@ var AuthRateLimiter = class {
       if (current === void 0 || now - current.windowStarted >= windowMs) map.set(key, { count: 1, windowStarted: now });
       else current.count += 1;
     };
-    bump(this.#byLogin, loginName, 15 * 60 * 1e3);
-    bump(this.#bySource, source, 60 * 1e3);
+    bump(this.#byLogin, loginName, _AuthRateLimiter.ACCOUNT_WINDOW_MS);
     this.#bound(this.#byLogin);
-    this.#bound(this.#bySource);
   }
 };
 var IdentityService = class {
@@ -1061,7 +1112,7 @@ var IdentityService = class {
     const domains = validateDomains(input.domains ?? []);
     const learningTracks = validateLearningTracks(input.learningTracks ?? []);
     const goalText = validateGoalText(input.goalText ?? "");
-    this.#limiter.check(loginName, input.source ?? "bootstrap");
+    this.#limiter.attempt(loginName, input.source ?? "bootstrap");
     const credential = await derivePassword(this.#kdf, password, input.signal);
     if (input.signal?.aborted) throw new DOMException("aborted", "AbortError");
     const result = this.#store.bootstrap({ loginName, displayName, timezone, domains, learningTracks, goalText, now: (/* @__PURE__ */ new Date()).toISOString(), credential });
@@ -1076,7 +1127,7 @@ var IdentityService = class {
     const domains = validateDomains(input.domains ?? []);
     const learningTracks = validateLearningTracks(input.learningTracks ?? []);
     const goalText = validateGoalText(input.goalText ?? "");
-    this.#limiter.check(loginName, input.source ?? "register");
+    this.#limiter.attempt(loginName, input.source ?? "register");
     const credential = await derivePassword(this.#kdf, password, input.signal);
     if (input.signal?.aborted) throw new DOMException("aborted", "AbortError");
     const result = this.#store.register({ loginName, displayName, timezone, domains, learningTracks, goalText, now: (/* @__PURE__ */ new Date()).toISOString(), credential });
@@ -1087,7 +1138,7 @@ var IdentityService = class {
   async login(input) {
     const loginName = validateLoginName(input.loginName);
     const password = validatePassword(input.password);
-    this.#limiter.check(loginName, input.source);
+    this.#limiter.attempt(loginName, input.source);
     const lookup = this.#store.findLogin(loginName);
     let valid = false;
     try {
@@ -1133,6 +1184,7 @@ var IdentityService = class {
 
 // src/host/identity-http.ts
 import { createHash as createHash4, randomUUID as randomUUID4 } from "node:crypto";
+import { isIP } from "node:net";
 var HttpError = class extends Error {
   constructor(status, code, message, retryable = false, headers = {}) {
     super(message);
@@ -1162,9 +1214,25 @@ function sendEmpty(res, status, headers = {}) {
 }
 function isLoopbackAddress(value) {
   if (value === void 0) return false;
-  const unwrapped = value.startsWith("::ffff:") ? value.slice(7) : value;
-  if (/^127(?:\.\d{1,3}){3}$/.test(unwrapped)) return true;
-  return unwrapped === "::1" || unwrapped === "0:0:0:0:0:0:0:1";
+  let unwrapped = value.trim().toLowerCase();
+  if (unwrapped.startsWith("[") && unwrapped.endsWith("]")) unwrapped = unwrapped.slice(1, -1);
+  const zone = unwrapped.indexOf("%");
+  if (zone >= 0) unwrapped = unwrapped.slice(0, zone);
+  if (unwrapped.startsWith("::ffff:")) {
+    const mapped = unwrapped.slice(7);
+    if (/^127(?:\.\d{1,3}){3}$/.test(mapped)) return true;
+    if (/^[0-9a-f]{1,4}:[0-9a-f]{1,4}$/.test(mapped)) {
+      const [hi, lo] = mapped.split(":").map((part) => Number.parseInt(part, 16));
+      return (hi >>> 8 & 255) === 127;
+    }
+  }
+  if (isIP(unwrapped) === 4) return /^127(?:\.\d{1,3}){3}$/.test(unwrapped);
+  if (isIP(unwrapped) !== 6) return false;
+  const groups = unwrapped.split("::");
+  const left = groups[0] === "" ? [] : groups[0].split(":");
+  const right = groups.length > 1 && groups[1] !== "" ? groups[1].split(":") : [];
+  const expanded = groups.length === 1 ? left : [...left, ...Array(8 - left.length - right.length).fill("0"), ...right];
+  return expanded.length === 8 && expanded.slice(0, 7).every((item) => Number.parseInt(item || "0", 16) === 0) && Number.parseInt(expanded[7] || "0", 16) === 1;
 }
 function cookieName(serviceId, origin) {
   return `kos_session_${createHash4("sha256").update(`${serviceId}|${origin}`).digest("hex").slice(0, 16)}`;
@@ -1266,11 +1334,21 @@ function createIdentityHandlers(options) {
   const meta = (requestId) => ({ request_id: requestId, service_id: service.setupState.serviceId, server_time: (/* @__PURE__ */ new Date()).toISOString() });
   const withMeta = (requestId, data) => ({ data, meta: meta(requestId) });
   const tokenFor = (req) => {
+    const origin = options.origin();
+    if (origin === void 0) return void 0;
     const state = service.setupState;
-    return readCookie(req, cookieName(state.serviceId, options.origin()));
+    return readCookie(req, cookieName(state.serviceId, origin));
+  };
+  const assertAvailable = () => {
+    if (!options.isAvailable() || options.origin() === void 0 || options.host() === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
+  };
+  const assertNoQuery = (req) => {
+    const url = new URL(req.url ?? "/", "http://localhost");
+    if ([...url.searchParams.keys()].length > 0) throw new HttpError(422, "INPUT_INVALID", "query parameters are not supported");
   };
   const assertTrust = (req, mutation) => {
     const origin = options.origin();
+    if (origin === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
     const expectedHost = new URL(origin).host;
     if (req.headers.host !== expectedHost) throw new HttpError(403, "CSRF_REJECTED", "request authority is not trusted");
     const suppliedOrigin = req.headers.origin;
@@ -1289,6 +1367,8 @@ function createIdentityHandlers(options) {
   const dispatch = async (req, res, action) => {
     const requestId = randomUUID4();
     try {
+      assertAvailable();
+      assertNoQuery(req);
       await action();
     } catch (error) {
       if (res.writableEnded) return;
@@ -1296,7 +1376,7 @@ function createIdentityHandlers(options) {
       if (error instanceof HttpError) mapped = error;
       else if (error instanceof IdentityError) {
         const status2 = error.code === "INVALID_CREDENTIALS" ? 401 : error.code === "AUTH_RATE_LIMITED" ? 429 : error.code === "SETUP_REQUIRED" || error.code === "ALREADY_INITIALIZED" || error.code === "LOGIN_NAME_TAKEN" || error.code === "REVISION_CONFLICT" ? 409 : error.code === "INPUT_INVALID" ? 422 : 503;
-        mapped = new HttpError(status2, error.code, error.message, error.retryable, error.code === "AUTH_RATE_LIMITED" ? { "retry-after": "60" } : {});
+        mapped = new HttpError(status2, error.code, error.message, error.retryable, error.code === "AUTH_RATE_LIMITED" ? { "retry-after": String(Math.max(1, Math.ceil((error.retryAfterMs ?? 6e4) / 1e3))) } : {});
       } else if (error instanceof Error && ["STORAGE_UNAVAILABLE", "STORAGE_INCOMPATIBLE", "STORAGE_BUSY", "STORAGE_CLOSED"].includes(String(error.code))) {
         const code = String(error.code);
         mapped = new HttpError(503, code, "storage is unavailable", true);
@@ -1323,8 +1403,8 @@ function createIdentityHandlers(options) {
     const signal = requestSignal(req, res);
     requireJson(req);
     const body = bodyObject(await readBody2(req));
-    assertKeys(body, ["login_name", "password", "display_name", "timezone", "domains", "learning_tracks", "goal_text"]);
-    const user = await service.bootstrap({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, domains: body.domains, learningTracks: body.learning_tracks, goalText: body.goal_text, source: requestSource(req), signal });
+    assertKeys(body, ["login_name", "password", "display_name", "timezone"]);
+    const user = await service.bootstrap({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, source: requestSource(req), signal });
     sendJson2(res, 201, withMeta(randomUUID4(), safeProfile(user)));
   });
   const register = async (req, res) => dispatch(req, res, async () => {
@@ -1333,8 +1413,8 @@ function createIdentityHandlers(options) {
     const signal = requestSignal(req, res);
     requireJson(req);
     const body = bodyObject(await readBody2(req));
-    assertKeys(body, ["login_name", "password", "display_name", "timezone", "domains", "learning_tracks", "goal_text"]);
-    const user = await service.register({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, domains: body.domains, learningTracks: body.learningTracks, goalText: body.goal_text, source: requestSource(req), signal });
+    assertKeys(body, ["login_name", "password", "display_name", "timezone"]);
+    const user = await service.register({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, source: requestSource(req), signal });
     sendJson2(res, 201, withMeta(randomUUID4(), safeProfile(user)));
   });
   const login = async (req, res) => dispatch(req, res, async () => {
@@ -1345,10 +1425,12 @@ function createIdentityHandlers(options) {
     const body = bodyObject(await readBody2(req));
     assertKeys(body, ["login_name", "password"]);
     const result = await service.login({ loginName: body.login_name, password: body.password, oldToken: tokenFor(req), source: requestSource(req), signal });
+    const origin = options.origin();
+    if (origin === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
     const state = service.setupState;
-    const name2 = cookieName(state.serviceId, options.origin());
+    const name2 = cookieName(state.serviceId, origin);
     const maxAge = Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1e3);
-    sendJson2(res, 200, withMeta(randomUUID4(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, options.origin(), options.protocol(), maxAge) });
+    sendJson2(res, 200, withMeta(randomUUID4(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin, options.protocol(), maxAge) });
   });
   const logout = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -1357,9 +1439,11 @@ function createIdentityHandlers(options) {
     const body = bodyObject(await readBody2(req));
     assertKeys(body, []);
     service.logout(tokenFor(req));
+    const origin = options.origin();
+    if (origin === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
     const state = service.setupState;
-    const name2 = cookieName(state.serviceId, options.origin());
-    sendEmpty(res, 204, { "set-cookie": clearCookie(name2, options.origin(), options.protocol()) });
+    const name2 = cookieName(state.serviceId, origin);
+    sendEmpty(res, 204, { "set-cookie": clearCookie(name2, origin, options.protocol()) });
   });
   const me = async (req, res) => dispatch(req, res, () => {
     requireMethod(req, "GET");
@@ -1395,8 +1479,13 @@ function createIdentityHandlers(options) {
   });
   return { status, bootstrap, register, login, logout, me, preferences, spaces };
 }
-function buildAccountHtml() {
+function buildAccountHtmlLegacy() {
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KnowledgeOS \u8D26\u53F7</title><style>body{margin:0;background:#f4f8f8;color:#23333a;font-family:"Segoe UI","Microsoft YaHei UI",system-ui,sans-serif}main{max-width:880px;margin:0 auto;padding:32px 20px 56px}h1{margin:0 0 8px;font-size:28px}p{line-height:1.6}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}.card{background:#fff;border:1px solid #dce8e9;border-radius:14px;padding:20px;box-shadow:0 8px 24px #31535b12}label{display:block;margin:10px 0 5px;color:#597078;font-size:13px}input,textarea,select{width:100%;box-sizing:border-box;padding:10px;border:1px solid #c8d8da;border-radius:8px;font:inherit}textarea{min-height:90px}button{margin-top:14px;border:0;border-radius:8px;background:#3d7e86;color:#fff;padding:10px 16px;font:inherit;cursor:pointer}button.secondary{background:#edf5f6;color:#315e65}small{color:#6b7d82}.message{padding:10px 12px;border-radius:8px;background:#edf5f6;margin:12px 0;white-space:pre-wrap}.hidden{display:none}.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#edf5f6;color:#315e65;font-size:12px}</style></head><body><main><h1>KnowledgeOS \u8D26\u53F7</h1><p id="state">\u6B63\u5728\u8BFB\u53D6\u672C\u673A\u4E1A\u52A1\u8EAB\u4EFD\u2026</p><div id="message" class="message hidden"></div><div class="grid"><section class="card"><h2>\u767B\u5F55</h2><label>\u767B\u5F55\u540D</label><input id="login_name"><label>\u5BC6\u7801</label><input id="login_password" type="password"><button id="login">\u767B\u5F55</button></section><section class="card"><h2>\u6CE8\u518C\u666E\u901A\u8D26\u53F7</h2><label>\u767B\u5F55\u540D</label><input id="register_name"><label>\u663E\u793A\u540D\u79F0</label><input id="register_display"><label>\u5BC6\u7801\uFF0815\u2013128 \u4F4D\uFF09</label><input id="register_password" type="password"><button id="register">\u6CE8\u518C</button></section></div><section id="profile" class="card hidden" style="margin-top:16px"><h2>\u6211\u7684\u4E2A\u4EBA\u7A7A\u95F4</h2><p id="who"></p><label>\u65B9\u5411\uFF08\u9017\u53F7\u5206\u9694\uFF09</label><input id="domains" placeholder="software_engineering,system_architecture"><label>\u5B66\u4E60\u4E3B\u7EBF\uFF08\u9017\u53F7\u5206\u9694\uFF09</label><input id="tracks" placeholder="engineering_practice,architecture_exam"><label>\u76EE\u6807</label><textarea id="goal"></textarea><label>\u65F6\u533A</label><input id="timezone" value="Asia/Shanghai"><button id="save">\u4FDD\u5B58\u4E2A\u4EBA\u504F\u597D</button><button id="logout" class="secondary">\u9000\u51FA</button></section></main><script>(async()=>{const $=id=>document.getElementById(id);let revision=1;let generation=0;const msg=(text,bad=false)=>{const el=$("message");el.textContent=text;el.className="message";el.style.background=bad?"#fbefee":"#edf5f6"};const call=async(path,options={})=>{const headers={...(options.headers||{})};if(options.method&&options.method!=="GET"){headers["content-type"]="application/json";headers["x-knowledgeos-request"]="1"}const r=await fetch(path,{...options,headers});let j;try{j=await r.json()}catch{}if(!r.ok)throw new Error(j?.message||("\u8BF7\u6C42\u5931\u8D25 "+r.status));return j};const load=async()=>{const requestGeneration=++generation;try{const j=await call("/knowledge/v1/me");if(requestGeneration!==generation)return;const u=j.data;revision=u.revision;$("state").textContent="\u5DF2\u767B\u5F55 \xB7 "+u.role;$("who").textContent=u.display_name+"\uFF08"+u.login_name+"\uFF09 \xB7 \u4E2A\u4EBA\u7A7A\u95F4 "+u.personal_space_id;$("domains").value=(u.domains||[]).join(",");$("tracks").value=(u.learning_tracks||[]).join(",");$("goal").value=u.goal_text||"";$("timezone").value=u.timezone||"Asia/Shanghai";$("profile").className="card"}catch{if(requestGeneration!==generation)return;$("state").textContent="\u672A\u767B\u5F55\uFF0C\u53EF\u6CE8\u518C\u6216\u767B\u5F55";$("profile").className="card hidden"}};$("login").onclick=async()=>{const requestGeneration=++generation;try{await call("/knowledge/v1/auth/login",{method:"POST",body:JSON.stringify({login_name:$("login_name").value,password:$("login_password").value})});if(requestGeneration!==generation)return;$("login_password").value="";await load();msg("\u767B\u5F55\u6210\u529F")}catch(e){if(requestGeneration!==generation)return;msg(e.message,true)}};$("register").onclick=async()=>{const requestGeneration=++generation;try{await call("/knowledge/v1/auth/register",{method:"POST",body:JSON.stringify({login_name:$("register_name").value,display_name:$("register_display").value,password:$("register_password").value})});if(requestGeneration!==generation)return;$("register_password").value="";msg("\u6CE8\u518C\u6210\u529F\uFF0C\u8BF7\u767B\u5F55")}catch(e){if(requestGeneration!==generation)return;msg(e.message,true)}};$("save").onclick=async()=>{const requestGeneration=generation;try{const j=await call("/knowledge/v1/me/preferences",{method:"PATCH",body:JSON.stringify({expected_revision:revision,domains:$("domains").value.split(",").map(x=>x.trim()).filter(Boolean),learning_tracks:$("tracks").value.split(",").map(x=>x.trim()).filter(Boolean),goal_text:$("goal").value,timezone:$("timezone").value})});if(requestGeneration!==generation)return;revision=j.data.revision;msg("\u4E2A\u4EBA\u504F\u597D\u5DF2\u4FDD\u5B58")}catch(e){if(requestGeneration!==generation)return;msg(e.message,true)}};$("logout").onclick=async()=>{const requestGeneration=++generation;try{await call("/knowledge/v1/auth/logout",{method:"POST",body:"{}"});if(requestGeneration!==generation)return;$("profile").className="card hidden";$("state").textContent="\u5DF2\u9000\u51FA";$("who").textContent="";msg("\u5DF2\u9000\u51FA")}catch(e){if(requestGeneration!==generation)return;msg(e.message,true)}};await load()})()</script></body></html>`;
+}
+function buildAccountHtml() {
+  const html = buildAccountHtmlLegacy();
+  const script = String.raw`<script>(async()=>{const $=id=>document.getElementById(id);let revision=0,generation=0,authenticatedGeneration=0,canSave=false;const msg=(text,bad=false)=>{const el=$("message");el.textContent=text;el.className="message";el.style.background=bad?"#fbefee":"#edf5f6"};const clearProfile=()=>{revision=0;authenticatedGeneration=0;canSave=false;$("save").disabled=true;["who","domains","tracks","goal","timezone","login_password","register_password"].forEach(id=>{const el=$(id);if(el)el.value=""});$("profile").className="card hidden"};const stateFor=e=>e?.status===401?"未登录，可注册或登录":e?.status===429?"请求受限，请稍后再试":e?.status===503?"服务不可用，请稍后重试":"请求失败";const call=async(path,options={})=>{const headers={...(options.headers||{})};if(options.method&&options.method!=="GET"){headers["content-type"]="application/json";headers["x-knowledgeos-request"]="1"}const r=await fetch(path,{...options,headers});let j;try{j=await r.json()}catch{}if(!r.ok){const e=new Error(j?.message||("请求失败 "+r.status));e.status=r.status;throw e}return j};const load=async(existingGeneration)=>{const my=existingGeneration===undefined?++generation:existingGeneration;clearProfile();try{const j=await call("/knowledge/v1/me");if(my!==generation)return;const u=j.data;revision=u.revision;$("state").textContent="已登录 · "+u.role;$("who").textContent=u.display_name+"（"+u.login_name+"） · 个人空间 "+u.personal_space_id;$("domains").value=(u.domains||[]).join(",");$("tracks").value=(u.learning_tracks||[]).join(",");$("goal").value=u.goal_text||"";$("timezone").value=u.timezone||"Asia/Shanghai";authenticatedGeneration=my;canSave=true;$("save").disabled=false;$("profile").className="card"}catch(e){if(my!==generation)return;clearProfile();$("state").textContent=stateFor(e);msg(e?.message||"请求失败",true)}};$("login").onclick=async()=>{const loginName=$("login_name").value;const loginPassword=$("login_password").value;const my=++generation;clearProfile();$("state").textContent="正在登录…";try{await call("/knowledge/v1/auth/login",{method:"POST",body:JSON.stringify({login_name:loginName,password:loginPassword})});if(my!==generation)return;$("login_password").value="";await load(my);if(my===generation&&canSave)msg("登录成功")}catch(e){if(my!==generation)return;clearProfile();$("state").textContent=stateFor(e);msg(e?.message||"登录失败",true)}};$("register").onclick=async()=>{const my=++generation;try{await call("/knowledge/v1/auth/register",{method:"POST",body:JSON.stringify({login_name:$("register_name").value,display_name:$("register_display").value,password:$("register_password").value})});if(my!==generation)return;$("register_password").value="";msg("注册成功，请登录")}catch(e){if(my!==generation)return;msg(e?.message||"注册失败",true)}};$("save").onclick=async()=>{const my=authenticatedGeneration;if(!canSave||my!==generation)return;try{const j=await call("/knowledge/v1/me/preferences",{method:"PATCH",body:JSON.stringify({expected_revision:revision,domains:$("domains").value.split(",").map(x=>x.trim()).filter(Boolean),learning_tracks:$("tracks").value.split(",").map(x=>x.trim()).filter(Boolean),goal_text:$("goal").value,timezone:$("timezone").value})});if(my!==generation)return;revision=j.data.revision;msg("个人偏好已保存")}catch(e){if(my!==generation)return;if(e?.status===401||e?.status===503){clearProfile();$("state").textContent=stateFor(e)}msg(e?.message||"保存失败",true)}};$("logout").onclick=async()=>{const my=++generation;clearProfile();$("state").textContent="正在退出…";try{await call("/knowledge/v1/auth/logout",{method:"POST",body:"{}"});if(my!==generation)return;$("state").textContent="已退出";msg("已退出")}catch(e){if(my!==generation)return;$("state").textContent=stateFor(e);msg(e?.message||"退出失败",true)}};await load()})()</script>`;
+  return html.replace(/<script>[\s\S]*?<\/script>/, script);
 }
 function buildSetupHtml() {
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KnowledgeOS \u521D\u59CB\u5316</title><style>body{margin:0;background:#f4f8f8;color:#23333a;font-family:"Segoe UI","Microsoft YaHei UI",system-ui,sans-serif}main{max-width:560px;margin:0 auto;padding:48px 20px}.card{background:#fff;border:1px solid #dce8e9;border-radius:14px;padding:24px}label{display:block;margin:12px 0 5px;color:#597078;font-size:13px}input{width:100%;box-sizing:border-box;padding:10px;border:1px solid #c8d8da;border-radius:8px;font:inherit}button{margin-top:16px;border:0;border-radius:8px;background:#3d7e86;color:#fff;padding:10px 16px;font:inherit;cursor:pointer}.message{margin-top:12px;padding:10px;border-radius:8px;background:#edf5f6;white-space:pre-wrap}</style></head><body><main><section class="card"><h1>\u9996\u6B21\u7BA1\u7406\u5458\u521D\u59CB\u5316</h1><p>\u4EC5\u53EF\u4FE1\u672C\u673A DSH owner \u53EF\u4EE5\u5B8C\u6210\u4E00\u6B21\u521D\u59CB\u5316\u3002</p><label>\u7BA1\u7406\u5458\u767B\u5F55\u540D</label><input id="name"><label>\u663E\u793A\u540D\u79F0</label><input id="display"><label>\u5BC6\u7801\uFF0815\u2013128 \u4F4D\uFF09</label><input id="password" type="password"><button id="submit">\u521B\u5EFA\u7BA1\u7406\u5458</button><div id="message" class="message"></div></section></main><script>document.getElementById('submit').onclick=async()=>{const m=document.getElementById('message');try{const r=await fetch('/knowledge/v1/auth/bootstrap',{method:'POST',headers:{'content-type':'application/json','x-knowledgeos-request':'1'},body:JSON.stringify({login_name:document.getElementById('name').value,display_name:document.getElementById('display').value,password:document.getElementById('password').value})});const j=await r.json();if(!r.ok)throw new Error(j.message||('\u8BF7\u6C42\u5931\u8D25 '+r.status));document.getElementById('password').value='';m.textContent='\u521D\u59CB\u5316\u5B8C\u6210\uFF0C\u8BF7\u524D\u5F80\u8D26\u53F7\u9875\u767B\u5F55\u3002'}catch(e){m.textContent=e.message}}</script></body></html>`;
@@ -1404,7 +1493,7 @@ function buildSetupHtml() {
 
 // src/host/index.ts
 var name = "knowledgeos-panel";
-var inject = ["webServer", "clientModules"];
+var inject = ["webServer", "clientModules", "connection", "connection.authentication"];
 var STATUS_PATH = "/knowledgeos/status";
 var RECORDS_PATH = "/knowledgeos/foundation/records";
 var ACCOUNT_PATH = "/knowledgeos/account";
@@ -1507,13 +1596,15 @@ function apply(ctx, config = {}) {
     };
   }, "knowledgeos-storage: records routes and connection");
   const webFacts = ctx.webServer;
-  const identity = storage === void 0 ? void 0 : new IdentityService(storage);
-  const identityHandlers = identity === void 0 ? void 0 : createIdentityHandlers({
-    service: identity,
-    origin: () => webFacts.getOrigin?.() ?? `${webFacts.protocol ?? "http:"}//${webFacts.host ?? "127.0.0.1"}`,
-    host: () => webFacts.host ?? "127.0.0.1",
-    protocol: () => webFacts.protocol ?? "http:"
-  });
+  const actualOrigin = () => {
+    try {
+      const explicit = webFacts.getOrigin?.();
+      if (explicit !== void 0) return explicit;
+    } catch {
+      return void 0;
+    }
+    return void 0;
+  };
   const sendIdentityUnavailable = (req, res) => {
     if (req.method === "GET" && req.url?.startsWith("/knowledgeos/account")) {
       res.statusCode = 200;
@@ -1527,55 +1618,80 @@ function apply(ctx, config = {}) {
     res.setHeader("cache-control", "no-store");
     res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID5(), retryable: true, safe_details: {} }));
   };
-  const ownerSetupPage = (req, res, peer) => {
-    if (req.method !== "GET") {
-      res.statusCode = 405;
-      res.setHeader("allow", "GET");
-      res.end();
-      return;
-    }
-    const principal = peer?.principal;
-    if (principal?.kind !== "owner" || !isLoopbackAddress(req.socket?.remoteAddress) || !isLoopbackAddress(webFacts.host?.split(":")[0])) {
-      res.statusCode = 403;
-      res.end("forbidden");
-      return;
-    }
-    res.statusCode = 200;
-    res.setHeader("content-type", "text/html; charset=utf-8");
-    res.setHeader("cache-control", "no-store");
-    res.end(buildSetupHtml());
-  };
-  const accountPage = (req, res) => {
-    if (req.method !== "GET") {
-      res.statusCode = 405;
-      res.setHeader("allow", "GET");
-      res.end();
-      return;
-    }
-    res.statusCode = 200;
-    res.setHeader("content-type", "text/html; charset=utf-8");
-    res.setHeader("cache-control", "no-store");
-    res.end(buildAccountHtml());
-  };
-  const withPeer = (handler) => {
-    return (req, res, peer) => {
-      const pending = handler(req, res, peer);
-      inFlight.add(pending);
-      void pending.finally(() => {
-        inFlight.delete(pending);
-      });
-      return pending;
-    };
-  };
-  ctx.effect(() => {
-    const disposers = [];
-    disposers.push(ctx.webServer.register({ kind: "exact", path: ACCOUNT_PATH, auth: "anonymous", handler: accountPage }));
-    disposers.push(ctx.webServer.register({ kind: "exact", path: SETUP_PATH, auth: "required", handler: ownerSetupPage }));
-    if (identityHandlers === void 0) {
-      for (const path of ["/knowledge/v1/auth/status", "/knowledge/v1/auth/bootstrap", "/knowledge/v1/auth/register", "/knowledge/v1/auth/login", "/knowledge/v1/auth/logout", "/knowledge/v1/me", "/knowledge/v1/me/preferences", "/knowledge/v1/spaces"]) {
-        disposers.push(ctx.webServer.register({ kind: "exact", path, auth: path.endsWith("/bootstrap") ? "required" : "anonymous", handler: sendIdentityUnavailable }));
+  const registerIdentityRoutes = (identityContext) => {
+    const identityAvailable = () => {
+      let connection;
+      try {
+        connection = ctx.connection;
+      } catch {
+        return false;
       }
-    } else {
+      return connection.authentication !== void 0 && connection.browserPeer?.signal?.aborted !== true && webFacts.host !== void 0 && webFacts.protocol !== void 0 && actualOrigin() !== void 0;
+    };
+    const identity = new IdentityService(storage);
+    const identityHandlers = createIdentityHandlers({
+      service: identity,
+      origin: actualOrigin,
+      host: () => webFacts.host,
+      protocol: () => webFacts.protocol ?? "http:",
+      isAvailable: identityAvailable
+    });
+    const ownerSetupPage = (req, res, peer) => {
+      if (req.method !== "GET") {
+        res.statusCode = 405;
+        res.setHeader("allow", "GET");
+        res.end();
+        return;
+      }
+      if (!identityAvailable()) {
+        res.statusCode = 503;
+        res.setHeader("content-type", "text/plain; charset=utf-8");
+        res.end("identity service is unavailable");
+        return;
+      }
+      const principal = peer?.principal;
+      if (principal?.kind !== "owner" || !isLoopbackAddress(req.socket?.remoteAddress) || !isLoopbackAddress(webFacts.host)) {
+        res.statusCode = 403;
+        res.end("forbidden");
+        return;
+      }
+      res.statusCode = 200;
+      res.setHeader("content-type", "text/html; charset=utf-8");
+      res.setHeader("cache-control", "no-store");
+      res.end(buildSetupHtml());
+    };
+    const accountPage = (req, res) => {
+      if (req.method !== "GET") {
+        res.statusCode = 405;
+        res.setHeader("allow", "GET");
+        res.end();
+        return;
+      }
+      if (!identityAvailable()) {
+        res.statusCode = 503;
+        res.setHeader("content-type", "text/plain; charset=utf-8");
+        res.end("identity service is unavailable");
+        return;
+      }
+      res.statusCode = 200;
+      res.setHeader("content-type", "text/html; charset=utf-8");
+      res.setHeader("cache-control", "no-store");
+      res.end(buildAccountHtml());
+    };
+    const withPeer = (handler) => {
+      return (req, res, peer) => {
+        const pending = handler(req, res, peer);
+        inFlight.add(pending);
+        void pending.finally(() => {
+          inFlight.delete(pending);
+        });
+        return pending;
+      };
+    };
+    identityContext.effect(() => {
+      const disposers = [];
+      disposers.push(identityContext.webServer.register({ kind: "exact", path: ACCOUNT_PATH, auth: "anonymous", handler: accountPage }));
+      disposers.push(identityContext.webServer.register({ kind: "exact", path: SETUP_PATH, auth: "required", handler: ownerSetupPage }));
       const routes = [
         { path: "/knowledge/v1/auth/status", auth: "anonymous", handler: identityHandlers.status },
         { path: "/knowledge/v1/auth/bootstrap", auth: "required", handler: identityHandlers.bootstrap },
@@ -1586,13 +1702,28 @@ function apply(ctx, config = {}) {
         { path: "/knowledge/v1/me/preferences", auth: "anonymous", handler: identityHandlers.preferences },
         { path: "/knowledge/v1/spaces", auth: "anonymous", handler: identityHandlers.spaces }
       ];
-      for (const route of routes) disposers.push(ctx.webServer.register({ kind: "exact", path: route.path, auth: route.auth, handler: withPeer(route.handler) }));
-    }
-    return async () => {
-      for (const dispose of disposers) dispose();
-      await identity?.close();
-    };
-  }, "knowledgeos-identity: account and business routes");
+      for (const route of routes) disposers.push(identityContext.webServer.register({ kind: "exact", path: route.path, auth: route.auth, handler: withPeer(route.handler) }));
+      return async () => {
+        for (const dispose of disposers) dispose();
+        await identity.close();
+      };
+    }, "knowledgeos-identity: account and business routes");
+  };
+  if (storage === void 0) {
+    ctx.effect(() => {
+      const disposers = [];
+      disposers.push(ctx.webServer.register({ kind: "exact", path: ACCOUNT_PATH, auth: "anonymous", handler: sendIdentityUnavailable }));
+      disposers.push(ctx.webServer.register({ kind: "exact", path: SETUP_PATH, auth: "required", handler: sendIdentityUnavailable }));
+      for (const path of ["/knowledge/v1/auth/status", "/knowledge/v1/auth/bootstrap", "/knowledge/v1/auth/register", "/knowledge/v1/auth/login", "/knowledge/v1/auth/logout", "/knowledge/v1/me", "/knowledge/v1/me/preferences", "/knowledge/v1/spaces"]) {
+        disposers.push(ctx.webServer.register({ kind: "exact", path, auth: path.endsWith("/bootstrap") ? "required" : "anonymous", handler: sendIdentityUnavailable }));
+      }
+      return () => {
+        for (const dispose of disposers) dispose();
+      };
+    }, "knowledgeos-identity: unavailable routes");
+  } else {
+    ctx.inject(["connection", "connection.authentication"], registerIdentityRoutes);
+  }
 }
 export {
   ACCOUNT_PATH,

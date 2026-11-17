@@ -1,0 +1,57 @@
+{
+  "id": "T09",
+  "name": "身份事务失败与恢复",
+  "status": "PASS",
+  "started": "2026-11-17T05:37:08.953Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "identity multi-table transaction rolls back completely",
+      "actual": {
+        "rolledBack": true,
+        "primaryCode": 19,
+        "users": 0,
+        "credentials": 0,
+        "spaces": 0,
+        "initialized": false
+      }
+    },
+    {
+      "ok": true,
+      "message": "normal bootstrap recovers without clearing database",
+      "actual": "created"
+    },
+    {
+      "ok": true,
+      "message": "v1 migration failure leaves blank database",
+      "actual": {
+        "applicationId": 0,
+        "userVersion": 0,
+        "tables": [],
+        "objects": [],
+        "ledger": []
+      }
+    }
+  ],
+  "details": {
+    "identity_probe": {
+      "rolledBack": true,
+      "primaryCode": 19,
+      "users": 0,
+      "credentials": 0,
+      "spaces": 0,
+      "initialized": false
+    },
+    "recovery": "created",
+    "migration_failure": {
+      "applicationId": 0,
+      "userVersion": 0,
+      "tables": [],
+      "objects": [],
+      "ledger": []
+    }
+  },
+  "evidence": [],
+  "finished": "2026-11-17T05:37:09.080Z"
+}

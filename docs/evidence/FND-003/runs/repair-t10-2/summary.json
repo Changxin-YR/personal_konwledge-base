@@ -1,0 +1,20 @@
+{
+  "run_id": "repair-t10-2",
+  "candidate": null,
+  "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "port": 3101,
+  "profile": "knowledgeos-identity-test",
+  "started_at": "2026-11-17T06:12:21.549Z",
+  "finished_at": "2026-11-17T06:12:52.911Z",
+  "result": "PASS",
+  "results": [
+    {
+      "id": "T10",
+      "name": "登录注册限流与有界 KDF 负载",
+      "status": "PASS",
+      "evidence": "T10.json"
+    }
+  ],
+  "failures": [],
+  "out": "docs/evidence/FND-003/runs/repair-t10-2"
+}

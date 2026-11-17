@@ -1,0 +1,55 @@
+{
+  "id": "T03",
+  "name": "业务身份与 DSH 宿主权限分离",
+  "status": "PASS",
+  "started": "2026-11-17T06:16:14.407Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "owner DSH cookie does not create business actor",
+      "actual": {
+        "me": 401,
+        "spaces": 401
+      }
+    },
+    {
+      "ok": true,
+      "message": "business cookie has no DSH status permission",
+      "actual": 401
+    },
+    {
+      "ok": true,
+      "message": "owner DSH status remains available",
+      "actual": 200
+    },
+    {
+      "ok": true,
+      "message": "business cookie has no owner RPC or connect capability",
+      "actual": [
+        401,
+        401
+      ]
+    },
+    {
+      "ok": true,
+      "message": "identity override fields are rejected without writes",
+      "actual": {
+        "code": "INPUT_INVALID",
+        "message": "body contains an unsupported field",
+        "request_id": "3d6ea3a2-a89c-4ffb-a287-fa915a96e981",
+        "retryable": false,
+        "safe_details": {}
+      }
+    }
+  ],
+  "details": {
+    "routes": {
+      "rpc": 401,
+      "connect": 401
+    },
+    "database_unchanged": true
+  },
+  "evidence": [],
+  "finished": "2026-11-17T06:16:36.399Z"
+}

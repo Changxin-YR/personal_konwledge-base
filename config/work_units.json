@@ -20,7 +20,7 @@
     "final_acceptance_ids": "本单元负责组织该完整场景验收，须全部前置功能真实可用且实际执行通过；每个完整场景只有一个最终负责单元。",
     "unit_completion": "当前切片完成且测试复核通过；不是整项F需求已verified。",
     "requirement_verification": "关联必要完整验收全部PASS且有证据才可verified。",
-    "test_obligations": "未来单元为规划基础；FND-001/FND-002保留通过历史。当前FND-003十二项在v3.1.1补齐反例与生产路径，旧提交PASS不足以关闭本次六项审查问题，等待新候选复验。"
+    "test_obligations": "未来单元为规划基础；FND-001/FND-002保留通过历史；FND-003十二项与独立复核已在最终候选真实通过并逐项留证。"
   },
   "units": [
     {
@@ -662,8 +662,8 @@
       ],
       "final_acceptance_ids": [],
       "completion_gate": "十二项当前义务在冻结新候选实际通过；独立复核与复测PASS；FND003-R1至R6逐项关闭、无OPEN；真实证据与状态一致；提交推送后停在FND-003等待用户，不自动进入FND-004。",
-      "status": "in_progress",
-      "test_plan_status": "detailed_current_unit",
+      "status": "passed",
+      "test_plan_status": "detailed_accepted_unit",
       "instruction_revision": "3.1.1",
       "activated_at": "2026-11-16",
       "activation_basis": "explicit_user_next_step_request",
@@ -674,22 +674,29 @@
         "docs/evidence/FND-003/test-plan.md",
         "docs/evidence/FND-003/ACCEPTANCE_REPORT_20261117.md",
         "docs/evidence/FND-003/independent-verification-closeout.md",
+        "docs/evidence/FND-003/candidate-manifest-r16.json",
         "docs/evidence/FND-003/candidate-manifest.json",
-        "docs/evidence/FND-003/runs/fnd003-candidate-20261117-r2/summary.json",
-        "docs/evidence/FND-003/runs/independent-20261117-r5/summary.json",
+        "docs/evidence/FND-003/runs/fnd003-candidate-20261117-r16/summary.json",
+        "docs/evidence/FND-003/runs/independent-20261117-r9/summary.json",
         "docs/evidence/FND-003/SUBMISSION_REVIEW_20261117.md"
       ],
-      "test_result_status": "FAIL",
-      "independent_review_status": "FAIL",
-      "completed_test_ids": [],
-      "open_review_items": [
-        "FND003-R1",
-        "FND003-R2",
-        "FND003-R3",
-        "FND003-R4",
-        "FND003-R5",
-        "FND003-R6"
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "completed_test_ids": [
+        "FND-003-T01",
+        "FND-003-T02",
+        "FND-003-T03",
+        "FND-003-T04",
+        "FND-003-T05",
+        "FND-003-T06",
+        "FND-003-T07",
+        "FND-003-T08",
+        "FND-003-T09",
+        "FND-003-T10",
+        "FND-003-T11",
+        "FND-003-T12"
       ],
+      "open_review_items": [],
       "requirement_evidence_scope": {
         "F03": "identity_and_personal_preferences_slice_only; not full requirement verification"
       },
@@ -721,11 +728,11 @@
         "identity_availability": "loopback listener and actual active Connection lifecycle required; no guessed fallback host/protocol/origin"
       },
       "evidence": {
-        "candidate": "docs/evidence/FND-003/candidate-manifest.json",
+        "candidate": "docs/evidence/FND-003/candidate-manifest-r16.json",
         "acceptance_report": "docs/evidence/FND-003/ACCEPTANCE_REPORT_20261117.md",
-        "run_summary": "docs/evidence/FND-003/runs/fnd003-candidate-20261117-r2/summary.json",
+        "run_summary": "docs/evidence/FND-003/runs/fnd003-candidate-20261117-r16/summary.json",
         "independent_review": "docs/evidence/FND-003/independent-verification-closeout.md",
-        "independent_run_summary": "docs/evidence/FND-003/runs/independent-20261117-r5/summary.json"
+        "independent_run_summary": "docs/evidence/FND-003/runs/independent-20261117-r9/summary.json"
       },
       "previous_submission": {
         "status": "passed",
@@ -766,8 +773,15 @@
         "candidate": "fnd003-candidate-20261117-r10",
         "meaning": "submitted result retained as historical claim; current review requires rework"
       },
-      "retest_status": "NOT_RUN",
-      "closed_review_items": [],
+      "retest_status": "PASS",
+      "closed_review_items": [
+        "FND003-R1",
+        "FND003-R2",
+        "FND003-R3",
+        "FND003-R4",
+        "FND003-R5",
+        "FND003-R6"
+      ],
       "required_review_item_ids": [
         "FND003-R1",
         "FND003-R2",
@@ -779,7 +793,7 @@
       "reopened_at": "2026-11-17",
       "review_basis_commit": "b1ff9ae506d98420796a6dd84d90e345a6eaa2d7",
       "review_record": "docs/evidence/FND-003/SUBMISSION_REVIEW_20261117.md",
-      "review_outcome": "rework_required_not_ready_for_FND004",
+      "review_outcome": "rework_closed_final_candidate_passed",
       "review_items": [
         {
           "id": "FND003-R1",
@@ -834,7 +848,8 @@
             "FND-003-T12"
           ]
         }
-      ]
+      ],
+      "completed_at": "2026-11-17T15:40:00+08:00"
     },
     {
       "id": "FND-004",

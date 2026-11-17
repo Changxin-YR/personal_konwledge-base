@@ -165,6 +165,7 @@ var ProbeStorage = class {
   #dataDir;
   #log;
   #migrationOverride;
+  #failureAt;
   #db;
   #state = "unavailable";
   #failure;
@@ -174,7 +175,11 @@ var ProbeStorage = class {
     this.#log = options.log ?? (() => {
     });
     this.#migrationOverride = options.migrationOverride;
+    this.#failureAt = options.failureAt;
     this.#open();
+  }
+  #injectFailure(point) {
+    if (this.#failureAt === point) throw new Error(`controlled storage failure at ${point}`);
   }
   get available() {
     return this.#state === "ready";
@@ -252,31 +257,29 @@ var ProbeStorage = class {
     if (facts.ledger.length !== 2 || v1?.checksum !== MIGRATION_V1_CHECKSUM || v2?.checksum !== MIGRATION_V2_CHECKSUM) throw new RecordsError("STORAGE_INCOMPATIBLE", "v2 migration ledger does not match this build");
   }
   #assertV2Definitions(db) {
-    const definitions = new Map(db.prepare("SELECT name, sql FROM sqlite_master WHERE type='table'").all().map((row) => [row.name, row.sql ?? ""]));
-    const expectedColumns = {
-      password_credentials: ["id", "algorithm", "version", "n", "r", "p", "maxmem", "salt", "derived_key", "created_at"],
-      users: ["id", "login_name", "display_name", "credential_ref", "role", "status", "timezone", "planning_home_service_id", "domains", "learning_tracks", "goal_text", "revision", "created_at", "updated_at"],
-      service_identity: ["id", "service_id", "bootstrap_admin_user_id", "initialized_at"],
-      auth_sessions: ["id", "user_id", "token_hash", "created_at", "expires_at", "revoked_at"],
-      spaces: ["id", "service_id", "kind", "owner_user_id", "status", "revision", "created_at", "updated_at"]
-    };
-    for (const [table, columns] of Object.entries(expectedColumns)) {
-      const actual = db.prepare(`PRAGMA table_info(${table})`).all().map((row) => row.name);
-      if (actual.join(",") !== columns.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", `v2 table definition is not accepted: ${table}`);
+    const expected = new DatabaseSync(":memory:");
+    try {
+      expected.exec(MIGRATION_V2_SQL);
+      const normalize = (value) => String(value ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+      const signature = (source, table) => {
+        const columns = source.prepare(`PRAGMA table_info(${table})`).all().map((row) => ({ cid: Number(row.cid), name: String(row.name), type: String(row.type), notnull: Number(row.notnull), pk: Number(row.pk) }));
+        const indexes = source.prepare(`PRAGMA index_list(${table})`).all().map((index) => ({
+          unique: Number(index.unique),
+          origin: String(index.origin),
+          columns: source.prepare(`PRAGMA index_info(${JSON.stringify(String(index.name))})`).all().map((row) => ({ seqno: Number(row.seqno), name: row.name === null ? null : String(row.name) }))
+        })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+        const foreignKeys = source.prepare(`PRAGMA foreign_key_list(${table})`).all().map((row) => ({ id: Number(row.id), seq: Number(row.seq), table: String(row.table), from: String(row.from), to: String(row.to), on_update: String(row.on_update), on_delete: String(row.on_delete), match: String(row.match) })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+        const sql = source.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name = ?").get(table)?.sql ?? "";
+        return { columns, indexes, foreignKeys, sql: normalize(sql) };
+      };
+      for (const table of ["password_credentials", "users", "service_identity", "auth_sessions", "spaces"]) {
+        const actual = signature(db, table);
+        const expectedSignature = signature(expected, table);
+        if (JSON.stringify(actual) !== JSON.stringify(expectedSignature)) throw new RecordsError("STORAGE_INCOMPATIBLE", `v2 table constraints are not accepted: ${table}`);
+      }
+    } finally {
+      expected.close();
     }
-    const requiredFragments = [
-      ["users", "REFERENCES password_credentials"],
-      ["users", "CHECK (role IN ('admin', 'member'))"],
-      ["users", "CHECK (status IN ('active', 'disabled'))"],
-      ["auth_sessions", "REFERENCES users"],
-      ["auth_sessions", "token_hash TEXT NOT NULL UNIQUE"],
-      ["spaces", "REFERENCES service_identity(service_id)"],
-      ["spaces", "REFERENCES users(id)"],
-      ["spaces", "CHECK (kind = 'personal')"],
-      ["service_identity", "CHECK (id = 1)"],
-      ["password_credentials", "derived_key BLOB NOT NULL"]
-    ];
-    for (const [table, fragment] of requiredFragments) if (!definitions.get(table)?.includes(fragment)) throw new RecordsError("STORAGE_INCOMPATIBLE", `v2 constraint definition is not accepted: ${table}`);
   }
   #configure(db) {
     const journal = String(db.prepare("PRAGMA journal_mode=WAL").get()?.journal_mode ?? "").toLowerCase();
@@ -315,8 +318,11 @@ var ProbeStorage = class {
     db.exec("BEGIN IMMEDIATE");
     try {
       db.exec(MIGRATION_V2_SQL);
+      this.#injectFailure("v2:after-schema");
       db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID());
+      this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      this.#injectFailure("v2:after-ledger");
       db.exec(`PRAGMA application_id = ${APPLICATION_ID}`);
       db.exec("PRAGMA user_version = 2");
       db.exec("COMMIT");
@@ -428,9 +434,13 @@ var ProbeStorage = class {
       const spaceId = randomUUID();
       const credentialId = randomUUID();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
+      this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
+      this.#injectFailure("bootstrap:after-user");
       db.prepare(`INSERT INTO spaces (id, service_id, kind, owner_user_id, status, revision, created_at, updated_at) VALUES (?, ?, 'personal', ?, 'active', 1, ?, ?)`).run(spaceId, serviceId, userId, now, now);
+      this.#injectFailure("bootstrap:after-space");
       db.prepare("UPDATE service_identity SET bootstrap_admin_user_id = ?, initialized_at = ? WHERE id = 1 AND initialized_at IS NULL").run(userId, now);
+      this.#injectFailure("bootstrap:after-identity");
       db.exec("COMMIT");
       tx = false;
       const user = this.#profileByUser(db, userId);
@@ -460,8 +470,11 @@ var ProbeStorage = class {
       const spaceId = randomUUID();
       const credentialId = randomUUID();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
+      this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
+      this.#injectFailure("register:after-user");
       db.prepare(`INSERT INTO spaces (id, service_id, kind, owner_user_id, status, revision, created_at, updated_at) VALUES (?, ?, 'personal', ?, 'active', 1, ?, ?)`).run(spaceId, serviceId, userId, now, now);
+      this.#injectFailure("register:after-space");
       db.exec("COMMIT");
       tx = false;
       const user = this.#profileByUser(db, userId);
@@ -627,10 +640,11 @@ var KDF_CONFIG = {
   saltBytes: 16
 };
 var IdentityError = class extends Error {
-  constructor(code, message, retryable = false) {
+  constructor(code, message, retryable = false, retryAfterMs) {
     super(message);
     this.code = code;
     this.retryable = retryable;
+    this.retryAfterMs = retryAfterMs;
     this.name = "IdentityError";
   }
 };
@@ -690,6 +704,10 @@ var KdfScheduler = class {
   #maxRunning = 2;
   #maxQueued = 8;
   #running = 0;
+  #peakRunning = 0;
+  #started = 0;
+  #completed = 0;
+  #queuedCancelled = 0;
   #queue = [];
   #closing = false;
   get running() {
@@ -697,6 +715,18 @@ var KdfScheduler = class {
   }
   get queued() {
     return this.#queue.length;
+  }
+  get peakRunning() {
+    return this.#peakRunning;
+  }
+  get started() {
+    return this.#started;
+  }
+  get completed() {
+    return this.#completed;
+  }
+  get queuedCancelled() {
+    return this.#queuedCancelled;
   }
   async derive(password, salt, signal) {
     if (this.#closing) throw new IdentityError("STORAGE_UNAVAILABLE", "password service is closing", true);
@@ -710,6 +740,7 @@ var KdfScheduler = class {
         const index = this.#queue.indexOf(item);
         if (index !== -1) {
           this.#queue.splice(index, 1);
+          this.#queuedCancelled += 1;
           reject(new DOMException("aborted", "AbortError"));
         }
       };
@@ -718,11 +749,16 @@ var KdfScheduler = class {
   }
   async #start(password, salt, signal) {
     this.#running += 1;
+    this.#peakRunning = Math.max(this.#peakRunning, this.#running);
+    this.#started += 1;
     try {
       return await new Promise((resolve, reject) => {
         nodeScrypt(password, salt, KDF_CONFIG.keyLen, { N: KDF_CONFIG.n, r: KDF_CONFIG.r, p: KDF_CONFIG.p, maxmem: KDF_CONFIG.maxmem }, (error, derived) => {
           if (error) reject(error);
-          else resolve(derived);
+          else {
+            this.#completed += 1;
+            resolve(derived);
+          }
         });
       });
     } finally {
@@ -750,7 +786,7 @@ async function verifyPassword(scheduler, password, credential, signal) {
   const derived = await scheduler.derive(password, credential.salt, signal);
   return derived.length === credential.derivedKey.length && timingSafeEqual(derived, credential.derivedKey);
 }
-var AuthRateLimiter = class {
+var AuthRateLimiter = class _AuthRateLimiter {
   #byLogin = /* @__PURE__ */ new Map();
   #bySource = /* @__PURE__ */ new Map();
   #maxKeys = 4096;
@@ -764,12 +800,29 @@ var AuthRateLimiter = class {
       map.delete(key);
     }
   }
+  static ACCOUNT_WINDOW_MS = 15 * 60 * 1e3;
+  static SOURCE_WINDOW_MS = 60 * 1e3;
+  static SOURCE_LIMIT = 30;
+  static ACCOUNT_FAILURE_LIMIT = 5;
+  #retryAfter(bucket, windowMs, now) {
+    if (bucket === void 0) return 1e3;
+    return Math.max(1e3, bucket.windowStarted + windowMs - now);
+  }
   check(loginName, source, now = Date.now()) {
-    this.#prune(this.#byLogin, now, 15 * 60 * 1e3);
-    this.#prune(this.#bySource, now, 60 * 1e3);
+    this.#prune(this.#byLogin, now, _AuthRateLimiter.ACCOUNT_WINDOW_MS);
+    this.#prune(this.#bySource, now, _AuthRateLimiter.SOURCE_WINDOW_MS);
     const account = this.#byLogin.get(loginName);
     const client = this.#bySource.get(source);
-    if ((account?.count ?? 0) >= 5 || (client?.count ?? 0) >= 30) throw new IdentityError("AUTH_RATE_LIMITED", "authentication attempts are temporarily limited", true);
+    if ((account?.count ?? 0) >= _AuthRateLimiter.ACCOUNT_FAILURE_LIMIT) throw new IdentityError("AUTH_RATE_LIMITED", "authentication attempts are temporarily limited", true, this.#retryAfter(account, _AuthRateLimiter.ACCOUNT_WINDOW_MS, now));
+    if ((client?.count ?? 0) >= _AuthRateLimiter.SOURCE_LIMIT) throw new IdentityError("AUTH_RATE_LIMITED", "authentication attempts are temporarily limited", true, this.#retryAfter(client, _AuthRateLimiter.SOURCE_WINDOW_MS, now));
+  }
+  /** Count every syntactically valid authentication attempt before KDF work. */
+  attempt(loginName, source, now = Date.now()) {
+    this.check(loginName, source, now);
+    const current = this.#bySource.get(source);
+    if (current === void 0 || now - current.windowStarted >= _AuthRateLimiter.SOURCE_WINDOW_MS) this.#bySource.set(source, { count: 1, windowStarted: now });
+    else current.count += 1;
+    this.#bound(this.#bySource);
   }
   failure(loginName, source, now = Date.now()) {
     const bump = (map, key, windowMs) => {
@@ -777,10 +830,8 @@ var AuthRateLimiter = class {
       if (current === void 0 || now - current.windowStarted >= windowMs) map.set(key, { count: 1, windowStarted: now });
       else current.count += 1;
     };
-    bump(this.#byLogin, loginName, 15 * 60 * 1e3);
-    bump(this.#bySource, source, 60 * 1e3);
+    bump(this.#byLogin, loginName, _AuthRateLimiter.ACCOUNT_WINDOW_MS);
     this.#bound(this.#byLogin);
-    this.#bound(this.#bySource);
   }
 };
 var IdentityService = class {
@@ -806,7 +857,7 @@ var IdentityService = class {
     const domains = validateDomains(input.domains ?? []);
     const learningTracks = validateLearningTracks(input.learningTracks ?? []);
     const goalText = validateGoalText(input.goalText ?? "");
-    this.#limiter.check(loginName, input.source ?? "bootstrap");
+    this.#limiter.attempt(loginName, input.source ?? "bootstrap");
     const credential = await derivePassword(this.#kdf, password, input.signal);
     if (input.signal?.aborted) throw new DOMException("aborted", "AbortError");
     const result = this.#store.bootstrap({ loginName, displayName, timezone, domains, learningTracks, goalText, now: (/* @__PURE__ */ new Date()).toISOString(), credential });
@@ -821,7 +872,7 @@ var IdentityService = class {
     const domains = validateDomains(input.domains ?? []);
     const learningTracks = validateLearningTracks(input.learningTracks ?? []);
     const goalText = validateGoalText(input.goalText ?? "");
-    this.#limiter.check(loginName, input.source ?? "register");
+    this.#limiter.attempt(loginName, input.source ?? "register");
     const credential = await derivePassword(this.#kdf, password, input.signal);
     if (input.signal?.aborted) throw new DOMException("aborted", "AbortError");
     const result = this.#store.register({ loginName, displayName, timezone, domains, learningTracks, goalText, now: (/* @__PURE__ */ new Date()).toISOString(), credential });
@@ -832,7 +883,7 @@ var IdentityService = class {
   async login(input) {
     const loginName = validateLoginName(input.loginName);
     const password = validatePassword(input.password);
-    this.#limiter.check(loginName, input.source);
+    this.#limiter.attempt(loginName, input.source);
     const lookup = this.#store.findLogin(loginName);
     let valid = false;
     try {

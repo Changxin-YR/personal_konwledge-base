@@ -1,0 +1,77 @@
+{
+  "id": "T04",
+  "name": "会话生成、到期、注销和重启",
+  "status": "PASS",
+  "started": "2026-11-17T07:53:30.007Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "multiple opaque sessions can be created",
+      "actual": [
+        200,
+        200,
+        200
+      ]
+    },
+    {
+      "ok": true,
+      "message": "fake and replaced sessions are rejected while other client remains",
+      "actual": {
+        "fake": 401,
+        "oldReplay": 401,
+        "otherClient": 200
+      }
+    },
+    {
+      "ok": true,
+      "message": "database stores only 64-character token hashes",
+      "actual": [
+        {
+          "length": 64,
+          "revoked": false
+        },
+        {
+          "length": 64,
+          "revoked": true
+        },
+        {
+          "length": 64,
+          "revoked": false
+        },
+        {
+          "length": 64,
+          "revoked": false
+        }
+      ]
+    },
+    {
+      "ok": true,
+      "message": "logout is persistent and idempotent",
+      "actual": [
+        204,
+        204
+      ]
+    },
+    {
+      "ok": true,
+      "message": "expired session remains invalid after restart",
+      "actual": 401
+    },
+    {
+      "ok": true,
+      "message": "disabled user cannot use a session",
+      "actual": 401
+    }
+  ],
+  "details": {
+    "session_count": 4,
+    "restarted_pid": "<port>3101/?token=MTwnk_1-a263gTCzDySxh471olLe7V7RpLisP9CFuYQ",
+    "expiry_boundary": "now >= expires_at",
+    "cookies": [
+      "<redacted>"
+    ]
+  },
+  "evidence": [],
+  "finished": "2026-11-17T07:53:47.306Z"
+}

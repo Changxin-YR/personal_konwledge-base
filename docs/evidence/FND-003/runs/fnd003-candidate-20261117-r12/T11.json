@@ -1,0 +1,93 @@
+{
+  "id": "T11",
+  "name": "真实账号界面与身份切换",
+  "status": "PASS",
+  "started": "2026-11-17T06:49:02.434Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "browser sees owner setup page"
+    },
+    {
+      "ok": true,
+      "message": "browser registration succeeds",
+      "actual": "注册成功，请登录"
+    },
+    {
+      "ok": true,
+      "message": "browser Alice login succeeds",
+      "actual": {
+        "state": "已登录 · member",
+        "message": "登录成功"
+      }
+    },
+    {
+      "ok": true,
+      "message": "browser preference save succeeds"
+    },
+    {
+      "ok": true,
+      "message": "second browser context is a separate identity"
+    },
+    {
+      "ok": true,
+      "message": "logout immediately clears profile, revision-backed editing and passwords",
+      "actual": {
+        "profileHidden": true,
+        "saveDisabled": true,
+        "fields": [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    {
+      "ok": true,
+      "message": "late /me response cannot expose Alice data during Bob switch",
+      "actual": {
+        "state": "正在登录…",
+        "profileHidden": true,
+        "saveDisabled": true,
+        "fields": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    {
+      "ok": true,
+      "message": "Bob loads only Bob profile and stale save cannot submit",
+      "actual": {
+        "bobState": {
+          "who": "乙（bob） · 个人空间 e7cbbb1b-2ac2-4b42-90f2-1cf3c6780f9d",
+          "goal": "",
+          "saveDisabled": false
+        },
+        "preferenceRequests": 0
+      }
+    }
+  ],
+  "details": {
+    "screenshots": [
+      "T11-setup-1366.png",
+      "T11-account-1366.png",
+      "T11-account-1920.png",
+      "T11-bob-1366.png"
+    ],
+    "browser_contexts": 3,
+    "controlled_delayed_response": true,
+    "delayed_me": true,
+    "preference_requests_during_switch": 0
+  },
+  "evidence": [],
+  "finished": "2026-11-17T06:49:21.350Z"
+}

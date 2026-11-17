@@ -13,6 +13,7 @@ import { ProbeStorage, MIGRATION_V1_SQL, MIGRATION_V1_CHECKSUM, MIGRATION_V2_CHE
 const runId = process.argv.includes('--run-id') ? process.argv[process.argv.indexOf('--run-id') + 1] : `independent-${Date.now()}`
 const port = Number(process.argv.includes('--port') ? process.argv[process.argv.indexOf('--port') + 1] : DEFAULT_PORT + 10)
 const out = resolve(process.argv.includes('--out') ? process.argv[process.argv.indexOf('--out') + 1] : join(REPO, 'docs', 'evidence', 'FND-003', 'runs', runId))
+const candidate = process.argv.includes('--candidate') ? process.argv[process.argv.indexOf('--candidate') + 1] : undefined
 const dataRoot = join(REPO, '.cache', 'knowledgeos-fnd003-independent', runId)
 const profileDir = join(DEFAULT_HOME, 'profiles', DEFAULT_PROFILE)
 const patchPath = join(profileDir, 'cordis.patch.yml')
@@ -128,8 +129,10 @@ try {
   const page = await context.newPage(); let release; let delayed = false; const released = new Promise(resolveRelease => { release = resolveRelease }); await page.route('**/knowledge/v1/me', async route => { delayed = true; const response = await route.fetch(); await released; await route.fulfill({ response }) }); await page.goto(`http://127.0.0.1:${port}/knowledgeos/account`, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(150); await page.evaluate(() => document.querySelector('#logout')?.click()); await page.waitForTimeout(150); release(); await page.waitForTimeout(300); const uiState = await page.locator('#state').innerText(); const profileVisible = await page.locator('#profile').evaluate(element => !element.classList.contains('hidden')); await page.unroute('**/knowledge/v1/me'); await context.close(); await browser.close()
   check('T11-gap', [{ ok: delayed && uiState.includes('已退出') && !profileVisible, message: 'delayed response cannot restore logged-out profile', actual: { delayed, uiState, profileVisible } }])
 
-  writeFileSync(join(out, 'summary.json'), `${JSON.stringify({ run_id: runId, candidate: 'fnd003-candidate-20261117-r2', results, result: results.every(item => item.status === 'PASS') ? 'PASS' : 'FAIL' }, null, 2)}\n`)
-  console.log(JSON.stringify({ run_id: runId, result: results.every(item => item.status === 'PASS') ? 'PASS' : 'FAIL', results }, null, 2))
+  const passed = results.length > 0 && results.every(item => item.status === 'PASS')
+  writeFileSync(join(out, 'summary.json'), `${JSON.stringify({ run_id: runId, candidate: candidate ?? null, results, result: passed ? 'PASS' : 'FAIL' }, null, 2)}\n`)
+  console.log(JSON.stringify({ run_id: runId, candidate: candidate ?? null, result: passed ? 'PASS' : 'FAIL', results }, null, 2))
+  process.exitCode = passed ? 0 : 1
 } finally {
   if (host !== undefined) await stopHost(host)
   mkdirSync(profileDir, { recursive: true }); writeFileSync(patchPath, originalPatch, 'utf8')

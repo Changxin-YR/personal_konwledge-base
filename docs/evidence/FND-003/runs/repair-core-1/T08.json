@@ -1,0 +1,855 @@
+{
+  "id": "T08",
+  "name": "新库与 v1 到 v2 无损迁移",
+  "status": "PASS",
+  "started": "2026-11-17T06:03:31.307Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "new database opens"
+    },
+    {
+      "ok": true,
+      "message": "existing v1 database upgrades to v2"
+    },
+    {
+      "ok": true,
+      "message": "v1 ledger and v2 checksum are preserved",
+      "actual": [
+        {
+          "version": 1,
+          "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+          "applied_at": "2026-11-17T06:03:31.396Z"
+        },
+        {
+          "version": 2,
+          "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+          "applied_at": "2026-11-17T06:03:31.440Z"
+        }
+      ]
+    },
+    {
+      "ok": true,
+      "message": "v1 sentinel survives migration"
+    },
+    {
+      "ok": true,
+      "message": "repeat start does not duplicate migration ledger"
+    },
+    {
+      "ok": true,
+      "message": "future fixture is rejected",
+      "actual": "STORAGE_INCOMPATIBLE"
+    },
+    {
+      "ok": true,
+      "message": "future fixture is unchanged",
+      "actual": {
+        "applicationId": 1263489841,
+        "userVersion": 99,
+        "tables": [
+          "schema_migrations",
+          "storage_probe_records"
+        ],
+        "objects": [
+          {
+            "type": "table",
+            "name": "schema_migrations"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records"
+          }
+        ],
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-17T06:03:31.530Z"
+          }
+        ]
+      }
+    },
+    {
+      "ok": true,
+      "message": "wrong-app fixture is rejected",
+      "actual": "STORAGE_INCOMPATIBLE"
+    },
+    {
+      "ok": true,
+      "message": "wrong-app fixture is unchanged",
+      "actual": {
+        "applicationId": 12345,
+        "userVersion": 1,
+        "tables": [
+          "schema_migrations",
+          "storage_probe_records"
+        ],
+        "objects": [
+          {
+            "type": "table",
+            "name": "schema_migrations"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records"
+          }
+        ],
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-17T06:03:31.573Z"
+          }
+        ]
+      }
+    },
+    {
+      "ok": true,
+      "message": "bad-checksum fixture is rejected",
+      "actual": "STORAGE_INCOMPATIBLE"
+    },
+    {
+      "ok": true,
+      "message": "bad-checksum fixture is unchanged",
+      "actual": {
+        "applicationId": 1263489841,
+        "userVersion": 1,
+        "tables": [
+          "schema_migrations",
+          "storage_probe_records"
+        ],
+        "objects": [
+          {
+            "type": "table",
+            "name": "schema_migrations"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records"
+          }
+        ],
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "0000000000000000000000000000000000000000000000000000000000000000",
+            "applied_at": "2026-11-17T06:03:31.619Z"
+          }
+        ]
+      }
+    },
+    {
+      "ok": true,
+      "message": "unknown-schema fixture is rejected",
+      "actual": "STORAGE_INCOMPATIBLE"
+    },
+    {
+      "ok": true,
+      "message": "unknown-schema fixture is unchanged",
+      "actual": {
+        "applicationId": 1263489841,
+        "userVersion": 1,
+        "tables": [
+          "foreign_business",
+          "schema_migrations",
+          "storage_probe_records"
+        ],
+        "objects": [
+          {
+            "type": "table",
+            "name": "foreign_business"
+          },
+          {
+            "type": "table",
+            "name": "schema_migrations"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records"
+          }
+        ],
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-17T06:03:31.663Z"
+          }
+        ]
+      }
+    },
+    {
+      "ok": true,
+      "message": "prefix fixture is rejected",
+      "actual": "STORAGE_INCOMPATIBLE"
+    },
+    {
+      "ok": true,
+      "message": "prefix fixture is unchanged",
+      "actual": {
+        "applicationId": 1263489841,
+        "userVersion": 1,
+        "tables": [
+          "schema_migrations",
+          "sqliteX_foreign_private",
+          "storage_probe_records"
+        ],
+        "objects": [
+          {
+            "type": "table",
+            "name": "schema_migrations"
+          },
+          {
+            "type": "table",
+            "name": "sqliteX_foreign_private"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records"
+          }
+        ],
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-17T06:03:31.713Z"
+          }
+        ]
+      }
+    },
+    {
+      "ok": true,
+      "message": "missing-login-unique pseudo-v2 schema is rejected",
+      "actual": "STORAGE_INCOMPATIBLE"
+    },
+    {
+      "ok": true,
+      "message": "missing-login-unique pseudo-v2 remains unchanged before writable configuration",
+      "actual": {
+        "before": {
+          "applicationId": 1263489841,
+          "userVersion": 2,
+          "tables": [
+            "auth_sessions",
+            "password_credentials",
+            "schema_migrations",
+            "service_identity",
+            "spaces",
+            "storage_probe_records",
+            "users"
+          ],
+          "objects": [
+            {
+              "type": "table",
+              "name": "auth_sessions"
+            },
+            {
+              "type": "table",
+              "name": "password_credentials"
+            },
+            {
+              "type": "table",
+              "name": "schema_migrations"
+            },
+            {
+              "type": "table",
+              "name": "service_identity"
+            },
+            {
+              "type": "table",
+              "name": "spaces"
+            },
+            {
+              "type": "table",
+              "name": "storage_probe_records"
+            },
+            {
+              "type": "table",
+              "name": "users"
+            }
+          ],
+          "ledger": [
+            {
+              "version": 1,
+              "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+              "applied_at": "2026-11-17T06:03:31.769Z"
+            },
+            {
+              "version": 2,
+              "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+              "applied_at": "2026-11-17T06:03:31.843Z"
+            }
+          ]
+        },
+        "after": {
+          "applicationId": 1263489841,
+          "userVersion": 2,
+          "tables": [
+            "auth_sessions",
+            "password_credentials",
+            "schema_migrations",
+            "service_identity",
+            "spaces",
+            "storage_probe_records",
+            "users"
+          ],
+          "objects": [
+            {
+              "type": "table",
+              "name": "auth_sessions"
+            },
+            {
+              "type": "table",
+              "name": "password_credentials"
+            },
+            {
+              "type": "table",
+              "name": "schema_migrations"
+            },
+            {
+              "type": "table",
+              "name": "service_identity"
+            },
+            {
+              "type": "table",
+              "name": "spaces"
+            },
+            {
+              "type": "table",
+              "name": "storage_probe_records"
+            },
+            {
+              "type": "table",
+              "name": "users"
+            }
+          ],
+          "ledger": [
+            {
+              "version": 1,
+              "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+              "applied_at": "2026-11-17T06:03:31.769Z"
+            },
+            {
+              "version": 2,
+              "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+              "applied_at": "2026-11-17T06:03:31.843Z"
+            }
+          ]
+        },
+        "beforeJournal": "delete",
+        "afterJournal": "delete"
+      }
+    },
+    {
+      "ok": true,
+      "message": "missing-space-owner-unique pseudo-v2 schema is rejected",
+      "actual": "STORAGE_INCOMPATIBLE"
+    },
+    {
+      "ok": true,
+      "message": "missing-space-owner-unique pseudo-v2 remains unchanged before writable configuration",
+      "actual": {
+        "before": {
+          "applicationId": 1263489841,
+          "userVersion": 2,
+          "tables": [
+            "auth_sessions",
+            "password_credentials",
+            "schema_migrations",
+            "service_identity",
+            "spaces",
+            "storage_probe_records",
+            "users"
+          ],
+          "objects": [
+            {
+              "type": "table",
+              "name": "auth_sessions"
+            },
+            {
+              "type": "table",
+              "name": "password_credentials"
+            },
+            {
+              "type": "table",
+              "name": "schema_migrations"
+            },
+            {
+              "type": "table",
+              "name": "service_identity"
+            },
+            {
+              "type": "table",
+              "name": "spaces"
+            },
+            {
+              "type": "table",
+              "name": "storage_probe_records"
+            },
+            {
+              "type": "table",
+              "name": "users"
+            }
+          ],
+          "ledger": [
+            {
+              "version": 1,
+              "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+              "applied_at": "2026-11-17T06:03:31.906Z"
+            },
+            {
+              "version": 2,
+              "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+              "applied_at": "2026-11-17T06:03:31.974Z"
+            }
+          ]
+        },
+        "after": {
+          "applicationId": 1263489841,
+          "userVersion": 2,
+          "tables": [
+            "auth_sessions",
+            "password_credentials",
+            "schema_migrations",
+            "service_identity",
+            "spaces",
+            "storage_probe_records",
+            "users"
+          ],
+          "objects": [
+            {
+              "type": "table",
+              "name": "auth_sessions"
+            },
+            {
+              "type": "table",
+              "name": "password_credentials"
+            },
+            {
+              "type": "table",
+              "name": "schema_migrations"
+            },
+            {
+              "type": "table",
+              "name": "service_identity"
+            },
+            {
+              "type": "table",
+              "name": "spaces"
+            },
+            {
+              "type": "table",
+              "name": "storage_probe_records"
+            },
+            {
+              "type": "table",
+              "name": "users"
+            }
+          ],
+          "ledger": [
+            {
+              "version": 1,
+              "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+              "applied_at": "2026-11-17T06:03:31.906Z"
+            },
+            {
+              "version": 2,
+              "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+              "applied_at": "2026-11-17T06:03:31.974Z"
+            }
+          ]
+        },
+        "beforeJournal": "delete",
+        "afterJournal": "delete"
+      }
+    },
+    {
+      "ok": true,
+      "message": "wrong-users-type pseudo-v2 schema is rejected",
+      "actual": "STORAGE_INCOMPATIBLE"
+    },
+    {
+      "ok": true,
+      "message": "wrong-users-type pseudo-v2 remains unchanged before writable configuration",
+      "actual": {
+        "before": {
+          "applicationId": 1263489841,
+          "userVersion": 2,
+          "tables": [
+            "auth_sessions",
+            "password_credentials",
+            "schema_migrations",
+            "service_identity",
+            "spaces",
+            "storage_probe_records",
+            "users"
+          ],
+          "objects": [
+            {
+              "type": "table",
+              "name": "auth_sessions"
+            },
+            {
+              "type": "table",
+              "name": "password_credentials"
+            },
+            {
+              "type": "table",
+              "name": "schema_migrations"
+            },
+            {
+              "type": "table",
+              "name": "service_identity"
+            },
+            {
+              "type": "table",
+              "name": "spaces"
+            },
+            {
+              "type": "table",
+              "name": "storage_probe_records"
+            },
+            {
+              "type": "table",
+              "name": "users"
+            }
+          ],
+          "ledger": [
+            {
+              "version": 1,
+              "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+              "applied_at": "2026-11-17T06:03:32.041Z"
+            },
+            {
+              "version": 2,
+              "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+              "applied_at": "2026-11-17T06:03:32.086Z"
+            }
+          ]
+        },
+        "after": {
+          "applicationId": 1263489841,
+          "userVersion": 2,
+          "tables": [
+            "auth_sessions",
+            "password_credentials",
+            "schema_migrations",
+            "service_identity",
+            "spaces",
+            "storage_probe_records",
+            "users"
+          ],
+          "objects": [
+            {
+              "type": "table",
+              "name": "auth_sessions"
+            },
+            {
+              "type": "table",
+              "name": "password_credentials"
+            },
+            {
+              "type": "table",
+              "name": "schema_migrations"
+            },
+            {
+              "type": "table",
+              "name": "service_identity"
+            },
+            {
+              "type": "table",
+              "name": "spaces"
+            },
+            {
+              "type": "table",
+              "name": "storage_probe_records"
+            },
+            {
+              "type": "table",
+              "name": "users"
+            }
+          ],
+          "ledger": [
+            {
+              "version": 1,
+              "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+              "applied_at": "2026-11-17T06:03:32.041Z"
+            },
+            {
+              "version": 2,
+              "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+              "applied_at": "2026-11-17T06:03:32.086Z"
+            }
+          ]
+        },
+        "beforeJournal": "delete",
+        "afterJournal": "delete"
+      }
+    },
+    {
+      "ok": true,
+      "message": "missing-session-fk pseudo-v2 schema is rejected",
+      "actual": "STORAGE_INCOMPATIBLE"
+    },
+    {
+      "ok": true,
+      "message": "missing-session-fk pseudo-v2 remains unchanged before writable configuration",
+      "actual": {
+        "before": {
+          "applicationId": 1263489841,
+          "userVersion": 2,
+          "tables": [
+            "auth_sessions",
+            "password_credentials",
+            "schema_migrations",
+            "service_identity",
+            "spaces",
+            "storage_probe_records",
+            "users"
+          ],
+          "objects": [
+            {
+              "type": "table",
+              "name": "auth_sessions"
+            },
+            {
+              "type": "table",
+              "name": "password_credentials"
+            },
+            {
+              "type": "table",
+              "name": "schema_migrations"
+            },
+            {
+              "type": "table",
+              "name": "service_identity"
+            },
+            {
+              "type": "table",
+              "name": "spaces"
+            },
+            {
+              "type": "table",
+              "name": "storage_probe_records"
+            },
+            {
+              "type": "table",
+              "name": "users"
+            }
+          ],
+          "ledger": [
+            {
+              "version": 1,
+              "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+              "applied_at": "2026-11-17T06:03:32.157Z"
+            },
+            {
+              "version": 2,
+              "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+              "applied_at": "2026-11-17T06:03:32.202Z"
+            }
+          ]
+        },
+        "after": {
+          "applicationId": 1263489841,
+          "userVersion": 2,
+          "tables": [
+            "auth_sessions",
+            "password_credentials",
+            "schema_migrations",
+            "service_identity",
+            "spaces",
+            "storage_probe_records",
+            "users"
+          ],
+          "objects": [
+            {
+              "type": "table",
+              "name": "auth_sessions"
+            },
+            {
+              "type": "table",
+              "name": "password_credentials"
+            },
+            {
+              "type": "table",
+              "name": "schema_migrations"
+            },
+            {
+              "type": "table",
+              "name": "service_identity"
+            },
+            {
+              "type": "table",
+              "name": "spaces"
+            },
+            {
+              "type": "table",
+              "name": "storage_probe_records"
+            },
+            {
+              "type": "table",
+              "name": "users"
+            }
+          ],
+          "ledger": [
+            {
+              "version": 1,
+              "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+              "applied_at": "2026-11-17T06:03:32.157Z"
+            },
+            {
+              "version": 2,
+              "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+              "applied_at": "2026-11-17T06:03:32.202Z"
+            }
+          ]
+        },
+        "beforeJournal": "delete",
+        "afterJournal": "delete"
+      }
+    },
+    {
+      "ok": true,
+      "message": "new database has v2 identity tables",
+      "actual": [
+        "auth_sessions",
+        "password_credentials",
+        "schema_migrations",
+        "service_identity",
+        "spaces",
+        "storage_probe_records",
+        "users"
+      ]
+    }
+  ],
+  "details": {
+    "fresh": {
+      "applicationId": 1263489841,
+      "userVersion": 2,
+      "tables": [
+        "auth_sessions",
+        "password_credentials",
+        "schema_migrations",
+        "service_identity",
+        "spaces",
+        "storage_probe_records",
+        "users"
+      ],
+      "objects": [
+        {
+          "type": "table",
+          "name": "auth_sessions"
+        },
+        {
+          "type": "table",
+          "name": "password_credentials"
+        },
+        {
+          "type": "table",
+          "name": "schema_migrations"
+        },
+        {
+          "type": "table",
+          "name": "service_identity"
+        },
+        {
+          "type": "table",
+          "name": "spaces"
+        },
+        {
+          "type": "table",
+          "name": "storage_probe_records"
+        },
+        {
+          "type": "table",
+          "name": "users"
+        }
+      ],
+      "ledger": [
+        {
+          "version": 1,
+          "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+          "applied_at": "2026-11-17T06:03:31.320Z"
+        },
+        {
+          "version": 2,
+          "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+          "applied_at": "2026-11-17T06:03:31.326Z"
+        }
+      ]
+    },
+    "migrated": {
+      "applicationId": 1263489841,
+      "userVersion": 2,
+      "tables": [
+        "auth_sessions",
+        "password_credentials",
+        "schema_migrations",
+        "service_identity",
+        "spaces",
+        "storage_probe_records",
+        "users"
+      ],
+      "objects": [
+        {
+          "type": "table",
+          "name": "auth_sessions"
+        },
+        {
+          "type": "table",
+          "name": "password_credentials"
+        },
+        {
+          "type": "table",
+          "name": "schema_migrations"
+        },
+        {
+          "type": "table",
+          "name": "service_identity"
+        },
+        {
+          "type": "table",
+          "name": "spaces"
+        },
+        {
+          "type": "table",
+          "name": "storage_probe_records"
+        },
+        {
+          "type": "table",
+          "name": "users"
+        }
+      ],
+      "ledger": [
+        {
+          "version": 1,
+          "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+          "applied_at": "2026-11-17T06:03:31.396Z"
+        },
+        {
+          "version": 2,
+          "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+          "applied_at": "2026-11-17T06:03:31.440Z"
+        }
+      ]
+    },
+    "rejected": {
+      "future": "STORAGE_INCOMPATIBLE",
+      "wrong-app": "STORAGE_INCOMPATIBLE",
+      "bad-checksum": "STORAGE_INCOMPATIBLE",
+      "unknown-schema": "STORAGE_INCOMPATIBLE",
+      "prefix": "STORAGE_INCOMPATIBLE",
+      "missing-login-unique": "STORAGE_INCOMPATIBLE",
+      "missing-space-owner-unique": "STORAGE_INCOMPATIBLE",
+      "wrong-users-type": "STORAGE_INCOMPATIBLE",
+      "missing-session-fk": "STORAGE_INCOMPATIBLE"
+    },
+    "v1_before_tables": [
+      "schema_migrations",
+      "storage_probe_records"
+    ]
+  },
+  "evidence": [],
+  "finished": "2026-11-17T06:03:32.236Z"
+}

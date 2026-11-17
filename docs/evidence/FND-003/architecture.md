@@ -1,39 +1,26 @@
 # FND-003 架构说明
 
-> 历史记录：本文保留b1ff9ae提交时的架构或测试材料。当前FND-003已因提交复核进入v3.1.1返修，须按唯一CODEX_START.md更新本轮设计与测试计划；原PASS声明不代表当前验收通过。见 [提交复核](SUBMISSION_REVIEW_20261117.md)。
-
 更新：2026-11-17（Asia/Shanghai）  
-指令：CODEX_START.md v3.1.0；工作单元 FND-003；唯一产品代码写者：主管 Codex  
-起始快照：分支 `codex/knowledgeos-fnd-003`，HEAD `3535f16b1a429d32cd2c80f6c1462ce556fcb509`，工作区初始干净；固定上游 `39163dd30f703a79079e2d2446545cff3c453738`。
+指令：CODEX_START.md v3.1.1；active_unit=FND-003；auto_advance=false  
+最终候选：fnd003-candidate-20261117-r16  
+固定上游：39163dd30f703a79079e2d2446545cff3c453738
 
-## 目标与边界
-
-本轮只实现 F03 的身份与个人偏好切片：可信 loopback DSH owner 首次初始化、普通 member 注册/登录/退出、独立业务会话、本人方向/主线/目标/时区、personal space、最小账号页，以及同一业务 SQLite 的 v1→v2 无损迁移。完整 ACL、邀请、资料/计划/模型、FND-004 以后均不实现。
+本单元实现 F03 的身份与个人偏好切片：可信 loopback DSH owner 一次性初始化、普通 member 注册/登录/退出、独立业务会话、本人方向/主线/目标/时区、personal space、账号页和 v1→v2 SQLite 身份迁移。FND-004 及资料、计划、模型、ACL 全量范围未激活。
 
 ## 实际调用链
 
-- 可信初始化：DSH `WebServer` exact route `auth: required` → Connection 已完成 Host/Origin/Fetch-Metadata 来源准入 → handler 检查 admitted `peer.principal.kind === "owner"`、listener/socket loopback、专用请求头和 JSON → 应用 bootstrap 用例 → 异步 scrypt（事务外）→ SQLite 同一短事务写 service_identity、users、password_credentials、spaces。
-- 普通业务：WebServer exact routes `auth: anonymous` → 同源/Host/Origin/Fetch-Metadata 与自定义头校验 → 业务 Cookie token hash 查 auth_sessions/users 生成可信 actor → 应用用例 → SQLite。
-- 领域偏好：actor 只来自服务端会话；请求体禁止 user_id/role/owner_id/service_id/space_id 覆盖；preferences 使用 expected_revision 乐观锁。
-- 客户端：账号页面只调用精确 `/knowledge/v1` 路由；不加载 DSH owner 壳，不把业务 Cookie 注册为 Connection provider。
+- Host 组合根注入 connection 与 connection.authentication，身份路由在 Connection 生命周期内注册；可用性同时要求真实 WebServer origin、loopback listener 和实际 socket。缺失、停用或非 loopback 不匿名降级。
+- bootstrap 使用 auth: required，再检查 admitted owner、loopback listener/socket、来源、专用请求头和 JSON；KDF 在事务外，随后以短事务写入 service_identity、users、password_credentials、spaces。
+- register/login/logout/me/preferences/spaces 使用精确 auth: anonymous 路由；业务 Cookie 只生成 KnowledgeOS actor，不注册为 DSH provider。所有身份 API 在统一 dispatch 中拒绝 query 参数。
+- 偏好只接受本人 actor 和 expected_revision；bootstrap/register DTO 仅含 login_name、password、display_name、可选 timezone，方向/主线/目标通过 /me/preferences 保存。
+- 账号页在退出/切换开始时清空资料、草稿、revision 与密码并禁用保存；以 generation 丢弃迟到 /me 响应，成功加载新身份后才重新启用编辑。
 
-## 分层与新增文件
+## 存储、约束与恢复
 
-- 领域/用例层：`src/host/identity.ts`，只含 DTO、枚举、验证、actor、会话/偏好规则，不导入 React、Cordis、SQLite 或 node:http。
-- 传输层：`src/host/identity-http.ts`，负责方法、来源、JSON、body 限制、错误映射、Cookie；不写 SQL。
-- 适配层：`src/host/storage.ts` 扩展 v2 schema、迁移、密码凭据、sessions/users/spaces 查询写入，仍只持有一个 `DatabaseSync`。
-- 组合根：`src/host/index.ts` 注册精确身份/账号资源与生命周期，复用旧 status/records。
-- 客户端：现有 `Panel.tsx` 提供账号页入口；账号页 HTML 与最小交互脚本由 Host 资源返回，保留现有面板。
-- 测试：`scripts/fnd003/` 只使用合成账号、隔离 home/profile/port/dataDir；故障注入仅测试导出，不经 HTTP。
+v1 账本与探针数据保留；v2 增加 service_identity、users、password_credentials、auth_sessions、spaces。启动前真实核验列、类型、NOT NULL、PK、UNIQUE、FK、CHECK、账本、application_id、user_version 和未知对象；伪 v2 或不兼容库在修改性 PRAGMA 前拒绝且保持原库不变。bootstrap、register 与 v2 migration 均有生产入口中途故障注入，失败回滚后可通过正常 HTTP/启动路径恢复。
 
-## 数据与迁移
+密码使用异步 scrypt（N=131072、r=8、p=1、maxmem=192MiB，salt 16B，derived key 32B）；最多 2 个真实运行任务和 8 个排队任务。来源认证尝试在 DTO 后、KDF 前计数，成功/失败注册与登录均计入，账号失败计数独立，429 的 Retry-After 使用当前窗口剩余时间。
 
-保留 v1 的 `schema_migrations`、`storage_probe_records`、checksum `033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a`。v2 追加一个版本账本行和五类表：`service_identity`、`users`、`password_credentials`、`auth_sessions`、`spaces`。新库按 v1→v2；现有 v1 先只读核验 app id/version/对象/ledger，再在原连接的短事务内新增 v2；重启只校验 v2。保留 WAL、foreign_keys、synchronous=FULL、busy_timeout=250ms、application_id=0x4B4F5331。未知/未来/错配对象、字面 `sqlite_` 前缀保护、ledger/checksum 不匹配均拒绝且不自动修复。
+## 验证边界
 
-## 密码、会话和来源默认值
-
-Node 24 异步 `crypto.scrypt`，N=131072、r=8、p=1、salt≥16B、derived key=32B、maxmem=192MiB；最多 2 个运行、8 个排队。业务 token 为 CSPRNG 32B，数据库仅 SHA-256，12h absolute expiry，Cookie HttpOnly + SameSite=Strict + Path=/knowledge/v1 + loopback HTTP 开发模式不设 Secure，HTTPS 才 Secure。成功登录只撤销本请求携带的有效旧会话；注销持久写 revoked_at 且幂等 204。变更请求要求 JSON 与 `X-KnowledgeOS-Request: 1`；Origin 必须精确 listener origin，CLI 可省略 Origin 但仍需 Host/专用头。
-
-## 风险与独立检查
-
-DSH owner 与业务 actor 始终分离；业务 Cookie 不进入 Connection provider。真实 HTTP、独立 SQL、重启、并发、浏览器与受控非 loopback/时钟/事务故障分别留证。HTTP 请求取消会传入 KDF，并在写库前再次检查；插件销毁等待 KDF 调度器关闭。所有结论严格为 PASS/FAIL/BLOCKED/NOT_RUN；本说明不构成产品通过结论。
+真实固定 DSH Host、真实 HTTP、真实业务 SQLite、真实 Chrome 浏览器分别留证；受控适配器仅用于 IPv4/IPv6、非 loopback、故障注入等无法安全改动生产监听的反例。完整结果见最终候选和独立复核报告。FND-004 未开发。

@@ -1,0 +1,34 @@
+{
+  "run_id": "repair-core-1",
+  "candidate": null,
+  "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "port": 3101,
+  "profile": "knowledgeos-identity-test",
+  "started_at": "2026-11-17T06:03:31.306Z",
+  "finished_at": "2026-11-17T06:04:07.167Z",
+  "result": "FAIL",
+  "results": [
+    {
+      "id": "T08",
+      "name": "新库与 v1 到 v2 无损迁移",
+      "status": "PASS",
+      "evidence": "T08.json"
+    },
+    {
+      "id": "T09",
+      "name": "身份事务失败与恢复",
+      "status": "PASS",
+      "evidence": "T09.json"
+    },
+    {
+      "id": "T10",
+      "name": "登录注册限流与有界 KDF 负载",
+      "status": "FAIL",
+      "evidence": "T10.json"
+    }
+  ],
+  "failures": [
+    "T10: queued cancellation removes work while running scrypt callbacks finish and release slots: {\"queuedCancelled\":1,\"started\":9,\"completed\":9,\"outcomes\":[\"ok\",\"ok\",20,\"ok\",\"ok\",\"ok\",\"ok\",\"ok\",\"ok\",\"ok\"]}"
+  ],
+  "out": "docs/evidence/FND-003/runs/repair-core-1"
+}

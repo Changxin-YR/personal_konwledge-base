@@ -1,0 +1,203 @@
+{
+  "id": "T01",
+  "name": "可信本机初始化与管理员唯一性",
+  "status": "PASS",
+  "started": "2026-11-17T07:20:16.518Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "owner setup page is available",
+      "actual": 200
+    },
+    {
+      "ok": true,
+      "message": "anonymous setup page is denied",
+      "actual": 401
+    },
+    {
+      "ok": true,
+      "message": "anonymous bootstrap rejected",
+      "actual": 401
+    },
+    {
+      "ok": true,
+      "message": "business or fake cookie bootstrap rejected",
+      "actual": 401
+    },
+    {
+      "ok": true,
+      "message": "owner bootstrap with foreign origin rejected"
+    },
+    {
+      "ok": true,
+      "message": "concurrent owner bootstrap has one winner",
+      "actual": [
+        201,
+        409
+      ]
+    },
+    {
+      "ok": true,
+      "message": "concurrent loser is ALREADY_INITIALIZED",
+      "actual": [
+        null,
+        "ALREADY_INITIALIZED"
+      ]
+    },
+    {
+      "ok": true,
+      "message": "bootstrap writes one user credential and personal space",
+      "actual": {
+        "applicationId": 1263489841,
+        "userVersion": 2,
+        "tables": [
+          "auth_sessions",
+          "password_credentials",
+          "schema_migrations",
+          "service_identity",
+          "spaces",
+          "storage_probe_records",
+          "users"
+        ],
+        "objects": [
+          {
+            "type": "table",
+            "name": "auth_sessions"
+          },
+          {
+            "type": "table",
+            "name": "password_credentials"
+          },
+          {
+            "type": "table",
+            "name": "schema_migrations"
+          },
+          {
+            "type": "table",
+            "name": "service_identity"
+          },
+          {
+            "type": "table",
+            "name": "spaces"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records"
+          },
+          {
+            "type": "table",
+            "name": "users"
+          }
+        ],
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-17T07:20:22.632Z"
+          },
+          {
+            "version": 2,
+            "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+            "applied_at": "2026-11-17T07:20:22.635Z"
+          }
+        ]
+      }
+    },
+    {
+      "ok": true,
+      "message": "service identity initialized",
+      "actual": [
+        {
+          "initialized_at": "2026-11-17T07:20:23.812Z"
+        }
+      ]
+    },
+    {
+      "ok": true,
+      "message": "restart keeps initialization marker",
+      "actual": {
+        "code": "ALREADY_INITIALIZED",
+        "message": "service is already initialized",
+        "request_id": "28cbd35c-2b68-488b-92c9-c10c19ab904d",
+        "retryable": false,
+        "safe_details": {}
+      }
+    }
+  ],
+  "details": {
+    "concurrent": [
+      {
+        "status": 201
+      },
+      {
+        "status": 409,
+        "code": "ALREADY_INITIALIZED"
+      }
+    ],
+    "facts": {
+      "applicationId": 1263489841,
+      "userVersion": 2,
+      "tables": [
+        "auth_sessions",
+        "password_credentials",
+        "schema_migrations",
+        "service_identity",
+        "spaces",
+        "storage_probe_records",
+        "users"
+      ],
+      "objects": [
+        {
+          "type": "table",
+          "name": "auth_sessions"
+        },
+        {
+          "type": "table",
+          "name": "password_credentials"
+        },
+        {
+          "type": "table",
+          "name": "schema_migrations"
+        },
+        {
+          "type": "table",
+          "name": "service_identity"
+        },
+        {
+          "type": "table",
+          "name": "spaces"
+        },
+        {
+          "type": "table",
+          "name": "storage_probe_records"
+        },
+        {
+          "type": "table",
+          "name": "users"
+        }
+      ],
+      "ledger": [
+        {
+          "version": 1,
+          "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+          "applied_at": "2026-11-17T07:20:22.632Z"
+        },
+        {
+          "version": 2,
+          "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+          "applied_at": "2026-11-17T07:20:22.635Z"
+        }
+      ]
+    },
+    "cookie_headers": {
+      "owner": "<redacted>"
+    },
+    "evidence": [
+      "t01.log",
+      "t01-restart.log"
+    ]
+  },
+  "evidence": [],
+  "finished": "2026-11-17T07:20:30.803Z"
+}

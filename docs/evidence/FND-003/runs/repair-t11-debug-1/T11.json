@@ -1,0 +1,30 @@
+{
+  "id": "T11",
+  "name": "真实账号界面与身份切换",
+  "status": "FAIL",
+  "started": "2026-11-17T06:28:23.632Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "browser sees owner setup page"
+    },
+    {
+      "ok": true,
+      "message": "browser registration succeeds",
+      "actual": "注册成功，请登录"
+    },
+    {
+      "ok": false,
+      "message": "browser Alice login succeeds",
+      "actual": {
+        "state": "请求失败",
+        "message": "password length is invalid"
+      }
+    }
+  ],
+  "details": {},
+  "evidence": [],
+  "error": "Error: browser Alice login succeeds: {\"state\":\"请求失败\",\"message\":\"password length is invalid\"}\n    at expect (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:75:25)\n    at file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:352:1082\n    at async run (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:81:32)\n    at async file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:346:3",
+  "finished": "2026-11-17T06:28:47.562Z"
+}

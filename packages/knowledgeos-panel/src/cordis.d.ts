@@ -41,10 +41,18 @@ declare module '@deepseek-ai/cordis' {
     graph(): { release?: HostReleaseInfo }
   }
 
+  /** Minimal live Connection service surface required by the identity routes. */
+  export interface HostConnection {
+    browserPeer: { signal: AbortSignal }
+    authentication?: unknown
+  }
+
   /** Host plugin context subset used by this bundle's Host half. */
   export interface Context {
     webServer: WebServer
     clientModules: ClientModules
+    connection: HostConnection
+    inject<T extends readonly string[]>(services: T, callback: (scope: Context) => void): void
     effect(effect: () => (() => void) | Promise<void>, label?: string): void
   }
 }

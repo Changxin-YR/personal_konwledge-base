@@ -1,0 +1,83 @@
+{
+  "id": "T03",
+  "name": "业务身份与 DSH 宿主权限分离",
+  "status": "PASS",
+  "started": "2026-11-17T07:53:16.005Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "owner DSH cookie does not create business actor",
+      "actual": {
+        "me": 401,
+        "spaces": 401
+      }
+    },
+    {
+      "ok": true,
+      "message": "business cookie has no DSH status permission",
+      "actual": 401
+    },
+    {
+      "ok": true,
+      "message": "owner DSH status remains available",
+      "actual": 200
+    },
+    {
+      "ok": true,
+      "message": "business cookie has no owner RPC or connect capability",
+      "actual": [
+        401,
+        401
+      ]
+    },
+    {
+      "ok": true,
+      "message": "identity override fields are rejected without writes",
+      "actual": {
+        "code": "INPUT_INVALID",
+        "message": "body contains an unsupported field",
+        "request_id": "6e5bfa52-5e4e-43f0-9ae8-6a4e2cd7dfa2",
+        "retryable": false,
+        "safe_details": {}
+      }
+    },
+    {
+      "ok": true,
+      "message": "all identity APIs reject unsupported query parameters",
+      "actual": {
+        "status": 422,
+        "bootstrap": 422,
+        "register": 422,
+        "login": 422,
+        "logout": 422,
+        "me": 422,
+        "preferences": 422,
+        "spaces": 422
+      }
+    },
+    {
+      "ok": true,
+      "message": "query-rejected identity calls do not create users"
+    }
+  ],
+  "details": {
+    "routes": {
+      "rpc": 401,
+      "connect": 401
+    },
+    "query_statuses": {
+      "status": 422,
+      "bootstrap": 422,
+      "register": 422,
+      "login": 422,
+      "logout": 422,
+      "me": 422,
+      "preferences": 422,
+      "spaces": 422
+    },
+    "database_unchanged": true
+  },
+  "evidence": [],
+  "finished": "2026-11-17T07:53:29.267Z"
+}

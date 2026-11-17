@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
+import { isIP } from 'node:net'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { PeerScope } from './identity-peer.ts'
 import {
@@ -17,9 +18,10 @@ import {
 
 export interface IdentityHttpOptions {
   readonly service: IdentityService
-  readonly origin: () => string
-  readonly host: () => string
+  readonly origin: () => string | undefined
+  readonly host: () => string | undefined
   readonly protocol: () => 'http:' | 'https:'
+  readonly isAvailable: () => boolean
 }
 
 export interface IdentityHandlers {
@@ -53,9 +55,25 @@ function sendEmpty(res: ServerResponse, status: number, headers: Record<string, 
 
 export function isLoopbackAddress(value: string | undefined): boolean {
   if (value === undefined) return false
-  const unwrapped = value.startsWith('::ffff:') ? value.slice(7) : value
-  if (/^127(?:\.\d{1,3}){3}$/.test(unwrapped)) return true
-  return unwrapped === '::1' || unwrapped === '0:0:0:0:0:0:0:1'
+  let unwrapped = value.trim().toLowerCase()
+  if (unwrapped.startsWith('[') && unwrapped.endsWith(']')) unwrapped = unwrapped.slice(1, -1)
+  const zone = unwrapped.indexOf('%')
+  if (zone >= 0) unwrapped = unwrapped.slice(0, zone)
+  if (unwrapped.startsWith('::ffff:')) {
+    const mapped = unwrapped.slice(7)
+    if (/^127(?:\.\d{1,3}){3}$/.test(mapped)) return true
+    if (/^[0-9a-f]{1,4}:[0-9a-f]{1,4}$/.test(mapped)) {
+      const [hi, lo] = mapped.split(':').map(part => Number.parseInt(part, 16))
+      return ((hi >>> 8) & 0xff) === 127
+    }
+  }
+  if (isIP(unwrapped) === 4) return /^127(?:\.\d{1,3}){3}$/.test(unwrapped)
+  if (isIP(unwrapped) !== 6) return false
+  const groups = unwrapped.split('::')
+  const left = groups[0] === '' ? [] : groups[0].split(':')
+  const right = groups.length > 1 && groups[1] !== '' ? groups[1].split(':') : []
+  const expanded = groups.length === 1 ? left : [...left, ...Array(8 - left.length - right.length).fill('0'), ...right]
+  return expanded.length === 8 && expanded.slice(0, 7).every(item => Number.parseInt(item || '0', 16) === 0) && Number.parseInt(expanded[7] || '0', 16) === 1
 }
 
 function requestPath(req: IncomingMessage): string { return new URL(req.url ?? '/', 'http://localhost').pathname }
@@ -141,10 +159,26 @@ export function createIdentityHandlers(options: IdentityHttpOptions): IdentityHa
   const { service } = options
   const meta = (requestId: string): Record<string, unknown> => ({ request_id: requestId, service_id: service.setupState.serviceId, server_time: new Date().toISOString() })
   const withMeta = (requestId: string, data: unknown): Record<string, unknown> => ({ data, meta: meta(requestId) })
-  const tokenFor = (req: IncomingMessage): string | undefined => { const state = service.setupState; return readCookie(req, cookieName(state.serviceId, options.origin())) }
+  const tokenFor = (req: IncomingMessage): string | undefined => {
+    const origin = options.origin()
+    if (origin === undefined) return undefined
+    const state = service.setupState
+    return readCookie(req, cookieName(state.serviceId, origin))
+  }
+
+  const assertAvailable = (): void => {
+    if (!options.isAvailable() || options.origin() === undefined || options.host() === undefined) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'identity service is unavailable', true)
+  }
+
+  const assertNoQuery = (req: IncomingMessage): void => {
+    const url = new URL(req.url ?? '/', 'http://localhost')
+    if ([...url.searchParams.keys()].length > 0) throw new HttpError(422, 'INPUT_INVALID', 'query parameters are not supported')
+  }
 
   const assertTrust = (req: IncomingMessage, mutation: boolean): void => {
-    const origin = options.origin(); const expectedHost = new URL(origin).host
+    const origin = options.origin()
+    if (origin === undefined) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'identity service is unavailable', true)
+    const expectedHost = new URL(origin).host
     if (req.headers.host !== expectedHost) throw new HttpError(403, 'CSRF_REJECTED', 'request authority is not trusted')
     const suppliedOrigin = req.headers.origin
     if (suppliedOrigin !== undefined && suppliedOrigin !== origin) throw new HttpError(403, 'CSRF_REJECTED', 'request origin is not trusted')
@@ -161,13 +195,13 @@ export function createIdentityHandlers(options: IdentityHttpOptions): IdentityHa
 
   const dispatch = async (req: IncomingMessage, res: ServerResponse, action: () => Promise<void> | void): Promise<void> => {
     const requestId = randomUUID()
-    try { await action() } catch (error: unknown) {
+    try { assertAvailable(); assertNoQuery(req); await action() } catch (error: unknown) {
       if (res.writableEnded) return
       let mapped: HttpError
       if (error instanceof HttpError) mapped = error
       else if (error instanceof IdentityError) {
         const status = error.code === 'INVALID_CREDENTIALS' ? 401 : error.code === 'AUTH_RATE_LIMITED' ? 429 : error.code === 'SETUP_REQUIRED' || error.code === 'ALREADY_INITIALIZED' || error.code === 'LOGIN_NAME_TAKEN' || error.code === 'REVISION_CONFLICT' ? 409 : error.code === 'INPUT_INVALID' ? 422 : 503
-        mapped = new HttpError(status, error.code, error.message, error.retryable, error.code === 'AUTH_RATE_LIMITED' ? { 'retry-after': '60' } : {})
+        mapped = new HttpError(status, error.code, error.message, error.retryable, error.code === 'AUTH_RATE_LIMITED' ? { 'retry-after': String(Math.max(1, Math.ceil((error.retryAfterMs ?? 60_000) / 1000))) } : {})
       } else if (error instanceof Error && ['STORAGE_UNAVAILABLE', 'STORAGE_INCOMPATIBLE', 'STORAGE_BUSY', 'STORAGE_CLOSED'].includes(String((error as unknown as { code?: unknown }).code))) {
         const code = String((error as unknown as { code: string }).code)
         mapped = new HttpError(503, code, 'storage is unavailable', true)
@@ -183,27 +217,29 @@ export function createIdentityHandlers(options: IdentityHttpOptions): IdentityHa
     requireMethod(req, 'POST'); assertTrust(req, true)
     if (!isLoopbackAddress(req.socket?.remoteAddress) || !isLoopbackAddress(options.host()) || peer?.principal?.kind !== 'owner') throw new HttpError(403, 'FORBIDDEN', 'owner loopback admission is required')
     const signal = requestSignal(req, res)
-    requireJson(req); const body = bodyObject(await readBody(req)); assertKeys(body, ['login_name', 'password', 'display_name', 'timezone', 'domains', 'learning_tracks', 'goal_text'])
-    const user = await service.bootstrap({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, domains: body.domains, learningTracks: body.learning_tracks, goalText: body.goal_text, source: requestSource(req), signal })
+    requireJson(req); const body = bodyObject(await readBody(req)); assertKeys(body, ['login_name', 'password', 'display_name', 'timezone'])
+    const user = await service.bootstrap({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, source: requestSource(req), signal })
     sendJson(res, 201, withMeta(randomUUID(), safeProfile(user)))
   })
 
   const register = async (req: IncomingMessage, res: ServerResponse): Promise<void> => dispatch(req, res, async () => {
-    requireMethod(req, 'POST'); assertTrust(req, true); const signal = requestSignal(req, res); requireJson(req); const body = bodyObject(await readBody(req)); assertKeys(body, ['login_name', 'password', 'display_name', 'timezone', 'domains', 'learning_tracks', 'goal_text'])
-    const user = await service.register({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, domains: body.domains, learningTracks: body.learningTracks, goalText: body.goal_text, source: requestSource(req), signal })
+    requireMethod(req, 'POST'); assertTrust(req, true); const signal = requestSignal(req, res); requireJson(req); const body = bodyObject(await readBody(req)); assertKeys(body, ['login_name', 'password', 'display_name', 'timezone'])
+    const user = await service.register({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, source: requestSource(req), signal })
     sendJson(res, 201, withMeta(randomUUID(), safeProfile(user)))
   })
 
   const login = async (req: IncomingMessage, res: ServerResponse): Promise<void> => dispatch(req, res, async () => {
     requireMethod(req, 'POST'); assertTrust(req, true); const signal = requestSignal(req, res); requireJson(req); const body = bodyObject(await readBody(req)); assertKeys(body, ['login_name', 'password'])
     const result = await service.login({ loginName: body.login_name, password: body.password, oldToken: tokenFor(req), source: requestSource(req), signal })
-    const state = service.setupState; const name = cookieName(state.serviceId, options.origin()); const maxAge = Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1000)
-    sendJson(res, 200, withMeta(randomUUID(), safeProfile(result.user)), { 'set-cookie': sessionCookie(name, result.token, options.origin(), options.protocol(), maxAge) })
+    const origin = options.origin(); if (origin === undefined) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'identity service is unavailable', true)
+    const state = service.setupState; const name = cookieName(state.serviceId, origin); const maxAge = Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1000)
+    sendJson(res, 200, withMeta(randomUUID(), safeProfile(result.user)), { 'set-cookie': sessionCookie(name, result.token, origin, options.protocol(), maxAge) })
   })
 
   const logout = async (req: IncomingMessage, res: ServerResponse): Promise<void> => dispatch(req, res, async () => {
     requireMethod(req, 'POST'); assertTrust(req, true); requireJson(req); const body = bodyObject(await readBody(req)); assertKeys(body, [])
-    service.logout(tokenFor(req)); const state = service.setupState; const name = cookieName(state.serviceId, options.origin()); sendEmpty(res, 204, { 'set-cookie': clearCookie(name, options.origin(), options.protocol()) })
+    service.logout(tokenFor(req)); const origin = options.origin(); if (origin === undefined) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'identity service is unavailable', true)
+    const state = service.setupState; const name = cookieName(state.serviceId, origin); sendEmpty(res, 204, { 'set-cookie': clearCookie(name, origin, options.protocol()) })
   })
 
   const me = async (req: IncomingMessage, res: ServerResponse): Promise<void> => dispatch(req, res, () => { requireMethod(req, 'GET'); assertTrust(req, false); const actor = requireActor(req); const profile = service.profile(actor.userId); if (profile === undefined) throw new HttpError(401, 'SESSION_EXPIRED', 'business session is required'); sendJson(res, 200, withMeta(randomUUID(), safeProfile(profile))) })
@@ -225,8 +261,14 @@ export function createIdentityHandlers(options: IdentityHttpOptions): IdentityHa
   return { status, bootstrap, register, login, logout, me, preferences, spaces }
 }
 
-export function buildAccountHtml(): string {
+function buildAccountHtmlLegacy(): string {
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KnowledgeOS 账号</title><style>body{margin:0;background:#f4f8f8;color:#23333a;font-family:"Segoe UI","Microsoft YaHei UI",system-ui,sans-serif}main{max-width:880px;margin:0 auto;padding:32px 20px 56px}h1{margin:0 0 8px;font-size:28px}p{line-height:1.6}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}.card{background:#fff;border:1px solid #dce8e9;border-radius:14px;padding:20px;box-shadow:0 8px 24px #31535b12}label{display:block;margin:10px 0 5px;color:#597078;font-size:13px}input,textarea,select{width:100%;box-sizing:border-box;padding:10px;border:1px solid #c8d8da;border-radius:8px;font:inherit}textarea{min-height:90px}button{margin-top:14px;border:0;border-radius:8px;background:#3d7e86;color:#fff;padding:10px 16px;font:inherit;cursor:pointer}button.secondary{background:#edf5f6;color:#315e65}small{color:#6b7d82}.message{padding:10px 12px;border-radius:8px;background:#edf5f6;margin:12px 0;white-space:pre-wrap}.hidden{display:none}.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#edf5f6;color:#315e65;font-size:12px}</style></head><body><main><h1>KnowledgeOS 账号</h1><p id="state">正在读取本机业务身份…</p><div id="message" class="message hidden"></div><div class="grid"><section class="card"><h2>登录</h2><label>登录名</label><input id="login_name"><label>密码</label><input id="login_password" type="password"><button id="login">登录</button></section><section class="card"><h2>注册普通账号</h2><label>登录名</label><input id="register_name"><label>显示名称</label><input id="register_display"><label>密码（15–128 位）</label><input id="register_password" type="password"><button id="register">注册</button></section></div><section id="profile" class="card hidden" style="margin-top:16px"><h2>我的个人空间</h2><p id="who"></p><label>方向（逗号分隔）</label><input id="domains" placeholder="software_engineering,system_architecture"><label>学习主线（逗号分隔）</label><input id="tracks" placeholder="engineering_practice,architecture_exam"><label>目标</label><textarea id="goal"></textarea><label>时区</label><input id="timezone" value="Asia/Shanghai"><button id="save">保存个人偏好</button><button id="logout" class="secondary">退出</button></section></main><script>(async()=>{const $=id=>document.getElementById(id);let revision=1;let generation=0;const msg=(text,bad=false)=>{const el=$("message");el.textContent=text;el.className="message";el.style.background=bad?"#fbefee":"#edf5f6"};const call=async(path,options={})=>{const headers={...(options.headers||{})};if(options.method&&options.method!=="GET"){headers["content-type"]="application/json";headers["x-knowledgeos-request"]="1"}const r=await fetch(path,{...options,headers});let j;try{j=await r.json()}catch{}if(!r.ok)throw new Error(j?.message||("请求失败 "+r.status));return j};const load=async()=>{const requestGeneration=++generation;try{const j=await call("/knowledge/v1/me");if(requestGeneration!==generation)return;const u=j.data;revision=u.revision;$("state").textContent="已登录 · "+u.role;$("who").textContent=u.display_name+"（"+u.login_name+"） · 个人空间 "+u.personal_space_id;$("domains").value=(u.domains||[]).join(",");$("tracks").value=(u.learning_tracks||[]).join(",");$("goal").value=u.goal_text||"";$("timezone").value=u.timezone||"Asia/Shanghai";$("profile").className="card"}catch{if(requestGeneration!==generation)return;$("state").textContent="未登录，可注册或登录";$("profile").className="card hidden"}};$("login").onclick=async()=>{const requestGeneration=++generation;try{await call("/knowledge/v1/auth/login",{method:"POST",body:JSON.stringify({login_name:$("login_name").value,password:$("login_password").value})});if(requestGeneration!==generation)return;$("login_password").value="";await load();msg("登录成功")}catch(e){if(requestGeneration!==generation)return;msg(e.message,true)}};$("register").onclick=async()=>{const requestGeneration=++generation;try{await call("/knowledge/v1/auth/register",{method:"POST",body:JSON.stringify({login_name:$("register_name").value,display_name:$("register_display").value,password:$("register_password").value})});if(requestGeneration!==generation)return;$("register_password").value="";msg("注册成功，请登录")}catch(e){if(requestGeneration!==generation)return;msg(e.message,true)}};$("save").onclick=async()=>{const requestGeneration=generation;try{const j=await call("/knowledge/v1/me/preferences",{method:"PATCH",body:JSON.stringify({expected_revision:revision,domains:$("domains").value.split(",").map(x=>x.trim()).filter(Boolean),learning_tracks:$("tracks").value.split(",").map(x=>x.trim()).filter(Boolean),goal_text:$("goal").value,timezone:$("timezone").value})});if(requestGeneration!==generation)return;revision=j.data.revision;msg("个人偏好已保存")}catch(e){if(requestGeneration!==generation)return;msg(e.message,true)}};$("logout").onclick=async()=>{const requestGeneration=++generation;try{await call("/knowledge/v1/auth/logout",{method:"POST",body:"{}"});if(requestGeneration!==generation)return;$("profile").className="card hidden";$("state").textContent="已退出";$("who").textContent="";msg("已退出")}catch(e){if(requestGeneration!==generation)return;msg(e.message,true)}};await load()})()</script></body></html>`
+}
+
+export function buildAccountHtml(): string {
+  const html = buildAccountHtmlLegacy()
+  const script = String.raw`<script>(async()=>{const $=id=>document.getElementById(id);let revision=0,generation=0,authenticatedGeneration=0,canSave=false;const msg=(text,bad=false)=>{const el=$("message");el.textContent=text;el.className="message";el.style.background=bad?"#fbefee":"#edf5f6"};const clearProfile=()=>{revision=0;authenticatedGeneration=0;canSave=false;$("save").disabled=true;["who","domains","tracks","goal","timezone","login_password","register_password"].forEach(id=>{const el=$(id);if(el)el.value=""});$("profile").className="card hidden"};const stateFor=e=>e?.status===401?"未登录，可注册或登录":e?.status===429?"请求受限，请稍后再试":e?.status===503?"服务不可用，请稍后重试":"请求失败";const call=async(path,options={})=>{const headers={...(options.headers||{})};if(options.method&&options.method!=="GET"){headers["content-type"]="application/json";headers["x-knowledgeos-request"]="1"}const r=await fetch(path,{...options,headers});let j;try{j=await r.json()}catch{}if(!r.ok){const e=new Error(j?.message||("请求失败 "+r.status));e.status=r.status;throw e}return j};const load=async(existingGeneration)=>{const my=existingGeneration===undefined?++generation:existingGeneration;clearProfile();try{const j=await call("/knowledge/v1/me");if(my!==generation)return;const u=j.data;revision=u.revision;$("state").textContent="已登录 · "+u.role;$("who").textContent=u.display_name+"（"+u.login_name+"） · 个人空间 "+u.personal_space_id;$("domains").value=(u.domains||[]).join(",");$("tracks").value=(u.learning_tracks||[]).join(",");$("goal").value=u.goal_text||"";$("timezone").value=u.timezone||"Asia/Shanghai";authenticatedGeneration=my;canSave=true;$("save").disabled=false;$("profile").className="card"}catch(e){if(my!==generation)return;clearProfile();$("state").textContent=stateFor(e);msg(e?.message||"请求失败",true)}};$("login").onclick=async()=>{const loginName=$("login_name").value;const loginPassword=$("login_password").value;const my=++generation;clearProfile();$("state").textContent="正在登录…";try{await call("/knowledge/v1/auth/login",{method:"POST",body:JSON.stringify({login_name:loginName,password:loginPassword})});if(my!==generation)return;$("login_password").value="";await load(my);if(my===generation&&canSave)msg("登录成功")}catch(e){if(my!==generation)return;clearProfile();$("state").textContent=stateFor(e);msg(e?.message||"登录失败",true)}};$("register").onclick=async()=>{const my=++generation;try{await call("/knowledge/v1/auth/register",{method:"POST",body:JSON.stringify({login_name:$("register_name").value,display_name:$("register_display").value,password:$("register_password").value})});if(my!==generation)return;$("register_password").value="";msg("注册成功，请登录")}catch(e){if(my!==generation)return;msg(e?.message||"注册失败",true)}};$("save").onclick=async()=>{const my=authenticatedGeneration;if(!canSave||my!==generation)return;try{const j=await call("/knowledge/v1/me/preferences",{method:"PATCH",body:JSON.stringify({expected_revision:revision,domains:$("domains").value.split(",").map(x=>x.trim()).filter(Boolean),learning_tracks:$("tracks").value.split(",").map(x=>x.trim()).filter(Boolean),goal_text:$("goal").value,timezone:$("timezone").value})});if(my!==generation)return;revision=j.data.revision;msg("个人偏好已保存")}catch(e){if(my!==generation)return;if(e?.status===401||e?.status===503){clearProfile();$("state").textContent=stateFor(e)}msg(e?.message||"保存失败",true)}};$("logout").onclick=async()=>{const my=++generation;clearProfile();$("state").textContent="正在退出…";try{await call("/knowledge/v1/auth/logout",{method:"POST",body:"{}"});if(my!==generation)return;$("state").textContent="已退出";msg("已退出")}catch(e){if(my!==generation)return;$("state").textContent=stateFor(e);msg(e?.message||"退出失败",true)}};await load()})()</script>`
+  return html.replace(/<script>[\s\S]*?<\/script>/, script)
 }
 
 export function buildSetupHtml(): string {

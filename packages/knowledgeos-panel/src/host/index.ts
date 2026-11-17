@@ -24,7 +24,7 @@ export { Config }
 export const name = 'knowledgeos-panel'
 
 /** Services this plugin needs before it registers routes. */
-export const inject = ['webServer', 'clientModules']
+export const inject = ['webServer', 'clientModules', 'connection', 'connection.authentication']
 
 /** FND-001 read-only runtime status. */
 export const STATUS_PATH = '/knowledgeos/status'
@@ -147,14 +147,13 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
     protocol?: 'http:' | 'https:'
     getOrigin?: () => string
   }
-  const identity = storage === undefined ? undefined : new IdentityService(storage)
-  const identityHandlers = identity === undefined ? undefined : createIdentityHandlers({
-    service: identity,
-    origin: () => webFacts.getOrigin?.() ?? `${webFacts.protocol ?? 'http:'}//${webFacts.host ?? '127.0.0.1'}`,
-    host: () => webFacts.host ?? '127.0.0.1',
-    protocol: () => webFacts.protocol ?? 'http:',
-  })
-
+  const actualOrigin = (): string | undefined => {
+    try {
+      const explicit = webFacts.getOrigin?.()
+      if (explicit !== undefined) return explicit
+    } catch { return undefined }
+    return undefined
+  }
   const sendIdentityUnavailable = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse): void => {
     if (req.method === 'GET' && req.url?.startsWith('/knowledgeos/account')) {
       res.statusCode = 200
@@ -169,42 +168,58 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
     res.end(JSON.stringify({ code: 'STORAGE_UNAVAILABLE', message: 'storage is not configured', request_id: randomUUID(), retryable: true, safe_details: {} }))
   }
 
-  const ownerSetupPage = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, peer?: unknown): void => {
-    if (req.method !== 'GET') { res.statusCode = 405; res.setHeader('allow', 'GET'); res.end(); return }
-    const principal = (peer as { principal?: { kind?: string } } | undefined)?.principal
-    if (principal?.kind !== 'owner' || !isLoopbackAddress(req.socket?.remoteAddress) || !isLoopbackAddress(webFacts.host?.split(':')[0])) { res.statusCode = 403; res.end('forbidden'); return }
-    res.statusCode = 200
-    res.setHeader('content-type', 'text/html; charset=utf-8')
-    res.setHeader('cache-control', 'no-store')
-    res.end(buildSetupHtml())
-  }
-
-  const accountPage = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse): void => {
-    if (req.method !== 'GET') { res.statusCode = 405; res.setHeader('allow', 'GET'); res.end(); return }
-    res.statusCode = 200
-    res.setHeader('content-type', 'text/html; charset=utf-8')
-    res.setHeader('cache-control', 'no-store')
-    res.end(buildAccountHtml())
-  }
-
-  const withPeer = (handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, peer?: import('./identity-peer.ts').PeerScope) => Promise<void>) => {
-    return (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, peer?: unknown): Promise<void> => {
-      const pending = handler(req, res, peer as import('./identity-peer.ts').PeerScope | undefined)
-      inFlight.add(pending)
-      void pending.finally(() => { inFlight.delete(pending) })
-      return pending
+  const registerIdentityRoutes = (identityContext: Context): void => {
+    const identityAvailable = (): boolean => {
+      let connection: { authentication?: unknown; browserPeer?: { signal?: AbortSignal } }
+      // The outer plugin context is the one covered by the bundle's nested
+      // `connection.authentication` injection.  A callback scope created by
+      // `ctx.inject(['connection'], ...)` may expose a lazy proxy that throws
+      // when its nested properties are read, even though the live Connection
+      // service is present.  Read the already injected outer service instead;
+      // retain the guard so a shutting down/malformed Host reports 503 rather
+      // than turning the request into an internal 500.
+      try { connection = ctx.connection } catch { return false }
+      return connection.authentication !== undefined && connection.browserPeer?.signal?.aborted !== true
+        && webFacts.host !== undefined && webFacts.protocol !== undefined && actualOrigin() !== undefined
     }
-  }
-
-  ctx.effect(() => {
-    const disposers: Array<() => void> = []
-    disposers.push(ctx.webServer.register({ kind: 'exact', path: ACCOUNT_PATH, auth: 'anonymous', handler: accountPage }))
-    disposers.push(ctx.webServer.register({ kind: 'exact', path: SETUP_PATH, auth: 'required', handler: ownerSetupPage }))
-    if (identityHandlers === undefined) {
-      for (const path of ['/knowledge/v1/auth/status', '/knowledge/v1/auth/bootstrap', '/knowledge/v1/auth/register', '/knowledge/v1/auth/login', '/knowledge/v1/auth/logout', '/knowledge/v1/me', '/knowledge/v1/me/preferences', '/knowledge/v1/spaces']) {
-        disposers.push(ctx.webServer.register({ kind: 'exact', path, auth: path.endsWith('/bootstrap') ? 'required' : 'anonymous', handler: sendIdentityUnavailable }))
+    const identity = new IdentityService(storage as NonNullable<typeof storage>)
+    const identityHandlers = createIdentityHandlers({
+      service: identity,
+      origin: actualOrigin,
+      host: () => webFacts.host,
+      protocol: () => webFacts.protocol ?? 'http:',
+      isAvailable: identityAvailable,
+    })
+    const ownerSetupPage = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, peer?: unknown): void => {
+      if (req.method !== 'GET') { res.statusCode = 405; res.setHeader('allow', 'GET'); res.end(); return }
+      if (!identityAvailable()) { res.statusCode = 503; res.setHeader('content-type', 'text/plain; charset=utf-8'); res.end('identity service is unavailable'); return }
+      const principal = (peer as { principal?: { kind?: string } } | undefined)?.principal
+      if (principal?.kind !== 'owner' || !isLoopbackAddress(req.socket?.remoteAddress) || !isLoopbackAddress(webFacts.host)) { res.statusCode = 403; res.end('forbidden'); return }
+      res.statusCode = 200
+      res.setHeader('content-type', 'text/html; charset=utf-8')
+      res.setHeader('cache-control', 'no-store')
+      res.end(buildSetupHtml())
+    }
+    const accountPage = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse): void => {
+      if (req.method !== 'GET') { res.statusCode = 405; res.setHeader('allow', 'GET'); res.end(); return }
+      if (!identityAvailable()) { res.statusCode = 503; res.setHeader('content-type', 'text/plain; charset=utf-8'); res.end('identity service is unavailable'); return }
+      res.statusCode = 200
+      res.setHeader('content-type', 'text/html; charset=utf-8')
+      res.setHeader('cache-control', 'no-store')
+      res.end(buildAccountHtml())
+    }
+    const withPeer = (handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, peer?: import('./identity-peer.ts').PeerScope) => Promise<void>) => {
+      return (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, peer?: unknown): Promise<void> => {
+        const pending = handler(req, res, peer as import('./identity-peer.ts').PeerScope | undefined)
+        inFlight.add(pending)
+        void pending.finally(() => { inFlight.delete(pending) })
+        return pending
       }
-    } else {
+    }
+    identityContext.effect(() => {
+      const disposers: Array<() => void> = []
+      disposers.push(identityContext.webServer.register({ kind: 'exact', path: ACCOUNT_PATH, auth: 'anonymous', handler: accountPage }))
+      disposers.push(identityContext.webServer.register({ kind: 'exact', path: SETUP_PATH, auth: 'required', handler: ownerSetupPage }))
       const routes: Array<{ path: string; auth: 'anonymous' | 'required'; handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, peer?: import('./identity-peer.ts').PeerScope) => Promise<void> }> = [
         { path: '/knowledge/v1/auth/status', auth: 'anonymous', handler: identityHandlers.status },
         { path: '/knowledge/v1/auth/bootstrap', auth: 'required', handler: identityHandlers.bootstrap },
@@ -215,8 +230,22 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
         { path: '/knowledge/v1/me/preferences', auth: 'anonymous', handler: identityHandlers.preferences },
         { path: '/knowledge/v1/spaces', auth: 'anonymous', handler: identityHandlers.spaces },
       ]
-      for (const route of routes) disposers.push(ctx.webServer.register({ kind: 'exact', path: route.path, auth: route.auth, handler: withPeer(route.handler) }))
-    }
-    return async () => { for (const dispose of disposers) dispose(); await identity?.close() }
-  }, 'knowledgeos-identity: account and business routes')
+      for (const route of routes) disposers.push(identityContext.webServer.register({ kind: 'exact', path: route.path, auth: route.auth, handler: withPeer(route.handler) }))
+      return async () => { for (const dispose of disposers) dispose(); await identity.close() }
+    }, 'knowledgeos-identity: account and business routes')
+  }
+
+  if (storage === undefined) {
+    ctx.effect(() => {
+      const disposers: Array<() => void> = []
+      disposers.push(ctx.webServer.register({ kind: 'exact', path: ACCOUNT_PATH, auth: 'anonymous', handler: sendIdentityUnavailable }))
+      disposers.push(ctx.webServer.register({ kind: 'exact', path: SETUP_PATH, auth: 'required', handler: sendIdentityUnavailable }))
+      for (const path of ['/knowledge/v1/auth/status', '/knowledge/v1/auth/bootstrap', '/knowledge/v1/auth/register', '/knowledge/v1/auth/login', '/knowledge/v1/auth/logout', '/knowledge/v1/me', '/knowledge/v1/me/preferences', '/knowledge/v1/spaces']) {
+        disposers.push(ctx.webServer.register({ kind: 'exact', path, auth: path.endsWith('/bootstrap') ? 'required' : 'anonymous', handler: sendIdentityUnavailable }))
+      }
+      return () => { for (const dispose of disposers) dispose() }
+    }, 'knowledgeos-identity: unavailable routes')
+  } else {
+    ctx.inject(['connection', 'connection.authentication'], registerIdentityRoutes)
+  }
 }

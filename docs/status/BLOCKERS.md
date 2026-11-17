@@ -1,16 +1,14 @@
 # 当前收口问题
 
-更新：2026-11-17。当前为FND-003产品/验收返修，不是外部环境阻塞。FND-004前置尚未满足，不激活第四部分；旧API额度继续排除。
+更新：2026-11-17（Asia/Shanghai）。FND-003 六项返修已关闭，没有当前单元阻塞；最终候选 r16 与独立复核 r9 已绑定。
 
-| 编号 | 待关闭问题 |
+| 编号 | 状态 |
 |---|---|
-| FND003-R1 | Connection依赖生命周期、整体loopback启用与IPv6设置页 |
-| FND003-R2 | 来源尝试限流与真实KDF取消/恢复证明 |
-| FND003-R3 | 严格DTO、主线处理和不支持query拒绝 |
-| FND003-R4 | 退出/切换清空旧身份与密码、阻断旧草稿写新账号、正确错误状态 |
-| FND003-R5 | v2真实约束预检及生产bootstrap/register/v2迁移故障 |
-| FND003-R6 | 实际安装产物检查、独立FAIL非零退出与最终候选证据 |
+| FND003-R1 | CLOSED；Connection 生命周期、loopback 与 IPv6 准入已验证 |
+| FND003-R2 | CLOSED；来源限流、动态 Retry-After、KDF 运行/排队取消与恢复已验证 |
+| FND003-R3 | CLOSED；严格 DTO、query 拒绝、四领域三主线目标保存已验证 |
+| FND003-R4 | CLOSED；退出/切换清空、迟到响应丢弃、旧草稿禁写已验证 |
+| FND003-R5 | CLOSED；v2 约束预检与 bootstrap/register/migration 回滚恢复已验证 |
+| FND003-R6 | CLOSED；实际加载产物、独立非零失败与最终候选绑定已验证 |
 
-复现、证据与关闭要求见 [提交复核](../evidence/FND-003/SUBMISSION_REVIEW_20261117.md)。原PASS记录保留为其实际覆盖范围，不作为本次问题已解决的证明。本次没有修改产品源码，新候选复测尚未执行。
-
-若修复过程中出现真实外部阻塞，记录命令、失败、影响测试、已尝试方案和最小解除条件；继续本单元独立可做工作，不跳入FND-004。Desktop/Windows安装、完整ACL和真实模型仍按对应单元范围处理。
+未验证范围仍属于其他单元：完整 ACL、资料/学习计划/评分、模型/RAG、jobs/audit/outbox、Windows 安装和完整产品审查。FND-004 未开发。

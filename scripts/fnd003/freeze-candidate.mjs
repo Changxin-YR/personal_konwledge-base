@@ -16,7 +16,7 @@ const paths = [
   'packages/knowledgeos-panel/src/host/identity-http.ts', 'packages/knowledgeos-panel/src/host/identity-peer.ts',
   'packages/knowledgeos-panel/src/host/storage.ts', 'packages/knowledgeos-panel/src/host/test-support.ts',
   'packages/knowledgeos-panel/src/client/Panel.tsx', 'scripts/fnd003/harness.mjs',
-  'scripts/fnd003/scope-check.mjs', 'scripts/fnd003/freeze-candidate.mjs', 'scripts/fnd003/run-all.mjs',
+  'scripts/fnd003/scope-check.mjs', 'scripts/fnd003/freeze-candidate.mjs', 'scripts/fnd003/run-all.mjs', 'scripts/fnd003/independent-verification.mjs', 'scripts/fnd003/check-loaded-artifacts.mjs',
 ]
 const files = {}
 for (const relative of paths) {

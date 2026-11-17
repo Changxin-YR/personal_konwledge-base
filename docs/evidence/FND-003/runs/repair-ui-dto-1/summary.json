@@ -1,0 +1,40 @@
+{
+  "run_id": "repair-ui-dto-1",
+  "candidate": null,
+  "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "port": 3101,
+  "profile": "knowledgeos-identity-test",
+  "started_at": "2026-11-17T06:16:14.405Z",
+  "finished_at": "2026-11-17T06:17:27.443Z",
+  "result": "FAIL",
+  "results": [
+    {
+      "id": "T03",
+      "name": "业务身份与 DSH 宿主权限分离",
+      "status": "PASS",
+      "evidence": "T03.json"
+    },
+    {
+      "id": "T06",
+      "name": "领域、目标、私人空间及版本冲突",
+      "status": "PASS",
+      "evidence": "T06.json"
+    },
+    {
+      "id": "T07",
+      "name": "密码、输入和公开证据保护",
+      "status": "PASS",
+      "evidence": "T07.json"
+    },
+    {
+      "id": "T11",
+      "name": "真实账号界面与身份切换",
+      "status": "FAIL",
+      "evidence": "T11.json"
+    }
+  ],
+  "failures": [
+    "T11: page.waitForFunction: Timeout 10000ms exceeded."
+  ],
+  "out": "docs/evidence/FND-003/runs/repair-ui-dto-1"
+}
