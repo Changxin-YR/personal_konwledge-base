@@ -117,9 +117,9 @@ export function isIdentityRuntimeAvailable(facts: IdentityRuntimeFacts): boolean
 
 function requestPath(req: IncomingMessage): string { return new URL(req.url ?? '/', 'http://localhost').pathname }
 
-function cookieName(serviceId: string, origin: string): string { return `kos_session_${createHash('sha256').update(`${serviceId}|${origin}`).digest('hex').slice(0, 16)}` }
+export function businessCookieName(serviceId: string, origin: string): string { return `kos_session_${createHash('sha256').update(`${serviceId}|${origin}`).digest('hex').slice(0, 16)}` }
 
-function readCookie(req: IncomingMessage, name: string): string | undefined {
+export function readCookie(req: IncomingMessage, name: string): string | undefined {
   const raw = req.headers.cookie
   if (typeof raw !== 'string') return undefined
   for (const part of raw.split(';')) {
@@ -202,7 +202,7 @@ export function createIdentityHandlers(options: IdentityHttpOptions): IdentityHa
     const origin = options.origin()
     if (origin === undefined) return undefined
     const state = service.setupState
-    return readCookie(req, cookieName(state.serviceId, origin))
+    return readCookie(req, businessCookieName(state.serviceId, origin))
   }
 
   const assertAvailable = (): void => {
@@ -271,14 +271,14 @@ export function createIdentityHandlers(options: IdentityHttpOptions): IdentityHa
     requireMethod(req, 'POST'); assertTrust(req, true); const signal = requestSignal(req, res); requireJson(req); const body = bodyObject(await readBody(req)); assertKeys(body, ['login_name', 'password'])
     const result = await service.login({ loginName: body.login_name, password: body.password, oldToken: tokenFor(req), source: requestSource(req), signal })
     const origin = options.origin(); if (origin === undefined) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'identity service is unavailable', true)
-    const state = service.setupState; const name = cookieName(state.serviceId, origin); const maxAge = Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1000)
+    const state = service.setupState; const name = businessCookieName(state.serviceId, origin); const maxAge = Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1000)
     sendJson(res, 200, withMeta(randomUUID(), safeProfile(result.user)), { 'set-cookie': sessionCookie(name, result.token, origin, options.protocol(), maxAge) })
   })
 
   const logout = async (req: IncomingMessage, res: ServerResponse): Promise<void> => dispatch(req, res, async () => {
     requireMethod(req, 'POST'); assertTrust(req, true); requireJson(req); const body = bodyObject(await readBody(req)); assertKeys(body, [])
     service.logout(tokenFor(req)); const origin = options.origin(); if (origin === undefined) throw new HttpError(503, 'IDENTITY_UNAVAILABLE', 'identity service is unavailable', true)
-    const state = service.setupState; const name = cookieName(state.serviceId, origin); sendEmpty(res, 204, { 'set-cookie': clearCookie(name, origin, options.protocol()) })
+    const state = service.setupState; const name = businessCookieName(state.serviceId, origin); sendEmpty(res, 204, { 'set-cookie': clearCookie(name, origin, options.protocol()) })
   })
 
   const me = async (req: IncomingMessage, res: ServerResponse): Promise<void> => dispatch(req, res, () => { requireMethod(req, 'GET'); assertTrust(req, false); const actor = requireActor(req); const profile = service.profile(actor.userId); if (profile === undefined) throw new HttpError(401, 'SESSION_EXPIRED', 'business session is required'); sendJson(res, 200, withMeta(randomUUID(), safeProfile(profile))) })

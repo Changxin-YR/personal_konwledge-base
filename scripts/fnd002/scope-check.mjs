@@ -3,8 +3,8 @@
  * FND-002 scope check.
  *
  * The FND-001 check intentionally banned SQLite for the whole package; it stays
- * as history. This check allows exactly the FND-002 storage adapter and trusted
- * config while rejecting future business layers and dependency inversion.
+ * as history. This check allows the cumulative approved storage adapter schema
+ * while rejecting future business layers and dependency inversion.
  */
 import { readFile, readdir } from 'node:fs/promises'
 import { join, relative, resolve } from 'node:path'
@@ -44,9 +44,23 @@ for (const file of ['http.ts', 'config.ts', 'index.ts']) {
 }
 if (!/migrationOverride/.test(hostSource['storage.ts'])) notes.push('storage.ts keeps the test-only migration override')
 
-// Only the two mandated tables are created.
+// The adapter may create the approved cumulative schema from v1 through v3.
+// Keep this list explicit so an accidental future table still fails scope.
 const createTables = [...hostSource['storage.ts'].matchAll(/CREATE TABLE\s+(\w+)/g)].map(match => match[1])
-if (createTables.sort().join(',') !== 'schema_migrations,storage_probe_records') {
+const allowedTables = [
+  'auth_sessions',
+  'knowledge_objects',
+  'knowledge_projects',
+  'password_credentials',
+  'project_memberships',
+  'resource_grants',
+  'schema_migrations',
+  'service_identity',
+  'spaces',
+  'storage_probe_records',
+  'users',
+]
+if (createTables.sort().join(',') !== allowedTables.join(',')) {
   failures.push(`storage.ts: unexpected table set ${createTables.join(',')}`)
 }
 
@@ -86,7 +100,7 @@ const result = {
   result: failures.length === 0 ? 'PASS' : 'FAIL',
   failures,
   notes: [`checked ${hostFiles.length} host files`, ...notes],
-  allowed_tables: createTables,
+  allowed_tables: allowedTables,
   runtime_dependencies: runtimeDependencies,
 }
 console.log(JSON.stringify(result, null, 2))

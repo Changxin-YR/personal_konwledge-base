@@ -865,24 +865,53 @@
         "FND-003"
       ],
       "scope": [
-        "个人/项目范围和对象动作权限",
-        "共享服务最小profile路由清单",
-        "未公开原生owner/file/session附件/shell接口"
+        "统一对象授权动作判定与默认拒绝",
+        "个人对象真实存储及跨用户隔离",
+        "项目成员资格与逐动作授权记录",
+        "授权生效/到期/撤销与重启保持",
+        "共享 profile 精确白名单和高权限接口阻断",
+        "FND-001 至 FND-003 受影响回归"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "搜索索引、AI摘要/答案、文件导入下载、邀请码兑换、完整审核/评分",
+        "公网部署、完整IAM/ABAC平台、微服务",
+        "自动开始 FND-005、FND-006 或资料导入"
       ],
       "test_obligations": [
         {
           "id": "FND-004-T01",
-          "scenario": "甲乙通过已实现API猜测彼此对象ID",
-          "expected": "拒绝越权且不泄露标题/正文"
+          "scenario": "三个真实身份的个人对象隔离和猜测ID",
+          "expected": "管理员、甲、乙分别登录；列表、直接URL和猜测ID只能返回有权对象，不能泄露标题/正文；伪造actor/user/role被拒绝。"
         },
         {
           "id": "FND-004-T02",
-          "scenario": "普通成员调用全局Host路径与无权限动作",
-          "expected": "拒绝或路由不存在，管理员标签不自动获得私人正文"
+          "scenario": "八类动作权限矩阵",
+          "expected": "read/comment/edit/export/manage_share/delete/review/view_learning_records逐动作判定；edit不蕴含delete或manage_share；默认拒绝。"
+        },
+        {
+          "id": "FND-004-T03",
+          "scenario": "项目成员和最小授权记录",
+          "expected": "项目成员资格、只读与编辑grant可真实创建和使用；成员资格不自动开放个人学习记录；跨项目/跨service拒绝。"
+        },
+        {
+          "id": "FND-004-T04",
+          "scenario": "生效、到期、撤销和重新读取",
+          "expected": "valid_from前、now等于expires_at、revoked_at非空均拒绝；下一次读取/列表/动作重新判权；新授权恢复。"
+        },
+        {
+          "id": "FND-004-T05",
+          "scenario": "v3迁移、重启和故障回滚",
+          "expected": "v1/v2数据及checksum保留；v3真实schema校验；中途失败无半提交；重启后对象和授权状态不变。"
+        },
+        {
+          "id": "FND-004-T06",
+          "scenario": "共享入口白名单与DSH高权限阻断",
+          "expected": "实际注册路由可枚举；普通业务Cookie不能使用owner RPC、插件、Shell、Session附件、任意文件或非白名单接口；Connection限制如实记录。"
+        },
+        {
+          "id": "FND-004-T07",
+          "scenario": "构建、回归和独立复核",
+          "expected": "类型、构建、FND-001至003受影响回归和独立复核绑定同一候选；完整A02/A34/A46未覆盖部分保持NOT_RUN。"
         }
       ],
       "acceptance_ids": [
@@ -891,9 +920,38 @@
         "A46"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
-      "status": "planned",
-      "test_plan_status": "planning_baseline_expand_on_activation"
+      "completion_gate": "FND-004-T01至T07在冻结候选实际通过；独立复核通过；完整A02/A34/A46未覆盖范围保持NOT_RUN；提交推送后停在FND-004等待用户。",
+      "status": "passed",
+      "test_plan_status": "detailed_completed",
+      "instruction_revision": "3.2.0",
+      "working_branch": "codex/knowledgeos-fnd-004",
+      "base_commit": "5621f3d0e40dc11bcd2062687a9ad3087f8c4442",
+      "activated_at": "2026-11-17",
+      "activation_basis": "explicit_user_selection_of_FND004",
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "retest_status": "PASS",
+      "completed_test_ids": [
+        "FND-004-T01",
+        "FND-004-T02",
+        "FND-004-T03",
+        "FND-004-T04",
+        "FND-004-T05",
+        "FND-004-T06",
+        "FND-004-T07"
+      ],
+      "open_review_items": [],
+      "closed_review_items": [],
+      "evidence_paths": [
+        "docs/evidence/FND-004/architecture.md",
+        "docs/evidence/FND-004/permission-matrix.md",
+        "docs/evidence/FND-004/test-plan.md",
+        "docs/evidence/FND-004/REPORT.md",
+        "docs/evidence/FND-004/candidate.md",
+        "docs/evidence/FND-004/runs/fnd004-final-20261117/summary.json",
+        "docs/evidence/FND-004/independent/summary.json"
+      ],
+      "completed_at": "2026-11-17T23:27:29+08:00"
     },
     {
       "id": "FND-005",

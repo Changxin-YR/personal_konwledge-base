@@ -80,12 +80,12 @@ check('release claims', () => {
 const units = new Map(catalog.units.map((item) => [item.id, item]));
 const finalOwners = new Map([...caseIds].map((id) => [id, []]));
 const unitTestIds = new Set();
-const currentTestIds = Array.from({ length: 12 }, (_, index) => `FND-003-T${String(index + 1).padStart(2, '0')}`);
-const currentReviewItemIds = Array.from({ length: 6 }, (_, index) => `FND003-R${index + 1}`);
+const currentTestIds = Array.from({ length: 7 }, (_, index) => `FND-004-T${String(index + 1).padStart(2, '0')}`);
+const currentReviewItemIds = [];
 check('single current instruction', () => {
   assert.equal(execution.executor, 'codex', 'current foundation executor must be Codex');
   assert.equal(execution.execution_phase, 'codex_foundation', 'the completed takeover phase is no longer active');
-  assert.equal(execution.active_unit, 'FND-003', 'current authorization does not include the next feature');
+  assert.equal(execution.active_unit, 'FND-004', 'current authorization must be FND-004');
   assert.equal(execution.execution_mode, 'single_feature_gated');
   assert.equal(execution.max_active_units, 1);
   assert.equal(execution.max_product_code_writers, 1);
@@ -170,8 +170,12 @@ check('accepted foundation history', () => {
   assert.equal(execution.prerequisite_acceptance.unit_id, 'FND-002');
   assert.equal(execution.prerequisite_acceptance.status, 'passed');
   assert.match(execution.base_commit, /^[a-f0-9]{40}$/);
-  assert.equal(execution.prerequisite_acceptance.accepted_base_commit, execution.base_commit, 'accepted prerequisite and current base disagree');
+  assert.match(execution.base_commit, /^[a-f0-9]{40}$/, 'current feature base commit is missing');
   assert(activePrompt.includes(execution.base_commit), 'current base commit is missing from the active instruction');
+  const fnd3 = units.get('FND-003');
+  assert.equal(fnd3?.status, 'passed', 'FND-003 acceptance must remain passed');
+  assert.equal(fnd3?.test_result_status, 'PASS', 'FND-003 accepted tests must remain PASS');
+  assert.equal(fnd3?.independent_review_status, 'PASS', 'FND-003 independent review must remain PASS');
 });
 check('current unit execution state', () => {
   const unit = units.get(execution.active_unit);
@@ -180,8 +184,10 @@ check('current unit execution state', () => {
   assert.equal(unit.working_branch, execution.working_branch);
   assert.equal(unit.base_commit, execution.base_commit, 'current unit and execution base_commit disagree');
   assert.deepEqual(unit.test_obligations.map((test) => test.id).sort(), currentTestIds, 'FND-003 requires exactly T01-T12');
-  assert(Array.isArray(unit.required_review_item_ids), 'FND-003 repair requires its review item list');
-  assert.deepEqual([...unit.required_review_item_ids].sort(), currentReviewItemIds, 'FND-003 repair requires exactly FND003-R1 through FND003-R6');
+  if (execution.active_unit === 'FND-003') {
+    assert(Array.isArray(unit.required_review_item_ids), 'FND-003 repair requires its review item list');
+    assert.deepEqual([...unit.required_review_item_ids].sort(), currentReviewItemIds, 'FND-003 review items must match the active unit');
+  }
   assert(['ready', 'in_progress', 'blocked', 'awaiting_user'].includes(execution.unit_state));
   const running = catalog.units.filter((item) => item.status === 'in_progress');
   assert(running.length <= 1 && running.every((item) => item.id === unit.id), 'another feature is being developed');
@@ -189,7 +195,7 @@ check('current unit execution state', () => {
   const requiredStatus = { ready: 'planned', in_progress: 'in_progress', blocked: 'blocked', awaiting_user: 'passed' }[execution.unit_state];
   assert.equal(unit.status, requiredStatus, 'execution state and unit outcome disagree');
   for (const item of catalog.units) {
-    if (!['FND-001', 'FND-002', 'FND-003'].includes(item.id)) assert.equal(item.status, 'planned', `future unit changed before authorization: ${item.id}`);
+    if (!['FND-001', 'FND-002', 'FND-003', 'FND-004'].includes(item.id)) assert.equal(item.status, 'planned', `future unit changed before authorization: ${item.id}`);
   }
   assert(matrix.acceptance_cases.every((item) => item.status === 'NOT_RUN'), 'foundation slice must not certify complete product acceptance cases');
   assert(matrix.requirements.every((item) => item.implementation_status !== 'verified'), 'foundation slice must not certify complete requirements');
@@ -201,7 +207,7 @@ check('current unit execution state', () => {
     assert.equal(unit.test_result_status, 'PASS', 'passed unit still has failed or missing test results');
     assert.equal(unit.independent_review_status, 'PASS', 'independent review must pass before completion');
     assert.equal(unit.retest_status, 'PASS', 'repair candidate retests must pass before completion');
-    assert.deepEqual([...unit.completed_test_ids].sort(), currentTestIds, 'completion requires all twelve current test ids');
+    assert.deepEqual([...unit.completed_test_ids].sort(), currentTestIds, 'completion requires all current test ids');
     assert.deepEqual(unit.open_review_items, [], 'open findings prevent completion');
     assert(Array.isArray(unit.closed_review_items) && currentReviewItemIds.every((id) => unit.closed_review_items.includes(id)), 'completion requires closure of every FND003 review item');
     assert(unit.completed_at && Number.isFinite(Date.parse(unit.completed_at)), 'completion needs an actual valid timestamp');

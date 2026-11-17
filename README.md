@@ -4,11 +4,11 @@
 
 ## 当前唯一执行入口
 
-**[CODEX_START.md](CODEX_START.md)** — Codex v3.1.1，只执行 **FND-003：身份单元返修与验收收口**。分支 `codex/knowledgeos-fnd-003`，当前in_progress，六项审查问题OPEN，新候选复测NOT_RUN。
+**[CODEX_START.md](CODEX_START.md)** — Codex v3.2.0，只执行 **FND-004：对象权限与共享入口边界**。分支 `codex/knowledgeos-fnd-004`，基于 FND-003 最终提交 `5621f3d0e40dc11bcd2062687a9ad3087f8c4442`，当前唯一 active_unit，auto_advance=false。
 
-第三部分提交b1ff9ae已有真实功能与测试记录，但复核发现准入、来源限流、输入契约、身份切换清理、v2约束和验收检查器问题。当前不能据旧报告的十二项PASS进入第四部分。详见 [提交复核](docs/evidence/FND-003/SUBMISSION_REVIEW_20261117.md)。旧结果保留历史，当前指令只留一份。
+FND-003 已通过最终候选与独立复核并保留历史证据。本轮新增对象、项目成员和逐动作授权；搜索、AI、导出、邀请码及完整 A02/A34/A46 仍未实现，保持 NOT_RUN。详见 [FND-004报告](docs/evidence/FND-004/REPORT.md)。
 
-FND-001面板与FND-002持久化已验收。Codex按六项问题逐项修复、立即测试，在冻结最终候选重新完成十二项验收与独立复核，提交推送后停在FND-003等待用户。DSH仍为产品底座；旧API额度不处理，完整产品审查未开始。
+FND-001、FND-002、FND-003 保持已验收。Codex 按对象权限、隔离、到期撤销、共享入口和回归顺序开发，完成当前单元后提交并停在 FND-004 等待用户。DSH 仍为产品底座；完整产品审查未开始。
 
 ## 规范与结果
 

@@ -15,6 +15,9 @@ export {
   MIGRATION_V2,
   MIGRATION_V2_CHECKSUM,
   MIGRATION_V2_SQL,
+  MIGRATION_V3,
+  MIGRATION_V3_CHECKSUM,
+  MIGRATION_V3_SQL,
   PROBE_SCHEMA_VERSION,
   PROBE_SUPPORTED_TABLES,
   ProbeStorage,
@@ -23,6 +26,8 @@ export {
   type MigrationPlan,
   type ProbeStorageOptions,
 } from './storage.ts'
+export { AUTH_ACTIONS, authorize, isGrantActive, type AuthorizationAction, type AuthorizationTarget, type AuthorizationGrant, type ProjectMembership } from './authorization.ts'
+export { type GrantRecord, type KnowledgeObjectRecord, type ProjectRecord } from './storage.ts'
 export {
   contentDigest,
   createProbeRecord,

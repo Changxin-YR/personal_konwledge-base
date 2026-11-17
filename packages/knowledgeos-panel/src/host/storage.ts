@@ -21,13 +21,14 @@ import type {
   UserCreateInput,
   UserRecord,
 } from './identity.ts'
+import { authorize, type AuthorizationAction, type AuthorizationGrant, type AuthorizationTarget, type ProjectMembership, type ResourceScope } from './authorization.ts'
 import type { CreateOutcome, ProbeRecord, ProbeStorePort } from './records.ts'
 import { RecordsError } from './records.ts'
 
 /** Fixed application identity written to PRAGMA application_id (KOS1). */
 export const APPLICATION_ID = 0x4b4f5331
 /** Current application schema version. */
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
 /** Historical v1 schema version used by FND-002 fixtures. */
 export const PROBE_SCHEMA_VERSION = 1
 export const BUSY_TIMEOUT_MS = 250
@@ -104,9 +105,60 @@ CREATE TABLE spaces (
 `
 export const MIGRATION_V2_CHECKSUM = createHash('sha256').update(Buffer.from(MIGRATION_V2_SQL, 'utf8')).digest('hex')
 
+export const MIGRATION_V3_SQL = `CREATE TABLE knowledge_projects (
+  id TEXT PRIMARY KEY,
+  service_id TEXT NOT NULL REFERENCES service_identity(service_id),
+  owner_user_id TEXT NOT NULL REFERENCES users(id),
+  name TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('active', 'disabled')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+) STRICT;
+CREATE TABLE project_memberships (
+  project_id TEXT NOT NULL REFERENCES knowledge_projects(id),
+  user_id TEXT NOT NULL REFERENCES users(id),
+  role TEXT NOT NULL CHECK (role IN ('member', 'owner')),
+  valid_from TEXT NOT NULL,
+  expires_at TEXT,
+  revoked_at TEXT,
+  PRIMARY KEY (project_id, user_id)
+) STRICT;
+CREATE TABLE knowledge_objects (
+  id TEXT PRIMARY KEY,
+  service_id TEXT NOT NULL REFERENCES service_identity(service_id),
+  space_id TEXT NOT NULL REFERENCES spaces(id),
+  scope_kind TEXT NOT NULL CHECK (scope_kind IN ('personal', 'project')),
+  project_id TEXT REFERENCES knowledge_projects(id),
+  owner_user_id TEXT NOT NULL REFERENCES users(id),
+  object_type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('active', 'deleted')),
+  revision INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  CHECK ((scope_kind = 'personal' AND project_id IS NULL) OR (scope_kind = 'project' AND project_id IS NOT NULL))
+) STRICT;
+CREATE TABLE resource_grants (
+  id TEXT PRIMARY KEY,
+  service_id TEXT NOT NULL REFERENCES service_identity(service_id),
+  resource_type TEXT NOT NULL CHECK (resource_type = 'knowledge_object'),
+  resource_id TEXT NOT NULL REFERENCES knowledge_objects(id),
+  subject_type TEXT NOT NULL CHECK (subject_type IN ('user', 'project')),
+  subject_id TEXT NOT NULL,
+  action TEXT NOT NULL CHECK (action IN ('read', 'comment', 'edit', 'export', 'manage_share', 'delete', 'review', 'view_learning_records')),
+  valid_from TEXT NOT NULL,
+  expires_at TEXT,
+  revoked_at TEXT,
+  created_at TEXT NOT NULL,
+  UNIQUE (resource_id, subject_type, subject_id, action)
+) STRICT;
+`
+export const MIGRATION_V3_CHECKSUM = createHash('sha256').update(Buffer.from(MIGRATION_V3_SQL, 'utf8')).digest('hex')
+
 export const PROBE_SUPPORTED_TABLES = ['schema_migrations', 'storage_probe_records'] as const
 export const IDENTITY_SUPPORTED_TABLES = [
-  'auth_sessions', 'password_credentials', 'schema_migrations', 'service_identity', 'spaces', 'storage_probe_records', 'users',
+  'auth_sessions', 'knowledge_objects', 'knowledge_projects', 'password_credentials', 'project_memberships', 'resource_grants', 'schema_migrations', 'service_identity', 'spaces', 'storage_probe_records', 'users',
 ] as const
 
 export interface MigrationPlan {
@@ -117,6 +169,7 @@ export interface MigrationPlan {
 
 export const MIGRATION_V1: MigrationPlan = { version: 1, sql: MIGRATION_V1_SQL, checksum: MIGRATION_V1_CHECKSUM }
 export const MIGRATION_V2: MigrationPlan = { version: 2, sql: MIGRATION_V2_SQL, checksum: MIGRATION_V2_CHECKSUM }
+export const MIGRATION_V3: MigrationPlan = { version: 3, sql: MIGRATION_V3_SQL, checksum: MIGRATION_V3_CHECKSUM }
 
 export interface ProbeStorageOptions {
   readonly dataDir: string
@@ -128,6 +181,7 @@ export interface ProbeStorageOptions {
     | 'v2:after-schema' | 'v2:after-identity' | 'v2:after-ledger'
     | 'bootstrap:after-credential' | 'bootstrap:after-user' | 'bootstrap:after-space' | 'bootstrap:after-identity'
     | 'register:after-credential' | 'register:after-user' | 'register:after-space'
+    | 'v3:after-projects' | 'v3:after-memberships' | 'v3:after-objects' | 'v3:after-grants'
 }
 
 export interface DatabaseFacts {
@@ -137,6 +191,26 @@ export interface DatabaseFacts {
   readonly objects: readonly { type: string; name: string }[]
   readonly ledger: readonly { version: number; checksum: string; applied_at: string }[]
 }
+
+export interface KnowledgeObjectRecord {
+  readonly id: string
+  readonly serviceId: string
+  readonly spaceId: string
+  readonly scope: ResourceScope
+  readonly projectId?: string
+  readonly ownerUserId: string
+  readonly objectType: string
+  readonly title: string
+  readonly body: string
+  readonly status: 'active' | 'deleted'
+  readonly revision: number
+  readonly createdAt: string
+  readonly updatedAt: string
+}
+
+export interface ProjectRecord { readonly id: string; readonly serviceId: string; readonly ownerUserId: string; readonly name: string; readonly status: string; readonly createdAt: string; readonly updatedAt: string }
+
+export interface GrantRecord extends AuthorizationGrant { readonly id: string; readonly serviceId: string; readonly resourceId: string; readonly resourceType: 'knowledge_object'; readonly createdAt: string }
 
 interface StoredRow {
   readonly id: string
@@ -234,8 +308,12 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       if (existing === 'blank') {
         this.#migrateV1(db)
         this.#migrateV2(db)
+        this.#migrateV3(db)
       } else if (existing === 'v1') {
         this.#migrateV2(db)
+        this.#migrateV3(db)
+      } else if (existing === 'v2') {
+        this.#migrateV3(db)
       }
       this.#verify(db)
       const facts = readDatabaseFacts(path)
@@ -251,7 +329,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     }
   }
 
-  #precheck(path: string): 'blank' | 'v1' | 'v2' {
+  #precheck(path: string): 'blank' | 'v1' | 'v2' | 'v3' {
     const facts = readDatabaseFacts(path)
     if (facts.applicationId === 0 && facts.userVersion === 0 && facts.objects.length === 0) return 'blank'
     if (facts.applicationId !== APPLICATION_ID) throw new RecordsError('STORAGE_INCOMPATIBLE', 'database belongs to another application')
@@ -266,6 +344,12 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       try { this.#assertV2Definitions(db) } finally { db.close() }
       return 'v2'
     }
+    if (facts.userVersion === 3) {
+      this.#assertV3Schema(facts)
+      const db = new DatabaseSync(path, { readOnly: true })
+      try { this.#assertV3Definitions(db) } finally { db.close() }
+      return 'v3'
+    }
     throw new RecordsError('STORAGE_INCOMPATIBLE', 'database schema version is not supported')
   }
 
@@ -278,12 +362,22 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
   }
 
   #assertV2Schema(facts: DatabaseFacts): void {
-    const expected = [...IDENTITY_SUPPORTED_TABLES].sort()
+    const expected = ['auth_sessions', 'password_credentials', 'schema_migrations', 'service_identity', 'spaces', 'storage_probe_records', 'users'].sort()
     const actual = facts.objects.filter(object => object.type === 'table').map(object => object.name).sort()
     if (facts.objects.some(object => object.type !== 'table') || actual.join(',') !== expected.join(',')) throw new RecordsError('STORAGE_INCOMPATIBLE', 'database contains an unknown v2 schema')
     const v1 = facts.ledger.find(entry => entry.version === 1)
     const v2 = facts.ledger.find(entry => entry.version === 2)
     if (facts.ledger.length !== 2 || v1?.checksum !== MIGRATION_V1_CHECKSUM || v2?.checksum !== MIGRATION_V2_CHECKSUM) throw new RecordsError('STORAGE_INCOMPATIBLE', 'v2 migration ledger does not match this build')
+  }
+
+  #assertV3Schema(facts: DatabaseFacts): void {
+    const expected = [...IDENTITY_SUPPORTED_TABLES].sort()
+    const actual = facts.objects.filter(object => object.type === 'table').map(object => object.name).sort()
+    if (facts.objects.some(object => object.type !== 'table') || actual.join(',') !== expected.join(',')) throw new RecordsError('STORAGE_INCOMPATIBLE', 'database contains an unknown v3 schema')
+    const v1 = facts.ledger.find(entry => entry.version === 1)
+    const v2 = facts.ledger.find(entry => entry.version === 2)
+    const v3 = facts.ledger.find(entry => entry.version === 3)
+    if (facts.ledger.length !== 3 || v1?.checksum !== MIGRATION_V1_CHECKSUM || v2?.checksum !== MIGRATION_V2_CHECKSUM || v3?.checksum !== MIGRATION_V3_CHECKSUM) throw new RecordsError('STORAGE_INCOMPATIBLE', 'v3 migration ledger does not match this build')
   }
 
   #assertV2Definitions(db: DatabaseSync): void {
@@ -304,6 +398,19 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
         const actual = signature(db, table)
         const expectedSignature = signature(expected, table)
         if (JSON.stringify(actual) !== JSON.stringify(expectedSignature)) throw new RecordsError('STORAGE_INCOMPATIBLE', `v2 table constraints are not accepted: ${table}`)
+      }
+    } finally { expected.close() }
+  }
+
+  #assertV3Definitions(db: DatabaseSync): void {
+    const expected = new DatabaseSync(':memory:')
+    try {
+      expected.exec(MIGRATION_V3_SQL)
+      const normalize = (value: unknown): string => String(value ?? '').replace(/\s+/g, ' ').trim().toLowerCase()
+      for (const table of ['knowledge_projects', 'project_memberships', 'knowledge_objects', 'resource_grants']) {
+        const actualSql = (db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name = ?").get(table) as { sql?: string | null } | undefined)?.sql ?? ''
+        const expectedSql = (expected.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name = ?").get(table) as { sql?: string | null } | undefined)?.sql ?? ''
+        if (normalize(actualSql) !== normalize(expectedSql)) throw new RecordsError('STORAGE_INCOMPATIBLE', `v3 table constraints are not accepted: ${table}`)
       }
     } finally { expected.close() }
   }
@@ -364,11 +471,30 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     }
   }
 
+  #migrateV3(db: DatabaseSync): void {
+    let committed = false
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      db.exec(MIGRATION_V3_SQL)
+      this.#injectFailure('v3:after-projects')
+      this.#injectFailure('v3:after-memberships')
+      this.#injectFailure('v3:after-objects')
+      this.#injectFailure('v3:after-grants')
+      db.prepare('INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)').run(3, MIGRATION_V3_CHECKSUM, new Date().toISOString())
+      db.exec('PRAGMA user_version = 3')
+      db.exec('COMMIT'); committed = true
+    } catch (error: unknown) {
+      if (!committed && !this.#rollback(db)) throw new RecordsError('STORAGE_UNAVAILABLE', 'storage transaction state is unknown', false, { cause: error })
+      throw error instanceof RecordsError ? error : new RecordsError('STORAGE_INCOMPATIBLE', 'authorization migration failed', false, { cause: error })
+    }
+  }
+
   #verify(db: DatabaseSync): void {
     const facts = readDatabaseFacts(this.databasePath)
-    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== 2) throw new RecordsError('STORAGE_INCOMPATIBLE', 'database ownership/version verification failed')
-    this.#assertV2Schema(facts)
+    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== 3) throw new RecordsError('STORAGE_INCOMPATIBLE', 'database ownership/version verification failed')
+    this.#assertV3Schema(facts)
     this.#assertV2Definitions(db)
+    this.#assertV3Definitions(db)
     const identity = db.prepare('SELECT id, service_id, bootstrap_admin_user_id, initialized_at FROM service_identity').all() as Record<string, unknown>[]
     if (identity.length !== 1 || Number(identity[0]?.id) !== 1 || typeof identity[0]?.service_id !== 'string') throw new RecordsError('STORAGE_INCOMPATIBLE', 'service identity is not a singleton')
   }
@@ -554,6 +680,72 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       if (tx && !this.#rollback(db)) throw new RecordsError('STORAGE_UNAVAILABLE', 'storage transaction state is unknown', false, { cause: error })
       throw this.#mapError(error)
     }
+  }
+
+  #objectRow(row: Record<string, unknown>): KnowledgeObjectRecord {
+    return { id: String(row.id), serviceId: String(row.service_id), spaceId: String(row.space_id), scope: String(row.scope_kind) as ResourceScope, projectId: row.project_id == null ? undefined : String(row.project_id), ownerUserId: String(row.owner_user_id), objectType: String(row.object_type), title: String(row.title), body: String(row.body), status: String(row.status) as KnowledgeObjectRecord['status'], revision: Number(row.revision), createdAt: String(row.created_at), updatedAt: String(row.updated_at) }
+  }
+
+  #objectTarget(row: KnowledgeObjectRecord): AuthorizationTarget { return { serviceId: row.serviceId, spaceId: row.spaceId, objectId: row.id, scope: row.scope, ownerUserId: row.ownerUserId, projectId: row.projectId, status: row.status } }
+
+  #grants(db: DatabaseSync, objectId: string): AuthorizationGrant[] {
+    return (db.prepare('SELECT subject_type, subject_id, action, valid_from, expires_at, revoked_at FROM resource_grants WHERE resource_type = \'knowledge_object\' AND resource_id = ?').all(objectId) as Record<string, unknown>[]).map(row => ({ subjectType: String(row.subject_type) as AuthorizationGrant['subjectType'], subjectId: String(row.subject_id), action: String(row.action) as AuthorizationAction, validFrom: String(row.valid_from), expiresAt: row.expires_at == null ? undefined : String(row.expires_at), revokedAt: row.revoked_at == null ? undefined : String(row.revoked_at) }))
+  }
+
+  #memberships(db: DatabaseSync, projectId: string): ProjectMembership[] {
+    return (db.prepare('SELECT project_id, user_id, role, valid_from, expires_at, revoked_at FROM project_memberships WHERE project_id = ?').all(projectId) as Record<string, unknown>[]).map(row => ({ projectId: String(row.project_id), userId: String(row.user_id), role: String(row.role), validFrom: String(row.valid_from), expiresAt: row.expires_at == null ? undefined : String(row.expires_at), revokedAt: row.revoked_at == null ? undefined : String(row.revoked_at) }))
+  }
+
+  #loadObject(id: string): KnowledgeObjectRecord | undefined {
+    const row = this.#ensureReady().prepare('SELECT id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at FROM knowledge_objects WHERE id = ?').get(id) as Record<string, unknown> | undefined
+    return row === undefined ? undefined : this.#objectRow(row)
+  }
+
+  authorizeObject(actor: SessionActor, objectId: string, action: AuthorizationAction, now: string): KnowledgeObjectRecord | undefined {
+    const db = this.#ensureReady(); const object = this.#loadObject(objectId)
+    if (object === undefined) return undefined
+    const allowed = authorize(actor, this.#objectTarget(object), action, now, this.#grants(db, object.id), object.projectId === undefined ? [] : this.#memberships(db, object.projectId))
+    return allowed ? object : undefined
+  }
+
+  listObjects(actor: SessionActor, action: AuthorizationAction, now: string): KnowledgeObjectRecord[] {
+    const db = this.#ensureReady(); const rows = db.prepare('SELECT id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at FROM knowledge_objects WHERE service_id = ? AND status = \'active\' ORDER BY created_at, id').all(actor.serviceId) as Record<string, unknown>[]
+    return rows.map(row => this.#objectRow(row)).filter(object => authorize(actor, this.#objectTarget(object), action, now, this.#grants(db, object.id), object.projectId === undefined ? [] : this.#memberships(db, object.projectId)))
+  }
+
+  createProject(input: { readonly id: string; readonly serviceId: string; readonly ownerUserId: string; readonly name: string; readonly now: string }): ProjectRecord {
+    const db = this.#ensureReady(); let tx = false
+    try { db.exec('BEGIN IMMEDIATE'); tx = true; db.prepare('INSERT INTO knowledge_projects (id, service_id, owner_user_id, name, status, created_at, updated_at) VALUES (?, ?, ?, ?, \'active\', ?, ?)').run(input.id, input.serviceId, input.ownerUserId, input.name, input.now, input.now); db.prepare('INSERT INTO project_memberships (project_id, user_id, role, valid_from) VALUES (?, ?, \'owner\', ?)').run(input.id, input.ownerUserId, input.now); db.exec('COMMIT'); tx = false; return { id: input.id, serviceId: input.serviceId, ownerUserId: input.ownerUserId, name: input.name, status: 'active', createdAt: input.now, updatedAt: input.now } } catch (error: unknown) { if (tx && !this.#rollback(db)) throw new RecordsError('STORAGE_UNAVAILABLE', 'storage transaction state is unknown', false, { cause: error }); throw this.#mapError(error) }
+  }
+
+  canManageProject(actor: SessionActor, projectId: string): boolean {
+    const row = this.#ensureReady().prepare('SELECT service_id, owner_user_id, status FROM knowledge_projects WHERE id = ?').get(projectId) as Record<string, unknown> | undefined
+    return row !== undefined && String(row.service_id) === actor.serviceId && String(row.owner_user_id) === actor.userId && String(row.status) === 'active'
+  }
+
+  addProjectMembership(input: { readonly projectId: string; readonly userId: string; readonly role: string; readonly validFrom: string; readonly expiresAt?: string }): void {
+    const db = this.#ensureReady(); try { db.prepare('INSERT INTO project_memberships (project_id, user_id, role, valid_from, expires_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(project_id, user_id) DO UPDATE SET role = excluded.role, valid_from = excluded.valid_from, expires_at = excluded.expires_at, revoked_at = NULL').run(input.projectId, input.userId, input.role, input.validFrom, input.expiresAt ?? null) } catch (error: unknown) { throw this.#mapError(error) }
+  }
+
+  createObject(input: { readonly id: string; readonly serviceId: string; readonly spaceId: string; readonly scope: ResourceScope; readonly projectId?: string; readonly ownerUserId: string; readonly objectType: string; readonly title: string; readonly body: string; readonly now: string }): KnowledgeObjectRecord {
+    const db = this.#ensureReady(); let tx = false
+    try { db.exec('BEGIN IMMEDIATE'); tx = true; db.prepare('INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, \'active\', 1, ?, ?)').run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now); if (input.scope === 'project' && input.projectId !== undefined) { for (const action of ['read', 'comment', 'edit', 'export', 'manage_share', 'delete', 'review', 'view_learning_records'] as AuthorizationAction[]) db.prepare('INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, \'knowledge_object\', ?, \'user\', ?, ?, ?, ?)').run(randomUUID(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now) }; db.exec('COMMIT'); tx = false; const created = this.#loadObject(input.id); if (created === undefined) throw new RecordsError('STORAGE_UNAVAILABLE', 'created object could not be read'); return created } catch (error: unknown) { if (tx && !this.#rollback(db)) throw new RecordsError('STORAGE_UNAVAILABLE', 'storage transaction state is unknown', false, { cause: error }); throw this.#mapError(error) }
+  }
+
+  updateObject(actor: SessionActor, objectId: string, expectedRevision: number, patch: { readonly title?: string; readonly body?: string }, now: string): KnowledgeObjectRecord | undefined {
+    const db = this.#ensureReady(); const current = this.authorizeObject(actor, objectId, 'edit', now); if (current === undefined) return undefined
+    const title = patch.title ?? current.title; const body = patch.body ?? current.body; const result = db.prepare('UPDATE knowledge_objects SET title = ?, body = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ? AND status = \'active\'').run(title, body, now, objectId, expectedRevision); return Number(result.changes) === 1 ? this.#loadObject(objectId) : undefined
+  }
+
+  deleteObject(actor: SessionActor, objectId: string, now: string): boolean { const object = this.authorizeObject(actor, objectId, 'delete', now); if (object === undefined) return false; const result = this.#ensureReady().prepare('UPDATE knowledge_objects SET status = \'deleted\', revision = revision + 1, updated_at = ? WHERE id = ? AND status = \'active\'').run(now, objectId); return Number(result.changes) === 1 }
+
+  grantObject(actor: SessionActor, input: { readonly id: string; readonly objectId: string; readonly serviceId: string; readonly subjectType: 'user' | 'project'; readonly subjectId: string; readonly action: AuthorizationAction; readonly validFrom: string; readonly expiresAt?: string; readonly now: string }): GrantRecord | undefined {
+    if (this.authorizeObject(actor, input.objectId, 'manage_share', input.now) === undefined) return undefined
+    try { this.#ensureReady().prepare('INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, expires_at, created_at) VALUES (?, ?, \'knowledge_object\', ?, ?, ?, ?, ?, ?, ?)').run(input.id, input.serviceId, input.objectId, input.subjectType, input.subjectId, input.action, input.validFrom, input.expiresAt ?? null, input.now); return { id: input.id, serviceId: input.serviceId, resourceType: 'knowledge_object', resourceId: input.objectId, subjectType: input.subjectType, subjectId: input.subjectId, action: input.action, validFrom: input.validFrom, expiresAt: input.expiresAt, createdAt: input.now } } catch (error: unknown) { throw this.#mapError(error) }
+  }
+
+  revokeGrant(actor: SessionActor, grantId: string, now: string): boolean {
+    const db = this.#ensureReady(); const grant = db.prepare('SELECT resource_id FROM resource_grants WHERE id = ?').get(grantId) as { resource_id?: string } | undefined; if (grant?.resource_id === undefined || this.authorizeObject(actor, String(grant.resource_id), 'manage_share', now) === undefined) return false; const result = db.prepare('UPDATE resource_grants SET revoked_at = COALESCE(revoked_at, ?) WHERE id = ?').run(now, grantId); return Number(result.changes) > 0
   }
 
   /** Test-only transaction probe for FND-003 rollback evidence. */

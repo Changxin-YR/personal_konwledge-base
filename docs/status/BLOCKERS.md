@@ -1,6 +1,6 @@
 # 当前收口问题
 
-更新：2026-11-17（Asia/Shanghai）。FND-003 六项返修已关闭，没有当前单元阻塞；最终候选 `r21` 与独立复核 `r13` 已绑定。不存在 FAIL、BLOCKED 或 NOT_RUN 被计入 PASS 的情况。
+更新：2026-11-17（Asia/Shanghai）。FND-003 六项返修已关闭，FND-004 当前没有代码级阻塞。真实 DSH 浏览器对象 HTTP 矩阵、Connection 单独停用/恢复和完整 A02/A34/A46 仍是 NOT_RUN 或需真实上游能力证据；不以 Host 整体停止代替 Connection 测试，不把未实现搜索/AI/导出/邀请码/缓存路径记为 PASS。
 
 | 编号 | 状态 |
 |---|---|
@@ -11,4 +11,4 @@
 | FND003-R5 | CLOSED；v2 约束预检与 bootstrap/register/migration 回滚恢复已验证 |
 | FND003-R6 | CLOSED；完整安装副本只篡改 `lib/index.js`，实际加载检查器明确报告 SHA-256 不一致并非零退出 |
 
-未验证范围仍属于其他单元：完整 ACL、资料/学习计划/评分、模型/RAG、jobs/audit/outbox、Windows 安装和完整产品审查。FND-004 未开发。
+未验证范围仍属于其他单元：真实 DSH 浏览器对象 HTTP 矩阵、Connection 单独停用/恢复、搜索索引、AI 摘要/答案、文件下载、邀请码、完整缓存失效、资料/学习计划/评分、模型/RAG、jobs/audit/outbox、Windows 安装和完整产品审查。FND-004 的基础权限闭环已 PASS；上述范围保持 NOT_RUN 或待真实上游能力证据，不能由本单元结果代替。

@@ -16,7 +16,8 @@ import { createRecordsHandlers, type RecordsService } from './http.ts'
 import { createProbeRecord, getProbeRecord, RecordsError, type CreateRecordResult } from './records.ts'
 import { ProbeStorage } from './storage.ts'
 import { IdentityService } from './identity.ts'
-import { buildAccountHtml, buildSetupHtml, createIdentityHandlers, isIdentityRuntimeAvailable, isLoopbackAddress } from './identity-http.ts'
+import { buildAccountHtml, buildSetupHtml, businessCookieName, createIdentityHandlers, isIdentityRuntimeAvailable, isLoopbackAddress, readCookie } from './identity-http.ts'
+import { createObjectHandlers } from './objects-http.ts'
 
 export { Config }
 
@@ -231,6 +232,18 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
         { path: '/knowledge/v1/spaces', auth: 'anonymous', handler: identityHandlers.spaces },
       ]
       for (const route of routes) disposers.push(identityContext.webServer.register({ kind: 'exact', path: route.path, auth: route.auth, handler: withPeer(route.handler) }))
+      const objectHandler = createObjectHandlers({
+        storage: storage as NonNullable<typeof storage>,
+        actorFor: req => {
+          const origin = actualOrigin(); if (origin === undefined) return undefined
+          const token = readCookie(req, businessCookieName(identity.setupState.serviceId, origin))
+          return identity.actor(token)
+        },
+        origin: actualOrigin,
+      })
+      disposers.push(identityContext.webServer.register({ kind: 'prefix', path: '/knowledge/v1/objects', auth: 'anonymous', handler: withPeer(async (req, res) => objectHandler(req, res)) }))
+      disposers.push(identityContext.webServer.register({ kind: 'prefix', path: '/knowledge/v1/projects', auth: 'anonymous', handler: withPeer(async (req, res) => objectHandler(req, res)) }))
+      disposers.push(identityContext.webServer.register({ kind: 'prefix', path: '/knowledge/v1/grants', auth: 'anonymous', handler: withPeer(async (req, res) => objectHandler(req, res)) }))
       return async () => { for (const dispose of disposers) dispose(); await identity.close() }
     }, 'knowledgeos-identity: account and business routes')
   }

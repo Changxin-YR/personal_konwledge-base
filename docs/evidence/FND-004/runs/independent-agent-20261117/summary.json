@@ -1,0 +1,41 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "id": "FND-004-T01",
+      "status": "PASS"
+    },
+    {
+      "id": "FND-004-T02",
+      "status": "PASS"
+    },
+    {
+      "id": "FND-004-T03",
+      "status": "PASS"
+    },
+    {
+      "id": "FND-004-T04",
+      "status": "PASS"
+    },
+    {
+      "id": "FND-004-T05",
+      "status": "PASS"
+    },
+    {
+      "id": "FND-004-T06",
+      "status": "PASS"
+    },
+    {
+      "id": "FND-004-T07",
+      "status": "PASS"
+    }
+  ],
+  "not_run": [
+    "search_index",
+    "ai_summary",
+    "file_download",
+    "invite_redemption",
+    "full_cache_invalidation",
+    "complete_A02_A34_A46"
+  ]
+}

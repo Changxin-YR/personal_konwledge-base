@@ -1,0 +1,22 @@
+{
+  "candidate": "FND-004-FINAL-20261117",
+  "status": "PASS",
+  "checks": [
+    {
+      "id": "route-whitelist",
+      "status": "PASS"
+    },
+    {
+      "id": "domain-entrypoint",
+      "status": "PASS"
+    },
+    {
+      "id": "build-artifacts",
+      "status": "PASS"
+    }
+  ],
+  "not_run": [
+    "real_DSH_browser_route_probe",
+    "full_A02_A34_A46_search_ai_export_cache"
+  ]
+}

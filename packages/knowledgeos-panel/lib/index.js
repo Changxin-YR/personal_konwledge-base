@@ -1,5 +1,5 @@
 // src/host/index.ts
-import { randomUUID as randomUUID5 } from "node:crypto";
+import { randomUUID as randomUUID6 } from "node:crypto";
 
 // src/host/status.ts
 var EXPECTED_UPSTREAM_COMMIT = "39163dd30f703a79079e2d2446545cff3c453738";
@@ -177,23 +177,23 @@ function requireIdempotencyKey(req) {
   return raw;
 }
 function parseContent(body) {
-  let text;
+  let text2;
   try {
-    text = new TextDecoder("utf-8", { fatal: true }).decode(body);
+    text2 = new TextDecoder("utf-8", { fatal: true }).decode(body);
   } catch {
     throw new ApiError(400, "INVALID_JSON", "request body is not valid UTF-8");
   }
   let parsed;
   try {
-    parsed = JSON.parse(text);
+    parsed = JSON.parse(text2);
   } catch {
     throw new ApiError(400, "INVALID_JSON", "request body is not valid JSON");
   }
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
     throw new ApiError(422, "INPUT_INVALID", "body must be a JSON object");
   }
-  const keys = Object.keys(parsed);
-  if (keys.length !== 1 || keys[0] !== "content") {
+  const keys2 = Object.keys(parsed);
+  if (keys2.length !== 1 || keys2[0] !== "content") {
     throw new ApiError(422, "INPUT_INVALID", "body may contain only the content field");
   }
   const content = parsed.content;
@@ -288,8 +288,24 @@ import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { createHash as createHash2, randomUUID as randomUUID2 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
+
+// src/host/authorization.ts
+var AUTH_ACTIONS = ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"];
+function isGrantActive(grant, now) {
+  return grant.revokedAt === void 0 && grant.validFrom <= now && (grant.expiresAt === void 0 || now < grant.expiresAt);
+}
+function authorize(actor2, target, action2, now, grants = [], memberships = []) {
+  if (target.status !== "active" || target.serviceId !== actor2.serviceId || target.spaceId !== actor2.personalSpaceId && target.scope === "personal") return false;
+  if (target.scope === "personal") return target.ownerUserId === actor2.userId;
+  if (target.projectId === void 0) return false;
+  const member = memberships.some((item) => item.projectId === target.projectId && item.userId === actor2.userId && isGrantActive(item, now));
+  if (!member && target.ownerUserId !== actor2.userId) return false;
+  return grants.some((item) => item.subjectType === "user" && item.subjectId === actor2.userId && item.action === action2 && isGrantActive(item, now)) || grants.some((item) => item.subjectType === "project" && item.subjectId === target.projectId && item.action === action2 && isGrantActive(item, now) && member);
+}
+
+// src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 2;
+var SCHEMA_VERSION = 3;
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
 var MIGRATION_V1_SQL = `CREATE TABLE schema_migrations (
@@ -360,10 +376,64 @@ CREATE TABLE spaces (
 ) STRICT;
 `;
 var MIGRATION_V2_CHECKSUM = createHash2("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
+var MIGRATION_V3_SQL = `CREATE TABLE knowledge_projects (
+  id TEXT PRIMARY KEY,
+  service_id TEXT NOT NULL REFERENCES service_identity(service_id),
+  owner_user_id TEXT NOT NULL REFERENCES users(id),
+  name TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('active', 'disabled')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+) STRICT;
+CREATE TABLE project_memberships (
+  project_id TEXT NOT NULL REFERENCES knowledge_projects(id),
+  user_id TEXT NOT NULL REFERENCES users(id),
+  role TEXT NOT NULL CHECK (role IN ('member', 'owner')),
+  valid_from TEXT NOT NULL,
+  expires_at TEXT,
+  revoked_at TEXT,
+  PRIMARY KEY (project_id, user_id)
+) STRICT;
+CREATE TABLE knowledge_objects (
+  id TEXT PRIMARY KEY,
+  service_id TEXT NOT NULL REFERENCES service_identity(service_id),
+  space_id TEXT NOT NULL REFERENCES spaces(id),
+  scope_kind TEXT NOT NULL CHECK (scope_kind IN ('personal', 'project')),
+  project_id TEXT REFERENCES knowledge_projects(id),
+  owner_user_id TEXT NOT NULL REFERENCES users(id),
+  object_type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('active', 'deleted')),
+  revision INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  CHECK ((scope_kind = 'personal' AND project_id IS NULL) OR (scope_kind = 'project' AND project_id IS NOT NULL))
+) STRICT;
+CREATE TABLE resource_grants (
+  id TEXT PRIMARY KEY,
+  service_id TEXT NOT NULL REFERENCES service_identity(service_id),
+  resource_type TEXT NOT NULL CHECK (resource_type = 'knowledge_object'),
+  resource_id TEXT NOT NULL REFERENCES knowledge_objects(id),
+  subject_type TEXT NOT NULL CHECK (subject_type IN ('user', 'project')),
+  subject_id TEXT NOT NULL,
+  action TEXT NOT NULL CHECK (action IN ('read', 'comment', 'edit', 'export', 'manage_share', 'delete', 'review', 'view_learning_records')),
+  valid_from TEXT NOT NULL,
+  expires_at TEXT,
+  revoked_at TEXT,
+  created_at TEXT NOT NULL,
+  UNIQUE (resource_id, subject_type, subject_id, action)
+) STRICT;
+`;
+var MIGRATION_V3_CHECKSUM = createHash2("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
 var PROBE_SUPPORTED_TABLES = ["schema_migrations", "storage_probe_records"];
 var IDENTITY_SUPPORTED_TABLES = [
   "auth_sessions",
+  "knowledge_objects",
+  "knowledge_projects",
   "password_credentials",
+  "project_memberships",
+  "resource_grants",
   "schema_migrations",
   "service_identity",
   "spaces",
@@ -452,8 +522,12 @@ var ProbeStorage = class {
       if (existing === "blank") {
         this.#migrateV1(db);
         this.#migrateV2(db);
+        this.#migrateV3(db);
       } else if (existing === "v1") {
         this.#migrateV2(db);
+        this.#migrateV3(db);
+      } else if (existing === "v2") {
+        this.#migrateV3(db);
       }
       this.#verify(db);
       const facts = readDatabaseFacts(path);
@@ -490,6 +564,16 @@ var ProbeStorage = class {
       }
       return "v2";
     }
+    if (facts.userVersion === 3) {
+      this.#assertV3Schema(facts);
+      const db = new DatabaseSync(path, { readOnly: true });
+      try {
+        this.#assertV3Definitions(db);
+      } finally {
+        db.close();
+      }
+      return "v3";
+    }
     throw new RecordsError("STORAGE_INCOMPATIBLE", "database schema version is not supported");
   }
   #assertV1Schema(facts) {
@@ -500,12 +584,21 @@ var ProbeStorage = class {
     if (facts.ledger.length !== 1 || entry?.version !== 1 || entry.checksum !== MIGRATION_V1_CHECKSUM) throw new RecordsError("STORAGE_INCOMPATIBLE", "v1 migration ledger does not match this build");
   }
   #assertV2Schema(facts) {
-    const expected = [...IDENTITY_SUPPORTED_TABLES].sort();
+    const expected = ["auth_sessions", "password_credentials", "schema_migrations", "service_identity", "spaces", "storage_probe_records", "users"].sort();
     const actual = facts.objects.filter((object) => object.type === "table").map((object) => object.name).sort();
     if (facts.objects.some((object) => object.type !== "table") || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v2 schema");
     const v1 = facts.ledger.find((entry) => entry.version === 1);
     const v2 = facts.ledger.find((entry) => entry.version === 2);
     if (facts.ledger.length !== 2 || v1?.checksum !== MIGRATION_V1_CHECKSUM || v2?.checksum !== MIGRATION_V2_CHECKSUM) throw new RecordsError("STORAGE_INCOMPATIBLE", "v2 migration ledger does not match this build");
+  }
+  #assertV3Schema(facts) {
+    const expected = [...IDENTITY_SUPPORTED_TABLES].sort();
+    const actual = facts.objects.filter((object) => object.type === "table").map((object) => object.name).sort();
+    if (facts.objects.some((object) => object.type !== "table") || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v3 schema");
+    const v1 = facts.ledger.find((entry) => entry.version === 1);
+    const v2 = facts.ledger.find((entry) => entry.version === 2);
+    const v3 = facts.ledger.find((entry) => entry.version === 3);
+    if (facts.ledger.length !== 3 || v1?.checksum !== MIGRATION_V1_CHECKSUM || v2?.checksum !== MIGRATION_V2_CHECKSUM || v3?.checksum !== MIGRATION_V3_CHECKSUM) throw new RecordsError("STORAGE_INCOMPATIBLE", "v3 migration ledger does not match this build");
   }
   #assertV2Definitions(db) {
     const expected = new DatabaseSync(":memory:");
@@ -527,6 +620,20 @@ var ProbeStorage = class {
         const actual = signature(db, table);
         const expectedSignature = signature(expected, table);
         if (JSON.stringify(actual) !== JSON.stringify(expectedSignature)) throw new RecordsError("STORAGE_INCOMPATIBLE", `v2 table constraints are not accepted: ${table}`);
+      }
+    } finally {
+      expected.close();
+    }
+  }
+  #assertV3Definitions(db) {
+    const expected = new DatabaseSync(":memory:");
+    try {
+      expected.exec(MIGRATION_V3_SQL);
+      const normalize = (value) => String(value ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+      for (const table of ["knowledge_projects", "project_memberships", "knowledge_objects", "resource_grants"]) {
+        const actualSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name = ?").get(table)?.sql ?? "";
+        const expectedSql = expected.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name = ?").get(table)?.sql ?? "";
+        if (normalize(actualSql) !== normalize(expectedSql)) throw new RecordsError("STORAGE_INCOMPATIBLE", `v3 table constraints are not accepted: ${table}`);
       }
     } finally {
       expected.close();
@@ -586,11 +693,30 @@ var ProbeStorage = class {
       throw error instanceof RecordsError ? error : new RecordsError("STORAGE_INCOMPATIBLE", "identity migration failed", false, { cause: error });
     }
   }
+  #migrateV3(db) {
+    let committed = false;
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(MIGRATION_V3_SQL);
+      this.#injectFailure("v3:after-projects");
+      this.#injectFailure("v3:after-memberships");
+      this.#injectFailure("v3:after-objects");
+      this.#injectFailure("v3:after-grants");
+      db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(3, MIGRATION_V3_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version = 3");
+      db.exec("COMMIT");
+      committed = true;
+    } catch (error) {
+      if (!committed && !this.#rollback(db)) throw new RecordsError("STORAGE_UNAVAILABLE", "storage transaction state is unknown", false, { cause: error });
+      throw error instanceof RecordsError ? error : new RecordsError("STORAGE_INCOMPATIBLE", "authorization migration failed", false, { cause: error });
+    }
+  }
   #verify(db) {
     const facts = readDatabaseFacts(this.databasePath);
-    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== 2) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
-    this.#assertV2Schema(facts);
+    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== 3) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
+    this.#assertV3Schema(facts);
     this.#assertV2Definitions(db);
+    this.#assertV3Definitions(db);
     const identity = db.prepare("SELECT id, service_id, bootstrap_admin_user_id, initialized_at FROM service_identity").all();
     if (identity.length !== 1 || Number(identity[0]?.id) !== 1 || typeof identity[0]?.service_id !== "string") throw new RecordsError("STORAGE_INCOMPATIBLE", "service identity is not a singleton");
   }
@@ -807,6 +933,114 @@ var ProbeStorage = class {
       if (tx && !this.#rollback(db)) throw new RecordsError("STORAGE_UNAVAILABLE", "storage transaction state is unknown", false, { cause: error });
       throw this.#mapError(error);
     }
+  }
+  #objectRow(row) {
+    return { id: String(row.id), serviceId: String(row.service_id), spaceId: String(row.space_id), scope: String(row.scope_kind), projectId: row.project_id == null ? void 0 : String(row.project_id), ownerUserId: String(row.owner_user_id), objectType: String(row.object_type), title: String(row.title), body: String(row.body), status: String(row.status), revision: Number(row.revision), createdAt: String(row.created_at), updatedAt: String(row.updated_at) };
+  }
+  #objectTarget(row) {
+    return { serviceId: row.serviceId, spaceId: row.spaceId, objectId: row.id, scope: row.scope, ownerUserId: row.ownerUserId, projectId: row.projectId, status: row.status };
+  }
+  #grants(db, objectId) {
+    return db.prepare("SELECT subject_type, subject_id, action, valid_from, expires_at, revoked_at FROM resource_grants WHERE resource_type = 'knowledge_object' AND resource_id = ?").all(objectId).map((row) => ({ subjectType: String(row.subject_type), subjectId: String(row.subject_id), action: String(row.action), validFrom: String(row.valid_from), expiresAt: row.expires_at == null ? void 0 : String(row.expires_at), revokedAt: row.revoked_at == null ? void 0 : String(row.revoked_at) }));
+  }
+  #memberships(db, projectId) {
+    return db.prepare("SELECT project_id, user_id, role, valid_from, expires_at, revoked_at FROM project_memberships WHERE project_id = ?").all(projectId).map((row) => ({ projectId: String(row.project_id), userId: String(row.user_id), role: String(row.role), validFrom: String(row.valid_from), expiresAt: row.expires_at == null ? void 0 : String(row.expires_at), revokedAt: row.revoked_at == null ? void 0 : String(row.revoked_at) }));
+  }
+  #loadObject(id) {
+    const row = this.#ensureReady().prepare("SELECT id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at FROM knowledge_objects WHERE id = ?").get(id);
+    return row === void 0 ? void 0 : this.#objectRow(row);
+  }
+  authorizeObject(actor2, objectId, action2, now) {
+    const db = this.#ensureReady();
+    const object = this.#loadObject(objectId);
+    if (object === void 0) return void 0;
+    const allowed = authorize(actor2, this.#objectTarget(object), action2, now, this.#grants(db, object.id), object.projectId === void 0 ? [] : this.#memberships(db, object.projectId));
+    return allowed ? object : void 0;
+  }
+  listObjects(actor2, action2, now) {
+    const db = this.#ensureReady();
+    const rows = db.prepare("SELECT id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at FROM knowledge_objects WHERE service_id = ? AND status = 'active' ORDER BY created_at, id").all(actor2.serviceId);
+    return rows.map((row) => this.#objectRow(row)).filter((object) => authorize(actor2, this.#objectTarget(object), action2, now, this.#grants(db, object.id), object.projectId === void 0 ? [] : this.#memberships(db, object.projectId)));
+  }
+  createProject(input) {
+    const db = this.#ensureReady();
+    let tx = false;
+    try {
+      db.exec("BEGIN IMMEDIATE");
+      tx = true;
+      db.prepare("INSERT INTO knowledge_projects (id, service_id, owner_user_id, name, status, created_at, updated_at) VALUES (?, ?, ?, ?, 'active', ?, ?)").run(input.id, input.serviceId, input.ownerUserId, input.name, input.now, input.now);
+      db.prepare("INSERT INTO project_memberships (project_id, user_id, role, valid_from) VALUES (?, ?, 'owner', ?)").run(input.id, input.ownerUserId, input.now);
+      db.exec("COMMIT");
+      tx = false;
+      return { id: input.id, serviceId: input.serviceId, ownerUserId: input.ownerUserId, name: input.name, status: "active", createdAt: input.now, updatedAt: input.now };
+    } catch (error) {
+      if (tx && !this.#rollback(db)) throw new RecordsError("STORAGE_UNAVAILABLE", "storage transaction state is unknown", false, { cause: error });
+      throw this.#mapError(error);
+    }
+  }
+  canManageProject(actor2, projectId) {
+    const row = this.#ensureReady().prepare("SELECT service_id, owner_user_id, status FROM knowledge_projects WHERE id = ?").get(projectId);
+    return row !== void 0 && String(row.service_id) === actor2.serviceId && String(row.owner_user_id) === actor2.userId && String(row.status) === "active";
+  }
+  addProjectMembership(input) {
+    const db = this.#ensureReady();
+    try {
+      db.prepare("INSERT INTO project_memberships (project_id, user_id, role, valid_from, expires_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(project_id, user_id) DO UPDATE SET role = excluded.role, valid_from = excluded.valid_from, expires_at = excluded.expires_at, revoked_at = NULL").run(input.projectId, input.userId, input.role, input.validFrom, input.expiresAt ?? null);
+    } catch (error) {
+      throw this.#mapError(error);
+    }
+  }
+  createObject(input) {
+    const db = this.#ensureReady();
+    let tx = false;
+    try {
+      db.exec("BEGIN IMMEDIATE");
+      tx = true;
+      db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
+      if (input.scope === "project" && input.projectId !== void 0) {
+        for (const action2 of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID2(), input.serviceId, input.id, input.ownerUserId, action2, input.now, input.now);
+      }
+      ;
+      db.exec("COMMIT");
+      tx = false;
+      const created = this.#loadObject(input.id);
+      if (created === void 0) throw new RecordsError("STORAGE_UNAVAILABLE", "created object could not be read");
+      return created;
+    } catch (error) {
+      if (tx && !this.#rollback(db)) throw new RecordsError("STORAGE_UNAVAILABLE", "storage transaction state is unknown", false, { cause: error });
+      throw this.#mapError(error);
+    }
+  }
+  updateObject(actor2, objectId, expectedRevision, patch, now) {
+    const db = this.#ensureReady();
+    const current = this.authorizeObject(actor2, objectId, "edit", now);
+    if (current === void 0) return void 0;
+    const title = patch.title ?? current.title;
+    const body = patch.body ?? current.body;
+    const result = db.prepare("UPDATE knowledge_objects SET title = ?, body = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ? AND status = 'active'").run(title, body, now, objectId, expectedRevision);
+    return Number(result.changes) === 1 ? this.#loadObject(objectId) : void 0;
+  }
+  deleteObject(actor2, objectId, now) {
+    const object = this.authorizeObject(actor2, objectId, "delete", now);
+    if (object === void 0) return false;
+    const result = this.#ensureReady().prepare("UPDATE knowledge_objects SET status = 'deleted', revision = revision + 1, updated_at = ? WHERE id = ? AND status = 'active'").run(now, objectId);
+    return Number(result.changes) === 1;
+  }
+  grantObject(actor2, input) {
+    if (this.authorizeObject(actor2, input.objectId, "manage_share", input.now) === void 0) return void 0;
+    try {
+      this.#ensureReady().prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, expires_at, created_at) VALUES (?, ?, 'knowledge_object', ?, ?, ?, ?, ?, ?, ?)").run(input.id, input.serviceId, input.objectId, input.subjectType, input.subjectId, input.action, input.validFrom, input.expiresAt ?? null, input.now);
+      return { id: input.id, serviceId: input.serviceId, resourceType: "knowledge_object", resourceId: input.objectId, subjectType: input.subjectType, subjectId: input.subjectId, action: input.action, validFrom: input.validFrom, expiresAt: input.expiresAt, createdAt: input.now };
+    } catch (error) {
+      throw this.#mapError(error);
+    }
+  }
+  revokeGrant(actor2, grantId, now) {
+    const db = this.#ensureReady();
+    const grant = db.prepare("SELECT resource_id FROM resource_grants WHERE id = ?").get(grantId);
+    if (grant?.resource_id === void 0 || this.authorizeObject(actor2, String(grant.resource_id), "manage_share", now) === void 0) return false;
+    const result = db.prepare("UPDATE resource_grants SET revoked_at = COALESCE(revoked_at, ?) WHERE id = ?").run(now, grantId);
+    return Number(result.changes) > 0;
   }
   /** Test-only transaction probe for FND-003 rollback evidence. */
   testOnlyTransactionFailure(input) {
@@ -1259,7 +1493,7 @@ function isIdentityRuntimeAvailable(facts) {
     return false;
   }
 }
-function cookieName(serviceId, origin) {
+function businessCookieName(serviceId, origin) {
   return `kos_session_${createHash4("sha256").update(`${serviceId}|${origin}`).digest("hex").slice(0, 16)}`;
 }
 function readCookie(req, name2) {
@@ -1303,15 +1537,15 @@ async function readBody2(req) {
     req.on("end", () => {
       if (settled) return;
       settled = true;
-      let text;
+      let text2;
       try {
-        text = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks));
+        text2 = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks));
       } catch {
         reject(new HttpError(400, "INVALID_JSON", "request body is not valid UTF-8"));
         return;
       }
       try {
-        resolve(JSON.parse(text));
+        resolve(JSON.parse(text2));
       } catch {
         reject(new HttpError(400, "INVALID_JSON", "request body is not valid JSON"));
       }
@@ -1362,7 +1596,7 @@ function createIdentityHandlers(options) {
     const origin = options.origin();
     if (origin === void 0) return void 0;
     const state = service.setupState;
-    return readCookie(req, cookieName(state.serviceId, origin));
+    return readCookie(req, businessCookieName(state.serviceId, origin));
   };
   const assertAvailable = () => {
     if (!options.isAvailable() || options.origin() === void 0 || options.host() === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
@@ -1385,16 +1619,16 @@ function createIdentityHandlers(options) {
   };
   const actorFor = (req) => service.actor(tokenFor(req));
   const requireActor = (req) => {
-    const actor = actorFor(req);
-    if (actor === void 0) throw new HttpError(401, "SESSION_EXPIRED", "business session is required");
-    return actor;
+    const actor2 = actorFor(req);
+    if (actor2 === void 0) throw new HttpError(401, "SESSION_EXPIRED", "business session is required");
+    return actor2;
   };
-  const dispatch = async (req, res, action) => {
+  const dispatch = async (req, res, action2) => {
     const requestId = randomUUID4();
     try {
       assertAvailable();
       assertNoQuery(req);
-      await action();
+      await action2();
     } catch (error) {
       if (res.writableEnded) return;
       let mapped;
@@ -1453,7 +1687,7 @@ function createIdentityHandlers(options) {
     const origin = options.origin();
     if (origin === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
     const state = service.setupState;
-    const name2 = cookieName(state.serviceId, origin);
+    const name2 = businessCookieName(state.serviceId, origin);
     const maxAge = Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1e3);
     sendJson2(res, 200, withMeta(randomUUID4(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin, options.protocol(), maxAge) });
   });
@@ -1467,21 +1701,21 @@ function createIdentityHandlers(options) {
     const origin = options.origin();
     if (origin === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
     const state = service.setupState;
-    const name2 = cookieName(state.serviceId, origin);
+    const name2 = businessCookieName(state.serviceId, origin);
     sendEmpty(res, 204, { "set-cookie": clearCookie(name2, origin, options.protocol()) });
   });
   const me = async (req, res) => dispatch(req, res, () => {
     requireMethod(req, "GET");
     assertTrust(req, false);
-    const actor = requireActor(req);
-    const profile = service.profile(actor.userId);
+    const actor2 = requireActor(req);
+    const profile = service.profile(actor2.userId);
     if (profile === void 0) throw new HttpError(401, "SESSION_EXPIRED", "business session is required");
     sendJson2(res, 200, withMeta(randomUUID4(), safeProfile(profile)));
   });
   const preferences = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "PATCH");
     assertTrust(req, true);
-    const actor = requireActor(req);
+    const actor2 = requireActor(req);
     requireJson(req);
     const body = bodyObject(await readBody2(req));
     assertKeys(body, ["expected_revision", "display_name", "timezone", "domains", "learning_tracks", "goal_text"]);
@@ -1493,13 +1727,13 @@ function createIdentityHandlers(options) {
     if (body.learning_tracks !== void 0) patch.learningTracks = validateLearningTracks(body.learning_tracks);
     if (body.goal_text !== void 0) patch.goalText = validateGoalText(body.goal_text);
     if (Object.keys(patch).length === 0) throw new HttpError(422, "INPUT_INVALID", "at least one preference is required");
-    sendJson2(res, 200, withMeta(randomUUID4(), safeProfile(service.preferences(actor.userId, expectedRevision, patch))));
+    sendJson2(res, 200, withMeta(randomUUID4(), safeProfile(service.preferences(actor2.userId, expectedRevision, patch))));
   });
   const spaces = async (req, res) => dispatch(req, res, () => {
     requireMethod(req, "GET");
     assertTrust(req, false);
-    const actor = requireActor(req);
-    const data = service.spaces(actor.userId).map((space) => ({ id: space.id, service_id: space.serviceId, kind: space.kind, owner_user_id: space.ownerUserId, status: space.status, revision: space.revision, created_at: space.createdAt, updated_at: space.updatedAt }));
+    const actor2 = requireActor(req);
+    const data = service.spaces(actor2.userId).map((space) => ({ id: space.id, service_id: space.serviceId, kind: space.kind, owner_user_id: space.ownerUserId, status: space.status, revision: space.revision, created_at: space.createdAt, updated_at: space.updatedAt }));
     sendJson2(res, 200, withMeta(randomUUID4(), data));
   });
   return { status, bootstrap, register, login, logout, me, preferences, spaces };
@@ -1514,6 +1748,174 @@ function buildAccountHtml() {
 }
 function buildSetupHtml() {
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KnowledgeOS \u521D\u59CB\u5316</title><style>body{margin:0;background:#f4f8f8;color:#23333a;font-family:"Segoe UI","Microsoft YaHei UI",system-ui,sans-serif}main{max-width:560px;margin:0 auto;padding:48px 20px}.card{background:#fff;border:1px solid #dce8e9;border-radius:14px;padding:24px}label{display:block;margin:12px 0 5px;color:#597078;font-size:13px}input{width:100%;box-sizing:border-box;padding:10px;border:1px solid #c8d8da;border-radius:8px;font:inherit}button{margin-top:16px;border:0;border-radius:8px;background:#3d7e86;color:#fff;padding:10px 16px;font:inherit;cursor:pointer}.message{margin-top:12px;padding:10px;border-radius:8px;background:#edf5f6;white-space:pre-wrap}</style></head><body><main><section class="card"><h1>\u9996\u6B21\u7BA1\u7406\u5458\u521D\u59CB\u5316</h1><p>\u4EC5\u53EF\u4FE1\u672C\u673A DSH owner \u53EF\u4EE5\u5B8C\u6210\u4E00\u6B21\u521D\u59CB\u5316\u3002</p><label>\u7BA1\u7406\u5458\u767B\u5F55\u540D</label><input id="name"><label>\u663E\u793A\u540D\u79F0</label><input id="display"><label>\u5BC6\u7801\uFF0815\u2013128 \u4F4D\uFF09</label><input id="password" type="password"><button id="submit">\u521B\u5EFA\u7BA1\u7406\u5458</button><div id="message" class="message"></div></section></main><script>document.getElementById('submit').onclick=async()=>{const m=document.getElementById('message');try{const r=await fetch('/knowledge/v1/auth/bootstrap',{method:'POST',headers:{'content-type':'application/json','x-knowledgeos-request':'1'},body:JSON.stringify({login_name:document.getElementById('name').value,display_name:document.getElementById('display').value,password:document.getElementById('password').value})});const j=await r.json();if(!r.ok)throw new Error(j.message||('\u8BF7\u6C42\u5931\u8D25 '+r.status));document.getElementById('password').value='';m.textContent='\u521D\u59CB\u5316\u5B8C\u6210\uFF0C\u8BF7\u524D\u5F80\u8D26\u53F7\u9875\u767B\u5F55\u3002'}catch(e){m.textContent=e.message}}</script></body></html>`;
+}
+
+// src/host/objects-http.ts
+import { randomUUID as randomUUID5 } from "node:crypto";
+var ObjectHttpError = class extends Error {
+  constructor(status, code, message) {
+    super(message);
+    this.status = status;
+    this.code = code;
+  }
+};
+var json = (res, status, data) => {
+  res.statusCode = status;
+  res.setHeader("content-type", "application/json; charset=utf-8");
+  res.setHeader("cache-control", "no-store");
+  res.setHeader("x-content-type-options", "nosniff");
+  res.end(JSON.stringify(data));
+};
+var pathOf = (req) => new URL(req.url ?? "/", "http://localhost").pathname;
+var safeObject = (object, includeBody = true) => ({ id: object.id, service_id: object.serviceId, space_id: object.spaceId, scope: object.scope, project_id: object.projectId, owner_user_id: object.ownerUserId, object_type: object.objectType, title: object.title, ...includeBody ? { body: object.body } : {}, status: object.status, revision: object.revision, created_at: object.createdAt, updated_at: object.updatedAt });
+var readBody3 = async (req) => await new Promise((resolve, reject) => {
+  const chunks = [];
+  let size = 0;
+  req.on("data", (chunk) => {
+    size += chunk.length;
+    if (size > 16 * 1024) {
+      reject(new ObjectHttpError(413, "PAYLOAD_TOO_LARGE", "request body exceeds the limit"));
+      req.resume();
+    } else chunks.push(chunk);
+  });
+  req.on("end", () => {
+    try {
+      const value = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error();
+      resolve(value);
+    } catch {
+      reject(new ObjectHttpError(400, "INVALID_JSON", "request body is not valid JSON"));
+    }
+  });
+  req.on("error", () => reject(new ObjectHttpError(400, "INVALID_JSON", "request body could not be read")));
+});
+var keys = (body, allowed) => {
+  if (Object.keys(body).some((key) => !allowed.includes(key))) throw new ObjectHttpError(422, "INPUT_INVALID", "body contains an unsupported field");
+};
+var action = (value) => {
+  if (typeof value !== "string" || !AUTH_ACTIONS.includes(value)) throw new ObjectHttpError(422, "INPUT_INVALID", "action is invalid");
+  return value;
+};
+var text = (value, name2, max) => {
+  if (typeof value !== "string" || value.length < 1 || value.length > max || !value.isWellFormed()) throw new ObjectHttpError(422, "INPUT_INVALID", `${name2} is invalid`);
+  return value;
+};
+function trust(req, origin, mutation) {
+  if (origin === void 0 || req.headers.host !== new URL(origin).host) throw new ObjectHttpError(403, "CSRF_REJECTED", "request authority is not trusted");
+  if (req.headers.origin !== void 0 && req.headers.origin !== origin) throw new ObjectHttpError(403, "CSRF_REJECTED", "request origin is not trusted");
+  if (req.headers["sec-fetch-site"] === "cross-site") throw new ObjectHttpError(403, "CSRF_REJECTED", "cross-site request is not trusted");
+  if (mutation && req.headers["x-knowledgeos-request"] !== "1") throw new ObjectHttpError(403, "CSRF_REJECTED", "missing KnowledgeOS request header");
+  if (new URL(req.url ?? "/", origin).search) throw new ObjectHttpError(422, "INPUT_INVALID", "query parameters are not supported");
+}
+function actor(options, req) {
+  const value = options.actorFor(req);
+  if (value === void 0) throw new ObjectHttpError(401, "SESSION_EXPIRED", "business session is required");
+  return value;
+}
+function createObjectHandlers(options) {
+  return async (req, res) => {
+    const requestId = randomUUID5();
+    try {
+      const path = pathOf(req);
+      const segments = path.split("/").filter(Boolean);
+      trust(req, options.origin(), req.method !== "GET");
+      const current = actor(options, req);
+      const now = (/* @__PURE__ */ new Date()).toISOString();
+      if (segments[2] === "projects" && segments.length === 3 && req.method === "POST") {
+        const body = await readBody3(req);
+        keys(body, ["name"]);
+        const project = options.storage.createProject({ id: randomUUID5(), serviceId: current.serviceId, ownerUserId: current.userId, name: text(body.name, "name", 200), now });
+        json(res, 201, { data: project, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
+        return;
+      }
+      if (segments[2] === "projects" && segments.length === 5 && segments[4] === "memberships" && req.method === "POST") {
+        const body = await readBody3(req);
+        keys(body, ["user_id", "role", "valid_from", "expires_at"]);
+        const projectId = segments[3];
+        if (!options.storage.canManageProject(current, projectId)) throw new ObjectHttpError(404, "NOT_FOUND", "project not found");
+        options.storage.addProjectMembership({ projectId, userId: text(body.user_id, "user_id", 80), role: body.role === void 0 ? "member" : text(body.role, "role", 20), validFrom: body.valid_from === void 0 ? now : text(body.valid_from, "valid_from", 40), expiresAt: body.expires_at === void 0 ? void 0 : text(body.expires_at, "expires_at", 40) });
+        res.statusCode = 204;
+        res.end();
+        return;
+      }
+      if (segments[2] === "objects") {
+        if (segments.length === 3 && req.method === "GET") {
+          json(res, 200, { data: options.storage.listObjects(current, "read", now).map((item) => safeObject(item, false)), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
+          return;
+        }
+        if (segments.length === 3 && req.method === "POST") {
+          const body = await readBody3(req);
+          keys(body, ["title", "body", "object_type", "scope", "project_id"]);
+          const scope = body.scope ?? "personal";
+          if (scope !== "personal" && scope !== "project") throw new ObjectHttpError(422, "INPUT_INVALID", "scope is invalid");
+          const title = text(body.title, "title", 200);
+          const content = text(body.body, "body", 1e5);
+          const object = options.storage.createObject({ id: randomUUID5(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId: body.project_id === void 0 ? void 0 : text(body.project_id, "project_id", 80), ownerUserId: current.userId, objectType: body.object_type === void 0 ? "note" : text(body.object_type, "object_type", 80), title, body: content, now });
+          json(res, 201, { data: safeObject(object), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
+          return;
+        }
+        const objectId = segments[3];
+        if (objectId === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
+        if (segments.length === 4 && req.method === "GET") {
+          const object = options.storage.authorizeObject(current, objectId, "read", now);
+          if (object === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
+          json(res, 200, { data: safeObject(object), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
+          return;
+        }
+        if (segments.length === 4 && req.method === "PATCH") {
+          const body = await readBody3(req);
+          keys(body, ["expected_revision", "title", "body"]);
+          if (!Number.isInteger(body.expected_revision)) throw new ObjectHttpError(422, "INPUT_INVALID", "expected_revision is invalid");
+          const object = options.storage.updateObject(current, objectId, Number(body.expected_revision), { title: body.title === void 0 ? void 0 : text(body.title, "title", 200), body: body.body === void 0 ? void 0 : text(body.body, "body", 1e5) }, now);
+          if (object === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
+          json(res, 200, { data: safeObject(object), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
+          return;
+        }
+        if (segments.length === 4 && req.method === "DELETE") {
+          if (!options.storage.deleteObject(current, objectId, now)) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
+          res.statusCode = 204;
+          res.end();
+          return;
+        }
+        if (segments.length === 5 && segments[4] === "action" && req.method === "POST") {
+          const body = await readBody3(req);
+          keys(body, ["action"]);
+          const wanted = action(body.action);
+          if (options.storage.authorizeObject(current, objectId, wanted, now) === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
+          json(res, 200, { data: { allowed: true, action: wanted, object_id: objectId }, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
+          return;
+        }
+      }
+      if (segments[2] === "grants" && segments.length === 3 && req.method === "POST") {
+        const body = await readBody3(req);
+        keys(body, ["object_id", "subject_type", "subject_id", "action", "valid_from", "expires_at"]);
+        if (body.subject_type !== "user" && body.subject_type !== "project") throw new ObjectHttpError(422, "INPUT_INVALID", "subject_type is invalid");
+        const grant = options.storage.grantObject(current, { id: randomUUID5(), objectId: text(body.object_id, "object_id", 80), serviceId: current.serviceId, subjectType: body.subject_type, subjectId: text(body.subject_id, "subject_id", 80), action: action(body.action), validFrom: body.valid_from === void 0 ? now : text(body.valid_from, "valid_from", 40), expiresAt: body.expires_at === void 0 ? void 0 : text(body.expires_at, "expires_at", 40), now });
+        if (grant === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
+        json(res, 201, { data: grant, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
+        return;
+      }
+      if (segments[2] === "grants" && segments.length === 4 && segments[3] === "revoke" && req.method === "POST") {
+        const body = await readBody3(req);
+        keys(body, []);
+        if (!options.storage.revokeGrant(current, text(body.id, "id", 80), now)) throw new ObjectHttpError(404, "NOT_FOUND", "grant not found");
+        res.statusCode = 204;
+        res.end();
+        return;
+      }
+      throw new ObjectHttpError(404, "NOT_FOUND", "route not found");
+    } catch (error) {
+      if (error instanceof ObjectHttpError) {
+        json(res, error.status, { code: error.code, message: error.message, request_id: requestId, retryable: false, safe_details: {} });
+        return;
+      }
+      if (error instanceof RecordsError) {
+        json(res, 503, { code: error.code, message: "storage is unavailable", request_id: requestId, retryable: error.retryable, safe_details: {} });
+        return;
+      }
+      json(res, 500, { code: "INTERNAL_ERROR", message: "internal error", request_id: requestId, retryable: false, safe_details: {} });
+    }
+  };
 }
 
 // src/host/index.ts
@@ -1576,7 +1978,7 @@ function apply(ctx, config = {}) {
       if (closing) throw new RecordsError("STORAGE_CLOSED", "storage is closing");
       if (storage === void 0) throw new RecordsError("STORAGE_UNAVAILABLE", "storage is not configured");
       return createProbeRecord(storage, {
-        newId: () => randomUUID5(),
+        newId: () => randomUUID6(),
         now: () => (/* @__PURE__ */ new Date()).toISOString()
       }, { idempotencyKey, content });
     },
@@ -1641,7 +2043,7 @@ function apply(ctx, config = {}) {
     res.statusCode = 503;
     res.setHeader("content-type", "application/json; charset=utf-8");
     res.setHeader("cache-control", "no-store");
-    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID5(), retryable: true, safe_details: {} }));
+    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID6(), retryable: true, safe_details: {} }));
   };
   const registerIdentityRoutes = (identityContext) => {
     const identityAvailable = () => {
@@ -1728,6 +2130,19 @@ function apply(ctx, config = {}) {
         { path: "/knowledge/v1/spaces", auth: "anonymous", handler: identityHandlers.spaces }
       ];
       for (const route of routes) disposers.push(identityContext.webServer.register({ kind: "exact", path: route.path, auth: route.auth, handler: withPeer(route.handler) }));
+      const objectHandler = createObjectHandlers({
+        storage,
+        actorFor: (req) => {
+          const origin = actualOrigin();
+          if (origin === void 0) return void 0;
+          const token = readCookie(req, businessCookieName(identity.setupState.serviceId, origin));
+          return identity.actor(token);
+        },
+        origin: actualOrigin
+      });
+      disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/objects", auth: "anonymous", handler: withPeer(async (req, res) => objectHandler(req, res)) }));
+      disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/projects", auth: "anonymous", handler: withPeer(async (req, res) => objectHandler(req, res)) }));
+      disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/grants", auth: "anonymous", handler: withPeer(async (req, res) => objectHandler(req, res)) }));
       return async () => {
         for (const dispose of disposers) dispose();
         await identity.close();
