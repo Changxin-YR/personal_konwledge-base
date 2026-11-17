@@ -1,0 +1,20 @@
+{
+  "run_id": "t11-check2",
+  "candidate": "fnd003-candidate-20261117",
+  "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "port": 3101,
+  "profile": "knowledgeos-identity-test",
+  "started_at": "2026-11-17T03:18:35.534Z",
+  "finished_at": "2026-11-17T03:19:58.727Z",
+  "result": "PASS",
+  "results": [
+    {
+      "id": "T11",
+      "name": "真实账号界面与身份切换",
+      "status": "PASS",
+      "evidence": "T11.json"
+    }
+  ],
+  "failures": [],
+  "out": "docs/evidence/FND-003/runs/t11-check2"
+}

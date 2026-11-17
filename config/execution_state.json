@@ -1,7 +1,7 @@
 {
   "schema_version": "2.0",
   "instruction_revision": "3.1.0",
-  "updated_at": "2026-11-16",
+  "updated_at": "2026-11-17",
   "timezone": "Asia/Shanghai",
   "execution_phase": "codex_foundation",
   "executor": "codex",
@@ -10,7 +10,7 @@
     "sha256": "03dc8b7f5efea53c3ffcec6cfc72f6feb7199b4e6f547ebd08e344792c0a8c47"
   },
   "active_unit": "FND-003",
-  "unit_state": "ready",
+  "unit_state": "awaiting_user",
   "execution_mode": "single_feature_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "awaiting_user": "current unit has passed and awaits a user choice; active_unit is not advanced"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "FND-002 closure accepted after candidate/evidence review and independent R1/R2 probes; FND-003 identity slice explicitly selected, not implemented or tested yet.",
+  "state_reason": "FND-003 implementation, twelve real tests, frozen candidate, and independent review completed; awaiting explicit next unit instruction.",
   "working_branch": "codex/knowledgeos-fnd-003",
   "activation_basis": "explicit_user_request_for_next_step_after_verified_FND002_closure",
   "base_commit": "3535f16b1a429d32cd2c80f6c1462ce556fcb509",

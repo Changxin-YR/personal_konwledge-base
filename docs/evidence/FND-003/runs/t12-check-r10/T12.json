@@ -1,0 +1,95 @@
+{
+  "id": "T12",
+  "name": "构建、真实加载、释放及既有回归",
+  "status": "PASS",
+  "started": "2026-11-17T04:35:51.173Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "verify-plan exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "scope-check exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "typecheck exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "build exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "frozen candidate manifest matches source and loaded artifacts",
+      "actual": []
+    },
+    {
+      "ok": true,
+      "message": "tampered artifact differs from frozen candidate"
+    },
+    {
+      "ok": true,
+      "message": "existing status and records routes remain functional",
+      "actual": {
+        "status": 200,
+        "record": 201,
+        "reread": 200
+      }
+    },
+    {
+      "ok": true,
+      "message": "unconfigured profile preserves status and returns explicit unavailable",
+      "actual": {
+        "unavailable": {
+          "code": "STORAGE_UNAVAILABLE",
+          "message": "storage is unavailable",
+          "request_id": "675f6eb7-e9d4-4c36-93be-d4709be00ff8",
+          "retryable": false,
+          "safe_details": {}
+        },
+        "status": 200
+      }
+    }
+  ],
+  "details": {
+    "checks": [
+      {
+        "name": "verify-plan",
+        "status": 0,
+        "stdout": "{\n  \"status\": \"PASS\",\n  \"scope\": \"plan_structure_traceability_and_execution_consistency_only\",\n  \"requirements\": 44,\n  \"acceptanceCases\": 66,\n  \"workUnits\": 76,\n  \"plannedUnitChecks\": 174,\n  \"executor\": \"codex\",\n  \"activeUnit\": \"FND-003\",\n  \"autoAdvance\": false,\n  \"fullProductReview\": \"not_started\",\n  \"markdownFiles\": 51,\n  \"upstreamCommit\": \"39163dd30f703a79079e2d2446545cff3c453738\",\n  \"implementationVerifiedByThisCheck\": false,\n  \"productTestsExecuted\": 0\n}\n",
+        "stderr": ""
+      },
+      {
+        "name": "scope-check",
+        "status": 0,
+        "stdout": "{\n  \"result\": \"PASS\",\n  \"failures\": [],\n  \"checked\": [\n    \"packages/knowledgeos-panel/src/host/identity.ts\",\n    \"packages/knowledgeos-panel/src/host/identity-http.ts\",\n    \"packages/knowledgeos-panel/src/host/identity-peer.ts\",\n    \"packages/knowledgeos-panel/src/host/storage.ts\",\n    \"scripts/fnd003/harness.mjs\",\n    \"scripts/fnd003/run-all.mjs\",\n    \"packages/knowledgeos-panel/src/host/index.ts\",\n    \"packages/knowledgeos-panel/src/host/identity.ts\",\n    \"packages/knowledgeos-panel/src/host/identity-http.ts\",\n    \"packages/knowledgeos-panel/src/host/identity-peer.ts\",\n    \"packages/knowledgeos-panel/src/host/storage.ts\",\n    \"packages/knowledgeos-panel/src/client/Panel.tsx\"\n  ]\n}\n",
+        "stderr": ""
+      },
+      {
+        "name": "typecheck",
+        "status": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "name": "build",
+        "status": 0,
+        "stdout": "lib/index.js  84799 bytes  sha256=b1971b5c708cc84399a7b2906818f050f5cde40e648c03a527ae4727eddddec8\nlib/storage.js  32775 bytes  sha256=72be1ed24ed87854c2f284e0f06053812dcac09938d081ca4e8d3319387cc898\nlib/test-support.js  46082 bytes  sha256=83b2f6b98f51ae58f33c75a5ab43f18dcdc0435be9ae8b18f31d26de9ea75abc\nlib/client.js  21691 bytes  sha256=dfa4a5e2fb8afcaf85657f22048185e3cb86444db87e8e6e4ec1d4b0bbe2e1a9\n",
+        "stderr": ""
+      }
+    ],
+    "loaded_package": "packages/knowledgeos-panel",
+    "manifest": "fnd003-candidate-20261117-r10",
+    "negative_artifact": "e23ded6ec4ad5818414ee57333be8d7554e3fc74364488e6594e74cb6a176aa1",
+    "lifecycle": "closed after each Host run"
+  },
+  "evidence": [],
+  "finished": "2026-11-17T04:36:17.521Z"
+}

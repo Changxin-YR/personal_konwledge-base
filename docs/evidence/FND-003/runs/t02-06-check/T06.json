@@ -1,0 +1,118 @@
+{
+  "id": "T06",
+  "name": "领域、目标、私人空间及版本冲突",
+  "status": "PASS",
+  "started": "2026-11-17T02:39:12.581Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "four domains three tracks Chinese goal and timezone persist",
+      "actual": {
+        "data": {
+          "id": "39ac5a1f-8a66-48f1-bdee-0d29214b63c9",
+          "login_name": "alice",
+          "display_name": "甲",
+          "role": "member",
+          "status": "active",
+          "timezone": "America/Los_Angeles",
+          "planning_home_service_id": "045fed3c-6472-455f-b734-8c72c4c28f5a",
+          "domains": [
+            "software_engineering",
+            "system_architecture",
+            "hardware_engineering",
+            "ai_development"
+          ],
+          "learning_tracks": [
+            "engineering_practice",
+            "architecture_exam",
+            "knowledge_accumulation"
+          ],
+          "goal_text": "在上海完成 KnowledgeOS 身份与架构学习。",
+          "revision": 2,
+          "personal_space_id": "02fba507-9c31-4789-8429-a087484890c4",
+          "created_at": "2026-11-17T02:39:20.115Z",
+          "updated_at": "2026-11-17T02:39:21.049Z"
+        },
+        "meta": {
+          "request_id": "5a10947b-833f-4471-949c-086a2e51650c",
+          "service_id": "045fed3c-6472-455f-b734-8c72c4c28f5a",
+          "server_time": "2026-11-17T02:39:21.053Z"
+        }
+      }
+    },
+    {
+      "ok": true,
+      "message": "personal spaces are actor-scoped",
+      "actual": {
+        "spaces": 1,
+        "other": "bob"
+      }
+    },
+    {
+      "ok": true,
+      "message": "preferences survive restart",
+      "actual": {
+        "data": {
+          "id": "39ac5a1f-8a66-48f1-bdee-0d29214b63c9",
+          "login_name": "alice",
+          "display_name": "甲",
+          "role": "member",
+          "status": "active",
+          "timezone": "America/Los_Angeles",
+          "planning_home_service_id": "045fed3c-6472-455f-b734-8c72c4c28f5a",
+          "domains": [
+            "software_engineering",
+            "system_architecture",
+            "hardware_engineering",
+            "ai_development"
+          ],
+          "learning_tracks": [
+            "engineering_practice",
+            "architecture_exam",
+            "knowledge_accumulation"
+          ],
+          "goal_text": "在上海完成 KnowledgeOS 身份与架构学习。",
+          "revision": 2,
+          "personal_space_id": "02fba507-9c31-4789-8429-a087484890c4",
+          "created_at": "2026-11-17T02:39:20.115Z",
+          "updated_at": "2026-11-17T02:39:21.049Z"
+        },
+        "meta": {
+          "request_id": "7a4eb3e1-5964-4683-968b-4bbaf12bc3d0",
+          "service_id": "045fed3c-6472-455f-b734-8c72c4c28f5a",
+          "server_time": "2026-11-17T02:39:28.361Z"
+        }
+      }
+    },
+    {
+      "ok": true,
+      "message": "same revision has one winner and one conflict",
+      "actual": [
+        200,
+        409
+      ]
+    },
+    {
+      "ok": true,
+      "message": "preference identity fields cannot be supplied",
+      "actual": {
+        "code": "INPUT_INVALID",
+        "message": "body contains an unsupported field",
+        "request_id": "c843fe00-a330-4946-a1fe-e95c1a22b642",
+        "retryable": false,
+        "safe_details": {}
+      }
+    }
+  ],
+  "details": {
+    "revision_results": [
+      200,
+      409
+    ],
+    "persisted": true,
+    "spaces": 1
+  },
+  "evidence": [],
+  "finished": "2026-11-17T02:39:28.713Z"
+}

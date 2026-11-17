@@ -1,6 +1,6 @@
 {
   "schema_version": "2.0",
-  "updated_at": "2026-11-16",
+  "updated_at": "2026-11-17",
   "timezone": "Asia/Shanghai",
   "mode": "single_feature_gated",
   "current_executor": "codex",
@@ -634,16 +634,39 @@
       ],
       "final_acceptance_ids": [],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
-      "status": "planned",
+      "status": "passed",
       "test_plan_status": "detailed_current_unit",
       "instruction_revision": "3.1.0",
       "activated_at": "2026-11-16",
       "activation_basis": "explicit_user_next_step_request",
       "working_branch": "codex/knowledgeos-fnd-003",
       "base_commit": "3535f16b1a429d32cd2c80f6c1462ce556fcb509",
-      "test_result_status": "NOT_RUN",
-      "independent_review_status": "NOT_RUN",
-      "completed_test_ids": [],
+      "evidence_paths": [
+        "docs/evidence/FND-003/architecture.md",
+        "docs/evidence/FND-003/test-plan.md",
+        "docs/evidence/FND-003/ACCEPTANCE_REPORT_20261117.md",
+        "docs/evidence/FND-003/independent-verification-closeout.md",
+        "docs/evidence/FND-003/candidate-manifest.json",
+        "docs/evidence/FND-003/runs/fnd003-candidate-20261117-r2/summary.json",
+        "docs/evidence/FND-003/runs/independent-20261117-r5/summary.json"
+      ],
+      "completed_at": "2026-11-17T12:20:00+08:00",
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "completed_test_ids": [
+        "FND-003-T01",
+        "FND-003-T02",
+        "FND-003-T03",
+        "FND-003-T04",
+        "FND-003-T05",
+        "FND-003-T06",
+        "FND-003-T07",
+        "FND-003-T08",
+        "FND-003-T09",
+        "FND-003-T10",
+        "FND-003-T11",
+        "FND-003-T12"
+      ],
       "open_review_items": [],
       "requirement_evidence_scope": {
         "F03": "identity_and_personal_preferences_slice_only; not full requirement verification"
@@ -671,6 +694,13 @@
         "setup_page": "/knowledgeos/setup",
         "max_request_body_bytes": 16384,
         "kdf_resource_limits": "2 real running scrypt tasks + 8 queued; queued cancellation removes task; running task retains slot until actual callback; cancelled results cannot write DB"
+      },
+      "evidence": {
+        "candidate": "docs/evidence/FND-003/candidate-manifest.json",
+        "acceptance_report": "docs/evidence/FND-003/ACCEPTANCE_REPORT_20261117.md",
+        "run_summary": "docs/evidence/FND-003/runs/fnd003-candidate-20261117-r2/summary.json",
+        "independent_review": "docs/evidence/FND-003/independent-verification-closeout.md",
+        "independent_run_summary": "docs/evidence/FND-003/runs/independent-20261117-r5/summary.json"
       }
     },
     {

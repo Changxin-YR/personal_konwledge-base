@@ -15,6 +15,8 @@ import { Config, resolveDataDir, type Config as KnowledgeOsConfig } from './conf
 import { createRecordsHandlers, type RecordsService } from './http.ts'
 import { createProbeRecord, getProbeRecord, RecordsError, type CreateRecordResult } from './records.ts'
 import { ProbeStorage } from './storage.ts'
+import { IdentityService } from './identity.ts'
+import { buildAccountHtml, buildSetupHtml, createIdentityHandlers, isLoopbackAddress } from './identity-http.ts'
 
 export { Config }
 
@@ -28,6 +30,9 @@ export const inject = ['webServer', 'clientModules']
 export const STATUS_PATH = '/knowledgeos/status'
 /** FND-002 create path; the same prefix serves GET by id. */
 export const RECORDS_PATH = '/knowledgeos/foundation/records'
+export const ACCOUNT_PATH = '/knowledgeos/account'
+export const SETUP_PATH = '/knowledgeos/setup'
+export const IDENTITY_API_PATH = '/knowledge/v1'
 
 const RESPONSE_HEADERS = {
   'cache-control': 'no-store',
@@ -136,4 +141,82 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
       storage?.close()
     }
   }, 'knowledgeos-storage: records routes and connection')
+
+  const webFacts = ctx.webServer as unknown as {
+    host?: string
+    protocol?: 'http:' | 'https:'
+    getOrigin?: () => string
+  }
+  const identity = storage === undefined ? undefined : new IdentityService(storage)
+  const identityHandlers = identity === undefined ? undefined : createIdentityHandlers({
+    service: identity,
+    origin: () => webFacts.getOrigin?.() ?? `${webFacts.protocol ?? 'http:'}//${webFacts.host ?? '127.0.0.1'}`,
+    host: () => webFacts.host ?? '127.0.0.1',
+    protocol: () => webFacts.protocol ?? 'http:',
+  })
+
+  const sendIdentityUnavailable = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse): void => {
+    if (req.method === 'GET' && req.url?.startsWith('/knowledgeos/account')) {
+      res.statusCode = 200
+      res.setHeader('content-type', 'text/html; charset=utf-8')
+      res.setHeader('cache-control', 'no-store')
+      res.end(buildAccountHtml())
+      return
+    }
+    res.statusCode = 503
+    res.setHeader('content-type', 'application/json; charset=utf-8')
+    res.setHeader('cache-control', 'no-store')
+    res.end(JSON.stringify({ code: 'STORAGE_UNAVAILABLE', message: 'storage is not configured', request_id: randomUUID(), retryable: true, safe_details: {} }))
+  }
+
+  const ownerSetupPage = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, peer?: unknown): void => {
+    if (req.method !== 'GET') { res.statusCode = 405; res.setHeader('allow', 'GET'); res.end(); return }
+    const principal = (peer as { principal?: { kind?: string } } | undefined)?.principal
+    if (principal?.kind !== 'owner' || !isLoopbackAddress(req.socket?.remoteAddress) || !isLoopbackAddress(webFacts.host?.split(':')[0])) { res.statusCode = 403; res.end('forbidden'); return }
+    res.statusCode = 200
+    res.setHeader('content-type', 'text/html; charset=utf-8')
+    res.setHeader('cache-control', 'no-store')
+    res.end(buildSetupHtml())
+  }
+
+  const accountPage = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse): void => {
+    if (req.method !== 'GET') { res.statusCode = 405; res.setHeader('allow', 'GET'); res.end(); return }
+    res.statusCode = 200
+    res.setHeader('content-type', 'text/html; charset=utf-8')
+    res.setHeader('cache-control', 'no-store')
+    res.end(buildAccountHtml())
+  }
+
+  const withPeer = (handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, peer?: import('./identity-peer.ts').PeerScope) => Promise<void>) => {
+    return (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, peer?: unknown): Promise<void> => {
+      const pending = handler(req, res, peer as import('./identity-peer.ts').PeerScope | undefined)
+      inFlight.add(pending)
+      void pending.finally(() => { inFlight.delete(pending) })
+      return pending
+    }
+  }
+
+  ctx.effect(() => {
+    const disposers: Array<() => void> = []
+    disposers.push(ctx.webServer.register({ kind: 'exact', path: ACCOUNT_PATH, auth: 'anonymous', handler: accountPage }))
+    disposers.push(ctx.webServer.register({ kind: 'exact', path: SETUP_PATH, auth: 'required', handler: ownerSetupPage }))
+    if (identityHandlers === undefined) {
+      for (const path of ['/knowledge/v1/auth/status', '/knowledge/v1/auth/bootstrap', '/knowledge/v1/auth/register', '/knowledge/v1/auth/login', '/knowledge/v1/auth/logout', '/knowledge/v1/me', '/knowledge/v1/me/preferences', '/knowledge/v1/spaces']) {
+        disposers.push(ctx.webServer.register({ kind: 'exact', path, auth: path.endsWith('/bootstrap') ? 'required' : 'anonymous', handler: sendIdentityUnavailable }))
+      }
+    } else {
+      const routes: Array<{ path: string; auth: 'anonymous' | 'required'; handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, peer?: import('./identity-peer.ts').PeerScope) => Promise<void> }> = [
+        { path: '/knowledge/v1/auth/status', auth: 'anonymous', handler: identityHandlers.status },
+        { path: '/knowledge/v1/auth/bootstrap', auth: 'required', handler: identityHandlers.bootstrap },
+        { path: '/knowledge/v1/auth/register', auth: 'anonymous', handler: identityHandlers.register },
+        { path: '/knowledge/v1/auth/login', auth: 'anonymous', handler: identityHandlers.login },
+        { path: '/knowledge/v1/auth/logout', auth: 'anonymous', handler: identityHandlers.logout },
+        { path: '/knowledge/v1/me', auth: 'anonymous', handler: identityHandlers.me },
+        { path: '/knowledge/v1/me/preferences', auth: 'anonymous', handler: identityHandlers.preferences },
+        { path: '/knowledge/v1/spaces', auth: 'anonymous', handler: identityHandlers.spaces },
+      ]
+      for (const route of routes) disposers.push(ctx.webServer.register({ kind: 'exact', path: route.path, auth: route.auth, handler: withPeer(route.handler) }))
+    }
+    return async () => { for (const dispose of disposers) dispose(); await identity?.close() }
+  }, 'knowledgeos-identity: account and business routes')
 }

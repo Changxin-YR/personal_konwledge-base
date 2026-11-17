@@ -307,7 +307,11 @@ window.__ModuleLoader__.load({
 		      ] })
 		    ] }) }),
 		    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("footer", { className: "kos-foot", children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "kos-note", children: "\u6570\u636E\u6765\u81EA\u672C\u673A DSH Host \u63D2\u4EF6\uFF1B\u4EC5\u5305\u542B\u7248\u672C\u3001\u63D0\u4EA4\u3001\u5B9E\u4F8B\u4E0E\u65F6\u95F4\u7B49\u8FD0\u884C\u5143\u6570\u636E\u3002" }),
+		      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { className: "kos-note", children: [
+		        "\u6570\u636E\u6765\u81EA\u672C\u673A DSH Host \u63D2\u4EF6\uFF1B\u4EC5\u5305\u542B\u7248\u672C\u3001\u63D0\u4EA4\u3001\u5B9E\u4F8B\u4E0E\u65F6\u95F4\u7B49\u8FD0\u884C\u5143\u6570\u636E\u3002",
+		        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
+		        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", { href: "/knowledgeos/account", style: { color: "#3D7E86" }, children: "\u6253\u5F00\u8D26\u53F7\u4E0E\u4E2A\u4EBA\u7A7A\u95F4" })
+		      ] }),
 		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "button", className: "kos-button kos-button--ghost", onClick: refresh, disabled: phase === "loading", "data-testid": "kos-refresh", children: phase === "error" ? "\u91CD\u65B0\u8FDE\u63A5" : "\u5237\u65B0" })
 		    ] })
 		  ] });

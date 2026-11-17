@@ -1,0 +1,71 @@
+{
+  "id": "T07",
+  "name": "密码、输入和公开证据保护",
+  "status": "PASS",
+  "started": "2026-11-17T02:42:20.468Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "input boundaries reject malformed values",
+      "actual": {
+        "short": 422,
+        "unknown_field": 422,
+        "surrogate": 422,
+        "too_large": 413
+      }
+    },
+    {
+      "ok": true,
+      "message": "unknown and wrong password use one safe error",
+      "actual": {
+        "wrong": "INVALID_CREDENTIALS",
+        "unknown": "INVALID_CREDENTIALS"
+      }
+    },
+    {
+      "ok": true,
+      "message": "same password credentials use different salts",
+      "actual": [
+        {
+          "salt_bytes": "<redacted>",
+          "key_bytes": 32
+        },
+        {
+          "salt_bytes": "<redacted>",
+          "key_bytes": 32
+        }
+      ]
+    },
+    {
+      "ok": true,
+      "message": "public response evidence contains no secrets",
+      "actual": "{\"badcases\":{\"short\":{\"status\":422,\"headers\":{},\"text\":\"{\\\"code\\\":\\\"input_invalid\\\",\\\"message\\\":\\\"password length is invalid\\\",\\\"request_id\\\":\\\"6f342b16-657f-4d0b-8495-8fff191ad539\\\",\\\"retryable\\\":false,\\\"safe_details\\\":{}}\",\"json\":{\"code\":\"input_invalid\",\"message\":\"password length is invalid\",\"request_id\":\"6f342b16-657f-4d0b-8495-8fff191ad539\",\"retryable\":false,\"safe_details\":{}}},\"unknown_field\":{\"status\":422,\"headers\":{},\"text\":\"{\\\"code\\\":\\\"input_invalid\\\",\\\"message\\\":\\\"body contains an unsupported field\\\",\\\"request_id\\\":\\\"32755325-3ebc-4b6c-85f2-ec1223e232bf\\\",\\\"retryable\\\":false,\\\"safe_details\\\":{}}\",\"json\":{\"code\":\"input_invalid\",\"message\":\"body contains an unsupported field\",\"request_id\":\"32755325-3ebc-4b6c-85f2-ec1223e232bf\",\"retryable\":false,\"safe_details\":{}}},\"surrogate\":{\"status\":422,\"headers\":{},\"text\":\"{\\\"code\\\":\\\"input_invalid\\\",\\\"message\\\":\\\"display_name is invalid\\\",\\\"request_id\\\":\\\"0af14186-e681-4095-9049-8871c3b41d4c\\\",\\\"retryable\\\":false,\\\"safe_details\\\":{}}\",\"json\":{\"code\":\"input_invalid\",\"message\":\"display_name is invalid\",\"request_id\":\"0af14186-e681-4095-9049-8871c3b41d4c\",\"retryable\":false,\"safe_details\":{}}},\"too_large\":{\"status\":413,\"headers\":{},\"text\":\"{\\\"code\\\":\\\"payload_too_large\\\",\\\"message\\\":\\\"request body exceeds the limit\\\",\\\"request_id\\\":\\\"595778cc-101c-488c-a637-aca2604c29f6\\\",\\\"retryable\\\":false,\\\"safe_details\\\":{}}\",\"json\":{\"code\":\"payload_too_large\",\"message\":\"request body exceeds the limit\",\"request_id\":\"595778cc-101c-488c-a637-aca2604c29f6\",\"retryable\":false,\"safe_details\":{}}}},\"wrong\":{\"code\":\"invalid_credentials\",\"message\":\"invalid credentials\",\"request_id\":\"056e2168-dd6f-4a50-9d78-57e0c22c52ae\",\"retryable\":false,\"safe_details\":{}},\"unknown\":{\"code\":\"invalid_credentials\",\"message\":\"invalid credentials\",\"request_id\":\"5722ec65-a3a3-4711-8335-e91f0c28a31a\",\"retryable\":false,\"safe_details\":{}},\"alice\":{\"id\":\"717fe6a9-c5cd-4be8-9ecf-07083407ec97\",\"login_name\":\"alice\",\"display_name\":\"甲\",\"role\":\"member\",\"status\":\"active\",\"timezone\":\"asia/shanghai\",\"planning_home_service_id\":\"4395e3a9-52d1-48e7-a2b7-82e82873dc77\",\"domains\":[],\"learning_tracks\":[],\"goal_text\":\"\",\"revision\":1,\"personal_space_id\":\"e1e77d70-01f9-44a7-adae-032ee97d103f\",\"created_at\":\"2026-11-17t02:42:32.279z\",\"updated_at\":\"2026-11-17t02:42:32.279z\"}}"
+    },
+    {
+      "ok": true,
+      "message": "SQL-looking text is stored as data",
+      "actual": 200
+    }
+  ],
+  "details": {
+    "kdf": {
+      "algorithm": "scrypt",
+      "n": 131072,
+      "r": 8,
+      "p": 1,
+      "maxmem": 201326592,
+      "salt_bytes": 16,
+      "key_bytes": 32
+    },
+    "credential_rows": 2,
+    "bad_cases": {
+      "short": 422,
+      "unknown_field": 422,
+      "surrogate": 422,
+      "too_large": 413
+    }
+  },
+  "evidence": [],
+  "finished": "2026-11-17T02:42:34.451Z"
+}

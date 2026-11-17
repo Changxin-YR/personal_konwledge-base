@@ -1,0 +1,21 @@
+{
+  "id": "T11",
+  "name": "真实账号界面与身份切换",
+  "status": "FAIL",
+  "started": "2026-11-17T02:43:24.029Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "browser sees owner setup page"
+    },
+    {
+      "ok": false,
+      "message": "browser registration succeeds"
+    }
+  ],
+  "details": {},
+  "evidence": [],
+  "error": "Error: browser registration succeeds\n    at expect (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:75:25)\n    at file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:285:361\n    at async run (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:81:32)\n    at async file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:279:3",
+  "finished": "2026-11-17T02:43:42.500Z"
+}

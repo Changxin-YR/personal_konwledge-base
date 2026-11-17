@@ -1,0 +1,22 @@
+{
+  "run_id": "t11-check",
+  "candidate": "fnd003-candidate-20261117",
+  "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "port": 3101,
+  "profile": "knowledgeos-identity-test",
+  "started_at": "2026-11-17T02:43:24.028Z",
+  "finished_at": "2026-11-17T02:43:43.254Z",
+  "result": "FAIL",
+  "results": [
+    {
+      "id": "T11",
+      "name": "真实账号界面与身份切换",
+      "status": "FAIL",
+      "evidence": "T11.json"
+    }
+  ],
+  "failures": [
+    "T11: browser registration succeeds"
+  ],
+  "out": "docs/evidence/FND-003/runs/t11-check"
+}

@@ -1,0 +1,42 @@
+{
+  "id": "T11",
+  "name": "真实账号界面与身份切换",
+  "status": "PASS",
+  "started": "2026-11-17T03:25:06.649Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "browser sees owner setup page"
+    },
+    {
+      "ok": true,
+      "message": "browser registration succeeds",
+      "actual": "注册成功，请登录"
+    },
+    {
+      "ok": true,
+      "message": "browser preference save succeeds"
+    },
+    {
+      "ok": true,
+      "message": "second browser context is a separate identity"
+    },
+    {
+      "ok": true,
+      "message": "browser logout clears personal view"
+    }
+  ],
+  "details": {
+    "screenshots": [
+      "T11-setup-1366.png",
+      "T11-account-1366.png",
+      "T11-account-1920.png",
+      "T11-bob-1366.png"
+    ],
+    "browser_contexts": 2,
+    "controlled_delayed_response": "not simulated; UI state verified after logout"
+  },
+  "evidence": [],
+  "finished": "2026-11-17T03:25:27.144Z"
+}

@@ -1,0 +1,91 @@
+{
+  "id": "T10",
+  "name": "登录注册限流与有界 KDF 负载",
+  "status": "PASS",
+  "started": "2026-11-17T02:42:35.937Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "real HTTP login limit returns 429 and Retry-After",
+      "actual": [
+        {
+          "status": 401,
+          "retry_after": null
+        },
+        {
+          "status": 401,
+          "retry_after": null
+        },
+        {
+          "status": 401,
+          "retry_after": null
+        },
+        {
+          "status": 401,
+          "retry_after": null
+        },
+        {
+          "status": 401,
+          "retry_after": null
+        },
+        {
+          "status": 429,
+          "retry_after": "60"
+        }
+      ]
+    },
+    {
+      "ok": true,
+      "message": "controlled limiter window blocks at five failures"
+    },
+    {
+      "ok": true,
+      "message": "KDF concurrency and queue remain bounded",
+      "actual": {
+        "peakRunning": 2,
+        "peakQueued": 8,
+        "outcomes": [
+          "AUTH_RATE_LIMITED",
+          "AUTH_RATE_LIMITED"
+        ]
+      }
+    },
+    {
+      "ok": true,
+      "message": "over-capacity or cancelled KDF work is rejected",
+      "actual": [
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "AUTH_RATE_LIMITED",
+        "AUTH_RATE_LIMITED"
+      ]
+    }
+  ],
+  "details": {
+    "http_limit": [
+      401,
+      401,
+      401,
+      401,
+      401,
+      429
+    ],
+    "kdf": {
+      "peakRunning": 2,
+      "peakQueued": 8,
+      "rejected": 2
+    },
+    "controlled_recovery": true
+  },
+  "evidence": [],
+  "finished": "2026-11-17T02:43:02.618Z"
+}

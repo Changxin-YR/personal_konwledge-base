@@ -1,0 +1,30 @@
+{
+  "id": "T05",
+  "name": "来源、防伪、媒体类型与请求界限",
+  "status": "FAIL",
+  "started": "2026-11-17T02:39:03.643Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "same-origin GET without Origin succeeds",
+      "actual": 200
+    },
+    {
+      "ok": false,
+      "message": "origin/fetch/host matrix rejects cross-site mutations",
+      "actual": {
+        "origin": 403,
+        "null_origin": 403,
+        "cross_site": 403,
+        "missing_header": 403,
+        "form": 415,
+        "bad_host": 200
+      }
+    }
+  ],
+  "details": {},
+  "evidence": [],
+  "error": "Error: origin/fetch/host matrix rejects cross-site mutations: {\"origin\":403,\"null_origin\":403,\"cross_site\":403,\"missing_header\":403,\"form\":415,\"bad_host\":200}\n    at expect (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:75:25)\n    at file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:196:5\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async run (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:81:32)\n    at async file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:182:3",
+  "finished": "2026-11-17T02:39:11.849Z"
+}

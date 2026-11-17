@@ -1,0 +1,20 @@
+{
+  "run_id": "t01-check",
+  "candidate": "fnd003-candidate-20261117",
+  "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "port": 3101,
+  "profile": "knowledgeos-identity-test",
+  "started_at": "2026-11-17T02:36:55.234Z",
+  "finished_at": "2026-11-17T02:37:17.245Z",
+  "result": "PASS",
+  "results": [
+    {
+      "id": "T01",
+      "name": "可信本机初始化与管理员唯一性",
+      "status": "PASS",
+      "evidence": "T01.json"
+    }
+  ],
+  "failures": [],
+  "out": "docs/evidence/FND-003/runs/t01-check"
+}
