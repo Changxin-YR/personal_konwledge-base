@@ -25,6 +25,6 @@
   ],
   "details": {},
   "evidence": [],
-  "error": "Error: origin/fetch/host matrix rejects cross-site mutations: {\"origin\":403,\"null_origin\":403,\"cross_site\":403,\"missing_header\":403,\"form\":415,\"bad_host\":200}\n    at expect (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:75:25)\n    at file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:196:5\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async run (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:81:32)\n    at async file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:182:3",
+  "error": "Error: origin/fetch/host matrix rejects cross-site mutations: {\"origin\":403,\"null_origin\":403,\"cross_site\":403,\"missing_header\":403,\"form\":415,\"bad_host\":200}\n    at expect (file:///<private-local-path>/scripts/fnd003/run-all.mjs:75:25)\n    at file:///<private-local-path>/scripts/fnd003/run-all.mjs:196:5\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async run (file:///<private-local-path>/scripts/fnd003/run-all.mjs:81:32)\n    at async file:///<private-local-path>/scripts/fnd003/run-all.mjs:182:3",
   "finished": "2026-11-17T02:39:11.849Z"
 }

@@ -13,6 +13,6 @@
   ],
   "details": {},
   "evidence": [],
-  "error": "Error: verify-plan exits 0: 1\n    at expect (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:75:25)\n    at check (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:293:283)\n    at file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:294:5\n    at async run (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:81:32)\n    at async file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd003/run-all.mjs:290:3",
+  "error": "Error: verify-plan exits 0: 1\n    at expect (file:///<private-local-path>/scripts/fnd003/run-all.mjs:75:25)\n    at check (file:///<private-local-path>/scripts/fnd003/run-all.mjs:293:283)\n    at file:///<private-local-path>/scripts/fnd003/run-all.mjs:294:5\n    at async run (file:///<private-local-path>/scripts/fnd003/run-all.mjs:81:32)\n    at async file:///<private-local-path>/scripts/fnd003/run-all.mjs:290:3",
   "finished": "2026-11-17T04:15:57.051Z"
 }

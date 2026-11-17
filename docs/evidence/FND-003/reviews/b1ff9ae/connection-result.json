@@ -1,0 +1,51 @@
+{
+  "candidate": "b1ff9ae506d98420796a6dd84d90e345a6eaa2d7",
+  "scope": "actual candidate apply() with controlled Host/ClientModules Context; only configuration schema dependency stubbed; no real DSH Connection service and not full DSH Host",
+  "timestamp": "2026-11-17T04:55:34.981Z",
+  "declared_inject": [
+    "webServer",
+    "clientModules"
+  ],
+  "context_has_connection": false,
+  "registered_identity_routes": [
+    {
+      "path": "/knowledge/v1/auth/status",
+      "auth": "anonymous"
+    },
+    {
+      "path": "/knowledge/v1/auth/bootstrap",
+      "auth": "required"
+    },
+    {
+      "path": "/knowledge/v1/auth/register",
+      "auth": "anonymous"
+    },
+    {
+      "path": "/knowledge/v1/auth/login",
+      "auth": "anonymous"
+    },
+    {
+      "path": "/knowledge/v1/auth/logout",
+      "auth": "anonymous"
+    },
+    {
+      "path": "/knowledge/v1/me",
+      "auth": "anonymous"
+    },
+    {
+      "path": "/knowledge/v1/me/preferences",
+      "auth": "anonymous"
+    },
+    {
+      "path": "/knowledge/v1/spaces",
+      "auth": "anonymous"
+    }
+  ],
+  "actual": {
+    "status": 200,
+    "available": true,
+    "setup_required": true
+  },
+  "expected": "identity API unavailable without Connection dependency",
+  "outcome": "FAIL"
+}

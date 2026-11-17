@@ -1,5 +1,7 @@
 # FND-003 独立测试计划
 
+> 历史记录：本文保留b1ff9ae提交时的架构或测试材料。当前FND-003已因提交复核进入v3.1.1返修，须按唯一CODEX_START.md更新本轮设计与测试计划；原PASS声明不代表当前验收通过。见 [提交复核](SUBMISSION_REVIEW_20261117.md)。
+
 更新：2026-11-17（Asia/Shanghai）  
 状态：冻结候选 `fnd003-candidate-20261117-r2` 的十二项真实验收已 PASS；独立复核结论单独记录，未将实现者摘要代替独立证据。
 环境：Node 24.22.0、固定 DSH 39163dd30f703a79079e2d2446545cff3c453738、profile `knowledgeos-identity-test`、home `.cache/dsh-home-fnd003`、隔离业务 dataDir、端口 3101；合成账号和秘密只在本机临时目录。

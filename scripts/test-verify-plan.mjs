@@ -21,6 +21,7 @@ const statePath = 'config/execution_state.json';
 const catalogPath = 'config/work_units.json';
 const currentUnit = 'FND-003';
 const currentTestIds = Array.from({ length: 12 }, (_, index) => `${currentUnit}-T${String(index + 1).padStart(2, '0')}`);
+const currentReviewItemIds = Array.from({ length: 6 }, (_, index) => `FND003-R${index + 1}`);
 const editState = (repo, change) => { const value = json(repo, statePath); change(value); save(repo, statePath, value); };
 const editCatalog = (repo, change) => { const value = json(repo, catalogPath); change(value); save(repo, catalogPath, value); };
 const editUnit = (repo, change) => editCatalog(repo, (catalog) => change(catalog.units.find((unit) => unit.id === currentUnit)));
@@ -35,8 +36,9 @@ const completedFixture = (repo) => {
   const evidence = 'docs/evidence/FND-003/synthetic-gate-fixture.json';
   save(repo, evidence, { synthetic: true, purpose: 'plan gate only; no product test' });
   editUnit(repo, (unit) => Object.assign(unit, {
-    status: 'passed', test_result_status: 'PASS', independent_review_status: 'PASS',
+    status: 'passed', test_result_status: 'PASS', independent_review_status: 'PASS', retest_status: 'PASS',
     completed_test_ids: [...currentTestIds], open_review_items: [],
+    required_review_item_ids: [...currentReviewItemIds], closed_review_items: [...currentReviewItemIds],
     completed_at: new Date().toISOString(), evidence_paths: [evidence],
   }));
   editState(repo, (s) => { s.unit_state = 'awaiting_user'; });
@@ -103,6 +105,14 @@ const cases = [
     completedFixture(repo);
     editUnit(repo, (u) => { u.independent_review_status = 'NOT_RUN'; });
   }, 'independent review must pass before completion'],
+  ['completion without repair candidate retest', 1, (repo) => {
+    completedFixture(repo);
+    editUnit(repo, (u) => { u.retest_status = 'NOT_RUN'; });
+  }, 'repair candidate retests must pass before completion'],
+  ['completion with a repair finding not closed', 1, (repo) => {
+    completedFixture(repo);
+    editUnit(repo, (u) => { u.closed_review_items = currentReviewItemIds.filter((id) => id !== 'FND003-R6'); });
+  }, 'completion requires closure of every FND003 review item'],
   ['completion with a missing test id', 1, (repo) => {
     completedFixture(repo);
     editUnit(repo, (u) => { u.completed_test_ids.pop(); });

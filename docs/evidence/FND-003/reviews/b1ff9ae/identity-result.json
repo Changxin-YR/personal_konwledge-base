@@ -1,0 +1,86 @@
+{
+  "candidate": "b1ff9ae506d98420796a6dd84d90e345a6eaa2d7",
+  "scope": "controlled HTTP adapter with actual candidate identity handlers, service, KDF and temporary SQLite; not full DSH Host",
+  "started_at": "2026-11-17T04:55:34.813Z",
+  "checks": [
+    {
+      "id": "listener-nonloopback",
+      "expected": "identity unavailable when listener host is non-loopback",
+      "actual": {
+        "declared_listener_host": "0.0.0.0",
+        "register_status": 201,
+        "user_created": true
+      },
+      "outcome": "FAIL"
+    },
+    {
+      "id": "register-learning-tracks",
+      "expected": [
+        "architecture_exam"
+      ],
+      "actual": [],
+      "outcome": "FAIL"
+    },
+    {
+      "id": "unknown-identity-query",
+      "expected": "422 INPUT_INVALID for unsupported identity query fields",
+      "actual": {
+        "status": 200,
+        "returned_self": true
+      },
+      "outcome": "FAIL"
+    },
+    {
+      "id": "source-attempt-rate-limit",
+      "expected": "source exceeding 30 auth attempts/minute receives 429",
+      "actual": {
+        "attempts": 31,
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "elapsed_ms": 11123
+      },
+      "outcome": "FAIL"
+    },
+    {
+      "id": "setup-ipv6-host-check",
+      "expected": "IPv6 loopback accepted consistently by setup page",
+      "actual": {
+        "helper": true,
+        "setup_host_check": false
+      },
+      "outcome": "FAIL"
+    }
+  ],
+  "finished_at": "2026-11-17T04:55:47.534Z"
+}

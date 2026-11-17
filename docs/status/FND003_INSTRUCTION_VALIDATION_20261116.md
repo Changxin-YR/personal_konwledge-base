@@ -1,12 +1,14 @@
 # FND-003 指令激活核对
 
+> 历史记录：本页仅记录v3.1.0提示词准备时的计划检查，原提示词已冻结至对应提交。当前返修入口为根CODEX_START.md v3.1.1；计划检查不证明第三部分产品通过。
+
 日期：2026-11-16。范围：FND-002 前置验收后的执行提示词、计划状态与门槛；FND-003 产品实现和十二项产品测试尚未执行。
 
 ## 基线与当前指令
 
 从已复核的 `3535f16b1a429d32cd2c80f6c1462ce556fcb509` 接续，工作分支为 `codex/knowledgeos-fnd-003`。产品修复发生在 `a03c9e3`，详见 [FND-002 验收复核](../evidence/FND-002/ACCEPTANCE_REVIEW_20261116.md)。本次没有再次运行完整 Windows DSH Host 验收。
 
-根目录唯一入口 [CODEX_START.md](../../CODEX_START.md) 为 v3.1.0，执行器 Codex，阶段 `codex_foundation`，active_unit=FND-003，ready/planned，auto_advance=false。当前提示词 SHA-256：`03dc8b7f5efea53c3ffcec6cfc72f6feb7199b4e6f547ebd08e344792c0a8c47`。旧提示正文仅由 Git 历史保留。
+根目录唯一入口 [当时的CODEX_START.md](https://github.com/Changxin-YR/personal_konwledge-base/blob/ae805d0aaad2f937b10f5b74c48d38bf6c7192ee/CODEX_START.md) 为 v3.1.0，执行器 Codex，阶段 `codex_foundation`，active_unit=FND-003，ready/planned，auto_advance=false。当前提示词 SHA-256：`03dc8b7f5efea53c3ffcec6cfc72f6feb7199b4e6f547ebd08e344792c0a8c47`。旧提示正文仅由 Git 历史保留。
 
 ## 实际检查
 

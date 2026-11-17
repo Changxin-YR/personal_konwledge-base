@@ -1,5 +1,7 @@
 # FND-003 架构说明
 
+> 历史记录：本文保留b1ff9ae提交时的架构或测试材料。当前FND-003已因提交复核进入v3.1.1返修，须按唯一CODEX_START.md更新本轮设计与测试计划；原PASS声明不代表当前验收通过。见 [提交复核](SUBMISSION_REVIEW_20261117.md)。
+
 更新：2026-11-17（Asia/Shanghai）  
 指令：CODEX_START.md v3.1.0；工作单元 FND-003；唯一产品代码写者：主管 Codex  
 起始快照：分支 `codex/knowledgeos-fnd-003`，HEAD `3535f16b1a429d32cd2c80f6c1462ce556fcb509`，工作区初始干净；固定上游 `39163dd30f703a79079e2d2446545cff3c453738`。

@@ -1,0 +1,95 @@
+{
+  "candidate": "b1ff9ae506d98420796a6dd84d90e345a6eaa2d7",
+  "node": "v24.22.1",
+  "scope": "synthetic isolated SQLite and exact UI script with controlled DOM/fetch; not full DSH/browser",
+  "checks": [
+    {
+      "id": "malformed-v2-missing-login-unique",
+      "expected": "reject STORAGE_INCOMPATIBLE before writable PRAGMA; never allow duplicate identities",
+      "actual": {
+        "acceptedAtOpen": true,
+        "bootstrap": "created",
+        "first": "created",
+        "second": "created",
+        "duplicates": {
+          "login_name": "repeat",
+          "count": 2
+        },
+        "beforeJournal": "delete",
+        "afterJournal": "wal"
+      },
+      "reproduced": true
+    },
+    {
+      "id": "logout-retains-private-drafts-and-passwords",
+      "expected": "clear prior private state immediately at logout/switch and clear password fields on exit",
+      "actual": {
+        "beforeLogoutResponse": {
+          "profileClass": "card",
+          "who": "成员甲（alice） · 个人空间 alice-space",
+          "goal": "Alice private goal"
+        },
+        "afterLogoutResponse": {
+          "state": "已退出",
+          "profileClass": "card hidden",
+          "who": "",
+          "goal": "Alice private goal",
+          "domains": "software_engineering",
+          "tracks": "engineering_practice",
+          "loginPasswordRetained": true,
+          "registerPasswordRetained": true
+        }
+      },
+      "reproduced": true
+    },
+    {
+      "id": "switch-preserves-old-private-view",
+      "expected": "clear Alice private state before Bob authentication and disable previous actor mutations while switching",
+      "actual": {
+        "pendingSwitch": {
+          "profileClass": "card",
+          "who": "成员甲（alice） · 个人空间 alice-space",
+          "goal": "Alice private goal"
+        },
+        "afterNewSessionBeforeMe": {
+          "profileClass": "card",
+          "who": "成员甲（alice） · 个人空间 alice-space",
+          "goal": "Alice private goal"
+        },
+        "savePatchAfterBobLoginBeforeMe": {
+          "expected_revision": 1,
+          "domains": [
+            "software_engineering"
+          ],
+          "learning_tracks": [
+            "engineering_practice"
+          ],
+          "goal_text": "Alice private goal",
+          "timezone": "Asia/Shanghai"
+        },
+        "final": {
+          "state": "未登录，可注册或登录",
+          "goal": "Alice private goal",
+          "message": "登录成功"
+        }
+      },
+      "reproduced": true
+    },
+    {
+      "id": "load-401",
+      "actual": {
+        "state": "未登录，可注册或登录",
+        "message": ""
+      },
+      "expected": "logged-out state"
+    },
+    {
+      "id": "load-503",
+      "actual": {
+        "state": "未登录，可注册或登录",
+        "message": ""
+      },
+      "expected": "visible storage unavailable condition distinct from logged-out state"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "scope": "isolated_extracted_test_harness_logic_only_not_a_Host_run",
+  "candidate_commit": "b1ff9ae506d98420796a6dd84d90e345a6eaa2d7",
+  "actual_installed_hash_differs": true,
+  "repository_only_comparison_mismatches": 0,
+  "assertion_would_pass_despite_wrong_installed_artifact": true,
+  "local_repository_artifact_negative_control_mismatches": 1,
+  "independent_false_assertion_report": {
+    "result": "FAIL"
+  },
+  "independent_false_assertion_exit_code": 0,
+  "production_files_modified": false
+}

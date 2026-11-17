@@ -1,16 +1,16 @@
 {
   "schema_version": "2.0",
-  "instruction_revision": "3.1.0",
+  "instruction_revision": "3.1.1",
   "updated_at": "2026-11-17",
   "timezone": "Asia/Shanghai",
   "execution_phase": "codex_foundation",
   "executor": "codex",
   "active_instruction": {
     "path": "CODEX_START.md",
-    "sha256": "03dc8b7f5efea53c3ffcec6cfc72f6feb7199b4e6f547ebd08e344792c0a8c47"
+    "sha256": "ae09e69aaf7bc67aa56c230fa0d9895785d299cc246eeb830016cd22a97877aa"
   },
   "active_unit": "FND-003",
-  "unit_state": "awaiting_user",
+  "unit_state": "in_progress",
   "execution_mode": "single_feature_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "awaiting_user": "current unit has passed and awaits a user choice; active_unit is not advanced"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "FND-003 implementation, twelve real tests, frozen candidate, and independent review completed; awaiting explicit next unit instruction.",
+  "state_reason": "FND-003 submission review reproduced defects and uncovered mandatory test gaps; six findings reopened, new-candidate retest NOT_RUN; FND-004 remains unactivated.",
   "working_branch": "codex/knowledgeos-fnd-003",
   "activation_basis": "explicit_user_request_for_next_step_after_verified_FND002_closure",
   "base_commit": "3535f16b1a429d32cd2c80f6c1462ce556fcb509",
@@ -51,9 +51,9 @@
     "review_record": "docs/evidence/FND-002/ACCEPTANCE_REVIEW_20261116.md",
     "review_outcome": "accepted_prerequisite_unit"
   },
-  "review_basis_commit": "3535f16b1a429d32cd2c80f6c1462ce556fcb509",
-  "review_record": "docs/evidence/FND-002/ACCEPTANCE_REVIEW_20261116.md",
-  "review_outcome": "accepted_prerequisite_unit",
+  "review_basis_commit": "b1ff9ae506d98420796a6dd84d90e345a6eaa2d7",
+  "review_record": "docs/evidence/FND-003/SUBMISSION_REVIEW_20261117.md",
+  "review_outcome": "rework_required_not_ready_for_FND004",
   "takeover": {
     "authorization": "explicit_user_request",
     "previous_executor": "deepseek_harness",

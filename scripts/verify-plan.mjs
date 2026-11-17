@@ -81,6 +81,7 @@ const units = new Map(catalog.units.map((item) => [item.id, item]));
 const finalOwners = new Map([...caseIds].map((id) => [id, []]));
 const unitTestIds = new Set();
 const currentTestIds = Array.from({ length: 12 }, (_, index) => `FND-003-T${String(index + 1).padStart(2, '0')}`);
+const currentReviewItemIds = Array.from({ length: 6 }, (_, index) => `FND003-R${index + 1}`);
 check('single current instruction', () => {
   assert.equal(execution.executor, 'codex', 'current foundation executor must be Codex');
   assert.equal(execution.execution_phase, 'codex_foundation', 'the completed takeover phase is no longer active');
@@ -179,6 +180,8 @@ check('current unit execution state', () => {
   assert.equal(unit.working_branch, execution.working_branch);
   assert.equal(unit.base_commit, execution.base_commit, 'current unit and execution base_commit disagree');
   assert.deepEqual(unit.test_obligations.map((test) => test.id).sort(), currentTestIds, 'FND-003 requires exactly T01-T12');
+  assert(Array.isArray(unit.required_review_item_ids), 'FND-003 repair requires its review item list');
+  assert.deepEqual([...unit.required_review_item_ids].sort(), currentReviewItemIds, 'FND-003 repair requires exactly FND003-R1 through FND003-R6');
   assert(['ready', 'in_progress', 'blocked', 'awaiting_user'].includes(execution.unit_state));
   const running = catalog.units.filter((item) => item.status === 'in_progress');
   assert(running.length <= 1 && running.every((item) => item.id === unit.id), 'another feature is being developed');
@@ -192,12 +195,15 @@ check('current unit execution state', () => {
   assert(matrix.requirements.every((item) => item.implementation_status !== 'verified'), 'foundation slice must not certify complete requirements');
   assert(['NOT_RUN', 'PASS', 'FAIL', 'BLOCKED'].includes(unit.test_result_status), 'invalid current test result');
   assert(['NOT_RUN', 'PASS', 'FAIL', 'BLOCKED'].includes(unit.independent_review_status), 'invalid independent review result');
+  assert(['NOT_RUN', 'PASS', 'FAIL', 'BLOCKED'].includes(unit.retest_status), 'invalid current repair retest result');
   assert(Array.isArray(unit.completed_test_ids) && new Set(unit.completed_test_ids).size === unit.completed_test_ids.length && unit.completed_test_ids.every((id) => currentTestIds.includes(id)), 'completed test ids must be a unique current-unit subset');
   if (unit.status === 'passed') {
     assert.equal(unit.test_result_status, 'PASS', 'passed unit still has failed or missing test results');
     assert.equal(unit.independent_review_status, 'PASS', 'independent review must pass before completion');
+    assert.equal(unit.retest_status, 'PASS', 'repair candidate retests must pass before completion');
     assert.deepEqual([...unit.completed_test_ids].sort(), currentTestIds, 'completion requires all twelve current test ids');
     assert.deepEqual(unit.open_review_items, [], 'open findings prevent completion');
+    assert(Array.isArray(unit.closed_review_items) && currentReviewItemIds.every((id) => unit.closed_review_items.includes(id)), 'completion requires closure of every FND003 review item');
     assert(unit.completed_at && Number.isFinite(Date.parse(unit.completed_at)), 'completion needs an actual valid timestamp');
     assert(unit.evidence_paths?.length && unit.evidence_paths.every((path) => existsSync(resolve(root, path))), 'completion evidence path is missing');
   }
