@@ -926,6 +926,57 @@ var IdentityService = class {
     await this.#kdf.close();
   }
 };
+
+// src/host/identity-http.ts
+import { createHash as createHash4, randomUUID as randomUUID3 } from "node:crypto";
+import { isIP } from "node:net";
+function isLoopbackAddress(value) {
+  if (value === void 0) return false;
+  let unwrapped = value.trim().toLowerCase();
+  if (unwrapped.startsWith("[") && unwrapped.endsWith("]")) unwrapped = unwrapped.slice(1, -1);
+  const zone = unwrapped.indexOf("%");
+  if (zone >= 0) unwrapped = unwrapped.slice(0, zone);
+  if (isIP(unwrapped) === 4) {
+    const octets = unwrapped.split(".").map(Number);
+    return octets.length === 4 && octets.every((octet) => Number.isInteger(octet) && octet >= 0 && octet <= 255) && octets[0] === 127;
+  }
+  if (isIP(unwrapped) !== 6) return false;
+  const ipv6 = unwrapped.includes(".") ? (() => {
+    const at = unwrapped.lastIndexOf(":");
+    const dotted = unwrapped.slice(at + 1).split(".").map(Number);
+    if (dotted.length !== 4 || dotted.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) return void 0;
+    return `${unwrapped.slice(0, at)}:${(dotted[0] << 8 | dotted[1]).toString(16)}:${(dotted[2] << 8 | dotted[3]).toString(16)}`;
+  })() : unwrapped;
+  if (ipv6 === void 0) return false;
+  const groups = ipv6.split("::");
+  if (groups.length > 2) return false;
+  const left = groups[0] === "" ? [] : groups[0].split(":");
+  const right = groups.length === 2 && groups[1] !== "" ? groups[1].split(":") : [];
+  if ([...left, ...right].some((item) => !/^[0-9a-f]{1,4}$/u.test(item))) return false;
+  const missing = 8 - left.length - right.length;
+  if (groups.length === 1 && missing !== 0 || groups.length === 2 && missing < 1) return false;
+  const expanded = groups.length === 1 ? left : [...left, ...Array(missing).fill("0"), ...right];
+  if (expanded.length !== 8) return false;
+  const numbers = expanded.map((item) => Number.parseInt(item, 16));
+  const plainLoopback = numbers.slice(0, 7).every((item) => item === 0) && numbers[7] === 1;
+  const mappedLoopback = numbers.slice(0, 5).every((item) => item === 0) && numbers[5] === 65535 && numbers[6] >>> 8 === 127;
+  return plainLoopback || mappedLoopback;
+}
+function isIdentityRuntimeAvailable(facts) {
+  if (facts.connection?.authentication === void 0 || facts.connection.browserPeer?.signal?.aborted === true) return false;
+  if (!isLoopbackAddress(facts.host)) return false;
+  if (facts.protocol !== "http:" && facts.protocol !== "https:") return false;
+  if (!Number.isInteger(facts.port) || (facts.port ?? 0) <= 0 || (facts.port ?? 0) > 65535) return false;
+  if (facts.origin === void 0) return false;
+  try {
+    const parsed = new URL(facts.origin);
+    if (parsed.protocol !== facts.protocol || !isLoopbackAddress(parsed.hostname)) return false;
+    const port = Number(parsed.port || (parsed.protocol === "https:" ? 443 : 80));
+    return port === facts.port;
+  } catch {
+    return false;
+  }
+}
 export {
   APPLICATION_ID,
   AuthRateLimiter,
@@ -949,6 +1000,8 @@ export {
   createProbeRecord,
   derivePassword,
   getProbeRecord,
+  isIdentityRuntimeAvailable,
+  isLoopbackAddress,
   readDatabaseFacts,
   tokenHash,
   validateDomains,

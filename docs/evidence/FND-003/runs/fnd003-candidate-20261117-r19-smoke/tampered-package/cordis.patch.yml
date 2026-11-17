@@ -1,0 +1,8 @@
+# KnowledgeOS FND-001 bundle layer.
+#
+# One Host row registers the read-only runtime-status route that the packaged
+# Client panel calls. The row name resolves to this package's main entry
+# (`lib/index.js`) through the profile that installed the bundle.
+- insert:
+    - id: knowledgeos-host
+      name: knowledgeos-panel

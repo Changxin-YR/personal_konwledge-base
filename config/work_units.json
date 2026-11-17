@@ -674,10 +674,10 @@
         "docs/evidence/FND-003/test-plan.md",
         "docs/evidence/FND-003/ACCEPTANCE_REPORT_20261117.md",
         "docs/evidence/FND-003/independent-verification-closeout.md",
-        "docs/evidence/FND-003/candidate-manifest-r16.json",
+        "docs/evidence/FND-003/candidate-manifest-r21.json",
         "docs/evidence/FND-003/candidate-manifest.json",
-        "docs/evidence/FND-003/runs/fnd003-candidate-20261117-r16/summary.json",
-        "docs/evidence/FND-003/runs/independent-20261117-r9/summary.json",
+        "docs/evidence/FND-003/runs/fnd003-candidate-20261117-r21/summary.json",
+        "docs/evidence/FND-003/runs/independent-20261117-r13/summary.json",
         "docs/evidence/FND-003/SUBMISSION_REVIEW_20261117.md"
       ],
       "test_result_status": "PASS",
@@ -728,11 +728,11 @@
         "identity_availability": "loopback listener and actual active Connection lifecycle required; no guessed fallback host/protocol/origin"
       },
       "evidence": {
-        "candidate": "docs/evidence/FND-003/candidate-manifest-r16.json",
+        "candidate": "docs/evidence/FND-003/candidate-manifest-r21.json",
         "acceptance_report": "docs/evidence/FND-003/ACCEPTANCE_REPORT_20261117.md",
-        "run_summary": "docs/evidence/FND-003/runs/fnd003-candidate-20261117-r16/summary.json",
+        "run_summary": "docs/evidence/FND-003/runs/fnd003-candidate-20261117-r21/summary.json",
         "independent_review": "docs/evidence/FND-003/independent-verification-closeout.md",
-        "independent_run_summary": "docs/evidence/FND-003/runs/independent-20261117-r9/summary.json"
+        "independent_run_summary": "docs/evidence/FND-003/runs/independent-20261117-r13/summary.json"
       },
       "previous_submission": {
         "status": "passed",

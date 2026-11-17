@@ -1,0 +1,20 @@
+{
+  "run_id": "fnd003-candidate-20261117-r19-smoke",
+  "candidate": "fnd003-candidate-20261117-r19",
+  "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "port": 3101,
+  "profile": "knowledgeos-identity-test",
+  "started_at": "2026-11-17T09:52:42.936Z",
+  "finished_at": "2026-11-17T09:52:57.180Z",
+  "result": "PASS",
+  "results": [
+    {
+      "id": "T12",
+      "name": "构建、真实加载、释放及既有回归",
+      "status": "PASS",
+      "evidence": "T12.json"
+    }
+  ],
+  "failures": [],
+  "out": "docs/evidence/FND-003/runs/fnd003-candidate-20261117-r19-smoke"
+}

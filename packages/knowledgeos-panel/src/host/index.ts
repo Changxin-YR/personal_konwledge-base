@@ -16,7 +16,7 @@ import { createRecordsHandlers, type RecordsService } from './http.ts'
 import { createProbeRecord, getProbeRecord, RecordsError, type CreateRecordResult } from './records.ts'
 import { ProbeStorage } from './storage.ts'
 import { IdentityService } from './identity.ts'
-import { buildAccountHtml, buildSetupHtml, createIdentityHandlers, isLoopbackAddress } from './identity-http.ts'
+import { buildAccountHtml, buildSetupHtml, createIdentityHandlers, isIdentityRuntimeAvailable, isLoopbackAddress } from './identity-http.ts'
 
 export { Config }
 
@@ -144,6 +144,7 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
 
   const webFacts = ctx.webServer as unknown as {
     host?: string
+    port?: number
     protocol?: 'http:' | 'https:'
     getOrigin?: () => string
   }
@@ -179,8 +180,7 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
       // retain the guard so a shutting down/malformed Host reports 503 rather
       // than turning the request into an internal 500.
       try { connection = ctx.connection } catch { return false }
-      return connection.authentication !== undefined && connection.browserPeer?.signal?.aborted !== true
-        && webFacts.host !== undefined && webFacts.protocol !== undefined && actualOrigin() !== undefined
+      return isIdentityRuntimeAvailable({ connection, host: webFacts.host, port: webFacts.port, protocol: webFacts.protocol, origin: actualOrigin() })
     }
     const identity = new IdentityService(storage as NonNullable<typeof storage>)
     const identityHandlers = createIdentityHandlers({

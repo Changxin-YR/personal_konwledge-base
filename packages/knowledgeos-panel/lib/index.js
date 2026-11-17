@@ -1218,21 +1218,46 @@ function isLoopbackAddress(value) {
   if (unwrapped.startsWith("[") && unwrapped.endsWith("]")) unwrapped = unwrapped.slice(1, -1);
   const zone = unwrapped.indexOf("%");
   if (zone >= 0) unwrapped = unwrapped.slice(0, zone);
-  if (unwrapped.startsWith("::ffff:")) {
-    const mapped = unwrapped.slice(7);
-    if (/^127(?:\.\d{1,3}){3}$/.test(mapped)) return true;
-    if (/^[0-9a-f]{1,4}:[0-9a-f]{1,4}$/.test(mapped)) {
-      const [hi, lo] = mapped.split(":").map((part) => Number.parseInt(part, 16));
-      return (hi >>> 8 & 255) === 127;
-    }
+  if (isIP(unwrapped) === 4) {
+    const octets = unwrapped.split(".").map(Number);
+    return octets.length === 4 && octets.every((octet) => Number.isInteger(octet) && octet >= 0 && octet <= 255) && octets[0] === 127;
   }
-  if (isIP(unwrapped) === 4) return /^127(?:\.\d{1,3}){3}$/.test(unwrapped);
   if (isIP(unwrapped) !== 6) return false;
-  const groups = unwrapped.split("::");
+  const ipv6 = unwrapped.includes(".") ? (() => {
+    const at = unwrapped.lastIndexOf(":");
+    const dotted = unwrapped.slice(at + 1).split(".").map(Number);
+    if (dotted.length !== 4 || dotted.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) return void 0;
+    return `${unwrapped.slice(0, at)}:${(dotted[0] << 8 | dotted[1]).toString(16)}:${(dotted[2] << 8 | dotted[3]).toString(16)}`;
+  })() : unwrapped;
+  if (ipv6 === void 0) return false;
+  const groups = ipv6.split("::");
+  if (groups.length > 2) return false;
   const left = groups[0] === "" ? [] : groups[0].split(":");
-  const right = groups.length > 1 && groups[1] !== "" ? groups[1].split(":") : [];
-  const expanded = groups.length === 1 ? left : [...left, ...Array(8 - left.length - right.length).fill("0"), ...right];
-  return expanded.length === 8 && expanded.slice(0, 7).every((item) => Number.parseInt(item || "0", 16) === 0) && Number.parseInt(expanded[7] || "0", 16) === 1;
+  const right = groups.length === 2 && groups[1] !== "" ? groups[1].split(":") : [];
+  if ([...left, ...right].some((item) => !/^[0-9a-f]{1,4}$/u.test(item))) return false;
+  const missing = 8 - left.length - right.length;
+  if (groups.length === 1 && missing !== 0 || groups.length === 2 && missing < 1) return false;
+  const expanded = groups.length === 1 ? left : [...left, ...Array(missing).fill("0"), ...right];
+  if (expanded.length !== 8) return false;
+  const numbers = expanded.map((item) => Number.parseInt(item, 16));
+  const plainLoopback = numbers.slice(0, 7).every((item) => item === 0) && numbers[7] === 1;
+  const mappedLoopback = numbers.slice(0, 5).every((item) => item === 0) && numbers[5] === 65535 && numbers[6] >>> 8 === 127;
+  return plainLoopback || mappedLoopback;
+}
+function isIdentityRuntimeAvailable(facts) {
+  if (facts.connection?.authentication === void 0 || facts.connection.browserPeer?.signal?.aborted === true) return false;
+  if (!isLoopbackAddress(facts.host)) return false;
+  if (facts.protocol !== "http:" && facts.protocol !== "https:") return false;
+  if (!Number.isInteger(facts.port) || (facts.port ?? 0) <= 0 || (facts.port ?? 0) > 65535) return false;
+  if (facts.origin === void 0) return false;
+  try {
+    const parsed = new URL(facts.origin);
+    if (parsed.protocol !== facts.protocol || !isLoopbackAddress(parsed.hostname)) return false;
+    const port = Number(parsed.port || (parsed.protocol === "https:" ? 443 : 80));
+    return port === facts.port;
+  } catch {
+    return false;
+  }
 }
 function cookieName(serviceId, origin) {
   return `kos_session_${createHash4("sha256").update(`${serviceId}|${origin}`).digest("hex").slice(0, 16)}`;
@@ -1626,7 +1651,7 @@ function apply(ctx, config = {}) {
       } catch {
         return false;
       }
-      return connection.authentication !== void 0 && connection.browserPeer?.signal?.aborted !== true && webFacts.host !== void 0 && webFacts.protocol !== void 0 && actualOrigin() !== void 0;
+      return isIdentityRuntimeAvailable({ connection, host: webFacts.host, port: webFacts.port, protocol: webFacts.protocol, origin: actualOrigin() });
     };
     const identity = new IdentityService(storage);
     const identityHandlers = createIdentityHandlers({

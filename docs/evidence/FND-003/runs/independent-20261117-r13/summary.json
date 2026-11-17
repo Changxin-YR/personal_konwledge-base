@@ -1,0 +1,282 @@
+{
+  "run_id": "independent-20261117-r13",
+  "candidate": "fnd003-candidate-20261117-r21",
+  "results": [
+    {
+      "id": "T01-adapter",
+      "status": "PASS",
+      "assertions": [
+        {
+          "ok": true,
+          "message": "IPv4 loopback accepted"
+        },
+        {
+          "ok": true,
+          "message": "mapped IPv4 loopback accepted"
+        },
+        {
+          "ok": true,
+          "message": "hex mapped IPv4 loopback accepted"
+        },
+        {
+          "ok": true,
+          "message": "IPv6 loopback accepted"
+        },
+        {
+          "ok": true,
+          "message": "bracketed IPv6 loopback accepted"
+        },
+        {
+          "ok": true,
+          "message": "private non-loopback rejected"
+        },
+        {
+          "ok": true,
+          "message": "invalid IPv4 rejected"
+        },
+        {
+          "ok": true,
+          "message": "mapped non-loopback rejected"
+        }
+      ],
+      "details": {}
+    },
+    {
+      "id": "T02-connection-adapter",
+      "status": "PASS",
+      "assertions": [
+        {
+          "ok": true,
+          "message": "controlled adapter admits active loopback Connection"
+        },
+        {
+          "ok": true,
+          "message": "controlled adapter rejects missing Connection"
+        },
+        {
+          "ok": true,
+          "message": "controlled adapter rejects stopped Connection"
+        },
+        {
+          "ok": true,
+          "message": "controlled adapter rejects non-loopback listener"
+        },
+        {
+          "ok": true,
+          "message": "controlled adapter recovers after Connection restoration"
+        }
+      ],
+      "details": {
+        "production_gate": "isIdentityRuntimeAvailable"
+      }
+    },
+    {
+      "id": "T02-connection-host",
+      "status": "PASS",
+      "assertions": [
+        {
+          "ok": true,
+          "message": "real fixed-version Host serves identity while Connection is running",
+          "actual": 200
+        },
+        {
+          "ok": true,
+          "message": "real Host teardown makes identity unavailable without anonymous fallback",
+          "actual": {
+            "status": 0,
+            "error": "TypeError"
+          }
+        },
+        {
+          "ok": true,
+          "message": "real fixed-version Host recovers identity after restart",
+          "actual": 200
+        }
+      ],
+      "details": {
+        "actual_host": true,
+        "connection_state": "normal -> stopped with Host teardown -> restored",
+        "fnd002_regression": "covered by main T12"
+      }
+    },
+    {
+      "id": "T04-gap",
+      "status": "PASS",
+      "assertions": [
+        {
+          "ok": true,
+          "message": "now >= expires_at rejects session",
+          "actual": 401
+        },
+        {
+          "ok": true,
+          "message": "client session_id is rejected",
+          "actual": 422
+        }
+      ],
+      "details": {
+        "boundary": "expires_at set to current ISO time",
+        "session_hash_length": 64
+      }
+    },
+    {
+      "id": "T05-gap",
+      "status": "PASS",
+      "assertions": [
+        {
+          "ok": true,
+          "message": "register rejects foreign origin",
+          "actual": 403
+        },
+        {
+          "ok": true,
+          "message": "login rejects foreign origin",
+          "actual": 403
+        },
+        {
+          "ok": true,
+          "message": "logout rejects foreign origin",
+          "actual": 403
+        },
+        {
+          "ok": true,
+          "message": "preferences rejects foreign origin",
+          "actual": 403
+        }
+      ],
+      "details": {
+        "statuses": {
+          "register": 403,
+          "login": 403,
+          "logout": 403,
+          "preferences": 403
+        }
+      }
+    },
+    {
+      "id": "T06-gap",
+      "status": "PASS",
+      "assertions": [
+        {
+          "ok": true,
+          "message": "separate actor ids"
+        },
+        {
+          "ok": true,
+          "message": "personal spaces are disjoint"
+        },
+        {
+          "ok": true,
+          "message": "cross identity field rejected"
+        }
+      ],
+      "details": {}
+    },
+    {
+      "id": "T07-gap",
+      "status": "PASS",
+      "assertions": [
+        {
+          "ok": true,
+          "message": "password spaces and max login length preserved",
+          "actual": {
+            "register": 201,
+            "login": 200
+          }
+        },
+        {
+          "ok": true,
+          "message": "login name over max rejected",
+          "actual": 422
+        },
+        {
+          "ok": true,
+          "message": "password below minimum rejected",
+          "actual": 422
+        },
+        {
+          "ok": true,
+          "message": "invalid UTF-8 rejected",
+          "actual": 400
+        }
+      ],
+      "details": {}
+    },
+    {
+      "id": "T08-gap",
+      "status": "PASS",
+      "assertions": [
+        {
+          "ok": true,
+          "message": "pseudo-v2 schema rejected",
+          "actual": "STORAGE_INCOMPATIBLE"
+        },
+        {
+          "ok": true,
+          "message": "pseudo-v2 fixture remains unchanged"
+        }
+      ],
+      "details": {}
+    },
+    {
+      "id": "T09-gap",
+      "status": "PASS",
+      "assertions": [
+        {
+          "ok": true,
+          "message": "duplicate registration leaves one new identity",
+          "actual": {
+            "duplicateCode": "LOGIN_NAME_TAKEN",
+            "users": 2
+          }
+        }
+      ],
+      "details": {}
+    },
+    {
+      "id": "T10-gap",
+      "status": "PASS",
+      "assertions": [
+        {
+          "ok": true,
+          "message": "aborted HTTP register does not write user",
+          "actual": 0
+        },
+        {
+          "ok": true,
+          "message": "status remains responsive during cancellation",
+          "actual": {
+            "status": 200,
+            "ms": 2
+          }
+        }
+      ],
+      "details": {
+        "aborted": {
+          "kind": "error",
+          "error": "ECONNRESET"
+        },
+        "status": 200,
+        "statusMs": 2,
+        "users": 0
+      }
+    },
+    {
+      "id": "T11-gap",
+      "status": "PASS",
+      "assertions": [
+        {
+          "ok": true,
+          "message": "delayed response cannot restore logged-out profile",
+          "actual": {
+            "delayed": true,
+            "uiState": "已退出",
+            "profileVisible": false
+          }
+        }
+      ],
+      "details": {}
+    }
+  ],
+  "result": "PASS"
+}

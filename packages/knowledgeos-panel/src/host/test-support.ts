@@ -55,3 +55,4 @@ export {
   type UserCreateInput,
   type UserRecord,
 } from './identity.ts'
+export { isIdentityRuntimeAvailable, isLoopbackAddress } from './identity-http.ts'

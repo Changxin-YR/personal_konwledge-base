@@ -27,6 +27,10 @@ declare module '@deepseek-ai/cordis' {
 
   /** Web carrier service mounted by the Web profile. */
   export interface WebServer {
+    readonly host?: string
+    readonly port?: number
+    readonly protocol?: 'http:' | 'https:'
+    getOrigin?: () => string
     register(route: WebRoute | WebResourceRoute): () => void
   }
 

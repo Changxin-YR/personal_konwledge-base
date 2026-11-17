@@ -1,10 +1,10 @@
 # FND-003 独立复核
 
 更新：2026-11-17（Asia/Shanghai）  
-最终候选：fnd003-candidate-20261117-r16  
-主运行：docs/evidence/FND-003/runs/fnd003-candidate-20261117-r16/summary.json  
-独立运行：docs/evidence/FND-003/runs/independent-20261117-r9/summary.json
+最终候选：`fnd003-candidate-20261117-r21`  
+主运行：`docs/evidence/FND-003/runs/fnd003-candidate-20261117-r21/summary.json`  
+独立运行：`docs/evidence/FND-003/runs/independent-20261117-r13/summary.json`
 
-最终候选 T01–T12 全部 PASS，独立补充九组检查全部 PASS。独立复核明确检查来源准入、DTO/query、主线保存、schema 约束、事务恢复、KDF 取消、实际加载产物和浏览器身份竞态。任何失败、异常或缺项均会让脚本返回非零；本次没有此类结果。
+主运行 T01–T12 全部 PASS，独立补充检查全部 PASS。独立复核把实际固定版本 Host 与受控适配器分开记录：真实 Host 覆盖身份接口正常、Host/Connection 停止后的不可用和重启恢复；受控适配器覆盖生产 loopback 地址解析、非 loopback、Connection 缺失/停用/恢复。T11 从空数据库通过真实 Chrome 创建管理员并核对恰有一个管理员；T12 先复制完整有效安装目录，再只篡改 `lib/index.js`，实际加载校验器非零退出且唯一报告该文件 SHA-256 不一致。FND-002 status/records 回归通过。
 
-T12 的构建、类型、计划、范围、真实 profile 产物校验、篡改安装检查器、关闭与 FND-002 status/records 回归均通过。运行证据、候选 manifest 与报告均指向 r16；旧 r2/r5/r10 仅作历史保留。
+任何失败、异常或缺项都会使脚本返回非零；本次没有此类结果。新摘要与报告已脱敏，历史 r16、r9 及更早结果保持原样。

@@ -1,13 +1,15 @@
-# FND-003 独立复核结论
+# FND-003 独立复核收口
 
 更新：2026-11-17（Asia/Shanghai）  
-复核候选：fnd003-candidate-20261117-r16  
-独立运行：independent-20261117-r9
+最终候选：`fnd003-candidate-20261117-r21`  
+主运行：`docs/evidence/FND-003/runs/fnd003-candidate-20261117-r21/summary.json`  
+独立运行：`docs/evidence/FND-003/runs/independent-20261117-r13/summary.json`
 
-独立脚本在端口 3115、固定 DSH Host 和独立业务目录中运行，退出码为 0，结果为 PASS。所有断言均通过：IPv4/IPv6 loopback、会话到期边界、客户端 session_id 拒绝、来源矩阵、跨身份空间隔离、输入边界、伪 v2 不变、重复注册回滚、真实 HTTP 取消和浏览器迟到 /me 退出竞态。
+独立复核 r13 全部 PASS，并把实际 Host 与受控适配器分开记录：
 
-独立脚本现在在结果为空、断言失败或异常时设置非零退出码，并接受 candidate 参数。最终候选清单纳入 independent-verification.mjs 与 check-loaded-artifacts.mjs。T12 另外运行实际加载检查器，解析 profile package 的 realpath，逐个比较 source/loaded 文件的 SHA-256 与字节数，并把篡改安装副本交给同一检查器；篡改检查返回非零。
+- `T01-adapter` 调用生产 `isLoopbackAddress()`，覆盖 IPv4、IPv6、mapped IPv6、括号、非法 IPv4 和非 loopback 反例。
+- `T02-connection-adapter` 调用生产 `isIdentityRuntimeAvailable()`，覆盖正常、Connection 缺失、browser Peer 停止、非 loopback listener 和恢复。
+- `T02-connection-host` 使用固定版本 DSH Host 的隔离 profile，记录身份接口运行时 200、Host/Connection 停止后不可用且无匿名回退、重启后恢复 200。
+- 其余 gap checks 覆盖 session 边界、来源拒绝、私人空间隔离、DTO/UTF-8、伪 v2、重复注册、取消 KDF 和迟到 `/me` 响应。
 
-复核边界明确区分真实 Host、真实 Chrome、真实 SQLite、受控适配器和测试夹具。受控适配器只覆盖不能安全改变生产监听的地址分类/故障注入，不替代真实 Host 或浏览器。旧 r5 独立结果继续保留，r9 绑定最终候选。
-
-结论：independent_review_status=PASS；FND003-R1 至 R6 全部关闭；没有 FAIL、BLOCKED 或 NOT_RUN 结果计入 FND-003 通过。FND-004 未开发。
+主运行 T01–T12 全部 PASS。T11 通过真实 Chrome 从空数据库初始化管理员并核对单管理员；T12 通过完整有效安装副本后只篡改 `lib/index.js`，同一加载检查器以非零退出并唯一报告该文件 SHA-256 不一致。新摘要仅保留相对路径、状态和哈希；历史运行结果未改写。任何失败、异常或缺项都会使独立脚本返回非零，本次没有此类结果。

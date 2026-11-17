@@ -1,0 +1,54 @@
+{
+  "id": "T05",
+  "name": "来源、防伪、媒体类型与请求界限",
+  "status": "PASS",
+  "started": "2026-11-17T09:54:50.948Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "same-origin GET without Origin succeeds",
+      "actual": 200
+    },
+    {
+      "ok": true,
+      "message": "origin/fetch/host matrix rejects cross-site mutations",
+      "actual": {
+        "origin": 403,
+        "null_origin": 403,
+        "cross_site": 403,
+        "missing_header": 403,
+        "form": 415,
+        "bad_host": 403
+      }
+    },
+    {
+      "ok": true,
+      "message": "simple form content type is rejected",
+      "actual": 415
+    },
+    {
+      "ok": true,
+      "message": "rejected source requests do not create users",
+      "actual": 2
+    },
+    {
+      "ok": true,
+      "message": "forwarded headers do not replace socket trust",
+      "actual": 200
+    }
+  ],
+  "details": {
+    "statuses": {
+      "origin": 403,
+      "null_origin": 403,
+      "cross_site": 403,
+      "missing_header": 403,
+      "form": 415,
+      "bad_host": 403
+    },
+    "no_origin_get": 200
+  },
+  "evidence": [],
+  "finished": "2026-11-17T09:54:57.685Z"
+}

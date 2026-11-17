@@ -1,0 +1,86 @@
+{
+  "run_id": "fnd003-candidate-20261117-r19",
+  "candidate": "fnd003-candidate-20261117-r19",
+  "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "port": 3101,
+  "profile": "knowledgeos-identity-test",
+  "started_at": "2026-11-17T09:53:58.092Z",
+  "finished_at": "2026-11-17T09:56:22.970Z",
+  "result": "PASS",
+  "results": [
+    {
+      "id": "T01",
+      "name": "可信本机初始化与管理员唯一性",
+      "status": "PASS",
+      "evidence": "T01.json"
+    },
+    {
+      "id": "T02",
+      "name": "三个独立业务身份注册登录与个人空间",
+      "status": "PASS",
+      "evidence": "T02.json"
+    },
+    {
+      "id": "T03",
+      "name": "业务身份与 DSH 宿主权限分离",
+      "status": "PASS",
+      "evidence": "T03.json"
+    },
+    {
+      "id": "T04",
+      "name": "会话生成、到期、注销和重启",
+      "status": "PASS",
+      "evidence": "T04.json"
+    },
+    {
+      "id": "T05",
+      "name": "来源、防伪、媒体类型与请求界限",
+      "status": "PASS",
+      "evidence": "T05.json"
+    },
+    {
+      "id": "T06",
+      "name": "领域、目标、私人空间及版本冲突",
+      "status": "PASS",
+      "evidence": "T06.json"
+    },
+    {
+      "id": "T07",
+      "name": "密码、输入和公开证据保护",
+      "status": "PASS",
+      "evidence": "T07.json"
+    },
+    {
+      "id": "T08",
+      "name": "新库与 v1 到 v2 无损迁移",
+      "status": "PASS",
+      "evidence": "T08.json"
+    },
+    {
+      "id": "T09",
+      "name": "身份事务失败与恢复",
+      "status": "PASS",
+      "evidence": "T09.json"
+    },
+    {
+      "id": "T10",
+      "name": "登录注册限流与有界 KDF 负载",
+      "status": "PASS",
+      "evidence": "T10.json"
+    },
+    {
+      "id": "T11",
+      "name": "真实账号界面与身份切换",
+      "status": "PASS",
+      "evidence": "T11.json"
+    },
+    {
+      "id": "T12",
+      "name": "构建、真实加载、释放及既有回归",
+      "status": "PASS",
+      "evidence": "T12.json"
+    }
+  ],
+  "failures": [],
+  "out": "docs/evidence/FND-003/runs/fnd003-candidate-20261117-r19"
+}

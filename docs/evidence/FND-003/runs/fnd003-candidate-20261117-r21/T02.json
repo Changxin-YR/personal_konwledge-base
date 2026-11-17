@@ -1,0 +1,115 @@
+{
+  "id": "T02",
+  "name": "三个独立业务身份注册登录与个人空间",
+  "status": "PASS",
+  "started": "2026-11-17T13:28:02.889Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "administrator bootstrap and business login work",
+      "actual": {
+        "bootstrap": 201,
+        "login": 200
+      }
+    },
+    {
+      "ok": true,
+      "message": "two member registrations succeed",
+      "actual": [
+        201,
+        201
+      ]
+    },
+    {
+      "ok": true,
+      "message": "registration does not auto-login",
+      "actual": {
+        "alice": null,
+        "bob": null
+      }
+    },
+    {
+      "ok": true,
+      "message": "normalized duplicate registration conflicts",
+      "actual": {
+        "code": "LOGIN_NAME_TAKEN",
+        "message": "login name is already in use",
+        "request_id": "681a77e4-b9af-42dd-9a72-3fff1ad147c9",
+        "retryable": false,
+        "safe_details": {}
+      }
+    },
+    {
+      "ok": true,
+      "message": "member logout and relogin work",
+      "actual": {
+        "logout": 204,
+        "after": 401,
+        "relogin": 200
+      }
+    },
+    {
+      "ok": true,
+      "message": "three service users have server roles",
+      "actual": [
+        {
+          "login_name": "admin",
+          "role": "admin",
+          "credential_ref": "96230b7e-d211-450a-ba42-ea7277c4d4d0"
+        },
+        {
+          "login_name": "alice",
+          "role": "member",
+          "credential_ref": "de3d1bb7-1455-40cb-adac-9c23a37df14c"
+        },
+        {
+          "login_name": "bob",
+          "role": "member",
+          "credential_ref": "148a4636-bc3b-4436-9803-6182eb679b0e"
+        }
+      ]
+    },
+    {
+      "ok": true,
+      "message": "three personal spaces are unique",
+      "actual": [
+        {
+          "owner_user_id": "3ace25a1-be32-4b43-8a90-4fe9b3bd012f",
+          "kind": "personal"
+        },
+        {
+          "owner_user_id": "58edf1d6-73b3-4a8e-95e7-9eb43ed24f65",
+          "kind": "personal"
+        },
+        {
+          "owner_user_id": "fe0c0675-2f92-41a9-9807-723e7e078a05",
+          "kind": "personal"
+        }
+      ]
+    }
+  ],
+  "details": {
+    "users": [
+      {
+        "login_name": "admin",
+        "role": "admin",
+        "credential_ref": "<redacted>"
+      },
+      {
+        "login_name": "alice",
+        "role": "member",
+        "credential_ref": "<redacted>"
+      },
+      {
+        "login_name": "bob",
+        "role": "member",
+        "credential_ref": "<redacted>"
+      }
+    ],
+    "spaces": 3,
+    "cookies": "<redacted>"
+  },
+  "evidence": [],
+  "finished": "2026-11-17T13:28:10.543Z"
+}

@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "candidate": "fnd003-candidate-20261117-r18",
+  "frozen_at": "2026-11-17T09:49:32.763Z",
+  "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "node": "24.22.0",
+  "files": {
+    "AGENTS.md": {
+      "bytes": 4790,
+      "sha256": "667774e92814246693f9680a1ad809014a5b017a9913abe2b2a81ffd5119f885"
+    },
+    "CODEX_START.md": {
+      "bytes": 45544,
+      "sha256": "ae09e69aaf7bc67aa56c230fa0d9895785d299cc246eeb830016cd22a97877aa"
+    },
+    "config/execution_state.json": {
+      "bytes": 3574,
+      "sha256": "4dc6c0680a2a7bd942ac368b6e4e7abe6bb0a05567e2175a427cef489301c228"
+    },
+    "config/work_units.json": {
+      "bytes": 146214,
+      "sha256": "7fa9532f44f6192b0c6c48610e4044a7030c21fab7253263ce0193104ed65fd0"
+    },
+    "packages/knowledgeos-panel/package.json": {
+      "bytes": 1258,
+      "sha256": "48a6f24ff44437ebaee238ee53c96422fdcc7968f645582fb95b5585a52f1c55"
+    },
+    "packages/knowledgeos-panel/package-lock.json": {
+      "bytes": 18462,
+      "sha256": "9449dc7c97e8f4096f16b0334fb810b914edc1bc7630df5cb858f2d74262353a"
+    },
+    "packages/knowledgeos-panel/lib/index.js": {
+      "bytes": 96013,
+      "sha256": "eb1a48957b30952172791e39a185d4d0038ca8ebd29b7a053083a506703a280e"
+    },
+    "packages/knowledgeos-panel/lib/client.js": {
+      "bytes": 21691,
+      "sha256": "dfa4a5e2fb8afcaf85657f22048185e3cb86444db87e8e6e4ec1d4b0bbe2e1a9"
+    },
+    "packages/knowledgeos-panel/lib/storage.js": {
+      "bytes": 33495,
+      "sha256": "8ede815fc780ae1f52bb0daf02d73b914c3643b4572f2fccf57961305e7e83ab"
+    },
+    "packages/knowledgeos-panel/lib/test-support.js": {
+      "bytes": 51317,
+      "sha256": "cd28e82c0454015c293574c654314a995c71fb17ecc8e5f8e4bf0034e36c17d6"
+    },
+    "packages/knowledgeos-panel/src/host/index.ts": {
+      "bytes": 12653,
+      "sha256": "8623c50026ce0dee38d7369e5e0f3cd3e4cd29d5c0c50deff5e2ab3c32cb3632"
+    },
+    "packages/knowledgeos-panel/src/host/identity.ts": {
+      "bytes": 19682,
+      "sha256": "80bebf3c3b6b6dd95539b5d13e545a5e978f75c0e9cedbbf451c222dc095a34b"
+    },
+    "packages/knowledgeos-panel/src/host/identity-http.ts": {
+      "bytes": 32636,
+      "sha256": "f52587a189ae428a4bab24d3b97c372d059d9008ccffde384ec78cbcbf32afd1"
+    },
+    "packages/knowledgeos-panel/src/host/identity-peer.ts": {
+      "bytes": 194,
+      "sha256": "82fdc1662dc5cdc6f71be8e9387af6612a2b79c76db78dd7335c8db7461f04b4"
+    },
+    "packages/knowledgeos-panel/src/host/storage.ts": {
+      "bytes": 38374,
+      "sha256": "37d901c4c734bcbe61e855d3fca44c69099f7cb98631f0eca190a9feca649b65"
+    },
+    "packages/knowledgeos-panel/src/host/test-support.ts": {
+      "bytes": 1417,
+      "sha256": "7136b3fd1d4016dd936cf4f3b1ad4f27305aaa1e1dc42b2a6c704a4a9dbbdaaf"
+    },
+    "packages/knowledgeos-panel/src/client/Panel.tsx": {
+      "bytes": 11803,
+      "sha256": "1a425ecbe139262b883cb7007d9d8e757fbef168adc1f5f9d939f40c5cf42e85"
+    },
+    "scripts/fnd003/harness.mjs": {
+      "bytes": 4824,
+      "sha256": "19dec0129d2ad31cbfe15050c78b351632daf3291a47b5de88ec8efdf909dbd6"
+    },
+    "scripts/fnd003/scope-check.mjs": {
+      "bytes": 2317,
+      "sha256": "eff82f225b0a9a5ca9254955d8b55fae207ef81dddd201c121bc2926acf0ab67"
+    },
+    "scripts/fnd003/freeze-candidate.mjs": {
+      "bytes": 2166,
+      "sha256": "17eaa3d21d23770b3abb4c95f3e7c7f08fecd69c07e1882c98e9006b7830e457"
+    },
+    "scripts/fnd003/run-all.mjs": {
+      "bytes": 60710,
+      "sha256": "c776cafdbd8fcc2a75fb29a0759e63ae4fec8ca3ee41fa31157318b48f719bd0"
+    },
+    "scripts/fnd003/independent-verification.mjs": {
+      "bytes": 18479,
+      "sha256": "ea146df9382eeaf364a3c4370d3c208d26077d24b4e0d7232d73d4801a3b371d"
+    },
+    "scripts/fnd003/check-loaded-artifacts.mjs": {
+      "bytes": 2716,
+      "sha256": "c7fe0ecc7fe071c002acd8723d5376fb585f861b5ebfe393f159cd4318b74373"
+    }
+  }
+}

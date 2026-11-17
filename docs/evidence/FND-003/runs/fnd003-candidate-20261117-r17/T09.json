@@ -1,0 +1,274 @@
+{
+  "id": "T09",
+  "name": "身份事务失败与恢复",
+  "status": "PASS",
+  "started": "2026-11-17T09:43:39.679Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "production bootstrap failure rolls back every identity table and marker",
+      "actual": {
+        "bootstrapError": "STORAGE_UNAVAILABLE",
+        "bootstrapFacts": {
+          "applicationId": 1263489841,
+          "userVersion": 2,
+          "tables": [
+            "auth_sessions",
+            "password_credentials",
+            "schema_migrations",
+            "service_identity",
+            "spaces",
+            "storage_probe_records",
+            "users"
+          ],
+          "objects": [
+            {
+              "type": "table",
+              "name": "auth_sessions"
+            },
+            {
+              "type": "table",
+              "name": "password_credentials"
+            },
+            {
+              "type": "table",
+              "name": "schema_migrations"
+            },
+            {
+              "type": "table",
+              "name": "service_identity"
+            },
+            {
+              "type": "table",
+              "name": "spaces"
+            },
+            {
+              "type": "table",
+              "name": "storage_probe_records"
+            },
+            {
+              "type": "table",
+              "name": "users"
+            }
+          ],
+          "ledger": [
+            {
+              "version": 1,
+              "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+              "applied_at": "2026-11-17T09:43:39.690Z"
+            },
+            {
+              "version": 2,
+              "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+              "applied_at": "2026-11-17T09:43:39.694Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "ok": true,
+      "message": "bootstrap recovers through normal production path",
+      "actual": "created"
+    },
+    {
+      "ok": true,
+      "message": "register fixture bootstrap succeeds",
+      "actual": "created"
+    },
+    {
+      "ok": true,
+      "message": "production register failure leaves only the existing administrator",
+      "actual": {
+        "registerError": "STORAGE_UNAVAILABLE",
+        "users": 1
+      }
+    },
+    {
+      "ok": true,
+      "message": "register recovers through normal production path",
+      "actual": "created"
+    },
+    {
+      "ok": true,
+      "message": "production v2 migration failure preserves v1 ledger and sentinel",
+      "actual": {
+        "applicationId": 1263489841,
+        "userVersion": 1,
+        "tables": [
+          "schema_migrations",
+          "storage_probe_records"
+        ],
+        "objects": [
+          {
+            "type": "table",
+            "name": "schema_migrations"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records"
+          }
+        ],
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-17T09:43:39.913Z"
+          }
+        ]
+      }
+    },
+    {
+      "ok": true,
+      "message": "v2 migration recovers through normal startup path",
+      "actual": {
+        "applicationId": 1263489841,
+        "userVersion": 2,
+        "tables": [
+          "auth_sessions",
+          "password_credentials",
+          "schema_migrations",
+          "service_identity",
+          "spaces",
+          "storage_probe_records",
+          "users"
+        ],
+        "objects": [
+          {
+            "type": "table",
+            "name": "auth_sessions"
+          },
+          {
+            "type": "table",
+            "name": "password_credentials"
+          },
+          {
+            "type": "table",
+            "name": "schema_migrations"
+          },
+          {
+            "type": "table",
+            "name": "service_identity"
+          },
+          {
+            "type": "table",
+            "name": "spaces"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records"
+          },
+          {
+            "type": "table",
+            "name": "users"
+          }
+        ],
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-17T09:43:39.913Z"
+          },
+          {
+            "version": 2,
+            "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+            "applied_at": "2026-11-17T09:43:39.952Z"
+          }
+        ]
+      }
+    }
+  ],
+  "details": {
+    "bootstrap": {
+      "error": "STORAGE_UNAVAILABLE",
+      "facts": {
+        "applicationId": 1263489841,
+        "userVersion": 2,
+        "tables": [
+          "auth_sessions",
+          "password_credentials",
+          "schema_migrations",
+          "service_identity",
+          "spaces",
+          "storage_probe_records",
+          "users"
+        ],
+        "objects": [
+          {
+            "type": "table",
+            "name": "auth_sessions"
+          },
+          {
+            "type": "table",
+            "name": "password_credentials"
+          },
+          {
+            "type": "table",
+            "name": "schema_migrations"
+          },
+          {
+            "type": "table",
+            "name": "service_identity"
+          },
+          {
+            "type": "table",
+            "name": "spaces"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records"
+          },
+          {
+            "type": "table",
+            "name": "users"
+          }
+        ],
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-17T09:43:39.690Z"
+          },
+          {
+            "version": 2,
+            "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+            "applied_at": "2026-11-17T09:43:39.694Z"
+          }
+        ]
+      }
+    },
+    "register": {
+      "error": "STORAGE_UNAVAILABLE"
+    },
+    "migration": {
+      "facts": {
+        "applicationId": 1263489841,
+        "userVersion": 1,
+        "tables": [
+          "schema_migrations",
+          "storage_probe_records"
+        ],
+        "objects": [
+          {
+            "type": "table",
+            "name": "schema_migrations"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records"
+          }
+        ],
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-17T09:43:39.913Z"
+          }
+        ]
+      }
+    }
+  },
+  "evidence": [],
+  "finished": "2026-11-17T09:43:39.991Z"
+}

@@ -1,0 +1,251 @@
+/**
+ * Host half of the KnowledgeOS bundle.
+ *
+ * FND-001: one exact read-only runtime-status route.
+ * FND-002: one exact POST plus one prefix GET over a real SQLite probe store.
+ *
+ * All routes use the existing local DSH connection authentication. Storage is
+ * optional trusted config; without it the original status panel keeps working
+ * and the persistence endpoints answer a stable unavailable error.
+ */
+import { randomUUID } from 'node:crypto'
+import type { Context } from '@deepseek-ai/cordis'
+import { buildStatusPayload } from './status.ts'
+import { Config, resolveDataDir, type Config as KnowledgeOsConfig } from './config.ts'
+import { createRecordsHandlers, type RecordsService } from './http.ts'
+import { createProbeRecord, getProbeRecord, RecordsError, type CreateRecordResult } from './records.ts'
+import { ProbeStorage } from './storage.ts'
+import { IdentityService } from './identity.ts'
+import { buildAccountHtml, buildSetupHtml, createIdentityHandlers, isIdentityRuntimeAvailable, isLoopbackAddress } from './identity-http.ts'
+
+export { Config }
+
+/** Cordis plugin name shown in Loader diagnostics. */
+export const name = 'knowledgeos-panel'
+
+/** Services this plugin needs before it registers routes. */
+export const inject = ['webServer', 'clientModules', 'connection', 'connection.authentication']
+
+/** FND-001 read-only runtime status. */
+export const STATUS_PATH = '/knowledgeos/status'
+/** FND-002 create path; the same prefix serves GET by id. */
+export const RECORDS_PATH = '/knowledgeos/foundation/records'
+export const ACCOUNT_PATH = '/knowledgeos/account'
+export const SETUP_PATH = '/knowledgeos/setup'
+export const IDENTITY_API_PATH = '/knowledge/v1'
+
+const RESPONSE_HEADERS = {
+  'cache-control': 'no-store',
+  'content-type': 'application/json; charset=utf-8',
+  'x-content-type-options': 'nosniff',
+} as const
+
+function wait(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+/**
+ * Register the status and persistence routes and release storage with the plugin.
+ * @param ctx - Host plugin context carrying WebServer and client-module services.
+ * @param config - validated trusted plugin configuration.
+ */
+export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
+  const instanceId = globalThis.crypto.randomUUID()
+  const startedAt = new Date().toISOString()
+  const log = (message: string): void => { console.log(message) }
+
+  ctx.effect(() => {
+    /** Read the Host release without letting a composition failure break the route. */
+    const readRelease = (): { version?: string; commit?: string } | undefined => {
+      try {
+        return ctx.clientModules.graph().release
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error)
+        console.warn(`knowledgeos-panel: reading host release failed: ${message}`)
+        return undefined
+      }
+    }
+
+    return ctx.webServer.register({
+      kind: 'exact',
+      path: STATUS_PATH,
+      auth: 'required',
+      resource: async (): Promise<Response> => {
+        const payload = buildStatusPayload({
+          release: readRelease(),
+          instanceId,
+          startedAt,
+          checkedAt: new Date().toISOString(),
+        })
+        return new Response(JSON.stringify(payload), { status: 200, headers: RESPONSE_HEADERS })
+      },
+    })
+  }, 'knowledgeos-panel: read-only status route')
+
+  const dataDir = resolveDataDir(config)
+  const storage = dataDir === undefined
+    ? undefined
+    : new ProbeStorage({
+        dataDir,
+        log,
+      })
+  if (storage === undefined) log('knowledgeos-storage: unconfigured')
+
+  let closing = false
+  const inFlight = new Set<Promise<void>>()
+  const service: RecordsService = {
+    create(idempotencyKey: string, content: string): CreateRecordResult {
+      if (closing) throw new RecordsError('STORAGE_CLOSED', 'storage is closing')
+      if (storage === undefined) throw new RecordsError('STORAGE_UNAVAILABLE', 'storage is not configured')
+      return createProbeRecord(storage, {
+        newId: () => randomUUID(),
+        now: () => new Date().toISOString(),
+      }, { idempotencyKey, content })
+    },
+    get(id: string) {
+      if (closing) throw new RecordsError('STORAGE_CLOSED', 'storage is closing')
+      if (storage === undefined) throw new RecordsError('STORAGE_UNAVAILABLE', 'storage is not configured')
+      return getProbeRecord(storage, id)
+    },
+  }
+  const handlers = createRecordsHandlers(service, RECORDS_PATH, log)
+  const wrap = (handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) => Promise<void>) => {
+    return (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse): Promise<void> => {
+      const pending = handler(req, res)
+      inFlight.add(pending)
+      void pending.finally(() => { inFlight.delete(pending) })
+      return pending
+    }
+  }
+
+  ctx.effect(() => {
+    const disposeCreate = ctx.webServer.register({
+      kind: 'exact',
+      path: RECORDS_PATH,
+      auth: 'required',
+      handler: wrap(handlers.create),
+    })
+    const disposeRead = ctx.webServer.register({
+      kind: 'prefix',
+      path: RECORDS_PATH,
+      auth: 'required',
+      handler: wrap(handlers.read),
+    })
+    return async () => {
+      closing = true
+      disposeCreate()
+      disposeRead()
+      if (inFlight.size > 0) {
+        await Promise.race([Promise.allSettled([...inFlight]), wait(5_000)])
+      }
+      storage?.close()
+    }
+  }, 'knowledgeos-storage: records routes and connection')
+
+  const webFacts = ctx.webServer as unknown as {
+    host?: string
+    port?: number
+    protocol?: 'http:' | 'https:'
+    getOrigin?: () => string
+  }
+  const actualOrigin = (): string | undefined => {
+    try {
+      const explicit = webFacts.getOrigin?.()
+      if (explicit !== undefined) return explicit
+    } catch { return undefined }
+    return undefined
+  }
+  const sendIdentityUnavailable = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse): void => {
+    if (req.method === 'GET' && req.url?.startsWith('/knowledgeos/account')) {
+      res.statusCode = 200
+      res.setHeader('content-type', 'text/html; charset=utf-8')
+      res.setHeader('cache-control', 'no-store')
+      res.end(buildAccountHtml())
+      return
+    }
+    res.statusCode = 503
+    res.setHeader('content-type', 'application/json; charset=utf-8')
+    res.setHeader('cache-control', 'no-store')
+    res.end(JSON.stringify({ code: 'STORAGE_UNAVAILABLE', message: 'storage is not configured', request_id: randomUUID(), retryable: true, safe_details: {} }))
+  }
+
+  const registerIdentityRoutes = (identityContext: Context): void => {
+    const identityAvailable = (): boolean => {
+      let connection: { authentication?: unknown; browserPeer?: { signal?: AbortSignal } }
+      // The outer plugin context is the one covered by the bundle's nested
+      // `connection.authentication` injection.  A callback scope created by
+      // `ctx.inject(['connection'], ...)` may expose a lazy proxy that throws
+      // when its nested properties are read, even though the live Connection
+      // service is present.  Read the already injected outer service instead;
+      // retain the guard so a shutting down/malformed Host reports 503 rather
+      // than turning the request into an internal 500.
+      try { connection = ctx.connection } catch { return false }
+      return isIdentityRuntimeAvailable({ connection, host: webFacts.host, port: webFacts.port, protocol: webFacts.protocol, origin: actualOrigin() })
+    }
+    const identity = new IdentityService(storage as NonNullable<typeof storage>)
+    const identityHandlers = createIdentityHandlers({
+      service: identity,
+      origin: actualOrigin,
+      host: () => webFacts.host,
+      protocol: () => webFacts.protocol ?? 'http:',
+      isAvailable: identityAvailable,
+    })
+    const ownerSetupPage = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, peer?: unknown): void => {
+      if (req.method !== 'GET') { res.statusCode = 405; res.setHeader('allow', 'GET'); res.end(); return }
+      if (!identityAvailable()) { res.statusCode = 503; res.setHeader('content-type', 'text/plain; charset=utf-8'); res.end('identity service is unavailable'); return }
+      const principal = (peer as { principal?: { kind?: string } } | undefined)?.principal
+      if (principal?.kind !== 'owner' || !isLoopbackAddress(req.socket?.remoteAddress) || !isLoopbackAddress(webFacts.host)) { res.statusCode = 403; res.end('forbidden'); return }
+      res.statusCode = 200
+      res.setHeader('content-type', 'text/html; charset=utf-8')
+      res.setHeader('cache-control', 'no-store')
+      res.end(buildSetupHtml())
+    }
+    const accountPage = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse): void => {
+      if (req.method !== 'GET') { res.statusCode = 405; res.setHeader('allow', 'GET'); res.end(); return }
+      if (!identityAvailable()) { res.statusCode = 503; res.setHeader('content-type', 'text/plain; charset=utf-8'); res.end('identity service is unavailable'); return }
+      res.statusCode = 200
+      res.setHeader('content-type', 'text/html; charset=utf-8')
+      res.setHeader('cache-control', 'no-store')
+      res.end(buildAccountHtml())
+    }
+    const withPeer = (handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, peer?: import('./identity-peer.ts').PeerScope) => Promise<void>) => {
+      return (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, peer?: unknown): Promise<void> => {
+        const pending = handler(req, res, peer as import('./identity-peer.ts').PeerScope | undefined)
+        inFlight.add(pending)
+        void pending.finally(() => { inFlight.delete(pending) })
+        return pending
+      }
+    }
+    identityContext.effect(() => {
+      const disposers: Array<() => void> = []
+      disposers.push(identityContext.webServer.register({ kind: 'exact', path: ACCOUNT_PATH, auth: 'anonymous', handler: accountPage }))
+      disposers.push(identityContext.webServer.register({ kind: 'exact', path: SETUP_PATH, auth: 'required', handler: ownerSetupPage }))
+      const routes: Array<{ path: string; auth: 'anonymous' | 'required'; handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, peer?: import('./identity-peer.ts').PeerScope) => Promise<void> }> = [
+        { path: '/knowledge/v1/auth/status', auth: 'anonymous', handler: identityHandlers.status },
+        { path: '/knowledge/v1/auth/bootstrap', auth: 'required', handler: identityHandlers.bootstrap },
+        { path: '/knowledge/v1/auth/register', auth: 'anonymous', handler: identityHandlers.register },
+        { path: '/knowledge/v1/auth/login', auth: 'anonymous', handler: identityHandlers.login },
+        { path: '/knowledge/v1/auth/logout', auth: 'anonymous', handler: identityHandlers.logout },
+        { path: '/knowledge/v1/me', auth: 'anonymous', handler: identityHandlers.me },
+        { path: '/knowledge/v1/me/preferences', auth: 'anonymous', handler: identityHandlers.preferences },
+        { path: '/knowledge/v1/spaces', auth: 'anonymous', handler: identityHandlers.spaces },
+      ]
+      for (const route of routes) disposers.push(identityContext.webServer.register({ kind: 'exact', path: route.path, auth: route.auth, handler: withPeer(route.handler) }))
+      return async () => { for (const dispose of disposers) dispose(); await identity.close() }
+    }, 'knowledgeos-identity: account and business routes')
+  }
+
+  if (storage === undefined) {
+    ctx.effect(() => {
+      const disposers: Array<() => void> = []
+      disposers.push(ctx.webServer.register({ kind: 'exact', path: ACCOUNT_PATH, auth: 'anonymous', handler: sendIdentityUnavailable }))
+      disposers.push(ctx.webServer.register({ kind: 'exact', path: SETUP_PATH, auth: 'required', handler: sendIdentityUnavailable }))
+      for (const path of ['/knowledge/v1/auth/status', '/knowledge/v1/auth/bootstrap', '/knowledge/v1/auth/register', '/knowledge/v1/auth/login', '/knowledge/v1/auth/logout', '/knowledge/v1/me', '/knowledge/v1/me/preferences', '/knowledge/v1/spaces']) {
+        disposers.push(ctx.webServer.register({ kind: 'exact', path, auth: path.endsWith('/bootstrap') ? 'required' : 'anonymous', handler: sendIdentityUnavailable }))
+      }
+      return () => { for (const dispose of disposers) dispose() }
+    }, 'knowledgeos-identity: unavailable routes')
+  } else {
+    ctx.inject(['connection', 'connection.authentication'], registerIdentityRoutes)
+  }
+}

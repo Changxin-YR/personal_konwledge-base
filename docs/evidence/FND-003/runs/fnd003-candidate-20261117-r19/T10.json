@@ -1,0 +1,136 @@
+{
+  "id": "T10",
+  "name": "登录注册限流与有界 KDF 负载",
+  "status": "PASS",
+  "started": "2026-11-17T09:55:29.577Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "real HTTP account limit returns 429 with dynamic Retry-After",
+      "actual": [
+        {
+          "status": 401,
+          "retry_after": null
+        },
+        {
+          "status": 401,
+          "retry_after": null
+        },
+        {
+          "status": 401,
+          "retry_after": null
+        },
+        {
+          "status": 401,
+          "retry_after": null
+        },
+        {
+          "status": 401,
+          "retry_after": null
+        },
+        {
+          "status": 429,
+          "retry_after": "899"
+        }
+      ]
+    },
+    {
+      "ok": true,
+      "message": "mixed successful and failed authentication attempts hit the real source limit",
+      "actual": {
+        "successes": 22,
+        "limited": 429,
+        "retry_after": 51
+      }
+    },
+    {
+      "ok": true,
+      "message": "source limiter recovers after a normal Host restart",
+      "actual": 200
+    },
+    {
+      "ok": true,
+      "message": "controlled limiter window blocks at five failures"
+    },
+    {
+      "ok": true,
+      "message": "KDF cancellation starts with two running and at least one queued task",
+      "actual": {
+        "runningAtCancel": 2,
+        "queuedAtCancel": 8,
+        "peakRunning": 2,
+        "peakQueued": 7
+      }
+    },
+    {
+      "ok": true,
+      "message": "queued cancellation removes work while running scrypt callbacks finish and release slots",
+      "actual": {
+        "queuedCancelled": 1,
+        "started": 9,
+        "completed": 9,
+        "outcomes": [
+          "ok",
+          "ok",
+          "AbortError",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok"
+        ]
+      }
+    },
+    {
+      "ok": true,
+      "message": "KDF scheduler closes with no active or queued work",
+      "actual": {
+        "running": 0,
+        "queued": 0
+      }
+    }
+  ],
+  "details": {
+    "http_limit": [
+      401,
+      401,
+      401,
+      401,
+      401,
+      429
+    ],
+    "source_attempts": {
+      "successes": 22,
+      "limited": 429,
+      "retry_after": 51
+    },
+    "kdf": {
+      "running_at_cancel": 2,
+      "queued_at_cancel": 8,
+      "peakRunning": 2,
+      "peakQueued": 7,
+      "started": 9,
+      "completed": 9,
+      "queuedCancelled": 1,
+      "outcomes": [
+        "ok",
+        "ok",
+        "AbortError",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    "controlled_recovery": true,
+    "restarted_status": 200
+  },
+  "evidence": [],
+  "finished": "2026-11-17T09:55:56.345Z"
+}

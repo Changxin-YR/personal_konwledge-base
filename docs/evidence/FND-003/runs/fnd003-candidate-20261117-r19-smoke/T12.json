@@ -1,0 +1,136 @@
+{
+  "id": "T12",
+  "name": "构建、真实加载、释放及既有回归",
+  "status": "PASS",
+  "started": "2026-11-17T09:52:42.937Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "verify-plan exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "scope-check exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "typecheck exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "build exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "loaded-artifacts exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "frozen candidate manifest matches source and loaded artifacts",
+      "actual": []
+    },
+    {
+      "ok": true,
+      "message": "real profile installation artifacts match the frozen candidate",
+      "actual": {
+        "loaded_root": "<repo>packages\\knowledgeos-panel",
+        "mismatches": []
+      }
+    },
+    {
+      "ok": true,
+      "message": "tampered artifact differs from frozen candidate",
+      "actual": {
+        "file": "packages/knowledgeos-panel/lib/index.js",
+        "sha256": "b72d120edb4255d8c2bec417642dc0d663f955082bdad2693342519f211395b3"
+      }
+    },
+    {
+      "ok": true,
+      "message": "real checker rejects only lib/index.js SHA-256 mismatch",
+      "actual": {
+        "status": 1,
+        "file": "packages/knowledgeos-panel/lib/index.js",
+        "expected_sha256": "eb1a48957b30952172791e39a185d4d0038ca8ebd29b7a053083a506703a280e",
+        "actual_sha256": "b72d120edb4255d8c2bec417642dc0d663f955082bdad2693342519f211395b3",
+        "output_mentions_index": true
+      }
+    },
+    {
+      "ok": true,
+      "message": "existing status and records routes remain functional",
+      "actual": {
+        "status": 200,
+        "record": 201,
+        "reread": 200
+      }
+    },
+    {
+      "ok": true,
+      "message": "unconfigured profile preserves status and returns explicit unavailable",
+      "actual": {
+        "unavailable": {
+          "code": "STORAGE_UNAVAILABLE",
+          "message": "storage is unavailable",
+          "request_id": "691397ec-6aa4-4664-a64a-70bdb07e7ae9",
+          "retryable": false,
+          "safe_details": {}
+        },
+        "status": 200
+      }
+    }
+  ],
+  "details": {
+    "checks": [
+      {
+        "name": "verify-plan",
+        "status": 0,
+        "stdout": "{\n  \"status\": \"PASS\",\n  \"scope\": \"plan_structure_traceability_and_execution_consistency_only\",\n  \"requirements\": 44,\n  \"acceptanceCases\": 66,\n  \"workUnits\": 76,\n  \"plannedUnitChecks\": 174,\n  \"executor\": \"codex\",\n  \"activeUnit\": \"FND-003\",\n  \"autoAdvance\": false,\n  \"fullProductReview\": \"not_started\",\n  \"markdownFiles\": 56,\n  \"upstreamCommit\": \"39163dd30f703a79079e2d2446545cff3c453738\",\n  \"implementationVerifiedByThisCheck\": false,\n  \"productTestsExecuted\": 0\n}\n",
+        "stderr": ""
+      },
+      {
+        "name": "scope-check",
+        "status": 0,
+        "stdout": "{\n  \"result\": \"PASS\",\n  \"failures\": [],\n  \"checked\": [\n    \"packages/knowledgeos-panel/src/host/identity.ts\",\n    \"packages/knowledgeos-panel/src/host/identity-http.ts\",\n    \"packages/knowledgeos-panel/src/host/identity-peer.ts\",\n    \"packages/knowledgeos-panel/src/host/storage.ts\",\n    \"scripts/fnd003/harness.mjs\",\n    \"scripts/fnd003/run-all.mjs\",\n    \"packages/knowledgeos-panel/src/host/index.ts\",\n    \"packages/knowledgeos-panel/src/host/identity.ts\",\n    \"packages/knowledgeos-panel/src/host/identity-http.ts\",\n    \"packages/knowledgeos-panel/src/host/identity-peer.ts\",\n    \"packages/knowledgeos-panel/src/host/storage.ts\",\n    \"packages/knowledgeos-panel/src/client/Panel.tsx\"\n  ]\n}\n",
+        "stderr": ""
+      },
+      {
+        "name": "typecheck",
+        "status": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "name": "build",
+        "status": 0,
+        "stdout": "lib/index.js  96013 bytes  sha256=eb1a48957b30952172791e39a185d4d0038ca8ebd29b7a053083a506703a280e\nlib/storage.js  33495 bytes  sha256=8ede815fc780ae1f52bb0daf02d73b914c3643b4572f2fccf57961305e7e83ab\nlib/test-support.js  51317 bytes  sha256=cd28e82c0454015c293574c654314a995c71fb17ecc8e5f8e4bf0034e36c17d6\nlib/client.js  21691 bytes  sha256=dfa4a5e2fb8afcaf85657f22048185e3cb86444db87e8e6e4ec1d4b0bbe2e1a9\n",
+        "stderr": ""
+      },
+      {
+        "name": "loaded-artifacts",
+        "status": 0,
+        "stdout": "{\n  \"manifest\": \"docs/evidence/FND-003/candidate-manifest-r19.json\",\n  \"profile_dir\": \".cache/dsh-home-fnd003/profiles/knowledgeos-identity-test\",\n  \"source_mismatches\": [],\n  \"loaded_mismatches\": [],\n  \"loaded_root\": \"<repo>packages\\\\knowledgeos-panel\",\n  \"result\": \"PASS\"\n}\n",
+        "stderr": ""
+      },
+      {
+        "name": "tampered-loaded-artifacts",
+        "status": 1,
+        "stdout": "{\n  \"manifest\": \"docs/evidence/FND-003/candidate-manifest-r19.json\",\n  \"profile_dir\": \"docs/evidence/FND-003/runs/fnd003-candidate-20261117-r19-smoke/tampered-profile\",\n  \"source_mismatches\": [],\n  \"loaded_mismatches\": [\n    {\n      \"file\": \"packages/knowledgeos-panel/lib/index.js\",\n      \"installed_path\": \"<repo>docs\\\\evidence\\\\FND-003\\\\runs\\\\fnd003-candidate-20261117-r19-smoke\\\\tampered-package\\\\lib\\\\index.js\",\n      \"expected\": {\n        \"bytes\": 96013,\n        \"sha256\": \"eb1a48957b30952172791e39a185d4d0038ca8ebd29b7a053083a506703a280e\"\n      },\n      \"actual\": {\n        \"bytes\": 96043,\n        \"sha256\": \"b72d120edb4255d8c2bec417642dc0d663f955082bdad2693342519f211395b3\"\n      }\n    }\n  ],\n  \"loaded_root\": \"<repo>docs\\\\evidence\\\\FND-003\\\\runs\\\\fnd003-candidate-20261117-r19-smoke\\\\tampered-package\",\n  \"result\": \"FAIL\"\n}\n",
+        "stderr": ""
+      }
+    ],
+    "loaded_package": "packages/knowledgeos-panel",
+    "loaded_root": "<repo>packages\\knowledgeos-panel",
+    "manifest": "fnd003-candidate-20261117-r19",
+    "negative_artifact": "b72d120edb4255d8c2bec417642dc0d663f955082bdad2693342519f211395b3",
+    "lifecycle": "closed after each Host run"
+  },
+  "evidence": [],
+  "finished": "2026-11-17T09:52:56.441Z"
+}

@@ -1,0 +1,119 @@
+{
+  "id": "T11",
+  "name": "真实账号界面与身份切换",
+  "status": "PASS",
+  "started": "2026-11-17T09:55:57.073Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "browser sees owner setup page"
+    },
+    {
+      "ok": true,
+      "message": "browser creates the first administrator from an empty database",
+      "actual": {
+        "setupMessage": "初始化完成，请前往账号页登录。",
+        "setupPassword": "<redacted>"
+      }
+    },
+    {
+      "ok": true,
+      "message": "repeated initialization is rejected after browser creation",
+      "actual": {
+        "code": "ALREADY_INITIALIZED",
+        "message": "service is already initialized",
+        "request_id": "80721b4c-f56a-4d9c-a8ed-0b84b65cd50b",
+        "retryable": false,
+        "safe_details": {}
+      }
+    },
+    {
+      "ok": true,
+      "message": "browser initialization creates exactly one administrator",
+      "actual": {
+        "adminCount": 1
+      }
+    },
+    {
+      "ok": true,
+      "message": "browser registration succeeds",
+      "actual": "注册成功，请登录"
+    },
+    {
+      "ok": true,
+      "message": "browser Alice login succeeds",
+      "actual": {
+        "state": "已登录 · member",
+        "message": "登录成功"
+      }
+    },
+    {
+      "ok": true,
+      "message": "browser preference save succeeds"
+    },
+    {
+      "ok": true,
+      "message": "second browser context is a separate identity"
+    },
+    {
+      "ok": true,
+      "message": "logout immediately clears profile, revision-backed editing and passwords",
+      "actual": {
+        "profileHidden": true,
+        "saveDisabled": true,
+        "fields": [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    {
+      "ok": true,
+      "message": "late /me response cannot expose Alice data during Bob switch",
+      "actual": {
+        "state": "正在登录…",
+        "profileHidden": true,
+        "saveDisabled": true,
+        "fields": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    {
+      "ok": true,
+      "message": "Bob loads only Bob profile and stale save cannot submit",
+      "actual": {
+        "bobState": {
+          "who": "乙（bob） · 个人空间 b08d1529-ee90-4456-a75b-f6345011151a",
+          "goal": "",
+          "saveDisabled": false
+        },
+        "preferenceRequests": 0
+      }
+    }
+  ],
+  "details": {
+    "screenshots": [
+      "T11-setup-1366.png",
+      "T11-account-1366.png",
+      "T11-account-1920.png",
+      "T11-bob-1366.png"
+    ],
+    "browser_contexts": 3,
+    "controlled_delayed_response": true,
+    "delayed_me": true,
+    "preference_requests_during_switch": 0
+  },
+  "evidence": [],
+  "finished": "2026-11-17T09:56:08.097Z"
+}

@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url'
 import {
   DEFAULT_HOME, DEFAULT_PORT, DEFAULT_PROFILE, REPO, cookieFromResponse, entryCookie, request, requestWithHost, sleep, startHost, stopHost,
 } from './harness.mjs'
-import { ProbeStorage, MIGRATION_V1_SQL, MIGRATION_V1_CHECKSUM, MIGRATION_V2_CHECKSUM, readDatabaseFacts } from '../../packages/knowledgeos-panel/lib/test-support.js'
+import { ProbeStorage, MIGRATION_V1_SQL, MIGRATION_V1_CHECKSUM, MIGRATION_V2_CHECKSUM, readDatabaseFacts, isIdentityRuntimeAvailable, isLoopbackAddress } from '../../packages/knowledgeos-panel/lib/test-support.js'
 
 const runId = process.argv.includes('--run-id') ? process.argv[process.argv.indexOf('--run-id') + 1] : `independent-${Date.now()}`
 const port = Number(process.argv.includes('--port') ? process.argv[process.argv.indexOf('--port') + 1] : DEFAULT_PORT + 10)
@@ -25,7 +25,6 @@ const body = value => JSON.stringify(value)
 const headers = extra => ({ 'content-type': 'application/json', 'x-knowledgeos-request': '1', ...(extra ?? {}) })
 const dbPath = dir => join(dir, 'knowledgeos.sqlite')
 const sql = (path, statement, params = []) => { const db = new DatabaseSync(path, { readOnly: true }); try { return db.prepare(statement).all(...params) } finally { db.close() } }
-const isLoopbackAddress = value => { if (value === undefined) return false; const unwrapped = value.startsWith('::ffff:') ? value.slice(7) : value; return /^127(?:\.\d{1,3}){3}$/.test(unwrapped) || unwrapped === '::1' || unwrapped === '0:0:0:0:0:0:0:1' }
 const api = (cookie, method, path, extra = {}, payload) => request({ port, cookie, method, path, headers: extra, body: payload })
 const valid = (loginName, displayName, password = 'Correct horse battery staple 2026!') => ({ login_name: loginName, display_name: displayName, password })
 const patchText = dataDir => `- id: knowledgeos-host\n  config:\n    dataDir: "${dataDir.replaceAll('\\', '/')}"\n`
@@ -64,9 +63,27 @@ try {
   const loopback = check('T01-adapter', [
     { ok: isLoopbackAddress('127.0.0.1'), message: 'IPv4 loopback accepted' },
     { ok: isLoopbackAddress('::ffff:127.0.0.1'), message: 'mapped IPv4 loopback accepted' },
+    { ok: isLoopbackAddress('::ffff:7f00:1'), message: 'hex mapped IPv4 loopback accepted' },
     { ok: isLoopbackAddress('::1'), message: 'IPv6 loopback accepted' },
+    { ok: isLoopbackAddress('[::1]'), message: 'bracketed IPv6 loopback accepted' },
     { ok: !isLoopbackAddress('10.0.0.1'), message: 'private non-loopback rejected' },
+    { ok: !isLoopbackAddress('127.0.0.999'), message: 'invalid IPv4 rejected' },
+    { ok: !isLoopbackAddress('::ffff:192.0.2.1'), message: 'mapped non-loopback rejected' },
   ])
+
+  const lifecycleDir = join(dataRoot, 'connection-lifecycle'); rmSync(lifecycleDir, { recursive: true, force: true }); const live = await bootstrap(lifecycleDir); const liveStatus = await api('', 'GET', '/knowledge/v1/auth/status'); const runningFacts = { connection: { authentication: {}, browserPeer: { signal: new AbortController().signal } }, host: '127.0.0.1', port, protocol: 'http:', origin: `http://127.0.0.1:${port}` }; const abortController = new AbortController(); abortController.abort(); const adapterCases = [
+    { ok: isIdentityRuntimeAvailable(runningFacts), message: 'controlled adapter admits active loopback Connection' },
+    { ok: !isIdentityRuntimeAvailable({ ...runningFacts, connection: undefined }), message: 'controlled adapter rejects missing Connection' },
+    { ok: !isIdentityRuntimeAvailable({ ...runningFacts, connection: { authentication: {}, browserPeer: { signal: abortController.signal } } }), message: 'controlled adapter rejects stopped Connection' },
+    { ok: !isIdentityRuntimeAvailable({ ...runningFacts, host: '192.0.2.10', origin: `http://192.0.2.10:${port}` }), message: 'controlled adapter rejects non-loopback listener' },
+    { ok: isIdentityRuntimeAvailable(runningFacts), message: 'controlled adapter recovers after Connection restoration' },
+  ]; check('T02-connection-adapter', adapterCases, { production_gate: 'isIdentityRuntimeAvailable' })
+  const stoppedHost = host; await stopHost(stoppedHost); host = undefined; let stoppedResult; try { stoppedResult = await api('', 'GET', '/knowledge/v1/auth/status') } catch (error) { stoppedResult = { status: 0, error: error instanceof Error ? error.code ?? error.name : String(error) } }
+  const recovered = await boot(lifecycleDir); const recoveredStatus = await api('', 'GET', '/knowledge/v1/auth/status'); check('T02-connection-host', [
+    { ok: liveStatus.status === 200 && live.response.status === 201, message: 'real fixed-version Host serves identity while Connection is running', actual: liveStatus.status },
+    { ok: stoppedResult.status === 0 || stoppedResult.status === 503, message: 'real Host teardown makes identity unavailable without anonymous fallback', actual: stoppedResult },
+    { ok: recoveredStatus.status === 200, message: 'real fixed-version Host recovers identity after restart', actual: recoveredStatus.status },
+  ], { actual_host: true, connection_state: 'normal -> stopped with Host teardown -> restored', fnd002_regression: 'covered by main T12' })
 
   const t04Dir = join(dataRoot, 't04'); rmSync(t04Dir, { recursive: true, force: true }); const t04 = await bootstrap(t04Dir); const alice = await registerLogin('alice', '甲');
   const boundary = sql(dbPath(t04Dir), 'SELECT token_hash FROM auth_sessions WHERE revoked_at IS NULL ORDER BY created_at DESC LIMIT 1')[0].token_hash

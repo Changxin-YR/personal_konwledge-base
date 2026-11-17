@@ -38,7 +38,7 @@
     "awaiting_user": "current unit has passed and awaits a user choice; active_unit is not advanced"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "FND-003 六项返修问题 R1-R6 已关闭；最终候选 fnd003-candidate-20261117-r16 的 T01-T12 与独立复核均真实通过，等待用户指令，不自动进入 FND-004。",
+  "state_reason": "FND-003 R1-R6 已关闭；最终候选 fnd003-candidate-20261117-r21 的 T01-T12 与独立复核 independent-20261117-r13 均真实通过，证据已脱敏并回读候选哈希，等待用户指令，不自动进入 FND-004。",
   "working_branch": "codex/knowledgeos-fnd-003",
   "activation_basis": "explicit_user_request_for_next_step_after_verified_FND002_closure",
   "base_commit": "3535f16b1a429d32cd2c80f6c1462ce556fcb509",
@@ -69,9 +69,9 @@
     "closure_commit": "3535f16b1a429d32cd2c80f6c1462ce556fcb509"
   },
   "completion": {
-    "candidate": "fnd003-candidate-20261117-r16",
-    "run_summary": "docs/evidence/FND-003/runs/fnd003-candidate-20261117-r16/summary.json",
-    "independent_summary": "docs/evidence/FND-003/runs/independent-20261117-r9/summary.json",
-    "completed_at": "2026-11-17T15:40:00+08:00"
+    "candidate": "fnd003-candidate-20261117-r21",
+    "run_summary": "docs/evidence/FND-003/runs/fnd003-candidate-20261117-r21/summary.json",
+    "independent_summary": "docs/evidence/FND-003/runs/independent-20261117-r13/summary.json",
+    "completed_at": "2026-11-17T18:30:00+08:00"
   }
 }

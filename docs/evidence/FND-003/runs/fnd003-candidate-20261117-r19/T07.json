@@ -1,0 +1,80 @@
+{
+  "id": "T07",
+  "name": "密码、输入和公开证据保护",
+  "status": "PASS",
+  "started": "2026-11-17T09:55:18.433Z",
+  "role": "implementation+supervisor",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "input boundaries reject malformed values",
+      "actual": {
+        "short": 422,
+        "unknown_field": 422,
+        "surrogate": 422,
+        "too_large": 413,
+        "unsupported_preferences": 422,
+        "unsupported_bootstrap": 422
+      }
+    },
+    {
+      "ok": true,
+      "message": "bootstrap/register reject profile fields without writes",
+      "actual": 2
+    },
+    {
+      "ok": true,
+      "message": "unknown and wrong password use one safe error",
+      "actual": {
+        "wrong": "INVALID_CREDENTIALS",
+        "unknown": "INVALID_CREDENTIALS"
+      }
+    },
+    {
+      "ok": true,
+      "message": "same password credentials use different salts",
+      "actual": [
+        {
+          "salt_bytes": "<redacted>",
+          "key_bytes": 32
+        },
+        {
+          "salt_bytes": "<redacted>",
+          "key_bytes": 32
+        }
+      ]
+    },
+    {
+      "ok": true,
+      "message": "public response evidence contains no secrets",
+      "actual": "{\"badcases\":{\"short\":{\"status\":422,\"headers\":{},\"text\":\"{\\\"code\\\":\\\"input_invalid\\\",\\\"message\\\":\\\"password length is invalid\\\",\\\"request_id\\\":\\\"a327e386-510e-4932-a4cd-a67556beb0f5\\\",\\\"retryable\\\":false,\\\"safe_details\\\":{}}\",\"json\":{\"code\":\"input_invalid\",\"message\":\"password length is invalid\",\"request_id\":\"a327e386-510e-4932-a4cd-a67556beb0f5\",\"retryable\":false,\"safe_details\":{}}},\"unknown_field\":{\"status\":422,\"headers\":{},\"text\":\"{\\\"code\\\":\\\"input_invalid\\\",\\\"message\\\":\\\"body contains an unsupported field\\\",\\\"request_id\\\":\\\"06c2e19d-e5aa-4394-a404-5e3cd528dbc7\\\",\\\"retryable\\\":false,\\\"safe_details\\\":{}}\",\"json\":{\"code\":\"input_invalid\",\"message\":\"body contains an unsupported field\",\"request_id\":\"06c2e19d-e5aa-4394-a404-5e3cd528dbc7\",\"retryable\":false,\"safe_details\":{}}},\"surrogate\":{\"status\":422,\"headers\":{},\"text\":\"{\\\"code\\\":\\\"input_invalid\\\",\\\"message\\\":\\\"display_name is invalid\\\",\\\"request_id\\\":\\\"280a1739-495e-48dc-ad37-b36d2dac6565\\\",\\\"retryable\\\":false,\\\"safe_details\\\":{}}\",\"json\":{\"code\":\"input_invalid\",\"message\":\"display_name is invalid\",\"request_id\":\"280a1739-495e-48dc-ad37-b36d2dac6565\",\"retryable\":false,\"safe_details\":{}}},\"too_large\":{\"status\":413,\"headers\":{},\"text\":\"{\\\"code\\\":\\\"payload_too_large\\\",\\\"message\\\":\\\"request body exceeds the limit\\\",\\\"request_id\\\":\\\"9d2b5061-c9f2-450a-bac2-eb3102ff5ace\\\",\\\"retryable\\\":false,\\\"safe_details\\\":{}}\",\"json\":{\"code\":\"payload_too_large\",\"message\":\"request body exceeds the limit\",\"request_id\":\"9d2b5061-c9f2-450a-bac2-eb3102ff5ace\",\"retryable\":false,\"safe_details\":{}}},\"unsupported_preferences\":{\"status\":422,\"headers\":{},\"text\":\"{\\\"code\\\":\\\"input_invalid\\\",\\\"message\\\":\\\"body contains an unsupported field\\\",\\\"request_id\\\":\\\"8e2c8f0d-b02e-4b6d-bb96-59db091cfeb1\\\",\\\"retryable\\\":false,\\\"safe_details\\\":{}}\",\"json\":{\"code\":\"input_invalid\",\"message\":\"body contains an unsupported field\",\"request_id\":\"8e2c8f0d-b02e-4b6d-bb96-59db091cfeb1\",\"retryable\":false,\"safe_details\":{}}},\"unsupported_bootstrap\":{\"status\":422,\"headers\":{},\"text\":\"{\\\"code\\\":\\\"input_invalid\\\",\\\"message\\\":\\\"body contains an unsupported field\\\",\\\"request_id\\\":\\\"a9ee81c2-8ca5-466f-b3b1-f366cd6e1215\\\",\\\"retryable\\\":false,\\\"safe_details\\\":{}}\",\"json\":{\"code\":\"input_invalid\",\"message\":\"body contains an unsupported field\",\"request_id\":\"a9ee81c2-8ca5-466f-b3b1-f366cd6e1215\",\"retryable\":false,\"safe_details\":{}}}},\"wrong\":{\"code\":\"invalid_credentials\",\"message\":\"invalid credentials\",\"request_id\":\"597da3e1-8bc3-4488-a700-1b0446fd0ed8\",\"retryable\":false,\"safe_details\":{}},\"unknown\":{\"code\":\"invalid_credentials\",\"message\":\"invalid credentials\",\"request_id\":\"e17d3f8a-36c1-4cd5-bac5-bffb5e62a3ff\",\"retryable\":false,\"safe_details\":{}},\"alice\":{\"id\":\"ff2375cb-1cdd-4816-ae79-56f5df261493\",\"login_name\":\"alice\",\"display_name\":\"甲\",\"role\":\"member\",\"status\":\"active\",\"timezone\":\"asia/shanghai\",\"planning_home_service_id\":\"e9dc9b24-1c6c-435f-8fe5-5478ba00288f\",\"domains\":[],\"learning_tracks\":[],\"goal_text\":\"\",\"revision\":1,\"personal_space_id\":\"8aee5728-d77e-4df7-bcdd-ea4fff696fb3\",\"created_at\":\"2026-11-17t09:55:27.058z\",\"updated_at\":\"2026-11-17t09:55:27.058z\"}}"
+    },
+    {
+      "ok": true,
+      "message": "SQL-looking text is stored as data",
+      "actual": 200
+    }
+  ],
+  "details": {
+    "kdf": {
+      "algorithm": "scrypt",
+      "n": 131072,
+      "r": 8,
+      "p": 1,
+      "maxmem": 201326592,
+      "salt_bytes": "<redacted>",
+      "key_bytes": 32
+    },
+    "credential_rows": 2,
+    "bad_cases": {
+      "short": 422,
+      "unknown_field": 422,
+      "surrogate": 422,
+      "too_large": 413,
+      "unsupported_preferences": 422,
+      "unsupported_bootstrap": 422
+    }
+  },
+  "evidence": [],
+  "finished": "2026-11-17T09:55:28.124Z"
+}
