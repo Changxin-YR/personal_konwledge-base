@@ -53,7 +53,7 @@ export function authorize(
   if (target.scope === 'personal') return target.ownerUserId === actor.userId
   if (target.projectId === undefined) return false
   const member = memberships.some(item => item.projectId === target.projectId && item.userId === actor.userId && isGrantActive(item, now))
-  if (!member && target.ownerUserId !== actor.userId) return false
+  if (!member) return false
   return grants.some(item => item.subjectType === 'user' && item.subjectId === actor.userId && item.action === action && isGrantActive(item, now))
     || grants.some(item => item.subjectType === 'project' && item.subjectId === target.projectId && item.action === action && isGrantActive(item, now) && member)
 }

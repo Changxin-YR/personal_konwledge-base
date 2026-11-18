@@ -896,12 +896,12 @@
         {
           "id": "FND-004-T04",
           "scenario": "生效、到期、撤销和重新读取",
-          "expected": "valid_from前、now等于expires_at、revoked_at非空均拒绝；下一次读取/列表/动作重新判权；新授权恢复。"
+        "expected": "valid_from前、now等于expires_at、revoked_at非空均拒绝；下一次读取/列表/动作重新判权；撤权后重新授权恢复，旧记录保留且只有一条有效重复权限。"
         },
         {
           "id": "FND-004-T05",
-          "scenario": "v3迁移、重启和故障回滚",
-          "expected": "v1/v2数据及checksum保留；v3真实schema校验；中途失败无半提交；重启后对象和授权状态不变。"
+        "scenario": "v4迁移、v3升级、重启和故障回滚",
+        "expected": "v1/v2/v3数据及checksum保留；v4真实schema校验；中途失败无半提交；重启后对象和授权状态不变。"
         },
         {
           "id": "FND-004-T06",
@@ -920,17 +920,17 @@
         "A46"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "仅在 3.2.1 修复后的冻结候选上实际完成 T01–T07、真实 HTTP/DSH、迁移负例、独立复核和受影响回归后，才可标记 passed/awaiting_user；旧候选 PASS 不具放行效力。",
-      "status": "passed",
+  "completion_gate": "仅在 3.2.2 修复后的冻结候选上实际完成 T01–T07、R1/R2 真实 HTTP/SQL、v3→v4 升级、迁移负例、独立复核和受影响回归后，才可标记 passed/awaiting_user；旧候选 PASS 不具放行效力。",
+  "status": "passed",
       "test_plan_status": "detailed_accepted_unit",
-      "instruction_revision": "3.2.1",
+  "instruction_revision": "3.2.2",
       "working_branch": "codex/knowledgeos-fnd-004",
-      "base_commit": "5621f3d0e40dc11bcd2062687a9ad3087f8c4442",
+  "base_commit": "518ce35a51ef07623480bc8cd75dc0e93262557d",
       "activated_at": "2026-11-17",
       "activation_basis": "explicit_user_selection_of_FND004",
-      "test_result_status": "PASS",
-      "independent_review_status": "PASS",
-      "retest_status": "PASS",
+  "test_result_status": "PASS",
+  "independent_review_status": "PASS",
+  "retest_status": "PASS",
       "completed_test_ids": [
         "FND-004-T01",
         "FND-004-T02",
@@ -952,14 +952,14 @@
         "docs/evidence/FND-004/architecture.md",
         "docs/evidence/FND-004/permission-matrix.md",
         "docs/evidence/FND-004/test-plan.md",
-        "docs/evidence/FND-004/runs/final-20261118/summary.json",
-        "docs/evidence/FND-004/independent/final-20261118/summary.json",
-        "docs/evidence/FND-004/runs/affected-regression-final-20261118/summary.json",
+    "docs/evidence/FND-004/runs/v322-candidate/summary.json",
+    "docs/evidence/FND-004/independent/v322-candidate/summary.json",
+    "docs/evidence/FND-004/runs/v322-affected-regression/summary.json",
         "docs/evidence/FND-004/REPORT.md",
         "docs/evidence/FND-004/candidate.md"
       ],
-      "completed_at": "2026-11-18T00:00:00+08:00",
-      "candidate": "FND-004-FINAL-20261118"
+  "completed_at": "2026-11-18T12:53:38+08:00",
+  "candidate": "FND-004-FINAL-20261118-v3.2.2"
     },
     {
       "id": "FND-005",

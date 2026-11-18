@@ -1,0 +1,25 @@
+{
+  "id": "FND-004-T01",
+  "status": "PASS",
+  "started_at": "2026-11-18T04:30:24.820Z",
+  "evidence": [
+    "real_http_three_cookies",
+    "personal_direct_url_and_list",
+    "forged_identity_input"
+  ],
+  "result": {
+    "statuses": {
+      "own": 200,
+      "bob": 404,
+      "admin": 404,
+      "bob_list": 200,
+      "forged": 422
+    },
+    "cookies": [
+      "<redacted>",
+      "<redacted>",
+      "<redacted>"
+    ]
+  },
+  "finished_at": "2026-11-18T04:30:24.830Z"
+}

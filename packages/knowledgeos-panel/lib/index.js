@@ -299,13 +299,13 @@ function authorize(actor2, target, action2, now, grants = [], memberships = []) 
   if (target.scope === "personal") return target.ownerUserId === actor2.userId;
   if (target.projectId === void 0) return false;
   const member = memberships.some((item) => item.projectId === target.projectId && item.userId === actor2.userId && isGrantActive(item, now));
-  if (!member && target.ownerUserId !== actor2.userId) return false;
+  if (!member) return false;
   return grants.some((item) => item.subjectType === "user" && item.subjectId === actor2.userId && item.action === action2 && isGrantActive(item, now)) || grants.some((item) => item.subjectType === "project" && item.subjectId === target.projectId && item.action === action2 && isGrantActive(item, now) && member);
 }
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 3;
+var SCHEMA_VERSION = 4;
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
 var MIGRATION_V1_SQL = `CREATE TABLE schema_migrations (
@@ -426,6 +426,28 @@ CREATE TABLE resource_grants (
 ) STRICT;
 `;
 var MIGRATION_V3_CHECKSUM = createHash2("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
+var MIGRATION_V4_SQL = `ALTER TABLE resource_grants RENAME TO resource_grants_v3;
+CREATE TABLE resource_grants (
+  id TEXT PRIMARY KEY,
+  service_id TEXT NOT NULL REFERENCES service_identity(service_id),
+  resource_type TEXT NOT NULL CHECK (resource_type = 'knowledge_object'),
+  resource_id TEXT NOT NULL REFERENCES knowledge_objects(id),
+  subject_type TEXT NOT NULL CHECK (subject_type IN ('user', 'project')),
+  subject_id TEXT NOT NULL,
+  action TEXT NOT NULL CHECK (action IN ('read', 'comment', 'edit', 'export', 'manage_share', 'delete', 'review', 'view_learning_records')),
+  valid_from TEXT NOT NULL,
+  expires_at TEXT,
+  revoked_at TEXT,
+  created_at TEXT NOT NULL
+) STRICT;
+INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, expires_at, revoked_at, created_at)
+  SELECT id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, expires_at, revoked_at, created_at FROM resource_grants_v3;
+CREATE UNIQUE INDEX resource_grants_active_subject_action_uq
+  ON resource_grants (resource_id, subject_type, subject_id, action)
+  WHERE revoked_at IS NULL;
+DROP TABLE resource_grants_v3;
+`;
+var MIGRATION_V4_CHECKSUM = createHash2("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
 var PROBE_SUPPORTED_TABLES = ["schema_migrations", "storage_probe_records"];
 var IDENTITY_SUPPORTED_TABLES = [
   "auth_sessions",
@@ -523,11 +545,16 @@ var ProbeStorage = class {
         this.#migrateV1(db);
         this.#migrateV2(db);
         this.#migrateV3(db);
+        this.#migrateV4(db);
       } else if (existing === "v1") {
         this.#migrateV2(db);
         this.#migrateV3(db);
+        this.#migrateV4(db);
       } else if (existing === "v2") {
         this.#migrateV3(db);
+        this.#migrateV4(db);
+      } else if (existing === "v3") {
+        this.#migrateV4(db);
       }
       this.#verify(db);
       const facts = readDatabaseFacts(path);
@@ -574,6 +601,16 @@ var ProbeStorage = class {
       }
       return "v3";
     }
+    if (facts.userVersion === 4) {
+      this.#assertV4Schema(facts);
+      const db = new DatabaseSync(path, { readOnly: true });
+      try {
+        this.#assertV4Definitions(db);
+      } finally {
+        db.close();
+      }
+      return "v4";
+    }
     throw new RecordsError("STORAGE_INCOMPATIBLE", "database schema version is not supported");
   }
   #assertV1Schema(facts) {
@@ -599,6 +636,17 @@ var ProbeStorage = class {
     const v2 = facts.ledger.find((entry) => entry.version === 2);
     const v3 = facts.ledger.find((entry) => entry.version === 3);
     if (facts.ledger.length !== 3 || v1?.checksum !== MIGRATION_V1_CHECKSUM || v2?.checksum !== MIGRATION_V2_CHECKSUM || v3?.checksum !== MIGRATION_V3_CHECKSUM) throw new RecordsError("STORAGE_INCOMPATIBLE", "v3 migration ledger does not match this build");
+  }
+  #assertV4Schema(facts) {
+    const expected = [...IDENTITY_SUPPORTED_TABLES].sort();
+    const actual = facts.objects.filter((object) => object.type === "table").map((object) => object.name).sort();
+    const unexpected = facts.objects.filter((object) => object.type !== "table" && !(object.type === "index" && object.name === "resource_grants_active_subject_action_uq"));
+    if (unexpected.length !== 0 || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v4 schema");
+    const v1 = facts.ledger.find((entry) => entry.version === 1);
+    const v2 = facts.ledger.find((entry) => entry.version === 2);
+    const v3 = facts.ledger.find((entry) => entry.version === 3);
+    const v4 = facts.ledger.find((entry) => entry.version === 4);
+    if (facts.ledger.length !== 4 || v1?.checksum !== MIGRATION_V1_CHECKSUM || v2?.checksum !== MIGRATION_V2_CHECKSUM || v3?.checksum !== MIGRATION_V3_CHECKSUM || v4?.checksum !== MIGRATION_V4_CHECKSUM) throw new RecordsError("STORAGE_INCOMPATIBLE", "v4 migration ledger does not match this build");
   }
   #assertV2Definitions(db) {
     const expected = new DatabaseSync(":memory:");
@@ -628,6 +676,7 @@ var ProbeStorage = class {
   #assertV3Definitions(db) {
     const expected = new DatabaseSync(":memory:");
     try {
+      expected.exec(MIGRATION_V2_SQL);
       expected.exec(MIGRATION_V3_SQL);
       const normalize = (value) => String(value ?? "").replace(/\s+/g, " ").trim().toLowerCase();
       for (const table of ["knowledge_projects", "project_memberships", "knowledge_objects", "resource_grants"]) {
@@ -635,6 +684,25 @@ var ProbeStorage = class {
         const expectedSql = expected.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name = ?").get(table)?.sql ?? "";
         if (normalize(actualSql) !== normalize(expectedSql)) throw new RecordsError("STORAGE_INCOMPATIBLE", `v3 table constraints are not accepted: ${table}`);
       }
+    } finally {
+      expected.close();
+    }
+  }
+  #assertV4Definitions(db) {
+    const expected = new DatabaseSync(":memory:");
+    try {
+      expected.exec(MIGRATION_V2_SQL);
+      expected.exec(MIGRATION_V3_SQL);
+      expected.exec(MIGRATION_V4_SQL);
+      const normalize = (value) => String(value ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+      for (const table of ["knowledge_projects", "project_memberships", "knowledge_objects", "resource_grants"]) {
+        const actualSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name = ?").get(table)?.sql ?? "";
+        const expectedSql = expected.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name = ?").get(table)?.sql ?? "";
+        if (normalize(actualSql) !== normalize(expectedSql)) throw new RecordsError("STORAGE_INCOMPATIBLE", `v4 table constraints are not accepted: ${table}`);
+      }
+      const actualIndex = db.prepare("SELECT name, sql FROM sqlite_master WHERE type='index' AND name = 'resource_grants_active_subject_action_uq'").get();
+      const expectedIndex = expected.prepare("SELECT name, sql FROM sqlite_master WHERE type='index' AND name = 'resource_grants_active_subject_action_uq'").get();
+      if (actualIndex?.name !== expectedIndex?.name || normalize(actualIndex?.sql) !== normalize(expectedIndex?.sql)) throw new RecordsError("STORAGE_INCOMPATIBLE", "v4 active grant uniqueness index is not accepted");
     } finally {
       expected.close();
     }
@@ -711,12 +779,27 @@ var ProbeStorage = class {
       throw error instanceof RecordsError ? error : new RecordsError("STORAGE_INCOMPATIBLE", "authorization migration failed", false, { cause: error });
     }
   }
+  #migrateV4(db) {
+    let committed = false;
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(MIGRATION_V4_SQL);
+      this.#injectFailure("v4:after-rebuild");
+      db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(4, MIGRATION_V4_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version = 4");
+      db.exec("COMMIT");
+      committed = true;
+    } catch (error) {
+      if (!committed && !this.#rollback(db)) throw new RecordsError("STORAGE_UNAVAILABLE", "storage transaction state is unknown", false, { cause: error });
+      throw error instanceof RecordsError ? error : new RecordsError("STORAGE_INCOMPATIBLE", "grant history migration failed", false, { cause: error });
+    }
+  }
   #verify(db) {
     const facts = readDatabaseFacts(this.databasePath);
-    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== 3) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
-    this.#assertV3Schema(facts);
+    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== 4) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
+    this.#assertV4Schema(facts);
     this.#assertV2Definitions(db);
-    this.#assertV3Definitions(db);
+    this.#assertV4Definitions(db);
     const identity = db.prepare("SELECT id, service_id, bootstrap_admin_user_id, initialized_at FROM service_identity").all();
     if (identity.length !== 1 || Number(identity[0]?.id) !== 1 || typeof identity[0]?.service_id !== "string") throw new RecordsError("STORAGE_INCOMPATIBLE", "service identity is not a singleton");
   }

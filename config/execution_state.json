@@ -1,13 +1,13 @@
 {
   "schema_version": "2.0",
-  "instruction_revision": "3.2.1",
+  "instruction_revision": "3.2.2",
   "updated_at": "2026-11-18",
   "timezone": "Asia/Shanghai",
   "execution_phase": "codex_foundation",
   "executor": "codex",
   "active_instruction": {
     "path": "CODEX_START.md",
-    "sha256": "ec29b4379d20e2f36970f2f0da945e8b2ccefa9074b7ed4ad7b68a74ef5b38df"
+    "sha256": "f76f6f0351740fe22d0de9591a69ae280898beb35b300e715afe62a1afbbc60a"
   },
   "active_unit": "FND-004",
   "unit_state": "awaiting_user",
@@ -38,10 +38,10 @@
     "awaiting_user": "current unit has passed and awaits a user choice; active_unit is not advanced"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "FND-004 于 2026-11-18 按修订 3.2.1 完成定点修复、最终复验和独立复核；当前单元通过，等待用户选择下一单元。",
+  "state_reason": "FND-004 于 2026-11-18 按修订 3.2.2 完成 R1 项目成员资格边界、R2 撤权后重新授权、v3→v4 升级和最终独立复验；当前单元通过，等待用户选择下一单元。",
   "working_branch": "codex/knowledgeos-fnd-004",
   "activation_basis": "explicit_user_request_for_next_step_after_verified_FND002_closure",
-  "base_commit": "5621f3d0e40dc11bcd2062687a9ad3087f8c4442",
+  "base_commit": "518ce35a51ef07623480bc8cd75dc0e93262557d",
   "prerequisite_acceptance": {
     "unit_id": "FND-002",
     "status": "passed",
@@ -73,7 +73,7 @@
     "status": "passed",
     "invalidated_at": "2026-11-18T00:00:00+08:00",
     "prior_candidate": "FND-004-FINAL-20261117",
-    "reason": "cross-project creation and revoke HTTP contract require repair and real HTTP re-verification",
+    "reason": "v3.2.2 R1 project membership expiry/revocation boundary and R2 historical regrant require final repair and re-verification",
     "test_result_status": "PASS",
     "independent_review_status": "PASS",
     "retest_status": "PASS",
@@ -87,13 +87,13 @@
       "FND-004-T07"
     ],
     "evidence_paths": [
-      "docs/evidence/FND-004/runs/final-20261118/summary.json",
-      "docs/evidence/FND-004/independent/final-20261118/summary.json",
-      "docs/evidence/FND-004/runs/affected-regression-final-20261118/summary.json",
+      "docs/evidence/FND-004/runs/v322-candidate/summary.json",
+      "docs/evidence/FND-004/independent/v322-candidate/summary.json",
+      "docs/evidence/FND-004/runs/v322-affected-regression/summary.json",
       "docs/evidence/FND-004/REPORT.md",
       "docs/evidence/FND-004/candidate.md"
     ],
-    "completed_at": "2026-11-18T00:00:00+08:00",
-    "candidate": "FND-004-FINAL-20261118"
+    "completed_at": "2026-11-18T12:53:38+08:00",
+    "candidate": "FND-004-FINAL-20261118-v3.2.2"
   }
 }

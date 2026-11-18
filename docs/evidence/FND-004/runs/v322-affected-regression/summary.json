@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "id": "FND-001",
+      "status": "PASS",
+      "status_http": 200,
+      "host_instance_id": "<redacted>"
+    },
+    {
+      "id": "FND-002",
+      "status": "PASS",
+      "restart_http": 200,
+      "user_version": 4,
+      "ledger": 4
+    },
+    {
+      "id": "FND-003",
+      "status": "PASS",
+      "bootstrap": 201,
+      "register": 201,
+      "login": 200,
+      "me": 200,
+      "stale_revision": 409,
+      "logout": 204,
+      "after_logout": 401
+    },
+    {
+      "id": "FND-002-rollback",
+      "status": "PASS",
+      "rollback": {
+        "rolledBack": true,
+        "primaryCode": 19,
+        "rows": 0
+      }
+    }
+  ]
+}

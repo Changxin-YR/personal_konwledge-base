@@ -1,0 +1,55 @@
+{
+  "candidate": "WORKTREE",
+  "status": "PASS",
+  "checks": [
+    {
+      "id": "real-http-independent",
+      "status": "PASS",
+      "result": {
+        "http": {
+          "bootstrap": 201,
+          "register": [
+            201,
+            201
+          ],
+          "login": [
+            200,
+            200
+          ],
+          "cross_user": 404,
+          "expected_revision": 409,
+          "expired_membership": {
+            "get": 404,
+            "list": 200,
+            "action": 404,
+            "patch": 404,
+            "delete": 404
+          },
+          "grant": 201,
+          "shared": 200,
+          "revoke": 204,
+          "revoked": 404,
+          "regrant": 201,
+          "restored": 200,
+          "history_rows": 2,
+          "owner_status": 200,
+          "business_status": 401,
+          "rpc": 401
+        },
+        "database": {
+          "path": "<redacted>",
+          "exists": true
+        },
+        "profile": {
+          "host": "loopback",
+          "dsh_upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+          "profile": "knowledgeos-identity-test",
+          "port": 3122
+        }
+      }
+    }
+  ],
+  "not_run": [
+    "full_A02_A34_A46_search_ai_export_cache"
+  ]
+}
