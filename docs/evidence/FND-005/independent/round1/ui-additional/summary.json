@@ -1,0 +1,39 @@
+{
+  "candidate_id": "FND-005-572a5b58a7b46671",
+  "category": "INDEPENDENT_REAL_CHROME_HTTP_SQLITE_WITH_CONTROLLED_TRANSPORT_DELAY",
+  "real_gpt": false,
+  "status": "FAIL",
+  "started_at": "2026-11-18T08:58:59.468Z",
+  "checks": [
+    {
+      "id": "U01.late-read-after-account-switch",
+      "expected": "A response admitted as Alice must not display after the real login cookie becomes Bob",
+      "started_at": "2026-11-18T08:59:13.905Z",
+      "facts": {
+        "actual_login_switch_http": 200,
+        "old_read_suppressed": true,
+        "bob_objects": 0
+      },
+      "status": "PASS",
+      "finished_at": "2026-11-18T08:59:14.512Z"
+    },
+    {
+      "id": "U02.late-read-after-target-switch",
+      "expected": "An old target response must not overwrite the newly selected target/revision",
+      "started_at": "2026-11-18T08:59:15.428Z",
+      "status": "FAIL",
+      "error": "rendered object belongs to prior selection\n+ actual - expected\n\n+ 'bc9e6ad4-e196-434a-b169-6aa65d4cbde5'\n- '4d300fdb-aa4f-40fd-b2cb-5d250e1d197e'\n",
+      "finished_at": "2026-11-18T08:59:15.601Z"
+    }
+  ],
+  "target_switch_observation": {
+    "target_id": "4d300fdb-aa4f-40fd-b2cb-5d250e1d197e",
+    "selected_id": "4d300fdb-aa4f-40fd-b2cb-5d250e1d197e",
+    "rendered_object_id": "bc9e6ad4-e196-434a-b169-6aa65d4cbde5",
+    "rendered_revision": 1,
+    "target_sql_revision": 2,
+    "same_target": false
+  },
+  "host_stopped": true,
+  "finished_at": "2026-11-18T08:59:16.566Z"
+}

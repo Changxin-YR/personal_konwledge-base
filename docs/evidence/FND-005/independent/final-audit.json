@@ -1,0 +1,84 @@
+{
+  "candidate_id": "FND-005-d0ec209b8161e14e",
+  "category": "INDEPENDENT_STATIC_AND_LOCAL_PORT_CLOSURE",
+  "started_at": "2026-11-18T09:20:21.748Z",
+  "status": "PASS",
+  "checks": [],
+  "migrations": [
+    {
+      "version": 1,
+      "status": "PASS",
+      "sql_identical_to_accepted_base": true,
+      "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a"
+    },
+    {
+      "version": 2,
+      "status": "PASS",
+      "sql_identical_to_accepted_base": true,
+      "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2"
+    },
+    {
+      "version": 3,
+      "status": "PASS",
+      "sql_identical_to_accepted_base": true,
+      "checksum": "630937e1ad06487b53607cec01b30252bcdc6d273e962caa11642deb7d308464"
+    },
+    {
+      "version": 4,
+      "status": "PASS",
+      "sql_identical_to_accepted_base": true,
+      "checksum": "02fae87367a3a3a849f1f79642fd8283069d9e1dad911e5d62a766108a7ad883"
+    }
+  ],
+  "ports": [
+    {
+      "port": 3133,
+      "released": true,
+      "reason": "ECONNREFUSED"
+    },
+    {
+      "port": 3134,
+      "released": true,
+      "reason": "ECONNREFUSED"
+    },
+    {
+      "port": 3135,
+      "released": true,
+      "reason": "ECONNREFUSED"
+    },
+    {
+      "port": 3141,
+      "released": true,
+      "reason": "ECONNREFUSED"
+    },
+    {
+      "port": 3142,
+      "released": true,
+      "reason": "ECONNREFUSED"
+    },
+    {
+      "port": 3143,
+      "released": true,
+      "reason": "ECONNREFUSED"
+    },
+    {
+      "port": 3144,
+      "released": true,
+      "reason": "ECONNREFUSED"
+    }
+  ],
+  "forbidden_runtime_artifacts": [],
+  "credential_shaped_json_fields": [],
+  "preserved_round1": {
+    "REVIEW.md": "18d907866092a3602402b17a9ca643987d5971b8243cc520f48979c1675d894a",
+    "summary.json": "194be52021bf27d89a73d6a5bc2a153d5fc8299e01e992c501793171bcaa2eb6",
+    "candidate-original.json": "c014558f5532523afc469f7a5e0fb7059fa1bff6b6693b00a8b48a76cff808b3",
+    "command-additional-attempt-2.json": "d3abe983f96af931d4fd00d22cd4208b4ae7a34e38b1ace8c5f15ea819cbc38b",
+    "additional/attempt-1-summary.json": "b96e3e34700310bf0622bd9afe6a4c54b416d06cddef678023e9753237fdb71f",
+    "additional/attempt-2-summary.json": "541cca4c9adcccebe2a978d7f5c1e9d8d36f77a3c1e1c58ebd7d14b7550091bc",
+    "additional/summary.json": "a54bf3d31671348246eed617211b3d7bc1a23ad4e1042c55838eaed81559dccb",
+    "ui-additional/summary.json": "e21f99b4f2702d0b319a64facd18e79698ea5ec5cb134aa3fe5c58c1a813a12f",
+    "ui-additional/target-switch-delayed-read.png": "5f1778d9ca119b7d12889290e8660f0231e36ffa0961c680a44469328e4f4120"
+  },
+  "finished_at": "2026-11-18T09:20:22.095Z"
+}

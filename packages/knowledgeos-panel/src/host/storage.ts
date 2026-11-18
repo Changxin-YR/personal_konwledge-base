@@ -28,7 +28,7 @@ import { RecordsError } from './records.ts'
 /** Fixed application identity written to PRAGMA application_id (KOS1). */
 export const APPLICATION_ID = 0x4b4f5331
 /** Current application schema version. */
-export const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 5
 /** Historical v1 schema version used by FND-002 fixtures. */
 export const PROBE_SCHEMA_VERSION = 1
 export const BUSY_TIMEOUT_MS = 250
@@ -180,6 +180,20 @@ DROP TABLE resource_grants_v3;
 `
 export const MIGRATION_V4_CHECKSUM = createHash('sha256').update(Buffer.from(MIGRATION_V4_SQL, 'utf8')).digest('hex')
 
+/** Only the mutation receipt needed by the two FND-005 tools. */
+export const MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
+  service_id TEXT NOT NULL REFERENCES service_identity(service_id),
+  user_id TEXT NOT NULL REFERENCES users(id),
+  idempotency_key TEXT NOT NULL,
+  request_digest TEXT NOT NULL,
+  object_id TEXT NOT NULL REFERENCES knowledge_objects(id),
+  result_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (service_id, user_id, idempotency_key)
+) STRICT;
+`
+export const MIGRATION_V5_CHECKSUM = createHash('sha256').update(MIGRATION_V5_SQL).digest('hex')
+
 export const PROBE_SUPPORTED_TABLES = ['schema_migrations', 'storage_probe_records'] as const
 export const IDENTITY_SUPPORTED_TABLES = [
   'auth_sessions', 'knowledge_objects', 'knowledge_projects', 'password_credentials', 'project_memberships', 'resource_grants', 'schema_migrations', 'service_identity', 'spaces', 'storage_probe_records', 'users',
@@ -195,6 +209,7 @@ export const MIGRATION_V1: MigrationPlan = { version: 1, sql: MIGRATION_V1_SQL, 
 export const MIGRATION_V2: MigrationPlan = { version: 2, sql: MIGRATION_V2_SQL, checksum: MIGRATION_V2_CHECKSUM }
 export const MIGRATION_V3: MigrationPlan = { version: 3, sql: MIGRATION_V3_SQL, checksum: MIGRATION_V3_CHECKSUM }
 export const MIGRATION_V4: MigrationPlan = { version: 4, sql: MIGRATION_V4_SQL, checksum: MIGRATION_V4_CHECKSUM }
+export const MIGRATION_V5: MigrationPlan = { version: 5, sql: MIGRATION_V5_SQL, checksum: MIGRATION_V5_CHECKSUM }
 
 export interface ProbeStorageOptions {
   readonly dataDir: string
@@ -207,7 +222,7 @@ export interface ProbeStorageOptions {
     | 'bootstrap:after-credential' | 'bootstrap:after-user' | 'bootstrap:after-space' | 'bootstrap:after-identity'
     | 'register:after-credential' | 'register:after-user' | 'register:after-space'
     | 'v3:after-projects' | 'v3:after-memberships' | 'v3:after-objects' | 'v3:after-grants'
-    | 'v4:after-rebuild'
+    | 'v4:after-rebuild' | 'v5:after-schema' | 'ai:after-update'
 }
 
 export interface DatabaseFacts {
@@ -351,6 +366,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       } else if (existing === 'v3') {
         this.#migrateV4(db)
       }
+      if (existing !== 'v5') this.#migrateV5(db)
       this.#verify(db)
       const facts = readDatabaseFacts(path)
       const pragmas = this.#readPragmas(db)
@@ -365,7 +381,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     }
   }
 
-  #precheck(path: string): 'blank' | 'v1' | 'v2' | 'v3' | 'v4' {
+  #precheck(path: string): 'blank' | 'v1' | 'v2' | 'v3' | 'v4' | 'v5' {
     const facts = readDatabaseFacts(path)
     if (facts.applicationId === 0 && facts.userVersion === 0 && facts.objects.length === 0) return 'blank'
     if (facts.applicationId !== APPLICATION_ID) throw new RecordsError('STORAGE_INCOMPATIBLE', 'database belongs to another application')
@@ -391,6 +407,12 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       const db = new DatabaseSync(path, { readOnly: true })
       try { this.#assertV4Definitions(db) } finally { db.close() }
       return 'v4'
+    }
+    if (facts.userVersion === 5) {
+      this.#assertV5Schema(facts)
+      const db = new DatabaseSync(path, { readOnly: true })
+      try { this.#assertV2Definitions(db); this.#assertV4Definitions(db); this.#assertV5Definitions(db) } finally { db.close() }
+      return 'v5'
     }
     throw new RecordsError('STORAGE_INCOMPATIBLE', 'database schema version is not supported')
   }
@@ -432,6 +454,21 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     const v3 = facts.ledger.find(entry => entry.version === 3)
     const v4 = facts.ledger.find(entry => entry.version === 4)
     if (facts.ledger.length !== 4 || v1?.checksum !== MIGRATION_V1_CHECKSUM || v2?.checksum !== MIGRATION_V2_CHECKSUM || v3?.checksum !== MIGRATION_V3_CHECKSUM || v4?.checksum !== MIGRATION_V4_CHECKSUM) throw new RecordsError('STORAGE_INCOMPATIBLE', 'v4 migration ledger does not match this build')
+  }
+
+  #assertV5Schema(facts: DatabaseFacts): void {
+    const table = facts.objects.find(item => item.name === 'ai_tool_mutations')
+    if (table?.type !== 'table' || facts.ledger.length !== 5 || facts.ledger[4]?.checksum !== MIGRATION_V5_CHECKSUM || facts.ledger[4]?.version !== 5) throw new RecordsError('STORAGE_INCOMPATIBLE', 'v5 migration ledger/schema does not match this build')
+    this.#assertV4Schema({ ...facts, objects: facts.objects.filter(item => item.name !== 'ai_tool_mutations'), ledger: facts.ledger.slice(0, 4) })
+  }
+
+  #assertV5Definitions(db: DatabaseSync): void {
+    const expected = new DatabaseSync(':memory:')
+    try {
+      expected.exec(MIGRATION_V5_SQL)
+      const sql = (source: DatabaseSync): string => String((source.prepare("SELECT sql FROM sqlite_master WHERE name = 'ai_tool_mutations' AND type = 'table'").get() as { sql?: string } | undefined)?.sql ?? '').replace(/\s+/g, ' ').trim().toLowerCase()
+      if (sql(db) !== sql(expected)) throw new RecordsError('STORAGE_INCOMPATIBLE', 'v5 receipt constraints are not accepted')
+    } finally { expected.close() }
   }
 
   #assertV2Definitions(db: DatabaseSync): void {
@@ -577,12 +614,27 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     }
   }
 
+  #migrateV5(db: DatabaseSync): void {
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      db.exec(MIGRATION_V5_SQL)
+      this.#injectFailure('v5:after-schema')
+      db.prepare('INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)').run(5, MIGRATION_V5_CHECKSUM, new Date().toISOString())
+      db.exec('PRAGMA user_version = 5')
+      db.exec('COMMIT')
+    } catch (error: unknown) {
+      if (!this.#rollback(db)) throw new RecordsError('STORAGE_UNAVAILABLE', 'storage transaction state is unknown', false, { cause: error })
+      throw new RecordsError('STORAGE_INCOMPATIBLE', 'tool receipt migration failed', false, { cause: error })
+    }
+  }
+
   #verify(db: DatabaseSync): void {
     const facts = readDatabaseFacts(this.databasePath)
-    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== 4) throw new RecordsError('STORAGE_INCOMPATIBLE', 'database ownership/version verification failed')
-    this.#assertV4Schema(facts)
+    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== 5) throw new RecordsError('STORAGE_INCOMPATIBLE', 'database ownership/version verification failed')
+    this.#assertV5Schema(facts)
     this.#assertV2Definitions(db)
     this.#assertV4Definitions(db)
+    this.#assertV5Definitions(db)
     const identity = db.prepare('SELECT id, service_id, bootstrap_admin_user_id, initialized_at FROM service_identity').all() as Record<string, unknown>[]
     if (identity.length !== 1 || Number(identity[0]?.id) !== 1 || typeof identity[0]?.service_id !== 'string') throw new RecordsError('STORAGE_INCOMPATIBLE', 'service identity is not a singleton')
   }
@@ -848,6 +900,33 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     }
     const updated = this.#loadObject(objectId)
     return updated === undefined ? { kind: 'not_found' } : { kind: 'updated', object: updated }
+  }
+
+  /** Revalidate the original login inside the same transaction as ACL/version/receipt. */
+  mutateObjectOnce(actor: SessionActor, input: { objectId: string; expectedRevision: number; title?: string; body?: string; key: string; digest: string }, now: string): { kind: 'updated' | 'replayed'; object: KnowledgeObjectRecord } | { kind: 'not_found' | 'session_expired' | 'conflict' | 'idempotency_conflict' } {
+    const db = this.#ensureReady(); let tx = false
+    try {
+      db.exec('BEGIN IMMEDIATE'); tx = true
+      // Lock acquisition may wait; authentication and ACL use commit-side time.
+      now = new Date().toISOString()
+      const session = db.prepare(`SELECT s.id FROM auth_sessions s JOIN users u ON u.id = s.user_id JOIN spaces p ON p.owner_user_id = u.id WHERE s.id = ? AND s.user_id = ? AND s.revoked_at IS NULL AND s.expires_at > ? AND u.status = 'active' AND p.status = 'active' AND p.id = ? AND u.planning_home_service_id = ?`).get(actor.sessionId, actor.userId, now, actor.personalSpaceId, actor.serviceId)
+      const finish = <T>(value: T): T => { db.exec('COMMIT'); tx = false; return value }
+      if (session === undefined) return finish({ kind: 'session_expired' as const })
+      const current = this.authorizeObject(actor, input.objectId, 'edit', now)
+      if (current === undefined || this.authorizeObject(actor, input.objectId, 'read', now) === undefined) return finish({ kind: 'not_found' as const })
+      const receipt = db.prepare('SELECT request_digest, result_json FROM ai_tool_mutations WHERE service_id = ? AND user_id = ? AND idempotency_key = ?').get(actor.serviceId, actor.userId, input.key) as { request_digest: string; result_json: string } | undefined
+      if (receipt !== undefined) return finish(receipt.request_digest === input.digest ? { kind: 'replayed' as const, object: JSON.parse(receipt.result_json) as KnowledgeObjectRecord } : { kind: 'idempotency_conflict' as const })
+      if (current.revision !== input.expectedRevision) return finish({ kind: 'conflict' as const })
+      const changed = db.prepare("UPDATE knowledge_objects SET title = ?, body = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ? AND status = 'active'").run(input.title ?? current.title, input.body ?? current.body, now, input.objectId, input.expectedRevision)
+      if (Number(changed.changes) !== 1) return finish({ kind: 'conflict' as const })
+      this.#injectFailure('ai:after-update')
+      const object = this.#loadObject(input.objectId)!
+      db.prepare('INSERT INTO ai_tool_mutations (service_id, user_id, idempotency_key, request_digest, object_id, result_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(actor.serviceId, actor.userId, input.key, input.digest, input.objectId, JSON.stringify(object), now)
+      return finish({ kind: 'updated' as const, object })
+    } catch (error: unknown) {
+      if (tx && !this.#rollback(db)) throw new RecordsError('STORAGE_UNAVAILABLE', 'storage transaction state is unknown', false, { cause: error })
+      throw this.#mapError(error)
+    }
   }
 
   deleteObject(actor: SessionActor, objectId: string, now: string): boolean { const object = this.authorizeObject(actor, objectId, 'delete', now); if (object === undefined) return false; const result = this.#ensureReady().prepare('UPDATE knowledge_objects SET status = \'deleted\', revision = revision + 1, updated_at = ? WHERE id = ? AND status = \'active\'').run(now, objectId); return Number(result.changes) === 1 }

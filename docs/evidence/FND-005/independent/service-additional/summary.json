@@ -1,0 +1,63 @@
+{
+  "candidate_id": "FND-005-d0ec209b8161e14e",
+  "category": "CONTROLLED_SERVICE_PORT_AND_TERMINAL_STREAM_ERRORS",
+  "real_gpt": false,
+  "status": "PASS",
+  "started_at": "2026-11-18T09:14:27.277Z",
+  "checks": [
+    {
+      "id": "R3.classify-ABORTED",
+      "input_code": "ABORTED",
+      "expected_http": 409,
+      "expected_code": "CANCELLED",
+      "status": "PASS"
+    },
+    {
+      "id": "R3.classify-ABORTED_BEFORE_DISPATCH",
+      "input_code": "ABORTED_BEFORE_DISPATCH",
+      "expected_http": 409,
+      "expected_code": "CANCELLED",
+      "status": "PASS"
+    },
+    {
+      "id": "R3.classify-TOOL_TIMEOUT",
+      "input_code": "TOOL_TIMEOUT",
+      "expected_http": 504,
+      "expected_code": "TOOL_TIMEOUT",
+      "status": "PASS"
+    },
+    {
+      "id": "R4.terminal-CREDENTIALS_MISSING",
+      "input": {
+        "code": "NO_CREDENTIAL_STORE"
+      },
+      "expected_http": 503,
+      "expected_code": "CREDENTIALS_MISSING",
+      "status": "PASS"
+    },
+    {
+      "id": "R4.terminal-CREDENTIALS_INVALID",
+      "input": {
+        "code": "AUTH",
+        "status": 401,
+        "message": "quota read permission denied"
+      },
+      "expected_http": 502,
+      "expected_code": "CREDENTIALS_INVALID",
+      "status": "PASS"
+    },
+    {
+      "id": "R4.terminal-PROVIDER_PERMISSION_DENIED",
+      "input": {
+        "code": "AUTH",
+        "status": 403,
+        "message": "billing permission denied"
+      },
+      "expected_http": 403,
+      "expected_code": "PROVIDER_PERMISSION_DENIED",
+      "status": "PASS"
+    }
+  ],
+  "loaded_test_support_sha256": "7848b7abf7062c7299cb0c9cd190c34c1599cfbcdae14dd55651e8d452cea071",
+  "finished_at": "2026-11-18T09:14:27.296Z"
+}

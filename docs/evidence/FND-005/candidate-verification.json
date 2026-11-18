@@ -1,0 +1,12 @@
+{
+  "candidate_id": "FND-005-d0ec209b8161e14e",
+  "verified_at": "2026-11-18T09:14:39.927Z",
+  "all_candidate_files_match": true,
+  "all_runtime_files_match": true,
+  "plugin_typecheck": {
+    "command": "node node_modules/typescript/bin/tsc -p tsconfig.json",
+    "exit_code": 0,
+    "status": "PASS"
+  },
+  "product_tests_substituted_by_static_check": false
+}

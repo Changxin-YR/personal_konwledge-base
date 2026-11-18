@@ -1,0 +1,22 @@
+{
+  "candidate_id": "FND-005-d0ec209b8161e14e",
+  "manifest_sha256": "573d3c3941ee11f97fb2e3d5439816eb993a0fdf52055300bac7734ccde270c6",
+  "command": "node scripts/fnd005/configuration-checks.mjs docs/evidence/FND-005/independent/configuration",
+  "script_sha256": "7e6dd9d2cbf6266d3a45ea3632c077cacb8701c471003eb85bdc06be2ddeefd0",
+  "started_at": "2026-11-18T09:14:25.175Z",
+  "timezone": "UTC (Asia/Shanghai = UTC+08:00)",
+  "exit_code": 0,
+  "finished_at": "2026-11-18T09:16:08.921Z",
+  "frozen_file_differences_after": [],
+  "output_facts": {
+    "stdout": {
+      "bytes": 211,
+      "sha256": "d6acd6e648c5f0be131d27980ccbfd7b64bc34d5490fa70d42f49821d5ad609a"
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "raw_output_saved": false
+}

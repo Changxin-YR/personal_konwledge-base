@@ -1,0 +1,188 @@
+{
+  "category": "CONTROLLED_MODEL_FIXTURE_WITH_REAL_HTTP_DSH_NATIVE_SQLITE",
+  "real_gpt": false,
+  "started_at": "2026-11-18T08:10:28.149Z",
+  "status": "FAIL",
+  "checks": [
+    {
+      "id": "T09.identity-owner-separation",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:10:40.048Z",
+      "finished_at": "2026-11-18T08:10:40.066Z",
+      "facts": {
+        "real_login": true,
+        "business_user_is_not_owner": true,
+        "owner_is_not_business_user": true,
+        "status_http": 200
+      }
+    },
+    {
+      "id": "T01.fixture-read-native-tool",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:10:40.072Z",
+      "finished_at": "2026-11-18T08:10:40.089Z",
+      "facts": {
+        "provider": "fnd005-fixture",
+        "model": "controlled-tool-model",
+        "tool": "knowledgeos_read_object",
+        "object_id": "7a0afb4e-6a87-438d-b004-f43479cb8c68",
+        "revision": 1,
+        "http": 200
+      }
+    },
+    {
+      "id": "T02.fixture-write-reread-sql",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:10:40.089Z",
+      "finished_at": "2026-11-18T08:10:40.115Z",
+      "facts": {
+        "object_id": "7a0afb4e-6a87-438d-b004-f43479cb8c68",
+        "tool": "knowledgeos_update_object",
+        "revision_before": 1,
+        "revision_after": 2,
+        "body_sha256": "13501664711b154e83f71970895f9137844f71cf976fc8d66856ed7892ca155f",
+        "http_sql_get_agree": true,
+        "receipts": 1
+      }
+    },
+    {
+      "id": "T05.exact-replay-conflicts-concurrency",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:10:40.115Z",
+      "finished_at": "2026-11-18T08:10:40.190Z",
+      "facts": {
+        "exact_original_result_after_later_edit": true,
+        "original_receipts": 1,
+        "different_parameters": 409,
+        "different_object": 409,
+        "parallel_http": [
+          200,
+          200
+        ],
+        "parallel_revision": 2,
+        "parallel_receipts": 1
+      }
+    },
+    {
+      "id": "T06.stale-revision",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:10:40.191Z",
+      "finished_at": "2026-11-18T08:10:40.203Z",
+      "facts": {
+        "http": 409,
+        "unchanged": true,
+        "receipt_count": 0
+      }
+    },
+    {
+      "id": "T03.private-and-forged-identity",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:10:40.203Z",
+      "finished_at": "2026-11-18T08:10:40.234Z",
+      "facts": {
+        "cross_user_read": 404,
+        "cross_user_write": 404,
+        "forged_model_identity": 422,
+        "forged_request_identity": 422,
+        "unchanged": true
+      }
+    },
+    {
+      "id": "T04.revoke-after-prepare-and-replay",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:10:40.248Z",
+      "finished_at": "2026-11-18T08:10:40.296Z",
+      "facts": {
+        "prepared_read": 404,
+        "prepared_write": 404,
+        "protected_replay": 404,
+        "revision": 2,
+        "revoked_grant_history": 1,
+        "regrant_restored": true
+      }
+    },
+    {
+      "id": "T04.membership-expiry-after-prepare",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:10:40.296Z",
+      "finished_at": "2026-11-18T08:10:40.318Z",
+      "facts": {
+        "http": 404,
+        "valid_action_grants_do_not_bypass_expired_membership": true,
+        "unchanged": true
+      }
+    },
+    {
+      "id": "T04.logout-after-prepare",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:10:40.318Z",
+      "finished_at": "2026-11-18T08:10:40.325Z",
+      "facts": {
+        "http": 401,
+        "no_tool_result": true
+      }
+    },
+    {
+      "id": "T07.typed-model-failures",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:10:40.325Z",
+      "finished_at": "2026-11-18T08:10:41.353Z",
+      "facts": [
+        {
+          "fixture": "fixture:missing",
+          "http": 503,
+          "code": "CREDENTIALS_MISSING"
+        },
+        {
+          "fixture": "fixture:invalid",
+          "http": 502,
+          "code": "CREDENTIALS_INVALID"
+        },
+        {
+          "fixture": "fixture:quota",
+          "http": 429,
+          "code": "QUOTA_EXHAUSTED"
+        },
+        {
+          "fixture": "fixture:permission",
+          "http": 403,
+          "code": "PROVIDER_PERMISSION_DENIED"
+        },
+        {
+          "fixture": "fixture:failure",
+          "http": 502,
+          "code": "MODEL_FAILED"
+        },
+        {
+          "fixture": "fixture:timeout",
+          "http": 504,
+          "code": "MODEL_TIMEOUT"
+        },
+        {
+          "fixture": "fixture:multiple",
+          "http": 502,
+          "code": "MODEL_OUTPUT_INVALID"
+        }
+      ]
+    },
+    {
+      "id": "T07.cancellation",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:10:41.353Z",
+      "finished_at": "2026-11-18T08:10:41.538Z",
+      "facts": {
+        "stream_cancel": 409,
+        "prepared_cancel": 409,
+        "unchanged": true
+      }
+    },
+    {
+      "id": "T09.persistence-restart",
+      "status": "FAIL",
+      "started_at": "2026-11-18T08:10:41.539Z",
+      "error": "Expected \"actual\" to be strictly unequal to: null"
+    }
+  ],
+  "failure": "Expected \"actual\" to be strictly unequal to: null",
+  "finished_at": "2026-11-18T08:10:42.972Z"
+}

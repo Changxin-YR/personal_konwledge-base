@@ -1,0 +1,13 @@
+{
+  "category": "REAL_GPT_PROVIDER",
+  "status": "BLOCKED",
+  "is_gpt": false,
+  "candidate_id": "FND-005-d0ec209b8161e14e",
+  "provider": null,
+  "model": null,
+  "started_at": "2026-11-18T09:09:18.893Z",
+  "provider_calls": 0,
+  "operations": [],
+  "reason": "NO_EXPLICIT_AUTHORIZED_GPT_HOST_AND_BUSINESS_LOGIN",
+  "finished_at": "2026-11-18T09:09:18.894Z"
+}

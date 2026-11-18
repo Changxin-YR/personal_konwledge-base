@@ -53,6 +53,8 @@ declare module '@deepseek-ai/cordis' {
 
   /** Host plugin context subset used by this bundle's Host half. */
   export interface Context {
+    llm: import('./host/ai-service.ts').LlmPort
+    tools: import('./host/ai-service.ts').ToolsPort
     webServer: WebServer
     clientModules: ClientModules
     connection: HostConnection

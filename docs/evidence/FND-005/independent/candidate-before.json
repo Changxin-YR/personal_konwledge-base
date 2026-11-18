@@ -1,0 +1,485 @@
+{
+  "candidate_id": "FND-005-d0ec209b8161e14e",
+  "category": "INDEPENDENT_STATIC_HASH_AND_PROVENANCE",
+  "started_at": "2026-11-18T09:13:49.555Z",
+  "manifest_sha256": "573d3c3941ee11f97fb2e3d5439816eb993a0fdf52055300bac7734ccde270c6",
+  "status": "PASS",
+  "git": {
+    "head": "4282b9231a4ac38b0eb87145c337b811aec033e4",
+    "branch": "codex/knowledgeos-fnd-005",
+    "status": [
+      "M AGENTS.md",
+      " M CODEX_START.md",
+      " M config/execution_state.json",
+      " M config/work_units.json",
+      " M packages/knowledgeos-panel/lib/index.js",
+      " M packages/knowledgeos-panel/lib/storage.js",
+      " M packages/knowledgeos-panel/lib/test-support.js",
+      " M packages/knowledgeos-panel/src/cordis.d.ts",
+      " M packages/knowledgeos-panel/src/host/config.ts",
+      " M packages/knowledgeos-panel/src/host/index.ts",
+      " M packages/knowledgeos-panel/src/host/storage.ts",
+      " M packages/knowledgeos-panel/src/host/test-support.ts",
+      " M scripts/test-verify-plan.mjs",
+      " M scripts/verify-plan.mjs",
+      "?? docs/evidence/FND-005/",
+      "?? packages/knowledgeos-panel/src/host/ai-http.ts",
+      "?? packages/knowledgeos-panel/src/host/ai-page.ts",
+      "?? packages/knowledgeos-panel/src/host/ai-service.ts",
+      "?? packages/knowledgeos-panel/src/host/ai-tools.ts",
+      "?? scripts/fnd005/"
+    ]
+  },
+  "files": [
+    {
+      "group": "candidate_files",
+      "path": "AGENTS.md",
+      "expected": "7a1df02aaa2d58b31ec2db0983e7b07578705c6fda615e2ae72bba52462104ec",
+      "actual": "7a1df02aaa2d58b31ec2db0983e7b07578705c6fda615e2ae72bba52462104ec",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "CODEX_START.md",
+      "expected": "5275087c8e71a6ea7ead47eae2eed5fd91917b0aa6b2cae7370bed72f7a0771a",
+      "actual": "5275087c8e71a6ea7ead47eae2eed5fd91917b0aa6b2cae7370bed72f7a0771a",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "config/upstream.lock.json",
+      "expected": "8ef94dfbf9353e3c1d30e7ae579b3bd05d3901fca7c7ded28c2b497520548f18",
+      "actual": "8ef94dfbf9353e3c1d30e7ae579b3bd05d3901fca7c7ded28c2b497520548f18",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/build.mjs",
+      "expected": "fd261eaf6ec914a897aa4ec50a93296525f4c080b2045804102fdf3a959b0147",
+      "actual": "fd261eaf6ec914a897aa4ec50a93296525f4c080b2045804102fdf3a959b0147",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/cordis.patch.yml",
+      "expected": "2133c93965bc9b5ea4966999b418ad1fccc720cd5bc6da87ee78d3ddb4d68536",
+      "actual": "2133c93965bc9b5ea4966999b418ad1fccc720cd5bc6da87ee78d3ddb4d68536",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/package-lock.json",
+      "expected": "9449dc7c97e8f4096f16b0334fb810b914edc1bc7630df5cb858f2d74262353a",
+      "actual": "9449dc7c97e8f4096f16b0334fb810b914edc1bc7630df5cb858f2d74262353a",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/package.json",
+      "expected": "48a6f24ff44437ebaee238ee53c96422fdcc7968f645582fb95b5585a52f1c55",
+      "actual": "48a6f24ff44437ebaee238ee53c96422fdcc7968f645582fb95b5585a52f1c55",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/lib/client.js",
+      "expected": "dfa4a5e2fb8afcaf85657f22048185e3cb86444db87e8e6e4ec1d4b0bbe2e1a9",
+      "actual": "dfa4a5e2fb8afcaf85657f22048185e3cb86444db87e8e6e4ec1d4b0bbe2e1a9",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/lib/index.js",
+      "expected": "5c48af614b4d53a06a15e3abdb5126494677e731341137d5b9c7b9d11b4c16cc",
+      "actual": "5c48af614b4d53a06a15e3abdb5126494677e731341137d5b9c7b9d11b4c16cc",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/lib/storage.js",
+      "expected": "0d0f2d9d821c2a99e8f123d6767b8db96c437a840f165e0fd5351cbbf29c6456",
+      "actual": "0d0f2d9d821c2a99e8f123d6767b8db96c437a840f165e0fd5351cbbf29c6456",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/lib/test-support.js",
+      "expected": "7848b7abf7062c7299cb0c9cd190c34c1599cfbcdae14dd55651e8d452cea071",
+      "actual": "7848b7abf7062c7299cb0c9cd190c34c1599cfbcdae14dd55651e8d452cea071",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/client/Panel.tsx",
+      "expected": "1a425ecbe139262b883cb7007d9d8e757fbef168adc1f5f9d939f40c5cf42e85",
+      "actual": "1a425ecbe139262b883cb7007d9d8e757fbef168adc1f5f9d939f40c5cf42e85",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/client/contracts.ts",
+      "expected": "bb3aae37264d1efa92aac5ddc1f25d26fd41d983bfa03f11e3fcb0025a9dc5a6",
+      "actual": "bb3aae37264d1efa92aac5ddc1f25d26fd41d983bfa03f11e3fcb0025a9dc5a6",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/client/icon.tsx",
+      "expected": "539022c192d37f4021e7b11c4018684abf0501df80f018550270d795cf136a17",
+      "actual": "539022c192d37f4021e7b11c4018684abf0501df80f018550270d795cf136a17",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/client/index.ts",
+      "expected": "acd8e12c152e561d12bcaf0f74b79c7264d3e3c14c31ecd81dcccdc71e796991",
+      "actual": "acd8e12c152e561d12bcaf0f74b79c7264d3e3c14c31ecd81dcccdc71e796991",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/client/status-client.ts",
+      "expected": "2dc80b975edd22917d64d99ba7b6c7997140636a19ea2f918c0ff4e8db25b9ca",
+      "actual": "2dc80b975edd22917d64d99ba7b6c7997140636a19ea2f918c0ff4e8db25b9ca",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/cordis.d.ts",
+      "expected": "393db8b606de806125383b61125bd2b68bca467bc14b4d954fae8d1b6667b74f",
+      "actual": "393db8b606de806125383b61125bd2b68bca467bc14b4d954fae8d1b6667b74f",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/host/ai-http.ts",
+      "expected": "46987b16b2458ba19df4126a89516f290b380b4884e947122bde9722138de742",
+      "actual": "46987b16b2458ba19df4126a89516f290b380b4884e947122bde9722138de742",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/host/ai-page.ts",
+      "expected": "8c776d14f26966fe2739ea5ccaf723e02ff95e9711c071e52b5dc5ed54a55774",
+      "actual": "8c776d14f26966fe2739ea5ccaf723e02ff95e9711c071e52b5dc5ed54a55774",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/host/ai-service.ts",
+      "expected": "678ccb76864730ca762c78940445cdf88c0e7a720e6cc82b53d0d3041efbc470",
+      "actual": "678ccb76864730ca762c78940445cdf88c0e7a720e6cc82b53d0d3041efbc470",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/host/ai-tools.ts",
+      "expected": "4302faaa836d167f93045d5cce8fbbc9c161dd439b9d15b8c920114aa6bc9b0d",
+      "actual": "4302faaa836d167f93045d5cce8fbbc9c161dd439b9d15b8c920114aa6bc9b0d",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/host/authorization.ts",
+      "expected": "515b78499fd8d5b42280f3959063934fe974fcf85b2f8dfe3e599b1eea22242c",
+      "actual": "515b78499fd8d5b42280f3959063934fe974fcf85b2f8dfe3e599b1eea22242c",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/host/config.ts",
+      "expected": "566fb9be2e5bed5a7229cab3b2f7ad4c135976dfce84868a345df9e5b3782f2a",
+      "actual": "566fb9be2e5bed5a7229cab3b2f7ad4c135976dfce84868a345df9e5b3782f2a",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/host/http.ts",
+      "expected": "a20bd13760e141314ab46886440fc7157c0640788c4f45d72cd8d2f5b02f1ce6",
+      "actual": "a20bd13760e141314ab46886440fc7157c0640788c4f45d72cd8d2f5b02f1ce6",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/host/identity-http.ts",
+      "expected": "79745a370742f195b026f68f9d4de65280ac467b261e02528b9150f1725a800b",
+      "actual": "79745a370742f195b026f68f9d4de65280ac467b261e02528b9150f1725a800b",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/host/identity-peer.ts",
+      "expected": "82fdc1662dc5cdc6f71be8e9387af6612a2b79c76db78dd7335c8db7461f04b4",
+      "actual": "82fdc1662dc5cdc6f71be8e9387af6612a2b79c76db78dd7335c8db7461f04b4",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/host/identity.ts",
+      "expected": "80bebf3c3b6b6dd95539b5d13e545a5e978f75c0e9cedbbf451c222dc095a34b",
+      "actual": "80bebf3c3b6b6dd95539b5d13e545a5e978f75c0e9cedbbf451c222dc095a34b",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/host/index.ts",
+      "expected": "58bddcae77c39cd34a2346e9121daeac23c22fbc12fdce09863330711452efbf",
+      "actual": "58bddcae77c39cd34a2346e9121daeac23c22fbc12fdce09863330711452efbf",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/host/objects-http.ts",
+      "expected": "3fc836ab7839c44c6deef34c2f22f5e7f0a6d21338de61a0b64a272267fa5fdd",
+      "actual": "3fc836ab7839c44c6deef34c2f22f5e7f0a6d21338de61a0b64a272267fa5fdd",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/host/records.ts",
+      "expected": "658553efd04345b770879ef5225da61463630fbbadf2818b2ba1ebb7373bf675",
+      "actual": "658553efd04345b770879ef5225da61463630fbbadf2818b2ba1ebb7373bf675",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/host/status.ts",
+      "expected": "33e6a9a4b05153e9a2364f3c7f458c373ff4a847ca4df6d84bee6b54353e642b",
+      "actual": "33e6a9a4b05153e9a2364f3c7f458c373ff4a847ca4df6d84bee6b54353e642b",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/host/storage.ts",
+      "expected": "06489cd188c6cef733ee0ea6230c9d4e501d481e6c028a0b14345d0de6d2d538",
+      "actual": "06489cd188c6cef733ee0ea6230c9d4e501d481e6c028a0b14345d0de6d2d538",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "packages/knowledgeos-panel/src/host/test-support.ts",
+      "expected": "051e56c4d3a0bbe70005a7283ebfc592179df0e8254e02d0147da37c086eff29",
+      "actual": "051e56c4d3a0bbe70005a7283ebfc592179df0e8254e02d0147da37c086eff29",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "scripts/fnd003/harness.mjs",
+      "expected": "19dec0129d2ad31cbfe15050c78b351632daf3291a47b5de88ec8efdf909dbd6",
+      "actual": "19dec0129d2ad31cbfe15050c78b351632daf3291a47b5de88ec8efdf909dbd6",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "scripts/fnd004/harness.mjs",
+      "expected": "856136698eb2db4457e63e96477dd9df2da4e22f22283de064cc85a3d5f0557d",
+      "actual": "856136698eb2db4457e63e96477dd9df2da4e22f22283de064cc85a3d5f0557d",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "scripts/test-verify-plan.mjs",
+      "expected": "d7bcf4ca3fca3af99b5515b4a4d34af6212e8cb4506c44e3bf755dfbe0b6c5a5",
+      "actual": "d7bcf4ca3fca3af99b5515b4a4d34af6212e8cb4506c44e3bf755dfbe0b6c5a5",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "scripts/verify-plan.mjs",
+      "expected": "bcf39b9d88df9cf1593c1f3e2fd34b54e634706d653b7192be68938925cfc765",
+      "actual": "bcf39b9d88df9cf1593c1f3e2fd34b54e634706d653b7192be68938925cfc765",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "scripts/fnd005/acl-regression.mjs",
+      "expected": "bcdf3b34469664f848250d07a8e5bea76492f9f82d911000236bc52093330709",
+      "actual": "bcdf3b34469664f848250d07a8e5bea76492f9f82d911000236bc52093330709",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "scripts/fnd005/barrier-checks.mjs",
+      "expected": "084006901263e09fd4b0adbf540fe05874588e23af90cd9154f3783667292474",
+      "actual": "084006901263e09fd4b0adbf540fe05874588e23af90cd9154f3783667292474",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "scripts/fnd005/browser-checks.mjs",
+      "expected": "aa75ec20c63cdf51ccfe57fcd8fe6c56bd8929797643c7db564a22d3a3bdf51f",
+      "actual": "aa75ec20c63cdf51ccfe57fcd8fe6c56bd8929797643c7db564a22d3a3bdf51f",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "scripts/fnd005/configuration-checks.mjs",
+      "expected": "7e6dd9d2cbf6266d3a45ea3632c077cacb8701c471003eb85bdc06be2ddeefd0",
+      "actual": "7e6dd9d2cbf6266d3a45ea3632c077cacb8701c471003eb85bdc06be2ddeefd0",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "scripts/fnd005/fixture-provider.mjs",
+      "expected": "eae72234b4224ca7ddf806c50a766e37a19a04d3ca1a083343a27084563d5448",
+      "actual": "eae72234b4224ca7ddf806c50a766e37a19a04d3ca1a083343a27084563d5448",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "scripts/fnd005/freeze.mjs",
+      "expected": "0cf753f020cef2adec46453f9b23564b6b90626adee65ddf0f60bfd6903aea39",
+      "actual": "0cf753f020cef2adec46453f9b23564b6b90626adee65ddf0f60bfd6903aea39",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "scripts/fnd005/harness.mjs",
+      "expected": "306d6c783ed0cf5d6852f679d9c3c36de77e6e4fef74a802a7f76c9e5dfc9c64",
+      "actual": "306d6c783ed0cf5d6852f679d9c3c36de77e6e4fef74a802a7f76c9e5dfc9c64",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "scripts/fnd005/provider-audit.mjs",
+      "expected": "36251bcb4cef6a1cfc8c492b592f4b7710a0a72e67a32ef46ec972157b7751b6",
+      "actual": "36251bcb4cef6a1cfc8c492b592f4b7710a0a72e67a32ef46ec972157b7751b6",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "scripts/fnd005/real-provider-check.mjs",
+      "expected": "72c2cf4d4b0987ecde08b47df82cc824be0cfc707449c48310086ea235dcb8ee",
+      "actual": "72c2cf4d4b0987ecde08b47df82cc824be0cfc707449c48310086ea235dcb8ee",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "scripts/fnd005/regression-harness.mjs",
+      "expected": "40d6a139486242a3d28abf7f1c9d0855448cea3cc00a69687bcaa0528d7230b9",
+      "actual": "40d6a139486242a3d28abf7f1c9d0855448cea3cc00a69687bcaa0528d7230b9",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "scripts/fnd005/run-all.mjs",
+      "expected": "0d4faa08c4700b6ba1d1f197d83f103da701b1e39df57d3de144ac553442bb41",
+      "actual": "0d4faa08c4700b6ba1d1f197d83f103da701b1e39df57d3de144ac553442bb41",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "scripts/fnd005/smoke.mjs",
+      "expected": "50974e603f808f959b1bd297de1e5b744c5e5734becb89e1deea194196767e26",
+      "actual": "50974e603f808f959b1bd297de1e5b744c5e5734becb89e1deea194196767e26",
+      "status": "PASS"
+    },
+    {
+      "group": "candidate_files",
+      "path": "scripts/fnd005/storage-checks.mjs",
+      "expected": "b243d2ec075ee490065ccbdc818b65dd2d3fecb52c7eab1b1d1c41a751e1dfd1",
+      "actual": "b243d2ec075ee490065ccbdc818b65dd2d3fecb52c7eab1b1d1c41a751e1dfd1",
+      "status": "PASS"
+    },
+    {
+      "group": "runtime_files",
+      "path": "package.json",
+      "expected": "7908c5ec2a530298f1608c18481be46c6fc3d4676bc18861c46594fbd3666796",
+      "actual": "7908c5ec2a530298f1608c18481be46c6fc3d4676bc18861c46594fbd3666796",
+      "status": "PASS"
+    },
+    {
+      "group": "runtime_files",
+      "path": "pnpm-lock.yaml",
+      "expected": "f24382753b03786b280ebe8d4cb87e04fa6eb9cad589a9047d9ad1953ab64c7f",
+      "actual": "f24382753b03786b280ebe8d4cb87e04fa6eb9cad589a9047d9ad1953ab64c7f",
+      "status": "PASS"
+    },
+    {
+      "group": "runtime_files",
+      "path": "packages/llm/llm/src/index.ts",
+      "expected": "56002af5ff374c42ad03605298d3f1e743bee21e16bbb4dc9a39a5877513be10",
+      "actual": "56002af5ff374c42ad03605298d3f1e743bee21e16bbb4dc9a39a5877513be10",
+      "status": "PASS"
+    },
+    {
+      "group": "runtime_files",
+      "path": "packages/llm/llm/lib/index.js",
+      "expected": "b614abe654ef0ae3e74e990319410a6f28c474f03b054e33460e6664fe20a587",
+      "actual": "b614abe654ef0ae3e74e990319410a6f28c474f03b054e33460e6664fe20a587",
+      "status": "PASS"
+    },
+    {
+      "group": "runtime_files",
+      "path": "packages/core/tools/src/index.ts",
+      "expected": "5d95d7f47781ba001a0116feb61a87bf436f2ca587c01fb4ce517258710b7537",
+      "actual": "5d95d7f47781ba001a0116feb61a87bf436f2ca587c01fb4ce517258710b7537",
+      "status": "PASS"
+    },
+    {
+      "group": "runtime_files",
+      "path": "packages/core/tools/src/pipeline.ts",
+      "expected": "9ae322a5771cac6f5badad9b66d02b157543659858df630bfb0fb4236ad4667e",
+      "actual": "9ae322a5771cac6f5badad9b66d02b157543659858df630bfb0fb4236ad4667e",
+      "status": "PASS"
+    },
+    {
+      "group": "runtime_files",
+      "path": "packages/core/tools/src/batch.ts",
+      "expected": "5451e17f844cea8a56b8bf6dfadbf357d3081c4796d0b1046b761a82e4d8e355",
+      "actual": "5451e17f844cea8a56b8bf6dfadbf357d3081c4796d0b1046b761a82e4d8e355",
+      "status": "PASS"
+    },
+    {
+      "group": "runtime_files",
+      "path": "packages/core/tools/lib/index.js",
+      "expected": "bf71a6ce1e95c5dfba06be7f69827bab19c5d2d9cf272875d92013ba2a8dadb0",
+      "actual": "bf71a6ce1e95c5dfba06be7f69827bab19c5d2d9cf272875d92013ba2a8dadb0",
+      "status": "PASS"
+    },
+    {
+      "group": "runtime_files",
+      "path": "packages/core/tool-executor-native/src/index.ts",
+      "expected": "a4a1094d63e6580b6255a05c466d1391ff17156fe3a9debc404e4b057c5a0881",
+      "actual": "a4a1094d63e6580b6255a05c466d1391ff17156fe3a9debc404e4b057c5a0881",
+      "status": "PASS"
+    },
+    {
+      "group": "runtime_files",
+      "path": "packages/core/tool-executor-native/lib/index.js",
+      "expected": "db667cb6545bb642bc2609d49f797b1d7e852e4197d5d38bf541abc7ec078599",
+      "actual": "db667cb6545bb642bc2609d49f797b1d7e852e4197d5d38bf541abc7ec078599",
+      "status": "PASS"
+    },
+    {
+      "group": "runtime_files",
+      "path": "apps/cli/src/bin.ts",
+      "expected": "7081b6503a635eb6c6d9c3e4619e740afe157252b246aa17acbf1a1ceec54c88",
+      "actual": "7081b6503a635eb6c6d9c3e4619e740afe157252b246aa17acbf1a1ceec54c88",
+      "status": "PASS"
+    },
+    {
+      "group": "runtime_files",
+      "path": "packages/bundle/base/cordis.patch.yml",
+      "expected": "026fa70d7746609549ea7607f5b60c76fd19476e13549729dc1171f0a1d96cc8",
+      "actual": "026fa70d7746609549ea7607f5b60c76fd19476e13549729dc1171f0a1d96cc8",
+      "status": "PASS"
+    },
+    {
+      "group": "runtime_files",
+      "path": "packages/bundle/web-app/cordis.patch.yml",
+      "expected": "b6f3440a3a9230e31296fbc5d4b25f353fe4ef3931aed8b3180680e3253fa9e6",
+      "actual": "b6f3440a3a9230e31296fbc5d4b25f353fe4ef3931aed8b3180680e3253fa9e6",
+      "status": "PASS"
+    }
+  ],
+  "upstream": {
+    "head": "39163dd30f703a79079e2d2446545cff3c453738",
+    "tracked_changes": "",
+    "matched": 14524,
+    "missing": [],
+    "differences": []
+  },
+  "derived_candidate_id": "FND-005-d0ec209b8161e14e",
+  "finished_at": "2026-11-18T09:13:58.689Z"
+}

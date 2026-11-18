@@ -1,0 +1,19 @@
+{
+  "candidate_id": "FND-005-572a5b58a7b46671",
+  "command": "node scripts/fnd005/storage-checks.mjs docs/evidence/FND-005/independent/storage",
+  "started_at": "2026-11-18T08:51:41.614Z",
+  "timezone": "UTC (Asia/Shanghai = UTC+08:00)",
+  "exit_code": 0,
+  "finished_at": "2026-11-18T08:51:43.303Z",
+  "output_facts": {
+    "stdout": {
+      "bytes": 283,
+      "sha256": "18665a1bf7f9e9f96e1b72443e6064549941f49f4a56abac400c2e87bad6805d"
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "raw_output_saved": false
+}

@@ -1,0 +1,257 @@
+{
+  "candidate_id": "FND-005-d0ec209b8161e14e",
+  "category": "INDEPENDENT_REAL_HTTP_NATIVE_SQLITE_WITH_CONTROLLED_MODEL_AND_ORDERING",
+  "real_gpt": false,
+  "status": "PASS",
+  "started_at": "2026-11-18T09:16:08.528Z",
+  "checks": [
+    {
+      "id": "I01.same-native-call-id-and-key-two-actors",
+      "expected": "Each actor writes only its own object; two actor-scoped receipts; foreign prepared ID is hidden",
+      "started_at": "2026-11-18T09:16:20.372Z",
+      "facts": {
+        "http": [
+          200,
+          200
+        ],
+        "foreign_prepared_http": 404,
+        "native_call_id": "fixture-call (same for both)",
+        "actor_scoped_receipts": [
+          1,
+          1
+        ],
+        "revisions": [
+          2,
+          2
+        ]
+      },
+      "status": "PASS",
+      "finished_at": "2026-11-18T09:16:20.499Z"
+    },
+    {
+      "id": "I02.concurrent-different-input-same-key",
+      "expected": "Exactly one 200 and one 409 IDEMPOTENCY_CONFLICT, one scoped receipt and one increment",
+      "started_at": "2026-11-18T09:16:20.499Z",
+      "facts": {
+        "parallel_http": [
+          200,
+          409
+        ],
+        "revision_only_reuse_http": 409,
+        "revision": 2,
+        "scoped_receipts": 1
+      },
+      "status": "PASS",
+      "finished_at": "2026-11-18T09:16:20.570Z"
+    },
+    {
+      "id": "I03.edit-only-is-not-body-read",
+      "expected": "An edit-only grant cannot obtain a full updated object; no mutation/receipt",
+      "started_at": "2026-11-18T09:16:20.589Z",
+      "facts": {
+        "edit_action_http": 200,
+        "read_http": 404,
+        "ai_write_http": 404,
+        "unchanged": true,
+        "scoped_receipts": 0
+      },
+      "status": "PASS",
+      "finished_at": "2026-11-18T09:16:20.652Z"
+    },
+    {
+      "id": "I04.real-grant-expiry-during-native-prewait",
+      "expected": "An initially readable/editable object becomes hidden after actual expiry while native policy awaits",
+      "started_at": "2026-11-18T09:16:20.656Z",
+      "facts": {
+        "expires_at": "2026-11-18T09:16:21.656Z",
+        "released_at": "2026-11-18T09:16:21.690Z",
+        "http": [
+          404,
+          404
+        ],
+        "revision": 1,
+        "scoped_receipts": 0,
+        "clock": "real wall clock, no override"
+      },
+      "status": "PASS",
+      "finished_at": "2026-11-18T09:16:21.763Z"
+    },
+    {
+      "id": "I05.creator-membership-expires-in-native-prewait",
+      "expected": "Project creator ownership and retained implicit grants cannot bypass expired membership",
+      "started_at": "2026-11-18T09:16:21.764Z",
+      "facts": {
+        "expires_at": "2026-11-18T09:16:22.764Z",
+        "http": [
+          404,
+          404
+        ],
+        "revision": 1,
+        "scoped_receipts": 0,
+        "restored_membership_positive_control": 200
+      },
+      "status": "PASS",
+      "finished_at": "2026-11-18T09:16:22.878Z"
+    },
+    {
+      "id": "I06.real-http-write-after-serialized-revocation",
+      "expected": "A separate SQLite writer commits read revocation before mutation lock is acquired; HTTP write denies and persists nothing",
+      "started_at": "2026-11-18T09:16:22.903Z",
+      "facts": {
+        "ordering": [
+          {
+            "phase": "locked-revocation-uncommitted",
+            "at": "2026-11-18T09:16:22.966Z"
+          },
+          {
+            "phase": "revocation-committed",
+            "at": "2026-11-18T09:16:23.146Z"
+          }
+        ],
+        "elapsed_ms": 190,
+        "http": 404,
+        "revision": 1,
+        "scoped_receipts": 0,
+        "setup": "synthetic revocation by separate real SQLite transaction, not public SQL API"
+      },
+      "status": "PASS",
+      "finished_at": "2026-11-18T09:16:23.203Z"
+    },
+    {
+      "id": "I07.commit-response-lost-and-replay-after-later-edit",
+      "expected": "After response loss at a known commit, original key returns persisted original result even after another edit",
+      "started_at": "2026-11-18T09:16:23.203Z",
+      "facts": {
+        "transport": "destroyed after SQL-proven commit before HTTP publication",
+        "original_result_revision": 2,
+        "current_sql_revision": 3,
+        "replay_code": "REPLAYED",
+        "exact_original_payload": true,
+        "scoped_receipts": 1,
+        "result_sha256": "0a272d68d217031342c26d7e521b7a559a6e291958680db1880a4c4c21565ad6"
+      },
+      "status": "PASS",
+      "finished_at": "2026-11-18T09:16:23.423Z"
+    },
+    {
+      "id": "I08.committed-update-publication-recheck-and-reconcile",
+      "expected": "Committed update loses read permission during post policy: suppress output, retain receipt, deny replay until regrant",
+      "started_at": "2026-11-18T09:16:23.441Z",
+      "facts": {
+        "publication_http": 404,
+        "revoked_replay_http": 404,
+        "regranted_replay_http": 200,
+        "exact_original_result": true,
+        "sql_revision": 2,
+        "scoped_receipts": 1
+      },
+      "status": "PASS",
+      "finished_at": "2026-11-18T09:16:23.577Z"
+    },
+    {
+      "id": "I09.inactive-account-before-native-body",
+      "expected": "Account disabled after HTTP admission and before native body: 401 and no write",
+      "started_at": "2026-11-18T09:16:23.577Z",
+      "facts": {
+        "http": 401,
+        "revision": 1,
+        "scoped_receipts": 0,
+        "setup": "synthetic inactive-account SQL transition"
+      },
+      "status": "PASS",
+      "finished_at": "2026-11-18T09:16:23.672Z"
+    },
+    {
+      "id": "I10.session-expires-after-read-body-before-publication",
+      "expected": "An expiring actual login suppresses delayed read output after native body completed",
+      "started_at": "2026-11-18T09:16:23.672Z",
+      "facts": {
+        "expires_at": "2026-11-18T09:16:23.822Z",
+        "http": 401,
+        "no_protected_result": true,
+        "revision": 1,
+        "setup": "synthetic session lifetime changed; actual wall-clock expiry and HTTP revalidation"
+      },
+      "status": "PASS",
+      "finished_at": "2026-11-18T09:16:23.899Z"
+    },
+    {
+      "id": "I11.admission-schema-identity-and-csrf",
+      "expected": "Unsupported actor fields, invalid revision/key, and foreign Origin fail before any model attempt",
+      "started_at": "2026-11-18T09:16:23.899Z",
+      "facts": {
+        "unsupported_fields": [
+          {
+            "field": "user_id",
+            "http": 422
+          },
+          {
+            "field": "actor",
+            "http": 422
+          },
+          {
+            "field": "actor_id",
+            "http": 422
+          },
+          {
+            "field": "role",
+            "http": 422
+          },
+          {
+            "field": "owner_id",
+            "http": 422
+          },
+          {
+            "field": "owner_user_id",
+            "http": 422
+          },
+          {
+            "field": "service_id",
+            "http": 422
+          },
+          {
+            "field": "space_id",
+            "http": 422
+          },
+          {
+            "field": "session_id",
+            "http": 422
+          },
+          {
+            "field": "authorization",
+            "http": 422
+          },
+          {
+            "field": "sql",
+            "http": 422
+          },
+          {
+            "field": "path",
+            "http": 422
+          },
+          {
+            "field": "command",
+            "http": 422
+          }
+        ],
+        "invalid_revision_cases": 5,
+        "empty_key_http": 422,
+        "foreign_origin_http": 403,
+        "anonymous_http": 401,
+        "attempts_delta": 0
+      },
+      "status": "PASS",
+      "finished_at": "2026-11-18T09:16:24.035Z"
+    }
+  ],
+  "host": {
+    "port": 3142,
+    "pid": 85924,
+    "isolated_home": true,
+    "isolated_sqlite": true
+  },
+  "loaded_bundle_sha256": "5c48af614b4d53a06a15e3abdb5126494677e731341137d5b9c7b9d11b4c16cc",
+  "host_stopped": true,
+  "port_released": true,
+  "finished_at": "2026-11-18T09:16:24.788Z"
+}

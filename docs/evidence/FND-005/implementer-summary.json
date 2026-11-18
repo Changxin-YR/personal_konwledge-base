@@ -1,0 +1,122 @@
+{
+  "candidate_id": "FND-005-d0ec209b8161e14e",
+  "status": "BLOCKED",
+  "technical_checks_status": "PASS",
+  "real_provider_status": "BLOCKED",
+  "provider_calls": 0,
+  "runs": [
+    {
+      "run": "final-integration",
+      "status": "PASS",
+      "category": "CONTROLLED_MODEL_FIXTURE_WITH_REAL_HTTP_DSH_NATIVE_SQLITE",
+      "checks": 14,
+      "loaded_bundle_sha256": "70a41b8d867667f0ecaa456eac165fde2950c747c4e00f722a07445396b4c093",
+      "evidence_path": "runs/final-integration/summary.json",
+      "started_at": "2026-11-18T08:45:26.965Z",
+      "finished_at": "2026-11-18T08:46:21.916Z",
+      "binding": "Earlier round retained; not relabeled as final candidate."
+    },
+    {
+      "run": "final-storage",
+      "status": "PASS",
+      "category": "REAL_SQLITE_WITH_CONTROLLED_FAULT_SEAMS",
+      "checks": 6,
+      "loaded_bundle_sha256": null,
+      "evidence_path": "runs/final-storage/summary.json",
+      "started_at": "2026-11-18T08:47:30.955Z",
+      "finished_at": "2026-11-18T08:47:32.511Z",
+      "binding": "Earlier round retained; not relabeled as final candidate."
+    },
+    {
+      "run": "final-configuration",
+      "status": "PASS",
+      "category": "REAL_HTTP_CONFIG_AND_CONTROLLED_ERROR_FIXTURE",
+      "checks": 19,
+      "loaded_bundle_sha256": null,
+      "evidence_path": "runs/final-configuration/summary.json",
+      "started_at": "2026-11-18T08:45:25.826Z",
+      "finished_at": "2026-11-18T08:47:06.039Z",
+      "binding": "Earlier round retained; not relabeled as final candidate."
+    },
+    {
+      "run": "final-barriers",
+      "status": "PASS",
+      "category": "REAL_DSH_NATIVE_HTTP_SQLITE_WITH_CONTROLLED_MODEL_POLICY_BARRIERS",
+      "checks": 5,
+      "loaded_bundle_sha256": null,
+      "evidence_path": "runs/final-barriers/summary.json",
+      "started_at": "2026-11-18T08:45:27.939Z",
+      "finished_at": "2026-11-18T08:46:11.439Z",
+      "binding": "Earlier round retained; not relabeled as final candidate."
+    },
+    {
+      "run": "final-ui",
+      "status": "PASS",
+      "category": "REAL_CHROME_UI_HTTP_SQLITE_WITH_CONTROLLED_MODEL_FIXTURE",
+      "checks": 7,
+      "loaded_bundle_sha256": "70a41b8d867667f0ecaa456eac165fde2950c747c4e00f722a07445396b4c093",
+      "evidence_path": "runs/final-ui/summary.json",
+      "started_at": "2026-11-18T08:45:27.127Z",
+      "finished_at": "2026-11-18T08:46:28.704Z",
+      "binding": "Earlier round retained; not relabeled as final candidate."
+    },
+    {
+      "run": "acl-regression",
+      "status": "PASS",
+      "checks": 7,
+      "loaded_bundle_sha256": null,
+      "evidence_path": "runs/acl-regression/summary.json",
+      "started_at": null,
+      "finished_at": null,
+      "binding": "Earlier round retained; not relabeled as final candidate."
+    },
+    {
+      "run": "configuration-r2",
+      "status": "PASS",
+      "category": "REAL_HTTP_CONFIG_AND_CONTROLLED_ERROR_FIXTURE",
+      "checks": 21,
+      "loaded_bundle_sha256": null,
+      "evidence_path": "runs/configuration-r2/summary.json",
+      "started_at": "2026-11-18T09:00:47.071Z",
+      "finished_at": "2026-11-18T09:02:37.292Z",
+      "binding": "Intermediate bundle before final UI target-switch repair; actual pi-ai credential/model checks."
+    },
+    {
+      "run": "revised-integration",
+      "status": "PASS",
+      "category": "CONTROLLED_MODEL_FIXTURE_WITH_REAL_HTTP_DSH_NATIVE_SQLITE",
+      "checks": 14,
+      "loaded_bundle_sha256": "5c48af614b4d53a06a15e3abdb5126494677e731341137d5b9c7b9d11b4c16cc",
+      "evidence_path": "runs/revised-integration/summary.json",
+      "started_at": "2026-11-18T09:06:27.064Z",
+      "finished_at": "2026-11-18T09:07:42.145Z",
+      "binding": "Actual loaded bundle matches final manifest; final independent full-suite binding is separate."
+    },
+    {
+      "run": "revised-ui",
+      "status": "PASS",
+      "category": "REAL_CHROME_UI_HTTP_SQLITE_WITH_CONTROLLED_MODEL_FIXTURE",
+      "checks": 8,
+      "loaded_bundle_sha256": "5c48af614b4d53a06a15e3abdb5126494677e731341137d5b9c7b9d11b4c16cc",
+      "evidence_path": "runs/revised-ui/summary.json",
+      "started_at": "2026-11-18T09:06:47.085Z",
+      "finished_at": "2026-11-18T09:07:46.462Z",
+      "binding": "Actual loaded bundle matches final manifest; final independent full-suite binding is separate."
+    }
+  ],
+  "earlier_round_summary": "runs/implementer-round1-summary.json",
+  "independent_final": {
+    "directory": "independent/",
+    "technical_checks": 82,
+    "base_suite_checks": 61,
+    "independently_authored_checks": 21,
+    "real_gpt": false,
+    "binding": "Final candidate bound by command manifests and independent before/after hash checks.",
+    "summary": "independent/summary.json",
+    "review": "independent/REVIEW.md",
+    "overall_status": "BLOCKED",
+    "technical_status": "PASS"
+  },
+  "reason": "No authorized usable GPT API. T01/T02/T08 real-provider portions remain blocked.",
+  "full_requirements_certified": false
+}

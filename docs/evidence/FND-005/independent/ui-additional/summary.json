@@ -1,0 +1,90 @@
+{
+  "candidate_id": "FND-005-d0ec209b8161e14e",
+  "category": "INDEPENDENT_REAL_CHROME_HTTP_SQLITE_WITH_CONTROLLED_TRANSPORT_DELAY",
+  "real_gpt": false,
+  "status": "PASS",
+  "started_at": "2026-11-18T09:16:07.533Z",
+  "checks": [
+    {
+      "id": "U01.late-read-after-account-switch",
+      "expected": "A response admitted as Alice must not display after the real login cookie becomes Bob",
+      "started_at": "2026-11-18T09:16:21.479Z",
+      "facts": {
+        "actual_login_switch_http": 200,
+        "old_read_suppressed": true,
+        "bob_objects": 0
+      },
+      "status": "PASS",
+      "finished_at": "2026-11-18T09:16:22.236Z"
+    },
+    {
+      "id": "U02.late-read-after-target-switch",
+      "expected": "After switching to B, releasing old A must never render A or overwrite B ID/revision; explicitly reread B and compare SQL",
+      "started_at": "2026-11-18T09:16:23.175Z",
+      "facts": {
+        "old_target_id": "8f5ff220-1695-49bf-9926-b52ca1c76950",
+        "new_target_id": "3c4117a9-8b30-4504-b2c3-e1d0b18daca4",
+        "old_revision": 1,
+        "new_sql_revision": 2,
+        "old_response_rendered": false,
+        "display_after_late_response": "empty pending explicit read",
+        "target_revision_preserved": true,
+        "explicit_b_reread_sql_agrees": true,
+        "sql_projection_sha256": "88250f7a911a3b4e53293f55e473e5d49bf8da29020b59d879d3e829957a4849"
+      },
+      "status": "PASS",
+      "finished_at": "2026-11-18T09:16:23.675Z"
+    },
+    {
+      "id": "U03.each-draft-field-invalidates-prepared",
+      "expected": "Changing target, revision, key, or instruction invalidates the prepared operation and clears protected displays",
+      "started_at": "2026-11-18T09:16:23.675Z",
+      "facts": [
+        {
+          "field": "target",
+          "execute_disabled": true,
+          "old_displays_cleared": true
+        },
+        {
+          "field": "revision",
+          "execute_disabled": true,
+          "old_displays_cleared": true
+        },
+        {
+          "field": "key",
+          "execute_disabled": true,
+          "old_displays_cleared": true
+        },
+        {
+          "field": "instruction",
+          "execute_disabled": true,
+          "old_displays_cleared": true
+        }
+      ],
+      "status": "PASS",
+      "finished_at": "2026-11-18T09:16:24.151Z"
+    },
+    {
+      "id": "U04.late-prepare-after-draft-edit",
+      "expected": "An actual prepare response delayed across a draft edit cannot restore the old prepared action or erase the new draft",
+      "started_at": "2026-11-18T09:16:24.151Z",
+      "facts": {
+        "actual_prepare_response_delayed": true,
+        "old_prepared_suppressed": true,
+        "new_draft_preserved": true
+      },
+      "status": "PASS",
+      "finished_at": "2026-11-18T09:16:24.444Z"
+    }
+  ],
+  "host": {
+    "port": 3144,
+    "pid": 79052,
+    "isolated_home": true,
+    "isolated_sqlite": true
+  },
+  "loaded_bundle_sha256": "5c48af614b4d53a06a15e3abdb5126494677e731341137d5b9c7b9d11b4c16cc",
+  "page_errors": [],
+  "host_stopped": true,
+  "finished_at": "2026-11-18T09:16:25.381Z"
+}

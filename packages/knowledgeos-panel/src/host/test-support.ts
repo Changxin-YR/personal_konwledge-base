@@ -6,6 +6,11 @@
  * the same SQLite adapter, including controlled failures.
  */
 export {
+  AiService, modelFailure,
+} from './ai-service.ts'
+export { AiError, runBusinessTool, toolArguments, toolDigest } from './ai-tools.ts'
+export {
+  MIGRATION_V5, MIGRATION_V5_SQL, MIGRATION_V5_CHECKSUM, SCHEMA_VERSION,
   APPLICATION_ID,
   BUSY_TIMEOUT_MS,
   DATABASE_FILENAME,

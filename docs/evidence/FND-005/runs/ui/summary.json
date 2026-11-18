@@ -1,0 +1,32 @@
+{
+  "category": "REAL_CHROME_UI_HTTP_SQLITE_WITH_CONTROLLED_MODEL_FIXTURE",
+  "real_gpt": false,
+  "status": "PASS",
+  "checks": [
+    {
+      "id": "T01.fixture-ui-read",
+      "status": "PASS",
+      "real_login_ui": true,
+      "tool": "knowledgeos_read_object"
+    },
+    {
+      "id": "T02.T08.fixture-ui-write-reread",
+      "status": "PASS",
+      "tool": "knowledgeos_update_object",
+      "revision": 2,
+      "sql_agrees": true
+    },
+    {
+      "id": "T07.fixture-ui-timeout-cancel",
+      "status": "PASS"
+    },
+    {
+      "id": "T08.account-switch-clears-private-view",
+      "status": "PASS"
+    }
+  ],
+  "started_at": "2026-11-18T08:18:38.852Z",
+  "page_errors": [],
+  "finished_at": "2026-11-18T08:18:53.162Z",
+  "loaded_candidate_sha256": "d960716a8cd3e7383817284d251d9a94eed430ee8c992a0e25f420169c60bea4"
+}

@@ -1,0 +1,1401 @@
+{
+  "schema_version": "1.0",
+  "candidate_id": "FND-005-d0ec209b8161e14e",
+  "unit": "FND-005",
+  "role": "independent-test-contract-and-frozen-candidate-review",
+  "generated_at": "2026-11-18T09:31:33.775Z",
+  "timezone": "Asia/Shanghai; command timestamps use UTC",
+  "status": "BLOCKED",
+  "technical_status": "PASS",
+  "independent_technical_review_status": "PASS",
+  "review_work_complete": true,
+  "conclusion": "九组82项技术检查与35项计划门禁通过，无待处理新产品缺陷；真实GPT调用0次，T01/T02/T08未完成，总体验收保持BLOCKED。",
+  "real_gpt": {
+    "status": "BLOCKED",
+    "provider_calls": 0,
+    "real_provider_happy_path_executed": false,
+    "development_assistant_used_as_application_provider": false,
+    "alternate_provider_used": false,
+    "reason": "缺经授权可用GPT路由/凭据；本角色未进行提供方调用；零网络pi-ai负例不是GPT调用。",
+    "token_usage": null,
+    "cost": null
+  },
+  "provenance": {
+    "manifest": "candidate-original.json",
+    "manifest_sha256": "573d3c3941ee11f97fb2e3d5439816eb993a0fdf52055300bac7734ccde270c6",
+    "frozen_at": "2026-11-18T09:08:19.115Z",
+    "head_at_acceptance": "4282b9231a4ac38b0eb87145c337b811aec033e4",
+    "branch_at_acceptance": "codex/knowledgeos-fnd-005",
+    "node": "v24.22.0",
+    "loaded_bundle_sha256": "5c48af614b4d53a06a15e3abdb5126494677e731341137d5b9c7b9d11b4c16cc",
+    "loaded_test_support_sha256": "7848b7abf7062c7299cb0c9cd190c34c1599cfbcdae14dd55651e8d452cea071",
+    "before_evidence": "candidate-before.json",
+    "after_evidence": "candidate-after.json",
+    "before_status": "PASS",
+    "after_status": "PASS",
+    "candidate_files": 50,
+    "runtime_files": 13,
+    "all_63_hashes_match": true,
+    "fixed_upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+    "fixed_source_matches": 14524,
+    "fixed_source_missing": 0,
+    "fixed_source_differences": 0,
+    "remote_head_checked_by_this_role": false
+  },
+  "totals": {
+    "runtime_suites": 9,
+    "named_technical_checks": 82,
+    "PASS": 82,
+    "FAIL": 0,
+    "BLOCKED": 0,
+    "NOT_RUN": 0,
+    "all_runtime_exit_codes": 0,
+    "count_scope": "仅九组具名技术检查，不含真实GPT义务、静态门禁或历史round1结果"
+  },
+  "suites": [
+    {
+      "name": "integration",
+      "status": "PASS",
+      "checks_count": 14,
+      "category": "CONTROLLED_MODEL_FIXTURE_WITH_REAL_HTTP_DSH_NATIVE_SQLITE",
+      "real_gpt": false,
+      "evidence_path": "integration/summary.json",
+      "evidence_sha256": "15f0fe9f1a36961ce5350ce838bef7439a11eef521566c7551730b0f4ed732c0",
+      "command_evidence": "command-integration.json",
+      "command": "node scripts/fnd005/run-all.mjs --port 3141 --out docs/evidence/FND-005/independent/integration",
+      "script_sha256": "0d4faa08c4700b6ba1d1f197d83f103da701b1e39df57d3de144ac553442bb41",
+      "started_at": "2026-11-18T09:14:23.314Z",
+      "finished_at": "2026-11-18T09:15:03.369Z",
+      "exit_code": 0,
+      "frozen_file_differences_after": [],
+      "checks": [
+        {
+          "id": "T03.native-unbound-execution-denied",
+          "status": "PASS",
+          "started_at": "2026-11-18T09:14:36.486Z",
+          "finished_at": "2026-11-18T09:14:36.487Z",
+          "facts": {
+            "category": "ACTUAL_DSH_NATIVE_EXECUTOR_WITHOUT_BUSINESS_CONTEXT",
+            "status": "PASS",
+            "code": "TOOL_CONTEXT_REQUIRED"
+          }
+        },
+        {
+          "id": "T09.identity-owner-separation",
+          "status": "PASS",
+          "started_at": "2026-11-18T09:14:36.487Z",
+          "finished_at": "2026-11-18T09:14:36.508Z",
+          "facts": {
+            "real_login": true,
+            "business_user_is_not_owner": true,
+            "owner_is_not_business_user": true,
+            "status_http": 200
+          }
+        },
+        {
+          "id": "T01.fixture-read-native-tool",
+          "status": "PASS",
+          "started_at": "2026-11-18T09:14:36.512Z",
+          "finished_at": "2026-11-18T09:14:36.530Z",
+          "facts": {
+            "provider": "fnd005-fixture",
+            "model": "controlled-tool-model",
+            "tool": "knowledgeos_read_object",
+            "object_id": "971eb8b7-7c27-405c-b206-cdb41e9bf9a6",
+            "revision": 1,
+            "http": 200
+          }
+        },
+        {
+          "id": "T02.fixture-write-reread-sql",
+          "status": "PASS",
+          "started_at": "2026-11-18T09:14:36.530Z",
+          "finished_at": "2026-11-18T09:14:36.558Z",
+          "facts": {
+            "object_id": "971eb8b7-7c27-405c-b206-cdb41e9bf9a6",
+            "tool": "knowledgeos_update_object",
+            "revision_before": 1,
+            "revision_after": 2,
+            "body_sha256": "13501664711b154e83f71970895f9137844f71cf976fc8d66856ed7892ca155f",
+            "http_sql_get_agree": true,
+            "receipts": 1
+          }
+        },
+        {
+          "id": "T05.exact-replay-conflicts-concurrency",
+          "status": "PASS",
+          "started_at": "2026-11-18T09:14:36.558Z",
+          "finished_at": "2026-11-18T09:14:36.662Z",
+          "facts": {
+            "exact_original_result_after_later_edit": true,
+            "original_receipts": 1,
+            "different_parameters": 409,
+            "different_object": 409,
+            "parallel_http": [
+              200,
+              200
+            ],
+            "parallel_revision": 2,
+            "parallel_receipts": 1
+          }
+        },
+        {
+          "id": "T06.stale-revision",
+          "status": "PASS",
+          "started_at": "2026-11-18T09:14:36.662Z",
+          "finished_at": "2026-11-18T09:14:36.685Z",
+          "facts": {
+            "http": 409,
+            "unchanged": true,
+            "receipt_count": 0
+          }
+        },
+        {
+          "id": "T03.private-and-forged-identity",
+          "status": "PASS",
+          "started_at": "2026-11-18T09:14:36.685Z",
+          "finished_at": "2026-11-18T09:14:36.746Z",
+          "facts": {
+            "cross_user_read": 404,
+            "cross_user_write": 404,
+            "forged_model_identity": 422,
+            "forged_request_identity": 422,
+            "unchanged": true
+          }
+        },
+        {
+          "id": "T04.revoke-after-prepare-and-replay",
+          "status": "PASS",
+          "started_at": "2026-11-18T09:14:36.772Z",
+          "finished_at": "2026-11-18T09:14:36.886Z",
+          "facts": {
+            "prepared_read": 404,
+            "prepared_write": 404,
+            "protected_replay": 404,
+            "revision": 2,
+            "revoked_grant_history": 1,
+            "regrant_restored": true
+          }
+        },
+        {
+          "id": "T04.membership-expiry-after-prepare",
+          "status": "PASS",
+          "started_at": "2026-11-18T09:14:36.886Z",
+          "finished_at": "2026-11-18T09:14:36.929Z",
+          "facts": {
+            "http": 404,
+            "valid_action_grants_do_not_bypass_expired_membership": true,
+            "unchanged": true
+          }
+        },
+        {
+          "id": "T04.logout-after-prepare",
+          "status": "PASS",
+          "started_at": "2026-11-18T09:14:36.929Z",
+          "finished_at": "2026-11-18T09:14:36.943Z",
+          "facts": {
+            "http": 401,
+            "no_tool_result": true
+          }
+        },
+        {
+          "id": "T07.typed-model-failures",
+          "status": "PASS",
+          "started_at": "2026-11-18T09:14:36.943Z",
+          "finished_at": "2026-11-18T09:14:37.977Z",
+          "facts": [
+            {
+              "fixture": "fixture:missing",
+              "http": 503,
+              "code": "CREDENTIALS_MISSING"
+            },
+            {
+              "fixture": "fixture:invalid",
+              "http": 502,
+              "code": "CREDENTIALS_INVALID"
+            },
+            {
+              "fixture": "fixture:quota",
+              "http": 429,
+              "code": "QUOTA_EXHAUSTED"
+            },
+            {
+              "fixture": "fixture:permission",
+              "http": 403,
+              "code": "PROVIDER_PERMISSION_DENIED"
+            },
+            {
+              "fixture": "fixture:failure",
+              "http": 502,
+              "code": "MODEL_FAILED"
+            },
+            {
+              "fixture": "fixture:timeout",
+              "http": 504,
+              "code": "MODEL_TIMEOUT"
+            },
+            {
+              "fixture": "fixture:multiple",
+              "http": 502,
+              "code": "MODEL_OUTPUT_INVALID"
+            }
+          ]
+        },
+        {
+          "id": "T07.cancellation",
+          "status": "PASS",
+          "started_at": "2026-11-18T09:14:37.977Z",
+          "finished_at": "2026-11-18T09:14:38.155Z",
+          "facts": {
+            "stream_cancel": 409,
+            "prepared_cancel": 409,
+            "unchanged": true
+          }
+        },
+        {
+          "id": "T09.persistence-restart",
+          "status": "PASS",
+          "started_at": "2026-11-18T09:14:38.155Z",
+          "finished_at": "2026-11-18T09:14:48.325Z",
+          "facts": {
+            "old_pid_stopped": true,
+            "new_pid": true,
+            "user_version": 5,
+            "ledger": 5,
+            "persistent_original_replay": true,
+            "current_revision": 3
+          }
+        },
+        {
+          "id": "T09.foundation-record-and-identity",
+          "status": "PASS",
+          "started_at": "2026-11-18T09:14:48.325Z",
+          "finished_at": "2026-11-18T09:14:48.340Z",
+          "facts": {
+            "foundation_record_create": 201,
+            "read": 200,
+            "preferences_conflict": 409
+          }
+        }
+      ]
+    },
+    {
+      "name": "storage",
+      "status": "PASS",
+      "checks_count": 6,
+      "category": "REAL_SQLITE_WITH_CONTROLLED_FAULT_SEAMS",
+      "real_gpt": false,
+      "evidence_path": "storage/summary.json",
+      "evidence_sha256": "e879ee8d476eefdb5cf34e39aea1dd3da018cb95131bf06e284c5284f05e8e34",
+      "command_evidence": "command-storage.json",
+      "command": "node scripts/fnd005/storage-checks.mjs docs/evidence/FND-005/independent/storage",
+      "script_sha256": "b243d2ec075ee490065ccbdc818b65dd2d3fecb52c7eab1b1d1c41a751e1dfd1",
+      "started_at": "2026-11-18T09:14:23.314Z",
+      "finished_at": "2026-11-18T09:14:25.244Z",
+      "exit_code": 0,
+      "frozen_file_differences_after": [],
+      "checks": [
+        {
+          "id": "T09.v4-upgrade-preserves-historical-sql-and-ledger",
+          "status": "PASS",
+          "started_at": "2026-11-18T09:14:23.444Z",
+          "facts": {
+            "before": 4,
+            "after": 5,
+            "historical_checksums_unchanged": true,
+            "ledger_count": 5
+          }
+        },
+        {
+          "id": "T09.v5-migration-fault-rolls-back",
+          "status": "PASS",
+          "started_at": "2026-11-18T09:14:23.596Z",
+          "facts": {
+            "fault_version": 4,
+            "receipt_table_absent": true,
+            "recovery_version": 5
+          }
+        },
+        {
+          "id": "T09.forged-schema-rejected-without-rewrite",
+          "status": "PASS",
+          "started_at": "2026-11-18T09:14:23.662Z",
+          "facts": {
+            "code": "STORAGE_INCOMPATIBLE",
+            "unchanged": true
+          }
+        },
+        {
+          "id": "T05.update-and-receipt-atomic-rollback",
+          "status": "PASS",
+          "started_at": "2026-11-18T09:14:24.469Z",
+          "facts": {
+            "revision": 1,
+            "receipt_rows": 0,
+            "atomic_rollback": true
+          }
+        },
+        {
+          "id": "T04.fresh-auth-clock-after-real-lock-wait",
+          "status": "PASS",
+          "started_at": "2026-11-18T09:14:24.509Z",
+          "facts": {
+            "lock_wait_ms": 207,
+            "session_expired_before_lock_release": true,
+            "result": "session_expired",
+            "no_write": true
+          }
+        },
+        {
+          "id": "T09.bounded-lock-and-transaction-regression",
+          "status": "PASS",
+          "started_at": "2026-11-18T09:14:24.851Z",
+          "facts": {
+            "busy_timeout_ms": 250,
+            "observed_ms": 344,
+            "rollback": {
+              "rolledBack": true,
+              "primaryCode": 19,
+              "rows": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "barriers",
+      "status": "PASS",
+      "checks_count": 5,
+      "category": "REAL_DSH_NATIVE_HTTP_SQLITE_WITH_CONTROLLED_MODEL_POLICY_BARRIERS",
+      "real_gpt": false,
+      "evidence_path": "barriers/summary.json",
+      "evidence_sha256": "b02c1d58186dd654241dab1bfe8bead5e5664a65dabc36ef40970a0681ada022",
+      "command_evidence": "command-barriers.json",
+      "command": "node scripts/fnd005/barrier-checks.mjs docs/evidence/FND-005/independent/barriers",
+      "script_sha256": "084006901263e09fd4b0adbf540fe05874588e23af90cd9154f3783667292474",
+      "started_at": "2026-11-18T09:14:23.333Z",
+      "finished_at": "2026-11-18T09:14:51.992Z",
+      "exit_code": 0,
+      "frozen_file_differences_after": [],
+      "checks": [
+        {
+          "id": "R1.post-body-revocation-suppresses-publication",
+          "status": "PASS",
+          "facts": {
+            "native_body_completed": true,
+            "revocation_before_publication": true,
+            "http": 404,
+            "no_body_disclosed": true
+          }
+        },
+        {
+          "id": "R1.post-body-logout-suppresses-publication",
+          "status": "PASS",
+          "facts": {
+            "http": 401,
+            "no_body_disclosed": true
+          }
+        },
+        {
+          "id": "R2.cancel-native-wait-before-body",
+          "status": "PASS",
+          "facts": {
+            "http": 409,
+            "code": "CANCELLED",
+            "revision": 1,
+            "no_write": true
+          }
+        },
+        {
+          "id": "R3.native-aborted-before-dispatch-classified",
+          "status": "PASS",
+          "facts": {
+            "native_code": "ABORTED_BEFORE_DISPATCH",
+            "http": 409,
+            "code": "CANCELLED"
+          }
+        },
+        {
+          "id": "R2.cancel-after-commit-preserves-receipt",
+          "status": "PASS",
+          "facts": {
+            "cancel_http": 409,
+            "code": "OPERATION_ALREADY_COMPLETED",
+            "execute_http": 200,
+            "revision": 2,
+            "receipt_count": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "ui",
+      "status": "PASS",
+      "checks_count": 8,
+      "category": "REAL_CHROME_UI_HTTP_SQLITE_WITH_CONTROLLED_MODEL_FIXTURE",
+      "real_gpt": false,
+      "evidence_path": "ui/summary.json",
+      "evidence_sha256": "2e51e29ad721dbe09ffe28635c338b3e244b565ace046b9a0321aa2f0c6f04ea",
+      "command_evidence": "command-ui.json",
+      "command": "node scripts/fnd005/browser-checks.mjs docs/evidence/FND-005/independent/ui",
+      "script_sha256": "aa75ec20c63cdf51ccfe57fcd8fe6c56bd8929797643c7db564a22d3a3bdf51f",
+      "started_at": "2026-11-18T09:14:28.588Z",
+      "finished_at": "2026-11-18T09:15:13.454Z",
+      "exit_code": 0,
+      "frozen_file_differences_after": [],
+      "checks": [
+        {
+          "id": "T01.fixture-ui-read",
+          "status": "PASS",
+          "real_login_ui": true,
+          "tool": "knowledgeos_read_object"
+        },
+        {
+          "id": "T02.T08.fixture-ui-write-reread",
+          "status": "PASS",
+          "tool": "knowledgeos_update_object",
+          "revision": 2,
+          "sql_agrees": true
+        },
+        {
+          "id": "T08.draft-change-invalidates-prepared-action",
+          "status": "PASS"
+        },
+        {
+          "id": "T06.fixture-ui-revision-conflict",
+          "status": "PASS",
+          "draft_preserved": true
+        },
+        {
+          "id": "T07.fixture-ui-timeout-cancel",
+          "status": "PASS"
+        },
+        {
+          "id": "R5.late-prepare-does-not-restore-cancelled-ui",
+          "status": "PASS",
+          "transport_response_delayed": true
+        },
+        {
+          "id": "T08.account-switch-clears-private-view",
+          "status": "PASS"
+        },
+        {
+          "id": "T08.unconfigured-ui-blocked",
+          "status": "PASS",
+          "provider_calls": 0
+        }
+      ]
+    },
+    {
+      "name": "configuration",
+      "status": "PASS",
+      "checks_count": 21,
+      "category": "MIXED_REAL_HTTP_CONFIG_CONTROLLED_CLASSIFIER_AND_ACTUAL_PINNED_PI_AI_ZERO_NETWORK",
+      "real_gpt": false,
+      "evidence_path": "configuration/summary.json",
+      "evidence_sha256": "3efa933e364c2752b7a86b4c9399fd1773bcab91e29a1f093841adf33bdd0dd6",
+      "command_evidence": "command-configuration.json",
+      "command": "node scripts/fnd005/configuration-checks.mjs docs/evidence/FND-005/independent/configuration",
+      "script_sha256": "7e6dd9d2cbf6266d3a45ea3632c077cacb8701c471003eb85bdc06be2ddeefd0",
+      "started_at": "2026-11-18T09:14:25.175Z",
+      "finished_at": "2026-11-18T09:16:08.921Z",
+      "exit_code": 0,
+      "frozen_file_differences_after": [],
+      "checks": [
+        {
+          "id": "unconfigured",
+          "status": "PASS",
+          "http": 503,
+          "code": "MODEL_NOT_CONFIGURED",
+          "attempts": 0
+        },
+        {
+          "id": "provider-unavailable",
+          "status": "PASS",
+          "http": 503,
+          "code": "MODEL_NOT_CONFIGURED",
+          "attempts": 0
+        },
+        {
+          "id": "model-not-found",
+          "status": "PASS",
+          "http": 404,
+          "code": "MODEL_NOT_FOUND",
+          "attempts": 0
+        },
+        {
+          "id": "prices-absent",
+          "status": "PASS",
+          "http": 503,
+          "code": "PRICE_BUDGET_NOT_CONFIGURED",
+          "attempts": 0
+        },
+        {
+          "id": "monetary-budget",
+          "status": "PASS",
+          "http": 429,
+          "code": "MODEL_BUDGET_EXCEEDED",
+          "attempts": 0
+        },
+        {
+          "id": "call-budget",
+          "status": "PASS",
+          "http": 429,
+          "code": "MODEL_BUDGET_EXCEEDED",
+          "attempts": 1
+        },
+        {
+          "id": "typed-MISSING_CREDENTIAL",
+          "status": "PASS",
+          "category": "CONTROLLED_ERROR_CLASSIFIER",
+          "code": "CREDENTIALS_MISSING"
+        },
+        {
+          "id": "typed-INVALID_CREDENTIAL",
+          "status": "PASS",
+          "category": "CONTROLLED_ERROR_CLASSIFIER",
+          "code": "CREDENTIALS_INVALID"
+        },
+        {
+          "id": "typed-ACCOUNT_QUOTA",
+          "status": "PASS",
+          "category": "CONTROLLED_ERROR_CLASSIFIER",
+          "code": "QUOTA_EXHAUSTED"
+        },
+        {
+          "id": "typed-QUOTA",
+          "status": "PASS",
+          "category": "CONTROLLED_ERROR_CLASSIFIER",
+          "code": "QUOTA_EXHAUSTED"
+        },
+        {
+          "id": "typed-UNKNOWN_MODEL",
+          "status": "PASS",
+          "category": "CONTROLLED_ERROR_CLASSIFIER",
+          "code": "MODEL_NOT_FOUND"
+        },
+        {
+          "id": "typed-MODEL_UNSUPPORTED",
+          "status": "PASS",
+          "category": "CONTROLLED_ERROR_CLASSIFIER",
+          "code": "MODEL_NOT_FOUND"
+        },
+        {
+          "id": "typed-NO_ADAPTER",
+          "status": "PASS",
+          "category": "CONTROLLED_ERROR_CLASSIFIER",
+          "code": "MODEL_NOT_CONFIGURED"
+        },
+        {
+          "id": "typed-TIMEOUT",
+          "status": "PASS",
+          "category": "CONTROLLED_ERROR_CLASSIFIER",
+          "code": "MODEL_TIMEOUT"
+        },
+        {
+          "id": "typed-ABORTED",
+          "status": "PASS",
+          "category": "CONTROLLED_ERROR_CLASSIFIER",
+          "code": "CANCELLED"
+        },
+        {
+          "id": "typed-RATE_LIMIT",
+          "status": "PASS",
+          "category": "CONTROLLED_ERROR_CLASSIFIER",
+          "code": "PROVIDER_RATE_LIMITED"
+        },
+        {
+          "id": "R4.CREDENTIALS_MISSING",
+          "status": "PASS",
+          "category": "CONTROLLED_ERROR_CLASSIFIER"
+        },
+        {
+          "id": "R4.CREDENTIALS_INVALID",
+          "status": "PASS",
+          "category": "CONTROLLED_ERROR_CLASSIFIER"
+        },
+        {
+          "id": "R4.PROVIDER_PERMISSION_DENIED",
+          "status": "PASS",
+          "category": "CONTROLLED_ERROR_CLASSIFIER"
+        },
+        {
+          "id": "actual-pi-ai-missing-credential",
+          "status": "PASS",
+          "category": "ACTUAL_PINNED_PI_AI_ADAPTER_REAL_HTTP_NO_CREDENTIAL",
+          "http": 503,
+          "code": "CREDENTIALS_MISSING",
+          "network_requests": 0
+        },
+        {
+          "id": "actual-pi-ai-unknown-model-with-hidden-catalog",
+          "status": "PASS",
+          "category": "ACTUAL_PINNED_PI_AI_ADAPTER_REAL_HTTP_NO_CREDENTIAL",
+          "http": 404,
+          "code": "MODEL_NOT_FOUND",
+          "network_requests": 0
+        }
+      ]
+    },
+    {
+      "name": "acl",
+      "status": "PASS",
+      "checks_count": 7,
+      "category": "REAL_HTTP_SQLITE_FND004_AFFECTED_REGRESSION",
+      "real_gpt": false,
+      "evidence_path": "acl/summary.json",
+      "evidence_sha256": "5ff8bdd1b2d2f6131a3ba2cd6f5fa497b0a55a8477656c11e2951f0fd04e938f",
+      "command_evidence": "command-acl.json",
+      "command": "node scripts/fnd005/acl-regression.mjs --port 3143 --out docs/evidence/FND-005/independent/acl --candidate FND-005-d0ec209b8161e14e",
+      "script_sha256": "bcdf3b34469664f848250d07a8e5bea76492f9f82d911000236bc52093330709",
+      "started_at": "2026-11-18T09:16:11.479Z",
+      "finished_at": "2026-11-18T09:16:39.707Z",
+      "exit_code": 0,
+      "frozen_file_differences_after": [],
+      "checks": [
+        {
+          "id": "FND-004-T01",
+          "status": "PASS",
+          "evidence": "FND-004-T01.json"
+        },
+        {
+          "id": "FND-004-T02",
+          "status": "PASS",
+          "evidence": "FND-004-T02.json"
+        },
+        {
+          "id": "FND-004-T03",
+          "status": "PASS",
+          "evidence": "FND-004-T03.json"
+        },
+        {
+          "id": "FND-004-T04",
+          "status": "PASS",
+          "evidence": "FND-004-T04.json"
+        },
+        {
+          "id": "FND-004-T05",
+          "status": "PASS",
+          "evidence": "FND-004-T05.json"
+        },
+        {
+          "id": "FND-004-T06",
+          "status": "PASS",
+          "evidence": "FND-004-T06.json"
+        },
+        {
+          "id": "FND-004-T07",
+          "status": "PASS",
+          "evidence": "FND-004-T07.json"
+        }
+      ]
+    },
+    {
+      "name": "additional",
+      "status": "PASS",
+      "checks_count": 11,
+      "category": "INDEPENDENT_REAL_HTTP_NATIVE_SQLITE_WITH_CONTROLLED_MODEL_AND_ORDERING",
+      "real_gpt": false,
+      "evidence_path": "additional/summary.json",
+      "evidence_sha256": "d7b35621502a1d8631299f7a9465f64a453651955e1b9544aa549483b37fab34",
+      "command_evidence": "command-additional.json",
+      "command": "node docs/evidence/FND-005/independent/additional-checks.mjs",
+      "script_sha256": "3c052ba6ac261c48250340dd3b24e5d4739087e480b953ba9a7534dfb1d1b8fd",
+      "started_at": "2026-11-18T09:16:07.542Z",
+      "finished_at": "2026-11-18T09:16:39.057Z",
+      "exit_code": 0,
+      "frozen_file_differences_after": [],
+      "checks": [
+        {
+          "id": "I01.same-native-call-id-and-key-two-actors",
+          "expected": "Each actor writes only its own object; two actor-scoped receipts; foreign prepared ID is hidden",
+          "started_at": "2026-11-18T09:16:20.372Z",
+          "facts": {
+            "http": [
+              200,
+              200
+            ],
+            "foreign_prepared_http": 404,
+            "native_call_id": "fixture-call (same for both)",
+            "actor_scoped_receipts": [
+              1,
+              1
+            ],
+            "revisions": [
+              2,
+              2
+            ]
+          },
+          "status": "PASS",
+          "finished_at": "2026-11-18T09:16:20.499Z"
+        },
+        {
+          "id": "I02.concurrent-different-input-same-key",
+          "expected": "Exactly one 200 and one 409 IDEMPOTENCY_CONFLICT, one scoped receipt and one increment",
+          "started_at": "2026-11-18T09:16:20.499Z",
+          "facts": {
+            "parallel_http": [
+              200,
+              409
+            ],
+            "revision_only_reuse_http": 409,
+            "revision": 2,
+            "scoped_receipts": 1
+          },
+          "status": "PASS",
+          "finished_at": "2026-11-18T09:16:20.570Z"
+        },
+        {
+          "id": "I03.edit-only-is-not-body-read",
+          "expected": "An edit-only grant cannot obtain a full updated object; no mutation/receipt",
+          "started_at": "2026-11-18T09:16:20.589Z",
+          "facts": {
+            "edit_action_http": 200,
+            "read_http": 404,
+            "ai_write_http": 404,
+            "unchanged": true,
+            "scoped_receipts": 0
+          },
+          "status": "PASS",
+          "finished_at": "2026-11-18T09:16:20.652Z"
+        },
+        {
+          "id": "I04.real-grant-expiry-during-native-prewait",
+          "expected": "An initially readable/editable object becomes hidden after actual expiry while native policy awaits",
+          "started_at": "2026-11-18T09:16:20.656Z",
+          "facts": {
+            "expires_at": "2026-11-18T09:16:21.656Z",
+            "released_at": "2026-11-18T09:16:21.690Z",
+            "http": [
+              404,
+              404
+            ],
+            "revision": 1,
+            "scoped_receipts": 0,
+            "clock": "real wall clock, no override"
+          },
+          "status": "PASS",
+          "finished_at": "2026-11-18T09:16:21.763Z"
+        },
+        {
+          "id": "I05.creator-membership-expires-in-native-prewait",
+          "expected": "Project creator ownership and retained implicit grants cannot bypass expired membership",
+          "started_at": "2026-11-18T09:16:21.764Z",
+          "facts": {
+            "expires_at": "2026-11-18T09:16:22.764Z",
+            "http": [
+              404,
+              404
+            ],
+            "revision": 1,
+            "scoped_receipts": 0,
+            "restored_membership_positive_control": 200
+          },
+          "status": "PASS",
+          "finished_at": "2026-11-18T09:16:22.878Z"
+        },
+        {
+          "id": "I06.real-http-write-after-serialized-revocation",
+          "expected": "A separate SQLite writer commits read revocation before mutation lock is acquired; HTTP write denies and persists nothing",
+          "started_at": "2026-11-18T09:16:22.903Z",
+          "facts": {
+            "ordering": [
+              {
+                "phase": "locked-revocation-uncommitted",
+                "at": "2026-11-18T09:16:22.966Z"
+              },
+              {
+                "phase": "revocation-committed",
+                "at": "2026-11-18T09:16:23.146Z"
+              }
+            ],
+            "elapsed_ms": 190,
+            "http": 404,
+            "revision": 1,
+            "scoped_receipts": 0,
+            "setup": "synthetic revocation by separate real SQLite transaction, not public SQL API"
+          },
+          "status": "PASS",
+          "finished_at": "2026-11-18T09:16:23.203Z"
+        },
+        {
+          "id": "I07.commit-response-lost-and-replay-after-later-edit",
+          "expected": "After response loss at a known commit, original key returns persisted original result even after another edit",
+          "started_at": "2026-11-18T09:16:23.203Z",
+          "facts": {
+            "transport": "destroyed after SQL-proven commit before HTTP publication",
+            "original_result_revision": 2,
+            "current_sql_revision": 3,
+            "replay_code": "REPLAYED",
+            "exact_original_payload": true,
+            "scoped_receipts": 1,
+            "result_sha256": "0a272d68d217031342c26d7e521b7a559a6e291958680db1880a4c4c21565ad6"
+          },
+          "status": "PASS",
+          "finished_at": "2026-11-18T09:16:23.423Z"
+        },
+        {
+          "id": "I08.committed-update-publication-recheck-and-reconcile",
+          "expected": "Committed update loses read permission during post policy: suppress output, retain receipt, deny replay until regrant",
+          "started_at": "2026-11-18T09:16:23.441Z",
+          "facts": {
+            "publication_http": 404,
+            "revoked_replay_http": 404,
+            "regranted_replay_http": 200,
+            "exact_original_result": true,
+            "sql_revision": 2,
+            "scoped_receipts": 1
+          },
+          "status": "PASS",
+          "finished_at": "2026-11-18T09:16:23.577Z"
+        },
+        {
+          "id": "I09.inactive-account-before-native-body",
+          "expected": "Account disabled after HTTP admission and before native body: 401 and no write",
+          "started_at": "2026-11-18T09:16:23.577Z",
+          "facts": {
+            "http": 401,
+            "revision": 1,
+            "scoped_receipts": 0,
+            "setup": "synthetic inactive-account SQL transition"
+          },
+          "status": "PASS",
+          "finished_at": "2026-11-18T09:16:23.672Z"
+        },
+        {
+          "id": "I10.session-expires-after-read-body-before-publication",
+          "expected": "An expiring actual login suppresses delayed read output after native body completed",
+          "started_at": "2026-11-18T09:16:23.672Z",
+          "facts": {
+            "expires_at": "2026-11-18T09:16:23.822Z",
+            "http": 401,
+            "no_protected_result": true,
+            "revision": 1,
+            "setup": "synthetic session lifetime changed; actual wall-clock expiry and HTTP revalidation"
+          },
+          "status": "PASS",
+          "finished_at": "2026-11-18T09:16:23.899Z"
+        },
+        {
+          "id": "I11.admission-schema-identity-and-csrf",
+          "expected": "Unsupported actor fields, invalid revision/key, and foreign Origin fail before any model attempt",
+          "started_at": "2026-11-18T09:16:23.899Z",
+          "facts": {
+            "unsupported_fields": [
+              {
+                "field": "user_id",
+                "http": 422
+              },
+              {
+                "field": "actor",
+                "http": 422
+              },
+              {
+                "field": "actor_id",
+                "http": 422
+              },
+              {
+                "field": "role",
+                "http": 422
+              },
+              {
+                "field": "owner_id",
+                "http": 422
+              },
+              {
+                "field": "owner_user_id",
+                "http": 422
+              },
+              {
+                "field": "service_id",
+                "http": 422
+              },
+              {
+                "field": "space_id",
+                "http": 422
+              },
+              {
+                "field": "session_id",
+                "http": 422
+              },
+              {
+                "field": "authorization",
+                "http": 422
+              },
+              {
+                "field": "sql",
+                "http": 422
+              },
+              {
+                "field": "path",
+                "http": 422
+              },
+              {
+                "field": "command",
+                "http": 422
+              }
+            ],
+            "invalid_revision_cases": 5,
+            "empty_key_http": 422,
+            "foreign_origin_http": 403,
+            "anonymous_http": 401,
+            "attempts_delta": 0
+          },
+          "status": "PASS",
+          "finished_at": "2026-11-18T09:16:24.035Z"
+        }
+      ]
+    },
+    {
+      "name": "ui-additional",
+      "status": "PASS",
+      "checks_count": 4,
+      "category": "INDEPENDENT_REAL_CHROME_HTTP_SQLITE_WITH_CONTROLLED_TRANSPORT_DELAY",
+      "real_gpt": false,
+      "evidence_path": "ui-additional/summary.json",
+      "evidence_sha256": "32f3aebf6c2a17a077a5795f76dfe80d25b24939a051b378fa414399209eae56",
+      "command_evidence": "command-ui-additional.json",
+      "command": "node docs/evidence/FND-005/independent/ui-additional.mjs",
+      "script_sha256": "8014fa5e4de7a4bd69bcaf71946a0bf07257250b0363d899d86a17d3f7e13631",
+      "started_at": "2026-11-18T09:16:06.330Z",
+      "finished_at": "2026-11-18T09:16:39.645Z",
+      "exit_code": 0,
+      "frozen_file_differences_after": [],
+      "checks": [
+        {
+          "id": "U01.late-read-after-account-switch",
+          "expected": "A response admitted as Alice must not display after the real login cookie becomes Bob",
+          "started_at": "2026-11-18T09:16:21.479Z",
+          "facts": {
+            "actual_login_switch_http": 200,
+            "old_read_suppressed": true,
+            "bob_objects": 0
+          },
+          "status": "PASS",
+          "finished_at": "2026-11-18T09:16:22.236Z"
+        },
+        {
+          "id": "U02.late-read-after-target-switch",
+          "expected": "After switching to B, releasing old A must never render A or overwrite B ID/revision; explicitly reread B and compare SQL",
+          "started_at": "2026-11-18T09:16:23.175Z",
+          "facts": {
+            "old_target_id": "8f5ff220-1695-49bf-9926-b52ca1c76950",
+            "new_target_id": "3c4117a9-8b30-4504-b2c3-e1d0b18daca4",
+            "old_revision": 1,
+            "new_sql_revision": 2,
+            "old_response_rendered": false,
+            "display_after_late_response": "empty pending explicit read",
+            "target_revision_preserved": true,
+            "explicit_b_reread_sql_agrees": true,
+            "sql_projection_sha256": "88250f7a911a3b4e53293f55e473e5d49bf8da29020b59d879d3e829957a4849"
+          },
+          "status": "PASS",
+          "finished_at": "2026-11-18T09:16:23.675Z"
+        },
+        {
+          "id": "U03.each-draft-field-invalidates-prepared",
+          "expected": "Changing target, revision, key, or instruction invalidates the prepared operation and clears protected displays",
+          "started_at": "2026-11-18T09:16:23.675Z",
+          "facts": [
+            {
+              "field": "target",
+              "execute_disabled": true,
+              "old_displays_cleared": true
+            },
+            {
+              "field": "revision",
+              "execute_disabled": true,
+              "old_displays_cleared": true
+            },
+            {
+              "field": "key",
+              "execute_disabled": true,
+              "old_displays_cleared": true
+            },
+            {
+              "field": "instruction",
+              "execute_disabled": true,
+              "old_displays_cleared": true
+            }
+          ],
+          "status": "PASS",
+          "finished_at": "2026-11-18T09:16:24.151Z"
+        },
+        {
+          "id": "U04.late-prepare-after-draft-edit",
+          "expected": "An actual prepare response delayed across a draft edit cannot restore the old prepared action or erase the new draft",
+          "started_at": "2026-11-18T09:16:24.151Z",
+          "facts": {
+            "actual_prepare_response_delayed": true,
+            "old_prepared_suppressed": true,
+            "new_draft_preserved": true
+          },
+          "status": "PASS",
+          "finished_at": "2026-11-18T09:16:24.444Z"
+        }
+      ]
+    },
+    {
+      "name": "service-additional",
+      "status": "PASS",
+      "checks_count": 6,
+      "category": "CONTROLLED_SERVICE_PORT_AND_TERMINAL_STREAM_ERRORS",
+      "real_gpt": false,
+      "evidence_path": "service-additional/summary.json",
+      "evidence_sha256": "1c9241f48c5067a8ed50a74a87c18b88e1b0b9d3311e959ef8f862621805b01f",
+      "command_evidence": "command-service-additional.json",
+      "command": "node docs/evidence/FND-005/independent/service-additional.mjs",
+      "script_sha256": "5b8caae5fe7d985fac78298e6edf2210dcba85344e49e0cbc6ef57e89d821a14",
+      "started_at": "2026-11-18T09:14:27.192Z",
+      "finished_at": "2026-11-18T09:14:27.315Z",
+      "exit_code": 0,
+      "frozen_file_differences_after": [],
+      "checks": [
+        {
+          "id": "R3.classify-ABORTED",
+          "input_code": "ABORTED",
+          "expected_http": 409,
+          "expected_code": "CANCELLED",
+          "status": "PASS"
+        },
+        {
+          "id": "R3.classify-ABORTED_BEFORE_DISPATCH",
+          "input_code": "ABORTED_BEFORE_DISPATCH",
+          "expected_http": 409,
+          "expected_code": "CANCELLED",
+          "status": "PASS"
+        },
+        {
+          "id": "R3.classify-TOOL_TIMEOUT",
+          "input_code": "TOOL_TIMEOUT",
+          "expected_http": 504,
+          "expected_code": "TOOL_TIMEOUT",
+          "status": "PASS"
+        },
+        {
+          "id": "R4.terminal-CREDENTIALS_MISSING",
+          "input": {
+            "code": "NO_CREDENTIAL_STORE"
+          },
+          "expected_http": 503,
+          "expected_code": "CREDENTIALS_MISSING",
+          "status": "PASS"
+        },
+        {
+          "id": "R4.terminal-CREDENTIALS_INVALID",
+          "input": {
+            "code": "AUTH",
+            "status": 401,
+            "message": "quota read permission denied"
+          },
+          "expected_http": 502,
+          "expected_code": "CREDENTIALS_INVALID",
+          "status": "PASS"
+        },
+        {
+          "id": "R4.terminal-PROVIDER_PERMISSION_DENIED",
+          "input": {
+            "code": "AUTH",
+            "status": 403,
+            "message": "billing permission denied"
+          },
+          "expected_http": 403,
+          "expected_code": "PROVIDER_PERMISSION_DENIED",
+          "status": "PASS"
+        }
+      ]
+    }
+  ],
+  "static_checks": [
+    {
+      "name": "typecheck",
+      "status": "PASS",
+      "category": "STATIC_TYPE_OR_PLAN_GATE_ONLY",
+      "evidence_path": "command-typecheck.json",
+      "candidate_id": "FND-005-d0ec209b8161e14e",
+      "manifest_sha256": "573d3c3941ee11f97fb2e3d5439816eb993a0fdf52055300bac7734ccde270c6",
+      "command": "node .cache/panel-builder/node_modules/typescript/bin/tsc -p packages/knowledgeos-panel/tsconfig.json",
+      "script_sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+      "started_at": "2026-11-18T09:16:12.890Z",
+      "timezone": "UTC (Asia/Shanghai = UTC+08:00)",
+      "exit_code": 0,
+      "finished_at": "2026-11-18T09:16:14.725Z",
+      "frozen_file_differences_after": [],
+      "output_facts": {
+        "stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "raw_output_saved": false
+    },
+    {
+      "name": "plan",
+      "status": "PASS",
+      "category": "STATIC_TYPE_OR_PLAN_GATE_ONLY",
+      "evidence_path": "command-plan.json",
+      "candidate_id": "FND-005-d0ec209b8161e14e",
+      "manifest_sha256": "573d3c3941ee11f97fb2e3d5439816eb993a0fdf52055300bac7734ccde270c6",
+      "command": "node scripts/verify-plan.mjs",
+      "script_sha256": "bcf39b9d88df9cf1593c1f3e2fd34b54e634706d653b7192be68938925cfc765",
+      "started_at": "2026-11-18T09:16:10.145Z",
+      "timezone": "UTC (Asia/Shanghai = UTC+08:00)",
+      "exit_code": 0,
+      "finished_at": "2026-11-18T09:16:10.359Z",
+      "frozen_file_differences_after": [],
+      "output_facts": {
+        "stdout": {
+          "bytes": 464,
+          "sha256": "ac5e277ed50880250bdd1904c3512cf68cc3799750ac804ea3222ae8bb3f4641"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "raw_output_saved": false
+    },
+    {
+      "name": "plan-tests",
+      "status": "PASS",
+      "category": "STATIC_TYPE_OR_PLAN_GATE_ONLY",
+      "evidence_path": "command-plan-tests.json",
+      "candidate_id": "FND-005-d0ec209b8161e14e",
+      "manifest_sha256": "573d3c3941ee11f97fb2e3d5439816eb993a0fdf52055300bac7734ccde270c6",
+      "command": "node scripts/test-verify-plan.mjs",
+      "script_sha256": "d7bcf4ca3fca3af99b5515b4a4d34af6212e8cb4506c44e3bf755dfbe0b6c5a5",
+      "started_at": "2026-11-18T09:16:08.972Z",
+      "timezone": "UTC (Asia/Shanghai = UTC+08:00)",
+      "exit_code": 0,
+      "finished_at": "2026-11-18T09:17:42.129Z",
+      "frozen_file_differences_after": [],
+      "output_facts": {
+        "stdout": {
+          "bytes": 5257,
+          "sha256": "2edca2a96066dcd727ecb3f6ccb9735d15d3886a6ebdff9f7fd7fac705efc883"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "raw_output_saved": false
+    }
+  ],
+  "plan_gate_regressions": {
+    "status": "PASS",
+    "checks": 35,
+    "execution_evidence": "command-plan-tests.json",
+    "count_basis": "冻结脚本cases定义计数，独立运行退出0，主线程亦核对35项；原始stdout只保留字节数和哈希",
+    "category": "TEMPORARY_PLAN_STRUCTURE_FIXTURES",
+    "product_tests_executed": 0,
+    "does_not_certify_real_gpt": true
+  },
+  "acceptance": [
+    {
+      "id": "T01",
+      "status": "BLOCKED",
+      "technical_fixture_status": "PASS",
+      "reason": "真实GPT选择只读工具未运行"
+    },
+    {
+      "id": "T02",
+      "status": "BLOCKED",
+      "technical_fixture_status": "PASS",
+      "reason": "真实GPT选择修改工具并关联SQL/UI未运行"
+    },
+    {
+      "id": "T03",
+      "status": "PASS",
+      "scope": "真实认证/HTTP/native/SQLite；模型受控；私人对象与身份伪造拒绝"
+    },
+    {
+      "id": "T04",
+      "status": "PASS",
+      "scope": "撤权、自然grant/membership到期、锁等待后鉴权、账号/会话和发布前重新验证"
+    },
+    {
+      "id": "T05",
+      "status": "PASS",
+      "scope": "精确原结果、重启、并发、跨actor隔离、不同参数冲突、丢响应后重放、撤权保护"
+    },
+    {
+      "id": "T06",
+      "status": "PASS",
+      "scope": "新键旧revision409，不覆盖内容、不留成功receipt，UI保留失败草稿"
+    },
+    {
+      "id": "T07",
+      "status": "PASS",
+      "scope": "所列真实配置/native取消/HTTP路径与受控错误分类；不包含真实厂商终态归一化及原生工具deadline"
+    },
+    {
+      "id": "T08",
+      "status": "BLOCKED",
+      "technical_fixture_status": "PASS",
+      "reason": "真实浏览器技术检查通过，缺真实GPT关联闭环"
+    },
+    {
+      "id": "T09",
+      "status": "PASS",
+      "scope": "详细报告所列Host加载/停止/重启、迁移/持久化与FND001至004受影响回归；上游build为核对过的实施者证据"
+    }
+  ],
+  "closed_findings": [
+    {
+      "id": "R1",
+      "status": "PASS",
+      "disposition": "CLOSED",
+      "scope": "发布前重新验证 actor、originating session 与 read ACL；提交后撤权抑制输出并保留 receipt",
+      "evidence": [
+        "barriers/summary.json",
+        "additional/summary.json"
+      ]
+    },
+    {
+      "id": "R2",
+      "status": "PASS",
+      "disposition": "CLOSED",
+      "scope": "原生 pre 等待取消不写入；提交后取消返回 OPERATION_ALREADY_COMPLETED 并保留提交",
+      "evidence": [
+        "barriers/summary.json"
+      ]
+    },
+    {
+      "id": "R3",
+      "status": "PASS",
+      "disposition": "CLOSED_WITH_STATED_SCOPE",
+      "scope": "真实 native ABORTED_BEFORE_DISPATCH 分类；ABORTED/TOOL_TIMEOUT 另由服务端口夹具验证；未声称原生工具 deadline",
+      "evidence": [
+        "barriers/summary.json",
+        "service-additional/summary.json"
+      ]
+    },
+    {
+      "id": "R4",
+      "status": "PASS",
+      "disposition": "CLOSED",
+      "scope": "NO_CREDENTIAL_STORE 与结构化 AUTH 优先于 quota/billing 文本",
+      "evidence": [
+        "configuration/summary.json",
+        "service-additional/summary.json"
+      ]
+    },
+    {
+      "id": "R5",
+      "status": "PASS",
+      "disposition": "CLOSED",
+      "scope": "取消与真实账号切换后的迟到结果不恢复旧操作或私有展示",
+      "evidence": [
+        "ui/summary.json",
+        "ui-additional/summary.json"
+      ]
+    },
+    {
+      "id": "U02",
+      "status": "PASS",
+      "disposition": "CLOSED_AFTER_PRODUCT_FIX",
+      "scope": "释放旧 A 响应不显示 A、不覆盖 B ID/revision；随后显式读取 B 与 SQL 一致；保留旧 FAIL",
+      "evidence": [
+        "round1/ui-additional/summary.json",
+        "round1/ui-additional/target-switch-delayed-read.png",
+        "ui-additional/summary.json",
+        "ui-additional/target-switch-old-read-suppressed.png",
+        "ui-additional/target-b-explicit-reread-sql.png"
+      ]
+    },
+    {
+      "id": "PI_AI_EMPTY_CATALOG",
+      "status": "PASS",
+      "disposition": "CLOSED_AFTER_PRODUCT_FIX",
+      "scope": "实际固定 pi-ai 经真实 HTTP：缺凭据503、未知模型404；陷阱均0网络请求；旧问题由主线程发现",
+      "evidence": [
+        "configuration/summary.json"
+      ]
+    }
+  ],
+  "new_open_product_defects": [],
+  "historical_failures": [
+    {
+      "id": "round1-additional-empty204-helper",
+      "status": "FAIL",
+      "classification": "INDEPENDENT_PROBE_BUG",
+      "disposition": "对空204响应读取.code，非产品缺陷；原记录不改写",
+      "evidence": [
+        "round1/additional/attempt-1-summary.json",
+        "round1/command-additional-attempt-1.json"
+      ]
+    },
+    {
+      "id": "round1-additional-first-complete-exit1",
+      "status": "FAIL",
+      "classification": "OVER_SPECIFIC_TEST_ORACLE",
+      "started_at": "2026-11-18T08:57:43.964Z",
+      "finished_at": "2026-11-18T08:58:15.333Z",
+      "exit_code": 1,
+      "passed_checks": 10,
+      "failed_check": "I11.admission-schema-identity-and-csrf",
+      "disposition": "外层Host已安全403；探针错误强求业务CSRF_REJECTED JSON。新候选仍要求403/无数据/零模型尝试，并已通过；保留原FAIL。",
+      "evidence": [
+        "round1/command-additional-attempt-2.json",
+        "round1/additional/attempt-2-summary.json"
+      ]
+    },
+    {
+      "id": "round1-additional-later-setup-overwrite",
+      "status": "FAIL",
+      "classification": "EXPECTED_CANDIDATE_DRIFT",
+      "business_checks_executed": 0,
+      "disposition": "旧候选启动时bundle已重建；setup/hash失败曾覆盖旧顶层summary。首次完整失败单独保存，不将漂移算新产品缺陷。",
+      "evidence": [
+        "round1/additional/summary.json",
+        "round1/command-additional.json",
+        "round1/candidate-interrupted.json"
+      ]
+    },
+    {
+      "id": "round1-U02",
+      "status": "FAIL",
+      "classification": "REAL_PRODUCT_DEFECT",
+      "disposition": "旧A读取覆盖新B目标/版本；本候选修复后严格复测PASS，旧失败/截图原样保留",
+      "retest": "ui-additional/summary.json",
+      "evidence": [
+        "round1/ui-additional/summary.json",
+        "round1/ui-additional/target-switch-delayed-read.png"
+      ]
+    }
+  ],
+  "final_audit": {
+    "status": "PASS",
+    "evidence": "final-audit.json",
+    "finished_at": "2026-11-18T09:20:22.095Z",
+    "migrations_v1_to_v4_preserved": true,
+    "all_seven_independent_ports_released": true,
+    "forbidden_runtime_artifacts": [],
+    "credential_shaped_json_fields": [],
+    "preserved_round1_hashes_verified": true,
+    "note": "汇总引用已完成审计；收尾不扩大产品测试范围"
+  },
+  "evidence_limits": [
+    "受控模型不能代替真实GPT。",
+    "service-additional仅直接服务端口/stream夹具；TOOL_TIMEOUT仅分类验证，未运行原生工具deadline。",
+    "实际pi-ai负例0网络调用，不能证明GPT可用。",
+    "上游artifacts8/check2为实施者构建记录，本角色核对来源/运行哈希；未重建冻结artifacts。",
+    "历史FND002 v1-only checker FAIL与Connection-only recovery BLOCKED保留；Host重启PASS不解除后者。",
+    "未验收完整F01至F44、66场景、完整A01/A41或Windows打包发布。",
+    "未读取凭据、未作网络Git操作；最终门禁、交付与提交推送由主线程负责。"
+  ],
+  "reports": {
+    "review": "REVIEW.md",
+    "detailed_report": "REPORT.md",
+    "evidence_index": "evidence-index.json"
+  },
+  "unit_status_mutated": false,
+  "auto_advanced": false,
+  "round1_modified": false,
+  "frozen_source_or_tests_modified_by_this_role": false
+}

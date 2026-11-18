@@ -1,0 +1,73 @@
+{
+  "category": "REAL_SQLITE_WITH_CONTROLLED_FAULT_SEAMS",
+  "started_at": "2026-11-18T08:15:27.938Z",
+  "status": "PASS",
+  "checks": [
+    {
+      "id": "T09.v4-upgrade-preserves-historical-sql-and-ledger",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:15:27.939Z",
+      "facts": {
+        "before": 4,
+        "after": 5,
+        "historical_checksums_unchanged": true,
+        "ledger_count": 5
+      }
+    },
+    {
+      "id": "T09.v5-migration-fault-rolls-back",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:15:28.032Z",
+      "facts": {
+        "fault_version": 4,
+        "receipt_table_absent": true,
+        "recovery_version": 5
+      }
+    },
+    {
+      "id": "T09.forged-schema-rejected-without-rewrite",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:15:28.072Z",
+      "facts": {
+        "code": "STORAGE_INCOMPATIBLE",
+        "unchanged": true
+      }
+    },
+    {
+      "id": "T05.update-and-receipt-atomic-rollback",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:15:28.633Z",
+      "facts": {
+        "revision": 1,
+        "receipt_rows": 0,
+        "atomic_rollback": true
+      }
+    },
+    {
+      "id": "T04.fresh-auth-clock-after-real-lock-wait",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:15:28.653Z",
+      "facts": {
+        "lock_wait_ms": 215,
+        "session_expired_before_lock_release": true,
+        "result": "session_expired",
+        "no_write": true
+      }
+    },
+    {
+      "id": "T09.bounded-lock-and-transaction-regression",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:15:28.931Z",
+      "facts": {
+        "busy_timeout_ms": 250,
+        "observed_ms": 288,
+        "rollback": {
+          "rolledBack": true,
+          "primaryCode": 19,
+          "rows": 0
+        }
+      }
+    }
+  ],
+  "finished_at": "2026-11-18T08:15:29.242Z"
+}

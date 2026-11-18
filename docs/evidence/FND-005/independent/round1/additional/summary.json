@@ -1,0 +1,19 @@
+{
+  "candidate_id": "FND-005-572a5b58a7b46671",
+  "category": "INDEPENDENT_REAL_HTTP_NATIVE_SQLITE_WITH_CONTROLLED_MODEL_AND_ORDERING",
+  "real_gpt": false,
+  "status": "FAIL",
+  "started_at": "2026-11-18T09:02:02.614Z",
+  "checks": [],
+  "host": {
+    "port": 3142,
+    "pid": 67672,
+    "isolated_home": true,
+    "isolated_sqlite": true
+  },
+  "loaded_bundle_sha256": "da372fe7a97b71bc4273f0e6cbb92339bad7bd866cc24faec1a2f21972f68d81",
+  "setup_error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'da372fe7a97b71bc4273f0e6cbb92339bad7bd866cc24faec1a2f21972f68d81'\n- '70a41b8d867667f0ecaa456eac165fde2950c747c4e00f722a07445396b4c093'\n",
+  "host_stopped": true,
+  "port_released": true,
+  "finished_at": "2026-11-18T09:02:16.299Z"
+}

@@ -1,0 +1,240 @@
+{
+  "category": "CONTROLLED_MODEL_FIXTURE_WITH_REAL_HTTP_DSH_NATIVE_SQLITE",
+  "real_gpt": false,
+  "started_at": "2026-11-18T08:51:45.136Z",
+  "status": "PASS",
+  "checks": [
+    {
+      "id": "T03.native-unbound-execution-denied",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:51:59.520Z",
+      "finished_at": "2026-11-18T08:51:59.521Z",
+      "facts": {
+        "category": "ACTUAL_DSH_NATIVE_EXECUTOR_WITHOUT_BUSINESS_CONTEXT",
+        "status": "PASS",
+        "code": "TOOL_CONTEXT_REQUIRED"
+      }
+    },
+    {
+      "id": "T09.identity-owner-separation",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:51:59.521Z",
+      "finished_at": "2026-11-18T08:51:59.548Z",
+      "facts": {
+        "real_login": true,
+        "business_user_is_not_owner": true,
+        "owner_is_not_business_user": true,
+        "status_http": 200
+      }
+    },
+    {
+      "id": "T01.fixture-read-native-tool",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:51:59.553Z",
+      "finished_at": "2026-11-18T08:51:59.575Z",
+      "facts": {
+        "provider": "fnd005-fixture",
+        "model": "controlled-tool-model",
+        "tool": "knowledgeos_read_object",
+        "object_id": "24cc0456-ddd8-4340-ba93-88109d76d91b",
+        "revision": 1,
+        "http": 200
+      }
+    },
+    {
+      "id": "T02.fixture-write-reread-sql",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:51:59.575Z",
+      "finished_at": "2026-11-18T08:51:59.625Z",
+      "facts": {
+        "object_id": "24cc0456-ddd8-4340-ba93-88109d76d91b",
+        "tool": "knowledgeos_update_object",
+        "revision_before": 1,
+        "revision_after": 2,
+        "body_sha256": "13501664711b154e83f71970895f9137844f71cf976fc8d66856ed7892ca155f",
+        "http_sql_get_agree": true,
+        "receipts": 1
+      }
+    },
+    {
+      "id": "T05.exact-replay-conflicts-concurrency",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:51:59.625Z",
+      "finished_at": "2026-11-18T08:51:59.730Z",
+      "facts": {
+        "exact_original_result_after_later_edit": true,
+        "original_receipts": 1,
+        "different_parameters": 409,
+        "different_object": 409,
+        "parallel_http": [
+          200,
+          200
+        ],
+        "parallel_revision": 2,
+        "parallel_receipts": 1
+      }
+    },
+    {
+      "id": "T06.stale-revision",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:51:59.730Z",
+      "finished_at": "2026-11-18T08:51:59.746Z",
+      "facts": {
+        "http": 409,
+        "unchanged": true,
+        "receipt_count": 0
+      }
+    },
+    {
+      "id": "T03.private-and-forged-identity",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:51:59.746Z",
+      "finished_at": "2026-11-18T08:51:59.794Z",
+      "facts": {
+        "cross_user_read": 404,
+        "cross_user_write": 404,
+        "forged_model_identity": 422,
+        "forged_request_identity": 422,
+        "unchanged": true
+      }
+    },
+    {
+      "id": "T04.revoke-after-prepare-and-replay",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:51:59.807Z",
+      "finished_at": "2026-11-18T08:51:59.884Z",
+      "facts": {
+        "prepared_read": 404,
+        "prepared_write": 404,
+        "protected_replay": 404,
+        "revision": 2,
+        "revoked_grant_history": 1,
+        "regrant_restored": true
+      }
+    },
+    {
+      "id": "T04.membership-expiry-after-prepare",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:51:59.884Z",
+      "finished_at": "2026-11-18T08:51:59.917Z",
+      "facts": {
+        "http": 404,
+        "valid_action_grants_do_not_bypass_expired_membership": true,
+        "unchanged": true
+      }
+    },
+    {
+      "id": "T04.logout-after-prepare",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:51:59.917Z",
+      "finished_at": "2026-11-18T08:51:59.926Z",
+      "facts": {
+        "http": 401,
+        "no_tool_result": true
+      }
+    },
+    {
+      "id": "T07.typed-model-failures",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:51:59.926Z",
+      "finished_at": "2026-11-18T08:52:00.955Z",
+      "facts": [
+        {
+          "fixture": "fixture:missing",
+          "http": 503,
+          "code": "CREDENTIALS_MISSING"
+        },
+        {
+          "fixture": "fixture:invalid",
+          "http": 502,
+          "code": "CREDENTIALS_INVALID"
+        },
+        {
+          "fixture": "fixture:quota",
+          "http": 429,
+          "code": "QUOTA_EXHAUSTED"
+        },
+        {
+          "fixture": "fixture:permission",
+          "http": 403,
+          "code": "PROVIDER_PERMISSION_DENIED"
+        },
+        {
+          "fixture": "fixture:failure",
+          "http": 502,
+          "code": "MODEL_FAILED"
+        },
+        {
+          "fixture": "fixture:timeout",
+          "http": 504,
+          "code": "MODEL_TIMEOUT"
+        },
+        {
+          "fixture": "fixture:multiple",
+          "http": 502,
+          "code": "MODEL_OUTPUT_INVALID"
+        }
+      ]
+    },
+    {
+      "id": "T07.cancellation",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:52:00.955Z",
+      "finished_at": "2026-11-18T08:52:01.138Z",
+      "facts": {
+        "stream_cancel": 409,
+        "prepared_cancel": 409,
+        "unchanged": true
+      }
+    },
+    {
+      "id": "T09.persistence-restart",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:52:01.138Z",
+      "finished_at": "2026-11-18T08:52:13.211Z",
+      "facts": {
+        "old_pid_stopped": true,
+        "new_pid": true,
+        "user_version": 5,
+        "ledger": 5,
+        "persistent_original_replay": true,
+        "current_revision": 3
+      }
+    },
+    {
+      "id": "T09.foundation-record-and-identity",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:52:13.211Z",
+      "finished_at": "2026-11-18T08:52:13.227Z",
+      "facts": {
+        "foundation_record_create": 201,
+        "read": 200,
+        "preferences_conflict": 409
+      }
+    }
+  ],
+  "loaded_bundle_sha256": "70a41b8d867667f0ecaa456eac165fde2950c747c4e00f722a07445396b4c093",
+  "schema": [
+    {
+      "version": 1,
+      "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a"
+    },
+    {
+      "version": 2,
+      "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2"
+    },
+    {
+      "version": 3,
+      "checksum": "630937e1ad06487b53607cec01b30252bcdc6d273e962caa11642deb7d308464"
+    },
+    {
+      "version": 4,
+      "checksum": "02fae87367a3a3a849f1f79642fd8283069d9e1dad911e5d62a766108a7ad883"
+    },
+    {
+      "version": 5,
+      "checksum": "6a943f2b3c9c112b7dad4f5ff032ad6f1b7dbecfd8acef7be6c11eb117b856cc"
+    }
+  ],
+  "finished_at": "2026-11-18T08:52:13.983Z"
+}

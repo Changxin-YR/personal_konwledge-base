@@ -1,0 +1,11 @@
+{
+  "candidate_id": "FND-005-572a5b58a7b46671",
+  "category": "CONTROLLED_SERVICE_PORT_AND_TERMINAL_STREAM_ERRORS",
+  "real_gpt": false,
+  "status": "NOT_RUN",
+  "started_at": "2026-11-18T09:01:29.231Z",
+  "checks": [],
+  "loaded_test_support_sha256": "7848b7abf7062c7299cb0c9cd190c34c1599cfbcdae14dd55651e8d452cea071",
+  "reason": "Product writer rebuilding; frozen original bundle no longer matches. Repeat on next frozen candidate.",
+  "finished_at": "2026-11-18T09:01:29.249Z"
+}

@@ -19,9 +19,9 @@ const save = (repo, path, value) => {
 };
 const statePath = 'config/execution_state.json';
 const catalogPath = 'config/work_units.json';
-const currentUnit = 'FND-003';
-const currentTestIds = Array.from({ length: 12 }, (_, index) => `${currentUnit}-T${String(index + 1).padStart(2, '0')}`);
-const currentReviewItemIds = Array.from({ length: 6 }, (_, index) => `FND003-R${index + 1}`);
+const currentUnit = 'FND-005';
+const currentTestIds = Array.from({ length: 9 }, (_, index) => `${currentUnit}-T${String(index + 1).padStart(2, '0')}`);
+const currentReviewItemIds = [];
 const editState = (repo, change) => { const value = json(repo, statePath); change(value); save(repo, statePath, value); };
 const editCatalog = (repo, change) => { const value = json(repo, catalogPath); change(value); save(repo, catalogPath, value); };
 const editUnit = (repo, change) => editCatalog(repo, (catalog) => change(catalog.units.find((unit) => unit.id === currentUnit)));
@@ -33,13 +33,13 @@ const editPromptAndHash = (repo, change) => {
 };
 // This is a synthetic structure fixture, not evidence of real product completion.
 const completedFixture = (repo) => {
-  const evidence = 'docs/evidence/FND-003/synthetic-gate-fixture.json';
-  save(repo, evidence, { synthetic: true, purpose: 'plan gate only; no product test' });
+  const evidence = 'docs/evidence/FND-005/synthetic-gate-fixture.json';
+  save(repo, evidence, { category:'REAL_GPT_PROVIDER',status:'PASS',is_gpt:true,candidate_id:'TEMPORARY_SCHEMA_FIXTURE_ONLY',provider:'schema-fixture',model:'schema-fixture',operations:['knowledgeos_read_object','knowledgeos_update_object'].map(tool=>({tool,status:'PASS',real_provider_call:true,ui_verified:true,sql_verified:true,evidence_path:evidence})) });
   editUnit(repo, (unit) => Object.assign(unit, {
     status: 'passed', test_result_status: 'PASS', independent_review_status: 'PASS', retest_status: 'PASS',
     completed_test_ids: [...currentTestIds], open_review_items: [],
     required_review_item_ids: [...currentReviewItemIds], closed_review_items: [...currentReviewItemIds],
-    completed_at: new Date().toISOString(), evidence_paths: [evidence],
+    completed_at: new Date().toISOString(), evidence_paths: [evidence], real_provider_status:'PASS', real_provider_evidence:evidence,
   }));
   editState(repo, (s) => { s.unit_state = 'awaiting_user'; });
 };
@@ -73,7 +73,7 @@ const cases = [
     editState(repo, (s) => { s.max_product_code_writers = 2; });
     editCatalog(repo, (c) => { c.rules.max_implementation_writers = 2; });
   }, 'single current instruction'],
-  ['second running feature', 1, (repo) => editCatalog(repo, (c) => { c.units.find((u) => u.id === 'FND-004').status = 'in_progress'; }), 'another feature is being developed'],
+  ['second running feature', 1, (repo) => editCatalog(repo, (c) => { c.units.find((u) => u.id === 'FND-006').status = 'in_progress'; }), 'another feature is being developed'],
   ['unit state and outcome disagree', 1, (repo) => {
     editState(repo, (s) => { s.unit_state = 'awaiting_user'; });
     editUnit(repo, (u) => { u.status = 'planned'; });
@@ -82,17 +82,17 @@ const cases = [
   ['prerequisite no longer passed', 1, (repo) => editCatalog(repo, (c) => { c.units.find((u) => u.id === 'FND-002').status = 'failed'; }), 'FND-002 acceptance must remain passed'],
   ['historical R1 reopened', 1, (repo) => editCatalog(repo, (c) => { c.units.find((u) => u.id === 'FND-002').open_review_items = ['R1']; }), 'FND-002 still has open findings'],
   ['historical R2 closure removed', 1, (repo) => editCatalog(repo, (c) => { c.units.find((u) => u.id === 'FND-002').closed_review_items = ['R1']; }), 'FND-002 R1/R2 need historical closure'],
-  ['test obligation removed', 1, (repo) => editUnit(repo, (u) => { u.test_obligations.pop(); }), 'FND-003 requires exactly T01-T12'],
+  ['test obligation removed', 1, (repo) => editUnit(repo, (u) => { u.test_obligations.pop(); }), 'FND-005 requires exactly T01-T09'],
   ['unapproved future activation after synthetic closure', 1, (repo) => {
     completedFixture(repo);
-    editState(repo, (s) => { s.active_unit = 'FND-004'; s.unit_state = 'ready'; });
+    editState(repo, (s) => { s.active_unit = 'FND-006'; s.unit_state = 'ready'; });
     editCatalog(repo, (c) => {
-      const u = c.units.find((u) => u.id === 'FND-004');
+      const u = c.units.find((u) => u.id === 'FND-006');
       const state = json(repo, statePath);
       Object.assign(u, { instruction_revision: state.instruction_revision, working_branch: state.working_branch, base_commit: state.base_commit });
     });
-    editPromptAndHash(repo, (s) => s.replace('active_unit: "FND-003"', 'active_unit: "FND-004"'));
-  }, 'current authorization does not include the next feature'],
+    editPromptAndHash(repo, (s) => s.replace('active_unit: "FND-005"', 'active_unit: "FND-006"'));
+  }, 'current authorization must be FND-005'],
   ['completion while finding remains open', 1, (repo) => {
     completedFixture(repo);
     editUnit(repo, (u) => { u.open_review_items = ['IDENTITY-01']; });
@@ -109,17 +109,13 @@ const cases = [
     completedFixture(repo);
     editUnit(repo, (u) => { u.retest_status = 'NOT_RUN'; });
   }, 'repair candidate retests must pass before completion'],
-  ['completion with a repair finding not closed', 1, (repo) => {
-    completedFixture(repo);
-    editUnit(repo, (u) => { u.closed_review_items = currentReviewItemIds.filter((id) => id !== 'FND003-R6'); });
-  }, 'completion requires closure of every FND003 review item'],
   ['completion with a missing test id', 1, (repo) => {
     completedFixture(repo);
     editUnit(repo, (u) => { u.completed_test_ids.pop(); });
-  }, 'completion requires all twelve current test ids'],
+  }, 'completion requires all current test ids'],
   ['completion with a duplicate test id', 1, (repo) => {
     completedFixture(repo);
-    editUnit(repo, (u) => { u.completed_test_ids[11] = u.completed_test_ids[10]; });
+    editUnit(repo, (u) => { u.completed_test_ids[8] = u.completed_test_ids[7]; });
   }, 'completed test ids must be a unique current-unit subset'],
   ['completion without valid timestamp', 1, (repo) => {
     completedFixture(repo);
@@ -142,6 +138,9 @@ const cases = [
     matrix.requirements.find((item) => item.id === 'F03').evidence_paths = ['docs/evidence/FND-002/REPORT.md'];
     save(repo, 'config/requirements_matrix.json', matrix);
   }, 'foundation slice must not certify complete requirements'],
+  ['fixture evidence cannot certify GPT',1,(repo)=>{completedFixture(repo);const p=json(repo,catalogPath).units.find(u=>u.id===currentUnit).real_provider_evidence;const e=json(repo,p);e.category='CONTROLLED_FIXTURE';save(repo,p,e)},'fixture or blocked provider evidence'],
+  ['real call without UI proof cannot certify',1,(repo)=>{completedFixture(repo);const p=json(repo,catalogPath).units.find(u=>u.id===currentUnit).real_provider_evidence;const e=json(repo,p);e.operations[1].ui_verified=false;save(repo,p,e)},'real GPT read/write/UI/SQLite evidence is incomplete'],
+  ['completion without real provider status',1,(repo)=>{completedFixture(repo);editUnit(repo,u=>{u.real_provider_status='BLOCKED'})},'completion requires real GPT provider evidence'],
   ['synthetic valid completed structure', 0, completedFixture, null],
 ];
 

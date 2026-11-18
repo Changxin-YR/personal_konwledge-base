@@ -1,7 +1,308 @@
+// src/host/ai-service.ts
+import { randomUUID } from "node:crypto";
+import { AsyncLocalStorage } from "node:async_hooks";
+
+// src/host/ai-tools.ts
+import { createHash } from "node:crypto";
+var AiError = class extends Error {
+  constructor(status, code) {
+    super(code);
+    this.status = status;
+    this.code = code;
+    this.name = "AiError";
+  }
+};
+var TOOL_NAMES = ["knowledgeos_read_object", "knowledgeos_update_object"];
+var TOOL_SCHEMAS = [
+  { name: TOOL_NAMES[0], description: "Read the specified existing KnowledgeOS test object. Server enforces the logged-in user permissions.", parameters: { type: "object", properties: { object_id: { type: "string" } }, required: ["object_id"], additionalProperties: false } },
+  { name: TOOL_NAMES[1], description: "Update the specified existing KnowledgeOS test object at expected_revision. Supply title and/or body. Server enforces identity, permissions, revision and idempotency.", parameters: { type: "object", properties: { object_id: { type: "string" }, expected_revision: { type: "integer", minimum: 1 }, title: { type: "string", minLength: 1, maxLength: 200 }, body: { type: "string", maxLength: 2e3 } }, required: ["object_id", "expected_revision"], additionalProperties: false } }
+];
+function aiText(value, max, empty = false) {
+  if (typeof value !== "string" || !empty && value.length === 0 || value.length > max || !value.isWellFormed()) throw new AiError(422, "INPUT_INVALID");
+  return value;
+}
+function onlyKeys(value, keys) {
+  if (Object.keys(value).some((key) => !keys.includes(key))) throw new AiError(422, "INPUT_INVALID");
+}
+function toolArguments(call) {
+  if (!TOOL_NAMES.includes(call.name)) throw new AiError(422, "TOOL_NOT_ALLOWED");
+  if (call.arguments.length > 6e3) throw new AiError(422, "MODEL_OUTPUT_INVALID");
+  let raw;
+  try {
+    raw = JSON.parse(call.arguments);
+  } catch {
+    throw new AiError(422, "MODEL_OUTPUT_INVALID");
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new AiError(422, "MODEL_OUTPUT_INVALID");
+  const args = raw;
+  onlyKeys(args, call.name === TOOL_NAMES[0] ? ["object_id"] : ["object_id", "expected_revision", "title", "body"]);
+  const object_id = aiText(args.object_id, 80);
+  if (call.name === TOOL_NAMES[0]) return { object_id };
+  if (!Number.isSafeInteger(args.expected_revision) || Number(args.expected_revision) < 1 || args.title === void 0 && args.body === void 0) throw new AiError(422, "MODEL_OUTPUT_INVALID");
+  return { object_id, expected_revision: Number(args.expected_revision), ...args.title === void 0 ? {} : { title: aiText(args.title, 200) }, ...args.body === void 0 ? {} : { body: aiText(args.body, 2e3, true) } };
+}
+function toolDigest(name, input) {
+  return createHash("sha256").update(JSON.stringify([name, input.object_id, input.expected_revision ?? null, input.title ?? null, input.body ?? null])).digest("hex");
+}
+function runBusinessTool(store, actor, call, key, now) {
+  const input = toolArguments(call);
+  if (call.name === TOOL_NAMES[0]) {
+    const object = store.authorizeObject(actor, input.object_id, "read", now);
+    return object === void 0 ? { ok: false, status: 404, code: "NOT_FOUND" } : { ok: true, status: 200, code: "READ", object };
+  }
+  const result = store.mutateObjectOnce(actor, { objectId: input.object_id, expectedRevision: input.expected_revision, title: input.title, body: input.body, key, digest: toolDigest(call.name, input) }, now);
+  if (result.kind === "updated" || result.kind === "replayed") return { ok: true, status: 200, code: result.kind === "updated" ? "UPDATED" : "REPLAYED", object: result.object, replayed: result.kind === "replayed" };
+  const errors = { not_found: [404, "NOT_FOUND"], session_expired: [401, "AUTH_REQUIRED"], conflict: [409, "REVISION_CONFLICT"], idempotency_conflict: [409, "IDEMPOTENCY_CONFLICT"] };
+  const [status, code] = errors[result.kind];
+  return { ok: false, status, code };
+}
+
+// src/host/records.ts
+import { createHash as createHash2 } from "node:crypto";
+var RecordsError = class extends Error {
+  /** Machine-readable code exposed in the API error body. */
+  code;
+  /** Whether a client may retry the same request. */
+  retryable;
+  constructor(code, message, retryable = false, options) {
+    super(message, options);
+    this.name = "RecordsError";
+    this.code = code;
+    this.retryable = retryable;
+  }
+};
+function contentDigest(content) {
+  return createHash2("sha256").update(Buffer.from(content, "utf8")).digest("hex");
+}
+function createProbeRecord(port, deps, input) {
+  return port.createOrReplay({
+    id: deps.newId(),
+    idempotencyKey: input.idempotencyKey,
+    digest: contentDigest(input.content),
+    content: input.content,
+    createdAt: deps.now()
+  });
+}
+function getProbeRecord(port, id) {
+  return port.getById(id);
+}
+
+// src/host/ai-service.ts
+var SYSTEM = "Choose exactly one provided KnowledgeOS tool for the user instruction. Use only the specified target object and revision. Do not invent identities, permissions, SQL, paths or commands. Reading uses knowledgeos_read_object. Updating title/body uses knowledgeos_update_object. Do not claim success; the server will execute the tool. Return one tool call.";
+function modelFailure(error) {
+  if (error instanceof AiError) return error;
+  const e = error;
+  const f = e?.failure ?? e ?? {}, code = String(f.code ?? ""), message = String(f.message ?? "").toLowerCase();
+  if (["MISSING_CREDENTIAL", "NO_CREDENTIAL_STORE"].includes(code)) return new AiError(503, "CREDENTIALS_MISSING");
+  if (/QUOTA|BALANCE/.test(code) || f.status === 402) return new AiError(429, "QUOTA_EXHAUSTED");
+  if (f.status === 403 || /PERMISSION/.test(code)) return new AiError(403, "PROVIDER_PERMISSION_DENIED");
+  if (f.status === 401 || /AUTH|CREDENTIAL|API_KEY/.test(code)) return new AiError(502, "CREDENTIALS_INVALID");
+  if (f.status === 404 || /MODEL_NOT_FOUND|UNKNOWN_MODEL|MODEL_UNSUPPORTED/.test(code)) return new AiError(404, "MODEL_NOT_FOUND");
+  if (/NO_ADAPTER/.test(code)) return new AiError(503, "MODEL_NOT_CONFIGURED");
+  if (/TIMEOUT/.test(code)) return new AiError(504, "MODEL_TIMEOUT");
+  if (/ABORT/.test(code)) return new AiError(409, "CANCELLED");
+  if (f.status === 429 || /RATE_LIMIT/.test(code)) return new AiError(429, message.includes("insufficient_quota") ? "QUOTA_EXHAUSTED" : "PROVIDER_RATE_LIMITED");
+  if (!code && /missing|not configured|no api key|credential.*required/.test(message) && /key|credential|auth/.test(message)) return new AiError(503, "CREDENTIALS_MISSING");
+  return new AiError(502, "MODEL_FAILED");
+}
+var AiService = class {
+  constructor(store, config, llm, tools) {
+    this.store = store;
+    this.config = config;
+    this.llm = llm;
+    this.tools = tools;
+    for (const [value, min, max, integer] of [[config.maxCalls ?? 8, 1, 64, true], [config.timeoutMs ?? 3e4, 100, 6e4, true], [config.budgetUsd ?? 0.1, 1e-3, 1, false]]) {
+      if (!Number.isFinite(value) || value < min || value > max || integer && !Number.isSafeInteger(value)) throw new AiError(503, "AI_CONFIG_INVALID");
+    }
+    if (tools !== void 0) for (const schema of TOOL_SCHEMAS) this.#dispose.push(tools.register({
+      ...schema,
+      output: { schema: { type: "object" }, render: (_args, value) => [{ type: "text", text: JSON.stringify(value) }] },
+      execute: async (args, exec) => {
+        const bound = this.#scope.getStore();
+        if (!bound || bound.call.id !== exec.callId || bound.call.name !== exec.name) return { ok: false, status: 403, code: "TOOL_CONTEXT_REQUIRED" };
+        try {
+          if (exec.signal.aborted) throw new AiError(409, "CANCELLED");
+          const current = bound.actorNow();
+          if (!current || current.sessionId !== bound.actor.sessionId || current.userId !== bound.actor.userId || current.serviceId !== bound.actor.serviceId) throw new AiError(401, "AUTH_REQUIRED");
+          const call = { id: exec.callId, name: exec.name, arguments: JSON.stringify(args) };
+          if (toolDigest(call.name, toolArguments(call)) !== toolDigest(bound.call.name, toolArguments(bound.call))) throw new AiError(403, "TOOL_CONTEXT_REQUIRED");
+          const result = runBusinessTool(this.store, current, call, bound.key, (/* @__PURE__ */ new Date()).toISOString());
+          bound.onResult(result);
+          return JSON.parse(JSON.stringify(result));
+        } catch (error) {
+          if (error instanceof AiError || error instanceof RecordsError) return { ok: false, status: error instanceof AiError ? error.status : 503, code: error.code };
+          throw error;
+        }
+      }
+    }));
+  }
+  #scope = new AsyncLocalStorage();
+  #prepared = /* @__PURE__ */ new Map();
+  #pending = /* @__PURE__ */ new Map();
+  #calls = 0;
+  #reservedUsd = 0;
+  #closed = false;
+  #dispose = [];
+  status() {
+    return { provider: this.config.provider ?? null, model: this.config.model ?? null, configured: Boolean(this.config.provider && this.config.model && this.llm && this.tools), max_calls: this.config.maxCalls ?? 8, attempts: this.#calls, max_output_tokens: 512, timeout_ms: this.config.timeoutMs ?? 3e4, budget_usd: this.config.budgetUsd ?? 0.1, reserved_usd: this.#reservedUsd, usage: "reported_by_provider_when_available", state: this.#closed ? "stopped" : "ready" };
+  }
+  #sweep() {
+    for (const [id, item] of this.#prepared) if (Date.now() >= item.expiresAt && item.state !== "executing") this.#prepared.delete(id);
+  }
+  async prepare(actor, raw, signal) {
+    onlyKeys(raw, ["request_id", "instruction", "object_id", "expected_revision", "idempotency_key"]);
+    const instruction = aiText(raw.instruction, 2e3), objectId = aiText(raw.object_id, 80), requestId = aiText(raw.request_id, 80), key = aiText(raw.idempotency_key, 128);
+    if (!Number.isSafeInteger(raw.expected_revision) || Number(raw.expected_revision) < 1) throw new AiError(422, "INPUT_INVALID");
+    if (this.#closed || !this.llm || !this.tools || !this.config.provider || !this.config.model) throw new AiError(503, "MODEL_NOT_CONFIGURED");
+    if (signal.aborted) throw new AiError(409, "CANCELLED");
+    this.#sweep();
+    if (this.#pending.has(requestId)) throw new AiError(409, "REQUEST_CONFLICT");
+    if (this.#pending.size >= 4 || this.#prepared.size >= 100 || [...this.#pending.values()].some((p) => p.actor.userId === actor.userId)) throw new AiError(429, "REQUEST_LIMIT");
+    const controller = new AbortController();
+    this.#pending.set(requestId, { actor, controller });
+    const onAbort = () => controller.abort(new AiError(409, "CANCELLED"));
+    signal.addEventListener("abort", onAbort, { once: true });
+    const timer = setTimeout(() => controller.abort(new AiError(504, "MODEL_TIMEOUT")), this.config.timeoutMs ?? 3e4);
+    let usage;
+    try {
+      const available = this.llm.listProviders().some((p) => p.id === this.config.provider);
+      if (!available) throw new AiError(503, "MODEL_NOT_CONFIGURED");
+      const catalog = await this.#abortable(this.llm.listModels(this.config.provider), controller.signal);
+      if (catalog.length > 0 && !catalog.some((m) => m.id === this.config.model)) throw new AiError(404, "MODEL_NOT_FOUND");
+      const prices = [this.config.inputUsdPerMillion, this.config.outputUsdPerMillion];
+      if (prices.some((p) => p === void 0 || !Number.isFinite(p) || p < 0)) throw new AiError(503, "PRICE_BUDGET_NOT_CONFIGURED");
+      const userText = JSON.stringify({ instruction, target_object_id: objectId, expected_revision: raw.expected_revision });
+      const inputBound = Buffer.byteLength(JSON.stringify({ system: SYSTEM, messages: userText, tools: TOOL_SCHEMAS }), "utf8") + 2048;
+      const reserve = (inputBound * prices[0] + 512 * prices[1]) / 1e6;
+      if (this.#calls >= (this.config.maxCalls ?? 8) || this.#reservedUsd + reserve > (this.config.budgetUsd ?? 0.1)) throw new AiError(429, "MODEL_BUDGET_EXCEEDED");
+      this.#calls++;
+      this.#reservedUsd += reserve;
+      const calls = [];
+      let finish, outputBytes = 0;
+      const stream = this.llm.stream({ provider: this.config.provider, model: this.config.model, system: SYSTEM, messages: [{ role: "user", content: [{ type: "text", text: userText }] }], tools: TOOL_SCHEMAS, maxTokens: 512, signal: controller.signal })[Symbol.asyncIterator]();
+      try {
+        while (true) {
+          const next = await this.#abortable(stream.next(), controller.signal);
+          if (next.done) break;
+          const chunk = next.value;
+          outputBytes += Buffer.byteLength(JSON.stringify(chunk), "utf8");
+          if (outputBytes > 96e3 || finish !== void 0) throw new AiError(502, "MODEL_OUTPUT_INVALID");
+          if (chunk.type === "block-end" && chunk.block?.type === "tool-call") {
+            const b = chunk.block;
+            if (!b.id || !b.name || typeof b.arguments !== "string") throw new AiError(502, "MODEL_OUTPUT_INVALID");
+            calls.push({ id: b.id, name: b.name, arguments: b.arguments });
+          }
+          if (chunk.type === "usage") usage = chunk.usage;
+          if (chunk.type === "finish") {
+            finish = chunk.reason?.kind;
+            if (controller.signal.aborted) throw controller.signal.reason;
+            if (finish === "error" || finish === "aborted") throw modelFailure(chunk.reason?.failure);
+          }
+        }
+      } finally {
+        if (controller.signal.aborted) void stream.return?.().catch(() => {
+        });
+      }
+      if (controller.signal.aborted) throw controller.signal.reason;
+      if (finish !== "tool-calls" || calls.length !== 1) throw new AiError(502, "MODEL_OUTPUT_INVALID");
+      const call = calls[0], args = toolArguments(call);
+      if (args.object_id !== objectId || call.name === TOOL_NAMES[1] && args.expected_revision !== raw.expected_revision) throw new AiError(422, "MODEL_TARGET_MISMATCH");
+      const prepared = { id: randomUUID(), requestId, actor, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
+      this.#prepared.set(prepared.id, prepared);
+      return { ...this.#view(prepared), usage: usage ?? null };
+    } catch (error) {
+      throw controller.signal.aborted ? controller.signal.reason : modelFailure(error);
+    } finally {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", onAbort);
+      this.#pending.delete(requestId);
+    }
+  }
+  async #abortable(pending, signal) {
+    if (signal.aborted) throw signal.reason;
+    return await new Promise((resolve, reject) => {
+      const abort = () => reject(signal.reason);
+      signal.addEventListener("abort", abort, { once: true });
+      pending.then(resolve, reject).finally(() => signal.removeEventListener("abort", abort));
+    });
+  }
+  #view(item) {
+    return { prepared_id: item.id, request_id: item.requestId, provider: this.config.provider, model: this.config.model, state: item.state, tool: item.call.name, arguments: toolArguments(item.call), expires_at: new Date(item.expiresAt).toISOString() };
+  }
+  cancel(actor, requestId) {
+    const pending = this.#pending.get(requestId);
+    if (pending && pending.actor.sessionId === actor.sessionId) pending.controller.abort(new AiError(409, "CANCELLED"));
+    for (const item of this.#prepared.values()) if (item.requestId === requestId && item.actor.sessionId === actor.sessionId) {
+      if (item.state === "executing") {
+        if (item.committed) throw new AiError(409, "OPERATION_ALREADY_COMPLETED");
+        item.execution?.abort(new AiError(409, "CANCELLED"));
+      }
+      if (item.state === "succeeded") throw new AiError(409, "OPERATION_ALREADY_COMPLETED");
+      if (item.state === "prepared") {
+        item.state = "failed";
+        item.result = { ok: false, status: 409, code: "CANCELLED" };
+      }
+    }
+  }
+  async execute(actor, actorNow, id, signal) {
+    this.#sweep();
+    const item = this.#prepared.get(id);
+    if (this.#closed || !item || item.actor.sessionId !== actor.sessionId || item.actor.userId !== actor.userId) throw new AiError(404, "PREPARED_NOT_FOUND");
+    if (signal.aborted) throw new AiError(409, "CANCELLED");
+    if (item.state === "executing") throw new AiError(409, "REQUEST_IN_PROGRESS");
+    if (item.state === "failed") throw new AiError(item.result?.status ?? 409, item.result?.code ?? "REQUEST_FAILED");
+    item.state = "executing";
+    const controller = new AbortController();
+    item.execution = controller;
+    item.committed = false;
+    const abort = () => controller.abort(new AiError(409, "CANCELLED"));
+    signal.addEventListener("abort", abort, { once: true });
+    try {
+      const batch = await this.#scope.run({ actor, actorNow, key: item.key, call: item.call, onResult: (result2) => {
+        if (result2.ok && item.call.name === TOOL_NAMES[1]) item.committed = true;
+      } }, () => this.tools.execute({ calls: [{ type: "tool-call", ...item.call }], signal: controller.signal, maxParallelToolCalls: 1 }));
+      const response = batch.results[0];
+      if (controller.signal.aborted) throw new AiError(409, item.committed ? "OPERATION_ALREADY_COMPLETED" : "CANCELLED");
+      if (batch.results.length !== 1 || response?.callId !== item.call.id) throw new AiError(502, "TOOL_FAILED");
+      if (response.result.isError) {
+        const code = response.result.error?.info?.code ?? "";
+        if (/ABORT|CANCEL/.test(code)) throw new AiError(409, item.committed ? "OPERATION_ALREADY_COMPLETED" : "CANCELLED");
+        if (code === "TOOL_TIMEOUT") throw new AiError(504, "TOOL_TIMEOUT");
+        if (["STORAGE_BUSY", "STORAGE_UNAVAILABLE"].includes(code)) throw new AiError(503, code);
+        throw new AiError(502, "TOOL_FAILED");
+      }
+      const result = JSON.parse(response.result.content.filter((b) => b.type === "text").map((b) => b.text ?? "").join(""));
+      if (typeof result.ok !== "boolean" || !Number.isInteger(result.status) || typeof result.code !== "string") throw new AiError(502, "TOOL_FAILED");
+      const current = actorNow();
+      if (!current || current.sessionId !== actor.sessionId || current.userId !== actor.userId || current.serviceId !== actor.serviceId) throw new AiError(401, "AUTH_REQUIRED");
+      if (result.ok && !this.store.authorizeObject(current, toolArguments(item.call).object_id, "read", (/* @__PURE__ */ new Date()).toISOString())) throw new AiError(404, "NOT_FOUND");
+      item.result = result;
+      item.state = result.ok ? "succeeded" : "failed";
+      if (!result.ok) throw new AiError(result.status, result.code);
+      return { ...this.#view(item), result };
+    } catch (error) {
+      item.state = "failed";
+      const safe = error instanceof AiError ? error : new AiError(502, "TOOL_FAILED");
+      item.result = { ok: false, status: safe.status, code: safe.code };
+      throw safe;
+    } finally {
+      signal.removeEventListener("abort", abort);
+      delete item.execution;
+    }
+  }
+  close() {
+    this.#closed = true;
+    for (const { controller } of this.#pending.values()) controller.abort(new AiError(409, "CANCELLED"));
+    for (const item of this.#prepared.values()) item.execution?.abort(new AiError(409, "CANCELLED"));
+    this.#prepared.clear();
+    for (const dispose of this.#dispose) dispose();
+  }
+};
+
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash2, randomUUID } from "node:crypto";
+import { createHash as createHash3, randomUUID as randomUUID2 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/authorization.ts
@@ -18,39 +319,9 @@ function authorize(actor, target, action, now, grants = [], memberships = []) {
   return grants.some((item) => item.subjectType === "user" && item.subjectId === actor.userId && item.action === action && isGrantActive(item, now)) || grants.some((item) => item.subjectType === "project" && item.subjectId === target.projectId && item.action === action && isGrantActive(item, now) && member);
 }
 
-// src/host/records.ts
-import { createHash } from "node:crypto";
-var RecordsError = class extends Error {
-  /** Machine-readable code exposed in the API error body. */
-  code;
-  /** Whether a client may retry the same request. */
-  retryable;
-  constructor(code, message, retryable = false, options) {
-    super(message, options);
-    this.name = "RecordsError";
-    this.code = code;
-    this.retryable = retryable;
-  }
-};
-function contentDigest(content) {
-  return createHash("sha256").update(Buffer.from(content, "utf8")).digest("hex");
-}
-function createProbeRecord(port, deps, input) {
-  return port.createOrReplay({
-    id: deps.newId(),
-    idempotencyKey: input.idempotencyKey,
-    digest: contentDigest(input.content),
-    content: input.content,
-    createdAt: deps.now()
-  });
-}
-function getProbeRecord(port, id) {
-  return port.getById(id);
-}
-
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 4;
+var SCHEMA_VERSION = 5;
 var PROBE_SCHEMA_VERSION = 1;
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
@@ -67,7 +338,7 @@ CREATE TABLE storage_probe_records (
   created_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V1_CHECKSUM = createHash2("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
+var MIGRATION_V1_CHECKSUM = createHash3("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
 var MIGRATION_V2_SQL = `CREATE TABLE password_credentials (
   id TEXT PRIMARY KEY,
   algorithm TEXT NOT NULL,
@@ -121,7 +392,7 @@ CREATE TABLE spaces (
   updated_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V2_CHECKSUM = createHash2("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
+var MIGRATION_V2_CHECKSUM = createHash3("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
 var MIGRATION_V3_SQL = `CREATE TABLE knowledge_projects (
   id TEXT PRIMARY KEY,
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
@@ -171,7 +442,7 @@ CREATE TABLE resource_grants (
   UNIQUE (resource_id, subject_type, subject_id, action)
 ) STRICT;
 `;
-var MIGRATION_V3_CHECKSUM = createHash2("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
+var MIGRATION_V3_CHECKSUM = createHash3("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
 var MIGRATION_V4_SQL = `ALTER TABLE resource_grants RENAME TO resource_grants_v3;
 CREATE TABLE resource_grants (
   id TEXT PRIMARY KEY,
@@ -193,7 +464,19 @@ CREATE UNIQUE INDEX resource_grants_active_subject_action_uq
   WHERE revoked_at IS NULL;
 DROP TABLE resource_grants_v3;
 `;
-var MIGRATION_V4_CHECKSUM = createHash2("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
+var MIGRATION_V4_CHECKSUM = createHash3("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
+var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
+  service_id TEXT NOT NULL REFERENCES service_identity(service_id),
+  user_id TEXT NOT NULL REFERENCES users(id),
+  idempotency_key TEXT NOT NULL,
+  request_digest TEXT NOT NULL,
+  object_id TEXT NOT NULL REFERENCES knowledge_objects(id),
+  result_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (service_id, user_id, idempotency_key)
+) STRICT;
+`;
+var MIGRATION_V5_CHECKSUM = createHash3("sha256").update(MIGRATION_V5_SQL).digest("hex");
 var PROBE_SUPPORTED_TABLES = ["schema_migrations", "storage_probe_records"];
 var IDENTITY_SUPPORTED_TABLES = [
   "auth_sessions",
@@ -212,6 +495,7 @@ var MIGRATION_V1 = { version: 1, sql: MIGRATION_V1_SQL, checksum: MIGRATION_V1_C
 var MIGRATION_V2 = { version: 2, sql: MIGRATION_V2_SQL, checksum: MIGRATION_V2_CHECKSUM };
 var MIGRATION_V3 = { version: 3, sql: MIGRATION_V3_SQL, checksum: MIGRATION_V3_CHECKSUM };
 var MIGRATION_V4 = { version: 4, sql: MIGRATION_V4_SQL, checksum: MIGRATION_V4_CHECKSUM };
+var MIGRATION_V5 = { version: 5, sql: MIGRATION_V5_SQL, checksum: MIGRATION_V5_CHECKSUM };
 function primarySqliteCode(error) {
   const code = error?.errcode;
   return typeof code === "number" ? code & 255 : void 0;
@@ -305,6 +589,7 @@ var ProbeStorage = class {
       } else if (existing === "v3") {
         this.#migrateV4(db);
       }
+      if (existing !== "v5") this.#migrateV5(db);
       this.#verify(db);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -360,6 +645,18 @@ var ProbeStorage = class {
       }
       return "v4";
     }
+    if (facts.userVersion === 5) {
+      this.#assertV5Schema(facts);
+      const db = new DatabaseSync(path, { readOnly: true });
+      try {
+        this.#assertV2Definitions(db);
+        this.#assertV4Definitions(db);
+        this.#assertV5Definitions(db);
+      } finally {
+        db.close();
+      }
+      return "v5";
+    }
     throw new RecordsError("STORAGE_INCOMPATIBLE", "database schema version is not supported");
   }
   #assertV1Schema(facts) {
@@ -396,6 +693,21 @@ var ProbeStorage = class {
     const v3 = facts.ledger.find((entry) => entry.version === 3);
     const v4 = facts.ledger.find((entry) => entry.version === 4);
     if (facts.ledger.length !== 4 || v1?.checksum !== MIGRATION_V1_CHECKSUM || v2?.checksum !== MIGRATION_V2_CHECKSUM || v3?.checksum !== MIGRATION_V3_CHECKSUM || v4?.checksum !== MIGRATION_V4_CHECKSUM) throw new RecordsError("STORAGE_INCOMPATIBLE", "v4 migration ledger does not match this build");
+  }
+  #assertV5Schema(facts) {
+    const table = facts.objects.find((item) => item.name === "ai_tool_mutations");
+    if (table?.type !== "table" || facts.ledger.length !== 5 || facts.ledger[4]?.checksum !== MIGRATION_V5_CHECKSUM || facts.ledger[4]?.version !== 5) throw new RecordsError("STORAGE_INCOMPATIBLE", "v5 migration ledger/schema does not match this build");
+    this.#assertV4Schema({ ...facts, objects: facts.objects.filter((item) => item.name !== "ai_tool_mutations"), ledger: facts.ledger.slice(0, 4) });
+  }
+  #assertV5Definitions(db) {
+    const expected = new DatabaseSync(":memory:");
+    try {
+      expected.exec(MIGRATION_V5_SQL);
+      const sql = (source) => String(source.prepare("SELECT sql FROM sqlite_master WHERE name = 'ai_tool_mutations' AND type = 'table'").get()?.sql ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+      if (sql(db) !== sql(expected)) throw new RecordsError("STORAGE_INCOMPATIBLE", "v5 receipt constraints are not accepted");
+    } finally {
+      expected.close();
+    }
   }
   #assertV2Definitions(db) {
     const expected = new DatabaseSync(":memory:");
@@ -494,7 +806,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID2());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -543,12 +855,26 @@ var ProbeStorage = class {
       throw error instanceof RecordsError ? error : new RecordsError("STORAGE_INCOMPATIBLE", "grant history migration failed", false, { cause: error });
     }
   }
+  #migrateV5(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(MIGRATION_V5_SQL);
+      this.#injectFailure("v5:after-schema");
+      db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(5, MIGRATION_V5_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version = 5");
+      db.exec("COMMIT");
+    } catch (error) {
+      if (!this.#rollback(db)) throw new RecordsError("STORAGE_UNAVAILABLE", "storage transaction state is unknown", false, { cause: error });
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "tool receipt migration failed", false, { cause: error });
+    }
+  }
   #verify(db) {
     const facts = readDatabaseFacts(this.databasePath);
-    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== 4) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
-    this.#assertV4Schema(facts);
+    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== 5) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
+    this.#assertV5Schema(facts);
     this.#assertV2Definitions(db);
     this.#assertV4Definitions(db);
+    this.#assertV5Definitions(db);
     const identity = db.prepare("SELECT id, service_id, bootstrap_admin_user_id, initialized_at FROM service_identity").all();
     if (identity.length !== 1 || Number(identity[0]?.id) !== 1 || typeof identity[0]?.service_id !== "string") throw new RecordsError("STORAGE_INCOMPATIBLE", "service identity is not a singleton");
   }
@@ -639,9 +965,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID();
-      const spaceId = randomUUID();
-      const credentialId = randomUUID();
+      const userId = randomUUID2();
+      const spaceId = randomUUID2();
+      const credentialId = randomUUID2();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -675,9 +1001,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID();
-      const spaceId = randomUUID();
-      const credentialId = randomUUID();
+      const userId = randomUUID2();
+      const spaceId = randomUUID2();
+      const credentialId = randomUUID2();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -842,7 +1168,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
+        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID2(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -869,6 +1195,37 @@ var ProbeStorage = class {
     }
     const updated = this.#loadObject(objectId);
     return updated === void 0 ? { kind: "not_found" } : { kind: "updated", object: updated };
+  }
+  /** Revalidate the original login inside the same transaction as ACL/version/receipt. */
+  mutateObjectOnce(actor, input, now) {
+    const db = this.#ensureReady();
+    let tx = false;
+    try {
+      db.exec("BEGIN IMMEDIATE");
+      tx = true;
+      now = (/* @__PURE__ */ new Date()).toISOString();
+      const session = db.prepare(`SELECT s.id FROM auth_sessions s JOIN users u ON u.id = s.user_id JOIN spaces p ON p.owner_user_id = u.id WHERE s.id = ? AND s.user_id = ? AND s.revoked_at IS NULL AND s.expires_at > ? AND u.status = 'active' AND p.status = 'active' AND p.id = ? AND u.planning_home_service_id = ?`).get(actor.sessionId, actor.userId, now, actor.personalSpaceId, actor.serviceId);
+      const finish = (value) => {
+        db.exec("COMMIT");
+        tx = false;
+        return value;
+      };
+      if (session === void 0) return finish({ kind: "session_expired" });
+      const current = this.authorizeObject(actor, input.objectId, "edit", now);
+      if (current === void 0 || this.authorizeObject(actor, input.objectId, "read", now) === void 0) return finish({ kind: "not_found" });
+      const receipt = db.prepare("SELECT request_digest, result_json FROM ai_tool_mutations WHERE service_id = ? AND user_id = ? AND idempotency_key = ?").get(actor.serviceId, actor.userId, input.key);
+      if (receipt !== void 0) return finish(receipt.request_digest === input.digest ? { kind: "replayed", object: JSON.parse(receipt.result_json) } : { kind: "idempotency_conflict" });
+      if (current.revision !== input.expectedRevision) return finish({ kind: "conflict" });
+      const changed = db.prepare("UPDATE knowledge_objects SET title = ?, body = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ? AND status = 'active'").run(input.title ?? current.title, input.body ?? current.body, now, input.objectId, input.expectedRevision);
+      if (Number(changed.changes) !== 1) return finish({ kind: "conflict" });
+      this.#injectFailure("ai:after-update");
+      const object = this.#loadObject(input.objectId);
+      db.prepare("INSERT INTO ai_tool_mutations (service_id, user_id, idempotency_key, request_digest, object_id, result_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(actor.serviceId, actor.userId, input.key, input.digest, input.objectId, JSON.stringify(object), now);
+      return finish({ kind: "updated", object });
+    } catch (error) {
+      if (tx && !this.#rollback(db)) throw new RecordsError("STORAGE_UNAVAILABLE", "storage transaction state is unknown", false, { cause: error });
+      throw this.#mapError(error);
+    }
   }
   deleteObject(actor, objectId, now) {
     const object = this.authorizeObject(actor, objectId, "delete", now);
@@ -908,8 +1265,8 @@ var ProbeStorage = class {
     let primaryCode;
     let failed = false;
     try {
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash2("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash2("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash3("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash3("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
     } catch (error) {
       failed = true;
       primaryCode = primarySqliteCode(error);
@@ -967,7 +1324,7 @@ var ProbeStorage = class {
 };
 
 // src/host/identity.ts
-import { createHash as createHash3, randomBytes, randomUUID as randomUUID2, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
+import { createHash as createHash4, randomBytes, randomUUID as randomUUID3, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
 var DOMAINS = ["software_engineering", "system_architecture", "hardware_engineering", "ai_development"];
 var LEARNING_TRACKS = ["engineering_practice", "architecture_exam", "knowledge_accumulation"];
 var DEFAULT_TIMEZONE = "Asia/Shanghai";
@@ -1039,7 +1396,7 @@ function validateGoalText(value) {
   return value;
 }
 function tokenHash(token) {
-  return createHash3("sha256").update(token, "utf8").digest("hex");
+  return createHash4("sha256").update(token, "utf8").digest("hex");
 }
 function makeToken() {
   return randomBytes(32).toString("base64url");
@@ -1244,7 +1601,7 @@ var IdentityService = class {
     const token = makeToken();
     const createdAt = /* @__PURE__ */ new Date();
     const expiresAt = new Date(createdAt.getTime() + SESSION_TTL_MS).toISOString();
-    this.#store.createSession({ sessionId: randomUUID2(), userId: lookup.userId, tokenHash: tokenHash(token), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
+    this.#store.createSession({ sessionId: randomUUID3(), userId: lookup.userId, tokenHash: tokenHash(token), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
     const user = this.#store.getProfile(lookup.userId);
     if (user === void 0) throw new IdentityError("STORAGE_UNAVAILABLE", "user profile unavailable");
     return { user, token, expiresAt };
@@ -1272,7 +1629,7 @@ var IdentityService = class {
 };
 
 // src/host/identity-http.ts
-import { createHash as createHash4, randomUUID as randomUUID3 } from "node:crypto";
+import { createHash as createHash5, randomUUID as randomUUID4 } from "node:crypto";
 import { isIP } from "node:net";
 function isLoopbackAddress(value) {
   if (value === void 0) return false;
@@ -1324,6 +1681,8 @@ function isIdentityRuntimeAvailable(facts) {
 export {
   APPLICATION_ID,
   AUTH_ACTIONS,
+  AiError,
+  AiService,
   AuthRateLimiter,
   BUSY_TIMEOUT_MS,
   DATABASE_FILENAME,
@@ -1342,11 +1701,15 @@ export {
   MIGRATION_V4,
   MIGRATION_V4_CHECKSUM,
   MIGRATION_V4_SQL,
+  MIGRATION_V5,
+  MIGRATION_V5_CHECKSUM,
+  MIGRATION_V5_SQL,
   PROBE_SCHEMA_VERSION,
   PROBE_SUPPORTED_TABLES,
   MIGRATION_V1 as PRODUCTION_MIGRATION,
   ProbeStorage,
   RecordsError,
+  SCHEMA_VERSION,
   authorize,
   contentDigest,
   createProbeRecord,
@@ -1355,8 +1718,12 @@ export {
   isGrantActive,
   isIdentityRuntimeAvailable,
   isLoopbackAddress,
+  modelFailure,
   readDatabaseFacts,
+  runBusinessTool,
   tokenHash,
+  toolArguments,
+  toolDigest,
   validateDomains,
   validateLearningTracks,
   validateLoginName,

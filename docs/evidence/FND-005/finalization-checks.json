@@ -1,0 +1,90 @@
+{
+  "candidate_id": "FND-005-d0ec209b8161e14e",
+  "checked_at": "2026-11-18T09:40:13.728Z",
+  "status": "PASS",
+  "category": "FINAL_STATIC_AND_EVIDENCE_CONSISTENCY",
+  "unit_acceptance": "BLOCKED",
+  "independent_review_complete": true,
+  "independent_technical_status": "PASS",
+  "independent_suites": [
+    {
+      "name": "integration",
+      "checks": 14
+    },
+    {
+      "name": "storage",
+      "checks": 6
+    },
+    {
+      "name": "barriers",
+      "checks": 5
+    },
+    {
+      "name": "ui",
+      "checks": 8
+    },
+    {
+      "name": "configuration",
+      "checks": 21
+    },
+    {
+      "name": "acl",
+      "checks": 7
+    },
+    {
+      "name": "additional",
+      "checks": 11
+    },
+    {
+      "name": "ui-additional",
+      "checks": 4
+    },
+    {
+      "name": "service-additional",
+      "checks": 6
+    }
+  ],
+  "independent_technical_checks": 82,
+  "real_provider_calls": 0,
+  "all_evidence_paths_exist": true,
+  "all_other_work_units_unchanged": true,
+  "requirements_and_plan_unchanged": true,
+  "frozen_product_and_runtime_hashes_match": true,
+  "plan_gate": {
+    "status": "PASS",
+    "scope": "plan_structure_traceability_and_execution_consistency_only",
+    "requirements": 44,
+    "acceptanceCases": 66,
+    "workUnits": 76,
+    "plannedUnitChecks": 186,
+    "executor": "codex",
+    "activeUnit": "FND-005",
+    "autoAdvance": false,
+    "fullProductReview": "not_started",
+    "markdownFiles": 76,
+    "upstreamCommit": "39163dd30f703a79079e2d2446545cff3c453738",
+    "implementationVerifiedByThisCheck": false,
+    "productTestsExecuted": 0
+  },
+  "independent_evidence_hash_index": {
+    "status": "PASS",
+    "files": 97,
+    "record": "independent/evidence-index.json"
+  },
+  "delivery_preparation_attempts": [
+    {
+      "action": "git add selected FND-005 files with core.excludesFile=NUL",
+      "exit_code": 1,
+      "status": "FAIL",
+      "category": "LOCAL_GIT_OPTION_ERROR",
+      "reason": "Git does not accept NUL as an exclude file; no product/test change."
+    },
+    {
+      "action": "git add selected FND-005 files using existing ignore configuration",
+      "exit_code": 0,
+      "status": "PASS"
+    }
+  ],
+  "staged_candidate_bytes_match": true,
+  "staged_diff_check": "PASS"
+}

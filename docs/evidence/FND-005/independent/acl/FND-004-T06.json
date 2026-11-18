@@ -1,0 +1,27 @@
+{
+  "id": "FND-004-T06",
+  "status": "PASS",
+  "started_at": "2026-11-18T09:16:24.661Z",
+  "evidence": [
+    "real_business_cookie_privilege_probes",
+    "owner_host_status_probe",
+    "dedicated_shared_profile"
+  ],
+  "result": {
+    "host": "loopback",
+    "profile": "knowledgeos-identity-test",
+    "owner_status": 200,
+    "business_status": 401,
+    "probes": {
+      "/api": 401,
+      "/rpc": 404,
+      "/shell": 404,
+      "/files": 404,
+      "/plugins": 404,
+      "/session/attachments": 404,
+      "/sessions/attachments": 404,
+      "/connect": 401
+    }
+  },
+  "finished_at": "2026-11-18T09:16:24.682Z"
+}

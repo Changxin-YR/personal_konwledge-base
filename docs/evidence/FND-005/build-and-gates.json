@@ -1,0 +1,67 @@
+{
+  "candidate_id": "FND-005-d0ec209b8161e14e",
+  "category": "ACTUAL_FIXED_UPSTREAM_BUILD_AND_TYPECHECK",
+  "status": "PASS",
+  "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "commands": [
+    {
+      "command": "node --import tsx/esm scripts/build.ts --scope artifacts",
+      "exit_code": 0,
+      "metadata_commit": "39163dd",
+      "results": [
+        "run-gates: PASS native addon (3.67s)",
+        "run-gates: PASS Host Typert (43.44s)",
+        "run-gates: PASS host compiler (4.18s)",
+        "run-gates: PASS Host bundle (25.60s)",
+        "run-gates: PASS Desktop bundle (3.04s)",
+        "run-gates: PASS client compiler (1.50s)",
+        "run-gates: PASS Client bundle (24.90s)",
+        "run-gates: PASS Web build (12.07s)",
+        "run-gates: 8 passed, 0 failed, 0 skipped in 116.75s.",
+        "build: recorded 379 client artifact(s) with 3 public value(s)"
+      ]
+    },
+    {
+      "command": "node --import tsx/esm scripts/build.ts --scope check",
+      "exit_code": 0,
+      "results": [
+        "run-gates: PASS client aggregate check (86.22s)",
+        "run-gates: PASS host aggregate check (161.13s)",
+        "run-gates: 2 passed, 0 failed, 0 skipped in 161.13s."
+      ]
+    }
+  ],
+  "source_provenance": {
+    "commit": "39163dd30f703a79079e2d2446545cff3c453738",
+    "version": "0.2.2-rc.3",
+    "source_files_matched": 14524,
+    "missing_source_paths": 0,
+    "source_differences": []
+  },
+  "client_build_record": {
+    "formatVersion": 1,
+    "environment": {
+      "DSH_CLIENT_COMMIT_HASH": "39163dd",
+      "DSH_CLIENT_GIT_DIRTY": "true",
+      "DSH_CLIENT_VERSION": "0.2.2-rc.3"
+    },
+    "artifacts": {
+      "fileCount": 379,
+      "sha256": "9f04dc5a2f4da0719a009617ed99967967e4bd111738440402e1f04b3dddd82c"
+    }
+  },
+  "earlier_attempts": [
+    {
+      "status": "FAIL",
+      "reason": "System Git fork-bomb path prevented build metadata lookup; retry used bundled Git."
+    },
+    {
+      "status": "PASS",
+      "superseded": true,
+      "reason": "Copied build directory inherited outer repository metadata; reran with verified fixed upstream metadata and source comparison."
+    }
+  ],
+  "recorded_at": "2026-11-18T08:48:47.506Z",
+  "runtime_evidence_reused_from_candidate": "FND-005-572a5b58a7b46671",
+  "runtime_hashes_rechecked_unchanged": true
+}

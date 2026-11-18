@@ -1,0 +1,59 @@
+{
+  "candidate_id": "FND-005-572a5b58a7b46671",
+  "category": "INDEPENDENT_REAL_HTTP_NATIVE_SQLITE_WITH_CONTROLLED_MODEL_AND_ORDERING",
+  "real_gpt": false,
+  "status": "FAIL",
+  "started_at": "2026-11-18T08:56:32.296Z",
+  "checks": [
+    {
+      "id": "I01.same-native-call-id-and-key-two-actors",
+      "expected": "Each actor writes only its own object; two actor-scoped receipts; foreign prepared ID is hidden",
+      "started_at": "2026-11-18T08:56:44.298Z",
+      "facts": {
+        "http": [
+          200,
+          200
+        ],
+        "foreign_prepared_http": 404,
+        "native_call_id": "fixture-call (same for both)",
+        "actor_scoped_receipts": [
+          1,
+          1
+        ],
+        "revisions": [
+          2,
+          2
+        ]
+      },
+      "status": "PASS",
+      "finished_at": "2026-11-18T08:56:44.439Z"
+    },
+    {
+      "id": "I02.concurrent-different-input-same-key",
+      "expected": "Exactly one 200 and one 409 IDEMPOTENCY_CONFLICT, one scoped receipt and one increment",
+      "started_at": "2026-11-18T08:56:44.439Z",
+      "facts": {
+        "parallel_http": [
+          200,
+          409
+        ],
+        "revision_only_reuse_http": 409,
+        "revision": 2,
+        "scoped_receipts": 1
+      },
+      "status": "PASS",
+      "finished_at": "2026-11-18T08:56:44.528Z"
+    }
+  ],
+  "host": {
+    "port": 3142,
+    "pid": 65512,
+    "isolated_home": true,
+    "isolated_sqlite": true
+  },
+  "loaded_bundle_sha256": "70a41b8d867667f0ecaa456eac165fde2950c747c4e00f722a07445396b4c093",
+  "setup_error": "Cannot read properties of undefined (reading 'code')",
+  "host_stopped": true,
+  "port_released": true,
+  "finished_at": "2026-11-18T08:56:45.278Z"
+}

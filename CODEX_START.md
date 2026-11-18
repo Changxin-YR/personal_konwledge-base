@@ -1,96 +1,78 @@
 ---
-instruction_revision: "3.2.2"
+instruction_revision: "3.3.0"
 execution_phase: "codex_foundation"
 executor: "codex"
-active_unit: "FND-004"
+active_unit: "FND-005"
 auto_advance: false
 ---
 
-# 当前执行指令：Codex · FND-004 对象权限与共享入口边界
+# 当前执行指令：Codex · FND-005 一次真实 GPT 业务工具调用
 
-本文件是仓库唯一当前可执行提示词。FND-003 已在提交 `5621f3d0e40dc11bcd2062687a9ad3087f8c4442` 通过并保持历史证据；FND-004 以 `518ce35a51ef07623480bc8cd75dc0e93262557d` 为 v3.2.2 修正基线，上一轮 FND-004 PASS 只作为历史证据，不得直接放行下一单元。本轮只完成 FND-004；FND-005 只能记录设计，禁止激活或编码。不得自动开始 FND-006、资料导入或完整产品审查。
+本文件是仓库唯一当前可执行提示词。FND-001～FND-004 的验收历史必须保留；本轮只执行 FND-005，不重新标记完整需求场景为通过，不自动开始 FND-006、PDF 导入、完整 AI 助手或其他后续功能。
 
-## 1. 基线和边界
+## 1. 当前执行登记
 
-| 项目 | 约定 |
+| 字段 | 值 |
 |---|---|
-| 仓库 | `https://github.com/Changxin-YR/personal_konwledge-base.git` |
-| 分支 | `codex/knowledgeos-fnd-004` |
-| 基础提交 | `518ce35a51ef07623480bc8cd75dc0e93262557d` |
-| 固定上游 | `39163dd30f703a79079e2d2446545cff3c453738`，DSH `0.2.2-rc.3` |
-| 执行器 | Codex；DSH 继续作为真实产品 Host |
-| 状态 | FND-003 `passed`；FND-004 唯一 `active_unit`、`in_progress`；`auto_advance=false` |
-| 架构 | HTTP/API → 身份与权限用例 → 领域授权规则 → SQLite 存储端口/适配器 |
+| 指令版本 | `3.3.0` |
+| 活动单元 | `FND-005` |
+| 执行者 | `codex` |
+| 工作分支 | `codex/knowledgeos-fnd-005` |
+| 基础提交 | `4282b9231a4ac38b0eb87145c337b811aec033e4` |
+| 固定上游 | `39163dd30f703a79079e2d2446545cff3c453738` |
+| 自动推进 | `false` |
 
-先阅读 `AGENTS.md`、执行状态、工作单元、FND-003 验收报告以及 `docs/plan/01_REQUIREMENTS_BASELINE.md`、`03_ARCHITECTURE.md`、`04_DATA_AND_STATE_CONTRACTS.md`、`05_API_AND_AI_CONTRACTS.md`、`07_ACCEPTANCE_MATRIX.md`、`11_AGENT_AND_PROMPT_PROTOCOL.md`。保留用户修改；不 `reset --hard`、不 force push、不过写历史迁移校验值。
+先核对远端最新 HEAD、工作树和未提交修改；保留用户已有修改；禁止 `reset --hard`、force push、无授权合并 main。远端不可达时如实记录，不伪造在线核验结果。
 
-## 2. 本轮目标
+## 2. 必读材料与一致性门槛
 
-建立统一的真实对象授权入口。每次对象操作都必须使用服务端生成的 `actor`、`service_id`、空间/对象归属、动作、服务器当前时间、授权的生效/到期/撤销状态。动作固定为 `read`、`comment`、`edit`、`export`、`manage_share`、`delete`、`review`、`view_learning_records`。默认拒绝；`edit` 不蕴含 `delete` 或 `manage_share`；`now >= expires_at` 拒绝；撤销后下一次读取立即重新判权。
+开始编码前读取：`AGENTS.md`、`config/execution_state.json`、`config/work_units.json`、FND-004 最新报告/候选/源码/计划、`docs/plan/01_REQUIREMENTS_BASELINE.md`、`03_ARCHITECTURE.md`、`04_DATA_AND_STATE_CONTRACTS.md`、`05_API_AND_AI_CONTRACTS.md`、`07_ACCEPTANCE_MATRIX.md`、`11_AGENT_AND_PROMPT_PROTOCOL.md`，以及固定上游对应的 `AGENTS.md`、LLM 与工具注册文档。
 
-最小真实模型包括：个人/项目知识对象、项目、项目成员资格、逐动作资源授权记录。个人对象默认仅所有者可用；管理员标签不自动获得他人私人正文或学习记录；项目成员资格不自动公开个人训练记录。列表、直接 URL、修改、删除、动作检查和后续衍生读取都经过同一授权判断，不先取全量再由前端过滤。跨 service、跨 space、伪造 actor/owner/user/role 字段一律拒绝，未知或无权对象使用安全的 404/403 且不泄露标题、正文或存在性。
-
-## 3. 迁移和接口
-
-保留 v1/v2/v3 表、数据和 checksum，新增原子版本化 v4 迁移；撤销记录保留 `revoked_at`，重新授权插入新记录，并以仅有效记录的部分唯一索引阻止两个同时有效的重复权限。启动时核对真实 schema、外键、CHECK、唯一约束和四条迁移账本。失败回滚不得留下半迁移；重启保持 service、成员、对象、授权状态。
-
-本轮允许的最小业务路由：
-
-- `GET/POST /knowledge/v1/objects`：仅返回/创建当前 actor 允许的对象；创建默认个人对象。
-- `GET/PATCH/DELETE /knowledge/v1/objects/:id`：每次调用重新检查 `read`、`edit` 或 `delete`。
-- `POST /knowledge/v1/objects/:id/action`：对八类动作执行同一授权判断，不能替换 actor。
-- `POST /knowledge/v1/projects`、`POST /knowledge/v1/projects/:id/memberships`：创建最小项目与成员有效期。
-- `POST /knowledge/v1/grants`、`POST /knowledge/v1/grants/revoke`：对象所有者在 `manage_share` 授权下创建/撤销逐动作记录。
-
-共享端实际注册路由必须精确列出并留证：既有 `/knowledgeos/status`、`/knowledgeos/account`、`/knowledgeos/setup`、`/knowledge/v1/auth/*`、`/knowledge/v1/me*`、`/knowledge/v1/spaces`，以及本轮对象/项目/授权路由。普通业务 Cookie 不得成为 DSH owner；原生 RPC、插件管理、Shell、Session 附件、任意文件读取和非白名单接口必须拒绝或不存在。不能只隐藏前端按钮宣称安全。Host 仅在隔离 loopback 环境运行；Connection 停用/恢复的真实能力和上游限制分开记录。
-
-## 4. 逐项开发顺序
-
-1. 领域动作判定、默认拒绝和时间边界；先跑纯规则反例。
-2. 个人对象真实存储、列表/直接读取和跨用户隔离。
-3. 项目、成员资格和最小逐动作授权；编辑不含删除/分享管理。
-4. 到期、撤销、再次读取和重启保持。
-5. 共享 profile 路由白名单、高权限接口阻断与身份分离。
-6. FND-001 至 FND-003 受影响回归、构建和独立复核。
-
-同一时刻只有一名生产代码写入者。每完成一个行为立即测试；失败先修当前行为。测试可使用真实固定版本 DSH Host、真实业务 SQLite 和合成管理员/成员甲/成员乙身份；夹具、受控故障、纯规则测试和真实运行结果必须分开标注。
-
-## 5. FND-004 验收义务
-
-- `FND-004-T01`：管理员、甲、乙真实会话；个人对象创建、列表、直接 URL、猜测 ID、actor/user/role 替换；只能读取本人，不能泄露对方标题/正文。
-- `FND-004-T02`：read/comment/edit/export/manage_share/delete/review/view_learning_records 矩阵；编辑者尝试删除和管理分享均拒绝；未明确授权默认拒绝。
-- `FND-004-T03`：项目成员与逐动作 grant；只读与编辑差异；成员资格不自动开放个人学习记录；跨项目和跨 service 拒绝。
-- `FND-004-T04`：`valid_from` 前、到期边界 `now == expires_at`、撤销后再次读取/列表/动作均拒绝；重新授权恢复且旧撤权记录保留，同时只有一条有效重复权限。
-- `FND-004-T05`：真实 SQLite v4 迁移、已有 v3 升级、重启、失败回滚，v1/v2/v3 checksum 和数据保持；未知/伪造 schema 在修改前拒绝。
-- `FND-004-T06`：实际共享路由清单；业务 Cookie 探测 DSH owner/RPC/file/plugin/session/shell/非白名单路径；Connection 停用/恢复按真实 Host 能力记录。
-- `FND-004-T07`：FND-001、FND-002、FND-003 相关回归、类型检查、构建和候选产物哈希。
-
-## 5.1 本次 3.2.2 定点修复与复验要求
-
-1. 项目对象创建必须由服务端真实登录会话生成 actor，并检查目标 `project_id` 属于当前 `service_id`、项目有效且 actor 具有当前时刻有效的项目成员关系和创建权限；非成员不能借创建对象自动获得项目对象授权，跨项目和跨 service 必须拒绝。
-2. `POST /knowledge/v1/grants/revoke` 的请求体必须接受合法 `grant_id`（兼容既有 `id` 仅在契约明确记录时允许），先核对目标 grant 所属对象和当前 actor 的 `manage_share`，撤权后下一次真实 HTTP 读取、列表和 action 立即重新判权。
-3. T01–T04 必须使用固定 DSH Host、真实登录和三个隔离 Cookie 上下文；不得用手工 actor 或静态源码包含检查替代 HTTP 证据。
-4. T05 必须覆盖 v3 迁移失败、事务回滚、伪造/未知 schema 拒绝和故障解除后的正常恢复，并比较真实 schema、版本、账本和数据。
-5. T06 必须实际探测业务 Cookie 对 DSH owner、RPC、Shell、文件、插件和 Session 附件的权限，分别记录本机 Host 与专用共享 profile；共享 profile 未完成最小装配时对应项只能 `BLOCKED` 或 `NOT_RUN`。
-6. 修改对象的 `expected_revision` 冲突必须返回 HTTP 409；同时验证无权列表、错误输入、非法项目标识和撤权竞态负例。
-7. 冻结新候选后执行类型检查、构建、T01–T07、独立复核和 FND-001～003 受影响回归；保存真实命令、退出码、候选指纹和运行证据。只有本修订全部要求实际验证通过，才可重新标记 FND-004 为 `passed`、`awaiting_user`。
-8. R1：项目对象每次授权前必须先要求当前有效项目成员资格；成员资格到期或撤销后，即使 actor 是对象创建者，GET、列表、action、PATCH、DELETE 也必须拒绝。个人空间所有者规则保持不变。
-9. R2：同一对象、主体、动作撤权后不得复用旧记录；v4 迁移保留旧行和 `revoked_at`，重新授权生成新有效行，独立 SQL 必须证明历史存在且同时有效的重复权限为零。
-
-完整 A02、A34、A46 只有其真实范围全部覆盖才可 `PASS`。本轮搜索索引、AI 摘要/答案、文件下载、邀请码兑换、完整缓存失效和完整项目审核仍记 `NOT_RUN`，不能用基础 ACL 通过冒充完整场景通过。
-
-## 6. 证据和交付
-
-所有架构决定、权限矩阵、测试方案、候选哈希、运行日志摘要、独立复核和报告保存到 `docs/evidence/FND-004/`。结果只能使用 `PASS`、`FAIL`、`BLOCKED`、`NOT_RUN`。冻结候选后执行完整本轮测试，由独立测试角色复核；更新进度、阻塞和工作单元状态；提交并推送 `codex/knowledgeos-fnd-004`，回读确认远端 SHA，然后停止等待用户。
-
-验证命令至少包括：
+执行单元切换必须原子替换唯一 `CODEX_START.md`，同步 `execution_state.active_unit=FND-005`、`executor=codex`、`auto_advance=false`、提示词 SHA-256、工作分支、基础提交、工作单元指令版本和计划检查脚本。修改后先运行并通过：
 
 ```text
 node scripts/verify-plan.mjs
-node scripts/fnd004/run-all.mjs --out docs/evidence/FND-004/runs/<candidate>
-node scripts/fnd004/independent-verification.mjs --candidate <sha>
-pnpm --dir packages/knowledgeos-panel typecheck
-pnpm --dir packages/knowledgeos-panel build
 ```
 
-不要调用外部模型 API 作为本轮必要条件，不开放公网，不自动进入下一单元。
+指令一致性检查未通过前不得进行产品代码开发。
+
+## 3. 本轮目标与边界
+
+通过固定版本 DeepSeek Harness，使用真实 GPT 提供方完成最小业务闭环：真实 KnowledgeOS 用户登录 → 自然语言指令 → 模型选择业务工具 → 领域服务以服务端可信 actor 重新判权 → SQLite 执行 → 返回结果 → 用户重新读取验证。
+
+优先复用固定上游的 `ctx.llm`、`ctx.tools` 和受控执行接口；不修改上游模型循环，不复制整套 Agent 框架。模型只选择动作并生成结构化参数，不决定执行身份，不授予自己权限，不提供任意 SQL、文件路径或 Shell 指令。
+
+实现两个受控工具：
+
+- `knowledgeos_read_object`：读取当前用户有权访问的现有测试知识对象。
+- `knowledgeos_update_object`：修改当前用户有权编辑的测试对象；必须包含 `expected_revision` 和幂等键/幂等保护。
+
+身份只来自真实登录和服务端可信执行上下文；不得信任模型提供的 `user_id`、`role`、`owner_id`，不得把普通用户提升为 DSH owner。写入提交时重新检查 FND-004 ACL 和对象版本。只建设本轮最小幂等记录，不提前建设 FND-006 通用 jobs/outbox 平台。
+
+## 4. 模型与失败处理
+
+先核对 DSH 实际 provider、model 标识、目录和可用性。使用正确配置且获得授权的模型；API Key 不得进入源码、日志或 Git。保留用户指定模型，不自动切换到其他模型。设置保守的调用次数、输出限制、超时与费用预算。
+
+必须区分 `MODEL_NOT_CONFIGURED`、凭据缺失、额度耗尽、权限拒绝、模型不存在、超时、取消、模型错误、工具拒绝、版本冲突和幂等冲突。没有可用 GPT API 时仍完成架构、工具、权限与测试代码，但真实模型测试标记 `BLOCKED`，不得用夹具冒充 GPT，也不得将本单元标记完全通过。
+
+## 5. FND-005 验收义务
+
+| ID | 预期 |
+|---|---|
+| T01 | 真实 GPT 选择只读工具，当前登录用户只读有权对象，结果显示在 UI。 |
+| T02 | 真实 GPT 选择受控修改工具，完成一次可验证写入；重新读取结果与 SQLite 一致。 |
+| T03 | 甲尝试经 AI 读取乙私人对象，服务端拒绝且不泄露标题/正文。 |
+| T04 | 项目对象撤权或成员资格过期后，已准备但尚未执行的工具调用重新判权并拒绝。 |
+| T05 | 相同操作重试不重复写入；同一幂等键复用不同参数明确冲突。 |
+| T06 | 旧 `expected_revision` 返回 `409`，原内容不被覆盖。 |
+| T07 | 模型不存在、无凭据、额度耗尽、超时、取消均返回准确状态，不伪造成功。 |
+| T08 | 真实 UI 显示模型名、请求状态、所用工具、执行结果和可核验对象变化。 |
+| T09 | 固定 DSH Host 构建、加载、停止、重启及 FND-001～004 受影响回归；区分真实模型、真实 HTTP/SQLite、受控夹具和静态检查。 |
+
+至少一次真实提供方调用必须保存脱敏证据：provider/model、非敏感请求/响应摘要、工具调用、数据库变化、候选哈希和独立复核。凭据、token、完整私人内容不得保存。
+
+## 6. 开发、证据与停止条件
+
+按单功能迭代：先写架构和测试契约，再小步编码、逐项运行、修复、冻结候选并独立验收。同一时刻只有一个产品代码写者。所有运行记录、候选哈希、测试结果、失败原因和独立复核保存到 `docs/evidence/FND-005/`，结果只能使用 `PASS`、`FAIL`、`BLOCKED`、`NOT_RUN`。
+
+只有全部必测项真实通过、至少一次真实提供方调用完成且独立复核完成，才可将 FND-005 设置为 `passed` / `awaiting_user`。否则如实保留 `BLOCKED` 或 `NOT_RUN`。正常提交并推送 `codex/knowledgeos-fnd-005`，回读确认远端提交，然后停止等待用户下一条指令。

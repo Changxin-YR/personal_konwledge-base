@@ -1,0 +1,29 @@
+{
+  "candidate_id": "FND-005-d0ec209b8161e14e",
+  "checked_at": "2026-11-18T09:37:32.777Z",
+  "all_other_work_units_deep_equal_accepted_base": true,
+  "accepted_FND004_completion_preserved_in_history": true,
+  "prior_prerequisite_preserved_in_history": true,
+  "full_acceptance_matrix_diff": "",
+  "candidate_files_match": true,
+  "runtime_files_match": true,
+  "checked_text_paths": 164,
+  "secret_pattern_findings": [],
+  "forbidden_runtime_artifacts": [],
+  "status": "PASS",
+  "audit_attempts": [
+    {
+      "status": "FAIL",
+      "category": "AUDIT_ORACLE_ERROR",
+      "reason": "First final audit assumed completion_history already existed at accepted base. Accepted base has completion, correctly migrated unchanged into completion_history; corrected comparison checks original records in new arrays."
+    },
+    {
+      "status": "PASS",
+      "category": "FINAL_CORRECTED_AUDIT"
+    }
+  ],
+  "synthetic_test_password_literals": "Explicit synthetic fixture data only; no real API/business credentials.",
+  "limitations": "Pattern checks and manual inspection; not a guarantee against arbitrary secret formats.",
+  "changed_and_untracked_paths": 185,
+  "all_changed_json_parse": true
+}

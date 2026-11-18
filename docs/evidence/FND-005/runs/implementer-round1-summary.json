@@ -1,0 +1,66 @@
+{
+  "candidate_id": "FND-005-572a5b58a7b46671",
+  "status": "BLOCKED",
+  "technical_checks_status": "PASS",
+  "real_provider_status": "BLOCKED",
+  "provider_calls": 0,
+  "runs": [
+    {
+      "run": "final-integration",
+      "status": "PASS",
+      "category": "CONTROLLED_MODEL_FIXTURE_WITH_REAL_HTTP_DSH_NATIVE_SQLITE",
+      "checks": 14,
+      "evidence_path": "runs/final-integration/summary.json",
+      "started_at": "2026-11-18T08:45:26.965Z",
+      "finished_at": "2026-11-18T08:46:21.916Z"
+    },
+    {
+      "run": "final-storage",
+      "status": "PASS",
+      "category": "REAL_SQLITE_WITH_CONTROLLED_FAULT_SEAMS",
+      "checks": 6,
+      "evidence_path": "runs/final-storage/summary.json",
+      "started_at": "2026-11-18T08:47:30.955Z",
+      "finished_at": "2026-11-18T08:47:32.511Z"
+    },
+    {
+      "run": "final-configuration",
+      "status": "PASS",
+      "category": "REAL_HTTP_CONFIG_AND_CONTROLLED_ERROR_FIXTURE",
+      "checks": 19,
+      "evidence_path": "runs/final-configuration/summary.json",
+      "started_at": "2026-11-18T08:45:25.826Z",
+      "finished_at": "2026-11-18T08:47:06.039Z"
+    },
+    {
+      "run": "final-barriers",
+      "status": "PASS",
+      "category": "REAL_DSH_NATIVE_HTTP_SQLITE_WITH_CONTROLLED_MODEL_POLICY_BARRIERS",
+      "checks": 5,
+      "evidence_path": "runs/final-barriers/summary.json",
+      "started_at": "2026-11-18T08:45:27.939Z",
+      "finished_at": "2026-11-18T08:46:11.439Z"
+    },
+    {
+      "run": "final-ui",
+      "status": "PASS",
+      "category": "REAL_CHROME_UI_HTTP_SQLITE_WITH_CONTROLLED_MODEL_FIXTURE",
+      "checks": 7,
+      "evidence_path": "runs/final-ui/summary.json",
+      "started_at": "2026-11-18T08:45:27.127Z",
+      "finished_at": "2026-11-18T08:46:28.704Z"
+    },
+    {
+      "run": "acl-regression",
+      "status": "PASS",
+      "category": "REAL_HTTP_SQLITE_ACL_AFFECTED_REGRESSION",
+      "checks": 7,
+      "evidence_path": "runs/acl-regression/summary.json",
+      "started_at": null,
+      "finished_at": null
+    }
+  ],
+  "reason": "No authorized usable GPT API. T01/T02/T08 real-provider portions remain blocked.",
+  "independent_review": "SEPARATE_REQUIRED_RECORD",
+  "full_requirements_certified": false
+}

@@ -1,5 +1,5 @@
 // src/host/index.ts
-import { randomUUID as randomUUID6 } from "node:crypto";
+import { randomUUID as randomUUID8 } from "node:crypto";
 
 // src/host/status.ts
 var EXPECTED_UPSTREAM_COMMIT = "39163dd30f703a79079e2d2446545cff3c453738";
@@ -28,7 +28,8 @@ function buildStatusPayload(observation) {
 import { isAbsolute } from "node:path";
 import Schema from "@deepseek-ai/schemastery";
 var Config = Schema.object({
-  dataDir: Schema.string()
+  dataDir: Schema.string(),
+  ai: Schema.object({ provider: Schema.string(), model: Schema.string(), maxCalls: Schema.number().min(1).max(64), timeoutMs: Schema.number().min(20).max(6e4), budgetUsd: Schema.number().min(0).max(1), inputUsdPerMillion: Schema.number().min(0), outputUsdPerMillion: Schema.number().min(0) })
 });
 function resolveDataDir(config) {
   if (config.dataDir === void 0) return void 0;
@@ -305,7 +306,7 @@ function authorize(actor2, target, action2, now, grants = [], memberships = []) 
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 4;
+var SCHEMA_VERSION = 5;
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
 var MIGRATION_V1_SQL = `CREATE TABLE schema_migrations (
@@ -448,6 +449,18 @@ CREATE UNIQUE INDEX resource_grants_active_subject_action_uq
 DROP TABLE resource_grants_v3;
 `;
 var MIGRATION_V4_CHECKSUM = createHash2("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
+var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
+  service_id TEXT NOT NULL REFERENCES service_identity(service_id),
+  user_id TEXT NOT NULL REFERENCES users(id),
+  idempotency_key TEXT NOT NULL,
+  request_digest TEXT NOT NULL,
+  object_id TEXT NOT NULL REFERENCES knowledge_objects(id),
+  result_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (service_id, user_id, idempotency_key)
+) STRICT;
+`;
+var MIGRATION_V5_CHECKSUM = createHash2("sha256").update(MIGRATION_V5_SQL).digest("hex");
 var PROBE_SUPPORTED_TABLES = ["schema_migrations", "storage_probe_records"];
 var IDENTITY_SUPPORTED_TABLES = [
   "auth_sessions",
@@ -556,6 +569,7 @@ var ProbeStorage = class {
       } else if (existing === "v3") {
         this.#migrateV4(db);
       }
+      if (existing !== "v5") this.#migrateV5(db);
       this.#verify(db);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -611,6 +625,18 @@ var ProbeStorage = class {
       }
       return "v4";
     }
+    if (facts.userVersion === 5) {
+      this.#assertV5Schema(facts);
+      const db = new DatabaseSync(path, { readOnly: true });
+      try {
+        this.#assertV2Definitions(db);
+        this.#assertV4Definitions(db);
+        this.#assertV5Definitions(db);
+      } finally {
+        db.close();
+      }
+      return "v5";
+    }
     throw new RecordsError("STORAGE_INCOMPATIBLE", "database schema version is not supported");
   }
   #assertV1Schema(facts) {
@@ -647,6 +673,21 @@ var ProbeStorage = class {
     const v3 = facts.ledger.find((entry) => entry.version === 3);
     const v4 = facts.ledger.find((entry) => entry.version === 4);
     if (facts.ledger.length !== 4 || v1?.checksum !== MIGRATION_V1_CHECKSUM || v2?.checksum !== MIGRATION_V2_CHECKSUM || v3?.checksum !== MIGRATION_V3_CHECKSUM || v4?.checksum !== MIGRATION_V4_CHECKSUM) throw new RecordsError("STORAGE_INCOMPATIBLE", "v4 migration ledger does not match this build");
+  }
+  #assertV5Schema(facts) {
+    const table = facts.objects.find((item) => item.name === "ai_tool_mutations");
+    if (table?.type !== "table" || facts.ledger.length !== 5 || facts.ledger[4]?.checksum !== MIGRATION_V5_CHECKSUM || facts.ledger[4]?.version !== 5) throw new RecordsError("STORAGE_INCOMPATIBLE", "v5 migration ledger/schema does not match this build");
+    this.#assertV4Schema({ ...facts, objects: facts.objects.filter((item) => item.name !== "ai_tool_mutations"), ledger: facts.ledger.slice(0, 4) });
+  }
+  #assertV5Definitions(db) {
+    const expected = new DatabaseSync(":memory:");
+    try {
+      expected.exec(MIGRATION_V5_SQL);
+      const sql = (source) => String(source.prepare("SELECT sql FROM sqlite_master WHERE name = 'ai_tool_mutations' AND type = 'table'").get()?.sql ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+      if (sql(db) !== sql(expected)) throw new RecordsError("STORAGE_INCOMPATIBLE", "v5 receipt constraints are not accepted");
+    } finally {
+      expected.close();
+    }
   }
   #assertV2Definitions(db) {
     const expected = new DatabaseSync(":memory:");
@@ -794,12 +835,26 @@ var ProbeStorage = class {
       throw error instanceof RecordsError ? error : new RecordsError("STORAGE_INCOMPATIBLE", "grant history migration failed", false, { cause: error });
     }
   }
+  #migrateV5(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(MIGRATION_V5_SQL);
+      this.#injectFailure("v5:after-schema");
+      db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(5, MIGRATION_V5_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version = 5");
+      db.exec("COMMIT");
+    } catch (error) {
+      if (!this.#rollback(db)) throw new RecordsError("STORAGE_UNAVAILABLE", "storage transaction state is unknown", false, { cause: error });
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "tool receipt migration failed", false, { cause: error });
+    }
+  }
   #verify(db) {
     const facts = readDatabaseFacts(this.databasePath);
-    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== 4) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
-    this.#assertV4Schema(facts);
+    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== 5) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
+    this.#assertV5Schema(facts);
     this.#assertV2Definitions(db);
     this.#assertV4Definitions(db);
+    this.#assertV5Definitions(db);
     const identity = db.prepare("SELECT id, service_id, bootstrap_admin_user_id, initialized_at FROM service_identity").all();
     if (identity.length !== 1 || Number(identity[0]?.id) !== 1 || typeof identity[0]?.service_id !== "string") throw new RecordsError("STORAGE_INCOMPATIBLE", "service identity is not a singleton");
   }
@@ -1120,6 +1175,37 @@ var ProbeStorage = class {
     }
     const updated = this.#loadObject(objectId);
     return updated === void 0 ? { kind: "not_found" } : { kind: "updated", object: updated };
+  }
+  /** Revalidate the original login inside the same transaction as ACL/version/receipt. */
+  mutateObjectOnce(actor2, input, now) {
+    const db = this.#ensureReady();
+    let tx = false;
+    try {
+      db.exec("BEGIN IMMEDIATE");
+      tx = true;
+      now = (/* @__PURE__ */ new Date()).toISOString();
+      const session = db.prepare(`SELECT s.id FROM auth_sessions s JOIN users u ON u.id = s.user_id JOIN spaces p ON p.owner_user_id = u.id WHERE s.id = ? AND s.user_id = ? AND s.revoked_at IS NULL AND s.expires_at > ? AND u.status = 'active' AND p.status = 'active' AND p.id = ? AND u.planning_home_service_id = ?`).get(actor2.sessionId, actor2.userId, now, actor2.personalSpaceId, actor2.serviceId);
+      const finish = (value) => {
+        db.exec("COMMIT");
+        tx = false;
+        return value;
+      };
+      if (session === void 0) return finish({ kind: "session_expired" });
+      const current = this.authorizeObject(actor2, input.objectId, "edit", now);
+      if (current === void 0 || this.authorizeObject(actor2, input.objectId, "read", now) === void 0) return finish({ kind: "not_found" });
+      const receipt = db.prepare("SELECT request_digest, result_json FROM ai_tool_mutations WHERE service_id = ? AND user_id = ? AND idempotency_key = ?").get(actor2.serviceId, actor2.userId, input.key);
+      if (receipt !== void 0) return finish(receipt.request_digest === input.digest ? { kind: "replayed", object: JSON.parse(receipt.result_json) } : { kind: "idempotency_conflict" });
+      if (current.revision !== input.expectedRevision) return finish({ kind: "conflict" });
+      const changed = db.prepare("UPDATE knowledge_objects SET title = ?, body = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ? AND status = 'active'").run(input.title ?? current.title, input.body ?? current.body, now, input.objectId, input.expectedRevision);
+      if (Number(changed.changes) !== 1) return finish({ kind: "conflict" });
+      this.#injectFailure("ai:after-update");
+      const object = this.#loadObject(input.objectId);
+      db.prepare("INSERT INTO ai_tool_mutations (service_id, user_id, idempotency_key, request_digest, object_id, result_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(actor2.serviceId, actor2.userId, input.key, input.digest, input.objectId, JSON.stringify(object), now);
+      return finish({ kind: "updated", object });
+    } catch (error) {
+      if (tx && !this.#rollback(db)) throw new RecordsError("STORAGE_UNAVAILABLE", "storage transaction state is unknown", false, { cause: error });
+      throw this.#mapError(error);
+    }
   }
   deleteObject(actor2, objectId, now) {
     const object = this.authorizeObject(actor2, objectId, "delete", now);
@@ -2035,6 +2121,361 @@ function createObjectHandlers(options) {
   };
 }
 
+// src/host/ai-service.ts
+import { randomUUID as randomUUID6 } from "node:crypto";
+import { AsyncLocalStorage } from "node:async_hooks";
+
+// src/host/ai-tools.ts
+import { createHash as createHash5 } from "node:crypto";
+var AiError = class extends Error {
+  constructor(status, code) {
+    super(code);
+    this.status = status;
+    this.code = code;
+    this.name = "AiError";
+  }
+};
+var TOOL_NAMES = ["knowledgeos_read_object", "knowledgeos_update_object"];
+var TOOL_SCHEMAS = [
+  { name: TOOL_NAMES[0], description: "Read the specified existing KnowledgeOS test object. Server enforces the logged-in user permissions.", parameters: { type: "object", properties: { object_id: { type: "string" } }, required: ["object_id"], additionalProperties: false } },
+  { name: TOOL_NAMES[1], description: "Update the specified existing KnowledgeOS test object at expected_revision. Supply title and/or body. Server enforces identity, permissions, revision and idempotency.", parameters: { type: "object", properties: { object_id: { type: "string" }, expected_revision: { type: "integer", minimum: 1 }, title: { type: "string", minLength: 1, maxLength: 200 }, body: { type: "string", maxLength: 2e3 } }, required: ["object_id", "expected_revision"], additionalProperties: false } }
+];
+function aiText(value, max, empty = false) {
+  if (typeof value !== "string" || !empty && value.length === 0 || value.length > max || !value.isWellFormed()) throw new AiError(422, "INPUT_INVALID");
+  return value;
+}
+function onlyKeys(value, keys2) {
+  if (Object.keys(value).some((key) => !keys2.includes(key))) throw new AiError(422, "INPUT_INVALID");
+}
+function toolArguments(call) {
+  if (!TOOL_NAMES.includes(call.name)) throw new AiError(422, "TOOL_NOT_ALLOWED");
+  if (call.arguments.length > 6e3) throw new AiError(422, "MODEL_OUTPUT_INVALID");
+  let raw;
+  try {
+    raw = JSON.parse(call.arguments);
+  } catch {
+    throw new AiError(422, "MODEL_OUTPUT_INVALID");
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new AiError(422, "MODEL_OUTPUT_INVALID");
+  const args = raw;
+  onlyKeys(args, call.name === TOOL_NAMES[0] ? ["object_id"] : ["object_id", "expected_revision", "title", "body"]);
+  const object_id = aiText(args.object_id, 80);
+  if (call.name === TOOL_NAMES[0]) return { object_id };
+  if (!Number.isSafeInteger(args.expected_revision) || Number(args.expected_revision) < 1 || args.title === void 0 && args.body === void 0) throw new AiError(422, "MODEL_OUTPUT_INVALID");
+  return { object_id, expected_revision: Number(args.expected_revision), ...args.title === void 0 ? {} : { title: aiText(args.title, 200) }, ...args.body === void 0 ? {} : { body: aiText(args.body, 2e3, true) } };
+}
+function toolDigest(name2, input) {
+  return createHash5("sha256").update(JSON.stringify([name2, input.object_id, input.expected_revision ?? null, input.title ?? null, input.body ?? null])).digest("hex");
+}
+function runBusinessTool(store, actor2, call, key, now) {
+  const input = toolArguments(call);
+  if (call.name === TOOL_NAMES[0]) {
+    const object = store.authorizeObject(actor2, input.object_id, "read", now);
+    return object === void 0 ? { ok: false, status: 404, code: "NOT_FOUND" } : { ok: true, status: 200, code: "READ", object };
+  }
+  const result = store.mutateObjectOnce(actor2, { objectId: input.object_id, expectedRevision: input.expected_revision, title: input.title, body: input.body, key, digest: toolDigest(call.name, input) }, now);
+  if (result.kind === "updated" || result.kind === "replayed") return { ok: true, status: 200, code: result.kind === "updated" ? "UPDATED" : "REPLAYED", object: result.object, replayed: result.kind === "replayed" };
+  const errors = { not_found: [404, "NOT_FOUND"], session_expired: [401, "AUTH_REQUIRED"], conflict: [409, "REVISION_CONFLICT"], idempotency_conflict: [409, "IDEMPOTENCY_CONFLICT"] };
+  const [status, code] = errors[result.kind];
+  return { ok: false, status, code };
+}
+
+// src/host/ai-service.ts
+var SYSTEM = "Choose exactly one provided KnowledgeOS tool for the user instruction. Use only the specified target object and revision. Do not invent identities, permissions, SQL, paths or commands. Reading uses knowledgeos_read_object. Updating title/body uses knowledgeos_update_object. Do not claim success; the server will execute the tool. Return one tool call.";
+function modelFailure(error) {
+  if (error instanceof AiError) return error;
+  const e = error;
+  const f = e?.failure ?? e ?? {}, code = String(f.code ?? ""), message = String(f.message ?? "").toLowerCase();
+  if (["MISSING_CREDENTIAL", "NO_CREDENTIAL_STORE"].includes(code)) return new AiError(503, "CREDENTIALS_MISSING");
+  if (/QUOTA|BALANCE/.test(code) || f.status === 402) return new AiError(429, "QUOTA_EXHAUSTED");
+  if (f.status === 403 || /PERMISSION/.test(code)) return new AiError(403, "PROVIDER_PERMISSION_DENIED");
+  if (f.status === 401 || /AUTH|CREDENTIAL|API_KEY/.test(code)) return new AiError(502, "CREDENTIALS_INVALID");
+  if (f.status === 404 || /MODEL_NOT_FOUND|UNKNOWN_MODEL|MODEL_UNSUPPORTED/.test(code)) return new AiError(404, "MODEL_NOT_FOUND");
+  if (/NO_ADAPTER/.test(code)) return new AiError(503, "MODEL_NOT_CONFIGURED");
+  if (/TIMEOUT/.test(code)) return new AiError(504, "MODEL_TIMEOUT");
+  if (/ABORT/.test(code)) return new AiError(409, "CANCELLED");
+  if (f.status === 429 || /RATE_LIMIT/.test(code)) return new AiError(429, message.includes("insufficient_quota") ? "QUOTA_EXHAUSTED" : "PROVIDER_RATE_LIMITED");
+  if (!code && /missing|not configured|no api key|credential.*required/.test(message) && /key|credential|auth/.test(message)) return new AiError(503, "CREDENTIALS_MISSING");
+  return new AiError(502, "MODEL_FAILED");
+}
+var AiService = class {
+  constructor(store, config, llm, tools) {
+    this.store = store;
+    this.config = config;
+    this.llm = llm;
+    this.tools = tools;
+    for (const [value, min, max, integer] of [[config.maxCalls ?? 8, 1, 64, true], [config.timeoutMs ?? 3e4, 100, 6e4, true], [config.budgetUsd ?? 0.1, 1e-3, 1, false]]) {
+      if (!Number.isFinite(value) || value < min || value > max || integer && !Number.isSafeInteger(value)) throw new AiError(503, "AI_CONFIG_INVALID");
+    }
+    if (tools !== void 0) for (const schema of TOOL_SCHEMAS) this.#dispose.push(tools.register({
+      ...schema,
+      output: { schema: { type: "object" }, render: (_args, value) => [{ type: "text", text: JSON.stringify(value) }] },
+      execute: async (args, exec) => {
+        const bound = this.#scope.getStore();
+        if (!bound || bound.call.id !== exec.callId || bound.call.name !== exec.name) return { ok: false, status: 403, code: "TOOL_CONTEXT_REQUIRED" };
+        try {
+          if (exec.signal.aborted) throw new AiError(409, "CANCELLED");
+          const current = bound.actorNow();
+          if (!current || current.sessionId !== bound.actor.sessionId || current.userId !== bound.actor.userId || current.serviceId !== bound.actor.serviceId) throw new AiError(401, "AUTH_REQUIRED");
+          const call = { id: exec.callId, name: exec.name, arguments: JSON.stringify(args) };
+          if (toolDigest(call.name, toolArguments(call)) !== toolDigest(bound.call.name, toolArguments(bound.call))) throw new AiError(403, "TOOL_CONTEXT_REQUIRED");
+          const result = runBusinessTool(this.store, current, call, bound.key, (/* @__PURE__ */ new Date()).toISOString());
+          bound.onResult(result);
+          return JSON.parse(JSON.stringify(result));
+        } catch (error) {
+          if (error instanceof AiError || error instanceof RecordsError) return { ok: false, status: error instanceof AiError ? error.status : 503, code: error.code };
+          throw error;
+        }
+      }
+    }));
+  }
+  #scope = new AsyncLocalStorage();
+  #prepared = /* @__PURE__ */ new Map();
+  #pending = /* @__PURE__ */ new Map();
+  #calls = 0;
+  #reservedUsd = 0;
+  #closed = false;
+  #dispose = [];
+  status() {
+    return { provider: this.config.provider ?? null, model: this.config.model ?? null, configured: Boolean(this.config.provider && this.config.model && this.llm && this.tools), max_calls: this.config.maxCalls ?? 8, attempts: this.#calls, max_output_tokens: 512, timeout_ms: this.config.timeoutMs ?? 3e4, budget_usd: this.config.budgetUsd ?? 0.1, reserved_usd: this.#reservedUsd, usage: "reported_by_provider_when_available", state: this.#closed ? "stopped" : "ready" };
+  }
+  #sweep() {
+    for (const [id, item] of this.#prepared) if (Date.now() >= item.expiresAt && item.state !== "executing") this.#prepared.delete(id);
+  }
+  async prepare(actor2, raw, signal) {
+    onlyKeys(raw, ["request_id", "instruction", "object_id", "expected_revision", "idempotency_key"]);
+    const instruction = aiText(raw.instruction, 2e3), objectId = aiText(raw.object_id, 80), requestId = aiText(raw.request_id, 80), key = aiText(raw.idempotency_key, 128);
+    if (!Number.isSafeInteger(raw.expected_revision) || Number(raw.expected_revision) < 1) throw new AiError(422, "INPUT_INVALID");
+    if (this.#closed || !this.llm || !this.tools || !this.config.provider || !this.config.model) throw new AiError(503, "MODEL_NOT_CONFIGURED");
+    if (signal.aborted) throw new AiError(409, "CANCELLED");
+    this.#sweep();
+    if (this.#pending.has(requestId)) throw new AiError(409, "REQUEST_CONFLICT");
+    if (this.#pending.size >= 4 || this.#prepared.size >= 100 || [...this.#pending.values()].some((p) => p.actor.userId === actor2.userId)) throw new AiError(429, "REQUEST_LIMIT");
+    const controller = new AbortController();
+    this.#pending.set(requestId, { actor: actor2, controller });
+    const onAbort = () => controller.abort(new AiError(409, "CANCELLED"));
+    signal.addEventListener("abort", onAbort, { once: true });
+    const timer = setTimeout(() => controller.abort(new AiError(504, "MODEL_TIMEOUT")), this.config.timeoutMs ?? 3e4);
+    let usage;
+    try {
+      const available = this.llm.listProviders().some((p) => p.id === this.config.provider);
+      if (!available) throw new AiError(503, "MODEL_NOT_CONFIGURED");
+      const catalog = await this.#abortable(this.llm.listModels(this.config.provider), controller.signal);
+      if (catalog.length > 0 && !catalog.some((m) => m.id === this.config.model)) throw new AiError(404, "MODEL_NOT_FOUND");
+      const prices = [this.config.inputUsdPerMillion, this.config.outputUsdPerMillion];
+      if (prices.some((p) => p === void 0 || !Number.isFinite(p) || p < 0)) throw new AiError(503, "PRICE_BUDGET_NOT_CONFIGURED");
+      const userText = JSON.stringify({ instruction, target_object_id: objectId, expected_revision: raw.expected_revision });
+      const inputBound = Buffer.byteLength(JSON.stringify({ system: SYSTEM, messages: userText, tools: TOOL_SCHEMAS }), "utf8") + 2048;
+      const reserve = (inputBound * prices[0] + 512 * prices[1]) / 1e6;
+      if (this.#calls >= (this.config.maxCalls ?? 8) || this.#reservedUsd + reserve > (this.config.budgetUsd ?? 0.1)) throw new AiError(429, "MODEL_BUDGET_EXCEEDED");
+      this.#calls++;
+      this.#reservedUsd += reserve;
+      const calls = [];
+      let finish, outputBytes = 0;
+      const stream = this.llm.stream({ provider: this.config.provider, model: this.config.model, system: SYSTEM, messages: [{ role: "user", content: [{ type: "text", text: userText }] }], tools: TOOL_SCHEMAS, maxTokens: 512, signal: controller.signal })[Symbol.asyncIterator]();
+      try {
+        while (true) {
+          const next = await this.#abortable(stream.next(), controller.signal);
+          if (next.done) break;
+          const chunk = next.value;
+          outputBytes += Buffer.byteLength(JSON.stringify(chunk), "utf8");
+          if (outputBytes > 96e3 || finish !== void 0) throw new AiError(502, "MODEL_OUTPUT_INVALID");
+          if (chunk.type === "block-end" && chunk.block?.type === "tool-call") {
+            const b = chunk.block;
+            if (!b.id || !b.name || typeof b.arguments !== "string") throw new AiError(502, "MODEL_OUTPUT_INVALID");
+            calls.push({ id: b.id, name: b.name, arguments: b.arguments });
+          }
+          if (chunk.type === "usage") usage = chunk.usage;
+          if (chunk.type === "finish") {
+            finish = chunk.reason?.kind;
+            if (controller.signal.aborted) throw controller.signal.reason;
+            if (finish === "error" || finish === "aborted") throw modelFailure(chunk.reason?.failure);
+          }
+        }
+      } finally {
+        if (controller.signal.aborted) void stream.return?.().catch(() => {
+        });
+      }
+      if (controller.signal.aborted) throw controller.signal.reason;
+      if (finish !== "tool-calls" || calls.length !== 1) throw new AiError(502, "MODEL_OUTPUT_INVALID");
+      const call = calls[0], args = toolArguments(call);
+      if (args.object_id !== objectId || call.name === TOOL_NAMES[1] && args.expected_revision !== raw.expected_revision) throw new AiError(422, "MODEL_TARGET_MISMATCH");
+      const prepared = { id: randomUUID6(), requestId, actor: actor2, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
+      this.#prepared.set(prepared.id, prepared);
+      return { ...this.#view(prepared), usage: usage ?? null };
+    } catch (error) {
+      throw controller.signal.aborted ? controller.signal.reason : modelFailure(error);
+    } finally {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", onAbort);
+      this.#pending.delete(requestId);
+    }
+  }
+  async #abortable(pending, signal) {
+    if (signal.aborted) throw signal.reason;
+    return await new Promise((resolve, reject) => {
+      const abort = () => reject(signal.reason);
+      signal.addEventListener("abort", abort, { once: true });
+      pending.then(resolve, reject).finally(() => signal.removeEventListener("abort", abort));
+    });
+  }
+  #view(item) {
+    return { prepared_id: item.id, request_id: item.requestId, provider: this.config.provider, model: this.config.model, state: item.state, tool: item.call.name, arguments: toolArguments(item.call), expires_at: new Date(item.expiresAt).toISOString() };
+  }
+  cancel(actor2, requestId) {
+    const pending = this.#pending.get(requestId);
+    if (pending && pending.actor.sessionId === actor2.sessionId) pending.controller.abort(new AiError(409, "CANCELLED"));
+    for (const item of this.#prepared.values()) if (item.requestId === requestId && item.actor.sessionId === actor2.sessionId) {
+      if (item.state === "executing") {
+        if (item.committed) throw new AiError(409, "OPERATION_ALREADY_COMPLETED");
+        item.execution?.abort(new AiError(409, "CANCELLED"));
+      }
+      if (item.state === "succeeded") throw new AiError(409, "OPERATION_ALREADY_COMPLETED");
+      if (item.state === "prepared") {
+        item.state = "failed";
+        item.result = { ok: false, status: 409, code: "CANCELLED" };
+      }
+    }
+  }
+  async execute(actor2, actorNow, id, signal) {
+    this.#sweep();
+    const item = this.#prepared.get(id);
+    if (this.#closed || !item || item.actor.sessionId !== actor2.sessionId || item.actor.userId !== actor2.userId) throw new AiError(404, "PREPARED_NOT_FOUND");
+    if (signal.aborted) throw new AiError(409, "CANCELLED");
+    if (item.state === "executing") throw new AiError(409, "REQUEST_IN_PROGRESS");
+    if (item.state === "failed") throw new AiError(item.result?.status ?? 409, item.result?.code ?? "REQUEST_FAILED");
+    item.state = "executing";
+    const controller = new AbortController();
+    item.execution = controller;
+    item.committed = false;
+    const abort = () => controller.abort(new AiError(409, "CANCELLED"));
+    signal.addEventListener("abort", abort, { once: true });
+    try {
+      const batch = await this.#scope.run({ actor: actor2, actorNow, key: item.key, call: item.call, onResult: (result2) => {
+        if (result2.ok && item.call.name === TOOL_NAMES[1]) item.committed = true;
+      } }, () => this.tools.execute({ calls: [{ type: "tool-call", ...item.call }], signal: controller.signal, maxParallelToolCalls: 1 }));
+      const response = batch.results[0];
+      if (controller.signal.aborted) throw new AiError(409, item.committed ? "OPERATION_ALREADY_COMPLETED" : "CANCELLED");
+      if (batch.results.length !== 1 || response?.callId !== item.call.id) throw new AiError(502, "TOOL_FAILED");
+      if (response.result.isError) {
+        const code = response.result.error?.info?.code ?? "";
+        if (/ABORT|CANCEL/.test(code)) throw new AiError(409, item.committed ? "OPERATION_ALREADY_COMPLETED" : "CANCELLED");
+        if (code === "TOOL_TIMEOUT") throw new AiError(504, "TOOL_TIMEOUT");
+        if (["STORAGE_BUSY", "STORAGE_UNAVAILABLE"].includes(code)) throw new AiError(503, code);
+        throw new AiError(502, "TOOL_FAILED");
+      }
+      const result = JSON.parse(response.result.content.filter((b) => b.type === "text").map((b) => b.text ?? "").join(""));
+      if (typeof result.ok !== "boolean" || !Number.isInteger(result.status) || typeof result.code !== "string") throw new AiError(502, "TOOL_FAILED");
+      const current = actorNow();
+      if (!current || current.sessionId !== actor2.sessionId || current.userId !== actor2.userId || current.serviceId !== actor2.serviceId) throw new AiError(401, "AUTH_REQUIRED");
+      if (result.ok && !this.store.authorizeObject(current, toolArguments(item.call).object_id, "read", (/* @__PURE__ */ new Date()).toISOString())) throw new AiError(404, "NOT_FOUND");
+      item.result = result;
+      item.state = result.ok ? "succeeded" : "failed";
+      if (!result.ok) throw new AiError(result.status, result.code);
+      return { ...this.#view(item), result };
+    } catch (error) {
+      item.state = "failed";
+      const safe = error instanceof AiError ? error : new AiError(502, "TOOL_FAILED");
+      item.result = { ok: false, status: safe.status, code: safe.code };
+      throw safe;
+    } finally {
+      signal.removeEventListener("abort", abort);
+      delete item.execution;
+    }
+  }
+  close() {
+    this.#closed = true;
+    for (const { controller } of this.#pending.values()) controller.abort(new AiError(409, "CANCELLED"));
+    for (const item of this.#prepared.values()) item.execution?.abort(new AiError(409, "CANCELLED"));
+    this.#prepared.clear();
+    for (const dispose of this.#dispose) dispose();
+  }
+};
+
+// src/host/ai-http.ts
+import { randomUUID as randomUUID7 } from "node:crypto";
+function createAiHandler(options) {
+  return async (req, res) => {
+    const requestId = randomUUID7(), controller = new AbortController();
+    const disconnect = () => {
+      if (!res.writableEnded) controller.abort();
+    };
+    req.once("aborted", disconnect);
+    res.once("close", disconnect);
+    const send = (status, data) => {
+      if (res.destroyed) return;
+      res.statusCode = status;
+      res.setHeader("content-type", "application/json; charset=utf-8");
+      res.setHeader("cache-control", "no-store");
+      res.setHeader("x-content-type-options", "nosniff");
+      res.end(JSON.stringify(data));
+    };
+    try {
+      const origin = options.origin();
+      if (!origin || req.headers.host !== new URL(origin).host || req.headers.origin !== void 0 && req.headers.origin !== origin || req.headers["sec-fetch-site"] === "cross-site" || req.method !== "GET" && req.headers["x-knowledgeos-request"] !== "1") throw new AiError(403, "CSRF_REJECTED");
+      const url = new URL(req.url ?? "/", origin);
+      if (url.search) throw new AiError(422, "INPUT_INVALID");
+      const actorNow = () => options.actorFor(req);
+      const actor2 = actorNow();
+      if (!actor2) throw new AiError(401, "AUTH_REQUIRED");
+      const service = options.service();
+      if (req.method === "GET" && url.pathname === "/knowledge/v1/ai/status") {
+        send(200, { data: service.status(), meta: { request_id: requestId } });
+        return;
+      }
+      if (req.method !== "POST" || !["/knowledge/v1/ai/prepare", "/knowledge/v1/ai/execute", "/knowledge/v1/ai/cancel"].includes(url.pathname)) throw new AiError(404, "NOT_FOUND");
+      if (!String(req.headers["content-type"] ?? "").startsWith("application/json")) throw new AiError(415, "CONTENT_TYPE_INVALID");
+      const chunks = [];
+      let bytes = 0;
+      for await (const raw of req) {
+        const chunk = Buffer.from(raw);
+        bytes += chunk.length;
+        if (bytes > 16384) throw new AiError(413, "PAYLOAD_TOO_LARGE");
+        chunks.push(chunk);
+      }
+      let body;
+      try {
+        const value = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+        if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error();
+        body = value;
+      } catch {
+        throw new AiError(400, "INVALID_JSON");
+      }
+      const current = actorNow();
+      if (!current || current.sessionId !== actor2.sessionId) throw new AiError(401, "AUTH_REQUIRED");
+      if (url.pathname.endsWith("/prepare")) {
+        send(200, { data: await service.prepare(current, body, controller.signal), meta: { request_id: requestId } });
+        return;
+      }
+      if (url.pathname.endsWith("/execute")) {
+        onlyKeys(body, ["prepared_id"]);
+        send(200, { data: await service.execute(current, actorNow, aiText(body.prepared_id, 80), controller.signal), meta: { request_id: requestId } });
+        return;
+      }
+      onlyKeys(body, ["request_id"]);
+      service.cancel(current, aiText(body.request_id, 80));
+      send(200, { data: { state: "cancelled" }, meta: { request_id: requestId } });
+    } catch (error) {
+      const safe = error instanceof AiError ? error : error instanceof RecordsError ? new AiError(503, error.code) : new AiError(500, "INTERNAL_ERROR");
+      send(safe.status, { code: safe.code, message: safe.code, request_id: requestId, retryable: ["MODEL_TIMEOUT", "STORAGE_BUSY", "PROVIDER_RATE_LIMITED"].includes(safe.code), safe_details: {} });
+    } finally {
+      req.removeListener("aborted", disconnect);
+      res.removeListener("close", disconnect);
+    }
+  };
+}
+
+// src/host/ai-page.ts
+function buildAiHtml() {
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KnowledgeOS \xB7 \u53D7\u63A7 AI \u5DE5\u5177</title><style>
+body{margin:0;background:#f4f8f8;color:#23333a;font:15px/1.65 "Segoe UI","Microsoft YaHei UI",sans-serif}main{max-width:860px;margin:auto;padding:30px 20px}.card{background:white;border:1px solid #dce8e9;border-radius:14px;padding:22px;margin:16px 0}label{display:block;margin:12px 0 4px}input,select,textarea{width:100%;box-sizing:border-box;font:inherit;padding:9px;border:1px solid #bbcfd2;border-radius:7px}textarea{min-height:90px}button{background:#3d7e86;color:white;border:0;border-radius:7px;padding:10px 15px;font:inherit;margin:12px 8px 0 0;cursor:pointer}button:disabled{opacity:.5;cursor:default}pre{white-space:pre-wrap;overflow-wrap:anywhere}a{color:#356f76}#status{font-weight:600}small{color:#597078}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #356f76;outline-offset:2px}</style></head><body><main>
+<a href="/knowledgeos/account">\u8D26\u53F7\u4E0E\u767B\u5F55</a><h1>KnowledgeOS \xB7 \u53D7\u63A7 AI \u5DE5\u5177</h1><p id="who">\u6B63\u5728\u6838\u5BF9\u767B\u5F55\u2026</p>
+<section class="card"><h2>\u6A21\u578B\u4E0E\u8BF7\u6C42</h2><p id="model">\u6B63\u5728\u8BFB\u53D6\u6A21\u578B\u914D\u7F6E\u2026</p><small id="budget"></small><p id="status" role="status" aria-live="polite">\u7B49\u5F85\u767B\u5F55</p></section>
+<section class="card"><h2>\u6D4B\u8BD5\u77E5\u8BC6\u5BF9\u8C61</h2><label for="objects">\u9009\u62E9\u6709\u6743\u8BFB\u53D6\u7684\u5BF9\u8C61</label><select id="objects"></select><button id="refresh">\u5237\u65B0\u5BF9\u8C61\u5217\u8868</button><button id="read">\u91CD\u65B0\u8BFB\u53D6\u9A8C\u8BC1</button><pre id="object"></pre></section>
+<section class="card"><h2>\u81EA\u7136\u8BED\u8A00\u64CD\u4F5C</h2><label for="target">\u76EE\u6807\u5BF9\u8C61 ID</label><input id="target"><label for="revision">\u9884\u671F\u7248\u672C expected_revision</label><input id="revision" type="number" min="1" value="1"><label for="key">\u64CD\u4F5C\u5E42\u7B49\u952E\uFF08\u91CD\u8BD5\u65F6\u4FDD\u6301\u76F8\u540C\uFF09</label><input id="key"><label for="instruction">\u6307\u4EE4</label><textarea id="instruction" placeholder="\u8BFB\u53D6\u8FD9\u4E2A\u5BF9\u8C61\uFF0C\u6216\u628A\u6807\u9898\u6539\u4E3A\u2026\u2026"></textarea><button id="prepare" disabled>\u63D0\u4EA4\u7ED9\u6A21\u578B</button><button id="execute" disabled>\u6267\u884C\u5DF2\u51C6\u5907\u5DE5\u5177</button><button id="cancel" disabled>\u53D6\u6D88\u8BF7\u6C42</button><pre id="tool"></pre><pre id="result"></pre></section>
+</main><script>(()=>{const $=id=>document.getElementById(id);let prepared=null,requestId=null,busy=false,generation=0,userId=null,authenticated=false;const state=t=>{$('status').textContent=t};const call=async(path,options={})=>{const r=await fetch(path,{...options,headers:{'content-type':'application/json','x-knowledgeos-request':'1'}});const j=await r.json();if(!r.ok){const e=new Error(j.code||('HTTP_'+r.status));e.status=r.status;throw e}return j.data};const post=(path,b)=>call(path,{method:'POST',body:JSON.stringify(b)});const clear=()=>{prepared=null;$('execute').disabled=true;$('object').textContent='';$('tool').textContent='';$('result').textContent='';$('objects').replaceChildren();$('target').value=''};const fail=e=>{state('\u5931\u8D25 \xB7 '+e.message);if(e.status===401){authenticated=false;generation++;clear();$('prepare').disabled=true;$('who').textContent='\u4E1A\u52A1\u767B\u5F55\u5DF2\u5931\u6548\uFF0C\u8BF7\u91CD\u65B0\u767B\u5F55'}};const accept=async gen=>{if(gen!==generation)return false;try{const me=await call('/knowledge/v1/me');if(gen!==generation)return false;if(me.id!==userId){await load();return false}return true}catch(e){if(gen===generation)fail(e);return false}};const read=async()=>{const gen=generation,id=$('target').value;try{const object=await call('/knowledge/v1/objects/'+encodeURIComponent(id));if(!await accept(gen))return;$('object').textContent=JSON.stringify(object,null,2);$('revision').value=object.revision;state('\u91CD\u65B0\u8BFB\u53D6\u5B8C\u6210 \xB7 revision '+object.revision)}catch(e){if(gen===generation)fail(e)}};const list=async()=>{const gen=generation;const objects=await call('/knowledge/v1/objects');if(gen!==generation)return;$('objects').replaceChildren();for(const o of objects){const op=document.createElement('option');op.value=o.id;op.dataset.revision=String(o.revision);op.textContent=o.title+' \xB7 revision '+o.revision;$('objects').append(op)}if(objects.length){$('target').value=objects[0].id;$('revision').value=objects[0].revision}};const invalidateTarget=()=>{const oldRequest=requestId;if(oldRequest)void post('/knowledge/v1/ai/cancel',{request_id:oldRequest}).catch(()=>{});generation++;busy=false;prepared=null;requestId=null;$('execute').disabled=true;$('cancel').disabled=true;$('prepare').disabled=!authenticated;$('object').textContent='';$('tool').textContent='';$('result').textContent='';state('\u76EE\u6807\u6216\u8349\u7A3F\u5DF2\u53D8\u66F4\uFF0C\u8BF7\u91CD\u65B0\u63D0\u4EA4')};$('objects').onchange=()=>{invalidateTarget();$('target').value=$('objects').value;$('revision').value=$('objects').selectedOptions[0]?.dataset.revision||'1'};for(const id of ['target','revision','key','instruction'])$(id).addEventListener('input',invalidateTarget);$('read').onclick=read;$('refresh').onclick=()=>list().catch(fail);$('key').value=crypto.randomUUID();$('prepare').onclick=async()=>{if(busy)return;busy=true;const gen=generation;prepared=null;requestId=crypto.randomUUID();$('prepare').disabled=true;$('execute').disabled=true;$('cancel').disabled=false;$('tool').textContent='';$('result').textContent='';state('\u6A21\u578B\u8BF7\u6C42\u4E2D');try{const p=await post('/knowledge/v1/ai/prepare',{request_id:requestId,instruction:$('instruction').value,object_id:$('target').value,expected_revision:Number($('revision').value),idempotency_key:$('key').value});if(!await accept(gen))return;prepared=p;$('tool').textContent='\u6240\u7528\u5DE5\u5177\uFF1A'+p.tool+'\\n'+JSON.stringify(p.arguments,null,2);$('execute').disabled=false;state('\u5DF2\u51C6\u5907 \xB7 '+p.provider+' / '+p.model)}catch(e){if(gen===generation)fail(e)}finally{if(gen===generation){busy=false;$('prepare').disabled=!authenticated;$('cancel').disabled=prepared===null}}};$('execute').onclick=async()=>{if(!prepared||busy)return;const gen=generation;busy=true;$('execute').disabled=true;state('\u6B63\u5728\u91CD\u65B0\u5224\u6743\u5E76\u6267\u884C');try{const d=await post('/knowledge/v1/ai/execute',{prepared_id:prepared.prepared_id});if(!await accept(gen))return;$('result').textContent=JSON.stringify(d.result,null,2);state('\u6267\u884C\u6210\u529F \xB7 '+d.result.code+' \xB7 revision '+d.result.object.revision)}catch(e){if(gen===generation)fail(e)}finally{if(gen===generation){busy=false;$('cancel').disabled=true}}};$('cancel').onclick=async()=>{if(!requestId)return;const id=requestId,gen=++generation;prepared=null;$('execute').disabled=true;$('cancel').disabled=true;try{await post('/knowledge/v1/ai/cancel',{request_id:id});if(gen===generation)state('\u5DF2\u53D6\u6D88')}catch(e){if(gen===generation)fail(e)}finally{if(gen===generation){busy=false;$('prepare').disabled=!authenticated}}};const load=async()=>{const gen=++generation;busy=false;authenticated=false;clear();$('prepare').disabled=true;try{const me=await call('/knowledge/v1/me');const m=await call('/knowledge/v1/ai/status');if(gen!==generation)return;userId=me.id;authenticated=true;$('who').textContent='\u5DF2\u767B\u5F55 \xB7 '+me.display_name+'\uFF08'+me.login_name+'\uFF09';$('model').textContent='\u6A21\u578B\uFF1A'+(m.provider||'\u672A\u914D\u7F6E')+' / '+(m.model||'\u672A\u914D\u7F6E');$('budget').textContent='\u8F93\u51FA\u4E0A\u9650 '+m.max_output_tokens+' tokens \xB7 \u603B\u9884\u7B97 '+m.budget_usd+' USD \xB7 \u5DF2\u5C1D\u8BD5 '+m.attempts+'/'+m.max_calls+' \u6B21';await list();if(gen!==generation)return;$('prepare').disabled=!m.configured;state(m.configured?'\u5C31\u7EEA':'BLOCKED \xB7 MODEL_NOT_CONFIGURED')}catch(e){if(gen===generation)fail(e)}};document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')void load()});void load()})()</script></body></html>`;
+}
+
 // src/host/index.ts
 var name = "knowledgeos-panel";
 var inject = ["webServer", "clientModules", "connection", "connection.authentication"];
@@ -2095,7 +2536,7 @@ function apply(ctx, config = {}) {
       if (closing) throw new RecordsError("STORAGE_CLOSED", "storage is closing");
       if (storage === void 0) throw new RecordsError("STORAGE_UNAVAILABLE", "storage is not configured");
       return createProbeRecord(storage, {
-        newId: () => randomUUID6(),
+        newId: () => randomUUID8(),
         now: () => (/* @__PURE__ */ new Date()).toISOString()
       }, { idempotencyKey, content });
     },
@@ -2160,7 +2601,7 @@ function apply(ctx, config = {}) {
     res.statusCode = 503;
     res.setHeader("content-type", "application/json; charset=utf-8");
     res.setHeader("cache-control", "no-store");
-    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID6(), retryable: true, safe_details: {} }));
+    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID8(), retryable: true, safe_details: {} }));
   };
   const registerIdentityRoutes = (identityContext) => {
     const identityAvailable = () => {
@@ -2173,6 +2614,25 @@ function apply(ctx, config = {}) {
       return isIdentityRuntimeAvailable({ connection, host: webFacts.host, port: webFacts.port, protocol: webFacts.protocol, origin: actualOrigin() });
     };
     const identity = new IdentityService(storage);
+    let ai = new AiService(storage, config.ai ?? {});
+    identityContext.inject(["llm", "tools"], (aiContext) => {
+      aiContext.effect(() => {
+        ai.close();
+        let active;
+        try {
+          active = new AiService(storage, config.ai ?? {}, aiContext.llm, aiContext.tools);
+        } catch {
+          console.warn("knowledgeos-ai: TOOL_REGISTRATION_FAILED");
+          ai = new AiService(storage, config.ai ?? {});
+          return () => ai.close();
+        }
+        ai = active;
+        return () => {
+          active.close();
+          if (ai === active) ai = new AiService(storage, config.ai ?? {});
+        };
+      }, "knowledgeos-ai: controlled tools");
+    });
     const identityHandlers = createIdentityHandlers({
       service: identity,
       origin: actualOrigin,
@@ -2220,7 +2680,7 @@ function apply(ctx, config = {}) {
       res.statusCode = 200;
       res.setHeader("content-type", "text/html; charset=utf-8");
       res.setHeader("cache-control", "no-store");
-      res.end(buildAccountHtml());
+      res.end(buildAccountHtml().replace("</main>", '<p><a href="/knowledgeos/ai">\u53D7\u63A7 AI \u5DE5\u5177</a></p></main>'));
     };
     const withPeer = (handler) => {
       return (req, res, peer) => {
@@ -2235,6 +2695,23 @@ function apply(ctx, config = {}) {
     identityContext.effect(() => {
       const disposers = [];
       disposers.push(identityContext.webServer.register({ kind: "exact", path: ACCOUNT_PATH, auth: "anonymous", handler: accountPage }));
+      disposers.push(identityContext.webServer.register({ kind: "exact", path: "/knowledgeos/ai", auth: "anonymous", handler: (req, res) => {
+        if (req.method !== "GET") {
+          res.statusCode = 405;
+          res.end();
+          return;
+        }
+        ;
+        res.setHeader("content-type", "text/html; charset=utf-8");
+        res.setHeader("cache-control", "no-store");
+        res.end(buildAiHtml());
+      } }));
+      const aiHandler = createAiHandler({ service: () => ai, origin: actualOrigin, actorFor: (req) => {
+        const origin = actualOrigin();
+        if (origin === void 0 || !identityAvailable()) return void 0;
+        return identity.actor(readCookie(req, businessCookieName(identity.setupState.serviceId, origin)));
+      } });
+      disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/ai", auth: "anonymous", handler: withPeer(async (req, res) => aiHandler(req, res)) }));
       disposers.push(identityContext.webServer.register({ kind: "exact", path: SETUP_PATH, auth: "required", handler: ownerSetupPage }));
       const routes = [
         { path: "/knowledge/v1/auth/status", auth: "anonymous", handler: identityHandlers.status },
@@ -2261,6 +2738,7 @@ function apply(ctx, config = {}) {
       disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/projects", auth: "anonymous", handler: withPeer(async (req, res) => objectHandler(req, res)) }));
       disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/grants", auth: "anonymous", handler: withPeer(async (req, res) => objectHandler(req, res)) }));
       return async () => {
+        ai.close();
         for (const dispose of disposers) dispose();
         await identity.close();
       };

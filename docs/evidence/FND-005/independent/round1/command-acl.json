@@ -1,0 +1,19 @@
+{
+  "candidate_id": "FND-005-572a5b58a7b46671",
+  "command": "node scripts/fnd005/acl-regression.mjs --port 3143 --out docs/evidence/FND-005/independent/acl --candidate FND-005-572a5b58a7b46671",
+  "started_at": "2026-11-18T08:54:01.156Z",
+  "timezone": "UTC (Asia/Shanghai = UTC+08:00)",
+  "exit_code": 0,
+  "finished_at": "2026-11-18T08:54:32.705Z",
+  "output_facts": {
+    "stdout": {
+      "bytes": 1221,
+      "sha256": "a218f56869e9943a5d9b94b4b3eb7acced6d5f7a3da732d47ee5db8c79beff27"
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "raw_output_saved": false
+}

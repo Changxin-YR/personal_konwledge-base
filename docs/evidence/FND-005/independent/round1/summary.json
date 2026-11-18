@@ -1,0 +1,166 @@
+{
+  "candidate_id": "FND-005-572a5b58a7b46671",
+  "round": 1,
+  "status": "BLOCKED",
+  "final_acceptance": "NOT_RUN",
+  "reason": "Awaiting a newly frozen candidate; real GPT unavailable; U02 product failure preserved.",
+  "created_at": "2026-11-18T09:06:40.325Z",
+  "timezone": "Asia/Shanghai",
+  "candidate_binding": {
+    "before": "PASS",
+    "candidate_file_count": 50,
+    "runtime_file_count": 13,
+    "matched_upstream_source_files": 14524,
+    "actual_loaded_bundle_sha256": "70a41b8d867667f0ecaa456eac165fde2950c747c4e00f722a07445396b4c093",
+    "original_manifest": "candidate-original.json",
+    "later_drift": "candidate-interrupted.json",
+    "drift_reason": "Authorized main-thread rebuild after upstream empty-catalog credential defect; not a new product failure"
+  },
+  "suites": [
+    {
+      "name": "integration",
+      "status": "PASS",
+      "checks": 14,
+      "category": "CONTROLLED_MODEL_FIXTURE_WITH_REAL_HTTP_DSH_NATIVE_SQLITE",
+      "exit_code": 0,
+      "command": "node scripts/fnd005/run-all.mjs --port 3141 --out docs/evidence/FND-005/independent/integration",
+      "started_at": "2026-11-18T08:51:44.254Z",
+      "finished_at": "2026-11-18T08:52:28.267Z",
+      "evidence": "integration/summary.json"
+    },
+    {
+      "name": "storage",
+      "status": "PASS",
+      "checks": 6,
+      "category": "REAL_SQLITE_WITH_CONTROLLED_FAULT_SEAMS",
+      "exit_code": 0,
+      "command": "node scripts/fnd005/storage-checks.mjs docs/evidence/FND-005/independent/storage",
+      "started_at": "2026-11-18T08:51:41.614Z",
+      "finished_at": "2026-11-18T08:51:43.303Z",
+      "evidence": "storage/summary.json"
+    },
+    {
+      "name": "barriers",
+      "status": "PASS",
+      "checks": 5,
+      "category": "REAL_DSH_NATIVE_HTTP_SQLITE_WITH_CONTROLLED_MODEL_POLICY_BARRIERS",
+      "exit_code": 0,
+      "command": "node scripts/fnd005/barrier-checks.mjs docs/evidence/FND-005/independent/barriers",
+      "started_at": "2026-11-18T08:51:45.466Z",
+      "finished_at": "2026-11-18T08:52:15.709Z",
+      "evidence": "barriers/summary.json"
+    },
+    {
+      "name": "ui",
+      "status": "PASS",
+      "checks": 7,
+      "category": "REAL_CHROME_UI_HTTP_SQLITE_WITH_CONTROLLED_MODEL_FIXTURE",
+      "exit_code": 0,
+      "command": "node scripts/fnd005/browser-checks.mjs docs/evidence/FND-005/independent/ui",
+      "started_at": "2026-11-18T08:51:43.023Z",
+      "finished_at": "2026-11-18T08:52:35.565Z",
+      "evidence": "ui/summary.json"
+    },
+    {
+      "name": "configuration",
+      "status": "PASS",
+      "checks": 19,
+      "category": "REAL_HTTP_CONFIG_AND_CONTROLLED_ERROR_FIXTURE",
+      "exit_code": 0,
+      "command": "node scripts/fnd005/configuration-checks.mjs docs/evidence/FND-005/independent/configuration",
+      "started_at": "2026-11-18T08:53:58.561Z",
+      "finished_at": "2026-11-18T08:55:47.496Z",
+      "evidence": "configuration/summary.json"
+    },
+    {
+      "name": "acl",
+      "status": "PASS",
+      "checks": 7,
+      "category": "REAL_HTTP_SQLITE_ACL_AND_CONTROLLED_STORAGE_FAULTS",
+      "exit_code": 0,
+      "command": "node scripts/fnd005/acl-regression.mjs --port 3143 --out docs/evidence/FND-005/independent/acl --candidate FND-005-572a5b58a7b46671",
+      "started_at": "2026-11-18T08:54:01.156Z",
+      "finished_at": "2026-11-18T08:54:32.705Z",
+      "evidence": "acl/summary.json"
+    }
+  ],
+  "additional": {
+    "status": "FAIL",
+    "product_checks_passed": 10,
+    "oracle_error": {
+      "id": "I11.admission-schema-identity-and-csrf",
+      "reason": "Outer Host denied Origin with HTTP 403 before business JSON error envelope; test required a specific app code too narrowly."
+    },
+    "evidence": "additional/attempt-2-summary.json",
+    "attempt1": "additional/attempt-1-summary.json",
+    "post_rebuild_attempt": "additional/summary.json",
+    "post_rebuild_disposition": "NOT_RUN_ON_FROZEN_ORIGINAL"
+  },
+  "ui_additional": {
+    "status": "FAIL",
+    "pass": [
+      "U01.late-read-after-account-switch"
+    ],
+    "fail": [
+      "U02.late-read-after-target-switch"
+    ],
+    "evidence": "ui-additional/summary.json"
+  },
+  "service_additional": {
+    "status": "NOT_RUN",
+    "reason": "Hash changed before execution; no classifier assertions run"
+  },
+  "findings": [
+    {
+      "id": "U02",
+      "priority": "P2",
+      "status": "FAIL",
+      "file": "packages/knowledgeos-panel/src/host/ai-page.ts",
+      "line": 9,
+      "category": "REAL_CHROME_HTTP_SQLITE_WITH_CONTROLLED_TRANSPORT_DELAY",
+      "description": "Delayed read for A replaces rendered object/revision after target changed to B.",
+      "reproduction": "node docs/evidence/FND-005/independent/ui-additional.mjs",
+      "observed": {
+        "target_id": "4d300fdb-aa4f-40fd-b2cb-5d250e1d197e",
+        "selected_id": "4d300fdb-aa4f-40fd-b2cb-5d250e1d197e",
+        "rendered_object_id": "bc9e6ad4-e196-434a-b169-6aa65d4cbde5",
+        "rendered_revision": 1,
+        "target_sql_revision": 2,
+        "same_target": false
+      }
+    },
+    {
+      "id": "PIAI_EMPTY_CATALOG",
+      "status": "FAIL",
+      "category": "STATIC_CONFIRMATION_OF_IMPLEMENTER_FINDING",
+      "description": "Pinned pi-ai listModels returns [] on missing credential; old candidate classified it MODEL_NOT_FOUND.",
+      "runtime_on_original": "NOT_RUN",
+      "remediation": "Main writer repairing and refreezing"
+    }
+  ],
+  "real_gpt": {
+    "status": "BLOCKED",
+    "provider_calls": 0,
+    "tests": [
+      "T01",
+      "T02",
+      "T08"
+    ],
+    "reason": "No explicitly authorized working GPT route; no credential inspection or provider request by independent role"
+  },
+  "r1_r5": {
+    "R1": "PASS: native post wait plus real HTTP/SQL publication and committed-update reconciliation",
+    "R2": "PASS: cancel before body and after SQL commit; lost-response reconciliation",
+    "R3": "PASS for real ABORTED_BEFORE_DISPATCH; ABORTED/TOOL_TIMEOUT additional port cases NOT_RUN after drift",
+    "R4": "PASS for 3 direct classifier cases; actual pi-ai missing-credential path pending new candidate",
+    "R5": "PASS: cancelled late prepare and account-switch late read; distinct target-switch defect U02 remains FAIL"
+  },
+  "historical_limits": {
+    "connection_only_stop_recovery": "BLOCKED (not cleared by Host restart)",
+    "fnd002_v1_only_checker": "Historical FAIL preserved",
+    "full_product_66_cases": "NOT_RUN",
+    "upstream_build_gates": "Implementation evidence inspected; independent hash provenance and product noEmit typecheck only"
+  },
+  "writes": "Only independent evidence and authorized isolated runtime data; no product/test/config/state/git mutations",
+  "next": "User will provide new manifest. Preserve this round and run all original and three additional suites on the next frozen candidate."
+}

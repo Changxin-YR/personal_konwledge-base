@@ -1,0 +1,19 @@
+{
+  "candidate_id": "FND-005-572a5b58a7b46671",
+  "command": "node docs/evidence/FND-005/independent/service-additional.mjs",
+  "started_at": "2026-11-18T09:01:29.153Z",
+  "timezone": "UTC (Asia/Shanghai = UTC+08:00)",
+  "exit_code": 0,
+  "finished_at": "2026-11-18T09:01:29.263Z",
+  "output_facts": {
+    "stdout": {
+      "bytes": 32,
+      "sha256": "16542935a5bc52bc1255c2824d52e360d5d9424c4e219d704e1ec77bc6c549cf"
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "raw_output_saved": false
+}

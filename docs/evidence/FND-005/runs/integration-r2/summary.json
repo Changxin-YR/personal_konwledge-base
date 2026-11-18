@@ -1,0 +1,134 @@
+{
+  "category": "CONTROLLED_MODEL_FIXTURE_WITH_REAL_HTTP_DSH_NATIVE_SQLITE",
+  "real_gpt": false,
+  "started_at": "2026-11-18T08:09:45.283Z",
+  "status": "FAIL",
+  "checks": [
+    {
+      "id": "T09.identity-owner-separation",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:09:52.950Z",
+      "finished_at": "2026-11-18T08:09:52.962Z",
+      "facts": {
+        "real_login": true,
+        "business_user_is_not_owner": true,
+        "owner_is_not_business_user": true,
+        "status_http": 200
+      }
+    },
+    {
+      "id": "T01.fixture-read-native-tool",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:09:52.965Z",
+      "finished_at": "2026-11-18T08:09:52.976Z",
+      "facts": {
+        "provider": "fnd005-fixture",
+        "model": "controlled-tool-model",
+        "tool": "knowledgeos_read_object",
+        "object_id": "33555280-f8e3-4e82-9f86-77c1ffa1fb81",
+        "revision": 1,
+        "http": 200
+      }
+    },
+    {
+      "id": "T02.fixture-write-reread-sql",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:09:52.976Z",
+      "finished_at": "2026-11-18T08:09:52.992Z",
+      "facts": {
+        "object_id": "33555280-f8e3-4e82-9f86-77c1ffa1fb81",
+        "tool": "knowledgeos_update_object",
+        "revision_before": 1,
+        "revision_after": 2,
+        "body_sha256": "13501664711b154e83f71970895f9137844f71cf976fc8d66856ed7892ca155f",
+        "http_sql_get_agree": true,
+        "receipts": 1
+      }
+    },
+    {
+      "id": "T05.exact-replay-conflicts-concurrency",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:09:52.992Z",
+      "finished_at": "2026-11-18T08:09:53.043Z",
+      "facts": {
+        "exact_original_result_after_later_edit": true,
+        "original_receipts": 1,
+        "different_parameters": 409,
+        "different_object": 409,
+        "parallel_http": [
+          200,
+          200
+        ],
+        "parallel_revision": 2,
+        "parallel_receipts": 1
+      }
+    },
+    {
+      "id": "T06.stale-revision",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:09:53.043Z",
+      "finished_at": "2026-11-18T08:09:53.050Z",
+      "facts": {
+        "http": 409,
+        "unchanged": true,
+        "receipt_count": 0
+      }
+    },
+    {
+      "id": "T03.private-and-forged-identity",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:09:53.050Z",
+      "finished_at": "2026-11-18T08:09:53.073Z",
+      "facts": {
+        "cross_user_read": 404,
+        "cross_user_write": 404,
+        "forged_model_identity": 422,
+        "forged_request_identity": 422,
+        "unchanged": true
+      }
+    },
+    {
+      "id": "T04.revoke-after-prepare-and-replay",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:09:53.083Z",
+      "finished_at": "2026-11-18T08:09:53.121Z",
+      "facts": {
+        "prepared_read": 404,
+        "prepared_write": 404,
+        "protected_replay": 404,
+        "revision": 2,
+        "revoked_grant_history": 1,
+        "regrant_restored": true
+      }
+    },
+    {
+      "id": "T04.membership-expiry-after-prepare",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:09:53.121Z",
+      "finished_at": "2026-11-18T08:09:53.136Z",
+      "facts": {
+        "http": 404,
+        "valid_action_grants_do_not_bypass_expired_membership": true,
+        "unchanged": true
+      }
+    },
+    {
+      "id": "T04.logout-after-prepare",
+      "status": "PASS",
+      "started_at": "2026-11-18T08:09:53.136Z",
+      "finished_at": "2026-11-18T08:09:53.141Z",
+      "facts": {
+        "http": 401,
+        "no_tool_result": true
+      }
+    },
+    {
+      "id": "T07.typed-model-failures",
+      "status": "FAIL",
+      "started_at": "2026-11-18T08:09:53.141Z",
+      "error": "Expected values to be strictly equal:\n\n429 !== 502\n"
+    }
+  ],
+  "failure": "Expected values to be strictly equal:\n\n429 !== 502\n",
+  "finished_at": "2026-11-18T08:09:54.891Z"
+}

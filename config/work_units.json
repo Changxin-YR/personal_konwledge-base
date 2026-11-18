@@ -896,12 +896,12 @@
         {
           "id": "FND-004-T04",
           "scenario": "生效、到期、撤销和重新读取",
-        "expected": "valid_from前、now等于expires_at、revoked_at非空均拒绝；下一次读取/列表/动作重新判权；撤权后重新授权恢复，旧记录保留且只有一条有效重复权限。"
+          "expected": "valid_from前、now等于expires_at、revoked_at非空均拒绝；下一次读取/列表/动作重新判权；撤权后重新授权恢复，旧记录保留且只有一条有效重复权限。"
         },
         {
           "id": "FND-004-T05",
-        "scenario": "v4迁移、v3升级、重启和故障回滚",
-        "expected": "v1/v2/v3数据及checksum保留；v4真实schema校验；中途失败无半提交；重启后对象和授权状态不变。"
+          "scenario": "v4迁移、v3升级、重启和故障回滚",
+          "expected": "v1/v2/v3数据及checksum保留；v4真实schema校验；中途失败无半提交；重启后对象和授权状态不变。"
         },
         {
           "id": "FND-004-T06",
@@ -920,17 +920,17 @@
         "A46"
       ],
       "final_acceptance_ids": [],
-  "completion_gate": "仅在 3.2.2 修复后的冻结候选上实际完成 T01–T07、R1/R2 真实 HTTP/SQL、v3→v4 升级、迁移负例、独立复核和受影响回归后，才可标记 passed/awaiting_user；旧候选 PASS 不具放行效力。",
-  "status": "passed",
+      "completion_gate": "仅在 3.2.2 修复后的冻结候选上实际完成 T01–T07、R1/R2 真实 HTTP/SQL、v3→v4 升级、迁移负例、独立复核和受影响回归后，才可标记 passed/awaiting_user；旧候选 PASS 不具放行效力。",
+      "status": "passed",
       "test_plan_status": "detailed_accepted_unit",
-  "instruction_revision": "3.2.2",
+      "instruction_revision": "3.2.2",
       "working_branch": "codex/knowledgeos-fnd-004",
-  "base_commit": "518ce35a51ef07623480bc8cd75dc0e93262557d",
+      "base_commit": "518ce35a51ef07623480bc8cd75dc0e93262557d",
       "activated_at": "2026-11-17",
       "activation_basis": "explicit_user_selection_of_FND004",
-  "test_result_status": "PASS",
-  "independent_review_status": "PASS",
-  "retest_status": "PASS",
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "retest_status": "PASS",
       "completed_test_ids": [
         "FND-004-T01",
         "FND-004-T02",
@@ -952,15 +952,15 @@
         "docs/evidence/FND-004/architecture.md",
         "docs/evidence/FND-004/permission-matrix.md",
         "docs/evidence/FND-004/test-plan.md",
-    "docs/evidence/FND-004/runs/v322-candidate/summary.json",
-    "docs/evidence/FND-004/independent/v322-candidate/summary.json",
-    "docs/evidence/FND-004/runs/v322-affected-regression/summary.json",
+        "docs/evidence/FND-004/runs/v322-candidate/summary.json",
+        "docs/evidence/FND-004/independent/v322-candidate/summary.json",
+        "docs/evidence/FND-004/runs/v322-affected-regression/summary.json",
         "docs/evidence/FND-004/REPORT.md",
         "docs/evidence/FND-004/candidate.md"
       ],
-  "completed_at": "2026-11-18T12:53:38+08:00",
-  "candidate": "FND-004-FINAL-20261118-v3.2.2",
-  "candidate_commit": "3c78f1f1379a033c20a193cc091f873e0573e0c1"
+      "completed_at": "2026-11-18T12:53:38+08:00",
+      "candidate": "FND-004-FINAL-20261118-v3.2.2",
+      "candidate_commit": "3c78f1f1379a033c20a193cc091f873e0573e0c1"
     },
     {
       "id": "FND-005",
@@ -975,9 +975,9 @@
         "FND-004"
       ],
       "scope": [
-        "受控DSH模型适配",
-        "一个测试业务工具的只读和可逆写入",
-        "保留真实provider/model与非敏感调用证据"
+        "固定DSH ctx.llm与工具注册/受控执行",
+        "两个最小读写工具与真实业务会话、ACL、版本检查",
+        "最小持久幂等记录与真实provider/model脱敏证据"
       ],
       "not_in_scope": [
         "未激活的其他功能",
@@ -986,13 +986,48 @@
       "test_obligations": [
         {
           "id": "FND-005-T01",
-          "scenario": "由真实模型调用只读及受控写入工具",
-          "expected": "身份到达领域层，结果回到UI并可重新读取"
+          "scenario": "真实 GPT 只读工具和 UI",
+          "expected": "真实登录后 GPT 选择 knowledgeos_read_object；正确结果按当前权限显示。"
         },
         {
           "id": "FND-005-T02",
-          "scenario": "凭据缺失/权限拒绝/重复动作",
-          "expected": "明确受阻或拒绝，同键不重复写入，不静默换模型"
+          "scenario": "真实 GPT 修改并重新读取",
+          "expected": "GPT 选择 knowledgeos_update_object；SQLite revision 增加一次；HTTP 和 UI 重读一致。"
+        },
+        {
+          "id": "FND-005-T03",
+          "scenario": "私人对象隔离",
+          "expected": "甲经 AI 读取乙私人对象被拒绝；不泄露正文/标题；模型身份字段不能认证。"
+        },
+        {
+          "id": "FND-005-T04",
+          "scenario": "准备后撤权和成员资格过期",
+          "expected": "准备与执行分离；提交时重查业务会话、ACL 和当前时间；撤权/到期均拒绝。"
+        },
+        {
+          "id": "FND-005-T05",
+          "scenario": "持久幂等",
+          "expected": "相同键及参数仅一次写入，重启可重放；不同参数复用同键返回409。"
+        },
+        {
+          "id": "FND-005-T06",
+          "scenario": "对象版本冲突",
+          "expected": "旧 expected_revision 返回409，内容和幂等记录不被覆盖。"
+        },
+        {
+          "id": "FND-005-T07",
+          "scenario": "模型和取消失败语义",
+          "expected": "模型不存在、无凭据、额度耗尽、权限拒绝、超时、取消和失败准确分类，不返回假成功。"
+        },
+        {
+          "id": "FND-005-T08",
+          "scenario": "真实 UI 可观察结果",
+          "expected": "显示真实 provider/model、请求状态、工具、结果、revision 和重读验证。"
+        },
+        {
+          "id": "FND-005-T09",
+          "scenario": "固定 Host 和回归",
+          "expected": "构建、加载、停止、重启、v4→v5迁移及FND001～004受影响回归；证据层级分开。"
         }
       ],
       "acceptance_ids": [
@@ -1002,9 +1037,63 @@
       "final_acceptance_ids": [
         "A01"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
-      "status": "planned",
-      "test_plan_status": "planning_baseline_expand_on_activation"
+      "completion_gate": "T01–T09全部必测项实际通过且独立复核PASS；至少一次真实GPT提供方调用证据；缺真实模型时BLOCKED，不能passed/awaiting_user。",
+      "status": "blocked",
+      "test_plan_status": "detailed_active_unit",
+      "instruction_revision": "3.3.0",
+      "working_branch": "codex/knowledgeos-fnd-005",
+      "base_commit": "4282b9231a4ac38b0eb87145c337b811aec033e4",
+      "activated_at": "2026-11-18",
+      "activation_basis": "explicit_user_selection_of_FND005",
+      "test_result_status": "BLOCKED",
+      "independent_review_status": "BLOCKED",
+      "retest_status": "BLOCKED",
+      "completed_test_ids": [
+        "FND-005-T03",
+        "FND-005-T04",
+        "FND-005-T05",
+        "FND-005-T06",
+        "FND-005-T07",
+        "FND-005-T09"
+      ],
+      "open_review_items": [
+        "GPT_PROVIDER_UNAVAILABLE"
+      ],
+      "closed_review_items": [
+        "R1",
+        "R2",
+        "R3",
+        "R4",
+        "R5",
+        "U02",
+        "PIAI_EMPTY_CATALOG"
+      ],
+      "evidence_paths": [
+        "docs/evidence/FND-005/REPORT.md",
+        "docs/evidence/FND-005/candidate.json",
+        "docs/evidence/FND-005/provider-audit.json",
+        "docs/evidence/FND-005/real-provider/summary.json",
+        "docs/evidence/FND-005/implementer-summary.json",
+        "docs/evidence/FND-005/independent/summary.json",
+        "docs/evidence/FND-005/independent/REVIEW.md",
+        "docs/evidence/FND-005/build-and-gates.json",
+        "docs/evidence/FND-005/delivery-safety.json"
+      ],
+      "real_provider_status": "BLOCKED",
+      "real_provider_evidence": "docs/evidence/FND-005/real-provider/summary.json",
+      "blocked_reason": "No authorized usable GPT API. Technical checks and independent technical review pass; actual GPT T01/T02/T08 remain BLOCKED with zero provider calls.",
+      "technical_test_result_status": "PASS",
+      "independent_technical_review_status": "PASS",
+      "technical_retest_status": "PASS",
+      "candidate": "FND-005-d0ec209b8161e14e",
+      "blocked_test_ids": [
+        "FND-005-T01",
+        "FND-005-T02",
+        "FND-005-T08"
+      ],
+      "real_provider_calls": 0,
+      "stopped_at": "2026-11-18T09:27:51.274Z",
+      "stop_reason": "Current-unit implementation and non-GPT verification finished; GPT dependency blocks acceptance; wait for user instruction without advancing."
     },
     {
       "id": "FND-006",

@@ -1,0 +1,37 @@
+{
+  "id": "FND-004-T02",
+  "status": "PASS",
+  "started_at": "2026-11-18T08:38:07.372Z",
+  "evidence": [
+    "real_http_action_matrix",
+    "edit_without_delete_or_manage_share"
+  ],
+  "result": {
+    "owner": {
+      "read": 200,
+      "comment": 200,
+      "edit": 200,
+      "export": 200,
+      "manage_share": 200,
+      "delete": 200,
+      "review": 200,
+      "view_learning_records": 200
+    },
+    "member_before_grant": {
+      "read": 404,
+      "comment": 404,
+      "edit": 404,
+      "export": 404,
+      "manage_share": 404,
+      "delete": 404,
+      "review": 404,
+      "view_learning_records": 404
+    },
+    "after_edit_grant": {
+      "edit": 200,
+      "delete": 404,
+      "manage_share": 404
+    }
+  },
+  "finished_at": "2026-11-18T08:38:07.434Z"
+}

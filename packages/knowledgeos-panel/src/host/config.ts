@@ -15,11 +15,14 @@ export interface Config {
    * guessed from cwd, HOME, the build tree, or a request.
    */
   dataDir?: string
+  /** Trusted deployment route and hard budget; never accepted from HTTP/model. */
+  ai?: import('./ai-service.ts').AiConfig
 }
 
 /** Cordis validates the row config against this schema before `apply`. */
 export const Config: Schema<Config> = Schema.object({
   dataDir: Schema.string(),
+  ai: Schema.object({ provider: Schema.string(), model: Schema.string(), maxCalls: Schema.number().min(1).max(64), timeoutMs: Schema.number().min(20).max(60000), budgetUsd: Schema.number().min(0).max(1), inputUsdPerMillion: Schema.number().min(0), outputUsdPerMillion: Schema.number().min(0) }),
 })
 
 /**

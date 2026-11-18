@@ -1,0 +1,19 @@
+{
+  "candidate_id": "FND-005-572a5b58a7b46671",
+  "command": "node scripts/test-verify-plan.mjs",
+  "started_at": "2026-11-18T08:54:03.843Z",
+  "timezone": "UTC (Asia/Shanghai = UTC+08:00)",
+  "exit_code": 0,
+  "finished_at": "2026-11-18T08:56:06.767Z",
+  "output_facts": {
+    "stdout": {
+      "bytes": 5257,
+      "sha256": "384534e21b944c5be5ed079aa2127afb7865734b6cb4d6b2ae6381e552b36ddf"
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "raw_output_saved": false
+}

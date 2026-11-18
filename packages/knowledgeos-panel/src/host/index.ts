@@ -18,6 +18,9 @@ import { ProbeStorage } from './storage.ts'
 import { IdentityService } from './identity.ts'
 import { buildAccountHtml, buildSetupHtml, businessCookieName, createIdentityHandlers, isIdentityRuntimeAvailable, isLoopbackAddress, readCookie } from './identity-http.ts'
 import { createObjectHandlers } from './objects-http.ts'
+import { AiService } from './ai-service.ts'
+import { createAiHandler } from './ai-http.ts'
+import { buildAiHtml } from './ai-page.ts'
 
 export { Config }
 
@@ -184,6 +187,17 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
       return isIdentityRuntimeAvailable({ connection, host: webFacts.host, port: webFacts.port, protocol: webFacts.protocol, origin: actualOrigin() })
     }
     const identity = new IdentityService(storage as NonNullable<typeof storage>)
+    let ai = new AiService(storage as NonNullable<typeof storage>, config.ai ?? {})
+    identityContext.inject(['llm', 'tools'], aiContext => {
+      aiContext.effect(() => {
+        ai.close()
+        let active: AiService
+        try { active = new AiService(storage as NonNullable<typeof storage>, config.ai ?? {}, aiContext.llm, aiContext.tools) }
+        catch { console.warn('knowledgeos-ai: TOOL_REGISTRATION_FAILED'); ai = new AiService(storage as NonNullable<typeof storage>, config.ai ?? {}); return () => ai.close() }
+        ai = active
+        return () => { active.close(); if (ai === active) ai = new AiService(storage as NonNullable<typeof storage>, config.ai ?? {}) }
+      }, 'knowledgeos-ai: controlled tools')
+    })
     const identityHandlers = createIdentityHandlers({
       service: identity,
       origin: actualOrigin,
@@ -207,7 +221,7 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
       res.statusCode = 200
       res.setHeader('content-type', 'text/html; charset=utf-8')
       res.setHeader('cache-control', 'no-store')
-      res.end(buildAccountHtml())
+      res.end(buildAccountHtml().replace('</main>', '<p><a href="/knowledgeos/ai">受控 AI 工具</a></p></main>'))
     }
     const withPeer = (handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, peer?: import('./identity-peer.ts').PeerScope) => Promise<void>) => {
       return (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, peer?: unknown): Promise<void> => {
@@ -220,6 +234,9 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
     identityContext.effect(() => {
       const disposers: Array<() => void> = []
       disposers.push(identityContext.webServer.register({ kind: 'exact', path: ACCOUNT_PATH, auth: 'anonymous', handler: accountPage }))
+      disposers.push(identityContext.webServer.register({ kind: 'exact', path: '/knowledgeos/ai', auth: 'anonymous', handler: (req, res) => { if (req.method !== 'GET') { res.statusCode = 405; res.end(); return }; res.setHeader('content-type', 'text/html; charset=utf-8'); res.setHeader('cache-control', 'no-store'); res.end(buildAiHtml()) } }))
+      const aiHandler = createAiHandler({ service: () => ai, origin: actualOrigin, actorFor: req => { const origin = actualOrigin(); if (origin === undefined || !identityAvailable()) return undefined; return identity.actor(readCookie(req, businessCookieName(identity.setupState.serviceId, origin))) } })
+      disposers.push(identityContext.webServer.register({ kind: 'prefix', path: '/knowledge/v1/ai', auth: 'anonymous', handler: withPeer(async (req, res) => aiHandler(req, res)) }))
       disposers.push(identityContext.webServer.register({ kind: 'exact', path: SETUP_PATH, auth: 'required', handler: ownerSetupPage }))
       const routes: Array<{ path: string; auth: 'anonymous' | 'required'; handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, peer?: import('./identity-peer.ts').PeerScope) => Promise<void> }> = [
         { path: '/knowledge/v1/auth/status', auth: 'anonymous', handler: identityHandlers.status },
@@ -244,7 +261,7 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
       disposers.push(identityContext.webServer.register({ kind: 'prefix', path: '/knowledge/v1/objects', auth: 'anonymous', handler: withPeer(async (req, res) => objectHandler(req, res)) }))
       disposers.push(identityContext.webServer.register({ kind: 'prefix', path: '/knowledge/v1/projects', auth: 'anonymous', handler: withPeer(async (req, res) => objectHandler(req, res)) }))
       disposers.push(identityContext.webServer.register({ kind: 'prefix', path: '/knowledge/v1/grants', auth: 'anonymous', handler: withPeer(async (req, res) => objectHandler(req, res)) }))
-      return async () => { for (const dispose of disposers) dispose(); await identity.close() }
+      return async () => { ai.close(); for (const dispose of disposers) dispose(); await identity.close() }
     }, 'knowledgeos-identity: account and business routes')
   }
 

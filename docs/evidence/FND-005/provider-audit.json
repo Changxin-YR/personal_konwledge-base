@@ -1,0 +1,59 @@
+{
+  "category": "READ_ONLY_PROVIDER_CONFIGURATION_AUDIT",
+  "status": "PASS",
+  "audited_at": "2026-11-18T08:19:54.032Z",
+  "profile": "desktop",
+  "selected_provider": "api",
+  "selected_model": "deepseek-v4.1-flash-1017/hs14",
+  "routes": [
+    {
+      "provider": "api",
+      "adapter": "@deepseek-ai/dsh-llm-pi-ai",
+      "protocol": "openai-completions",
+      "endpoint_host": "tokease.cn",
+      "models": [
+        {
+          "id": "deepseek-v4.1-flash-1017/hs14"
+        }
+      ],
+      "credential_reference": "API_API_KEY",
+      "environment_credential_present": false,
+      "inline_credential_present": false
+    }
+  ],
+  "gpt_catalog_present": false,
+  "gpt_environment_credential_present": false,
+  "credential_store_present": true,
+  "credential_store_values_read": false,
+  "network_provider_calls": 0,
+  "real_gpt_status": "BLOCKED",
+  "reason": "CONFIGURED_MODEL_IS_DEEPSEEK_NOT_GPT",
+  "notes": [
+    "OpenAI-compatible protocol is not proof of a GPT model.",
+    "Development assistant access does not provide a business GPT API credential.",
+    "No model substitution; no paid request to a non-GPT model."
+  ],
+  "additional_profile_scan": {
+    "checked_at": "2026-11-18T09:10:54.655Z",
+    "profiles": [
+      {
+        "profile": "desktop",
+        "routes": [
+          {
+            "provider": "api",
+            "models": [
+              "deepseek-v4.1-flash-1017/hs14"
+            ],
+            "inline_credential_present": false,
+            "referenced_environment_credential_present": false
+          }
+        ]
+      },
+      {
+        "profile": "knowledgeos-identity-test",
+        "routes": []
+      }
+    ],
+    "gpt_route_found": false
+  }
+}

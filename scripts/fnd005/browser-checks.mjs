@@ -1,0 +1,42 @@
+#!/usr/bin/env node
+/** Real Chrome UI + HTTP/native DSH/SQLite with an explicitly controlled model fixture. */
+import assert from 'node:assert/strict'
+import { mkdirSync,writeFileSync,readFileSync } from 'node:fs'
+import { resolve,join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { createHash } from 'node:crypto'
+import { prepareRun,accounts,api,sql,dbPath,stopHost } from './harness.mjs'
+const out=resolve(process.argv[2]??'docs/evidence/FND-005/runs/ui');mkdirSync(out,{recursive:true})
+const {chromium}=await import(pathToFileURL(resolve('.cache/panel-builder/node_modules/playwright/index.mjs')).href)
+const run=prepareRun(out,3134),report={category:'REAL_CHROME_UI_HTTP_SQLITE_WITH_CONTROLLED_MODEL_FIXTURE',real_gpt:false,status:'PASS',checks:[],started_at:new Date().toISOString()}
+let host,browser
+try{
+ const c=await accounts(run);host=c.host
+ const object=await api(run.port,c.alice.cookie,'POST','/knowledge/v1/objects',{title:'UI 合成验收对象',body:'UI synthetic baseline'});assert.equal(object.status,201);const id=object.json.data.id
+ browser=await chromium.launch({channel:'chrome',headless:true});const context=await browser.newContext({viewport:{width:1180,height:1000}}),page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message))
+ const base=`http://127.0.0.1:${run.port}`
+ await page.goto(base+'/knowledgeos/account');await page.locator('#login_name').fill('alice');await page.locator('#login_password').fill('甲 synthetic password 2026!');await page.locator('#login').click();await page.locator('#profile').waitFor({state:'visible'})
+ await page.goto(base+'/knowledgeos/ai');await page.waitForFunction(()=>document.querySelector('#status').textContent==='就绪');assert((await page.locator('#model').textContent()).includes('controlled-tool-model'))
+ await page.locator('#instruction').fill('读取这个对象');await page.locator('#prepare').click();await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('已准备'));assert((await page.locator('#tool').textContent()).includes('knowledgeos_read_object'));await page.locator('#execute').click();await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('执行成功'));assert((await page.locator('#result').textContent()).includes('UI synthetic baseline'));await page.screenshot({path:join(out,'fixture-read.png'),fullPage:true});report.checks.push({id:'T01.fixture-ui-read',status:'PASS',real_login_ui:true,tool:'knowledgeos_read_object'})
+ await page.locator('#key').fill('ui-write-key');await page.locator('#instruction').fill('修改正文为：UI synthetic committed update');await page.locator('#prepare').click();await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('已准备'));await page.locator('#execute').click();await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('UPDATED'));await page.locator('#read').click();await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('重新读取完成'))
+ const db=sql(dbPath(run.dataDir),'SELECT body,revision FROM knowledge_objects WHERE id=?',[id])[0];assert.equal(db.body,'UI synthetic committed update');assert.equal(db.revision,2);assert((await page.locator('#object').textContent()).includes(db.body));await page.screenshot({path:join(out,'fixture-write-reread.png'),fullPage:true});report.checks.push({id:'T02.T08.fixture-ui-write-reread',status:'PASS',tool:'knowledgeos_update_object',revision:2,sql_agrees:true})
+ await page.locator('#instruction').fill('读取这个对象');await page.locator('#prepare').click();await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('已准备'));await page.locator('#instruction').fill('读取这个对象的新草稿');assert(await page.locator('#execute').isDisabled());assert.equal(await page.locator('#tool').textContent(),'');report.checks.push({id:'T08.draft-change-invalidates-prepared-action',status:'PASS'})
+ await page.locator('#revision').fill('1');await page.locator('#key').fill('ui-stale-key');await page.locator('#instruction').fill('修改正文为：must not replace');await page.locator('#prepare').click();await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('已准备'));await page.locator('#execute').click();await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('REVISION_CONFLICT'));assert.equal(await page.locator('#instruction').inputValue(),'修改正文为：must not replace');report.checks.push({id:'T06.fixture-ui-revision-conflict',status:'PASS',draft_preserved:true})
+ await page.locator('#instruction').fill('fixture:timeout');await page.locator('#prepare').click();await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('MODEL_TIMEOUT'));assert.equal(await page.locator('#instruction').inputValue(),'fixture:timeout')
+ await page.locator('#instruction').fill('fixture:cancel');await page.locator('#prepare').click();await page.waitForFunction(()=>document.querySelector('#status').textContent==='模型请求中');await page.locator('#cancel').click();await page.waitForFunction(()=>/已取消|CANCELLED/.test(document.querySelector('#status').textContent));report.checks.push({id:'T07.fixture-ui-timeout-cancel',status:'PASS'})
+ // Delay an actual prepared HTTP response until the cancellation response is displayed.
+ let releaseLate,reachedLate;const delayed=new Promise(r=>releaseLate=r),reached=new Promise(r=>reachedLate=r)
+ await page.route('**/knowledge/v1/ai/prepare',async route=>{const response=await route.fetch();reachedLate();await delayed;await route.fulfill({response})},{times:1})
+ await page.locator('#instruction').fill('读取这个对象');await page.locator('#prepare').click();await reached;await page.locator('#cancel').click();await page.waitForFunction(()=>document.querySelector('#status').textContent==='已取消');releaseLate();await page.waitForTimeout(200);assert.equal(await page.locator('#status').textContent(),'已取消');assert(await page.locator('#execute').isDisabled());assert(await page.locator('#prepare').isEnabled());report.checks.push({id:'R5.late-prepare-does-not-restore-cancelled-ui',status:'PASS',transport_response_delayed:true})
+ // A second real login replaces the business cookie; reload must clear the old user's object/result.
+ await page.goto(base+'/knowledgeos/account');await page.locator('#login_name').fill('bob');await page.locator('#login_password').fill('乙 synthetic password 2026!');await page.locator('#login').click();await page.waitForFunction(()=>document.querySelector('#who').textContent.includes('bob'))
+ await page.goto(base+'/knowledgeos/ai');await page.waitForFunction(()=>document.querySelector('#who').textContent.includes('bob'));assert.equal(await page.locator('#result').textContent(),'');assert.equal(await page.locator('#object').textContent(),'');assert.equal(await page.locator('#objects option').count(),0);report.checks.push({id:'T08.account-switch-clears-private-view',status:'PASS'})
+ assert.deepEqual(errors,[]);report.page_errors=errors
+ await context.close()
+ await stopHost(host);host=undefined
+ const blocked=prepareRun(out,3134,{fixture:false}),bc=await accounts(blocked);host=bc.host
+ const blockedContext=await browser.newContext({viewport:{width:1180,height:900}}),blockedPage=await blockedContext.newPage()
+ await blockedPage.goto(base+'/knowledgeos/account');await blockedPage.locator('#login_name').fill('alice');await blockedPage.locator('#login_password').fill('甲 synthetic password 2026!');await blockedPage.locator('#login').click();await blockedPage.locator('#profile').waitFor({state:'visible'})
+ await blockedPage.goto(base+'/knowledgeos/ai');await blockedPage.waitForFunction(()=>document.querySelector('#status').textContent.includes('BLOCKED'));assert(await blockedPage.locator('#prepare').isDisabled());await blockedPage.screenshot({path:join(out,'model-not-configured.png'),fullPage:true});report.checks.push({id:'T08.unconfigured-ui-blocked',status:'PASS',provider_calls:0});await blockedContext.close()
+}catch(e){report.status='FAIL';report.error=e.message}finally{await browser?.close();await stopHost(host)}
+report.finished_at=new Date().toISOString();report.loaded_candidate_sha256=createHash('sha256').update(readFileSync('packages/knowledgeos-panel/lib/index.js')).digest('hex');writeFileSync(join(out,'summary.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));if(report.status!=='PASS')process.exitCode=1

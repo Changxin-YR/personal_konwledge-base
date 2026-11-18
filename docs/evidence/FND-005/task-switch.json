@@ -1,0 +1,39 @@
+{
+  "instruction_revision": "3.3.0",
+  "instruction_sha256": "5275087c8e71a6ea7ead47eae2eed5fd91917b0aa6b2cae7370bed72f7a0771a",
+  "executor": "codex",
+  "active_unit": "FND-005",
+  "auto_advance": false,
+  "base_commit": "4282b9231a4ac38b0eb87145c337b811aec033e4",
+  "working_branch": "codex/knowledgeos-fnd-005",
+  "original_worktree": "clean",
+  "existing_work_preserved": true,
+  "remote_predecessor_head": "4282b9231a4ac38b0eb87145c337b811aec033e4",
+  "remote_main_head": "6f23735d5f07fed7cef108f829290b823ad6ace0",
+  "remote_target_before_push": "absent",
+  "remote_rechecked_at": "2026-11-18T09:34:43.542Z",
+  "fnd001_to_004_history_preserved": true,
+  "full_product_acceptance_recertified": false,
+  "final_remote_check_attempts": [
+    {
+      "status": "FAIL",
+      "exit_code": 1,
+      "transport": "HTTPS default",
+      "reason": "Recv failure: Connection was reset"
+    },
+    {
+      "status": "FAIL",
+      "exit_code": 1,
+      "transport": "HTTPS HTTP/1.1",
+      "reason": "Could not connect to github.com:443 after 21108 ms"
+    },
+    {
+      "status": "PASS",
+      "exit_code": 0,
+      "transport": "HTTPS default retry",
+      "predecessor_head": "4282b9231a4ac38b0eb87145c337b811aec033e4",
+      "main_head": "6f23735d5f07fed7cef108f829290b823ad6ace0",
+      "target": "absent"
+    }
+  ]
+}

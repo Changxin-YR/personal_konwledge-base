@@ -1,0 +1,142 @@
+{
+  "category": "REAL_HTTP_CONFIG_AND_CONTROLLED_ERROR_FIXTURE",
+  "real_gpt": false,
+  "status": "PASS",
+  "checks": [
+    {
+      "id": "unconfigured",
+      "status": "PASS",
+      "http": 503,
+      "code": "MODEL_NOT_CONFIGURED",
+      "attempts": 0
+    },
+    {
+      "id": "provider-unavailable",
+      "status": "PASS",
+      "http": 503,
+      "code": "MODEL_NOT_CONFIGURED",
+      "attempts": 0
+    },
+    {
+      "id": "model-not-found",
+      "status": "PASS",
+      "http": 404,
+      "code": "MODEL_NOT_FOUND",
+      "attempts": 0
+    },
+    {
+      "id": "prices-absent",
+      "status": "PASS",
+      "http": 503,
+      "code": "PRICE_BUDGET_NOT_CONFIGURED",
+      "attempts": 0
+    },
+    {
+      "id": "monetary-budget",
+      "status": "PASS",
+      "http": 429,
+      "code": "MODEL_BUDGET_EXCEEDED",
+      "attempts": 0
+    },
+    {
+      "id": "call-budget",
+      "status": "PASS",
+      "http": 429,
+      "code": "MODEL_BUDGET_EXCEEDED",
+      "attempts": 1
+    },
+    {
+      "id": "typed-MISSING_CREDENTIAL",
+      "status": "PASS",
+      "category": "CONTROLLED_ERROR_CLASSIFIER",
+      "code": "CREDENTIALS_MISSING"
+    },
+    {
+      "id": "typed-INVALID_CREDENTIAL",
+      "status": "PASS",
+      "category": "CONTROLLED_ERROR_CLASSIFIER",
+      "code": "CREDENTIALS_INVALID"
+    },
+    {
+      "id": "typed-ACCOUNT_QUOTA",
+      "status": "PASS",
+      "category": "CONTROLLED_ERROR_CLASSIFIER",
+      "code": "QUOTA_EXHAUSTED"
+    },
+    {
+      "id": "typed-QUOTA",
+      "status": "PASS",
+      "category": "CONTROLLED_ERROR_CLASSIFIER",
+      "code": "QUOTA_EXHAUSTED"
+    },
+    {
+      "id": "typed-UNKNOWN_MODEL",
+      "status": "PASS",
+      "category": "CONTROLLED_ERROR_CLASSIFIER",
+      "code": "MODEL_NOT_FOUND"
+    },
+    {
+      "id": "typed-MODEL_UNSUPPORTED",
+      "status": "PASS",
+      "category": "CONTROLLED_ERROR_CLASSIFIER",
+      "code": "MODEL_NOT_FOUND"
+    },
+    {
+      "id": "typed-NO_ADAPTER",
+      "status": "PASS",
+      "category": "CONTROLLED_ERROR_CLASSIFIER",
+      "code": "MODEL_NOT_CONFIGURED"
+    },
+    {
+      "id": "typed-TIMEOUT",
+      "status": "PASS",
+      "category": "CONTROLLED_ERROR_CLASSIFIER",
+      "code": "MODEL_TIMEOUT"
+    },
+    {
+      "id": "typed-ABORTED",
+      "status": "PASS",
+      "category": "CONTROLLED_ERROR_CLASSIFIER",
+      "code": "CANCELLED"
+    },
+    {
+      "id": "typed-RATE_LIMIT",
+      "status": "PASS",
+      "category": "CONTROLLED_ERROR_CLASSIFIER",
+      "code": "PROVIDER_RATE_LIMITED"
+    },
+    {
+      "id": "R4.CREDENTIALS_MISSING",
+      "status": "PASS",
+      "category": "CONTROLLED_ERROR_CLASSIFIER"
+    },
+    {
+      "id": "R4.CREDENTIALS_INVALID",
+      "status": "PASS",
+      "category": "CONTROLLED_ERROR_CLASSIFIER"
+    },
+    {
+      "id": "R4.PROVIDER_PERMISSION_DENIED",
+      "status": "PASS",
+      "category": "CONTROLLED_ERROR_CLASSIFIER"
+    },
+    {
+      "id": "actual-pi-ai-missing-credential",
+      "status": "PASS",
+      "category": "ACTUAL_PINNED_PI_AI_ADAPTER_REAL_HTTP_NO_CREDENTIAL",
+      "http": 503,
+      "code": "CREDENTIALS_MISSING",
+      "network_requests": 0
+    },
+    {
+      "id": "actual-pi-ai-unknown-model-with-hidden-catalog",
+      "status": "PASS",
+      "category": "ACTUAL_PINNED_PI_AI_ADAPTER_REAL_HTTP_NO_CREDENTIAL",
+      "http": 404,
+      "code": "MODEL_NOT_FOUND",
+      "network_requests": 0
+    }
+  ],
+  "started_at": "2026-11-18T09:14:25.343Z",
+  "finished_at": "2026-11-18T09:15:54.649Z"
+}
