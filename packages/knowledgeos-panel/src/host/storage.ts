@@ -21,7 +21,7 @@ import type {
   UserCreateInput,
   UserRecord,
 } from './identity.ts'
-import { authorize, type AuthorizationAction, type AuthorizationGrant, type AuthorizationTarget, type ProjectMembership, type ResourceScope } from './authorization.ts'
+import { authorize, isGrantActive, type AuthorizationAction, type AuthorizationGrant, type AuthorizationTarget, type ProjectMembership, type ResourceScope } from './authorization.ts'
 import type { CreateOutcome, ProbeRecord, ProbeStorePort } from './records.ts'
 import { RecordsError } from './records.ts'
 
@@ -211,6 +211,11 @@ export interface KnowledgeObjectRecord {
 export interface ProjectRecord { readonly id: string; readonly serviceId: string; readonly ownerUserId: string; readonly name: string; readonly status: string; readonly createdAt: string; readonly updatedAt: string }
 
 export interface GrantRecord extends AuthorizationGrant { readonly id: string; readonly serviceId: string; readonly resourceId: string; readonly resourceType: 'knowledge_object'; readonly createdAt: string }
+
+export type UpdateObjectResult =
+  | { readonly kind: 'updated'; readonly object: KnowledgeObjectRecord }
+  | { readonly kind: 'not_found' }
+  | { readonly kind: 'conflict'; readonly currentRevision: number }
 
 interface StoredRow {
   readonly id: string
@@ -723,29 +728,70 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     return row !== undefined && String(row.service_id) === actor.serviceId && String(row.owner_user_id) === actor.userId && String(row.status) === 'active'
   }
 
+  canCreateProjectObject(actor: SessionActor, projectId: string, now: string): boolean {
+    const db = this.#ensureReady()
+    const project = db.prepare('SELECT service_id, status FROM knowledge_projects WHERE id = ?').get(projectId) as Record<string, unknown> | undefined
+    if (project === undefined || String(project.service_id) !== actor.serviceId || String(project.status) !== 'active') return false
+    return this.#memberships(db, projectId).some(item => item.userId === actor.userId && isGrantActive(item, now))
+  }
+
   addProjectMembership(input: { readonly projectId: string; readonly userId: string; readonly role: string; readonly validFrom: string; readonly expiresAt?: string }): void {
     const db = this.#ensureReady(); try { db.prepare('INSERT INTO project_memberships (project_id, user_id, role, valid_from, expires_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(project_id, user_id) DO UPDATE SET role = excluded.role, valid_from = excluded.valid_from, expires_at = excluded.expires_at, revoked_at = NULL').run(input.projectId, input.userId, input.role, input.validFrom, input.expiresAt ?? null) } catch (error: unknown) { throw this.#mapError(error) }
   }
 
   createObject(input: { readonly id: string; readonly serviceId: string; readonly spaceId: string; readonly scope: ResourceScope; readonly projectId?: string; readonly ownerUserId: string; readonly objectType: string; readonly title: string; readonly body: string; readonly now: string }): KnowledgeObjectRecord {
-    const db = this.#ensureReady(); let tx = false
+    const db = this.#ensureReady()
+    if (input.scope === 'personal' && input.projectId !== undefined) throw new RecordsError('STORAGE_INCOMPATIBLE', 'personal object cannot reference a project')
+    if (input.scope === 'project') {
+      if (input.projectId === undefined) throw new RecordsError('STORAGE_INCOMPATIBLE', 'project object requires a project')
+      const project = db.prepare('SELECT service_id, status FROM knowledge_projects WHERE id = ?').get(input.projectId) as Record<string, unknown> | undefined
+      if (project === undefined || String(project.service_id) !== input.serviceId || String(project.status) !== 'active' || !this.#memberships(db, input.projectId).some(item => item.userId === input.ownerUserId && isGrantActive(item, input.now))) throw new RecordsError('STORAGE_INCOMPATIBLE', 'object owner is not an active project member')
+    }
+    let tx = false
     try { db.exec('BEGIN IMMEDIATE'); tx = true; db.prepare('INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, \'active\', 1, ?, ?)').run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now); if (input.scope === 'project' && input.projectId !== undefined) { for (const action of ['read', 'comment', 'edit', 'export', 'manage_share', 'delete', 'review', 'view_learning_records'] as AuthorizationAction[]) db.prepare('INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, \'knowledge_object\', ?, \'user\', ?, ?, ?, ?)').run(randomUUID(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now) }; db.exec('COMMIT'); tx = false; const created = this.#loadObject(input.id); if (created === undefined) throw new RecordsError('STORAGE_UNAVAILABLE', 'created object could not be read'); return created } catch (error: unknown) { if (tx && !this.#rollback(db)) throw new RecordsError('STORAGE_UNAVAILABLE', 'storage transaction state is unknown', false, { cause: error }); throw this.#mapError(error) }
   }
 
-  updateObject(actor: SessionActor, objectId: string, expectedRevision: number, patch: { readonly title?: string; readonly body?: string }, now: string): KnowledgeObjectRecord | undefined {
-    const db = this.#ensureReady(); const current = this.authorizeObject(actor, objectId, 'edit', now); if (current === undefined) return undefined
-    const title = patch.title ?? current.title; const body = patch.body ?? current.body; const result = db.prepare('UPDATE knowledge_objects SET title = ?, body = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ? AND status = \'active\'').run(title, body, now, objectId, expectedRevision); return Number(result.changes) === 1 ? this.#loadObject(objectId) : undefined
+  updateObject(actor: SessionActor, objectId: string, expectedRevision: number, patch: { readonly title?: string; readonly body?: string }, now: string): UpdateObjectResult {
+    const db = this.#ensureReady()
+    const current = this.authorizeObject(actor, objectId, 'edit', now)
+    if (current === undefined) return { kind: 'not_found' }
+    if (current.revision !== expectedRevision) return { kind: 'conflict', currentRevision: current.revision }
+    const title = patch.title ?? current.title
+    const body = patch.body ?? current.body
+    const result = db.prepare('UPDATE knowledge_objects SET title = ?, body = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ? AND status = \'active\'').run(title, body, now, objectId, expectedRevision)
+    if (Number(result.changes) !== 1) {
+      const latest = this.#loadObject(objectId)
+      return latest === undefined || latest.status !== 'active' ? { kind: 'not_found' } : { kind: 'conflict', currentRevision: latest.revision }
+    }
+    const updated = this.#loadObject(objectId)
+    return updated === undefined ? { kind: 'not_found' } : { kind: 'updated', object: updated }
   }
 
   deleteObject(actor: SessionActor, objectId: string, now: string): boolean { const object = this.authorizeObject(actor, objectId, 'delete', now); if (object === undefined) return false; const result = this.#ensureReady().prepare('UPDATE knowledge_objects SET status = \'deleted\', revision = revision + 1, updated_at = ? WHERE id = ? AND status = \'active\'').run(now, objectId); return Number(result.changes) === 1 }
 
   grantObject(actor: SessionActor, input: { readonly id: string; readonly objectId: string; readonly serviceId: string; readonly subjectType: 'user' | 'project'; readonly subjectId: string; readonly action: AuthorizationAction; readonly validFrom: string; readonly expiresAt?: string; readonly now: string }): GrantRecord | undefined {
-    if (this.authorizeObject(actor, input.objectId, 'manage_share', input.now) === undefined) return undefined
-    try { this.#ensureReady().prepare('INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, expires_at, created_at) VALUES (?, ?, \'knowledge_object\', ?, ?, ?, ?, ?, ?, ?)').run(input.id, input.serviceId, input.objectId, input.subjectType, input.subjectId, input.action, input.validFrom, input.expiresAt ?? null, input.now); return { id: input.id, serviceId: input.serviceId, resourceType: 'knowledge_object', resourceId: input.objectId, subjectType: input.subjectType, subjectId: input.subjectId, action: input.action, validFrom: input.validFrom, expiresAt: input.expiresAt, createdAt: input.now } } catch (error: unknown) { throw this.#mapError(error) }
+    const db = this.#ensureReady()
+    const object = this.authorizeObject(actor, input.objectId, 'manage_share', input.now)
+    if (object === undefined || input.serviceId !== actor.serviceId) return undefined
+    if (input.subjectType === 'project') {
+      const project = db.prepare('SELECT service_id, status FROM knowledge_projects WHERE id = ?').get(input.subjectId) as Record<string, unknown> | undefined
+      if (project === undefined || String(project.service_id) !== actor.serviceId || String(project.status) !== 'active') return undefined
+    } else {
+      const user = db.prepare('SELECT planning_home_service_id, status FROM users WHERE id = ?').get(input.subjectId) as Record<string, unknown> | undefined
+      if (user === undefined || String(user.planning_home_service_id) !== actor.serviceId || String(user.status) !== 'active') return undefined
+    }
+    try {
+      db.prepare('INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, expires_at, created_at) VALUES (?, ?, \'knowledge_object\', ?, ?, ?, ?, ?, ?, ?)').run(input.id, input.serviceId, input.objectId, input.subjectType, input.subjectId, input.action, input.validFrom, input.expiresAt ?? null, input.now)
+      return { id: input.id, serviceId: input.serviceId, resourceType: 'knowledge_object', resourceId: input.objectId, subjectType: input.subjectType, subjectId: input.subjectId, action: input.action, validFrom: input.validFrom, expiresAt: input.expiresAt, createdAt: input.now }
+    } catch (error: unknown) { throw this.#mapError(error) }
   }
 
   revokeGrant(actor: SessionActor, grantId: string, now: string): boolean {
-    const db = this.#ensureReady(); const grant = db.prepare('SELECT resource_id FROM resource_grants WHERE id = ?').get(grantId) as { resource_id?: string } | undefined; if (grant?.resource_id === undefined || this.authorizeObject(actor, String(grant.resource_id), 'manage_share', now) === undefined) return false; const result = db.prepare('UPDATE resource_grants SET revoked_at = COALESCE(revoked_at, ?) WHERE id = ?').run(now, grantId); return Number(result.changes) > 0
+    const db = this.#ensureReady()
+    const grant = db.prepare('SELECT resource_id, service_id, revoked_at FROM resource_grants WHERE id = ?').get(grantId) as { resource_id?: string; service_id?: string; revoked_at?: string | null } | undefined
+    if (grant?.resource_id === undefined || grant.service_id !== actor.serviceId || grant.revoked_at !== null || this.authorizeObject(actor, String(grant.resource_id), 'manage_share', now) === undefined) return false
+    const result = db.prepare('UPDATE resource_grants SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL').run(now, grantId)
+    return Number(result.changes) === 1
   }
 
   /** Test-only transaction probe for FND-003 rollback evidence. */

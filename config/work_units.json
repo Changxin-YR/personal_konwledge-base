@@ -1,6 +1,6 @@
 {
   "schema_version": "2.0",
-  "updated_at": "2026-11-17",
+  "updated_at": "2026-11-18",
   "timezone": "Asia/Shanghai",
   "mode": "single_feature_gated",
   "current_executor": "codex",
@@ -920,10 +920,10 @@
         "A46"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "FND-004-T01至T07在冻结候选实际通过；独立复核通过；完整A02/A34/A46未覆盖范围保持NOT_RUN；提交推送后停在FND-004等待用户。",
+      "completion_gate": "仅在 3.2.1 修复后的冻结候选上实际完成 T01–T07、真实 HTTP/DSH、迁移负例、独立复核和受影响回归后，才可标记 passed/awaiting_user；旧候选 PASS 不具放行效力。",
       "status": "passed",
-      "test_plan_status": "detailed_completed",
-      "instruction_revision": "3.2.0",
+      "test_plan_status": "detailed_accepted_unit",
+      "instruction_revision": "3.2.1",
       "working_branch": "codex/knowledgeos-fnd-004",
       "base_commit": "5621f3d0e40dc11bcd2062687a9ad3087f8c4442",
       "activated_at": "2026-11-17",
@@ -941,17 +941,25 @@
         "FND-004-T07"
       ],
       "open_review_items": [],
-      "closed_review_items": [],
+      "closed_review_items": [
+        "FND004-R1",
+        "FND004-R2",
+        "FND004-R3",
+        "FND004-R4",
+        "FND004-R5"
+      ],
       "evidence_paths": [
         "docs/evidence/FND-004/architecture.md",
         "docs/evidence/FND-004/permission-matrix.md",
         "docs/evidence/FND-004/test-plan.md",
+        "docs/evidence/FND-004/runs/final-20261118/summary.json",
+        "docs/evidence/FND-004/independent/final-20261118/summary.json",
+        "docs/evidence/FND-004/runs/affected-regression-final-20261118/summary.json",
         "docs/evidence/FND-004/REPORT.md",
-        "docs/evidence/FND-004/candidate.md",
-        "docs/evidence/FND-004/runs/fnd004-final-20261117/summary.json",
-        "docs/evidence/FND-004/independent/summary.json"
+        "docs/evidence/FND-004/candidate.md"
       ],
-      "completed_at": "2026-11-17T23:27:29+08:00"
+      "completed_at": "2026-11-18T00:00:00+08:00",
+      "candidate": "FND-004-FINAL-20261118"
     },
     {
       "id": "FND-005",

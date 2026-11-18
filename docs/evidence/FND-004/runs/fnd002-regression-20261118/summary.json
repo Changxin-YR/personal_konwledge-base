@@ -1,0 +1,90 @@
+{
+  "run_id": "fnd004-regression",
+  "out": "<evidence-output>",
+  "candidate": null,
+  "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "data_root": "<isolated-data-root>",
+  "started_at": "2026-11-18T01:46:55.672Z",
+  "finished_at": "2026-11-18T01:49:19.562Z",
+  "result": "FAIL",
+  "results": [
+    {
+      "id": "T01",
+      "name": "真实 Host 创建、读取与进程重启持久化",
+      "status": "FAIL",
+      "started": "2026-11-18T01:46:55.673Z",
+      "finished": "2026-11-18T01:47:08.218Z",
+      "evidence": "T01.json"
+    },
+    {
+      "id": "T02",
+      "name": "真实 SQLite 事务中途失败与回滚",
+      "status": "PASS",
+      "started": "2026-11-18T01:47:09.056Z",
+      "finished": "2026-11-18T01:47:33.920Z",
+      "evidence": "T02.json"
+    },
+    {
+      "id": "T03",
+      "name": "首次初始化、重复启动与真实运行时设置",
+      "status": "FAIL",
+      "started": "2026-11-18T01:47:34.754Z",
+      "finished": "2026-11-18T01:48:05.476Z",
+      "evidence": "T03.json"
+    },
+    {
+      "id": "T04",
+      "name": "迁移失败、不兼容版本及数据库归属保护",
+      "status": "PASS",
+      "started": "2026-11-18T01:48:06.309Z",
+      "finished": "2026-11-18T01:48:27.307Z",
+      "evidence": "T04.json"
+    },
+    {
+      "id": "T05",
+      "name": "最小创建幂等、重试与并发重复请求",
+      "status": "PASS",
+      "started": "2026-11-18T01:48:28.149Z",
+      "finished": "2026-11-18T01:48:42.192Z",
+      "evidence": "T05.json"
+    },
+    {
+      "id": "T06",
+      "name": "打开失败、有限锁等待与恢复",
+      "status": "PASS",
+      "started": "2026-11-18T01:48:43.026Z",
+      "finished": "2026-11-18T01:48:55.245Z",
+      "evidence": "T06.json"
+    },
+    {
+      "id": "T07",
+      "name": "数据库连接生命周期释放与重新打开",
+      "status": "PASS",
+      "started": "2026-11-18T01:48:56.077Z",
+      "finished": "2026-11-18T01:49:08.199Z",
+      "evidence": "T07.json"
+    },
+    {
+      "id": "T08",
+      "name": "真实本机认证、来源保护和输入边界",
+      "status": "FAIL",
+      "started": "2026-11-18T01:49:09.023Z",
+      "finished": "2026-11-18T01:49:14.846Z",
+      "evidence": "T08.json"
+    },
+    {
+      "id": "T09",
+      "name": "构建、类型、当前范围与 FND-001 受影响回归",
+      "status": "FAIL",
+      "started": "2026-11-18T01:49:15.685Z",
+      "finished": "2026-11-18T01:49:19.560Z",
+      "evidence": "T09.json"
+    }
+  ],
+  "failures": [
+    "T01: business DB ownership/version ({\"applicationId\":1263489841,\"userVersion\":3,\"tables\":[\"auth_sessions\",\"knowledge_objects\",\"knowledge_projects\",\"password_credentials\",\"project_memberships\",\"resource_grants\",\"schema_migrations\",\"service_identity\",\"spaces\",\"storage_probe_records\",\"users\"],\"objects\":[{\"type\":\"table\",\"name\":\"auth_sessions\"},{\"type\":\"table\",\"name\":\"knowledge_objects\"},{\"type\":\"table\",\"name\":\"knowledge_projects\"},{\"type\":\"table\",\"name\":\"password_credentials\"},{\"type\":\"table\",\"name\":\"project_memberships\"},{\"type\":\"table\",\"name\":\"resource_grants\"},{\"type\":\"table\",\"name\":\"schema_migrations\"},{\"type\":\"table\",\"name\":\"service_identity\"},{\"type\":\"table\",\"name\":\"spaces\"},{\"type\":\"table\",\"name\":\"storage_probe_records\"},{\"type\":\"table\",\"name\":\"users\"}],\"ledger\":[{\"version\":1,\"checksum\":\"033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a\",\"applied_at\":\"2026-11-18T01:47:00.426Z\"},{\"version\":2,\"checksum\":\"ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2\",\"applied_at\":\"2026-11-18T01:47:00.428Z\"},{\"version\":3,\"checksum\":\"630937e1ad06487b53607cec01b30252bcdc6d273e962caa11642deb7d308464\",\"applied_at\":\"2026-11-18T01:47:00.429Z\"}]})",
+    "T03: application_id/user_version ({\"applicationId\":1263489841,\"userVersion\":3,\"tables\":[\"auth_sessions\",\"knowledge_objects\",\"knowledge_projects\",\"password_credentials\",\"project_memberships\",\"resource_grants\",\"schema_migrations\",\"service_identity\",\"spaces\",\"storage_probe_records\",\"users\"],\"objects\":[{\"type\":\"table\",\"name\":\"auth_sessions\"},{\"type\":\"table\",\"name\":\"knowledge_objects\"},{\"type\":\"table\",\"name\":\"knowledge_projects\"},{\"type\":\"table\",\"name\":\"password_credentials\"},{\"type\":\"table\",\"name\":\"project_memberships\"},{\"type\":\"table\",\"name\":\"resource_grants\"},{\"type\":\"table\",\"name\":\"schema_migrations\"},{\"type\":\"table\",\"name\":\"service_identity\"},{\"type\":\"table\",\"name\":\"spaces\"},{\"type\":\"table\",\"name\":\"storage_probe_records\"},{\"type\":\"table\",\"name\":\"users\"}],\"ledger\":[{\"version\":1,\"checksum\":\"033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a\",\"applied_at\":\"2026-11-18T01:48:04.515Z\"},{\"version\":2,\"checksum\":\"ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2\",\"applied_at\":\"2026-11-18T01:48:04.516Z\"},{\"version\":3,\"checksum\":\"630937e1ad06487b53607cec01b30252bcdc6d273e962caa11642deb7d308464\",\"applied_at\":\"2026-11-18T01:48:04.517Z\"}]})",
+    "T08: table structure is unchanged after SQL-looking text (\"auth_sessions,knowledge_objects,knowledge_projects,password_credentials,project_memberships,resource_grants,schema_migrations,service_identity,spaces,storage_probe_records,users\")",
+    "T09: profile-loaded artifacts match the frozen candidate hashes ({\"result\":\"FAIL\",\"profile_dir\":\"<profile-dir>\",\"package_dir\":\"<candidate-package-dir>\",\"resolved_spec\":\"<profile-link-to-candidate-package>\",\"expected_source\":\"scripts/fnd002/expected-artifacts.json\",\"expected_candidate\":\"codex-takeover-20261116-r2\",\"artifacts\":[{\"path\":\"lib/index.js\",\"expected\":\"0104a95183d9d707f08b1f9e993bee221a2cd89ee23b84506795500cd4502eac\",\"actual\":\"422fcb5fbca668d92a65875c8abb616c07cc3126f72fcb6e373463bf84e2d048\",\"match\":false},{\"path\":\"lib/storage.js\",\"expected\":\"2b4ff2c9f78801e16af25f1923a44850c671ffeec89b702c5fd5e16c0c68ce65\",\"actual\":\"3ff9190fb12f1b3b09465e8e870cb4e9934ea758c73903464c52ae72494ab195\",\"match\":false},{\"path\":\"lib/client.js\",\"expected\":\"f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9\",\"actual\":\"dfa4a5e2fb8afcaf85657f22048185e3cb86444db87e8e6e4ec1d4b0bbe2e1a9\",\"match\":false}],\"failures\":[\"loaded artifact mismatch lib/index.js: expected 0104a95183d9d707f08b1f9e993bee221a2cd89ee23b84506795500cd4502eac, actual 422fcb5fbca668d92a65875c8abb616c07cc3126f72fcb6e373463bf84e2d048\",\"loaded artifact mismatch lib/storage.js: expected 2b4ff2c9f78801e16af25f1923a44850c671ffeec89b702c5fd5e16c0c68ce65, actual 3ff9190fb12f1b3b09465e8e870cb4e9934ea758c73903464c52ae72494ab195\",\"loaded artifact mismatch lib/client.js: expected f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9, actual dfa4a5e2fb8afcaf85657f22048185e3cb86444db87e8e6e4ec1d4b0bbe2e1a9\"]})"
+  ]
+}

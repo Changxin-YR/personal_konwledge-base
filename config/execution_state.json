@@ -1,13 +1,13 @@
 {
   "schema_version": "2.0",
-  "instruction_revision": "3.2.0",
-  "updated_at": "2026-11-17",
+  "instruction_revision": "3.2.1",
+  "updated_at": "2026-11-18",
   "timezone": "Asia/Shanghai",
   "execution_phase": "codex_foundation",
   "executor": "codex",
   "active_instruction": {
     "path": "CODEX_START.md",
-    "sha256": "523d14602326e5b8a42f2f6039bc8aef9c68e91f493a715c0e18cec83bfc3a42"
+    "sha256": "ec29b4379d20e2f36970f2f0da945e8b2ccefa9074b7ed4ad7b68a74ef5b38df"
   },
   "active_unit": "FND-004",
   "unit_state": "awaiting_user",
@@ -38,7 +38,7 @@
     "awaiting_user": "current unit has passed and awaits a user choice; active_unit is not advanced"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "FND-004 基础权限闭环及共享入口边界已完成；T01–T07 与独立复核通过；完整 A02/A34/A46 仍按真实范围保留 NOT_RUN；等待用户下一步指令。",
+  "state_reason": "FND-004 于 2026-11-18 按修订 3.2.1 完成定点修复、最终复验和独立复核；当前单元通过，等待用户选择下一单元。",
   "working_branch": "codex/knowledgeos-fnd-004",
   "activation_basis": "explicit_user_request_for_next_step_after_verified_FND002_closure",
   "base_commit": "5621f3d0e40dc11bcd2062687a9ad3087f8c4442",
@@ -71,8 +71,9 @@
   "completion": {
     "unit_id": "FND-004",
     "status": "passed",
-    "completed_at": "2026-11-17T23:27:29+08:00",
-    "candidate": "FND-004-FINAL-20261117",
+    "invalidated_at": "2026-11-18T00:00:00+08:00",
+    "prior_candidate": "FND-004-FINAL-20261117",
+    "reason": "cross-project creation and revoke HTTP contract require repair and real HTTP re-verification",
     "test_result_status": "PASS",
     "independent_review_status": "PASS",
     "retest_status": "PASS",
@@ -86,10 +87,13 @@
       "FND-004-T07"
     ],
     "evidence_paths": [
+      "docs/evidence/FND-004/runs/final-20261118/summary.json",
+      "docs/evidence/FND-004/independent/final-20261118/summary.json",
+      "docs/evidence/FND-004/runs/affected-regression-final-20261118/summary.json",
       "docs/evidence/FND-004/REPORT.md",
-      "docs/evidence/FND-004/candidate.md",
-      "docs/evidence/FND-004/runs/fnd004-final-20261117/summary.json",
-      "docs/evidence/FND-004/independent/summary.json"
-    ]
+      "docs/evidence/FND-004/candidate.md"
+    ],
+    "completed_at": "2026-11-18T00:00:00+08:00",
+    "candidate": "FND-004-FINAL-20261118"
   }
 }

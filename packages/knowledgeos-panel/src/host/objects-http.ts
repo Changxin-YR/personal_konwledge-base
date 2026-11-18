@@ -40,15 +40,43 @@ export function createObjectHandlers(options: ObjectHttpOptions): (req: Incoming
       if (segments[2] === 'projects' && segments.length === 5 && segments[4] === 'memberships' && req.method === 'POST') { const body = await readBody(req); keys(body, ['user_id', 'role', 'valid_from', 'expires_at']); const projectId = segments[3]; if (!options.storage.canManageProject(current, projectId)) throw new ObjectHttpError(404, 'NOT_FOUND', 'project not found'); options.storage.addProjectMembership({ projectId, userId: text(body.user_id, 'user_id', 80), role: body.role === undefined ? 'member' : text(body.role, 'role', 20), validFrom: body.valid_from === undefined ? now : text(body.valid_from, 'valid_from', 40), expiresAt: body.expires_at === undefined ? undefined : text(body.expires_at, 'expires_at', 40) }); res.statusCode = 204; res.end(); return }
       if (segments[2] === 'objects') {
         if (segments.length === 3 && req.method === 'GET') { json(res, 200, { data: options.storage.listObjects(current, 'read', now).map(item => safeObject(item, false)), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } }); return }
-        if (segments.length === 3 && req.method === 'POST') { const body = await readBody(req); keys(body, ['title', 'body', 'object_type', 'scope', 'project_id']); const scope = (body.scope ?? 'personal') as ResourceScope; if (scope !== 'personal' && scope !== 'project') throw new ObjectHttpError(422, 'INPUT_INVALID', 'scope is invalid'); const title = text(body.title, 'title', 200); const content = text(body.body, 'body', 100_000); const object = options.storage.createObject({ id: randomUUID(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId: body.project_id === undefined ? undefined : text(body.project_id, 'project_id', 80), ownerUserId: current.userId, objectType: body.object_type === undefined ? 'note' : text(body.object_type, 'object_type', 80), title, body: content, now }); json(res, 201, { data: safeObject(object), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } }); return }
+        if (segments.length === 3 && req.method === 'POST') {
+          const body = await readBody(req)
+          keys(body, ['title', 'body', 'object_type', 'scope', 'project_id'])
+          const scope = (body.scope ?? 'personal') as ResourceScope
+          if (scope !== 'personal' && scope !== 'project') throw new ObjectHttpError(422, 'INPUT_INVALID', 'scope is invalid')
+          const projectId = body.project_id === undefined ? undefined : text(body.project_id, 'project_id', 80)
+          if (scope === 'project' && projectId === undefined) throw new ObjectHttpError(422, 'INPUT_INVALID', 'project_id is required for project objects')
+          if (scope === 'personal' && projectId !== undefined) throw new ObjectHttpError(422, 'INPUT_INVALID', 'project_id is not allowed for personal objects')
+          if (scope === 'project' && !options.storage.canCreateProjectObject(current, projectId as string, now)) throw new ObjectHttpError(404, 'NOT_FOUND', 'project not found')
+          const title = text(body.title, 'title', 200)
+          const content = text(body.body, 'body', 100_000)
+          const object = options.storage.createObject({ id: randomUUID(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId, ownerUserId: current.userId, objectType: body.object_type === undefined ? 'note' : text(body.object_type, 'object_type', 80), title, body: content, now })
+          json(res, 201, { data: safeObject(object), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } }); return
+        }
         const objectId = segments[3]; if (objectId === undefined) throw new ObjectHttpError(404, 'NOT_FOUND', 'object not found')
         if (segments.length === 4 && req.method === 'GET') { const object = options.storage.authorizeObject(current, objectId, 'read', now); if (object === undefined) throw new ObjectHttpError(404, 'NOT_FOUND', 'object not found'); json(res, 200, { data: safeObject(object), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } }); return }
-        if (segments.length === 4 && req.method === 'PATCH') { const body = await readBody(req); keys(body, ['expected_revision', 'title', 'body']); if (!Number.isInteger(body.expected_revision)) throw new ObjectHttpError(422, 'INPUT_INVALID', 'expected_revision is invalid'); const object = options.storage.updateObject(current, objectId, Number(body.expected_revision), { title: body.title === undefined ? undefined : text(body.title, 'title', 200), body: body.body === undefined ? undefined : text(body.body, 'body', 100_000) }, now); if (object === undefined) throw new ObjectHttpError(404, 'NOT_FOUND', 'object not found'); json(res, 200, { data: safeObject(object), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } }); return }
+        if (segments.length === 4 && req.method === 'PATCH') {
+          const body = await readBody(req)
+          keys(body, ['expected_revision', 'title', 'body'])
+          if (!Number.isInteger(body.expected_revision) || Number(body.expected_revision) < 1) throw new ObjectHttpError(422, 'INPUT_INVALID', 'expected_revision is invalid')
+          const result = options.storage.updateObject(current, objectId, Number(body.expected_revision), { title: body.title === undefined ? undefined : text(body.title, 'title', 200), body: body.body === undefined ? undefined : text(body.body, 'body', 100_000) }, now)
+          if (result.kind === 'not_found') throw new ObjectHttpError(404, 'NOT_FOUND', 'object not found')
+          if (result.kind === 'conflict') throw new ObjectHttpError(409, 'REVISION_CONFLICT', 'object revision has changed')
+          json(res, 200, { data: safeObject(result.object), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } }); return
+        }
         if (segments.length === 4 && req.method === 'DELETE') { if (!options.storage.deleteObject(current, objectId, now)) throw new ObjectHttpError(404, 'NOT_FOUND', 'object not found'); res.statusCode = 204; res.end(); return }
         if (segments.length === 5 && segments[4] === 'action' && req.method === 'POST') { const body = await readBody(req); keys(body, ['action']); const wanted = action(body.action); if (options.storage.authorizeObject(current, objectId, wanted, now) === undefined) throw new ObjectHttpError(404, 'NOT_FOUND', 'object not found'); json(res, 200, { data: { allowed: true, action: wanted, object_id: objectId }, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } }); return }
       }
       if (segments[2] === 'grants' && segments.length === 3 && req.method === 'POST') { const body = await readBody(req); keys(body, ['object_id', 'subject_type', 'subject_id', 'action', 'valid_from', 'expires_at']); if (body.subject_type !== 'user' && body.subject_type !== 'project') throw new ObjectHttpError(422, 'INPUT_INVALID', 'subject_type is invalid'); const grant = options.storage.grantObject(current, { id: randomUUID(), objectId: text(body.object_id, 'object_id', 80), serviceId: current.serviceId, subjectType: body.subject_type, subjectId: text(body.subject_id, 'subject_id', 80), action: action(body.action), validFrom: body.valid_from === undefined ? now : text(body.valid_from, 'valid_from', 40), expiresAt: body.expires_at === undefined ? undefined : text(body.expires_at, 'expires_at', 40), now }); if (grant === undefined) throw new ObjectHttpError(404, 'NOT_FOUND', 'object not found'); json(res, 201, { data: grant, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } }); return }
-      if (segments[2] === 'grants' && segments.length === 4 && segments[3] === 'revoke' && req.method === 'POST') { const body = await readBody(req); keys(body, []); if (!options.storage.revokeGrant(current, text(body.id, 'id', 80), now)) throw new ObjectHttpError(404, 'NOT_FOUND', 'grant not found'); res.statusCode = 204; res.end(); return }
+      if (segments[2] === 'grants' && segments.length === 4 && segments[3] === 'revoke' && req.method === 'POST') {
+        const body = await readBody(req)
+        keys(body, ['grant_id', 'id'])
+        const grantId = body.grant_id ?? body.id
+        if (grantId === undefined) throw new ObjectHttpError(422, 'INPUT_INVALID', 'grant_id is required')
+        if (!options.storage.revokeGrant(current, text(grantId, 'grant_id', 80), now)) throw new ObjectHttpError(404, 'NOT_FOUND', 'grant not found')
+        res.statusCode = 204; res.end(); return
+      }
       throw new ObjectHttpError(404, 'NOT_FOUND', 'route not found')
     } catch (error: unknown) {
       if (error instanceof ObjectHttpError) { json(res, error.status, { code: error.code, message: error.message, request_id: requestId, retryable: false, safe_details: {} }); return }

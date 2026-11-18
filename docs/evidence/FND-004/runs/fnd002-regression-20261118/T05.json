@@ -1,0 +1,100 @@
+{
+  "id": "T05",
+  "name": "最小创建幂等、重试与并发重复请求",
+  "status": "PASS",
+  "started": "2026-11-18T01:48:28.149Z",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "first create 201",
+      "actual": 201
+    },
+    {
+      "ok": true,
+      "message": "same key/content replays 200 with same id/time",
+      "actual": {
+        "data": {
+          "id": "c84db523-5518-42b6-a425-b3e7d9c5d672",
+          "content": "幂等 fnd004-regression \"x\"",
+          "created_at": "2026-11-18T01:48:35.084Z"
+        },
+        "meta": {
+          "request_id": "d1901671-f673-4a7c-a656-9eb2e5c53ea5",
+          "schema_version": 1
+        }
+      }
+    },
+    {
+      "ok": true,
+      "message": "replay works after Host restart",
+      "actual": {
+        "data": {
+          "id": "c84db523-5518-42b6-a425-b3e7d9c5d672",
+          "content": "幂等 fnd004-regression \"x\"",
+          "created_at": "2026-11-18T01:48:35.084Z"
+        },
+        "meta": {
+          "request_id": "4693933f-8df0-4c3b-bbde-530f6190d1d7",
+          "schema_version": 1
+        }
+      }
+    },
+    {
+      "ok": true,
+      "message": "same key different content is 409",
+      "actual": {
+        "code": "IDEMPOTENCY_CONFLICT",
+        "message": "idempotency key was used with different content",
+        "request_id": "27ec6395-d27a-4d71-b74f-6b8f69527f3b",
+        "retryable": false,
+        "safe_details": {}
+      }
+    },
+    {
+      "ok": true,
+      "message": "conflict did not overwrite original"
+    },
+    {
+      "ok": true,
+      "message": "concurrent same-key yields 201+200",
+      "actual": [
+        200,
+        201
+      ]
+    },
+    {
+      "ok": true,
+      "message": "concurrent same-key makes exactly one row",
+      "actual": {
+        "filteredCount": 1,
+        "statuses": [
+          200,
+          201
+        ]
+      }
+    },
+    {
+      "ok": true,
+      "message": "different key same content is a new row"
+    }
+  ],
+  "details": {
+    "first": {
+      "id": "c84db523-5518-42b6-a425-b3e7d9c5d672",
+      "content": "幂等 fnd004-regression \"x\"",
+      "created_at": "2026-11-18T01:48:35.084Z"
+    },
+    "replay": {
+      "id": "c84db523-5518-42b6-a425-b3e7d9c5d672",
+      "content": "幂等 fnd004-regression \"x\"",
+      "created_at": "2026-11-18T01:48:35.084Z"
+    },
+    "statuses": [
+      200,
+      201
+    ],
+    "filteredCount": 1
+  },
+  "evidence": [],
+  "finished": "2026-11-18T01:48:42.192Z"
+}

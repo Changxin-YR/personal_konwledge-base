@@ -1,0 +1,124 @@
+{
+  "id": "T03",
+  "name": "首次初始化、重复启动与真实运行时设置",
+  "status": "FAIL",
+  "started": "2026-11-18T01:47:34.754Z",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "first init record created",
+      "actual": 201
+    },
+    {
+      "ok": true,
+      "message": "Host logged actual storage runtime settings",
+      "actual": "knowledgeos-storage: opened node=24.22.0 sqlite=3.53.4 journal=wal foreign_keys=1 synchronous=2 busy_timeout=250 tables=11"
+    },
+    {
+      "ok": true,
+      "message": "Host connection reports WAL/foreign_keys/FULL/250ms",
+      "actual": {
+        "node": "24.22.0",
+        "sqlite": "3.53.4",
+        "journal": "wal",
+        "foreign_keys": "1",
+        "synchronous": "2",
+        "busy_timeout": "250",
+        "tables": "11"
+      }
+    },
+    {
+      "ok": true,
+      "message": "reported Node is the actual runtime",
+      "actual": "24.22.0"
+    },
+    {
+      "ok": false,
+      "message": "application_id/user_version",
+      "actual": {
+        "applicationId": 1263489841,
+        "userVersion": 3,
+        "tables": [
+          "auth_sessions",
+          "knowledge_objects",
+          "knowledge_projects",
+          "password_credentials",
+          "project_memberships",
+          "resource_grants",
+          "schema_migrations",
+          "service_identity",
+          "spaces",
+          "storage_probe_records",
+          "users"
+        ],
+        "objects": [
+          {
+            "type": "table",
+            "name": "auth_sessions"
+          },
+          {
+            "type": "table",
+            "name": "knowledge_objects"
+          },
+          {
+            "type": "table",
+            "name": "knowledge_projects"
+          },
+          {
+            "type": "table",
+            "name": "password_credentials"
+          },
+          {
+            "type": "table",
+            "name": "project_memberships"
+          },
+          {
+            "type": "table",
+            "name": "resource_grants"
+          },
+          {
+            "type": "table",
+            "name": "schema_migrations"
+          },
+          {
+            "type": "table",
+            "name": "service_identity"
+          },
+          {
+            "type": "table",
+            "name": "spaces"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records"
+          },
+          {
+            "type": "table",
+            "name": "users"
+          }
+        ],
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-18T01:48:04.515Z"
+          },
+          {
+            "version": 2,
+            "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+            "applied_at": "2026-11-18T01:48:04.516Z"
+          },
+          {
+            "version": 3,
+            "checksum": "630937e1ad06487b53607cec01b30252bcdc6d273e962caa11642deb7d308464",
+            "applied_at": "2026-11-18T01:48:04.517Z"
+          }
+        ]
+      }
+    }
+  ],
+  "details": {},
+  "evidence": [],
+  "error": "Error: application_id/user_version ({\"applicationId\":1263489841,\"userVersion\":3,\"tables\":[\"auth_sessions\",\"knowledge_objects\",\"knowledge_projects\",\"password_credentials\",\"project_memberships\",\"resource_grants\",\"schema_migrations\",\"service_identity\",\"spaces\",\"storage_probe_records\",\"users\"],\"objects\":[{\"type\":\"table\",\"name\":\"auth_sessions\"},{\"type\":\"table\",\"name\":\"knowledge_objects\"},{\"type\":\"table\",\"name\":\"knowledge_projects\"},{\"type\":\"table\",\"name\":\"password_credentials\"},{\"type\":\"table\",\"name\":\"project_memberships\"},{\"type\":\"table\",\"name\":\"resource_grants\"},{\"type\":\"table\",\"name\":\"schema_migrations\"},{\"type\":\"table\",\"name\":\"service_identity\"},{\"type\":\"table\",\"name\":\"spaces\"},{\"type\":\"table\",\"name\":\"storage_probe_records\"},{\"type\":\"table\",\"name\":\"users\"}],\"ledger\":[{\"version\":1,\"checksum\":\"033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a\",\"applied_at\":\"2026-11-18T01:48:04.515Z\"},{\"version\":2,\"checksum\":\"ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2\",\"applied_at\":\"2026-11-18T01:48:04.516Z\"},{\"version\":3,\"checksum\":\"630937e1ad06487b53607cec01b30252bcdc6d273e962caa11642deb7d308464\",\"applied_at\":\"2026-11-18T01:48:04.517Z\"}]})\n    at expect (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd002/run-all.mjs:167:26)\n    at file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd002/run-all.mjs:275:5\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async run (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd002/run-all.mjs:148:21)\n    at async file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd002/run-all.mjs:261:3",
+  "finished": "2026-11-18T01:48:05.476Z"
+}

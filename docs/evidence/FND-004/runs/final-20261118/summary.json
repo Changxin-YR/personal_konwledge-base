@@ -1,0 +1,54 @@
+{
+  "status": "PASS",
+  "candidate": "WORKTREE",
+  "dsh_host": {
+    "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+    "profile": "knowledgeos-identity-test",
+    "port": 3121
+  },
+  "checks": [
+    {
+      "id": "FND-004-T01",
+      "status": "PASS",
+      "evidence": "FND-004-T01.json"
+    },
+    {
+      "id": "FND-004-T02",
+      "status": "PASS",
+      "evidence": "FND-004-T02.json"
+    },
+    {
+      "id": "FND-004-T03",
+      "status": "PASS",
+      "evidence": "FND-004-T03.json"
+    },
+    {
+      "id": "FND-004-T04",
+      "status": "PASS",
+      "evidence": "FND-004-T04.json"
+    },
+    {
+      "id": "FND-004-T05",
+      "status": "PASS",
+      "evidence": "FND-004-T05.json"
+    },
+    {
+      "id": "FND-004-T06",
+      "status": "PASS",
+      "evidence": "FND-004-T06.json"
+    },
+    {
+      "id": "FND-004-T07",
+      "status": "PASS",
+      "evidence": "FND-004-T07.json"
+    }
+  ],
+  "not_run": [
+    "search_index",
+    "ai_summary",
+    "file_download",
+    "invite_redemption",
+    "full_cache_invalidation",
+    "complete_A02_A34_A46"
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "id": "T09",
+  "name": "构建、类型、当前范围与 FND-001 受影响回归",
+  "status": "FAIL",
+  "started": "2026-11-18T01:49:15.685Z",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "verify-plan exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "fnd002-scope-check exits 0",
+      "actual": 0
+    },
+    {
+      "ok": true,
+      "message": "plugin-typecheck exits 0",
+      "actual": 0
+    },
+    {
+      "ok": false,
+      "message": "profile-loaded artifacts match the frozen candidate hashes",
+      "actual": {
+        "result": "FAIL",
+        "profile_dir": "<profile-dir>",
+        "package_dir": "<candidate-package-dir>",
+        "resolved_spec": "<profile-link-to-candidate-package>",
+        "expected_source": "scripts/fnd002/expected-artifacts.json",
+        "expected_candidate": "codex-takeover-20261116-r2",
+        "artifacts": [
+          {
+            "path": "lib/index.js",
+            "expected": "0104a95183d9d707f08b1f9e993bee221a2cd89ee23b84506795500cd4502eac",
+            "actual": "422fcb5fbca668d92a65875c8abb616c07cc3126f72fcb6e373463bf84e2d048",
+            "match": false
+          },
+          {
+            "path": "lib/storage.js",
+            "expected": "2b4ff2c9f78801e16af25f1923a44850c671ffeec89b702c5fd5e16c0c68ce65",
+            "actual": "3ff9190fb12f1b3b09465e8e870cb4e9934ea758c73903464c52ae72494ab195",
+            "match": false
+          },
+          {
+            "path": "lib/client.js",
+            "expected": "f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9",
+            "actual": "dfa4a5e2fb8afcaf85657f22048185e3cb86444db87e8e6e4ec1d4b0bbe2e1a9",
+            "match": false
+          }
+        ],
+        "failures": [
+          "loaded artifact mismatch lib/index.js: expected 0104a95183d9d707f08b1f9e993bee221a2cd89ee23b84506795500cd4502eac, actual 422fcb5fbca668d92a65875c8abb616c07cc3126f72fcb6e373463bf84e2d048",
+          "loaded artifact mismatch lib/storage.js: expected 2b4ff2c9f78801e16af25f1923a44850c671ffeec89b702c5fd5e16c0c68ce65, actual 3ff9190fb12f1b3b09465e8e870cb4e9934ea758c73903464c52ae72494ab195",
+          "loaded artifact mismatch lib/client.js: expected f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9, actual dfa4a5e2fb8afcaf85657f22048185e3cb86444db87e8e6e4ec1d4b0bbe2e1a9"
+        ]
+      }
+    }
+  ],
+  "details": {},
+  "evidence": [],
+  "error": "Error: profile-loaded artifacts match the frozen candidate hashes ({\"result\":\"FAIL\",\"profile_dir\":\"<profile-dir>\",\"package_dir\":\"<candidate-package-dir>\",\"resolved_spec\":\"<profile-link-to-candidate-package>\",\"expected_source\":\"scripts/fnd002/expected-artifacts.json\",\"expected_candidate\":\"codex-takeover-20261116-r2\",\"artifacts\":[{\"path\":\"lib/index.js\",\"expected\":\"0104a95183d9d707f08b1f9e993bee221a2cd89ee23b84506795500cd4502eac\",\"actual\":\"422fcb5fbca668d92a65875c8abb616c07cc3126f72fcb6e373463bf84e2d048\",\"match\":false},{\"path\":\"lib/storage.js\",\"expected\":\"2b4ff2c9f78801e16af25f1923a44850c671ffeec89b702c5fd5e16c0c68ce65\",\"actual\":\"3ff9190fb12f1b3b09465e8e870cb4e9934ea758c73903464c52ae72494ab195\",\"match\":false},{\"path\":\"lib/client.js\",\"expected\":\"f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9\",\"actual\":\"dfa4a5e2fb8afcaf85657f22048185e3cb86444db87e8e6e4ec1d4b0bbe2e1a9\",\"match\":false}],\"failures\":[\"loaded artifact mismatch lib/index.js: expected 0104a95183d9d707f08b1f9e993bee221a2cd89ee23b84506795500cd4502eac, actual 422fcb5fbca668d92a65875c8abb616c07cc3126f72fcb6e373463bf84e2d048\",\"loaded artifact mismatch lib/storage.js: expected 2b4ff2c9f78801e16af25f1923a44850c671ffeec89b702c5fd5e16c0c68ce65, actual 3ff9190fb12f1b3b09465e8e870cb4e9934ea758c73903464c52ae72494ab195\",\"loaded artifact mismatch lib/client.js: expected f0eb568f9021f4ad4dbbd85ebb6683ea0245d44c449d4b938738caacdf9974d9, actual dfa4a5e2fb8afcaf85657f22048185e3cb86444db87e8e6e4ec1d4b0bbe2e1a9\"]})\n    at expect (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd002/run-all.mjs:167:26)\n    at file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd002/run-all.mjs:546:5\n    at async run (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd002/run-all.mjs:148:21)\n    at async file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd002/run-all.mjs:519:3",
+  "finished": "2026-11-18T01:49:19.560Z"
+}

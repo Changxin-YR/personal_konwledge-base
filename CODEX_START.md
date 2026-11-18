@@ -1,5 +1,5 @@
 ---
-instruction_revision: "3.2.0"
+instruction_revision: "3.2.1"
 execution_phase: "codex_foundation"
 executor: "codex"
 active_unit: "FND-004"
@@ -8,7 +8,7 @@ auto_advance: false
 
 # 当前执行指令：Codex · FND-004 对象权限与共享入口边界
 
-本文件是仓库唯一当前可执行提示词。FND-003 已在提交 `5621f3d0e40dc11bcd2062687a9ad3087f8c4442` 通过并保持历史证据；本轮只完成 FND-004。不得自动开始 FND-005、FND-006、资料导入或完整产品审查。
+本文件是仓库唯一当前可执行提示词。FND-003 已在提交 `5621f3d0e40dc11bcd2062687a9ad3087f8c4442` 通过并保持历史证据；FND-004 因上一候选存在未关闭的权限问题，按本修订重新置为 `in_progress`，上一轮 FND-004 PASS 不得直接放行下一单元。本轮只完成 FND-004；FND-005 只能记录设计，禁止激活或编码。不得自动开始 FND-006、资料导入或完整产品审查。
 
 ## 1. 基线和边界
 
@@ -64,6 +64,16 @@ auto_advance: false
 - `FND-004-T05`：真实 SQLite v3 迁移、重启、失败回滚，v1/v2 checksum 和数据保持；未知/伪造 schema 在修改前拒绝。
 - `FND-004-T06`：实际共享路由清单；业务 Cookie 探测 DSH owner/RPC/file/plugin/session/shell/非白名单路径；Connection 停用/恢复按真实 Host 能力记录。
 - `FND-004-T07`：FND-001、FND-002、FND-003 相关回归、类型检查、构建和候选产物哈希。
+
+## 5.1 本次 3.2.1 定点修复与复验要求
+
+1. 项目对象创建必须由服务端真实登录会话生成 actor，并检查目标 `project_id` 属于当前 `service_id`、项目有效且 actor 具有当前时刻有效的项目成员关系和创建权限；非成员不能借创建对象自动获得项目对象授权，跨项目和跨 service 必须拒绝。
+2. `POST /knowledge/v1/grants/revoke` 的请求体必须接受合法 `grant_id`（兼容既有 `id` 仅在契约明确记录时允许），先核对目标 grant 所属对象和当前 actor 的 `manage_share`，撤权后下一次真实 HTTP 读取、列表和 action 立即重新判权。
+3. T01–T04 必须使用固定 DSH Host、真实登录和三个隔离 Cookie 上下文；不得用手工 actor 或静态源码包含检查替代 HTTP 证据。
+4. T05 必须覆盖 v3 迁移失败、事务回滚、伪造/未知 schema 拒绝和故障解除后的正常恢复，并比较真实 schema、版本、账本和数据。
+5. T06 必须实际探测业务 Cookie 对 DSH owner、RPC、Shell、文件、插件和 Session 附件的权限，分别记录本机 Host 与专用共享 profile；共享 profile 未完成最小装配时对应项只能 `BLOCKED` 或 `NOT_RUN`。
+6. 修改对象的 `expected_revision` 冲突必须返回 HTTP 409；同时验证无权列表、错误输入、非法项目标识和撤权竞态负例。
+7. 冻结新候选后执行类型检查、构建、T01–T07、独立复核和 FND-001～003 受影响回归；保存真实命令、退出码、候选指纹和运行证据。只有本修订全部要求实际验证通过，才可重新标记 FND-004 为 `passed`、`awaiting_user`。
 
 完整 A02、A34、A46 只有其真实范围全部覆盖才可 `PASS`。本轮搜索索引、AI 摘要/答案、文件下载、邀请码兑换、完整缓存失效和完整项目审核仍记 `NOT_RUN`，不能用基础 ACL 通过冒充完整场景通过。
 

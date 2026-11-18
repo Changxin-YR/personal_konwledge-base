@@ -1,0 +1,179 @@
+{
+  "id": "T08",
+  "name": "真实本机认证、来源保护和输入边界",
+  "status": "FAIL",
+  "started": "2026-11-18T01:49:09.023Z",
+  "assertions": [
+    {
+      "ok": true,
+      "message": "authenticated baseline write"
+    },
+    {
+      "ok": true,
+      "message": "anonymous read/write are 401",
+      "actual": [
+        401,
+        401
+      ]
+    },
+    {
+      "ok": true,
+      "message": "bad cookie is 401",
+      "actual": 401
+    },
+    {
+      "ok": true,
+      "message": "foreign-origin is 403",
+      "actual": 403
+    },
+    {
+      "ok": true,
+      "message": "null-origin is 403",
+      "actual": 403
+    },
+    {
+      "ok": true,
+      "message": "cross-site is 403",
+      "actual": 403
+    },
+    {
+      "ok": true,
+      "message": "rejected sources wrote nothing"
+    },
+    {
+      "ok": true,
+      "message": "trusted CLI without Origin writes",
+      "actual": 201
+    },
+    {
+      "ok": true,
+      "message": "invalid-json is 400 INVALID_JSON",
+      "actual": {
+        "status": 400,
+        "code": "INVALID_JSON"
+      }
+    },
+    {
+      "ok": true,
+      "message": "wrong-media is 415 UNSUPPORTED_MEDIA_TYPE",
+      "actual": {
+        "status": 415,
+        "code": "UNSUPPORTED_MEDIA_TYPE"
+      }
+    },
+    {
+      "ok": true,
+      "message": "empty-content is 422 INPUT_INVALID",
+      "actual": {
+        "status": 422,
+        "code": "INPUT_INVALID"
+      }
+    },
+    {
+      "ok": true,
+      "message": "wrong-content-type is 422 INPUT_INVALID",
+      "actual": {
+        "status": 422,
+        "code": "INPUT_INVALID"
+      }
+    },
+    {
+      "ok": true,
+      "message": "content-too-long is 422 INPUT_INVALID",
+      "actual": {
+        "status": 422,
+        "code": "INPUT_INVALID"
+      }
+    },
+    {
+      "ok": true,
+      "message": "lone-surrogate is 422 INPUT_INVALID",
+      "actual": {
+        "status": 422,
+        "code": "INPUT_INVALID"
+      }
+    },
+    {
+      "ok": true,
+      "message": "body-too-large is 413 PAYLOAD_TOO_LARGE",
+      "actual": {
+        "status": 413,
+        "code": "PAYLOAD_TOO_LARGE"
+      }
+    },
+    {
+      "ok": true,
+      "message": "unknown-field is 422 INPUT_INVALID",
+      "actual": {
+        "status": 422,
+        "code": "INPUT_INVALID"
+      }
+    },
+    {
+      "ok": true,
+      "message": "missing-key is 422 INPUT_INVALID",
+      "actual": {
+        "status": 422,
+        "code": "INPUT_INVALID"
+      }
+    },
+    {
+      "ok": true,
+      "message": "invalid-key is 422 INPUT_INVALID",
+      "actual": {
+        "status": 422,
+        "code": "INPUT_INVALID"
+      }
+    },
+    {
+      "ok": true,
+      "message": "put-base is 405 METHOD_NOT_ALLOWED",
+      "actual": {
+        "status": 405,
+        "code": "METHOD_NOT_ALLOWED"
+      }
+    },
+    {
+      "ok": true,
+      "message": "post-id is 405 METHOD_NOT_ALLOWED",
+      "actual": {
+        "status": 405,
+        "code": "METHOD_NOT_ALLOWED"
+      }
+    },
+    {
+      "ok": true,
+      "message": "missing-record is 404 NOT_FOUND",
+      "actual": {
+        "status": 404,
+        "code": "NOT_FOUND"
+      }
+    },
+    {
+      "ok": true,
+      "message": "invalid-id is 422 INPUT_INVALID",
+      "actual": {
+        "status": 422,
+        "code": "INPUT_INVALID"
+      }
+    },
+    {
+      "ok": true,
+      "message": "SQL-looking text is accepted as data",
+      "actual": 201
+    },
+    {
+      "ok": true,
+      "message": "SQL-looking text round-trips exactly"
+    },
+    {
+      "ok": false,
+      "message": "table structure is unchanged after SQL-looking text",
+      "actual": "auth_sessions,knowledge_objects,knowledge_projects,password_credentials,project_memberships,resource_grants,schema_migrations,service_identity,spaces,storage_probe_records,users"
+    }
+  ],
+  "details": {},
+  "evidence": [],
+  "error": "Error: table structure is unchanged after SQL-looking text (\"auth_sessions,knowledge_objects,knowledge_projects,password_credentials,project_memberships,resource_grants,schema_migrations,service_identity,spaces,storage_probe_records,users\")\n    at expect (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd002/run-all.mjs:167:26)\n    at file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd002/run-all.mjs:510:5\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async run (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd002/run-all.mjs:148:21)\n    at async file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/fnd002/run-all.mjs:454:3",
+  "finished": "2026-11-18T01:49:14.846Z"
+}

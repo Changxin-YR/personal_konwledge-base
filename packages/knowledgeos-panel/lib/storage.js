@@ -714,6 +714,12 @@ var ProbeStorage = class {
     const row = this.#ensureReady().prepare("SELECT service_id, owner_user_id, status FROM knowledge_projects WHERE id = ?").get(projectId);
     return row !== void 0 && String(row.service_id) === actor.serviceId && String(row.owner_user_id) === actor.userId && String(row.status) === "active";
   }
+  canCreateProjectObject(actor, projectId, now) {
+    const db = this.#ensureReady();
+    const project = db.prepare("SELECT service_id, status FROM knowledge_projects WHERE id = ?").get(projectId);
+    if (project === void 0 || String(project.service_id) !== actor.serviceId || String(project.status) !== "active") return false;
+    return this.#memberships(db, projectId).some((item) => item.userId === actor.userId && isGrantActive(item, now));
+  }
   addProjectMembership(input) {
     const db = this.#ensureReady();
     try {
@@ -724,6 +730,12 @@ var ProbeStorage = class {
   }
   createObject(input) {
     const db = this.#ensureReady();
+    if (input.scope === "personal" && input.projectId !== void 0) throw new RecordsError("STORAGE_INCOMPATIBLE", "personal object cannot reference a project");
+    if (input.scope === "project") {
+      if (input.projectId === void 0) throw new RecordsError("STORAGE_INCOMPATIBLE", "project object requires a project");
+      const project = db.prepare("SELECT service_id, status FROM knowledge_projects WHERE id = ?").get(input.projectId);
+      if (project === void 0 || String(project.service_id) !== input.serviceId || String(project.status) !== "active" || !this.#memberships(db, input.projectId).some((item) => item.userId === input.ownerUserId && isGrantActive(item, input.now))) throw new RecordsError("STORAGE_INCOMPATIBLE", "object owner is not an active project member");
+    }
     let tx = false;
     try {
       db.exec("BEGIN IMMEDIATE");
@@ -746,11 +758,17 @@ var ProbeStorage = class {
   updateObject(actor, objectId, expectedRevision, patch, now) {
     const db = this.#ensureReady();
     const current = this.authorizeObject(actor, objectId, "edit", now);
-    if (current === void 0) return void 0;
+    if (current === void 0) return { kind: "not_found" };
+    if (current.revision !== expectedRevision) return { kind: "conflict", currentRevision: current.revision };
     const title = patch.title ?? current.title;
     const body = patch.body ?? current.body;
     const result = db.prepare("UPDATE knowledge_objects SET title = ?, body = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ? AND status = 'active'").run(title, body, now, objectId, expectedRevision);
-    return Number(result.changes) === 1 ? this.#loadObject(objectId) : void 0;
+    if (Number(result.changes) !== 1) {
+      const latest = this.#loadObject(objectId);
+      return latest === void 0 || latest.status !== "active" ? { kind: "not_found" } : { kind: "conflict", currentRevision: latest.revision };
+    }
+    const updated = this.#loadObject(objectId);
+    return updated === void 0 ? { kind: "not_found" } : { kind: "updated", object: updated };
   }
   deleteObject(actor, objectId, now) {
     const object = this.authorizeObject(actor, objectId, "delete", now);
@@ -759,9 +777,18 @@ var ProbeStorage = class {
     return Number(result.changes) === 1;
   }
   grantObject(actor, input) {
-    if (this.authorizeObject(actor, input.objectId, "manage_share", input.now) === void 0) return void 0;
+    const db = this.#ensureReady();
+    const object = this.authorizeObject(actor, input.objectId, "manage_share", input.now);
+    if (object === void 0 || input.serviceId !== actor.serviceId) return void 0;
+    if (input.subjectType === "project") {
+      const project = db.prepare("SELECT service_id, status FROM knowledge_projects WHERE id = ?").get(input.subjectId);
+      if (project === void 0 || String(project.service_id) !== actor.serviceId || String(project.status) !== "active") return void 0;
+    } else {
+      const user = db.prepare("SELECT planning_home_service_id, status FROM users WHERE id = ?").get(input.subjectId);
+      if (user === void 0 || String(user.planning_home_service_id) !== actor.serviceId || String(user.status) !== "active") return void 0;
+    }
     try {
-      this.#ensureReady().prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, expires_at, created_at) VALUES (?, ?, 'knowledge_object', ?, ?, ?, ?, ?, ?, ?)").run(input.id, input.serviceId, input.objectId, input.subjectType, input.subjectId, input.action, input.validFrom, input.expiresAt ?? null, input.now);
+      db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, expires_at, created_at) VALUES (?, ?, 'knowledge_object', ?, ?, ?, ?, ?, ?, ?)").run(input.id, input.serviceId, input.objectId, input.subjectType, input.subjectId, input.action, input.validFrom, input.expiresAt ?? null, input.now);
       return { id: input.id, serviceId: input.serviceId, resourceType: "knowledge_object", resourceId: input.objectId, subjectType: input.subjectType, subjectId: input.subjectId, action: input.action, validFrom: input.validFrom, expiresAt: input.expiresAt, createdAt: input.now };
     } catch (error) {
       throw this.#mapError(error);
@@ -769,10 +796,10 @@ var ProbeStorage = class {
   }
   revokeGrant(actor, grantId, now) {
     const db = this.#ensureReady();
-    const grant = db.prepare("SELECT resource_id FROM resource_grants WHERE id = ?").get(grantId);
-    if (grant?.resource_id === void 0 || this.authorizeObject(actor, String(grant.resource_id), "manage_share", now) === void 0) return false;
-    const result = db.prepare("UPDATE resource_grants SET revoked_at = COALESCE(revoked_at, ?) WHERE id = ?").run(now, grantId);
-    return Number(result.changes) > 0;
+    const grant = db.prepare("SELECT resource_id, service_id, revoked_at FROM resource_grants WHERE id = ?").get(grantId);
+    if (grant?.resource_id === void 0 || grant.service_id !== actor.serviceId || grant.revoked_at !== null || this.authorizeObject(actor, String(grant.resource_id), "manage_share", now) === void 0) return false;
+    const result = db.prepare("UPDATE resource_grants SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL").run(now, grantId);
+    return Number(result.changes) === 1;
   }
   /** Test-only transaction probe for FND-003 rollback evidence. */
   testOnlyTransactionFailure(input) {
