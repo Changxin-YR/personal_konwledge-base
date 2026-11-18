@@ -17,6 +17,7 @@
 | [计划门禁](plan-gates.json) | 指令一致性与 35 项结构测试；不计作产品验收 |
 | [交付安全检查](delivery-safety.json) | 历史记录保护、冻结哈希、敏感模式及产物检查 |
 | [最终一致性检查](finalization-checks.json) | 最终单元状态、独立结果、候选及证据路径交叉核对 |
+| [Git 交付回执](delivery.json) | 产品提交、正常推送、真实远端回读及认证链故障记录；不代表 GPT 验收通过 |
 | [复验说明](operator-notes.md) | 将来配置真实 GPT 后在本单元补充 read/update/UI/SQL 证据的方法 |
 
 最终独立验收位于 `independent/`：基础六组为 integration 14、storage 6、configuration 21、barriers 5、ui 8、acl 7，共 61 项；独立追加 additional 11、service-additional 6、ui-additional 4，共 21 项。每组 `summary.json` 记录观察事实，`command-*.json` 绑定当前候选、命令、退出码及前后文件差异；`candidate-before.json`、`candidate-after.json`、`final-audit.json` 提供来源、哈希、迁移和测试端口释放核验。独立最终结论在 `independent/summary.json`、`independent/REVIEW.md`。

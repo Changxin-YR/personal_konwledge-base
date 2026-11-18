@@ -1,0 +1,54 @@
+{
+  "category": "GIT_DELIVERY_RECEIPT",
+  "status": "PASS",
+  "candidate_id": "FND-005-d0ec209b8161e14e",
+  "unit_acceptance": "BLOCKED",
+  "real_gpt_calls": 0,
+  "branch": "codex/knowledgeos-fnd-005",
+  "implementation_commit": "f8676d497e5bea0b74fe755333f782420f11d365",
+  "push": {
+    "exit_code": 0,
+    "transport": "Existing SSH authentication, same repository",
+    "new_branch": true,
+    "force": false
+  },
+  "remote_readback": {
+    "checked_at": "2026-11-18T10:11:36.602Z",
+    "exit_code": 0,
+    "heads": {
+      "refs/heads/codex/knowledgeos-fnd-004": "4282b9231a4ac38b0eb87145c337b811aec033e4",
+      "refs/heads/codex/knowledgeos-fnd-005": "f8676d497e5bea0b74fe755333f782420f11d365",
+      "refs/heads/main": "6f23735d5f07fed7cef108f829290b823ad6ace0"
+    },
+    "implementation_commit_matches": true
+  },
+  "attempts": [
+    {
+      "transport": "Original HTTPS",
+      "exit_code": 1,
+      "status": "FAIL",
+      "reason": "Interactive credential flow cancelled; fallback prompt attempted unavailable WSL bash; no username obtained."
+    },
+    {
+      "action": "GitHub CLI existing login check",
+      "status": "BLOCKED",
+      "reason": "No logged-in GitHub host; no token read."
+    },
+    {
+      "action": "Existing SSH authentication with BatchMode and strict host verification",
+      "status": "PASS",
+      "new_credential_created": false
+    },
+    {
+      "transport": "SSH same repository",
+      "exit_code": 0,
+      "status": "PASS"
+    }
+  ],
+  "preserved_origin_url": "https://github.com/Changxin-YR/personal_konwledge-base.git",
+  "notes": [
+    "Receipt records the published implementation commit and actual remote readback.",
+    "A subsequent documentation-only commit may add this receipt; final branch-tip readback is reported at delivery.",
+    "No API key, GitHub token, private SSH key, business cookie or owner token is stored."
+  ]
+}

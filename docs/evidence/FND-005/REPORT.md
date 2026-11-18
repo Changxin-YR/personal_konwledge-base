@@ -6,6 +6,8 @@
 
 工作分支：`codex/knowledgeos-fnd-005`，基线：`4282b9231a4ac38b0eb87145c337b811aec033e4`。最终冻结候选：`FND-005-d0ec209b8161e14e`。实际插件包 SHA-256：`5c48af614b4d53a06a15e3abdb5126494677e731341137d5b9c7b9d11b4c16cc`。详细文件清单见 [candidate.json](candidate.json)；配置与提供方审计见 [provider-audit.json](provider-audit.json)。旧候选及失败记录保留，不能据旧候选通过推导最终候选通过。
 
+产品与验收证据提交 `f8676d497e5bea0b74fe755333f782420f11d365` 已正常推送并由远端回读确认；随后仅补交本交付回执。原 HTTPS 认证链失败后使用本机已有 SSH 认证推送同一仓库，没有新增凭据或修改 origin URL。前置 FND-004 和 main 的远端提交保持不变，详见 [交付回执](delivery.json)。
+
 ## 已实现行为
 
 业务用户在 `/knowledgeos/account` 真实登录，经 `/knowledgeos/ai` 提交自然语言指令。固定 `ctx.llm.stream` 只选择一个白名单业务工具并生成结构化参数；准备与执行分开，后者使用固定 DSH 原生 `ctx.tools.execute`。没有修改上游模型循环或另建 Agent 框架。
@@ -44,4 +46,4 @@
 
 `real-provider/summary.json` 明确记录 BLOCKED 和零调用。继续验收需要已授权且身份明确的 GPT 路由、凭据可用性及可信价格；在同一候选上关联真实 read/update 模型选择、业务 HTTP、独立 SQL、UI 和独立复核。运行说明在 `operator-notes.md`。未调用非 GPT 替代品，也未向源码、证据或 Git 保存 API Key、Cookie、owner 入口 token 或其他用户私人内容。
 
-FND-001～004 的工作单元记录与前置提交逐项相同；完整 44 项需求、66 项完整场景不自动通过。此前 Connection 独立停用/恢复的历史 BLOCKED 仍保留，未用 Host 整体重启替代。没有开发 FND-006、通用 jobs/outbox、PDF 导入或完整 AI 助手。当前保持 `blocked` 并停在 FND-005，交付分支正常提交推送后等待下一条用户指令。
+FND-001～004 的工作单元记录与前置提交逐项相同；完整 44 项需求、66 项完整场景不自动通过。此前 Connection 独立停用/恢复的历史 BLOCKED 仍保留，未用 Host 整体重启替代。没有开发 FND-006、通用 jobs/outbox、PDF 导入或完整 AI 助手。当前保持 `blocked` 并停在 FND-005，正常提交推送后等待下一条用户指令。
