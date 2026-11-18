@@ -94,6 +94,7 @@
       "docs/evidence/FND-004/candidate.md"
     ],
     "completed_at": "2026-11-18T12:53:38+08:00",
-    "candidate": "FND-004-FINAL-20261118-v3.2.2"
+    "candidate": "FND-004-FINAL-20261118-v3.2.2",
+    "candidate_commit": "3c78f1f1379a033c20a193cc091f873e0573e0c1"
   }
 }

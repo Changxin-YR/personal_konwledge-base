@@ -1,6 +1,7 @@
 # FND-004 3.2.2 冻结候选
 
 候选标签：`FND-004-FINAL-20261118-v3.2.2`
+候选实现提交：`3c78f1f1379a033c20a193cc091f873e0573e0c1`
 冻结基线：`518ce35a51ef07623480bc8cd75dc0e93262557d`
 固定 DSH：`39163dd30f703a79079e2d2446545cff3c453738`
 工作 profile：`knowledgeos-identity-test`（loopback 专用共享 profile）
