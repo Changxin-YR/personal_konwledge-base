@@ -8,7 +8,7 @@
 
 `prepare` 只请求一次模型选择工具并校验结构化参数；`execute` 通过 DSH 原生受控执行器，重新核对业务会话、ACL、当前成员资格和版本。写入与幂等回执同一 SQLite 事务提交；取得锁后重取时间。原生策略等待结束后、发布正文前再次核对会话及 read ACL。执行前取消可阻止副作用；已提交写入返回 `OPERATION_ALREADY_COMPLETED`，使用同一幂等键对账，不假装撤销。重启丢弃未执行准备记录，保留已提交回执。
 
-最小真实提供方脚本是 `scripts/fnd005/real-provider-check.mjs`，只连接显式指定的现有可信本机 Host，参数为 `--port`、`--expect-model`、`--candidate`、`--out`。业务登录名和密码仅从 `KO_FND005_LOGIN`、`KO_FND005_PASSWORD` 进程环境读取，不能记录其值。脚本会通过真实登录创建合成对象，要求模型分别选择 read/update，最多两次请求；实际 Host 仍执行配置预算与超时。没有配置时产出 BLOCKED，不能跳过认证或把客户端身份作为执行 actor。
+最小真实提供方脚本是 `scripts/fnd005/real-provider-check.mjs`，只连接显式指定的现有可信本机 Host；须传 `--port`、`--expect-provider`、`--expect-model`、`--candidate`，并用 `--out` 指定新的证据目录。业务登录名和密码仅从 `KO_FND005_LOGIN`、`KO_FND005_PASSWORD` 进程环境读取，不能记录其值。脚本会通过真实登录创建合成对象，要求模型分别选择 read/update，最多两次准备请求；准备请求数与成功取得工具选择的次数分别记录，失败不能推断供应商实际收包或扣费。实际 Host 仍执行配置预算与超时。没有配置时产出 BLOCKED，不能跳过认证或把客户端身份作为执行 actor。
 
 该脚本的提供方 HTTP 成功也不会自动解锁单元：还需将同一候选、同一次实际 GPT 操作的浏览器展示、独立只读 SQL、实际工具参数/回执和独立复核关联。补足前 real-provider 总状态保持 BLOCKED；完整需求矩阵也不由此自动验收。
 

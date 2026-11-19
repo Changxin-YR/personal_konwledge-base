@@ -1,0 +1,57 @@
+{
+  "category": "REAL_DSH_NATIVE_HTTP_SQLITE_WITH_CONTROLLED_MODEL_POLICY_BARRIERS",
+  "status": "PASS",
+  "real_gpt": false,
+  "started_at": "2026-11-19T05:39:17.910Z",
+  "checks": [
+    {
+      "id": "R1.post-body-revocation-suppresses-publication",
+      "status": "PASS",
+      "facts": {
+        "native_body_completed": true,
+        "revocation_before_publication": true,
+        "http": 404,
+        "no_body_disclosed": true
+      }
+    },
+    {
+      "id": "R1.post-body-logout-suppresses-publication",
+      "status": "PASS",
+      "facts": {
+        "http": 401,
+        "no_body_disclosed": true
+      }
+    },
+    {
+      "id": "R2.cancel-native-wait-before-body",
+      "status": "PASS",
+      "facts": {
+        "http": 409,
+        "code": "CANCELLED",
+        "revision": 1,
+        "no_write": true
+      }
+    },
+    {
+      "id": "R3.native-aborted-before-dispatch-classified",
+      "status": "PASS",
+      "facts": {
+        "native_code": "ABORTED_BEFORE_DISPATCH",
+        "http": 409,
+        "code": "CANCELLED"
+      }
+    },
+    {
+      "id": "R2.cancel-after-commit-preserves-receipt",
+      "status": "PASS",
+      "facts": {
+        "cancel_http": 409,
+        "code": "OPERATION_ALREADY_COMPLETED",
+        "execute_http": 200,
+        "revision": 2,
+        "receipt_count": 1
+      }
+    }
+  ],
+  "finished_at": "2026-11-19T05:40:15.283Z"
+}

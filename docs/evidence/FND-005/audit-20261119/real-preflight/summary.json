@@ -1,0 +1,13 @@
+{
+  "category": "REAL_GPT_PROVIDER",
+  "status": "BLOCKED",
+  "is_gpt": false,
+  "candidate_id": "UNFROZEN",
+  "provider": null,
+  "model": null,
+  "started_at": "2026-11-19T05:42:59.115Z",
+  "provider_calls": 0,
+  "operations": [],
+  "reason": "NO_EXPLICIT_AUTHORIZED_GPT_HOST_ROUTE_CANDIDATE_AND_BUSINESS_LOGIN",
+  "finished_at": "2026-11-19T05:42:59.117Z"
+}
