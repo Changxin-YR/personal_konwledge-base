@@ -23,3 +23,4 @@
 最终独立验收位于 `independent/`：基础六组为 integration 14、storage 6、configuration 21、barriers 5、ui 8、acl 7，共 61 项；独立追加 additional 11、service-additional 6、ui-additional 4，共 21 项。每组 `summary.json` 记录观察事实，`command-*.json` 绑定当前候选、命令、退出码及前后文件差异；`candidate-before.json`、`candidate-after.json`、`final-audit.json` 提供来源、哈希、迁移和测试端口释放核验。独立最终结论在 `independent/summary.json`、`independent/REVIEW.md`。
 
 旧候选保留在 [candidates/FND-005-572a5b58a7b46671.json](candidates/FND-005-572a5b58a7b46671.json)，独立首轮在 `independent/round1/`。旧的 `runs/final-*` 是较早一轮，不能按文件名推断其为最终候选；中间失败不改写为通过。原始 Host 日志、真实凭据、Cookie、owner token、数据库与私人原件不在证据目录或 Git 中。
+2026-11-19 补充：[截图指定的 DeepSeek HS14 真实读写、界面缺陷与修复后回归](live-hs14-Oaxv9B/REPORT.md)。不替代 GPT 的独立验收。

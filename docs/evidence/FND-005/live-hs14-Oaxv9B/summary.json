@@ -1,0 +1,52 @@
+{
+  "category": "REAL_DEEPSEEK_UI_HTTP_SQLITE",
+  "is_gpt": false,
+  "provider": "api",
+  "model": "deepseek-v4.1-flash-1017/hs14",
+  "started_at": "2026-11-19T06:00:52.638Z",
+  "product_commit": "3d539e5618d4f4a1f446dfc768d089c490a8037b",
+  "plugin_sha256": "6cb3810950f4e26184950e9b20230a9f67dde03794707e90a5f1258a53c10b6a",
+  "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+  "limits": {
+    "provider": "api",
+    "model": "deepseek-v4.1-flash-1017/hs14",
+    "maxCalls": 2,
+    "maxTokens": 512,
+    "timeoutMs": 60000,
+    "budgetUsd": 0.1,
+    "inputUsdPerMillion": 5,
+    "outputUsdPerMillion": 12
+  },
+  "prepare_requests": 2,
+  "successful_model_selections": 2,
+  "operations": [
+    {
+      "tool": "knowledgeos_read_object",
+      "object_id": "50325cd5-33bf-4c21-bb6c-92e147a070cf",
+      "revision": 1,
+      "body_sha256": "b59a43387c6152b810853f217094b22ec651b62eb8ecabc31564787df79aef38",
+      "receipts": 0,
+      "ui_reread_and_sql_agree": true
+    },
+    {
+      "tool": "knowledgeos_update_object",
+      "object_id": "50325cd5-33bf-4c21-bb6c-92e147a070cf",
+      "revision": 2,
+      "body_sha256": "761aa5c67989e5e31da3b009f39a884218acfadd843e6bf5b78a1f80cf37a652",
+      "receipts": 1,
+      "ui_reread_and_sql_agree": true
+    }
+  ],
+  "price_basis": {
+    "source": "tokease.cn/api/pricing and /api/status",
+    "route_slug": "hs14",
+    "quota_per_unit": 500000,
+    "default_group_ratio": 1,
+    "model_ratio": 0.146627565982,
+    "completion_ratio": 4,
+    "conservative_reservation_not_actual_invoice": true
+  },
+  "last_prepare_http": 200,
+  "status": "PASS",
+  "finished_at": "2026-11-19T06:01:09.139Z"
+}

@@ -1,0 +1,59 @@
+{
+  "category": "REAL_CHROME_UI_HTTP_SQLITE_WITH_CONTROLLED_MODEL_FIXTURE",
+  "real_gpt": false,
+  "status": "PASS",
+  "checks": [
+    {
+      "id": "T01.fixture-ui-read",
+      "status": "PASS",
+      "real_login_ui": true,
+      "tool": "knowledgeos_read_object"
+    },
+    {
+      "id": "T02.T08.fixture-ui-write-reread",
+      "status": "PASS",
+      "tool": "knowledgeos_update_object",
+      "revision": 2,
+      "sql_agrees": true
+    },
+    {
+      "id": "T08.draft-change-invalidates-prepared-action",
+      "status": "PASS"
+    },
+    {
+      "id": "T06.fixture-ui-revision-conflict",
+      "status": "PASS",
+      "draft_preserved": true
+    },
+    {
+      "id": "T07.fixture-ui-timeout-cancel",
+      "status": "PASS"
+    },
+    {
+      "id": "R5.late-prepare-does-not-restore-cancelled-ui",
+      "status": "PASS",
+      "transport_response_delayed": true
+    },
+    {
+      "id": "T08.account-switch-clears-private-view",
+      "status": "PASS"
+    },
+    {
+      "id": "T08.refresh-invalidates-prepared-tool",
+      "status": "PASS"
+    },
+    {
+      "id": "T08.unconfigured-ui-blocked",
+      "status": "PASS",
+      "provider_calls": 0
+    },
+    {
+      "id": "T08.unconfigured-draft-stays-blocked",
+      "status": "PASS"
+    }
+  ],
+  "started_at": "2026-11-19T06:02:25.449Z",
+  "page_errors": [],
+  "finished_at": "2026-11-19T06:02:51.579Z",
+  "loaded_candidate_sha256": "5b46167b2acc5f400ae66c3aefddff3ab0d09709b56e2c2ec9c2f878b48ba8dc"
+}
