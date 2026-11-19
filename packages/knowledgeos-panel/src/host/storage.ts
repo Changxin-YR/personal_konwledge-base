@@ -335,11 +335,12 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
   #failure: RecordsError | undefined
   #closed = false
 
-  readonly assets = new AssetStore(op => {
-    const db=this.#ensureReady()
-    try { db.exec('BEGIN IMMEDIATE') } catch (e) { throw this.#mapError(e) }
+  readonly assets = new AssetStore((mode,op) => {
+    let db:DatabaseSync
+    try { db=this.#ensureReady();db.exec(mode==='write'?'BEGIN IMMEDIATE':'BEGIN') }
+    catch(e){throw new AssetError(503,this.#mapError(e).code)} // No transaction began.
     try { const value=op(db,new Date().toISOString()); db.exec('COMMIT'); return value }
-    catch(e){if(!this.#rollback(db))throw this.#failure;throw e instanceof AssetError?e:this.#mapError(e)}
+    catch(e){if(!this.#rollback(db))throw this.#failure;throw e instanceof AssetError?e:new AssetError(503,this.#mapError(e).code)}
   }, (session,now)=>{
     const ref=this.#ensureReady().prepare('SELECT token_hash FROM auth_sessions WHERE id=? AND user_id=?').get(session.sessionId,session.userId)
     return ref?this.findActor(String(ref.token_hash),now):undefined

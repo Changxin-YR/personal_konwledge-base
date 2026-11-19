@@ -46,7 +46,11 @@ export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:
           if(e instanceof AssetError)await originals.discard(blob.key);else originals.retain(blob.key)
           throw e
         }
-        if(result.replayed)await originals.discard(blob.key);else originals.retain(blob.key)
+        if(result.replayed){
+          await originals.discard(blob.key)
+          const old=store.original(current(),result.receipt.id,result.receipt.version_id,false)
+          await originals.read(old.key,old.sha256,old.byteLength)
+        }else originals.retain(blob.key)
         // A replay cleanup may have yielded; do not publish stale authorized metadata.
         store.original(current(),result.receipt.id,result.receipt.version_id,false)
         json(result.replayed?200:201,{data:result.receipt,request_id:requestId});return

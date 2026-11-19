@@ -152,7 +152,7 @@ try {
   const list=async(req,expected)=>{const res=await req.get(base+prefix+'/assets',{maxRedirects:0});assert.equal(res.status(),200);assert.deepEqual((await res.json()).data.items,expected)}
   await list(alice.request,[v1.r]);phase='version append';const v2=await importUi(page,2,[v1],actor),versions=[v1,v2]
   assert.equal(v2.r.id,v1.r.id);assert.notEqual(v2.r.version_id,v1.r.version_id);assert.notEqual(v2.key,v1.key)
-  database('after-v2',versions,actor);await list(alice.request,[v2.r]);await readOriginal(alice.request,v1.r);await readOriginal(alice.request,v2.r,true)
+  database('after-v2',versions,actor);await list(alice.request,[v2.r,v1.r]);await readOriginal(alice.request,v1.r);await readOriginal(alice.request,v2.r,true)
   const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('region',{name:'导入回执'}).getByRole('link',{name:'导出 PDF'}).click()]);assert.deepEqual(readFileSync(await download.path()),docs[1].bytes)
   phase='replay and conflicts';const firstHeaders=headers(v1.r.title,v1.key),secondHeaders={...headers(v2.r.title,v2.key),'x-knowledgeos-asset-id':v1.r.id,'x-knowledgeos-expected-version':'1'}
   for(const [i,h] of [firstHeaders,secondHeaders].entries()){

@@ -497,7 +497,7 @@ var AssetStore = class {
     if (!this.allowed(actor, id, action, now)) throw new AssetError(404, "ASSET_NOT_FOUND");
   }
   publish(prior, spec, blob) {
-    return this.tx((db, now) => {
+    return this.tx("write", (db, now) => {
       const actor = this.actor(prior, now), digest = createHash3("sha256").update(JSON.stringify([spec.title, spec.assetId ?? null, spec.expectedVersion ?? null, blob.sha256, blob.byteLength])).digest("hex");
       const prev = db.prepare("SELECT id,asset_id,request_digest FROM asset_versions WHERE created_by=? AND idempotency_key=?").get(actor.userId, spec.key);
       if (prev) {
@@ -527,7 +527,7 @@ var AssetStore = class {
     });
   }
   list(prior) {
-    return this.tx((db, now) => {
+    return this.tx("read", (db, now) => {
       const actor = this.actor(prior, now);
       return db.prepare(receiptSQL + `JOIN knowledge_objects o ON o.id=v.asset_id
       WHERE o.owner_user_id=? AND o.service_id=? AND o.status='active'
@@ -535,7 +535,7 @@ var AssetStore = class {
     });
   }
   original(prior, id, versionId, download) {
-    return this.tx((db, now) => {
+    return this.tx("read", (db, now) => {
       const actor = this.actor(prior, now);
       this.check(actor, id, "read", now);
       if (download) this.check(actor, id, "export", now);
@@ -775,12 +775,13 @@ var ProbeStorage = class {
   #state = "unavailable";
   #failure;
   #closed = false;
-  assets = new AssetStore((op) => {
-    const db = this.#ensureReady();
+  assets = new AssetStore((mode, op) => {
+    let db;
     try {
-      db.exec("BEGIN IMMEDIATE");
+      db = this.#ensureReady();
+      db.exec(mode === "write" ? "BEGIN IMMEDIATE" : "BEGIN");
     } catch (e) {
-      throw this.#mapError(e);
+      throw new AssetError(503, this.#mapError(e).code);
     }
     try {
       const value = op(db, (/* @__PURE__ */ new Date()).toISOString());
@@ -788,7 +789,7 @@ var ProbeStorage = class {
       return value;
     } catch (e) {
       if (!this.#rollback(db)) throw this.#failure;
-      throw e instanceof AssetError ? e : this.#mapError(e);
+      throw e instanceof AssetError ? e : new AssetError(503, this.#mapError(e).code);
     }
   }, (session, now) => {
     const ref = this.#ensureReady().prepare("SELECT token_hash FROM auth_sessions WHERE id=? AND user_id=?").get(session.sessionId, session.userId);

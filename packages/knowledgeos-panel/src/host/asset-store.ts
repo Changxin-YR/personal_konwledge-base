@@ -19,7 +19,7 @@ export class AssetError extends Error { constructor(readonly status:number, read
 export interface ImportSpec {title:string; key:string; assetId?:string; expectedVersion?:number}
 export interface BlobRef {key:string; sha256:string; byteLength:number}
 export interface AssetReceipt {id:string;title:string;version_id:string;version:number;sha256:string;byte_length:number}
-type Tx = <T>(op:(db:DatabaseSync, now:string)=>T)=>T
+type Tx = <T>(mode:'read'|'write',op:(db:DatabaseSync, now:string)=>T)=>T
 const receiptSQL = `SELECT v.asset_id AS id,v.original_name AS title,v.id AS version_id,v.version,b.sha256,b.byte_length FROM asset_versions v JOIN blobs b ON b.id=v.blob_id `
 
 export class AssetStore {
@@ -30,7 +30,7 @@ export class AssetStore {
   private check(actor:SessionActor,id:string,action:AuthorizationAction,now:string) {if(!this.allowed(actor,id,action,now))throw new AssetError(404,'ASSET_NOT_FOUND')}
 
   publish(prior:SessionActor, spec:ImportSpec, blob:BlobRef):{receipt:AssetReceipt;replayed:boolean} {
-    return this.tx((db,now)=>{
+    return this.tx('write',(db,now)=>{
       const actor=this.actor(prior,now), digest=createHash('sha256').update(JSON.stringify([spec.title,spec.assetId??null,spec.expectedVersion??null,blob.sha256,blob.byteLength])).digest('hex')
       const prev=db.prepare('SELECT id,asset_id,request_digest FROM asset_versions WHERE created_by=? AND idempotency_key=?').get(actor.userId,spec.key)
       if(prev){this.check(actor,String(prev.asset_id),'read',now);this.check(actor,String(prev.asset_id),'edit',now);if(prev.request_digest!==digest)throw new AssetError(409,'IDEMPOTENCY_CONFLICT');return {receipt:{...db.prepare(receiptSQL+'WHERE v.id=?').get(prev.id!)} as unknown as AssetReceipt,replayed:true}}
@@ -50,13 +50,13 @@ export class AssetStore {
     })
   }
 
-  list(prior:SessionActor):AssetReceipt[] { return this.tx((db,now)=>{
+  list(prior:SessionActor):AssetReceipt[] { return this.tx('read',(db,now)=>{
     const actor=this.actor(prior,now);return (db.prepare(receiptSQL+`JOIN knowledge_objects o ON o.id=v.asset_id
       WHERE o.owner_user_id=? AND o.service_id=? AND o.status='active'
       ORDER BY v.created_at DESC,v.version DESC,v.id`).all(actor.userId,actor.serviceId) as unknown as AssetReceipt[]).filter(v=>this.allowed(actor,v.id,'read',now)).map(v=>({...v}))
   }) }
 
-  original(prior:SessionActor,id:string,versionId:string,download:boolean) {return this.tx((db,now)=>{
+  original(prior:SessionActor,id:string,versionId:string,download:boolean) {return this.tx('read',(db,now)=>{
     const actor=this.actor(prior,now);this.check(actor,id,'read',now);if(download)this.check(actor,id,'export',now)
     const r=db.prepare('SELECT b.storage_key,b.sha256,b.byte_length FROM asset_versions v JOIN blobs b ON b.id=v.blob_id WHERE v.asset_id=? AND v.id=?').get(id,versionId)
     if(!r)throw new AssetError(404,'ASSET_NOT_FOUND');return {key:String(r.storage_key),sha256:String(r.sha256),byteLength:Number(r.byte_length)}
