@@ -14,7 +14,8 @@ const pkg='packages/knowledgeos-panel',profile='.cache/dsh-home-fnd003/profiles/
 const snapshot=()=>{const paths=git('ls-files','-co','--exclude-standard','-z','--',pkg).split('\0').filter(Boolean).sort();const files=Object.fromEntries(paths.map(p=>[p,fileHash(join(root,p))]));return {head:git('rev-parse','HEAD'),product_sha256:hash(JSON.stringify(files)),entry:realpathSync(join(root,profile,'node_modules/knowledgeos-panel/lib/index.js')),entry_sha256:files[pkg+'/lib/index.js'],dirty_product:git('status','--porcelain','--',pkg),files}}
 const before=snapshot();const verifyFrozen=()=>{if(phase==='frozen'){assert.equal(git('cat-file','-t',expected),'tree');assert.equal(git('diff','--name-only',expected,'--',pkg),'');assert.equal(fileHash(before.entry),entryHash);assert.deepEqual(Object.keys(snapshot().files),git('ls-tree','-r','--name-only',expected,'--',pkg).split('\n').sort())}};verifyFrozen()
 assert.equal(git('-C','.cache/upstream/deepseek-harness','rev-parse','HEAD'),pin)
-const stamp=new Date().toISOString().replace(/[:.]/g,'-'),out=join(root,'docs/evidence/FND-006/regression',phase+'-'+stamp)
+const evidenceRoot=process.env.KO_PRIVATE_REGRESSION==='1'?'.cache/technical-regression':'docs/evidence/FND-006/regression'
+const stamp=new Date().toISOString().replace(/[:.]/g,'-'),out=join(root,evidenceRoot,phase+'-'+stamp)
 mkdirSync(out,{recursive:true});mkdirSync(join(here,'.cache'),{recursive:true});const work=mkdtempSync(join(here,'.cache/r-'))
 const save=(p,s)=>{mkdirSync(dirname(p),{recursive:true});writeFileSync(p,s)}
 const link=(p,target)=>{mkdirSync(dirname(p),{recursive:true});symlinkSync(target,p,'junction')}

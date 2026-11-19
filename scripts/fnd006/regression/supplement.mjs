@@ -7,7 +7,8 @@ import {dirname,join,resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 const here=dirname(fileURLToPath(import.meta.url)),root=resolve(here,'../../..')
 const [folder]=process.argv.slice(2);assert(/^frozen-[0-9TZ.-]+$/.test(folder))
-const dir=join(root,'docs/evidence/FND-006/regression',folder),main=JSON.parse(readFileSync(join(dir,'run.json'),'utf8')),work=realpathSync(main.work)
+const evidenceRoot=process.env.KO_PRIVATE_REGRESSION==='1'?'.cache/technical-regression':'docs/evidence/FND-006/regression'
+const dir=join(root,evidenceRoot,folder),main=JSON.parse(readFileSync(join(dir,'run.json'),'utf8')),work=realpathSync(main.work)
 assert.equal(dirname(work),realpathSync(join(here,'.cache')));const tree=main.expected,pkg='packages/knowledgeos-panel'
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8'});const sha=v=>createHash('sha256').update(v).digest('hex')
 function verify(){assert.equal(git('diff','--name-only',tree,'--',pkg),'');for(const [p,h] of Object.entries(main.before.files))assert.equal(sha(readFileSync(join(root,p))),h);for(const [p,h] of Object.entries(main.scripts))assert.equal(sha(readFileSync(join(work,p))),h.executed)}
