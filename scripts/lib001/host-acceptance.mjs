@@ -172,7 +172,8 @@ try {
   await deny('anonymous-list',await get(anon,prefix+'/assets'),401,'AUTH_REQUIRED')
   const noMarker=headers(docs[0].title);delete noMarker['x-knowledgeos-request']
   await deny('missing-csrf-marker',await put(alice.request,docs[0].bytes,noMarker),403,'CSRF_REJECTED')
-  await deny('foreign-origin',await put(alice.request,docs[0].bytes,{...headers(docs[0].title),origin:'https://synthetic.invalid'}),403,'CSRF_REJECTED')
+  const foreign=await put(alice.request,docs[0].bytes,{...headers(docs[0].title),origin:'https://synthetic.invalid'})
+  assert.equal(foreign.status(),403);assert.equal(await foreign.text(),'forbidden');log('http:foreign-origin',{status:403,boundary:'pinned-host-admission'})
   database('after-denials',versions,actor);await readOriginal(alice.request,v1.r);await readOriginal(alice.request,v2.r)
   phase='expired session';const db=new DatabaseSync(dbPath(data));try{
     // Advance only the expiry of the one synthetic Alice session; Chrome retains its actual cookie.
