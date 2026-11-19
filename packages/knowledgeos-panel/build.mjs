@@ -10,7 +10,7 @@
  * Run `npm install` in this package directory once, then `node build.mjs`.
  */
 import { createHash } from 'node:crypto'
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { build } from 'esbuild'
@@ -23,6 +23,17 @@ const id = manifest.name
 
 await rm(libDir, { recursive: true, force: true })
 await mkdir(libDir, { recursive: true })
+
+// Fixed offline assets; no parser package resolution at runtime.
+const wasm = fileURLToPath(import.meta.resolve('@embedpdf/pdfium/pdfium.wasm'))
+await copyFile(wasm, join(libDir, 'pdfium.wasm'))
+for (const notice of ['LICENSE', 'LICENSE.pdfium']) {
+  await copyFile(join(dirname(wasm), '..', notice), join(libDir, 'pdfium-' + notice))
+}
+await build({
+  absWorkingDir: root, entryPoints: ['src/host/pdf-extractor.ts'], outfile: 'lib/pdf-extractor.js',
+  bundle: true, format: 'esm', platform: 'node', target: 'node22',
+})
 
 await build({
   absWorkingDir: root,

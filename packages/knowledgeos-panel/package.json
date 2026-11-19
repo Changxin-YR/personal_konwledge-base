@@ -26,6 +26,9 @@
     "lib/client.js",
     "lib/storage.js",
     "lib/test-support.js",
+    "lib/pdf-extractor.js",
+    "lib/pdfium.wasm",
+    "lib/pdfium-LICENSE*",
     "src",
     "build.mjs",
     "tsconfig.json",
@@ -47,6 +50,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "devDependencies": {
+    "@embedpdf/pdfium": "2.15.1",
     "@types/node": "^24.10.1",
     "@types/react": "18.3.27",
     "@types/react-dom": "18.3.7",
