@@ -41,8 +41,10 @@ export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:
         const blob=await originals.put(bytes)
         // An uncertain COMMIT must never delete an original that might be referenced.
         // Unreferenced objects from a failed transaction remain private for safe reconciliation.
+        let verified:SessionActor
+        try {verified=current()}catch(e){await originals.discard(blob.key);throw e}
         let result:ReturnType<AssetStore['publish']>
-        try {result=store.publish(current(),spec,blob)}catch(e){
+        try {result=store.publish(verified,spec,blob)}catch(e){
           if(e instanceof AssetError)await originals.discard(blob.key);else originals.retain(blob.key)
           throw e
         }

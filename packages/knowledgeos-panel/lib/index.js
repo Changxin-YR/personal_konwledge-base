@@ -3128,9 +3128,16 @@ function libraryHandler(store, originals, origin, actorFor) {
         const bytes = await receive(req);
         current();
         const blob = await originals.put(bytes);
+        let verified;
+        try {
+          verified = current();
+        } catch (e) {
+          await originals.discard(blob.key);
+          throw e;
+        }
         let result;
         try {
-          result = store.publish(current(), spec, blob);
+          result = store.publish(verified, spec, blob);
         } catch (e) {
           if (e instanceof AssetError) await originals.discard(blob.key);
           else originals.retain(blob.key);

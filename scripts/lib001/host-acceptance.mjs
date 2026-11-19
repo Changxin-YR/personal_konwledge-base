@@ -138,7 +138,7 @@ try {
   assert.equal((await api(port,owner,'POST',prefix+'/auth/bootstrap',{login_name:'testadmin',display_name:'Synthetic admin',password:randomUUID()})).status,201)
   for(const name of ['alice','bob'])assert.equal((await api(port,'','POST',prefix+'/auth/register',{login_name:name,display_name:name,password:pass})).status,201)
   phase='browser baseline';browser=await chromium.launch({channel:'chrome',headless:true,args:['--disable-background-networking']});log('chrome',{version:browser.version()})
-  const context=()=>browser.newContext({viewport:{width:1100,height:850},serviceWorkers:'block',baseURL:base})
+  const context=async()=>{const ctx=await browser.newContext({viewport:{width:1100,height:850},serviceWorkers:'block',baseURL:base});ctx.setDefaultTimeout(15000);return ctx}
   const alice=await context(),bob=await context(),anon=await context();const {page,actor}=await actorPage(alice,'alice',pass)
   const bobPage=(await actorPage(bob,'bob',pass)).page;const anonPage=await anon.newPage();await anonPage.goto(base+library)
   await anonPage.getByRole('status').filter({hasText:'请先登录'}).waitFor();assert(await anonPage.getByLabel('PDF 文件',{exact:true}).isDisabled());await image(anonPage,'anonymous')
@@ -161,7 +161,8 @@ try {
   await deny('same-key-changed-bytes',await put(alice.request,docs[1].bytes,firstHeaders),409,'IDEMPOTENCY_CONFLICT')
   await deny('new-key-stale-parent',await put(alice.request,docs[1].bytes,{...secondHeaders,'idempotency-key':randomUUID()}),409,'VERSION_CONFLICT');database('after-replay-and-conflicts',versions,actor)
   phase='invalid PDF';await choose(page,'合成损坏.pdf',Buffer.from('%PDF-1.4\ntruncated'));const invalid=await submit(page)
-  await deny('invalid-pdf',invalid,422,'INVALID_PDF');await page.getByRole('status').filter({hasText:'重新选择'}).waitFor();await image(page,'invalid-pdf');database('after-invalid',versions,actor)
+  assert.equal(invalid.status(),422);await page.getByRole('status').filter({hasText:'重新选择'}).waitFor();await image(page,'invalid-pdf')
+  await deny('invalid-pdf',await put(alice.request,Buffer.from('%PDF-1.4\ntruncated'),headers('合成损坏.pdf')),422,'INVALID_PDF');database('after-invalid',versions,actor)
   phase='access boundaries';await list(bob.request,[]);await show(bobPage,0);await image(bobPage,'other-user-empty')
   const get=(ctx,path)=>ctx.request.get(base+path,{maxRedirects:0});const latestHeaders={...secondHeaders,'idempotency-key':randomUUID(),'x-knowledgeos-expected-version':'2'}
   for(const [ctx,tag,status,code] of [[bob,'other-user',404,'ASSET_NOT_FOUND'],[anon,'anonymous',401,'AUTH_REQUIRED']]){
