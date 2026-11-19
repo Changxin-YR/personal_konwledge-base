@@ -508,7 +508,7 @@
     },
     {
       "id": "F38",
-      "title": "GPT主Agent及其他席位2/3评审",
+      "title": "DeepSeek主Agent及其他席位2/3评审",
       "owner_module": "discussion",
       "milestone": "M5",
       "acceptance_ids": [
@@ -1446,7 +1446,7 @@
       ],
       "preconditions": "可用模型、用量缺失、额度耗尽三种情况。",
       "steps": "真实调用主Agent与评审席位，读取用量，触发限额。",
-      "expected": "GPT主Agent配置真实可用；模型与实际调用一致；未知用量标未知；限额受阻且不伪造投票；不虚构免费额度。",
+      "expected": "DeepSeek主Agent配置真实可用；模型与实际调用一致；未知用量标未知；限额受阻且不伪造投票；不虚构免费额度。",
       "level": "real_environment",
       "evidence_required": "实际提供商/模型、脱敏调用与用量、限额错误",
       "status": "NOT_RUN",

@@ -9,7 +9,7 @@ import { RecordsError } from './records.ts'
 export interface LlmPort {
   listProviders(): Array<{ id: string; name?: string }>
   listModels(provider: string): Promise<readonly { id: string; name?: string }[]>
-  stream(options: { provider: string; model: string; system: string; messages: Array<{ role: 'user'; content: Array<{ type: 'text'; text: string }> }>; tools: typeof TOOL_SCHEMAS; maxTokens: number; signal: AbortSignal }): AsyncIterable<{ type: string; block?: { type: string; id?: string; name?: string; arguments?: string }; usage?: unknown; reason?: { kind: string; failure?: { code?: string; status?: number; message?: string } } }>
+  stream(options: { provider: string; model: string; system: string; messages: Array<{ role: 'user'; content: Array<{ type: 'text'; text: string }> }>; tools: typeof TOOL_SCHEMAS; signal: AbortSignal }): AsyncIterable<{ type: string; block?: { type: string; id?: string; name?: string; arguments?: string }; usage?: unknown; reason?: { kind: string; failure?: { code?: string; status?: number; message?: string } } }>
 }
 export interface ToolsPort {
   register(definition: typeof TOOL_SCHEMAS[number] & { output: { schema: { type: 'object' }; render(args: unknown, value: unknown): Array<{ type: 'text'; text: string }> }; execute(args: unknown, exec: { callId: string; name: string; signal: AbortSignal }): Promise<unknown> }): () => void
@@ -42,11 +42,15 @@ export class AiService {
   readonly #prepared = new Map<string, Prepared>()
   readonly #pending = new Map<string, { actor: SessionActor; controller: AbortController }>()
   #calls = 0
-  #reservedUsd = 0
+  #estimatedUsd = 0
+  #unknownCostCalls = 0
+  #inputTokens = 0
+  #outputTokens = 0
+  get routeAllowed(): boolean { return Boolean(this.config.provider && /^(?:deepseek[-/]|deepseek$)/i.test(this.config.model ?? '')) }
   #closed = false
   readonly #dispose: Array<() => void> = []
   constructor(readonly store: AiStore, readonly config: AiConfig, readonly llm?: LlmPort, readonly tools?: ToolsPort) {
-    for (const [value, min, max, integer] of [[config.maxCalls ?? 8, 1, 64, true], [config.timeoutMs ?? 30000, 100, 60000, true], [config.budgetUsd ?? .10, .001, 1, false]] as const) {
+    for (const [value, min, max, integer] of [[config.maxCalls ?? 1, 1, Number.MAX_SAFE_INTEGER, true], [config.timeoutMs ?? 30000, 100, 60000, true], [config.budgetUsd ?? 0, 0, Number.MAX_VALUE, false]] as const) {
       if (!Number.isFinite(value) || value < min || value > max || integer && !Number.isSafeInteger(value)) throw new AiError(503, 'AI_CONFIG_INVALID')
     }
     if (tools !== undefined) for (const schema of TOOL_SCHEMAS) this.#dispose.push(tools.register({
@@ -72,14 +76,14 @@ export class AiService {
     }))
   }
   status(): Record<string, unknown> {
-    return { provider: this.config.provider ?? null, model: this.config.model ?? null, configured: Boolean(this.config.provider && this.config.model && this.llm && this.tools), max_calls: this.config.maxCalls ?? 8, attempts: this.#calls, max_output_tokens: 512, timeout_ms: this.config.timeoutMs ?? 30_000, budget_usd: this.config.budgetUsd ?? 0.10, reserved_usd: this.#reservedUsd, usage: 'reported_by_provider_when_available', state: this.#closed ? 'stopped' : 'ready' }
+    return { provider: this.config.provider ?? null, model: this.config.model ?? null, configured: Boolean(this.routeAllowed && this.llm && this.tools), attempts: this.#calls, timeout_ms: this.config.timeoutMs ?? 30_000, budget_usd: this.config.budgetUsd ?? null, known_estimated_usd: this.#estimatedUsd, unknown_cost_calls: this.#unknownCostCalls, reported_input_tokens: this.#inputTokens, reported_output_tokens: this.#outputTokens, budget_warning: (this.config.budgetUsd !== undefined && this.#estimatedUsd > this.config.budgetUsd) || (this.config.maxCalls !== undefined && this.#calls > this.config.maxCalls), state: this.#closed ? 'stopped' : 'ready' }
   }
   #sweep(): void { for (const [id, item] of this.#prepared) if (Date.now() >= item.expiresAt && item.state !== 'executing') this.#prepared.delete(id) }
   async prepare(actor: SessionActor, raw: Record<string, unknown>, signal: AbortSignal): Promise<Record<string, unknown>> {
     onlyKeys(raw, ['request_id', 'instruction', 'object_id', 'expected_revision', 'idempotency_key'])
     const instruction = aiText(raw.instruction, 2000), objectId = aiText(raw.object_id, 80), requestId = aiText(raw.request_id, 80), key = aiText(raw.idempotency_key, 128)
     if (!Number.isSafeInteger(raw.expected_revision) || Number(raw.expected_revision) < 1) throw new AiError(422, 'INPUT_INVALID')
-    if (this.#closed || !this.llm || !this.tools || !this.config.provider || !this.config.model) throw new AiError(503, 'MODEL_NOT_CONFIGURED')
+    if (this.#closed || !this.llm || !this.tools || !this.routeAllowed || !this.config.provider || !this.config.model) throw new AiError(503, 'MODEL_NOT_CONFIGURED')
     if (signal.aborted) throw new AiError(409, 'CANCELLED')
     this.#sweep()
     if (this.#pending.has(requestId)) throw new AiError(409, 'REQUEST_CONFLICT')
@@ -90,6 +94,7 @@ export class AiService {
     signal.addEventListener('abort', onAbort, { once: true })
     const timer = setTimeout(() => controller.abort(new AiError(504, 'MODEL_TIMEOUT')), this.config.timeoutMs ?? 30_000)
     let usage: unknown
+    let attempted = false
     try {
       const available = this.llm.listProviders().some(p => p.id === this.config.provider)
       if (!available) throw new AiError(503, 'MODEL_NOT_CONFIGURED')
@@ -97,16 +102,11 @@ export class AiService {
       // Pinned pi-ai hides its entire catalog when the named credential is missing.
       // An empty advisory catalog must reach exact-model/credential validation in stream.
       if (catalog.length > 0 && !catalog.some(m => m.id === this.config.model)) throw new AiError(404, 'MODEL_NOT_FOUND')
-      const prices = [this.config.inputUsdPerMillion, this.config.outputUsdPerMillion]
-      if (prices.some(p => p === undefined || !Number.isFinite(p) || p < 0)) throw new AiError(503, 'PRICE_BUDGET_NOT_CONFIGURED')
       const userText = JSON.stringify({ instruction, target_object_id: objectId, expected_revision: raw.expected_revision })
-      const inputBound = Buffer.byteLength(JSON.stringify({ system: SYSTEM, messages: userText, tools: TOOL_SCHEMAS }), 'utf8') + 2048
-      const reserve = (inputBound * prices[0]! + 512 * prices[1]!) / 1_000_000
-      if (this.#calls >= (this.config.maxCalls ?? 8) || this.#reservedUsd + reserve > (this.config.budgetUsd ?? .10)) throw new AiError(429, 'MODEL_BUDGET_EXCEEDED')
-      this.#calls++; this.#reservedUsd += reserve
+      this.#calls++; attempted = true
       const calls: ToolCall[] = []
       let finish: string | undefined, outputBytes = 0
-      const stream = this.llm.stream({ provider: this.config.provider, model: this.config.model, system: SYSTEM, messages: [{ role: 'user', content: [{ type: 'text', text: userText }] }], tools: TOOL_SCHEMAS, maxTokens: 512, signal: controller.signal })[Symbol.asyncIterator]()
+      const stream = this.llm.stream({ provider: this.config.provider, model: this.config.model, system: SYSTEM, messages: [{ role: 'user', content: [{ type: 'text', text: userText }] }], tools: TOOL_SCHEMAS, signal: controller.signal })[Symbol.asyncIterator]()
       try {
         while (true) {
           const next = await this.#abortable(stream.next(), controller.signal)
@@ -135,7 +135,18 @@ export class AiService {
       this.#prepared.set(prepared.id, prepared)
       return { ...this.#view(prepared), usage: usage ?? null }
     } catch (error: unknown) { throw controller.signal.aborted ? controller.signal.reason : modelFailure(error) }
-    finally { clearTimeout(timer); signal.removeEventListener('abort', onAbort); this.#pending.delete(requestId) }
+    finally {
+      if (attempted) {
+        const counts = usage as {inputTokens?:number; outputTokens?:number} | undefined
+        const input = counts?.inputTokens, output = counts?.outputTokens
+        const valid = (x: number | undefined): x is number => x !== undefined && Number.isFinite(x) && x >= 0
+        if (valid(input)) this.#inputTokens += input
+        if (valid(output)) this.#outputTokens += output
+        if (valid(input) && valid(output) && valid(this.config.inputUsdPerMillion) && valid(this.config.outputUsdPerMillion)) this.#estimatedUsd += (input*this.config.inputUsdPerMillion+output*this.config.outputUsdPerMillion)/1_000_000
+        else this.#unknownCostCalls++
+      }
+      clearTimeout(timer); signal.removeEventListener('abort', onAbort); this.#pending.delete(requestId)
+    }
   }
   async #abortable<T>(pending: Promise<T>, signal: AbortSignal): Promise<T> {
     if (signal.aborted) throw signal.reason

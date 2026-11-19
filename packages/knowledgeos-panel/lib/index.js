@@ -1,5 +1,5 @@
 // src/host/index.ts
-import { randomUUID as randomUUID8 } from "node:crypto";
+import { randomUUID as randomUUID9 } from "node:crypto";
 
 // src/host/status.ts
 var EXPECTED_UPSTREAM_COMMIT = "39163dd30f703a79079e2d2446545cff3c453738";
@@ -29,7 +29,7 @@ import { isAbsolute } from "node:path";
 import Schema from "@deepseek-ai/schemastery";
 var Config = Schema.object({
   dataDir: Schema.string(),
-  ai: Schema.object({ provider: Schema.string(), model: Schema.string(), maxCalls: Schema.number().min(1).max(64), timeoutMs: Schema.number().min(20).max(6e4), budgetUsd: Schema.number().min(0).max(1), inputUsdPerMillion: Schema.number().min(0), outputUsdPerMillion: Schema.number().min(0) })
+  ai: Schema.object({ provider: Schema.string(), model: Schema.string(), maxCalls: Schema.number().min(1), timeoutMs: Schema.number().min(20).max(6e4), budgetUsd: Schema.number().min(0), inputUsdPerMillion: Schema.number().min(0), outputUsdPerMillion: Schema.number().min(0) })
 });
 function resolveDataDir(config) {
   if (config.dataDir === void 0) return void 0;
@@ -287,8 +287,161 @@ function createRecordsHandlers(service, basePath, log) {
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash2, randomUUID as randomUUID2 } from "node:crypto";
+import { createHash as createHash2, randomUUID as randomUUID3 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
+
+// src/host/jobs.ts
+import { randomUUID as randomUUID2 } from "node:crypto";
+var JOB_SCHEMA = `CREATE TABLE jobs (
+  id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), session_id TEXT NOT NULL REFERENCES auth_sessions(id),
+  object_id TEXT NOT NULL REFERENCES knowledge_objects(id), expected_revision INTEGER NOT NULL, idempotency_key TEXT NOT NULL,
+  state TEXT NOT NULL CHECK(state IN ('queued','running','succeeded','failed','cancelled')), attempts INTEGER NOT NULL DEFAULT 0,
+  checkpoint INTEGER NOT NULL DEFAULT 0 CHECK(checkpoint IN (0,1)), lease_token TEXT UNIQUE, lease_until INTEGER,
+  available_at INTEGER NOT NULL, last_error TEXT, UNIQUE(user_id,idempotency_key),
+  CHECK((state='running')=(lease_token IS NOT NULL)), CHECK((state='running')=(lease_until IS NOT NULL))
+) STRICT;
+CREATE INDEX jobs_ready ON jobs(state,available_at);
+CREATE TABLE job_runs (job_id TEXT NOT NULL REFERENCES jobs(id), attempt INTEGER NOT NULL, worker TEXT NOT NULL,
+  started_at INTEGER NOT NULL, start_checkpoint INTEGER NOT NULL, ended_at INTEGER, outcome TEXT, PRIMARY KEY(job_id,attempt)) STRICT;
+CREATE TABLE job_results (job_id TEXT PRIMARY KEY REFERENCES jobs(id), input_revision INTEGER NOT NULL) STRICT;
+CREATE TABLE outbox (event_id TEXT PRIMARY KEY, job_id TEXT NOT NULL UNIQUE REFERENCES job_results(job_id), created_at INTEGER NOT NULL,
+  delivered_at INTEGER, failures INTEGER NOT NULL DEFAULT 0, retry_at INTEGER NOT NULL DEFAULT 0, last_error TEXT) STRICT;
+CREATE TABLE event_receipts (consumer_name TEXT NOT NULL, event_id TEXT NOT NULL REFERENCES outbox(event_id), PRIMARY KEY(consumer_name,event_id)) STRICT;
+`;
+var JobError = class extends Error {
+  constructor(status, code) {
+    super(code);
+    this.status = status;
+    this.code = code;
+  }
+};
+var JobStore = class {
+  constructor(tx, revision, fault) {
+    this.tx = tx;
+    this.revision = revision;
+    this.fault = fault;
+  }
+  enqueue(actor2, object, revision, key) {
+    return this.tx((db, now) => {
+      const current = this.revision(actor2.sessionId, actor2.userId, object, now);
+      if (current === void 0) throw new JobError(404, "NOT_FOUND");
+      const prior = db.prepare("SELECT id,object_id,expected_revision FROM jobs WHERE user_id=? AND idempotency_key=?").get(actor2.userId, key);
+      if (prior) {
+        if (prior.object_id !== object || prior.expected_revision !== revision) throw new JobError(409, "IDEMPOTENCY_CONFLICT");
+        return String(prior.id);
+      }
+      if (current !== revision) throw new JobError(409, "REVISION_CONFLICT");
+      const id = randomUUID2();
+      db.prepare("INSERT INTO jobs(id,user_id,session_id,object_id,expected_revision,idempotency_key,state,available_at) VALUES(?,?,?,?,?,?,'queued',?)").run(id, actor2.userId, actor2.sessionId, object, revision, key, now);
+      return id;
+    });
+  }
+  inspect(actor2, id, cancel = false) {
+    return this.tx((db, now) => {
+      const row = db.prepare("SELECT * FROM jobs WHERE id=? AND user_id=?").get(id, actor2.userId);
+      if (!row || this.revision(actor2.sessionId, actor2.userId, row.object_id, now) === void 0) throw new JobError(404, "NOT_FOUND");
+      if (cancel && ["succeeded", "failed"].includes(row.state)) throw new JobError(409, "JOB_TERMINAL");
+      if (cancel && row.state !== "cancelled") this.end(db, row, "cancelled", "CANCELLED", now);
+      const summary = db.prepare("SELECT id,state,attempts,checkpoint,last_error,expected_revision FROM jobs WHERE id=?").get(id);
+      const runs = db.prepare("SELECT attempt,start_checkpoint,started_at,ended_at,outcome FROM job_runs WHERE job_id=? ORDER BY attempt").all(id);
+      const delivery = db.prepare("SELECT delivered_at,failures,retry_at,last_error FROM outbox WHERE job_id=?").get(id);
+      return { ...summary, runs, delivery: delivery ?? null };
+    });
+  }
+  end(db, row, state, reason, now) {
+    db.prepare("UPDATE job_runs SET ended_at=?,outcome=? WHERE job_id=? AND attempt=? AND ended_at IS NULL").run(now, reason ?? state, row.id, row.attempts);
+    db.prepare("UPDATE jobs SET state=?,lease_token=NULL,lease_until=NULL,last_error=?,available_at=? WHERE id=?").run(state, reason, now + (state === "queued" ? 250 : 0), row.id);
+  }
+  claim(worker) {
+    return this.tx((db, now) => {
+      const lost = db.prepare("SELECT * FROM jobs WHERE state='running' AND lease_until<=? ORDER BY lease_until LIMIT 1").get(now);
+      if (lost) this.end(db, lost, lost.attempts >= 3 ? "failed" : "queued", "LEASE_EXPIRED", now);
+      const row = db.prepare("SELECT * FROM jobs WHERE state='queued' AND available_at<=? ORDER BY available_at,id LIMIT 1").get(now);
+      if (!row) return void 0;
+      const token = randomUUID2();
+      db.prepare("UPDATE jobs SET state='running',attempts=attempts+1,lease_token=?,lease_until=? WHERE id=?").run(token, now + 3e3, row.id);
+      db.prepare("INSERT INTO job_runs(job_id,attempt,worker,started_at,start_checkpoint) VALUES(?,?,?,?,?)").run(row.id, row.attempts + 1, worker, now, row.checkpoint);
+      return { id: row.id, token, checkpoint: row.checkpoint };
+    });
+  }
+  renew(token) {
+    return this.tx((db, now) => db.prepare("UPDATE jobs SET lease_until=? WHERE state='running' AND lease_token=? AND lease_until>?").run(now + 3e3, token, now).changes === 1);
+  }
+  step(token) {
+    return this.tx((db, now) => {
+      const row = db.prepare("SELECT * FROM jobs WHERE state='running' AND lease_token=? AND lease_until>?").get(token, now);
+      if (!row) return "lost";
+      const revision = this.revision(row.session_id, row.user_id, row.object_id, now);
+      if (revision !== row.expected_revision) {
+        this.end(db, row, "failed", revision === void 0 ? "AUTH_REVOKED" : "REVISION_CONFLICT", now);
+        return "failed";
+      }
+      if (row.checkpoint === 0) {
+        db.prepare("UPDATE jobs SET checkpoint=1 WHERE id=?").run(row.id);
+        return "checkpoint";
+      }
+      db.prepare("INSERT INTO job_results(job_id,input_revision) VALUES(?,?)").run(row.id, revision);
+      this.fault("job:after-result");
+      db.prepare("INSERT INTO outbox(event_id,job_id,created_at) VALUES(?,?,?)").run(randomUUID2(), row.id, now);
+      this.fault("job:after-outbox");
+      this.end(db, row, "succeeded", null, now);
+      return "succeeded";
+    });
+  }
+  retry(token) {
+    this.tx((db, now) => {
+      const row = db.prepare("SELECT * FROM jobs WHERE lease_token=? AND lease_until>?").get(token, now);
+      if (row) this.end(db, row, row.attempts >= 3 ? "failed" : "queued", "WORKER_ERROR", now);
+    });
+  }
+  receive(db, event, now) {
+    const entry = db.prepare("SELECT delivered_at,failures,retry_at FROM outbox WHERE event_id=?").get(event);
+    if (!entry || Number(entry.failures) >= 3 || Number(entry.retry_at) > now) return false;
+    db.exec("SAVEPOINT consume_event");
+    try {
+      const inserted = db.prepare("INSERT INTO event_receipts(consumer_name,event_id) VALUES('probe',?) ON CONFLICT DO NOTHING").run(event);
+      if (inserted.changes === 1) this.fault("event:after-receipt");
+      db.prepare("UPDATE outbox SET delivered_at=COALESCE(delivered_at,?),last_error=NULL WHERE event_id=?").run(now, event);
+      db.exec("RELEASE consume_event");
+      return inserted.changes === 1;
+    } catch {
+      db.exec("ROLLBACK TO consume_event; RELEASE consume_event");
+      db.prepare("UPDATE outbox SET failures=failures+1,retry_at=?,last_error='CONSUMER_FAILED' WHERE event_id=?").run(now + 250 * (1 + Number(entry.failures)), event);
+      return false;
+    }
+  }
+  consume(event) {
+    return this.tx((db, now) => this.receive(db, event, now));
+  }
+  dispatch() {
+    return this.tx((db, now) => {
+      const event = db.prepare("SELECT event_id FROM outbox WHERE delivered_at IS NULL AND failures<3 AND retry_at<=? ORDER BY created_at LIMIT 1").get(now);
+      return event ? this.receive(db, String(event.event_id), now) : false;
+    });
+  }
+};
+function startWorker(store, log) {
+  const worker = randomUUID2();
+  let token;
+  const timer = setInterval(() => {
+    try {
+      store.dispatch();
+      if (!token) token = store.claim(worker)?.token;
+      else if (!store.renew(token) || store.step(token) !== "checkpoint") token = void 0;
+    } catch {
+      log("knowledgeos-jobs: worker transaction failed");
+      if (token) {
+        try {
+          store.retry(token);
+        } catch {
+        }
+        token = void 0;
+      }
+    }
+  }, 500);
+  timer.unref();
+  return () => clearInterval(timer);
+}
 
 // src/host/authorization.ts
 var AUTH_ACTIONS = ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"];
@@ -306,7 +459,8 @@ function authorize(actor2, target, action2, now, grants = [], memberships = []) 
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 5;
+var SCHEMA_VERSION = 6;
+var MIGRATION_V6_CHECKSUM = createHash2("sha256").update(JOB_SCHEMA).digest("hex");
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
 var MIGRATION_V1_SQL = `CREATE TABLE schema_migrations (
@@ -526,6 +680,27 @@ var ProbeStorage = class {
   #state = "unavailable";
   #failure;
   #closed = false;
+  jobs = new JobStore((op) => {
+    const db = this.#ensureReady();
+    try {
+      db.exec("BEGIN IMMEDIATE");
+    } catch (err) {
+      throw this.#mapError(err);
+    }
+    try {
+      const value = op(db, Date.now());
+      db.exec("COMMIT");
+      return value;
+    } catch (err) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw err instanceof JobError ? err : this.#mapError(err);
+    }
+  }, (session, user, object, ms) => {
+    const now = new Date(ms).toISOString();
+    const ref = this.#ensureReady().prepare("SELECT token_hash FROM auth_sessions WHERE id=? AND user_id=?").get(session, user);
+    const actor2 = ref && this.findActor(String(ref.token_hash), now);
+    return actor2 && this.authorizeObject(actor2, object, "read", now)?.revision;
+  }, (point) => this.#injectFailure(point));
   constructor(options) {
     this.#dataDir = options.dataDir;
     this.#log = options.log ?? (() => {
@@ -569,7 +744,10 @@ var ProbeStorage = class {
       } else if (existing === "v3") {
         this.#migrateV4(db);
       }
-      if (existing !== "v5") this.#migrateV5(db);
+      if (existing !== "v6") {
+        if (existing !== "v5") this.#migrateV5(db);
+        this.#migrateV6(db);
+      }
       this.#verify(db);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -636,6 +814,15 @@ var ProbeStorage = class {
         db.close();
       }
       return "v5";
+    }
+    if (facts.userVersion === 6) {
+      const db = new DatabaseSync(path, { readOnly: true });
+      try {
+        this.#verify(db);
+      } finally {
+        db.close();
+      }
+      return "v6";
     }
     throw new RecordsError("STORAGE_INCOMPATIBLE", "database schema version is not supported");
   }
@@ -786,7 +973,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID2());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID3());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -848,10 +1035,33 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "tool receipt migration failed", false, { cause: error });
     }
   }
+  #migrateV6(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(JOB_SCHEMA);
+      this.#injectFailure("v6:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(6,?,?)").run(MIGRATION_V6_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=6; COMMIT");
+    } catch (err) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs migration failed", false, { cause: err });
+    }
+  }
   #verify(db) {
     const facts = readDatabaseFacts(this.databasePath);
-    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== 5) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
-    this.#assertV5Schema(facts);
+    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== 6 || facts.ledger.length !== 6 || facts.ledger[5]?.version !== 6 || facts.ledger[5].checksum !== MIGRATION_V6_CHECKSUM) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
+    const reference = new DatabaseSync(":memory:");
+    try {
+      reference.exec(JOB_SCHEMA);
+      const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
+      for (const { name: name2, sql } of definitions) {
+        if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name2)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
+      }
+      const names = new Set(definitions.map((x) => x.name));
+      this.#assertV5Schema({ ...facts, ledger: facts.ledger.slice(0, 5), objects: facts.objects.filter((x) => !names.has(x.name)) });
+    } finally {
+      reference.close();
+    }
     this.#assertV2Definitions(db);
     this.#assertV4Definitions(db);
     this.#assertV5Definitions(db);
@@ -945,9 +1155,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID2();
-      const spaceId = randomUUID2();
-      const credentialId = randomUUID2();
+      const userId = randomUUID3();
+      const spaceId = randomUUID3();
+      const credentialId = randomUUID3();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -981,9 +1191,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID2();
-      const spaceId = randomUUID2();
-      const credentialId = randomUUID2();
+      const userId = randomUUID3();
+      const spaceId = randomUUID3();
+      const credentialId = randomUUID3();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -1148,7 +1358,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action2 of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID2(), input.serviceId, input.id, input.ownerUserId, action2, input.now, input.now);
+        for (const action2 of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID3(), input.serviceId, input.id, input.ownerUserId, action2, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -1304,7 +1514,7 @@ var ProbeStorage = class {
 };
 
 // src/host/identity.ts
-import { createHash as createHash3, randomBytes, randomUUID as randomUUID3, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
+import { createHash as createHash3, randomBytes, randomUUID as randomUUID4, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
 var DOMAINS = ["software_engineering", "system_architecture", "hardware_engineering", "ai_development"];
 var LEARNING_TRACKS = ["engineering_practice", "architecture_exam", "knowledge_accumulation"];
 var DEFAULT_TIMEZONE = "Asia/Shanghai";
@@ -1585,7 +1795,7 @@ var IdentityService = class {
     const token = makeToken();
     const createdAt = /* @__PURE__ */ new Date();
     const expiresAt = new Date(createdAt.getTime() + SESSION_TTL_MS).toISOString();
-    this.#store.createSession({ sessionId: randomUUID3(), userId: lookup.userId, tokenHash: tokenHash(token), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
+    this.#store.createSession({ sessionId: randomUUID4(), userId: lookup.userId, tokenHash: tokenHash(token), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
     const user = this.#store.getProfile(lookup.userId);
     if (user === void 0) throw new IdentityError("STORAGE_UNAVAILABLE", "user profile unavailable");
     return { user, token, expiresAt };
@@ -1613,7 +1823,7 @@ var IdentityService = class {
 };
 
 // src/host/identity-http.ts
-import { createHash as createHash4, randomUUID as randomUUID4 } from "node:crypto";
+import { createHash as createHash4, randomUUID as randomUUID5 } from "node:crypto";
 import { isIP } from "node:net";
 var HttpError = class extends Error {
   constructor(status, code, message, retryable = false, headers = {}) {
@@ -1820,7 +2030,7 @@ function createIdentityHandlers(options) {
     return actor2;
   };
   const dispatch = async (req, res, action2) => {
-    const requestId = randomUUID4();
+    const requestId = randomUUID5();
     try {
       assertAvailable();
       assertNoQuery(req);
@@ -1849,7 +2059,7 @@ function createIdentityHandlers(options) {
     requireMethod(req, "GET");
     assertTrust(req, false);
     const state = service.setupState;
-    sendJson2(res, 200, withMeta(randomUUID4(), { setup_required: !state.initialized, available: true }));
+    sendJson2(res, 200, withMeta(randomUUID5(), { setup_required: !state.initialized, available: true }));
   });
   const bootstrap = async (req, res, peer) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -1860,7 +2070,7 @@ function createIdentityHandlers(options) {
     const body = bodyObject(await readBody2(req));
     assertKeys(body, ["login_name", "password", "display_name", "timezone"]);
     const user = await service.bootstrap({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, source: requestSource(req), signal });
-    sendJson2(res, 201, withMeta(randomUUID4(), safeProfile(user)));
+    sendJson2(res, 201, withMeta(randomUUID5(), safeProfile(user)));
   });
   const register = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -1870,7 +2080,7 @@ function createIdentityHandlers(options) {
     const body = bodyObject(await readBody2(req));
     assertKeys(body, ["login_name", "password", "display_name", "timezone"]);
     const user = await service.register({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, source: requestSource(req), signal });
-    sendJson2(res, 201, withMeta(randomUUID4(), safeProfile(user)));
+    sendJson2(res, 201, withMeta(randomUUID5(), safeProfile(user)));
   });
   const login = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -1885,7 +2095,7 @@ function createIdentityHandlers(options) {
     const state = service.setupState;
     const name2 = businessCookieName(state.serviceId, origin);
     const maxAge = Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1e3);
-    sendJson2(res, 200, withMeta(randomUUID4(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin, options.protocol(), maxAge) });
+    sendJson2(res, 200, withMeta(randomUUID5(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin, options.protocol(), maxAge) });
   });
   const logout = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -1906,7 +2116,7 @@ function createIdentityHandlers(options) {
     const actor2 = requireActor(req);
     const profile = service.profile(actor2.userId);
     if (profile === void 0) throw new HttpError(401, "SESSION_EXPIRED", "business session is required");
-    sendJson2(res, 200, withMeta(randomUUID4(), safeProfile(profile)));
+    sendJson2(res, 200, withMeta(randomUUID5(), safeProfile(profile)));
   });
   const preferences = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "PATCH");
@@ -1923,14 +2133,14 @@ function createIdentityHandlers(options) {
     if (body.learning_tracks !== void 0) patch.learningTracks = validateLearningTracks(body.learning_tracks);
     if (body.goal_text !== void 0) patch.goalText = validateGoalText(body.goal_text);
     if (Object.keys(patch).length === 0) throw new HttpError(422, "INPUT_INVALID", "at least one preference is required");
-    sendJson2(res, 200, withMeta(randomUUID4(), safeProfile(service.preferences(actor2.userId, expectedRevision, patch))));
+    sendJson2(res, 200, withMeta(randomUUID5(), safeProfile(service.preferences(actor2.userId, expectedRevision, patch))));
   });
   const spaces = async (req, res) => dispatch(req, res, () => {
     requireMethod(req, "GET");
     assertTrust(req, false);
     const actor2 = requireActor(req);
     const data = service.spaces(actor2.userId).map((space) => ({ id: space.id, service_id: space.serviceId, kind: space.kind, owner_user_id: space.ownerUserId, status: space.status, revision: space.revision, created_at: space.createdAt, updated_at: space.updatedAt }));
-    sendJson2(res, 200, withMeta(randomUUID4(), data));
+    sendJson2(res, 200, withMeta(randomUUID5(), data));
   });
   return { status, bootstrap, register, login, logout, me, preferences, spaces };
 }
@@ -1947,7 +2157,7 @@ function buildSetupHtml() {
 }
 
 // src/host/objects-http.ts
-import { randomUUID as randomUUID5 } from "node:crypto";
+import { randomUUID as randomUUID6 } from "node:crypto";
 var ObjectHttpError = class extends Error {
   constructor(status, code, message) {
     super(message);
@@ -2010,17 +2220,32 @@ function actor(options, req) {
 }
 function createObjectHandlers(options) {
   return async (req, res) => {
-    const requestId = randomUUID5();
+    const requestId = randomUUID6();
     try {
       const path = pathOf(req);
       const segments = path.split("/").filter(Boolean);
       trust(req, options.origin(), req.method !== "GET");
       const current = actor(options, req);
       const now = (/* @__PURE__ */ new Date()).toISOString();
+      if (segments[2] === "jobs") {
+        if (segments.length === 3 && req.method === "POST") {
+          const body = await readBody3(req);
+          keys(body, ["object_id", "expected_revision", "idempotency_key"]);
+          if (!Number.isSafeInteger(body.expected_revision) || Number(body.expected_revision) < 1) throw new JobError(422, "INPUT_INVALID");
+          const id = options.storage.jobs.enqueue(current, text(body.object_id, "object_id", 80), Number(body.expected_revision), text(body.idempotency_key, "idempotency_key", 128));
+          json(res, 202, { data: { id } });
+          return;
+        }
+        const cancel = segments.length === 5 && segments[4] === "cancel" && req.method === "POST";
+        if (segments[3] && (cancel || segments.length === 4 && req.method === "GET")) {
+          json(res, 200, { data: options.storage.jobs.inspect(current, segments[3], cancel) });
+          return;
+        }
+      }
       if (segments[2] === "projects" && segments.length === 3 && req.method === "POST") {
         const body = await readBody3(req);
         keys(body, ["name"]);
-        const project = options.storage.createProject({ id: randomUUID5(), serviceId: current.serviceId, ownerUserId: current.userId, name: text(body.name, "name", 200), now });
+        const project = options.storage.createProject({ id: randomUUID6(), serviceId: current.serviceId, ownerUserId: current.userId, name: text(body.name, "name", 200), now });
         json(res, 201, { data: project, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
         return;
       }
@@ -2050,7 +2275,7 @@ function createObjectHandlers(options) {
           if (scope === "project" && !options.storage.canCreateProjectObject(current, projectId, now)) throw new ObjectHttpError(404, "NOT_FOUND", "project not found");
           const title = text(body.title, "title", 200);
           const content = text(body.body, "body", 1e5);
-          const object = options.storage.createObject({ id: randomUUID5(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId, ownerUserId: current.userId, objectType: body.object_type === void 0 ? "note" : text(body.object_type, "object_type", 80), title, body: content, now });
+          const object = options.storage.createObject({ id: randomUUID6(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId, ownerUserId: current.userId, objectType: body.object_type === void 0 ? "note" : text(body.object_type, "object_type", 80), title, body: content, now });
           json(res, 201, { data: safeObject(object), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
           return;
         }
@@ -2091,7 +2316,7 @@ function createObjectHandlers(options) {
         const body = await readBody3(req);
         keys(body, ["object_id", "subject_type", "subject_id", "action", "valid_from", "expires_at"]);
         if (body.subject_type !== "user" && body.subject_type !== "project") throw new ObjectHttpError(422, "INPUT_INVALID", "subject_type is invalid");
-        const grant = options.storage.grantObject(current, { id: randomUUID5(), objectId: text(body.object_id, "object_id", 80), serviceId: current.serviceId, subjectType: body.subject_type, subjectId: text(body.subject_id, "subject_id", 80), action: action(body.action), validFrom: body.valid_from === void 0 ? now : text(body.valid_from, "valid_from", 40), expiresAt: body.expires_at === void 0 ? void 0 : text(body.expires_at, "expires_at", 40), now });
+        const grant = options.storage.grantObject(current, { id: randomUUID6(), objectId: text(body.object_id, "object_id", 80), serviceId: current.serviceId, subjectType: body.subject_type, subjectId: text(body.subject_id, "subject_id", 80), action: action(body.action), validFrom: body.valid_from === void 0 ? now : text(body.valid_from, "valid_from", 40), expiresAt: body.expires_at === void 0 ? void 0 : text(body.expires_at, "expires_at", 40), now });
         if (grant === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
         json(res, 201, { data: grant, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
         return;
@@ -2108,6 +2333,10 @@ function createObjectHandlers(options) {
       }
       throw new ObjectHttpError(404, "NOT_FOUND", "route not found");
     } catch (error) {
+      if (error instanceof JobError) {
+        json(res, error.status, { code: error.code, request_id: requestId });
+        return;
+      }
       if (error instanceof ObjectHttpError) {
         json(res, error.status, { code: error.code, message: error.message, request_id: requestId, retryable: false, safe_details: {} });
         return;
@@ -2122,7 +2351,7 @@ function createObjectHandlers(options) {
 }
 
 // src/host/ai-service.ts
-import { randomUUID as randomUUID6 } from "node:crypto";
+import { randomUUID as randomUUID7 } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 // src/host/ai-tools.ts
@@ -2204,7 +2433,7 @@ var AiService = class {
     this.config = config;
     this.llm = llm;
     this.tools = tools;
-    for (const [value, min, max, integer] of [[config.maxCalls ?? 8, 1, 64, true], [config.timeoutMs ?? 3e4, 100, 6e4, true], [config.budgetUsd ?? 0.1, 1e-3, 1, false]]) {
+    for (const [value, min, max, integer] of [[config.maxCalls ?? 1, 1, Number.MAX_SAFE_INTEGER, true], [config.timeoutMs ?? 3e4, 100, 6e4, true], [config.budgetUsd ?? 0, 0, Number.MAX_VALUE, false]]) {
       if (!Number.isFinite(value) || value < min || value > max || integer && !Number.isSafeInteger(value)) throw new AiError(503, "AI_CONFIG_INVALID");
     }
     if (tools !== void 0) for (const schema of TOOL_SCHEMAS) this.#dispose.push(tools.register({
@@ -2233,11 +2462,17 @@ var AiService = class {
   #prepared = /* @__PURE__ */ new Map();
   #pending = /* @__PURE__ */ new Map();
   #calls = 0;
-  #reservedUsd = 0;
+  #estimatedUsd = 0;
+  #unknownCostCalls = 0;
+  #inputTokens = 0;
+  #outputTokens = 0;
+  get routeAllowed() {
+    return Boolean(this.config.provider && /^(?:deepseek[-/]|deepseek$)/i.test(this.config.model ?? ""));
+  }
   #closed = false;
   #dispose = [];
   status() {
-    return { provider: this.config.provider ?? null, model: this.config.model ?? null, configured: Boolean(this.config.provider && this.config.model && this.llm && this.tools), max_calls: this.config.maxCalls ?? 8, attempts: this.#calls, max_output_tokens: 512, timeout_ms: this.config.timeoutMs ?? 3e4, budget_usd: this.config.budgetUsd ?? 0.1, reserved_usd: this.#reservedUsd, usage: "reported_by_provider_when_available", state: this.#closed ? "stopped" : "ready" };
+    return { provider: this.config.provider ?? null, model: this.config.model ?? null, configured: Boolean(this.routeAllowed && this.llm && this.tools), attempts: this.#calls, timeout_ms: this.config.timeoutMs ?? 3e4, budget_usd: this.config.budgetUsd ?? null, known_estimated_usd: this.#estimatedUsd, unknown_cost_calls: this.#unknownCostCalls, reported_input_tokens: this.#inputTokens, reported_output_tokens: this.#outputTokens, budget_warning: this.config.budgetUsd !== void 0 && this.#estimatedUsd > this.config.budgetUsd || this.config.maxCalls !== void 0 && this.#calls > this.config.maxCalls, state: this.#closed ? "stopped" : "ready" };
   }
   #sweep() {
     for (const [id, item] of this.#prepared) if (Date.now() >= item.expiresAt && item.state !== "executing") this.#prepared.delete(id);
@@ -2246,7 +2481,7 @@ var AiService = class {
     onlyKeys(raw, ["request_id", "instruction", "object_id", "expected_revision", "idempotency_key"]);
     const instruction = aiText(raw.instruction, 2e3), objectId = aiText(raw.object_id, 80), requestId = aiText(raw.request_id, 80), key = aiText(raw.idempotency_key, 128);
     if (!Number.isSafeInteger(raw.expected_revision) || Number(raw.expected_revision) < 1) throw new AiError(422, "INPUT_INVALID");
-    if (this.#closed || !this.llm || !this.tools || !this.config.provider || !this.config.model) throw new AiError(503, "MODEL_NOT_CONFIGURED");
+    if (this.#closed || !this.llm || !this.tools || !this.routeAllowed || !this.config.provider || !this.config.model) throw new AiError(503, "MODEL_NOT_CONFIGURED");
     if (signal.aborted) throw new AiError(409, "CANCELLED");
     this.#sweep();
     if (this.#pending.has(requestId)) throw new AiError(409, "REQUEST_CONFLICT");
@@ -2257,22 +2492,18 @@ var AiService = class {
     signal.addEventListener("abort", onAbort, { once: true });
     const timer = setTimeout(() => controller.abort(new AiError(504, "MODEL_TIMEOUT")), this.config.timeoutMs ?? 3e4);
     let usage;
+    let attempted = false;
     try {
       const available = this.llm.listProviders().some((p) => p.id === this.config.provider);
       if (!available) throw new AiError(503, "MODEL_NOT_CONFIGURED");
       const catalog = await this.#abortable(this.llm.listModels(this.config.provider), controller.signal);
       if (catalog.length > 0 && !catalog.some((m) => m.id === this.config.model)) throw new AiError(404, "MODEL_NOT_FOUND");
-      const prices = [this.config.inputUsdPerMillion, this.config.outputUsdPerMillion];
-      if (prices.some((p) => p === void 0 || !Number.isFinite(p) || p < 0)) throw new AiError(503, "PRICE_BUDGET_NOT_CONFIGURED");
       const userText = JSON.stringify({ instruction, target_object_id: objectId, expected_revision: raw.expected_revision });
-      const inputBound = Buffer.byteLength(JSON.stringify({ system: SYSTEM, messages: userText, tools: TOOL_SCHEMAS }), "utf8") + 2048;
-      const reserve = (inputBound * prices[0] + 512 * prices[1]) / 1e6;
-      if (this.#calls >= (this.config.maxCalls ?? 8) || this.#reservedUsd + reserve > (this.config.budgetUsd ?? 0.1)) throw new AiError(429, "MODEL_BUDGET_EXCEEDED");
       this.#calls++;
-      this.#reservedUsd += reserve;
+      attempted = true;
       const calls = [];
       let finish, outputBytes = 0;
-      const stream = this.llm.stream({ provider: this.config.provider, model: this.config.model, system: SYSTEM, messages: [{ role: "user", content: [{ type: "text", text: userText }] }], tools: TOOL_SCHEMAS, maxTokens: 512, signal: controller.signal })[Symbol.asyncIterator]();
+      const stream = this.llm.stream({ provider: this.config.provider, model: this.config.model, system: SYSTEM, messages: [{ role: "user", content: [{ type: "text", text: userText }] }], tools: TOOL_SCHEMAS, signal: controller.signal })[Symbol.asyncIterator]();
       try {
         while (true) {
           const next = await this.#abortable(stream.next(), controller.signal);
@@ -2300,12 +2531,21 @@ var AiService = class {
       if (finish !== "tool-calls" || calls.length !== 1) throw new AiError(502, "MODEL_OUTPUT_INVALID");
       const call = calls[0], args = toolArguments(call);
       if (args.object_id !== objectId || call.name === TOOL_NAMES[1] && args.expected_revision !== raw.expected_revision) throw new AiError(422, "MODEL_TARGET_MISMATCH");
-      const prepared = { id: randomUUID6(), requestId, actor: actor2, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
+      const prepared = { id: randomUUID7(), requestId, actor: actor2, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
       this.#prepared.set(prepared.id, prepared);
       return { ...this.#view(prepared), usage: usage ?? null };
     } catch (error) {
       throw controller.signal.aborted ? controller.signal.reason : modelFailure(error);
     } finally {
+      if (attempted) {
+        const counts = usage;
+        const input = counts?.inputTokens, output = counts?.outputTokens;
+        const valid = (x) => x !== void 0 && Number.isFinite(x) && x >= 0;
+        if (valid(input)) this.#inputTokens += input;
+        if (valid(output)) this.#outputTokens += output;
+        if (valid(input) && valid(output) && valid(this.config.inputUsdPerMillion) && valid(this.config.outputUsdPerMillion)) this.#estimatedUsd += (input * this.config.inputUsdPerMillion + output * this.config.outputUsdPerMillion) / 1e6;
+        else this.#unknownCostCalls++;
+      }
       clearTimeout(timer);
       signal.removeEventListener("abort", onAbort);
       this.#pending.delete(requestId);
@@ -2393,10 +2633,10 @@ var AiService = class {
 };
 
 // src/host/ai-http.ts
-import { randomUUID as randomUUID7 } from "node:crypto";
+import { randomUUID as randomUUID8 } from "node:crypto";
 function createAiHandler(options) {
   return async (req, res) => {
-    const requestId = randomUUID7(), controller = new AbortController();
+    const requestId = randomUUID8(), controller = new AbortController();
     const disconnect = () => {
       if (!res.writableEnded) controller.abort();
     };
@@ -2473,7 +2713,7 @@ body{margin:0;background:#f4f8f8;color:#23333a;font:15px/1.65 "Segoe UI","Micros
 <section class="card"><h2>\u6A21\u578B\u4E0E\u8BF7\u6C42</h2><p id="model">\u6B63\u5728\u8BFB\u53D6\u6A21\u578B\u914D\u7F6E\u2026</p><small id="budget"></small><p id="status" role="status" aria-live="polite">\u7B49\u5F85\u767B\u5F55</p></section>
 <section class="card"><h2>\u6D4B\u8BD5\u77E5\u8BC6\u5BF9\u8C61</h2><label for="objects">\u9009\u62E9\u6709\u6743\u8BFB\u53D6\u7684\u5BF9\u8C61</label><select id="objects"></select><button id="refresh">\u5237\u65B0\u5BF9\u8C61\u5217\u8868</button><button id="read">\u91CD\u65B0\u8BFB\u53D6\u9A8C\u8BC1</button><pre id="object"></pre></section>
 <section class="card"><h2>\u81EA\u7136\u8BED\u8A00\u64CD\u4F5C</h2><label for="target">\u76EE\u6807\u5BF9\u8C61 ID</label><input id="target"><label for="revision">\u9884\u671F\u7248\u672C expected_revision</label><input id="revision" type="number" min="1" value="1"><label for="key">\u64CD\u4F5C\u5E42\u7B49\u952E\uFF08\u91CD\u8BD5\u65F6\u4FDD\u6301\u76F8\u540C\uFF09</label><input id="key"><label for="instruction">\u6307\u4EE4</label><textarea id="instruction" placeholder="\u8BFB\u53D6\u8FD9\u4E2A\u5BF9\u8C61\uFF0C\u6216\u628A\u6807\u9898\u6539\u4E3A\u2026\u2026"></textarea><button id="prepare" disabled>\u63D0\u4EA4\u7ED9\u6A21\u578B</button><button id="execute" disabled>\u6267\u884C\u5DF2\u51C6\u5907\u5DE5\u5177</button><button id="cancel" disabled>\u53D6\u6D88\u8BF7\u6C42</button><pre id="tool"></pre><pre id="result"></pre></section>
-</main><script>(()=>{const $=id=>document.getElementById(id);let prepared=null,requestId=null,busy=false,generation=0,userId=null,authenticated=false,configured=false;const state=t=>{$('status').textContent=t};const call=async(path,options={})=>{const r=await fetch(path,{...options,headers:{'content-type':'application/json','x-knowledgeos-request':'1'}});const j=await r.json();if(!r.ok){const e=new Error(j.code||('HTTP_'+r.status));e.status=r.status;throw e}return j.data};const post=(path,b)=>call(path,{method:'POST',body:JSON.stringify(b)});const clear=()=>{requestId=null;prepared=null;$('cancel').disabled=true;$('execute').disabled=true;$('object').textContent='';$('tool').textContent='';$('result').textContent='';$('objects').replaceChildren();$('target').value=''};const fail=e=>{state('\u5931\u8D25 \xB7 '+e.message);if(e.status===401){authenticated=false;generation++;clear();$('prepare').disabled=true;$('who').textContent='\u4E1A\u52A1\u767B\u5F55\u5DF2\u5931\u6548\uFF0C\u8BF7\u91CD\u65B0\u767B\u5F55'}};const accept=async gen=>{if(gen!==generation)return false;try{const me=await call('/knowledge/v1/me');if(gen!==generation)return false;if(me.id!==userId){await load();return false}return true}catch(e){if(gen===generation)fail(e);return false}};const read=async()=>{const gen=generation,id=$('target').value;try{const object=await call('/knowledge/v1/objects/'+encodeURIComponent(id));if(!await accept(gen))return;$('object').textContent=JSON.stringify(object,null,2);$('revision').value=object.revision;const op=Array.from($('objects').options).find(o=>o.value===object.id);if(op){op.dataset.revision=String(object.revision);op.textContent=object.title+' \xB7 revision '+object.revision}state('\u91CD\u65B0\u8BFB\u53D6\u5B8C\u6210 \xB7 revision '+object.revision)}catch(e){if(gen===generation)fail(e)}};const list=async(previous)=>{const gen=generation;const objects=await call('/knowledge/v1/objects');if(!await accept(gen))return;$('objects').replaceChildren();for(const o of objects){const op=document.createElement('option');op.value=o.id;op.dataset.revision=String(o.revision);op.textContent=o.title+' \xB7 revision '+o.revision;$('objects').append(op)}const selected=objects.find(o=>o.id===previous)||objects[0];$('objects').value=selected?.id||'';$('target').value=selected?.id||'';$('revision').value=selected?.revision||1};const invalidateTarget=()=>{const oldRequest=requestId;if(oldRequest)void post('/knowledge/v1/ai/cancel',{request_id:oldRequest}).catch(()=>{});generation++;busy=false;prepared=null;requestId=null;$('execute').disabled=true;$('cancel').disabled=true;$('prepare').disabled=!authenticated||!configured;$('object').textContent='';$('tool').textContent='';$('result').textContent='';state(configured?'\u76EE\u6807\u6216\u8349\u7A3F\u5DF2\u53D8\u66F4\uFF0C\u8BF7\u91CD\u65B0\u63D0\u4EA4':'BLOCKED \xB7 MODEL_NOT_CONFIGURED')};$('objects').onchange=()=>{invalidateTarget();$('target').value=$('objects').value;$('revision').value=$('objects').selectedOptions[0]?.dataset.revision||'1'};for(const id of ['target','revision','key','instruction'])$(id).addEventListener('input',invalidateTarget);$('read').onclick=read;$('refresh').onclick=()=>{const previous=$('target').value;invalidateTarget();const gen=generation;list(previous).catch(e=>{if(gen===generation)fail(e)})};$('key').value=crypto.randomUUID();$('prepare').onclick=async()=>{if(busy||!authenticated||!configured)return;busy=true;const gen=generation;prepared=null;requestId=crypto.randomUUID();$('prepare').disabled=true;$('execute').disabled=true;$('cancel').disabled=false;$('tool').textContent='';$('result').textContent='';state('\u6A21\u578B\u8BF7\u6C42\u4E2D');try{const p=await post('/knowledge/v1/ai/prepare',{request_id:requestId,instruction:$('instruction').value,object_id:$('target').value,expected_revision:Number($('revision').value),idempotency_key:$('key').value});if(!await accept(gen))return;prepared=p;$('tool').textContent='\u6240\u7528\u5DE5\u5177\uFF1A'+p.tool+'\\n'+JSON.stringify(p.arguments,null,2);$('execute').disabled=false;state('\u5DF2\u51C6\u5907 \xB7 '+p.provider+' / '+p.model)}catch(e){if(gen===generation)fail(e)}finally{if(gen===generation){busy=false;$('prepare').disabled=!authenticated||!configured;$('cancel').disabled=prepared===null}}};$('execute').onclick=async()=>{if(!prepared||busy)return;const gen=generation;busy=true;$('execute').disabled=true;state('\u6B63\u5728\u91CD\u65B0\u5224\u6743\u5E76\u6267\u884C');try{const d=await post('/knowledge/v1/ai/execute',{prepared_id:prepared.prepared_id});if(!await accept(gen))return;$('result').textContent=JSON.stringify(d.result,null,2);state('\u6267\u884C\u6210\u529F \xB7 '+d.result.code+' \xB7 revision '+d.result.object.revision)}catch(e){if(gen===generation)fail(e)}finally{if(gen===generation){busy=false;$('cancel').disabled=true}}};$('cancel').onclick=async()=>{if(!requestId)return;const id=requestId,gen=++generation;prepared=null;$('execute').disabled=true;$('cancel').disabled=true;try{await post('/knowledge/v1/ai/cancel',{request_id:id});if(gen===generation)state('\u5DF2\u53D6\u6D88')}catch(e){if(gen===generation)fail(e)}finally{if(gen===generation){busy=false;$('prepare').disabled=!authenticated||!configured}}};const load=async()=>{const gen=++generation;busy=false;authenticated=false;clear();$('prepare').disabled=true;try{const me=await call('/knowledge/v1/me');const m=await call('/knowledge/v1/ai/status');if(gen!==generation)return;userId=me.id;authenticated=true;configured=m.configured;$('who').textContent='\u5DF2\u767B\u5F55 \xB7 '+me.display_name+'\uFF08'+me.login_name+'\uFF09';$('model').textContent='\u6A21\u578B\uFF1A'+(m.provider||'\u672A\u914D\u7F6E')+' / '+(m.model||'\u672A\u914D\u7F6E');$('budget').textContent='\u8F93\u51FA\u4E0A\u9650 '+m.max_output_tokens+' tokens \xB7 \u603B\u9884\u7B97 '+m.budget_usd+' USD \xB7 \u5DF2\u5C1D\u8BD5 '+m.attempts+'/'+m.max_calls+' \u6B21';await list();if(gen!==generation)return;$('prepare').disabled=!m.configured;state(m.configured?'\u5C31\u7EEA':'BLOCKED \xB7 MODEL_NOT_CONFIGURED')}catch(e){if(gen===generation)fail(e)}};document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')void load()});void load()})()</script></body></html>`;
+</main><script>(()=>{const $=id=>document.getElementById(id);let prepared=null,requestId=null,busy=false,generation=0,userId=null,authenticated=false,configured=false;const state=t=>{$('status').textContent=t};const call=async(path,options={})=>{const r=await fetch(path,{...options,headers:{'content-type':'application/json','x-knowledgeos-request':'1'}});const j=await r.json();if(!r.ok){const e=new Error(j.code||('HTTP_'+r.status));e.status=r.status;throw e}return j.data};const post=(path,b)=>call(path,{method:'POST',body:JSON.stringify(b)});const clear=()=>{requestId=null;prepared=null;$('cancel').disabled=true;$('execute').disabled=true;$('object').textContent='';$('tool').textContent='';$('result').textContent='';$('objects').replaceChildren();$('target').value=''};const fail=e=>{state('\u5931\u8D25 \xB7 '+e.message);if(e.status===401){authenticated=false;generation++;clear();$('prepare').disabled=true;$('who').textContent='\u4E1A\u52A1\u767B\u5F55\u5DF2\u5931\u6548\uFF0C\u8BF7\u91CD\u65B0\u767B\u5F55'}};const accept=async gen=>{if(gen!==generation)return false;try{const me=await call('/knowledge/v1/me');if(gen!==generation)return false;if(me.id!==userId){await load();return false}return true}catch(e){if(gen===generation)fail(e);return false}};const read=async()=>{const gen=generation,id=$('target').value;try{const object=await call('/knowledge/v1/objects/'+encodeURIComponent(id));if(!await accept(gen))return;$('object').textContent=JSON.stringify(object,null,2);$('revision').value=object.revision;const op=Array.from($('objects').options).find(o=>o.value===object.id);if(op){op.dataset.revision=String(object.revision);op.textContent=object.title+' \xB7 revision '+object.revision}state('\u91CD\u65B0\u8BFB\u53D6\u5B8C\u6210 \xB7 revision '+object.revision)}catch(e){if(gen===generation)fail(e)}};const list=async(previous)=>{const gen=generation;const objects=await call('/knowledge/v1/objects');if(!await accept(gen))return;$('objects').replaceChildren();for(const o of objects){const op=document.createElement('option');op.value=o.id;op.dataset.revision=String(o.revision);op.textContent=o.title+' \xB7 revision '+o.revision;$('objects').append(op)}const selected=objects.find(o=>o.id===previous)||objects[0];$('objects').value=selected?.id||'';$('target').value=selected?.id||'';$('revision').value=selected?.revision||1};const invalidateTarget=()=>{const oldRequest=requestId;if(oldRequest)void post('/knowledge/v1/ai/cancel',{request_id:oldRequest}).catch(()=>{});generation++;busy=false;prepared=null;requestId=null;$('execute').disabled=true;$('cancel').disabled=true;$('prepare').disabled=!authenticated||!configured;$('object').textContent='';$('tool').textContent='';$('result').textContent='';state(configured?'\u76EE\u6807\u6216\u8349\u7A3F\u5DF2\u53D8\u66F4\uFF0C\u8BF7\u91CD\u65B0\u63D0\u4EA4':'BLOCKED \xB7 MODEL_NOT_CONFIGURED')};$('objects').onchange=()=>{invalidateTarget();$('target').value=$('objects').value;$('revision').value=$('objects').selectedOptions[0]?.dataset.revision||'1'};for(const id of ['target','revision','key','instruction'])$(id).addEventListener('input',invalidateTarget);$('read').onclick=read;$('refresh').onclick=()=>{const previous=$('target').value;invalidateTarget();const gen=generation;list(previous).catch(e=>{if(gen===generation)fail(e)})};$('key').value=crypto.randomUUID();$('prepare').onclick=async()=>{if(busy||!authenticated||!configured)return;busy=true;const gen=generation;prepared=null;requestId=crypto.randomUUID();$('prepare').disabled=true;$('execute').disabled=true;$('cancel').disabled=false;$('tool').textContent='';$('result').textContent='';state('\u6A21\u578B\u8BF7\u6C42\u4E2D');try{const p=await post('/knowledge/v1/ai/prepare',{request_id:requestId,instruction:$('instruction').value,object_id:$('target').value,expected_revision:Number($('revision').value),idempotency_key:$('key').value});if(!await accept(gen))return;prepared=p;$('tool').textContent='\u6240\u7528\u5DE5\u5177\uFF1A'+p.tool+'\\n'+JSON.stringify(p.arguments,null,2);$('execute').disabled=false;state('\u5DF2\u51C6\u5907 \xB7 '+p.provider+' / '+p.model)}catch(e){if(gen===generation)fail(e)}finally{if(gen===generation){busy=false;$('prepare').disabled=!authenticated||!configured;$('cancel').disabled=prepared===null}}};$('execute').onclick=async()=>{if(!prepared||busy)return;const gen=generation;busy=true;$('execute').disabled=true;state('\u6B63\u5728\u91CD\u65B0\u5224\u6743\u5E76\u6267\u884C');try{const d=await post('/knowledge/v1/ai/execute',{prepared_id:prepared.prepared_id});if(!await accept(gen))return;$('result').textContent=JSON.stringify(d.result,null,2);state('\u6267\u884C\u6210\u529F \xB7 '+d.result.code+' \xB7 revision '+d.result.object.revision)}catch(e){if(gen===generation)fail(e)}finally{if(gen===generation){busy=false;$('cancel').disabled=true}}};$('cancel').onclick=async()=>{if(!requestId)return;const id=requestId,gen=++generation;prepared=null;$('execute').disabled=true;$('cancel').disabled=true;try{await post('/knowledge/v1/ai/cancel',{request_id:id});if(gen===generation)state('\u5DF2\u53D6\u6D88')}catch(e){if(gen===generation)fail(e)}finally{if(gen===generation){busy=false;$('prepare').disabled=!authenticated||!configured}}};const load=async()=>{const gen=++generation;busy=false;authenticated=false;clear();$('prepare').disabled=true;try{const me=await call('/knowledge/v1/me');const m=await call('/knowledge/v1/ai/status');if(gen!==generation)return;userId=me.id;authenticated=true;configured=m.configured;$('who').textContent='\u5DF2\u767B\u5F55 \xB7 '+me.display_name+'\uFF08'+me.login_name+'\uFF09';$('model').textContent='\u6A21\u578B\uFF1A'+(m.provider||'\u672A\u914D\u7F6E')+' / '+(m.model||'\u672A\u914D\u7F6E');$('budget').textContent='\u5DF2\u5C1D\u8BD5 '+m.attempts+' \u6B21 \xB7 \u5DF2\u62A5\u544A\u7528\u91CF '+m.reported_input_tokens+' / '+m.reported_output_tokens+' tokens \xB7 \u8D39\u7528\u672A\u77E5 '+m.unknown_cost_calls+' \u6B21'+(m.budget_warning?' \xB7 \u5DF2\u8D85\u8FC7\u63D0\u9192\u9608\u503C':'');await list();if(gen!==generation)return;$('prepare').disabled=!m.configured;state(m.configured?'\u5C31\u7EEA':'BLOCKED \xB7 MODEL_NOT_CONFIGURED')}catch(e){if(gen===generation)fail(e)}};document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')void load()});void load()})()</script></body></html>`;
 }
 
 // src/host/index.ts
@@ -2529,6 +2769,7 @@ function apply(ctx, config = {}) {
     log
   });
   if (storage === void 0) log("knowledgeos-storage: unconfigured");
+  if (storage?.available) ctx.effect(() => startWorker(storage.jobs, log), "knowledgeos-jobs: checkpoint worker");
   let closing = false;
   const inFlight = /* @__PURE__ */ new Set();
   const service = {
@@ -2536,7 +2777,7 @@ function apply(ctx, config = {}) {
       if (closing) throw new RecordsError("STORAGE_CLOSED", "storage is closing");
       if (storage === void 0) throw new RecordsError("STORAGE_UNAVAILABLE", "storage is not configured");
       return createProbeRecord(storage, {
-        newId: () => randomUUID8(),
+        newId: () => randomUUID9(),
         now: () => (/* @__PURE__ */ new Date()).toISOString()
       }, { idempotencyKey, content });
     },
@@ -2601,7 +2842,7 @@ function apply(ctx, config = {}) {
     res.statusCode = 503;
     res.setHeader("content-type", "application/json; charset=utf-8");
     res.setHeader("cache-control", "no-store");
-    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID8(), retryable: true, safe_details: {} }));
+    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID9(), retryable: true, safe_details: {} }));
   };
   const registerIdentityRoutes = (identityContext) => {
     const identityAvailable = () => {
@@ -2614,22 +2855,23 @@ function apply(ctx, config = {}) {
       return isIdentityRuntimeAvailable({ connection, host: webFacts.host, port: webFacts.port, protocol: webFacts.protocol, origin: actualOrigin() });
     };
     const identity = new IdentityService(storage);
-    let ai = new AiService(storage, config.ai ?? {});
+    const route = () => config.ai ?? identityContext.get("agentDefaultModel")?.currentSelection() ?? {};
+    let ai = new AiService(storage, route());
     identityContext.inject(["llm", "tools"], (aiContext) => {
       aiContext.effect(() => {
         ai.close();
         let active;
         try {
-          active = new AiService(storage, config.ai ?? {}, aiContext.llm, aiContext.tools);
+          active = new AiService(storage, route(), aiContext.llm, aiContext.tools);
         } catch {
           console.warn("knowledgeos-ai: TOOL_REGISTRATION_FAILED");
-          ai = new AiService(storage, config.ai ?? {});
+          ai = new AiService(storage, route());
           return () => ai.close();
         }
         ai = active;
         return () => {
           active.close();
-          if (ai === active) ai = new AiService(storage, config.ai ?? {});
+          if (ai === active) ai = new AiService(storage, route());
         };
       }, "knowledgeos-ai: controlled tools");
     });
@@ -2723,7 +2965,7 @@ function apply(ctx, config = {}) {
         { path: "/knowledge/v1/me/preferences", auth: "anonymous", handler: identityHandlers.preferences },
         { path: "/knowledge/v1/spaces", auth: "anonymous", handler: identityHandlers.spaces }
       ];
-      for (const route of routes) disposers.push(identityContext.webServer.register({ kind: "exact", path: route.path, auth: route.auth, handler: withPeer(route.handler) }));
+      for (const route2 of routes) disposers.push(identityContext.webServer.register({ kind: "exact", path: route2.path, auth: route2.auth, handler: withPeer(route2.handler) }));
       const objectHandler = createObjectHandlers({
         storage,
         actorFor: (req) => {
@@ -2735,6 +2977,7 @@ function apply(ctx, config = {}) {
         origin: actualOrigin
       });
       disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/objects", auth: "anonymous", handler: withPeer(async (req, res) => objectHandler(req, res)) }));
+      disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/jobs", auth: "anonymous", handler: withPeer(objectHandler) }));
       disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/projects", auth: "anonymous", handler: withPeer(async (req, res) => objectHandler(req, res)) }));
       disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/grants", auth: "anonymous", handler: withPeer(async (req, res) => objectHandler(req, res)) }));
       return async () => {

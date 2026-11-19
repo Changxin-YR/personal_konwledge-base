@@ -4,6 +4,7 @@ import type { SessionActor } from './identity.ts'
 import { AUTH_ACTIONS, type AuthorizationAction, type ResourceScope } from './authorization.ts'
 import { type KnowledgeObjectRecord, type ProbeStorage } from './storage.ts'
 import { RecordsError } from './records.ts'
+import { JobError } from './jobs.ts'
 
 export interface ObjectHttpOptions {
   readonly storage: ProbeStorage
@@ -36,6 +37,19 @@ export function createObjectHandlers(options: ObjectHttpOptions): (req: Incoming
     try {
       const path = pathOf(req); const segments = path.split('/').filter(Boolean); trust(req, options.origin(), req.method !== 'GET')
       const current = actor(options, req); const now = new Date().toISOString()
+      if (segments[2] === 'jobs') {
+        if (segments.length===3 && req.method==='POST') {
+          const body = await readBody(req)
+          keys(body,['object_id','expected_revision','idempotency_key'])
+          if (!Number.isSafeInteger(body.expected_revision) || Number(body.expected_revision)<1) throw new JobError(422,'INPUT_INVALID')
+          const id = options.storage.jobs.enqueue(current,text(body.object_id,'object_id',80),Number(body.expected_revision),text(body.idempotency_key,'idempotency_key',128))
+          json(res,202,{data:{id}}); return
+        }
+        const cancel = segments.length===5 && segments[4]==='cancel' && req.method==='POST'
+        if (segments[3] && (cancel || (segments.length===4 && req.method==='GET'))) {
+          json(res,200,{data:options.storage.jobs.inspect(current,segments[3],cancel)}); return
+        }
+      }
       if (segments[2] === 'projects' && segments.length === 3 && req.method === 'POST') { const body = await readBody(req); keys(body, ['name']); const project = options.storage.createProject({ id: randomUUID(), serviceId: current.serviceId, ownerUserId: current.userId, name: text(body.name, 'name', 200), now }); json(res, 201, { data: project, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } }); return }
       if (segments[2] === 'projects' && segments.length === 5 && segments[4] === 'memberships' && req.method === 'POST') { const body = await readBody(req); keys(body, ['user_id', 'role', 'valid_from', 'expires_at']); const projectId = segments[3]; if (!options.storage.canManageProject(current, projectId)) throw new ObjectHttpError(404, 'NOT_FOUND', 'project not found'); options.storage.addProjectMembership({ projectId, userId: text(body.user_id, 'user_id', 80), role: body.role === undefined ? 'member' : text(body.role, 'role', 20), validFrom: body.valid_from === undefined ? now : text(body.valid_from, 'valid_from', 40), expiresAt: body.expires_at === undefined ? undefined : text(body.expires_at, 'expires_at', 40) }); res.statusCode = 204; res.end(); return }
       if (segments[2] === 'objects') {
@@ -79,6 +93,7 @@ export function createObjectHandlers(options: ObjectHttpOptions): (req: Incoming
       }
       throw new ObjectHttpError(404, 'NOT_FOUND', 'route not found')
     } catch (error: unknown) {
+      if (error instanceof JobError) { json(res,error.status,{code:error.code,request_id:requestId}); return }
       if (error instanceof ObjectHttpError) { json(res, error.status, { code: error.code, message: error.message, request_id: requestId, retryable: false, safe_details: {} }); return }
       if (error instanceof RecordsError) { json(res, 503, { code: error.code, message: 'storage is unavailable', request_id: requestId, retryable: error.retryable, safe_details: {} }); return }
       json(res, 500, { code: 'INTERNAL_ERROR', message: 'internal error', request_id: requestId, retryable: false, safe_details: {} })

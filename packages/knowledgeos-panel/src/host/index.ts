@@ -18,6 +18,7 @@ import { ProbeStorage } from './storage.ts'
 import { IdentityService } from './identity.ts'
 import { buildAccountHtml, buildSetupHtml, businessCookieName, createIdentityHandlers, isIdentityRuntimeAvailable, isLoopbackAddress, readCookie } from './identity-http.ts'
 import { createObjectHandlers } from './objects-http.ts'
+import { startWorker } from './jobs.ts'
 import { AiService } from './ai-service.ts'
 import { createAiHandler } from './ai-http.ts'
 import { buildAiHtml } from './ai-page.ts'
@@ -94,6 +95,7 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
         log,
       })
   if (storage === undefined) log('knowledgeos-storage: unconfigured')
+  if (storage?.available) ctx.effect(() => startWorker(storage.jobs, log), 'knowledgeos-jobs: checkpoint worker')
 
   let closing = false
   const inFlight = new Set<Promise<void>>()
@@ -187,15 +189,17 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
       return isIdentityRuntimeAvailable({ connection, host: webFacts.host, port: webFacts.port, protocol: webFacts.protocol, origin: actualOrigin() })
     }
     const identity = new IdentityService(storage as NonNullable<typeof storage>)
-    let ai = new AiService(storage as NonNullable<typeof storage>, config.ai ?? {})
+    // DSH resolves the endpoint and credentials; the plugin only takes route IDs.
+    const route = () => config.ai ?? identityContext.get('agentDefaultModel')?.currentSelection() ?? {}
+    let ai = new AiService(storage as NonNullable<typeof storage>, route())
     identityContext.inject(['llm', 'tools'], aiContext => {
       aiContext.effect(() => {
         ai.close()
         let active: AiService
-        try { active = new AiService(storage as NonNullable<typeof storage>, config.ai ?? {}, aiContext.llm, aiContext.tools) }
-        catch { console.warn('knowledgeos-ai: TOOL_REGISTRATION_FAILED'); ai = new AiService(storage as NonNullable<typeof storage>, config.ai ?? {}); return () => ai.close() }
+        try { active = new AiService(storage as NonNullable<typeof storage>, route(), aiContext.llm, aiContext.tools) }
+        catch { console.warn('knowledgeos-ai: TOOL_REGISTRATION_FAILED'); ai = new AiService(storage as NonNullable<typeof storage>, route()); return () => ai.close() }
         ai = active
-        return () => { active.close(); if (ai === active) ai = new AiService(storage as NonNullable<typeof storage>, config.ai ?? {}) }
+        return () => { active.close(); if (ai === active) ai = new AiService(storage as NonNullable<typeof storage>, route()) }
       }, 'knowledgeos-ai: controlled tools')
     })
     const identityHandlers = createIdentityHandlers({
@@ -259,6 +263,7 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
         origin: actualOrigin,
       })
       disposers.push(identityContext.webServer.register({ kind: 'prefix', path: '/knowledge/v1/objects', auth: 'anonymous', handler: withPeer(async (req, res) => objectHandler(req, res)) }))
+      disposers.push(identityContext.webServer.register({ kind: 'prefix', path: '/knowledge/v1/jobs', auth: 'anonymous', handler: withPeer(objectHandler) }))
       disposers.push(identityContext.webServer.register({ kind: 'prefix', path: '/knowledge/v1/projects', auth: 'anonymous', handler: withPeer(async (req, res) => objectHandler(req, res)) }))
       disposers.push(identityContext.webServer.register({ kind: 'prefix', path: '/knowledge/v1/grants', auth: 'anonymous', handler: withPeer(async (req, res) => objectHandler(req, res)) }))
       return async () => { ai.close(); for (const dispose of disposers) dispose(); await identity.close() }

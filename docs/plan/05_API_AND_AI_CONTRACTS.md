@@ -84,7 +84,7 @@ M0 必须画出实际路由表并验证：匿名访问被拒绝；用户 A 无�
 | `409 IDEMPOTENCY_CONFLICT` | 幂等键重复但请求不同 | 使用新动作/新键，不自动覆盖原动作 |
 | `409 INVALID_STATE/DEPENDENCY_UNRESOLVED` | 当前状态或前置条件不允许 | 展示下一处理人或所缺材料 |
 | `422 INPUT_INVALID/SOURCE_UNVERIFIABLE` | 格式或可引用来源不足 | 指出具体字段/页段，允许修正 |
-| `429 LOCAL_BUDGET_EXCEEDED/PROVIDER_RATE_LIMITED` | 本地预算或提供方限流 | 显示来源、重试时间，不悄悄换模型 |
+| `429 PROVIDER_RATE_LIMITED` | 提供方限流；本地预算仅提醒 | 显示来源、重试时间，不悄悄换模型 |
 | `503 PROVIDER_UNAVAILABLE/PLANNING_HOME_UNAVAILABLE` | 外部能力或权威计划服务暂不可用 | 保留当前结果，阻塞依赖步骤 |
 | `500 OPERATION_OUTCOME_UNKNOWN` | 外部动作可能已发生但无法确认 | 进入对账，不直接重做或宣告成功 |
 
@@ -224,7 +224,7 @@ M0 必须画出实际路由表并验证：匿名访问被拒绝；用户 A 无�
 
 ### 4.1 模型路径
 
-主 Agent 使用用户实际已配置且可调用的 GPT 路由。模型名称、提供方、非敏感账号连接 ID、`credential_ref` 和配额来源记录在运行配置与每次调用记录中；密钥、令牌原文和 Cookie 只在凭据存储/认证层使用，不能写入调用记录或公开证据。当前 ChatGPT 界面或订阅能用某个 GPT，不等于本地程序已经获得同一模型的 API 调用权限；必须通过受支持的实际账户/提供方连接验证。未配置时显示 `MODEL_NOT_CONFIGURED` 并让非 AI 功能继续工作，不能静默换成 DeepSeek 或虚构免费额度。
+主 Agent 使用用户实际已配置且可调用的 DeepSeek 路由。模型名称、提供方、非敏感账号连接 ID、`credential_ref` 和配额来源记录在运行配置与每次调用记录中；密钥、令牌原文和 Cookie 只在凭据存储/认证层使用，不能写入调用记录或公开证据。当前 ChatGPT 界面或订阅能用某个 DeepSeek，不等于本地程序已经获得同一模型的 API 调用权限；必须通过受支持的实际账户/提供方连接验证。未配置时显示 `MODEL_NOT_CONFIGURED` 并让非 AI 功能继续工作，不回退到其他模型 或虚构免费额度。
 
 根据上游已核对扩展点，模型适配通过 DSH 的模型服务和已配置 provider 路由完成，保持请求路由与生命周期可追踪。不得截获全局 `llm/stream` 后临时改写所有会话模型。每次讨论捕获确切模型路由、参数与配置版本；修改配置仅作用于后续明确的新请求，不影响已准备好的调用。
 

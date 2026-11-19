@@ -4,11 +4,7 @@
 
 ## 当前唯一执行入口
 
-**[CODEX_START.md](CODEX_START.md)** — Codex v3.2.1，只执行重新打开的 **FND-004：对象权限与共享入口边界**。分支 `codex/knowledgeos-fnd-004`，基于 FND-003 最终提交 `5621f3d0e40dc11bcd2062687a9ad3087f8c4442`，当前唯一 active_unit，auto_advance=false；上一候选 PASS 不直接放行下一单元；本候选已完成复验并等待用户选择。
-
-FND-003 已通过最终候选与独立复核并保留历史证据。本轮修复项目创建授权、撤权请求契约和版本冲突，并用真实 DSH HTTP 重新验证对象权限；搜索、AI、导出、邀请码及完整 A02/A34/A46 仍未实现，保持 NOT_RUN。详见 [FND-004报告](docs/evidence/FND-004/REPORT.md)。
-
-FND-001、FND-002、FND-003 保持已验收。Codex 按对象权限、隔离、到期撤销、共享入口和回归顺序开发，完成当前单元后提交并停在 FND-004 等待用户。DSH 仍为产品底座；完整产品审查未开始。
+**[当前执行指令](CODEX_START.md)**：FND-006 后台任务与事务事件。FND-004 已通过；FND-005 已继承但仍 blocked。本轮无外部模型调用，不自动推进。
 
 ## 规范与结果
 

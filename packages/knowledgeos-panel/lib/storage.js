@@ -1,8 +1,139 @@
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash2, randomUUID } from "node:crypto";
+import { createHash as createHash2, randomUUID as randomUUID2 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
+
+// src/host/jobs.ts
+import { randomUUID } from "node:crypto";
+var JOB_SCHEMA = `CREATE TABLE jobs (
+  id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), session_id TEXT NOT NULL REFERENCES auth_sessions(id),
+  object_id TEXT NOT NULL REFERENCES knowledge_objects(id), expected_revision INTEGER NOT NULL, idempotency_key TEXT NOT NULL,
+  state TEXT NOT NULL CHECK(state IN ('queued','running','succeeded','failed','cancelled')), attempts INTEGER NOT NULL DEFAULT 0,
+  checkpoint INTEGER NOT NULL DEFAULT 0 CHECK(checkpoint IN (0,1)), lease_token TEXT UNIQUE, lease_until INTEGER,
+  available_at INTEGER NOT NULL, last_error TEXT, UNIQUE(user_id,idempotency_key),
+  CHECK((state='running')=(lease_token IS NOT NULL)), CHECK((state='running')=(lease_until IS NOT NULL))
+) STRICT;
+CREATE INDEX jobs_ready ON jobs(state,available_at);
+CREATE TABLE job_runs (job_id TEXT NOT NULL REFERENCES jobs(id), attempt INTEGER NOT NULL, worker TEXT NOT NULL,
+  started_at INTEGER NOT NULL, start_checkpoint INTEGER NOT NULL, ended_at INTEGER, outcome TEXT, PRIMARY KEY(job_id,attempt)) STRICT;
+CREATE TABLE job_results (job_id TEXT PRIMARY KEY REFERENCES jobs(id), input_revision INTEGER NOT NULL) STRICT;
+CREATE TABLE outbox (event_id TEXT PRIMARY KEY, job_id TEXT NOT NULL UNIQUE REFERENCES job_results(job_id), created_at INTEGER NOT NULL,
+  delivered_at INTEGER, failures INTEGER NOT NULL DEFAULT 0, retry_at INTEGER NOT NULL DEFAULT 0, last_error TEXT) STRICT;
+CREATE TABLE event_receipts (consumer_name TEXT NOT NULL, event_id TEXT NOT NULL REFERENCES outbox(event_id), PRIMARY KEY(consumer_name,event_id)) STRICT;
+`;
+var JobError = class extends Error {
+  constructor(status, code) {
+    super(code);
+    this.status = status;
+    this.code = code;
+  }
+};
+var JobStore = class {
+  constructor(tx, revision, fault) {
+    this.tx = tx;
+    this.revision = revision;
+    this.fault = fault;
+  }
+  enqueue(actor, object, revision, key) {
+    return this.tx((db, now) => {
+      const current = this.revision(actor.sessionId, actor.userId, object, now);
+      if (current === void 0) throw new JobError(404, "NOT_FOUND");
+      const prior = db.prepare("SELECT id,object_id,expected_revision FROM jobs WHERE user_id=? AND idempotency_key=?").get(actor.userId, key);
+      if (prior) {
+        if (prior.object_id !== object || prior.expected_revision !== revision) throw new JobError(409, "IDEMPOTENCY_CONFLICT");
+        return String(prior.id);
+      }
+      if (current !== revision) throw new JobError(409, "REVISION_CONFLICT");
+      const id = randomUUID();
+      db.prepare("INSERT INTO jobs(id,user_id,session_id,object_id,expected_revision,idempotency_key,state,available_at) VALUES(?,?,?,?,?,?,'queued',?)").run(id, actor.userId, actor.sessionId, object, revision, key, now);
+      return id;
+    });
+  }
+  inspect(actor, id, cancel = false) {
+    return this.tx((db, now) => {
+      const row = db.prepare("SELECT * FROM jobs WHERE id=? AND user_id=?").get(id, actor.userId);
+      if (!row || this.revision(actor.sessionId, actor.userId, row.object_id, now) === void 0) throw new JobError(404, "NOT_FOUND");
+      if (cancel && ["succeeded", "failed"].includes(row.state)) throw new JobError(409, "JOB_TERMINAL");
+      if (cancel && row.state !== "cancelled") this.end(db, row, "cancelled", "CANCELLED", now);
+      const summary = db.prepare("SELECT id,state,attempts,checkpoint,last_error,expected_revision FROM jobs WHERE id=?").get(id);
+      const runs = db.prepare("SELECT attempt,start_checkpoint,started_at,ended_at,outcome FROM job_runs WHERE job_id=? ORDER BY attempt").all(id);
+      const delivery = db.prepare("SELECT delivered_at,failures,retry_at,last_error FROM outbox WHERE job_id=?").get(id);
+      return { ...summary, runs, delivery: delivery ?? null };
+    });
+  }
+  end(db, row, state, reason, now) {
+    db.prepare("UPDATE job_runs SET ended_at=?,outcome=? WHERE job_id=? AND attempt=? AND ended_at IS NULL").run(now, reason ?? state, row.id, row.attempts);
+    db.prepare("UPDATE jobs SET state=?,lease_token=NULL,lease_until=NULL,last_error=?,available_at=? WHERE id=?").run(state, reason, now + (state === "queued" ? 250 : 0), row.id);
+  }
+  claim(worker) {
+    return this.tx((db, now) => {
+      const lost = db.prepare("SELECT * FROM jobs WHERE state='running' AND lease_until<=? ORDER BY lease_until LIMIT 1").get(now);
+      if (lost) this.end(db, lost, lost.attempts >= 3 ? "failed" : "queued", "LEASE_EXPIRED", now);
+      const row = db.prepare("SELECT * FROM jobs WHERE state='queued' AND available_at<=? ORDER BY available_at,id LIMIT 1").get(now);
+      if (!row) return void 0;
+      const token = randomUUID();
+      db.prepare("UPDATE jobs SET state='running',attempts=attempts+1,lease_token=?,lease_until=? WHERE id=?").run(token, now + 3e3, row.id);
+      db.prepare("INSERT INTO job_runs(job_id,attempt,worker,started_at,start_checkpoint) VALUES(?,?,?,?,?)").run(row.id, row.attempts + 1, worker, now, row.checkpoint);
+      return { id: row.id, token, checkpoint: row.checkpoint };
+    });
+  }
+  renew(token) {
+    return this.tx((db, now) => db.prepare("UPDATE jobs SET lease_until=? WHERE state='running' AND lease_token=? AND lease_until>?").run(now + 3e3, token, now).changes === 1);
+  }
+  step(token) {
+    return this.tx((db, now) => {
+      const row = db.prepare("SELECT * FROM jobs WHERE state='running' AND lease_token=? AND lease_until>?").get(token, now);
+      if (!row) return "lost";
+      const revision = this.revision(row.session_id, row.user_id, row.object_id, now);
+      if (revision !== row.expected_revision) {
+        this.end(db, row, "failed", revision === void 0 ? "AUTH_REVOKED" : "REVISION_CONFLICT", now);
+        return "failed";
+      }
+      if (row.checkpoint === 0) {
+        db.prepare("UPDATE jobs SET checkpoint=1 WHERE id=?").run(row.id);
+        return "checkpoint";
+      }
+      db.prepare("INSERT INTO job_results(job_id,input_revision) VALUES(?,?)").run(row.id, revision);
+      this.fault("job:after-result");
+      db.prepare("INSERT INTO outbox(event_id,job_id,created_at) VALUES(?,?,?)").run(randomUUID(), row.id, now);
+      this.fault("job:after-outbox");
+      this.end(db, row, "succeeded", null, now);
+      return "succeeded";
+    });
+  }
+  retry(token) {
+    this.tx((db, now) => {
+      const row = db.prepare("SELECT * FROM jobs WHERE lease_token=? AND lease_until>?").get(token, now);
+      if (row) this.end(db, row, row.attempts >= 3 ? "failed" : "queued", "WORKER_ERROR", now);
+    });
+  }
+  receive(db, event, now) {
+    const entry = db.prepare("SELECT delivered_at,failures,retry_at FROM outbox WHERE event_id=?").get(event);
+    if (!entry || Number(entry.failures) >= 3 || Number(entry.retry_at) > now) return false;
+    db.exec("SAVEPOINT consume_event");
+    try {
+      const inserted = db.prepare("INSERT INTO event_receipts(consumer_name,event_id) VALUES('probe',?) ON CONFLICT DO NOTHING").run(event);
+      if (inserted.changes === 1) this.fault("event:after-receipt");
+      db.prepare("UPDATE outbox SET delivered_at=COALESCE(delivered_at,?),last_error=NULL WHERE event_id=?").run(now, event);
+      db.exec("RELEASE consume_event");
+      return inserted.changes === 1;
+    } catch {
+      db.exec("ROLLBACK TO consume_event; RELEASE consume_event");
+      db.prepare("UPDATE outbox SET failures=failures+1,retry_at=?,last_error='CONSUMER_FAILED' WHERE event_id=?").run(now + 250 * (1 + Number(entry.failures)), event);
+      return false;
+    }
+  }
+  consume(event) {
+    return this.tx((db, now) => this.receive(db, event, now));
+  }
+  dispatch() {
+    return this.tx((db, now) => {
+      const event = db.prepare("SELECT event_id FROM outbox WHERE delivered_at IS NULL AND failures<3 AND retry_at<=? ORDER BY created_at LIMIT 1").get(now);
+      return event ? this.receive(db, String(event.event_id), now) : false;
+    });
+  }
+};
 
 // src/host/authorization.ts
 function isGrantActive(grant, now) {
@@ -34,7 +165,9 @@ var RecordsError = class extends Error {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 5;
+var SCHEMA_VERSION = 6;
+var MIGRATION_V6_SQL = JOB_SCHEMA;
+var MIGRATION_V6_CHECKSUM = createHash2("sha256").update(JOB_SCHEMA).digest("hex");
 var PROBE_SCHEMA_VERSION = 1;
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
@@ -259,6 +392,27 @@ var ProbeStorage = class {
   #state = "unavailable";
   #failure;
   #closed = false;
+  jobs = new JobStore((op) => {
+    const db = this.#ensureReady();
+    try {
+      db.exec("BEGIN IMMEDIATE");
+    } catch (err) {
+      throw this.#mapError(err);
+    }
+    try {
+      const value = op(db, Date.now());
+      db.exec("COMMIT");
+      return value;
+    } catch (err) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw err instanceof JobError ? err : this.#mapError(err);
+    }
+  }, (session, user, object, ms) => {
+    const now = new Date(ms).toISOString();
+    const ref = this.#ensureReady().prepare("SELECT token_hash FROM auth_sessions WHERE id=? AND user_id=?").get(session, user);
+    const actor = ref && this.findActor(String(ref.token_hash), now);
+    return actor && this.authorizeObject(actor, object, "read", now)?.revision;
+  }, (point) => this.#injectFailure(point));
   constructor(options) {
     this.#dataDir = options.dataDir;
     this.#log = options.log ?? (() => {
@@ -302,7 +456,10 @@ var ProbeStorage = class {
       } else if (existing === "v3") {
         this.#migrateV4(db);
       }
-      if (existing !== "v5") this.#migrateV5(db);
+      if (existing !== "v6") {
+        if (existing !== "v5") this.#migrateV5(db);
+        this.#migrateV6(db);
+      }
       this.#verify(db);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -369,6 +526,15 @@ var ProbeStorage = class {
         db.close();
       }
       return "v5";
+    }
+    if (facts.userVersion === 6) {
+      const db = new DatabaseSync(path, { readOnly: true });
+      try {
+        this.#verify(db);
+      } finally {
+        db.close();
+      }
+      return "v6";
     }
     throw new RecordsError("STORAGE_INCOMPATIBLE", "database schema version is not supported");
   }
@@ -519,7 +685,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID2());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -581,10 +747,33 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "tool receipt migration failed", false, { cause: error });
     }
   }
+  #migrateV6(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(JOB_SCHEMA);
+      this.#injectFailure("v6:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(6,?,?)").run(MIGRATION_V6_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=6; COMMIT");
+    } catch (err) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs migration failed", false, { cause: err });
+    }
+  }
   #verify(db) {
     const facts = readDatabaseFacts(this.databasePath);
-    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== 5) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
-    this.#assertV5Schema(facts);
+    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== 6 || facts.ledger.length !== 6 || facts.ledger[5]?.version !== 6 || facts.ledger[5].checksum !== MIGRATION_V6_CHECKSUM) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
+    const reference = new DatabaseSync(":memory:");
+    try {
+      reference.exec(JOB_SCHEMA);
+      const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
+      for (const { name, sql } of definitions) {
+        if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
+      }
+      const names = new Set(definitions.map((x) => x.name));
+      this.#assertV5Schema({ ...facts, ledger: facts.ledger.slice(0, 5), objects: facts.objects.filter((x) => !names.has(x.name)) });
+    } finally {
+      reference.close();
+    }
     this.#assertV2Definitions(db);
     this.#assertV4Definitions(db);
     this.#assertV5Definitions(db);
@@ -678,9 +867,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID();
-      const spaceId = randomUUID();
-      const credentialId = randomUUID();
+      const userId = randomUUID2();
+      const spaceId = randomUUID2();
+      const credentialId = randomUUID2();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -714,9 +903,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID();
-      const spaceId = randomUUID();
-      const credentialId = randomUUID();
+      const userId = randomUUID2();
+      const spaceId = randomUUID2();
+      const credentialId = randomUUID2();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -881,7 +1070,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
+        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID2(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -1055,6 +1244,8 @@ export {
   MIGRATION_V5,
   MIGRATION_V5_CHECKSUM,
   MIGRATION_V5_SQL,
+  MIGRATION_V6_CHECKSUM,
+  MIGRATION_V6_SQL,
   PROBE_SCHEMA_VERSION,
   PROBE_SUPPORTED_TABLES,
   ProbeStorage,

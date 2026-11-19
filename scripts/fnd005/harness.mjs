@@ -9,7 +9,7 @@ export function prepareRun(out, port = 3131, options = {}) {
   mkdirSync(out, { recursive: true }); mkdirSync(dataDir, { recursive: true })
   const fixture = options.fixture !== false
   const barrierDir=join(root,'barriers');mkdirSync(barrierDir,{recursive:true})
-  const config = options.ai ?? (fixture ? { provider: 'fnd005-fixture', model: 'controlled-tool-model', maxCalls: 64, timeoutMs: 1000, budgetUsd: .1, inputUsdPerMillion: .001, outputUsdPerMillion: .001 } : {})
+  const config = options.ai ?? (fixture ? { provider: 'fnd005-fixture', model: 'deepseek-controlled-tool-model', maxCalls: 64, timeoutMs: 1000, budgetUsd: .1, inputUsdPerMillion: .001, outputUsdPerMillion: .001 } : {})
   const patch = [{ id: 'knowledgeos-host', config: { dataDir: resolve(dataDir).replaceAll('\\', '/'), ai: config } }]
   if(options.providerRows)patch.push(...options.providerRows)
   if (fixture) patch.push({ insert: [{ id: 'fnd005-provider', name: resolve(REPO, 'scripts/fnd005/fixture-provider.mjs').replaceAll('\\', '/'), config:{probePath:join(root,'unbound-probe.json').replaceAll('\\','/'),barrierDir:barrierDir.replaceAll('\\','/')} }] })

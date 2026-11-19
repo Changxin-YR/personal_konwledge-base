@@ -5,7 +5,7 @@ export const name = 'fnd005-controlled-provider'
 export const inject = ['llm','tools']
 class FixtureAdapter extends LlmAdapter {
   constructor() { super('FND005 controlled fixture') }
-  async listModels(provider) { return [{ provider, id: 'controlled-tool-model', name: 'Controlled fixture (NOT GPT)' }] }
+  async listModels(provider) { return [{ provider, id: 'deepseek-controlled-tool-model', name: 'Controlled fixture (NOT GPT)' }] }
   async *stream(options) {
     const input = JSON.parse(options.messages[0].content[0].text), instruction = input.instruction
     if (instruction.includes('fixture:missing')) throw new LlmError('missing API key credential', 'MISSING_CREDENTIAL')

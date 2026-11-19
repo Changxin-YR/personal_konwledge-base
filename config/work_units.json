@@ -965,7 +965,7 @@
     {
       "id": "FND-005",
       "milestone": "M0",
-      "title": "一次真实GPT业务工具调用",
+      "title": "一次真实DeepSeek业务工具调用",
       "requirement_ids": [
         "F01",
         "F37",
@@ -986,13 +986,13 @@
       "test_obligations": [
         {
           "id": "FND-005-T01",
-          "scenario": "真实 GPT 只读工具和 UI",
-          "expected": "真实登录后 GPT 选择 knowledgeos_read_object；正确结果按当前权限显示。"
+          "scenario": "真实 DeepSeek 只读工具和 UI",
+          "expected": "真实登录后 DeepSeek 选择 knowledgeos_read_object；正确结果按当前权限显示。"
         },
         {
           "id": "FND-005-T02",
-          "scenario": "真实 GPT 修改并重新读取",
-          "expected": "GPT 选择 knowledgeos_update_object；SQLite revision 增加一次；HTTP 和 UI 重读一致。"
+          "scenario": "真实 DeepSeek 修改并重新读取",
+          "expected": "DeepSeek 选择 knowledgeos_update_object；SQLite revision 增加一次；HTTP 和 UI 重读一致。"
         },
         {
           "id": "FND-005-T03",
@@ -1037,7 +1037,7 @@
       "final_acceptance_ids": [
         "A01"
       ],
-      "completion_gate": "T01–T09全部必测项实际通过且独立复核PASS；至少一次真实GPT提供方调用证据；缺真实模型时BLOCKED，不能passed/awaiting_user。",
+      "completion_gate": "T01–T09全部必测项实际通过且独立复核PASS；至少一次真实DeepSeek提供方调用证据；缺真实模型时BLOCKED，不能passed/awaiting_user。",
       "status": "blocked",
       "test_plan_status": "detailed_active_unit",
       "instruction_revision": "3.3.0",
@@ -1057,7 +1057,7 @@
         "FND-005-T09"
       ],
       "open_review_items": [
-        "GPT_PROVIDER_UNAVAILABLE"
+        "DEEPSEEK_CANDIDATE_INDEPENDENT_ACCEPTANCE"
       ],
       "closed_review_items": [
         "R1",
@@ -1080,8 +1080,8 @@
         "docs/evidence/FND-005/delivery-safety.json"
       ],
       "real_provider_status": "BLOCKED",
-      "real_provider_evidence": "docs/evidence/FND-005/real-provider/summary.json",
-      "blocked_reason": "No authorized usable GPT API. Technical checks and independent technical review pass; actual GPT T01/T02/T08 remain BLOCKED with zero provider calls.",
+      "real_provider_evidence": "docs/evidence/FND-005/live-hs14-Oaxv9B/summary.json",
+      "blocked_reason": "修复前 HS14 的两次真实调用不等于修复后的独立模型验收。",
       "technical_test_result_status": "PASS",
       "independent_technical_review_status": "PASS",
       "technical_retest_status": "PASS",
@@ -1091,9 +1091,13 @@
         "FND-005-T02",
         "FND-005-T08"
       ],
-      "real_provider_calls": 0,
       "stopped_at": "2026-11-18T09:27:51.274Z",
-      "stop_reason": "Current-unit implementation and non-GPT verification finished; GPT dependency blocks acceptance; wait for user instruction without advancing."
+      "stop_reason": "修复前 HS14 的两次真实调用不等于修复后的独立模型验收。",
+      "historical_gpt_stop": {
+        "reason": "No authorized usable GPT API. Technical checks and independent technical review pass; actual GPT T01/T02/T08 remain BLOCKED with zero provider calls.",
+        "record": "docs/evidence/FND-005/real-provider/summary.json",
+        "calls": 0
+      }
     },
     {
       "id": "FND-006",
@@ -1119,13 +1123,43 @@
       "test_obligations": [
         {
           "id": "FND-006-T01",
-          "scenario": "任务运行中终止Host后重启",
-          "expected": "从已提交检查点恢复，结果不重复提交"
+          "scenario": "已领取并落盘检查点、无结果",
+          "expected": "已领取并落盘检查点、无结果；强制结束真实 Host，原目录重启。新进程从原检查点继续，原尝试记失联，最终一份结果。"
         },
         {
           "id": "FND-006-T02",
-          "scenario": "事件重复投递/租约竞争",
-          "expected": "唯一业务结果，错误和重试次数可见"
+          "scenario": "同一业务用户重复提交同键同输入，重复投递同一事件",
+          "expected": "同一业务用户重复提交同键同输入，重复投递同一事件；只有一个任务、一份业务结果、一条消费者回执。变参同键拒绝。"
+        },
+        {
+          "id": "FND-006-T03",
+          "scenario": "两个独立 SQLite 连接同时领取",
+          "expected": "两个独立 SQLite 连接同时领取；仅一个有效令牌。租约过期接管后，旧令牌续租、写检查点或提交均无效。"
+        },
+        {
+          "id": "FND-006-T04",
+          "scenario": "正常续约后不被抢占",
+          "expected": "正常续约后不被抢占；模拟 worker 失联、重试与耗尽。核对每次尝试的起止、原因、计数及终态，耗尽后不再领取。"
+        },
+        {
+          "id": "FND-006-T05",
+          "scenario": "在结果写入与 outbox 写入之间及两者写入后、提交前注入故障",
+          "expected": "在结果写入与 outbox 写入之间及两者写入后、提交前注入故障；结果、事件与成功状态全部回滚，复试后各一份。"
+        },
+        {
+          "id": "FND-006-T06",
+          "scenario": "分别在领取后取消、撤销会话或对象权限、更新输入版本",
+          "expected": "分别在领取后取消、撤销会话或对象权限、更新输入版本；提交不能成功，业务结果及成功事件均为零。"
+        },
+        {
+          "id": "FND-006-T07",
+          "scenario": "使用带数据的 v5 库，v6 中途失败后仍是原账本和数据，正常升级并重开无损",
+          "expected": "使用带数据的 v5 库，v6 中途失败后仍是原账本和数据，正常升级并重开无损；执行受影响的状态、持久化、身份、ACL 和 AI 技术回归。"
+        },
+        {
+          "id": "FND-006-T08",
+          "scenario": "重跑 UI 修复后的真实浏览器夹具",
+          "expected": "重跑 UI 修复后的真实浏览器夹具；HTTP、SQLite、界面所选项的 revision 一致。标记为技术回归，不计为模型验收。"
         }
       ],
       "acceptance_ids": [
@@ -1134,8 +1168,17 @@
       ],
       "final_acceptance_ids": [],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
-      "status": "planned",
-      "test_plan_status": "planning_baseline_expand_on_activation"
+      "status": "in_progress",
+      "test_plan_status": "detailed_active_unit",
+      "instruction_revision": "3.4.0",
+      "working_branch": "codex/knowledgeos-fnd-006",
+      "base_commit": "c03ec437b2c648b16449598f89ac289bf307ccd2",
+      "test_result_status": "NOT_RUN",
+      "retest_status": "NOT_RUN",
+      "independent_review_status": "NOT_RUN",
+      "completed_test_ids": [],
+      "open_review_items": [],
+      "closed_review_items": []
     },
     {
       "id": "LIB-001",
@@ -3362,7 +3405,7 @@
         "KNOW-002"
       ],
       "scope": [
-        "主GPT方案版本",
+        "主DeepSeek方案版本",
         "固定评审席位配置",
         "材料范围与调用状态",
         "不提前冻结"
@@ -3555,7 +3598,7 @@
         },
         {
           "id": "MODEL-001-T02",
-          "scenario": "主GPT不可用或价格未知",
+          "scenario": "主DeepSeek不可用或价格未知",
           "expected": "明确受阻/未知，不静默降级或显示虚构免费额度"
         }
       ],
