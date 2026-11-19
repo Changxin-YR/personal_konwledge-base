@@ -10,7 +10,7 @@
     "sha256": "da73b65a0004bfa875d1435a61a555ba6f02d45c280aeb8ed6d2e62ab4bd39d8"
   },
   "active_unit": "LIB-001",
-  "unit_state": "in_progress",
+  "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Implement immutable PDF originals and test migration, permissions, replay and Host/browser recovery.",
+  "state_reason": "Frozen candidate passed implementation and independent verification of LIB-001-T01 through T06.",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,25 +127,20 @@
     }
   },
   "checkpoint": {
-    "unit_id": "FND-005",
-    "base_commit": "4d710fb993ff392e9a88ac22480cc2cc8a56ff00",
-    "candidate_sha": "f1364b91ca6fb54e91d8e9271dbe26f0c26a76cd",
+    "unit_id": "LIB-001",
+    "base_commit": "164cbc3e3abf7a7a6e7150c27fa598c58bf7fed5",
+    "candidate_sha": "5d9dc58866d518c496677b3e85ba60c217323291",
     "completed": [
-      "技术基线回归 68 项通过；10 项新验收工具测试通过；冻结当前候选并运行无推理预检"
+      "Versioned private PDF imports, immutable originals, migration and independent Host/browser acceptance."
     ],
     "test_results": {
-      "unit_acceptance": "BLOCKED",
-      "technical_baseline": "PASS",
-      "live_read_update": "NOT_RUN",
-      "independent_live_acceptance": "NOT_RUN"
+      "unit_acceptance": "PASS",
+      "independent": "PASS",
+      "supporting_suite": "PASS"
     },
-    "evidence": "docs/evidence/FND-005/continuous/discovery-blocked.json",
-    "defects": [
-      "隔离验收 Host 缺少可用原生路由；不能沿用旧插件证据"
-    ],
-    "next_task": "LIB-001",
-    "blocked_dependencies": [
-      "isolated_authorized_native_deepseek_route"
-    ]
+    "evidence": "docs/evidence/LIB-001/acceptance.json",
+    "defects": [],
+    "next_task": "LIB-002",
+    "blocked_dependencies": []
   }
 }

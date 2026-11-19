@@ -1256,11 +1256,37 @@
       ],
       "final_acceptance_ids": [],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "in_progress",
+      "status": "passed",
       "test_plan_status": "detailed_active_unit",
       "base_commit": "164cbc3e3abf7a7a6e7150c27fa598c58bf7fed5",
-      "test_result_status": "NOT_RUN",
-      "independent_review_status": "NOT_RUN"
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "candidate_commit": "5d9dc58866d518c496677b3e85ba60c217323291",
+      "completed_at": "2026-11-19T09:28:09.393Z",
+      "completed_test_ids": [
+        "LIB-001-T01",
+        "LIB-001-T02",
+        "LIB-001-T03",
+        "LIB-001-T04",
+        "LIB-001-T05",
+        "LIB-001-T06"
+      ],
+      "retest_status": "PASS",
+      "open_review_items": [],
+      "closed_review_items": [
+        "WRITE_LOCK_ORPHAN",
+        "REPLAY_MISSING_ORIGINAL",
+        "READ_LOCK_CONTENTION",
+        "PREPUBLICATION_SESSION_ORPHAN"
+      ],
+      "acceptance_record": "docs/evidence/LIB-001/acceptance.json",
+      "evidence_paths": [
+        "docs/evidence/LIB-001/acceptance.json",
+        "docs/evidence/LIB-001/independent.json",
+        "docs/evidence/LIB-001/host-run.json",
+        "docs/evidence/LIB-001/v2-receipt.png",
+        "docs/evidence/LIB-001/invalid-pdf.png"
+      ]
     },
     {
       "id": "LIB-002",

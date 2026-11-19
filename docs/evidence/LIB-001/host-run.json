@@ -1,0 +1,368 @@
+{
+  "category": "REAL_DSH_CHROME_HTTP_SQLITE",
+  "candidate_sha": "5d9dc58866d518c496677b3e85ba60c217323291",
+  "tree": "1aef25332b83416a98b8fe9153add9a489bedb81",
+  "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+  "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+  "entry_sha256": "075c94c39d003d18cd0a7710e2383fdbb77852d9f6d929e7bdb496271fafce3c",
+  "runner_sha256": "c01187e313c66c1315d37ef1af72acc833b773f809e6c4422206301c6d1e3367",
+  "node": "v24.22.0",
+  "scope": {
+    "T01": "import/restart",
+    "T02": "invalid PDF and repeated submission; disk-fault test separate",
+    "T03": "immutable versions and conflicts",
+    "T04": "identity and CSRF",
+    "T05": "NOT_RUN: separate migration test",
+    "T06": "browser round trip"
+  },
+  "status": "PASS",
+  "events": [
+    {
+      "at": "2026-11-19T09:23:06.807Z",
+      "name": "host-loaded",
+      "boot": 1
+    },
+    {
+      "at": "2026-11-19T09:23:06.817Z",
+      "name": "sql:before-bootstrap",
+      "counts": {
+        "assets": 0,
+        "asset_versions": 0,
+        "blobs": 0
+      }
+    },
+    {
+      "at": "2026-11-19T09:23:10.055Z",
+      "name": "chrome",
+      "version": "157.0.8103.79"
+    },
+    {
+      "at": "2026-11-19T09:23:12.840Z",
+      "name": "browser:anonymous",
+      "sha256": "fc3eb08aae40375d65d5f49fe1caae7aad86f9206eb43159d8f9cea0dc61a451"
+    },
+    {
+      "at": "2026-11-19T09:23:12.991Z",
+      "name": "browser:empty",
+      "sha256": "f266643263f54a42dfc956a56ef008e211ad0e6301a677798510fb7ab392959c"
+    },
+    {
+      "at": "2026-11-19T09:23:13.005Z",
+      "name": "sql:before-v1",
+      "counts": {
+        "assets": 0,
+        "asset_versions": 0,
+        "blobs": 0
+      }
+    },
+    {
+      "at": "2026-11-19T09:23:13.097Z",
+      "name": "browser:v1-before-submit",
+      "sha256": "8a08ae7e2ed82e5cdfec34e420d3cc43ffc792e00d0fbf0c56f8708546c8bc7d"
+    },
+    {
+      "at": "2026-11-19T09:23:13.158Z",
+      "name": "http:browser-import",
+      "status": 201,
+      "receipt": {
+        "version": 1,
+        "sha256": "cda41c13971f373a7b416907acc5c4938d1f358621eb2f6215a55c86346321b9",
+        "byte_length": 367
+      }
+    },
+    {
+      "at": "2026-11-19T09:23:13.172Z",
+      "name": "sql:first-read-after-v1",
+      "counts": {
+        "assets": 1,
+        "asset_versions": 1,
+        "blobs": 1
+      }
+    },
+    {
+      "at": "2026-11-19T09:23:13.263Z",
+      "name": "browser:v1-receipt",
+      "sha256": "bf7fb123e8464858b8660af55669a277fedd2963ace4e50593c8cbe7c41388b6"
+    },
+    {
+      "at": "2026-11-19T09:23:13.274Z",
+      "name": "http:original",
+      "version": 1,
+      "status": 200,
+      "length": 367,
+      "sha256": "cda41c13971f373a7b416907acc5c4938d1f358621eb2f6215a55c86346321b9"
+    },
+    {
+      "at": "2026-11-19T09:23:13.318Z",
+      "name": "host-exited"
+    },
+    {
+      "at": "2026-11-19T09:23:13.322Z",
+      "name": "sql:stopped",
+      "counts": {
+        "assets": 1,
+        "asset_versions": 1,
+        "blobs": 1
+      }
+    },
+    {
+      "at": "2026-11-19T09:23:24.199Z",
+      "name": "host-loaded",
+      "boot": 2
+    },
+    {
+      "at": "2026-11-19T09:23:24.202Z",
+      "name": "sql:reopened",
+      "counts": {
+        "assets": 1,
+        "asset_versions": 1,
+        "blobs": 1
+      }
+    },
+    {
+      "at": "2026-11-19T09:23:25.818Z",
+      "name": "browser:restarted-v1",
+      "sha256": "827dd67393a4becfbef150ba3f0244b1acb4cfa134bc3547421ff7972b8c018c"
+    },
+    {
+      "at": "2026-11-19T09:23:25.844Z",
+      "name": "http:original",
+      "version": 1,
+      "status": 200,
+      "length": 367,
+      "sha256": "cda41c13971f373a7b416907acc5c4938d1f358621eb2f6215a55c86346321b9"
+    },
+    {
+      "at": "2026-11-19T09:23:25.879Z",
+      "name": "browser:reopened-original",
+      "status": 200,
+      "length": 367,
+      "sha256": "cda41c13971f373a7b416907acc5c4938d1f358621eb2f6215a55c86346321b9"
+    },
+    {
+      "at": "2026-11-19T09:23:26.007Z",
+      "name": "browser:v2-before-submit",
+      "sha256": "3f7b4c0729564368a090404ba35c841d5f930fe4e64d75327c6a104647760eb3"
+    },
+    {
+      "at": "2026-11-19T09:23:26.067Z",
+      "name": "http:browser-import",
+      "status": 201,
+      "receipt": {
+        "version": 2,
+        "sha256": "3727f272b853043ab69b30ef41c571c6b5f161e0eb9eb02da5e46f36a09d4c41",
+        "byte_length": 367
+      }
+    },
+    {
+      "at": "2026-11-19T09:23:26.080Z",
+      "name": "sql:first-read-after-v2",
+      "counts": {
+        "assets": 1,
+        "asset_versions": 2,
+        "blobs": 2
+      }
+    },
+    {
+      "at": "2026-11-19T09:23:26.214Z",
+      "name": "browser:v2-receipt",
+      "sha256": "5f22383ad6d775604936b68453de420b2dbb2fc63b814015711ea6a30c7da3bb"
+    },
+    {
+      "at": "2026-11-19T09:23:26.219Z",
+      "name": "sql:after-v2",
+      "counts": {
+        "assets": 1,
+        "asset_versions": 2,
+        "blobs": 2
+      }
+    },
+    {
+      "at": "2026-11-19T09:23:26.249Z",
+      "name": "http:original",
+      "version": 1,
+      "status": 200,
+      "length": 367,
+      "sha256": "cda41c13971f373a7b416907acc5c4938d1f358621eb2f6215a55c86346321b9"
+    },
+    {
+      "at": "2026-11-19T09:23:26.261Z",
+      "name": "http:original",
+      "version": 2,
+      "status": 200,
+      "length": 367,
+      "sha256": "3727f272b853043ab69b30ef41c571c6b5f161e0eb9eb02da5e46f36a09d4c41"
+    },
+    {
+      "at": "2026-11-19T09:23:26.597Z",
+      "name": "http:exact-replay",
+      "version": 1,
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T09:23:26.623Z",
+      "name": "http:exact-replay",
+      "version": 2,
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T09:23:26.642Z",
+      "name": "http:same-key-changed-bytes",
+      "status": 409,
+      "code": "IDEMPOTENCY_CONFLICT"
+    },
+    {
+      "at": "2026-11-19T09:23:26.664Z",
+      "name": "http:new-key-stale-parent",
+      "status": 409,
+      "code": "VERSION_CONFLICT"
+    },
+    {
+      "at": "2026-11-19T09:23:26.667Z",
+      "name": "sql:after-replay-and-conflicts",
+      "counts": {
+        "assets": 1,
+        "asset_versions": 2,
+        "blobs": 2
+      }
+    },
+    {
+      "at": "2026-11-19T09:23:26.789Z",
+      "name": "browser:invalid-pdf",
+      "sha256": "78d8849db624067b35ad903e5f0b3ef20cb4f38325edbd89a28e9dd3ed6bec08"
+    },
+    {
+      "at": "2026-11-19T09:23:26.795Z",
+      "name": "http:invalid-pdf",
+      "status": 422,
+      "code": "INVALID_PDF"
+    },
+    {
+      "at": "2026-11-19T09:23:26.802Z",
+      "name": "sql:after-invalid",
+      "counts": {
+        "assets": 1,
+        "asset_versions": 2,
+        "blobs": 2
+      }
+    },
+    {
+      "at": "2026-11-19T09:23:26.947Z",
+      "name": "browser:other-user-empty",
+      "sha256": "b63159007132b6db7f137afb37bfab9b2867126edf9c69b83b4bef48e654892f"
+    },
+    {
+      "at": "2026-11-19T09:23:26.954Z",
+      "name": "http:other-user-original",
+      "status": 404,
+      "code": "ASSET_NOT_FOUND"
+    },
+    {
+      "at": "2026-11-19T09:23:26.964Z",
+      "name": "http:other-user-original?download=1",
+      "status": 404,
+      "code": "ASSET_NOT_FOUND"
+    },
+    {
+      "at": "2026-11-19T09:23:26.997Z",
+      "name": "http:other-user-append",
+      "status": 404,
+      "code": "ASSET_NOT_FOUND"
+    },
+    {
+      "at": "2026-11-19T09:23:27.003Z",
+      "name": "http:anonymous-original",
+      "status": 401,
+      "code": "AUTH_REQUIRED"
+    },
+    {
+      "at": "2026-11-19T09:23:27.013Z",
+      "name": "http:anonymous-original?download=1",
+      "status": 401,
+      "code": "AUTH_REQUIRED"
+    },
+    {
+      "at": "2026-11-19T09:23:27.022Z",
+      "name": "http:anonymous-append",
+      "status": 401,
+      "code": "AUTH_REQUIRED"
+    },
+    {
+      "at": "2026-11-19T09:23:27.030Z",
+      "name": "http:anonymous-list",
+      "status": 401,
+      "code": "AUTH_REQUIRED"
+    },
+    {
+      "at": "2026-11-19T09:23:27.038Z",
+      "name": "http:missing-csrf-marker",
+      "status": 403,
+      "code": "CSRF_REJECTED"
+    },
+    {
+      "at": "2026-11-19T09:23:27.045Z",
+      "name": "http:foreign-origin",
+      "status": 403,
+      "boundary": "pinned-host-admission"
+    },
+    {
+      "at": "2026-11-19T09:23:27.051Z",
+      "name": "sql:after-denials",
+      "counts": {
+        "assets": 1,
+        "asset_versions": 2,
+        "blobs": 2
+      }
+    },
+    {
+      "at": "2026-11-19T09:23:27.063Z",
+      "name": "http:original",
+      "version": 1,
+      "status": 200,
+      "length": 367,
+      "sha256": "cda41c13971f373a7b416907acc5c4938d1f358621eb2f6215a55c86346321b9"
+    },
+    {
+      "at": "2026-11-19T09:23:27.069Z",
+      "name": "http:original",
+      "version": 2,
+      "status": 200,
+      "length": 367,
+      "sha256": "3727f272b853043ab69b30ef41c571c6b5f161e0eb9eb02da5e46f36a09d4c41"
+    },
+    {
+      "at": "2026-11-19T09:23:27.078Z",
+      "name": "http:expired-list",
+      "status": 401,
+      "code": "AUTH_REQUIRED"
+    },
+    {
+      "at": "2026-11-19T09:23:27.081Z",
+      "name": "http:expired-original",
+      "status": 401,
+      "code": "AUTH_REQUIRED"
+    },
+    {
+      "at": "2026-11-19T09:23:27.160Z",
+      "name": "browser:expired",
+      "sha256": "fc3eb08aae40375d65d5f49fe1caae7aad86f9206eb43159d8f9cea0dc61a451"
+    },
+    {
+      "at": "2026-11-19T09:23:27.163Z",
+      "name": "sql:final",
+      "counts": {
+        "assets": 1,
+        "asset_versions": 2,
+        "blobs": 2
+      }
+    },
+    {
+      "at": "2026-11-19T09:23:27.617Z",
+      "name": "host-exited"
+    },
+    {
+      "at": "2026-11-19T09:23:27.618Z",
+      "name": "finished"
+    }
+  ]
+}

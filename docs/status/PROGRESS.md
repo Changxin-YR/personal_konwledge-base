@@ -1,5 +1,7 @@
 # 实际进度
 
+2026-11-19：LIB-001 在 `5d9dc58866d518c496677b3e85ba60c217323291` 通过 T01～T06。主运行和独立复核分别实测 Host、Chrome 与 SQLite，并各通过 24 项配套测试。详见[单元验收](../evidence/LIB-001/acceptance.json)和[独立复核](../evidence/LIB-001/independent.json)。A05、A45 不变。下一单元 LIB-002。FND-005 仍缺隔离 Host 上的授权 DeepSeek 路由，本轮实际推理为零。CHECK-004 未运行。
+
 2026-11-19：持续协议迁移起点：FND-001～004、006 历史 passed；FND-005 保持 blocked，等待新候选真实 DeepSeek 复验。 当前证据见 [FND-006](../evidence/FND-006/REPORT.md)。
 
 ## 历史记录

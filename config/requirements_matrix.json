@@ -70,8 +70,10 @@
         "A04",
         "A50"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/LIB-001/acceptance.json"
+      ]
     },
     {
       "id": "F05",
@@ -82,8 +84,10 @@
         "P02",
         "A05"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/LIB-001/acceptance.json"
+      ]
     },
     {
       "id": "F06",
@@ -109,8 +113,10 @@
         "A09",
         "A45"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/LIB-001/acceptance.json"
+      ]
     },
     {
       "id": "F08",

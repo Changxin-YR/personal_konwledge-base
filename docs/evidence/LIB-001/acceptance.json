@@ -1,0 +1,42 @@
+{
+  "unit_id": "LIB-001",
+  "candidate_sha": "5d9dc58866d518c496677b3e85ba60c217323291",
+  "entry_sha256": "075c94c39d003d18cd0a7710e2383fdbb77852d9f6d929e7bdb496271fafce3c",
+  "unit_acceptance": "PASS",
+  "command": "node scripts/lib001/host-acceptance.mjs 5d9dc58866d518c496677b3e85ba60c217323291 075c94c39d003d18cd0a7710e2383fdbb77852d9f6d929e7bdb496271fafce3c",
+  "suite_command": "node --test scripts/lib001/pdf-originals.test.mjs scripts/lib001/library-ui.test.mjs scripts/lib001/migration.test.mjs scripts/lib001/publication-fault.test.mjs",
+  "exit": 0,
+  "suite_passed": 24,
+  "passed_test_ids": [
+    "LIB-001-T01",
+    "LIB-001-T02",
+    "LIB-001-T03",
+    "LIB-001-T04",
+    "LIB-001-T05",
+    "LIB-001-T06"
+  ],
+  "host_evidence": "docs/evidence/LIB-001/host-run.json",
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/LIB-001/independent.json",
+  "closed_review_items": [
+    "WRITE_LOCK_ORPHAN",
+    "REPLAY_MISSING_ORIGINAL",
+    "READ_LOCK_CONTENTION",
+    "PREPUBLICATION_SESSION_ORPHAN"
+  ],
+  "prior_candidate_failures": [
+    [
+      "aa24c4f",
+      "runner expected latest-only listing"
+    ],
+    [
+      "8d1e05c",
+      "browser rejection body read interrupted"
+    ],
+    [
+      "ae222e5",
+      "runner expected plugin JSON for upstream admission denial"
+    ]
+  ],
+  "complete_cases_claimed": []
+}

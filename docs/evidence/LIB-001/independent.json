@@ -1,0 +1,62 @@
+{
+  "unit_id": "LIB-001",
+  "candidate_sha": "5d9dc58866d518c496677b3e85ba60c217323291",
+  "entry_sha256": "075c94c39d003d18cd0a7710e2383fdbb77852d9f6d929e7bdb496271fafce3c",
+  "reviewer": "Descartes (independent Codex execution)",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/lib001/host-acceptance.mjs 5d9dc58866d518c496677b3e85ba60c217323291 075c94c39d003d18cd0a7710e2383fdbb77852d9f6d929e7bdb496271fafce3c",
+  "suite_command": "node --test scripts/lib001/pdf-originals.test.mjs scripts/lib001/library-ui.test.mjs scripts/lib001/migration.test.mjs scripts/lib001/publication-fault.test.mjs",
+  "suite": {
+    "passed": 24,
+    "failed": 0,
+    "skipped": 0
+  },
+  "started": "2026-11-19T09:27:51.522Z",
+  "finished": "2026-11-19T09:28:09.393Z",
+  "source_digests": {
+    "host-sLSbUe/summary.json": "0b85c6b1792b158d70859bedd4a9ba1982ce6e18c827e3219b12b8e6e1fb49a1",
+    "24-tests.log": "60326302aea8bbaaecff5fdbf5fe81d94d0c26a2408a515067e769e2e3d260cb",
+    "session-fault.log": "fc373adc7b351d911f34a7f98895b624478b05b420418c64f136656c50c3c29a"
+  },
+  "additional_probe": {
+    "after_put_files": 1,
+    "publish_calls": 0,
+    "status": 503,
+    "remaining_files": 0,
+    "blob_rows": 0,
+    "version_rows": 0
+  },
+  "results": [
+    {
+      "id": "LIB-001-T01",
+      "status": "PASS",
+      "observed": "Host restarted; persisted v1 matched 367 original bytes and SHA-256."
+    },
+    {
+      "id": "LIB-001-T02",
+      "status": "PASS",
+      "observed": "Malformed import 422; storage and publication failures visible; exact retries inserted no new version."
+    },
+    {
+      "id": "LIB-001-T03",
+      "status": "PASS",
+      "observed": "Changed bytes and stale parent rejected with 409; distinct originals remained readable."
+    },
+    {
+      "id": "LIB-001-T04",
+      "status": "PASS",
+      "observed": "Foreign user 404; anonymous and expired 401; missing marker and foreign origin 403."
+    },
+    {
+      "id": "LIB-001-T05",
+      "status": "PASS",
+      "observed": "Populated v6 rollback after injected v7 failure, then upgrade and reopen passed."
+    },
+    {
+      "id": "LIB-001-T06",
+      "status": "PASS",
+      "observed": "Chrome import, append, inline read and export matched SQLite: one asset, two versions, two blobs."
+    }
+  ]
+}
