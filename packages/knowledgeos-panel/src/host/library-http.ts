@@ -3,9 +3,18 @@ import type {IncomingMessage,ServerResponse} from 'node:http'
 import {AssetError,type AssetStore,type ImportSpec} from './asset-store.ts'
 import {PdfInputError,type PdfOriginals} from './pdf-originals.ts'
 import type {SessionActor} from './identity.ts'
+import type {ParseStore} from './parse-store.ts'
 
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/
 const max=64*1024*1024
+async function processInput(req:IncomingMessage){
+  if(req.headers['content-type']?.split(';')[0]!=='application/json')throw new AssetError(415,'JSON_REQUIRED')
+  let count=0;const parts:Buffer[]=[]
+  for await(const chunk of req){const b=Buffer.from(chunk);count+=b.length;if(count>1024)throw new AssetError(413,'BODY_TOO_LARGE');parts.push(b)}
+  let value;try{value=JSON.parse(Buffer.concat(parts).toString('utf8'))}catch{throw new AssetError(422,'INVALID_PROCESS')}
+  if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>!['version_id','page'].includes(k))||typeof value.version_id!=='string'||!uuid.test(value.version_id)||('page' in value&&(!Number.isSafeInteger(value.page)||value.page<1||value.page>10000)))throw new AssetError(422,'INVALID_PROCESS')
+  return value as {version_id:string,page?:number}
+}
 async function receive(req:IncomingMessage){
   const declared=req.headers['content-length'];if(declared!==undefined&&(!/^\d+$/.test(declared)||Number(declared)>max))throw new AssetError(413,'FILE_TOO_LARGE')
   const chunks:Buffer[]=[];let count=0
@@ -22,7 +31,7 @@ function specFor(req:IncomingMessage):ImportSpec {
   return {title,key,assetId,expectedVersion:Number(version)}
 }
 
-export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:()=>string|undefined,actorFor:(req:IncomingMessage)=>SessionActor|undefined){
+export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:()=>string|undefined,actorFor:(req:IncomingMessage)=>SessionActor|undefined, parses?:ParseStore){
   let transfers=0
   return async(req:IncomingMessage,res:ServerResponse)=>{
     const requestId=randomUUID();let transfer=false
@@ -56,6 +65,28 @@ export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:
         // A replay cleanup may have yielded; do not publish stale authorized metadata.
         store.original(current(),result.receipt.id,result.receipt.version_id,false)
         json(result.replayed?200:201,{data:result.receipt,request_id:requestId});return
+      }
+      const parse=/^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/parse(?:\/(start|cancel|retry\/([1-9]\d{0,4})))?$/.exec(url.pathname)
+      const processPath=/^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/process$/.exec(url.pathname)
+      const pagesPath=/^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/pages$/.exec(url.pathname)
+      const operation=/^\/knowledge\/v1\/operations\/([a-f0-9-]+)$/.exec(url.pathname)
+      const respond=(v:string,data:ReturnType<ParseStore['control']>,asyncRequest:boolean)=>{
+        const active=['queued','running'].includes(String(data.state)),location='/knowledge/v1/operations/'+v
+        if(asyncRequest&&active)res.setHeader('location',location)
+        json(asyncRequest&&active?202:200,{data:{...data,operation_id:v,status_url:location,cancellable:active},request_id:requestId})
+      }
+      if(operation && parses && req.method==='GET'&&!url.search&&uuid.test(operation[1]!)){respond(operation[1]!,parses.operation(current(),operation[1]!),false);return}
+      if(processPath && parses && req.method==='POST'&&!url.search&&uuid.test(processPath[1]!)){
+        const {version_id:v,page}=await processInput(req);respond(v,parses.control(current(),processPath[1]!,v,page?'retry':'start',page),true);return
+      }
+      if(pagesPath && parses && req.method==='GET'&&uuid.test(pagesPath[1]!)&&uuid.test(pagesPath[2]!)){
+        const keys=[...url.searchParams.keys()];if(keys.some(k=>!['from','limit'].includes(k))||new Set(keys).size!==keys.length)throw new AssetError(422,'INVALID_PAGE_RANGE')
+        const from=Number(url.searchParams.get('from')??1),limit=Number(url.searchParams.get('limit')??5)
+        json(200,{data:parses.pages(current(),pagesPath[1]!,pagesPath[2]!,from,limit),request_id:requestId});return
+      }
+      if(parse && parses && !url.search && uuid.test(parse[1]!) && uuid.test(parse[2]!) && req.method===(parse[3]?'POST':'GET')) {
+        const op=parse[4]?'retry':parse[3]==='start'?'start':parse[3]==='cancel'?'cancel':'status'
+        respond(parse[2]!,parses.control(current(),parse[1]!,parse[2]!,op,parse[4]?Number(parse[4]):undefined),op==='start'||op==='retry');return
       }
       const path=/^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/original$/.exec(url.pathname)
       if(req.method==='GET'&&path&&uuid.test(path[1]!)&&uuid.test(path[2]!)&&(!url.search||url.search==='?download=1')){

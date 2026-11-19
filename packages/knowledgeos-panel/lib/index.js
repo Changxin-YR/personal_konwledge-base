@@ -1,5 +1,5 @@
 // src/host/index.ts
-import { randomUUID as randomUUID12 } from "node:crypto";
+import { randomUUID as randomUUID13 } from "node:crypto";
 
 // src/host/status.ts
 var EXPECTED_UPSTREAM_COMMIT = "39163dd30f703a79079e2d2446545cff3c453738";
@@ -287,7 +287,7 @@ function createRecordsHandlers(service, basePath, log) {
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash3, randomUUID as randomUUID4 } from "node:crypto";
+import { createHash as createHash3, randomUUID as randomUUID5 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -542,9 +542,138 @@ var AssetStore = class {
   }
 };
 
+// src/host/parse-store.ts
+import { randomUUID as randomUUID4 } from "node:crypto";
+var PARSE_SCHEMA = `CREATE TABLE pdf_parse_runs (
+  version_id TEXT PRIMARY KEY REFERENCES asset_versions(id), session_id TEXT NOT NULL REFERENCES auth_sessions(id),
+  user_id TEXT NOT NULL REFERENCES users(id), state TEXT NOT NULL CHECK(state IN ('queued','running','complete','partial','failed','cancelled')),
+  total INTEGER NOT NULL DEFAULT 0 CHECK(total BETWEEN 0 AND 10000), token TEXT UNIQUE, deadline INTEGER,
+  losses INTEGER NOT NULL DEFAULT 0, error TEXT, CHECK ((state='running')=(token IS NOT NULL)), CHECK ((token IS NULL)=(deadline IS NULL))
+) STRICT;
+CREATE TABLE pdf_pages (
+  version_id TEXT NOT NULL REFERENCES pdf_parse_runs(version_id), page INTEGER NOT NULL CHECK(page>=1),
+  state TEXT NOT NULL CHECK(state IN ('pending','ready','review','failed')), chapter TEXT NOT NULL DEFAULT '',
+  text TEXT NOT NULL DEFAULT '', error TEXT, generation INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(version_id,page)
+) STRICT;
+CREATE INDEX pdf_pending ON pdf_pages(version_id,state,page);`;
+var leaseMs = 15e3;
+var ParseStore = class {
+  constructor(tx, permit) {
+    this.tx = tx;
+    this.permit = permit;
+  }
+  operation(actor2, v) {
+    const id = this.tx("read", (db, now) => {
+      const r = db.prepare("SELECT v.asset_id FROM pdf_parse_runs r JOIN asset_versions v ON v.id=r.version_id WHERE r.version_id=?").get(v);
+      if (!r || !this.permit(actor2.sessionId, actor2.userId, String(r.asset_id), false, now)) throw new AssetError(404, "ASSET_NOT_FOUND");
+      return String(r.asset_id);
+    });
+    return this.control(actor2, id, v, "status");
+  }
+  pages(actor2, id, v, from, limit) {
+    if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit) || limit < 1 || limit > 10) throw new AssetError(422, "INVALID_PAGE_RANGE");
+    return this.tx("read", (db, now) => {
+      if (!this.permit(actor2.sessionId, actor2.userId, id, false, now) || !db.prepare("SELECT 1 FROM asset_versions WHERE asset_id=? AND id=?").get(id, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
+      const rows = db.prepare(`SELECT page,state,chapter,error,CASE WHEN state IN ('ready','review') THEN text ELSE NULL END AS text
+        FROM pdf_pages WHERE version_id=? AND page>=? ORDER BY page LIMIT ?`).all(v, from, limit);
+      return { version_id: v, from, pages: rows };
+    });
+  }
+  control(actor2, id, v, op, page) {
+    return this.tx(op === "status" ? "read" : "write", (db, now) => {
+      if (!this.permit(actor2.sessionId, actor2.userId, id, op !== "status", now) || !db.prepare("SELECT 1 FROM asset_versions WHERE asset_id=? AND id=?").get(id, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
+      const prev = db.prepare("SELECT state FROM pdf_parse_runs WHERE version_id=?").get(v);
+      if (op === "start") {
+        if (!prev) db.prepare("INSERT INTO pdf_parse_runs(version_id,session_id,user_id,state) VALUES(?,?,?,'queued')").run(v, actor2.sessionId, actor2.userId);
+        else if (["failed", "cancelled"].includes(String(prev.state))) {
+          db.prepare("UPDATE pdf_parse_runs SET session_id=?,user_id=?,state='queued',error=NULL,losses=0 WHERE version_id=?").run(actor2.sessionId, actor2.userId, v);
+        }
+      } else if (op === "cancel") {
+        if (!prev || !["running", "queued", "cancelled"].includes(String(prev.state))) throw new AssetError(409, "PARSE_NOT_ACTIVE");
+        db.prepare("UPDATE pdf_parse_runs SET state='cancelled',token=NULL,deadline=NULL,error='CANCELLED' WHERE version_id=?").run(v);
+      } else if (op === "retry") {
+        if (!prev || prev.state !== "partial" || !page || !db.prepare("UPDATE pdf_pages SET state='pending',error=NULL WHERE version_id=? AND page=? AND state IN ('failed','review')").run(v, page).changes) throw new AssetError(409, "PAGE_NOT_RETRYABLE");
+        db.prepare("UPDATE pdf_parse_runs SET state='queued',session_id=?,user_id=?,error=NULL,losses=0 WHERE version_id=?").run(actor2.sessionId, actor2.userId, v);
+      }
+      const run = db.prepare("SELECT state,total,error FROM pdf_parse_runs WHERE version_id=?").get(v);
+      return { state: run?.state ?? "idle", total: run?.total ?? 0, error: run?.error ?? null, pages: db.prepare("SELECT page,state,chapter,error FROM pdf_pages WHERE version_id=? ORDER BY page").all(v) };
+    });
+  }
+  claim() {
+    if (!this.tx("read", (db, now) => db.prepare("SELECT 1 FROM pdf_parse_runs WHERE state='queued' OR (state='running' AND deadline<=?) LIMIT 1").get(Date.parse(now)))) return;
+    return this.tx("write", (db, now) => {
+      const ms = Date.parse(now);
+      db.prepare(`UPDATE pdf_parse_runs SET state=CASE WHEN losses>=3 THEN 'failed' ELSE 'queued' END,losses=losses+1,
+        token=NULL,deadline=NULL,error='LEASE_EXPIRED' WHERE state='running' AND deadline<=?`).run(ms);
+      const r = db.prepare(`SELECT r.version_id,r.session_id,r.user_id,v.asset_id,b.storage_key,b.sha256,b.byte_length
+        FROM pdf_parse_runs r JOIN asset_versions v ON v.id=r.version_id JOIN blobs b ON b.id=v.blob_id WHERE r.state='queued' ORDER BY r.rowid LIMIT 1`).get();
+      if (!r) return;
+      const version = String(r.version_id);
+      if (!this.permit(String(r.session_id), String(r.user_id), String(r.asset_id), true, now)) {
+        db.prepare("UPDATE pdf_parse_runs SET state='failed',error='AUTHORIZATION_LOST' WHERE version_id=?").run(version);
+        return;
+      }
+      const token = randomUUID4();
+      db.prepare("UPDATE pdf_parse_runs SET state='running',token=?,deadline=?,error=NULL WHERE version_id=?").run(token, ms + leaseMs, version);
+      return { version, token, key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length) };
+    });
+  }
+  leased(token, op) {
+    return this.tx("write", (db, now) => {
+      const ms = Date.parse(now), r = db.prepare(`SELECT r.*,v.asset_id FROM pdf_parse_runs r JOIN asset_versions v ON v.id=r.version_id
+        WHERE token=? AND state='running' AND deadline>?`).get(token, ms);
+      if (!r) return void 0;
+      if (!this.permit(String(r.session_id), String(r.user_id), String(r.asset_id), true, now)) {
+        db.prepare("UPDATE pdf_parse_runs SET state='failed',token=NULL,deadline=NULL,error='AUTHORIZATION_LOST' WHERE token=?").run(token);
+        return void 0;
+      }
+      return op(db, String(r.version_id), ms);
+    });
+  }
+  renew(token) {
+    return this.leased(token, (db, _v, ms) => Boolean(db.prepare("UPDATE pdf_parse_runs SET deadline=? WHERE token=?").run(ms + leaseMs, token).changes));
+  }
+  initialize(token, total) {
+    if (!Number.isSafeInteger(total) || total < 1 || total > 1e4) throw Error("PAGE_COUNT_LIMIT");
+    return this.leased(token, (db, v) => {
+      const before = Number(db.prepare("SELECT total FROM pdf_parse_runs WHERE version_id=?").get(v).total);
+      if (before && before !== total) throw Error("PAGE_COUNT_CHANGED");
+      if (!before) {
+        db.prepare("UPDATE pdf_parse_runs SET total=? WHERE version_id=?").run(total, v);
+        const insert = db.prepare("INSERT INTO pdf_pages(version_id,page,state) VALUES(?,?,'pending')");
+        for (let p = 1; p <= total; p++) insert.run(v, p);
+      }
+      return true;
+    });
+  }
+  next(token) {
+    return this.leased(token, (db, v) => {
+      const pending = db.prepare("SELECT page FROM pdf_pages WHERE version_id=? AND state='pending' ORDER BY page LIMIT 1").get(v);
+      if (pending) return Number(pending.page);
+      db.prepare(`UPDATE pdf_parse_runs SET state=CASE WHEN EXISTS(SELECT 1 FROM pdf_pages WHERE version_id=? AND state IN ('failed','review'))
+      THEN 'partial' ELSE 'complete' END,token=NULL,deadline=NULL,error=NULL WHERE version_id=?`).run(v, v);
+      return null;
+    });
+  }
+  publish(token, page, result) {
+    return this.leased(token, (db, v) => {
+      if (result && (result.text.length > 262144 || result.chapter.length > 512)) throw Error("PAGE_OUTPUT_LIMIT");
+      const state = result ? result.needsReview || !result.text.trim() ? "review" : "ready" : "failed";
+      const wrote = db.prepare(`UPDATE pdf_pages SET state=?,text=?,chapter=?,error=?,generation=generation+1
+      WHERE version_id=? AND page=? AND state='pending'`).run(state, result?.text ?? "", result?.chapter ?? "", result ? null : "PAGE_EXTRACTION_FAILED", v, page);
+      if (wrote.changes) db.prepare("UPDATE pdf_parse_runs SET losses=0 WHERE version_id=?").run(v);
+      return Boolean(wrote.changes);
+    });
+  }
+  fail(token) {
+    return this.leased(token, (db, v) => db.prepare("UPDATE pdf_parse_runs SET state='failed',token=NULL,deadline=NULL,error='DOCUMENT_UNAVAILABLE' WHERE version_id=?").run(v));
+  }
+};
+
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 7;
+var SCHEMA_VERSION = 8;
+var MIGRATION_V8_CHECKSUM = createHash3("sha256").update(PARSE_SCHEMA).digest("hex");
 var MIGRATION_V7_CHECKSUM = createHash3("sha256").update(ASSET_SCHEMA).digest("hex");
 var MIGRATION_V6_CHECKSUM = createHash3("sha256").update(JOB_SCHEMA).digest("hex");
 var BUSY_TIMEOUT_MS = 250;
@@ -766,7 +895,7 @@ var ProbeStorage = class {
   #state = "unavailable";
   #failure;
   #closed = false;
-  assets = new AssetStore((mode, op) => {
+  #assetTx = (mode, op) => {
     let db;
     try {
       db = this.#ensureReady();
@@ -782,10 +911,16 @@ var ProbeStorage = class {
       if (!this.#rollback(db)) throw this.#failure;
       throw e instanceof AssetError ? e : new AssetError(503, this.#mapError(e).code);
     }
-  }, (session, now) => {
+  };
+  #currentActor(session, now) {
     const ref = this.#ensureReady().prepare("SELECT token_hash FROM auth_sessions WHERE id=? AND user_id=?").get(session.sessionId, session.userId);
     return ref ? this.findActor(String(ref.token_hash), now) : void 0;
-  }, (actor2, id, action2, now) => Boolean(this.authorizeObject(actor2, id, action2, now)));
+  }
+  assets = new AssetStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (actor2, id, action2, now) => Boolean(this.authorizeObject(actor2, id, action2, now)));
+  parses = new ParseStore(this.#assetTx, (sessionId, userId, id, write, now) => {
+    const a = this.#currentActor({ sessionId, userId }, now);
+    return Boolean(a && this.authorizeObject(a, id, "read", now) && (!write || this.authorizeObject(a, id, "edit", now)));
+  });
   jobs = new JobStore((op) => {
     const db = this.#ensureReady();
     try {
@@ -850,12 +985,13 @@ var ProbeStorage = class {
       } else if (existing === "v3") {
         this.#migrateV4(db);
       }
-      if (existing !== "v6" && existing !== "v7") {
+      if (existing !== "v6" && existing !== "v7" && existing !== "v8") {
         if (existing !== "v5") this.#migrateV5(db);
         this.#migrateV6(db);
       }
-      if (existing !== "v7") this.#migrateV7(db);
-      this.#verify(db, 7);
+      if (existing !== "v7" && existing !== "v8") this.#migrateV7(db);
+      if (existing !== "v8") this.#migrateV8(db);
+      this.#verify(db, 8);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
       this.#db = db;
@@ -922,14 +1058,14 @@ var ProbeStorage = class {
       }
       return "v5";
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8) {
       const db = new DatabaseSync(path, { readOnly: true });
       try {
         this.#verify(db, facts.userVersion);
       } finally {
         db.close();
       }
-      return facts.userVersion === 6 ? "v6" : "v7";
+      return facts.userVersion === 6 ? "v6" : facts.userVersion === 7 ? "v7" : "v8";
     }
     throw new RecordsError("STORAGE_INCOMPATIBLE", "database schema version is not supported");
   }
@@ -1080,7 +1216,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID4());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID5());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -1166,13 +1302,26 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "asset migration failed", false, { cause: e });
     }
   }
+  #migrateV8(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(PARSE_SCHEMA);
+      this.#injectFailure("v8:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(8,?,?)").run(MIGRATION_V8_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=8; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "parse migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || facts.ledger[5]?.version !== 6 || facts.ledger[5].checksum !== MIGRATION_V6_CHECKSUM || version === 7 && (facts.ledger[6]?.version !== 7 || facts.ledger[6].checksum !== MIGRATION_V7_CHECKSUM)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
+    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || facts.ledger[5]?.version !== 6 || facts.ledger[5].checksum !== MIGRATION_V6_CHECKSUM || version >= 7 && (facts.ledger[6]?.version !== 7 || facts.ledger[6].checksum !== MIGRATION_V7_CHECKSUM) || version === 8 && (facts.ledger[7]?.version !== 8 || facts.ledger[7].checksum !== MIGRATION_V8_CHECKSUM)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
       reference.exec(JOB_SCHEMA);
-      if (version === 7) reference.exec(ASSET_SCHEMA);
+      if (version >= 7) reference.exec(ASSET_SCHEMA);
+      if (version >= 8) reference.exec(PARSE_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name: name2, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name2)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -1275,9 +1424,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID4();
-      const spaceId = randomUUID4();
-      const credentialId = randomUUID4();
+      const userId = randomUUID5();
+      const spaceId = randomUUID5();
+      const credentialId = randomUUID5();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -1311,9 +1460,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID4();
-      const spaceId = randomUUID4();
-      const credentialId = randomUUID4();
+      const userId = randomUUID5();
+      const spaceId = randomUUID5();
+      const credentialId = randomUUID5();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -1478,7 +1627,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action2 of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID4(), input.serviceId, input.id, input.ownerUserId, action2, input.now, input.now);
+        for (const action2 of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID5(), input.serviceId, input.id, input.ownerUserId, action2, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -1634,7 +1783,7 @@ var ProbeStorage = class {
 };
 
 // src/host/identity.ts
-import { createHash as createHash4, randomBytes, randomUUID as randomUUID5, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
+import { createHash as createHash4, randomBytes, randomUUID as randomUUID6, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
 var DOMAINS = ["software_engineering", "system_architecture", "hardware_engineering", "ai_development"];
 var LEARNING_TRACKS = ["engineering_practice", "architecture_exam", "knowledge_accumulation"];
 var DEFAULT_TIMEZONE = "Asia/Shanghai";
@@ -1915,7 +2064,7 @@ var IdentityService = class {
     const token = makeToken();
     const createdAt = /* @__PURE__ */ new Date();
     const expiresAt = new Date(createdAt.getTime() + SESSION_TTL_MS).toISOString();
-    this.#store.createSession({ sessionId: randomUUID5(), userId: lookup.userId, tokenHash: tokenHash(token), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
+    this.#store.createSession({ sessionId: randomUUID6(), userId: lookup.userId, tokenHash: tokenHash(token), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
     const user = this.#store.getProfile(lookup.userId);
     if (user === void 0) throw new IdentityError("STORAGE_UNAVAILABLE", "user profile unavailable");
     return { user, token, expiresAt };
@@ -1943,7 +2092,7 @@ var IdentityService = class {
 };
 
 // src/host/identity-http.ts
-import { createHash as createHash5, randomUUID as randomUUID6 } from "node:crypto";
+import { createHash as createHash5, randomUUID as randomUUID7 } from "node:crypto";
 import { isIP } from "node:net";
 var HttpError = class extends Error {
   constructor(status, code, message, retryable = false, headers = {}) {
@@ -2150,7 +2299,7 @@ function createIdentityHandlers(options) {
     return actor2;
   };
   const dispatch = async (req, res, action2) => {
-    const requestId = randomUUID6();
+    const requestId = randomUUID7();
     try {
       assertAvailable();
       assertNoQuery(req);
@@ -2179,7 +2328,7 @@ function createIdentityHandlers(options) {
     requireMethod(req, "GET");
     assertTrust(req, false);
     const state = service.setupState;
-    sendJson2(res, 200, withMeta(randomUUID6(), { setup_required: !state.initialized, available: true }));
+    sendJson2(res, 200, withMeta(randomUUID7(), { setup_required: !state.initialized, available: true }));
   });
   const bootstrap = async (req, res, peer) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -2190,7 +2339,7 @@ function createIdentityHandlers(options) {
     const body = bodyObject(await readBody2(req));
     assertKeys(body, ["login_name", "password", "display_name", "timezone"]);
     const user = await service.bootstrap({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, source: requestSource(req), signal });
-    sendJson2(res, 201, withMeta(randomUUID6(), safeProfile(user)));
+    sendJson2(res, 201, withMeta(randomUUID7(), safeProfile(user)));
   });
   const register = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -2200,7 +2349,7 @@ function createIdentityHandlers(options) {
     const body = bodyObject(await readBody2(req));
     assertKeys(body, ["login_name", "password", "display_name", "timezone"]);
     const user = await service.register({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, source: requestSource(req), signal });
-    sendJson2(res, 201, withMeta(randomUUID6(), safeProfile(user)));
+    sendJson2(res, 201, withMeta(randomUUID7(), safeProfile(user)));
   });
   const login = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -2215,7 +2364,7 @@ function createIdentityHandlers(options) {
     const state = service.setupState;
     const name2 = businessCookieName(state.serviceId, origin);
     const maxAge = Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1e3);
-    sendJson2(res, 200, withMeta(randomUUID6(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin, options.protocol(), maxAge) });
+    sendJson2(res, 200, withMeta(randomUUID7(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin, options.protocol(), maxAge) });
   });
   const logout = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -2236,7 +2385,7 @@ function createIdentityHandlers(options) {
     const actor2 = requireActor(req);
     const profile = service.profile(actor2.userId);
     if (profile === void 0) throw new HttpError(401, "SESSION_EXPIRED", "business session is required");
-    sendJson2(res, 200, withMeta(randomUUID6(), safeProfile(profile)));
+    sendJson2(res, 200, withMeta(randomUUID7(), safeProfile(profile)));
   });
   const preferences = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "PATCH");
@@ -2253,14 +2402,14 @@ function createIdentityHandlers(options) {
     if (body.learning_tracks !== void 0) patch.learningTracks = validateLearningTracks(body.learning_tracks);
     if (body.goal_text !== void 0) patch.goalText = validateGoalText(body.goal_text);
     if (Object.keys(patch).length === 0) throw new HttpError(422, "INPUT_INVALID", "at least one preference is required");
-    sendJson2(res, 200, withMeta(randomUUID6(), safeProfile(service.preferences(actor2.userId, expectedRevision, patch))));
+    sendJson2(res, 200, withMeta(randomUUID7(), safeProfile(service.preferences(actor2.userId, expectedRevision, patch))));
   });
   const spaces = async (req, res) => dispatch(req, res, () => {
     requireMethod(req, "GET");
     assertTrust(req, false);
     const actor2 = requireActor(req);
     const data = service.spaces(actor2.userId).map((space) => ({ id: space.id, service_id: space.serviceId, kind: space.kind, owner_user_id: space.ownerUserId, status: space.status, revision: space.revision, created_at: space.createdAt, updated_at: space.updatedAt }));
-    sendJson2(res, 200, withMeta(randomUUID6(), data));
+    sendJson2(res, 200, withMeta(randomUUID7(), data));
   });
   return { status, bootstrap, register, login, logout, me, preferences, spaces };
 }
@@ -2277,7 +2426,7 @@ function buildSetupHtml() {
 }
 
 // src/host/objects-http.ts
-import { randomUUID as randomUUID7 } from "node:crypto";
+import { randomUUID as randomUUID8 } from "node:crypto";
 var ObjectHttpError = class extends Error {
   constructor(status, code, message) {
     super(message);
@@ -2340,7 +2489,7 @@ function actor(options, req) {
 }
 function createObjectHandlers(options) {
   return async (req, res) => {
-    const requestId = randomUUID7();
+    const requestId = randomUUID8();
     try {
       const path = pathOf(req);
       const segments = path.split("/").filter(Boolean);
@@ -2365,7 +2514,7 @@ function createObjectHandlers(options) {
       if (segments[2] === "projects" && segments.length === 3 && req.method === "POST") {
         const body = await readBody3(req);
         keys(body, ["name"]);
-        const project = options.storage.createProject({ id: randomUUID7(), serviceId: current.serviceId, ownerUserId: current.userId, name: text(body.name, "name", 200), now });
+        const project = options.storage.createProject({ id: randomUUID8(), serviceId: current.serviceId, ownerUserId: current.userId, name: text(body.name, "name", 200), now });
         json(res, 201, { data: project, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
         return;
       }
@@ -2395,7 +2544,7 @@ function createObjectHandlers(options) {
           if (scope === "project" && !options.storage.canCreateProjectObject(current, projectId, now)) throw new ObjectHttpError(404, "NOT_FOUND", "project not found");
           const title = text(body.title, "title", 200);
           const content = text(body.body, "body", 1e5);
-          const object = options.storage.createObject({ id: randomUUID7(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId, ownerUserId: current.userId, objectType: body.object_type === void 0 ? "note" : text(body.object_type, "object_type", 80), title, body: content, now });
+          const object = options.storage.createObject({ id: randomUUID8(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId, ownerUserId: current.userId, objectType: body.object_type === void 0 ? "note" : text(body.object_type, "object_type", 80), title, body: content, now });
           json(res, 201, { data: safeObject(object), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
           return;
         }
@@ -2436,7 +2585,7 @@ function createObjectHandlers(options) {
         const body = await readBody3(req);
         keys(body, ["object_id", "subject_type", "subject_id", "action", "valid_from", "expires_at"]);
         if (body.subject_type !== "user" && body.subject_type !== "project") throw new ObjectHttpError(422, "INPUT_INVALID", "subject_type is invalid");
-        const grant = options.storage.grantObject(current, { id: randomUUID7(), objectId: text(body.object_id, "object_id", 80), serviceId: current.serviceId, subjectType: body.subject_type, subjectId: text(body.subject_id, "subject_id", 80), action: action(body.action), validFrom: body.valid_from === void 0 ? now : text(body.valid_from, "valid_from", 40), expiresAt: body.expires_at === void 0 ? void 0 : text(body.expires_at, "expires_at", 40), now });
+        const grant = options.storage.grantObject(current, { id: randomUUID8(), objectId: text(body.object_id, "object_id", 80), serviceId: current.serviceId, subjectType: body.subject_type, subjectId: text(body.subject_id, "subject_id", 80), action: action(body.action), validFrom: body.valid_from === void 0 ? now : text(body.valid_from, "valid_from", 40), expiresAt: body.expires_at === void 0 ? void 0 : text(body.expires_at, "expires_at", 40), now });
         if (grant === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
         json(res, 201, { data: grant, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
         return;
@@ -2471,7 +2620,7 @@ function createObjectHandlers(options) {
 }
 
 // src/host/ai-service.ts
-import { randomUUID as randomUUID8 } from "node:crypto";
+import { randomUUID as randomUUID9 } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 // src/host/ai-tools.ts
@@ -2651,7 +2800,7 @@ var AiService = class {
       if (finish !== "tool-calls" || calls.length !== 1) throw new AiError(502, "MODEL_OUTPUT_INVALID");
       const call = calls[0], args = toolArguments(call);
       if (args.object_id !== objectId || call.name === TOOL_NAMES[1] && args.expected_revision !== raw.expected_revision) throw new AiError(422, "MODEL_TARGET_MISMATCH");
-      const prepared = { id: randomUUID8(), requestId, actor: actor2, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
+      const prepared = { id: randomUUID9(), requestId, actor: actor2, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
       this.#prepared.set(prepared.id, prepared);
       return { ...this.#view(prepared), usage: usage ?? null };
     } catch (error) {
@@ -2753,10 +2902,10 @@ var AiService = class {
 };
 
 // src/host/ai-http.ts
-import { randomUUID as randomUUID9 } from "node:crypto";
+import { randomUUID as randomUUID10 } from "node:crypto";
 function createAiHandler(options) {
   return async (req, res) => {
-    const requestId = randomUUID9(), controller = new AbortController();
+    const requestId = randomUUID10(), controller = new AbortController();
     const disconnect = () => {
       if (!res.writableEnded) controller.abort();
     };
@@ -2840,7 +2989,7 @@ body{margin:0;background:#f4f8f8;color:#23333a;font:15px/1.65 "Segoe UI","Micros
 import { join as join3 } from "node:path";
 
 // src/host/pdf-originals.ts
-import { createHash as createHash7, randomUUID as randomUUID10 } from "node:crypto";
+import { createHash as createHash7, randomUUID as randomUUID11 } from "node:crypto";
 import { constants } from "node:fs";
 import fs from "node:fs/promises";
 import { dirname, join as join2, resolve } from "node:path";
@@ -2975,8 +3124,8 @@ var PdfOriginals = class {
   async #write(data) {
     const sha256 = digest(data);
     await this.#directory(true);
-    const stage = join2(this.#root, `.${randomUUID10()}.pending`);
-    const key = `${randomUUID10()}.pdf`, final = join2(this.#root, key);
+    const stage = join2(this.#root, `.${randomUUID11()}.pending`);
+    const key = `${randomUUID11()}.pdf`, final = join2(this.#root, key);
     const file = await fs.open(stage, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | noFollow, 384);
     let id, staged = true, linked = false;
     try {
@@ -3055,9 +3204,28 @@ var PdfOriginals = class {
 };
 
 // src/host/library-http.ts
-import { randomUUID as randomUUID11 } from "node:crypto";
+import { randomUUID as randomUUID12 } from "node:crypto";
 var uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 var max = 64 * 1024 * 1024;
+async function processInput(req) {
+  if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
+  let count = 0;
+  const parts = [];
+  for await (const chunk of req) {
+    const b = Buffer.from(chunk);
+    count += b.length;
+    if (count > 1024) throw new AssetError(413, "BODY_TOO_LARGE");
+    parts.push(b);
+  }
+  let value;
+  try {
+    value = JSON.parse(Buffer.concat(parts).toString("utf8"));
+  } catch {
+    throw new AssetError(422, "INVALID_PROCESS");
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((k) => !["version_id", "page"].includes(k)) || typeof value.version_id !== "string" || !uuid.test(value.version_id) || "page" in value && (!Number.isSafeInteger(value.page) || value.page < 1 || value.page > 1e4)) throw new AssetError(422, "INVALID_PROCESS");
+  return value;
+}
 async function receive(req) {
   const declared = req.headers["content-length"];
   if (declared !== void 0 && (!/^\d+$/.test(declared) || Number(declared) > max)) throw new AssetError(413, "FILE_TOO_LARGE");
@@ -3086,10 +3254,10 @@ function specFor(req) {
   if (typeof assetId !== "string" || !uuid.test(assetId) || typeof version !== "string" || !/^\d{1,9}$/.test(version) || Number(version) < 1) throw new AssetError(422, "INVALID_VERSION");
   return { title, key, assetId, expectedVersion: Number(version) };
 }
-function libraryHandler(store, originals, origin, actorFor) {
+function libraryHandler(store, originals, origin, actorFor, parses) {
   let transfers = 0;
   return async (req, res) => {
-    const requestId = randomUUID11();
+    const requestId = randomUUID12();
     let transfer = false;
     res.setHeader("cache-control", "no-store");
     res.setHeader("x-content-type-options", "nosniff");
@@ -3152,6 +3320,36 @@ function libraryHandler(store, originals, origin, actorFor) {
         json2(result.replayed ? 200 : 201, { data: result.receipt, request_id: requestId });
         return;
       }
+      const parse2 = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/parse(?:\/(start|cancel|retry\/([1-9]\d{0,4})))?$/.exec(url.pathname);
+      const processPath = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/process$/.exec(url.pathname);
+      const pagesPath = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/pages$/.exec(url.pathname);
+      const operation = /^\/knowledge\/v1\/operations\/([a-f0-9-]+)$/.exec(url.pathname);
+      const respond = (v, data, asyncRequest) => {
+        const active2 = ["queued", "running"].includes(String(data.state)), location = "/knowledge/v1/operations/" + v;
+        if (asyncRequest && active2) res.setHeader("location", location);
+        json2(asyncRequest && active2 ? 202 : 200, { data: { ...data, operation_id: v, status_url: location, cancellable: active2 }, request_id: requestId });
+      };
+      if (operation && parses && req.method === "GET" && !url.search && uuid.test(operation[1])) {
+        respond(operation[1], parses.operation(current(), operation[1]), false);
+        return;
+      }
+      if (processPath && parses && req.method === "POST" && !url.search && uuid.test(processPath[1])) {
+        const { version_id: v, page } = await processInput(req);
+        respond(v, parses.control(current(), processPath[1], v, page ? "retry" : "start", page), true);
+        return;
+      }
+      if (pagesPath && parses && req.method === "GET" && uuid.test(pagesPath[1]) && uuid.test(pagesPath[2])) {
+        const keys2 = [...url.searchParams.keys()];
+        if (keys2.some((k) => !["from", "limit"].includes(k)) || new Set(keys2).size !== keys2.length) throw new AssetError(422, "INVALID_PAGE_RANGE");
+        const from = Number(url.searchParams.get("from") ?? 1), limit = Number(url.searchParams.get("limit") ?? 5);
+        json2(200, { data: parses.pages(current(), pagesPath[1], pagesPath[2], from, limit), request_id: requestId });
+        return;
+      }
+      if (parse2 && parses && !url.search && uuid.test(parse2[1]) && uuid.test(parse2[2]) && req.method === (parse2[3] ? "POST" : "GET")) {
+        const op = parse2[4] ? "retry" : parse2[3] === "start" ? "start" : parse2[3] === "cancel" ? "cancel" : "status";
+        respond(parse2[2], parses.control(current(), parse2[1], parse2[2], op, parse2[4] ? Number(parse2[4]) : void 0), op === "start" || op === "retry");
+        return;
+      }
       const path = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/original$/.exec(url.pathname);
       if (req.method === "GET" && path && uuid.test(path[1]) && uuid.test(path[2]) && (!url.search || url.search === "?download=1")) {
         reserve();
@@ -3176,12 +3374,292 @@ function libraryHandler(store, originals, origin, actorFor) {
   };
 }
 
+// src/host/parse-worker.ts
+function startParseWorker(store, originals, open, log) {
+  let stopped = false, pending;
+  async function tick() {
+    const job = store.claim();
+    if (!job) return;
+    let doc, active2 = true;
+    const heart = setInterval(() => {
+      try {
+        if (!store.renew(job.token)) active2 = false;
+      } catch {
+        active2 = false;
+      }
+    }, 4e3);
+    try {
+      const bytes = await originals.read(job.key, job.sha256, job.byteLength);
+      if (stopped || !active2 || !store.renew(job.token)) return;
+      doc = await open(bytes);
+      if (stopped || !active2 || !store.initialize(job.token, doc.numPages)) return;
+      let consecutiveFailures = 0;
+      while (!stopped && active2) {
+        const page = store.next(job.token);
+        if (page == null) break;
+        if (!doc) {
+          if (consecutiveFailures >= 3) {
+            store.fail(job.token);
+            break;
+          }
+          doc = await open(bytes);
+          if (!store.initialize(job.token, doc.numPages)) break;
+        }
+        let result;
+        try {
+          result = await doc.page(page);
+          consecutiveFailures = 0;
+        } catch {
+          result = null;
+          consecutiveFailures++;
+          await doc.close();
+          doc = void 0;
+        }
+        if (stopped || !active2 || !store.publish(job.token, page, result)) break;
+        await new Promise((resolve2) => setImmediate(resolve2));
+      }
+    } catch {
+      if (!stopped && active2) store.fail(job.token);
+    } finally {
+      clearInterval(heart);
+      await doc?.close();
+    }
+  }
+  const timer = setInterval(() => {
+    if (!stopped && !pending) pending = tick().catch(() => log("knowledgeos-parse: worker temporarily unavailable")).finally(() => {
+      pending = void 0;
+    });
+  }, 500);
+  timer.unref();
+  return async () => {
+    stopped = true;
+    clearInterval(timer);
+    await pending;
+  };
+}
+
+// src/host/pdf-extractor.ts
+import { readFile } from "node:fs/promises";
+import { Worker, parentPort, workerData } from "node:worker_threads";
+var MiB = 1024 * 1024;
+var MAX_BYTES = 64 * MiB;
+var MAX_MEMORY = 256 * MiB;
+var MAX_PAGES = 1e4;
+var MAX_CHARS = 32e3;
+var MAX_BOOKMARKS = 2048;
+var MAX_TITLE_BYTES = 512;
+var DEADLINE_MS = 15e3;
+var MAX_WORKERS = 2;
+var role = "knowledgeos:pdf-extractor:v1";
+var active = 0;
+function pdfError(code, message) {
+  return Object.assign(new Error(message), { code });
+}
+async function openPdf(bytes) {
+  if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX_BYTES)
+    throw pdfError("PDF_OPEN_FAILED", "Invalid PDF input size or type");
+  if (active >= MAX_WORKERS) throw pdfError("PDF_BUSY", "PDF extractor busy");
+  const copy = new Uint8Array(bytes);
+  const worker = new Worker(new URL("./pdf-extractor.js", import.meta.url), {
+    workerData: role,
+    env: {},
+    execArgv: [],
+    resourceLimits: { maxOldGenerationSizeMb: 48, maxYoungGenerationSizeMb: 8 }
+  });
+  active++;
+  let pending;
+  let closing;
+  const close = () => {
+    if (!closing) {
+      closing = worker.terminate().then(() => {
+      }).finally(() => {
+        active--;
+      });
+      pending?.({ error: "PDF closed", fatal: true });
+    }
+    return closing;
+  };
+  function fail(error) {
+    pending?.({ error, fatal: true });
+    void close();
+  }
+  worker.on("message", (msg) => {
+    pending?.(msg);
+    if ("error" in msg && msg.fatal) void close();
+  });
+  worker.on("error", () => fail("PDF worker failed"));
+  worker.on("exit", () => fail("PDF worker exited"));
+  function request(input) {
+    if (closing) return Promise.reject(pdfError("PDF_HANDLE_CLOSED", "PDF closed"));
+    if (pending) return Promise.reject(pdfError("PDF_BUSY", "PDF extractor busy"));
+    return new Promise((resolve2, reject) => {
+      const timer = setTimeout(() => fail("PDF parser deadline exceeded"), DEADLINE_MS);
+      pending = (msg) => {
+        clearTimeout(timer);
+        pending = void 0;
+        if ("error" in msg) {
+          const code = typeof input !== "number" ? "PDF_OPEN_FAILED" : msg.fatal ? "PDF_HANDLE_CLOSED" : "PDF_PAGE_FAILED";
+          reject(pdfError(code, msg.error));
+        } else resolve2(msg.value);
+      };
+      try {
+        worker.postMessage(input, typeof input === "number" ? [] : [input.buffer]);
+      } catch {
+        fail("PDF worker unavailable");
+      }
+    });
+  }
+  try {
+    const numPages = await request(copy);
+    return { numPages, close, async page(n) {
+      if (!Number.isInteger(n) || n < 1 || n > numPages) throw new RangeError("Invalid PDF page number");
+      return await request(n);
+    } };
+  } catch (error) {
+    await close();
+    throw error;
+  }
+}
+async function loadEngine() {
+  const binary = await readFile(new URL("./pdfium.wasm", import.meta.url));
+  const module = await WebAssembly.compile(binary);
+  let api;
+  const abort = () => {
+    throw new Error("PDF parser stopped");
+  };
+  const env = {
+    _abort_js: abort,
+    __assert_fail: abort,
+    _emscripten_throw_longjmp: abort,
+    emscripten_date_now: () => 0,
+    _tzset_js: abort,
+    _localtime_js: abort,
+    _gmtime_js: abort,
+    _emscripten_memcpy_js: (to, from, len) => {
+      new Uint8Array(api.memory.buffer).copyWithin(to, from, from + len);
+    },
+    emscripten_resize_heap: (size) => {
+      const old = api.memory.buffer.byteLength;
+      if (size >>> 0 > MAX_MEMORY) throw new Error("PDF parser memory limit");
+      const target = Math.min(MAX_MEMORY, Math.max(size >>> 0, old + 8 * MiB));
+      api.memory.grow(Math.ceil((target - old) / 65536));
+      return 1;
+    }
+  };
+  for (const { name: name2, module: ns } of WebAssembly.Module.imports(module)) {
+    if (ns === "env" && /^invoke_[vi]+$/.test(name2))
+      env[name2] = (i, ...args) => api.__indirect_function_table.get(i)(...args);
+  }
+  for (const op of ["openat", "fcntl64", "ioctl", "fstat64", "stat64", "newfstatat", "lstat64", "getdents64", "unlinkat", "rmdir", "ftruncate64"])
+    env["__syscall_" + op] = () => -44;
+  const wasi = {};
+  for (const op of ["fd_close", "fd_write", "fd_read", "fd_sync", "fd_seek", "environ_get", "environ_sizes_get"])
+    wasi[op] = () => 76;
+  const instance = await WebAssembly.instantiate(module, { env, wasi_snapshot_preview1: wasi });
+  api = instance.exports;
+  api.emscripten_stack_init();
+  api.__wasm_call_ctors();
+  api.FPDF_InitLibrary();
+  return api;
+}
+function allocate(api, n) {
+  const ptr = api.malloc(n);
+  if (!ptr) throw new Error("PDF parser allocation failed");
+  return ptr;
+}
+function chapters(api, doc, pages) {
+  const titles = /* @__PURE__ */ new Map(), seen = /* @__PURE__ */ new Set();
+  const buf = allocate(api, MAX_TITLE_BYTES);
+  try {
+    for (let bm = api.FPDFBookmark_GetFirstChild(doc, 0); bm; bm = api.FPDFBookmark_GetNextSibling(doc, bm)) {
+      if (seen.has(bm) || seen.size >= MAX_BOOKMARKS) return /* @__PURE__ */ new Map();
+      seen.add(bm);
+      let dest = api.FPDFBookmark_GetDest(doc, bm);
+      if (!dest) {
+        const action2 = api.FPDFBookmark_GetAction(bm);
+        if (action2 && api.FPDFAction_GetType(action2) === 1) dest = api.FPDFAction_GetDest(doc, action2);
+      }
+      if (!dest) continue;
+      const n = api.FPDFDest_GetDestPageIndex(doc, dest) + 1;
+      if (n < 1 || n > pages || titles.has(n)) continue;
+      const len = api.FPDFBookmark_GetTitle(bm, buf, MAX_TITLE_BYTES);
+      if (len < 4 || len > MAX_TITLE_BYTES || len % 2) continue;
+      const title = new TextDecoder("utf-16le").decode(new Uint8Array(api.memory.buffer, buf, len - 2)).replace(/[\p{Cc}\p{Cf}]/gu, " ").trim();
+      if (title) titles.set(n, title);
+    }
+    return titles;
+  } finally {
+    api.free(buf);
+  }
+}
+var PageFailure = class extends Error {
+};
+async function parse(bytes) {
+  const api = await loadEngine(), ptr = allocate(api, bytes.length);
+  new Uint8Array(api.memory.buffer, ptr, bytes.length).set(bytes);
+  const doc = api.FPDF_LoadMemDocument(ptr, bytes.length, 0);
+  if (!doc) throw new Error("Invalid or password-protected PDF");
+  if (api.FPDF_GetSecurityHandlerRevision(doc) >= 0) throw new Error("Encrypted PDF is not supported");
+  const numPages = api.FPDF_GetPageCount(doc);
+  if (numPages < 1 || numPages > MAX_PAGES) throw new Error("Invalid or excessive PDF page count");
+  const titles = chapters(api, doc, numPages);
+  const labels = [""];
+  for (let i = 1; i <= numPages; i++) labels.push(titles.get(i) ?? labels[i - 1]);
+  function page(n) {
+    const p = api.FPDF_LoadPage(doc, n - 1);
+    if (!p) throw new PageFailure("Failed to load PDF page");
+    try {
+      const tp = api.FPDFText_LoadPage(p);
+      if (!tp) throw new PageFailure("Failed to load PDF page text");
+      try {
+        const count = api.FPDFText_CountChars(tp);
+        if (count < 0 || count > MAX_CHARS) throw new PageFailure("Invalid or excessive PDF page text length");
+        const objects = api.FPDFPage_CountObjects(p);
+        let text2 = "", needsReview = objects < 0 || objects > 4096;
+        for (let i = 0; i < objects && !needsReview; i++) {
+          const type = api.FPDFPageObj_GetType(api.FPDFPage_GetObject(p, i));
+          needsReview = type === 0 || type === 3 || type === 5;
+        }
+        for (let i = 0; i < count; i++) {
+          const ch = api.FPDFText_GetUnicode(tp, i);
+          if (api.FPDFText_HasUnicodeMapError(tp, i) !== 0 || !ch || ch > 1114111) needsReview = true;
+          text2 += ch && ch <= 1114111 ? String.fromCodePoint(ch) : "\uFFFD";
+        }
+        text2 = text2.toWellFormed().replace(/\r\n?/g, "\n").trim();
+        needsReview ||= !text2 || /[\ufffd\p{Co}\x00-\x08\x0b\x0c\x0e-\x1f]/u.test(text2);
+        return { text: text2, needsReview, chapter: labels[n] };
+      } finally {
+        api.FPDFText_ClosePage(tp);
+      }
+    } finally {
+      api.FPDF_ClosePage(p);
+    }
+  }
+  return { numPages, page };
+}
+if (parentPort && workerData === role) {
+  const port = parentPort;
+  let document;
+  port.on("message", async (input) => {
+    try {
+      if (typeof input !== "number") {
+        document = await parse(input);
+        port.postMessage({ value: document.numPages });
+      } else port.postMessage({ value: document.page(input) });
+    } catch (err) {
+      const error = err instanceof Error ? err.message : "PDF parser failed";
+      port.postMessage({ error, fatal: !(err instanceof PageFailure) });
+    }
+  });
+}
+
 // src/host/library-page.ts
 function buildLibraryHtml() {
   return String.raw`<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>PDF 资料库 · KnowledgeOS</title><style>
 *{box-sizing:border-box}body{margin:0;color:#223638;background:#f8faf9;font:15px/1.55 "Segoe UI","Microsoft YaHei UI",sans-serif}header{background:#fff;border-bottom:1px solid #d2ddda}header>div,main{max-width:900px;margin:auto;padding:0 22px}header>div,nav,.bar,.links{display:flex;align-items:center;gap:18px;flex-wrap:wrap}header>div{justify-content:space-between;min-height:54px;padding-block:8px}header strong{color:#18565a;font-size:19px}a{color:#176166;text-underline-offset:3px}main{padding-block:24px}h1,h2,p,dl{margin:0}h1{font-size:26px}h2{font-size:18px}section{margin-top:20px;border-top:1px solid #cbd9d6;padding-top:16px}.bar{justify-content:space-between;gap:8px}.muted,dt,small{color:#536866}#who{overflow-wrap:anywhere}form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) auto;align-items:end;gap:12px;margin-top:12px}label{display:grid;gap:5px;font-weight:600}input,select,button{font:inherit}input,select{width:100%;min-width:0;color:inherit;background:white;border:1px solid #889f9c;border-radius:5px;padding:7px;height:42px}input::file-selector-button{border:0;border-right:1px solid #ccd8d5;background:white;color:#18565a;margin-right:8px;padding:2px 8px 2px 0}button{border:1px solid #698c88;border-radius:5px;padding:6px 12px;background:white;color:#215c5c;cursor:pointer}button[type=submit]{background:#226461;color:white;height:42px}button:disabled,input:disabled,select:disabled{opacity:.6;cursor:default}:focus-visible{outline:3px solid #176d92;outline-offset:3px}#status{margin-top:12px;border-left:3px solid #9ebcb4;padding-left:9px;color:#354d48}#status[data-error]{border-color:#ae622e;color:#794019}#receipt{border-color:#669d90}.entry{padding:12px 0;overflow-wrap:anywhere}.entry+.entry{border-top:1px solid #dde5e2}.entry strong{display:block}.entry dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:3px 12px;margin:5px 0}.entry dd{margin:0}.hash{font:13px/1.7 Consolas,monospace}.links{gap:15px;margin-top:6px}#list>p{padding-block:12px}[hidden]{display:none!important}@media(max-width:640px){header>div,main{padding-inline:14px}main{padding-top:18px}form{grid-template-columns:minmax(0,1fr)}form button{justify-self:start}nav{gap:12px}}
+#parse-picker{margin:8px 0;max-width:36rem}#parse-panel{overflow-wrap:anywhere}#parse-panel .links{gap:8px}#parse-pages{list-style:none;margin:8px 0;padding:0}#parse-pages li{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;border-top:1px solid #dde5e2;padding:6px 0}#parse-pages strong{min-width:5em}#parse-pages small{flex-basis:100%}#parse-note{color:#794019}
 </style></head><body>
 <header><div><strong>KnowledgeOS</strong><nav aria-label="业务导航"><a href="/knowledgeos/account">账号与登录</a><a href="/knowledgeos/ai">AI 工具</a></nav></div></header>
 <main><div class="bar"><h1>PDF 资料库</h1><span id="who" class="muted"></span></div>
@@ -3191,6 +3669,11 @@ function buildLibraryHtml() {
 <button id="submit" type="submit" disabled>导入 PDF</button></form>
 <p id="status" role="status" aria-live="polite" aria-atomic="true">正在核对登录…</p></section>
 <section id="receipt" aria-labelledby="receipt-heading" hidden><h2 id="receipt-heading">导入回执</h2><div id="result"></div></section>
+<section id="parse" aria-labelledby="parse-heading" hidden><h2 id="parse-heading">解析进度</h2>
+<label id="parse-picker">资料版本<select id="parse-version"></select></label>
+<div id="parse-panel" hidden><p id="parse-summary" aria-live="polite"></p><p id="parse-note" aria-live="polite"></p>
+<div class="links"><button id="parse-action" type="button" hidden></button><button id="parse-refresh" type="button">刷新进度</button></div>
+<ul id="parse-pages" aria-label="分章节页状态"></ul><div class="links" id="parse-nav" hidden><button id="parse-prev" type="button">上一组</button><span id="parse-range"></span><button id="parse-next" type="button">下一组</button></div></div></section>
 <section aria-labelledby="list-heading"><div class="bar"><h2 id="list-heading">我的资料</h2><button id="refresh" type="button">刷新资料</button></div><div id="list"></div></section></main>
 <script>(()=>{
 'use strict';
@@ -3200,11 +3683,13 @@ let owner = null, generation = 0, busy = false, ready = false, key = null, confl
 function status(text,error=false){ $('status').textContent=text; $('status').toggleAttribute('data-error',error) }
 function controls(){
   file.disabled = target.disabled = !ready || busy;
+  $('parse-version').disabled = !ready || busy;
   $('submit').disabled = file.disabled || !key || conflict;
   $('refresh').disabled = busy;
 }
 function clearDraft(){ file.value=''; key=null; conflict=false }
 function clearPrivate(){
+  clearParse();
   owner=null; ready=false; rows=[]; clearDraft(); target.replaceChildren(new Option('新建资料',''));
   $('who').textContent=''; $('receipt').hidden=true; $('result').replaceChildren(); $('list').replaceChildren();
 }
@@ -3248,15 +3733,97 @@ function entry(r){
   links.append(view,save);node.append(el('strong',r.title),meta,links);return node;
 }
 function head(id){return rows.find(r=>r.id===id)}
+const docStates={idle:'未开始',queued:'排队中',running:'解析中',complete:'解析完成',partial:'部分完成',failed:'解析失败',cancelled:'已取消'};
+const pageStates={pending:'未处理',ready:'可用',review:'待复核',failed:'失败'};
+const pageSize=25, parseVersion=$('parse-version'), writes=new Map();
+let selection=null, pollTimer;
+function clearParse(){
+  clearTimeout(pollTimer);selection=null;parseVersion.replaceChildren();$('parse').hidden=true;resetPanel();
+}
+function resetPanel(){
+  $('parse-panel').hidden=true;$('parse-action').hidden=true;$('parse-nav').hidden=true;
+  $('parse-summary').textContent='';$('parse-note').textContent='';$('parse-pages').replaceChildren();$('parse-range').textContent='';
+}
+function progress(data){
+  const nullableText=v=>v===null || typeof v==='string';
+  if(!data || !Object.hasOwn(docStates,data.state) || !Number.isSafeInteger(data.total) || data.total<0 || !nullableText(data.error) || !Array.isArray(data.pages))throw problem(502);
+  const seen=new Set(), counts={pending:0,ready:0,review:0,failed:0};
+  for(const p of data.pages){
+    if(!p || !Number.isSafeInteger(p.page) || p.page<1 || p.page>data.total || seen.has(p.page) || !Object.hasOwn(pageStates,p.state) || typeof p.chapter!=='string' || !nullableText(p.error))throw problem(502);
+    seen.add(p.page);++counts[p.state];
+  }
+  return {...data,counts,pages:data.pages.sort((a,b)=>a.page-b.page)};
+}
+function activeJob(state){return state==='queued' || state==='running'}
+function drawPages(s){
+  const {pages,state}=s.data, last=Math.max(0,Math.ceil(pages.length/pageSize)-1);
+  s.group=Math.min(last,Math.max(0,s.group));const from=s.group*pageSize, end=Math.min(from+pageSize,pages.length);
+  const items=pages.slice(from,end).map(p=>{
+    const li=el('li');li.append(el('strong','第 '+p.page+' 页'),el('span',pageStates[p.state]),el('span',p.chapter));
+    if(state==='partial' && (p.state==='failed' || p.state==='review')){
+      const retry=el('button','重试第 '+p.page+' 页');retry.type='button';retry.disabled=s.writing;
+      retry.onclick=()=>requestProgress(s,'/retry/'+p.page);li.append(retry);
+    }
+    if(p.error)li.append(el('small',p.error));return li;
+  });
+  $('parse-pages').replaceChildren(...items);$('parse-nav').hidden=last===0;
+  $('parse-prev').disabled=s.group===0;$('parse-next').disabled=s.group===last;
+  $('parse-range').textContent=pages.length?'第 '+(from+1)+'–'+end+' 条，共 '+pages.length+' 条':'';
+}
+function drawProgress(s){
+  const {state,total,counts,error}=s.data, action=$('parse-action');
+  const summary=docStates[state]+' · 共 '+total+' 页'+Object.keys(pageStates).map(k=>' · '+pageStates[k]+' '+counts[k]).join('');
+  if($('parse-summary').textContent!==summary)$('parse-summary').textContent=summary;
+  $('parse-note').textContent=error || '';
+  const labels={idle:'开始解析',queued:'取消解析',running:'取消解析',failed:'重新解析',cancelled:'继续解析'};
+  action.hidden=!labels[state];action.textContent=labels[state] || '';action.disabled=action.hidden || s.writing;
+  action.onclick=action.hidden?null:()=>requestProgress(s,activeJob(state)?'/cancel':'/start');drawPages(s);
+}
+async function requestProgress(s,action=''){
+  if(selection!==s || s.writing)return;
+  clearTimeout(pollTimer);const seq=++s.seq, current=()=>selection===s && s.seq===seq;
+  async function sameOwner(){
+    if(!current())return false;
+    const m=await me();if(!current())return false;
+    if(m.id!==owner){void load(true);return false}return true;
+  }
+  s.writing=!!action;$('parse-refresh').disabled=true;
+  if(s.writing){drawProgress(s);$('parse-note').textContent='正在提交…'}
+  try{
+    // Returning to a version while its previous POST is in flight must read after that write.
+    if(writes.has(s.path))await writes.get(s.path);
+    if(!await sameOwner())return;
+    const req=request(s.path+action,action?{method:'POST',headers:{'x-knowledgeos-request':'1'}}:undefined);
+    if(action)writes.set(s.path,req.catch(()=>{}));
+    let data;try{data=await req}finally{if(action)writes.delete(s.path)}
+    if(!await sameOwner())return;
+    s.data=progress(data);s.writing=false;drawProgress(s);
+    if(activeJob(s.data.state))pollTimer=setTimeout(()=>requestProgress(s),2000);
+  }catch(e){
+    if(!current())return;
+    if([401,403,404].includes(e.http)){fail(e,generation,false);return}
+    s.data=null;s.group=0;resetPanel();$('parse-panel').hidden=false;
+    $('parse-note').textContent='无法确认当前解析状态。请刷新进度后再操作。';
+  }finally{if(current()){s.writing=false;$('parse-refresh').disabled=false}}
+}
+parseVersion.onchange=()=>{
+  clearTimeout(pollTimer);selection=null;resetPanel();const r=rows.find(row=>row.version_id===parseVersion.value);
+  if(!r || !ready || busy)return;
+  selection={path:'assets/'+r.id+'/versions/'+r.version_id+'/parse',seq:0,group:0,writing:false,data:null};
+  $('parse-panel').hidden=false;$('parse-summary').textContent='正在读取解析进度…';void requestProgress(selection);
+};
+$('parse-refresh').onclick=()=>{if(selection)void requestProgress(selection)};
+for(const [id,delta] of [['parse-prev',-1],['parse-next',1]])$(id).onclick=()=>{if(selection?.data){selection.group+=delta;drawPages(selection)}};
 function renderRows(items,selected){
   rows=items.slice().sort((a,b)=>b.version-a.version);
   const seen=new Set();target.replaceChildren(new Option('新建资料',''));
   for(const r of rows)if(!seen.has(r.id)){seen.add(r.id);target.add(new Option(r.title+' · v'+r.version,r.id))}
   target.value=seen.has(selected)?selected:'';
   $('list').replaceChildren(...(rows.length?rows.map(entry):[el('p','暂无资料','muted')]));
+  parseVersion.replaceChildren(new Option('选择资料版本',''),...rows.map(r=>new Option(r.title+' · v'+r.version,r.version_id)));$('parse').hidden=!rows.length;
 }
 async function load(reset=false){
-  const gen=++generation;busy=true;if(reset)clearPrivate();controls();status('正在读取资料…');
+  const gen=++generation;busy=true;clearParse();if(reset)clearPrivate();controls();status('正在读取资料…');
   try{
     const m=await me();if(gen!==generation)return;
     if(m.id!==owner)clearPrivate();owner=m.id;$('who').textContent=m.display_name || m.login_name || m.id;
@@ -3284,7 +3851,7 @@ $('import').onsubmit=async event=>{
     if(selected){headers['x-knowledgeos-asset-id']=dest.id;headers['x-knowledgeos-expected-version']=String(dest.version)}
     const raw=await request('imports',{method:'POST',headers,body:blob});
     if(!await confirmOwner(gen))return;
-    const r=record(raw);clearDraft();renderRows([r,...rows.filter(old=>old.version_id!==r.version_id)],selected);
+    const r=record(raw);clearDraft();clearParse();renderRows([r,...rows.filter(old=>old.version_id!==r.version_id)],selected);
     $('result').replaceChildren(entry(r));$('receipt').hidden=false;status('导入成功，已接收 v'+r.version+'。');
   }catch(e){fail(e,gen,true)}finally{if(gen===generation){busy=false;controls()}}
 };
@@ -3360,7 +3927,7 @@ function apply(ctx, config = {}) {
       if (closing) throw new RecordsError("STORAGE_CLOSED", "storage is closing");
       if (storage === void 0) throw new RecordsError("STORAGE_UNAVAILABLE", "storage is not configured");
       return createProbeRecord(storage, {
-        newId: () => randomUUID12(),
+        newId: () => randomUUID13(),
         now: () => (/* @__PURE__ */ new Date()).toISOString()
       }, { idempotencyKey, content });
     },
@@ -3425,7 +3992,7 @@ function apply(ctx, config = {}) {
     res.statusCode = 503;
     res.setHeader("content-type", "application/json; charset=utf-8");
     res.setHeader("cache-control", "no-store");
-    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID12(), retryable: true, safe_details: {} }));
+    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID13(), retryable: true, safe_details: {} }));
   };
   const registerIdentityRoutes = (identityContext) => {
     const identityAvailable = () => {
@@ -3443,18 +4010,18 @@ function apply(ctx, config = {}) {
     identityContext.inject(["llm", "tools"], (aiContext) => {
       aiContext.effect(() => {
         ai.close();
-        let active;
+        let active2;
         try {
-          active = new AiService(storage, route(), aiContext.llm, aiContext.tools);
+          active2 = new AiService(storage, route(), aiContext.llm, aiContext.tools);
         } catch {
           console.warn("knowledgeos-ai: TOOL_REGISTRATION_FAILED");
           ai = new AiService(storage, route());
           return () => ai.close();
         }
-        ai = active;
+        ai = active2;
         return () => {
-          active.close();
-          if (ai === active) ai = new AiService(storage, route());
+          active2.close();
+          if (ai === active2) ai = new AiService(storage, route());
         };
       }, "knowledgeos-ai: controlled tools");
     });
@@ -3526,7 +4093,8 @@ function apply(ctx, config = {}) {
           const origin = actualOrigin();
           if (!origin || !identityAvailable()) return void 0;
           return identity.actor(readCookie(req, businessCookieName(identity.setupState.serviceId, origin)));
-        });
+        }, storage.parses);
+        if (storage.available) disposers.push(startParseWorker(storage.parses, originals, openPdf, log));
         disposers.push(identityContext.webServer.register({ kind: "exact", path: "/knowledgeos/library", auth: "anonymous", handler: (req, res) => {
           if (req.method !== "GET") {
             res.statusCode = 405;
@@ -3539,6 +4107,7 @@ function apply(ctx, config = {}) {
         } }));
         disposers.push(identityContext.webServer.register({ kind: "exact", path: "/knowledge/v1/imports", auth: "anonymous", handler: withPeer(handler) }));
         disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/assets", auth: "anonymous", handler: withPeer(handler) }));
+        disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/operations", auth: "anonymous", handler: withPeer(handler) }));
       }
       disposers.push(identityContext.webServer.register({ kind: "exact", path: "/knowledgeos/ai", auth: "anonymous", handler: (req, res) => {
         if (req.method !== "GET") {
@@ -3585,7 +4154,7 @@ function apply(ctx, config = {}) {
       disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/grants", auth: "anonymous", handler: withPeer(async (req, res) => objectHandler(req, res)) }));
       return async () => {
         ai.close();
-        for (const dispose of disposers) dispose();
+        for (const dispose of disposers) await dispose();
         await identity.close();
       };
     }, "knowledgeos-identity: account and business routes");

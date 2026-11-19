@@ -1,7 +1,7 @@
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash3, randomUUID as randomUUID3 } from "node:crypto";
+import { createHash as createHash3, randomUUID as randomUUID4 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -248,9 +248,138 @@ var AssetStore = class {
   }
 };
 
+// src/host/parse-store.ts
+import { randomUUID as randomUUID3 } from "node:crypto";
+var PARSE_SCHEMA = `CREATE TABLE pdf_parse_runs (
+  version_id TEXT PRIMARY KEY REFERENCES asset_versions(id), session_id TEXT NOT NULL REFERENCES auth_sessions(id),
+  user_id TEXT NOT NULL REFERENCES users(id), state TEXT NOT NULL CHECK(state IN ('queued','running','complete','partial','failed','cancelled')),
+  total INTEGER NOT NULL DEFAULT 0 CHECK(total BETWEEN 0 AND 10000), token TEXT UNIQUE, deadline INTEGER,
+  losses INTEGER NOT NULL DEFAULT 0, error TEXT, CHECK ((state='running')=(token IS NOT NULL)), CHECK ((token IS NULL)=(deadline IS NULL))
+) STRICT;
+CREATE TABLE pdf_pages (
+  version_id TEXT NOT NULL REFERENCES pdf_parse_runs(version_id), page INTEGER NOT NULL CHECK(page>=1),
+  state TEXT NOT NULL CHECK(state IN ('pending','ready','review','failed')), chapter TEXT NOT NULL DEFAULT '',
+  text TEXT NOT NULL DEFAULT '', error TEXT, generation INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(version_id,page)
+) STRICT;
+CREATE INDEX pdf_pending ON pdf_pages(version_id,state,page);`;
+var leaseMs = 15e3;
+var ParseStore = class {
+  constructor(tx, permit) {
+    this.tx = tx;
+    this.permit = permit;
+  }
+  operation(actor, v) {
+    const id = this.tx("read", (db, now) => {
+      const r = db.prepare("SELECT v.asset_id FROM pdf_parse_runs r JOIN asset_versions v ON v.id=r.version_id WHERE r.version_id=?").get(v);
+      if (!r || !this.permit(actor.sessionId, actor.userId, String(r.asset_id), false, now)) throw new AssetError(404, "ASSET_NOT_FOUND");
+      return String(r.asset_id);
+    });
+    return this.control(actor, id, v, "status");
+  }
+  pages(actor, id, v, from, limit) {
+    if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit) || limit < 1 || limit > 10) throw new AssetError(422, "INVALID_PAGE_RANGE");
+    return this.tx("read", (db, now) => {
+      if (!this.permit(actor.sessionId, actor.userId, id, false, now) || !db.prepare("SELECT 1 FROM asset_versions WHERE asset_id=? AND id=?").get(id, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
+      const rows = db.prepare(`SELECT page,state,chapter,error,CASE WHEN state IN ('ready','review') THEN text ELSE NULL END AS text
+        FROM pdf_pages WHERE version_id=? AND page>=? ORDER BY page LIMIT ?`).all(v, from, limit);
+      return { version_id: v, from, pages: rows };
+    });
+  }
+  control(actor, id, v, op, page) {
+    return this.tx(op === "status" ? "read" : "write", (db, now) => {
+      if (!this.permit(actor.sessionId, actor.userId, id, op !== "status", now) || !db.prepare("SELECT 1 FROM asset_versions WHERE asset_id=? AND id=?").get(id, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
+      const prev = db.prepare("SELECT state FROM pdf_parse_runs WHERE version_id=?").get(v);
+      if (op === "start") {
+        if (!prev) db.prepare("INSERT INTO pdf_parse_runs(version_id,session_id,user_id,state) VALUES(?,?,?,'queued')").run(v, actor.sessionId, actor.userId);
+        else if (["failed", "cancelled"].includes(String(prev.state))) {
+          db.prepare("UPDATE pdf_parse_runs SET session_id=?,user_id=?,state='queued',error=NULL,losses=0 WHERE version_id=?").run(actor.sessionId, actor.userId, v);
+        }
+      } else if (op === "cancel") {
+        if (!prev || !["running", "queued", "cancelled"].includes(String(prev.state))) throw new AssetError(409, "PARSE_NOT_ACTIVE");
+        db.prepare("UPDATE pdf_parse_runs SET state='cancelled',token=NULL,deadline=NULL,error='CANCELLED' WHERE version_id=?").run(v);
+      } else if (op === "retry") {
+        if (!prev || prev.state !== "partial" || !page || !db.prepare("UPDATE pdf_pages SET state='pending',error=NULL WHERE version_id=? AND page=? AND state IN ('failed','review')").run(v, page).changes) throw new AssetError(409, "PAGE_NOT_RETRYABLE");
+        db.prepare("UPDATE pdf_parse_runs SET state='queued',session_id=?,user_id=?,error=NULL,losses=0 WHERE version_id=?").run(actor.sessionId, actor.userId, v);
+      }
+      const run = db.prepare("SELECT state,total,error FROM pdf_parse_runs WHERE version_id=?").get(v);
+      return { state: run?.state ?? "idle", total: run?.total ?? 0, error: run?.error ?? null, pages: db.prepare("SELECT page,state,chapter,error FROM pdf_pages WHERE version_id=? ORDER BY page").all(v) };
+    });
+  }
+  claim() {
+    if (!this.tx("read", (db, now) => db.prepare("SELECT 1 FROM pdf_parse_runs WHERE state='queued' OR (state='running' AND deadline<=?) LIMIT 1").get(Date.parse(now)))) return;
+    return this.tx("write", (db, now) => {
+      const ms = Date.parse(now);
+      db.prepare(`UPDATE pdf_parse_runs SET state=CASE WHEN losses>=3 THEN 'failed' ELSE 'queued' END,losses=losses+1,
+        token=NULL,deadline=NULL,error='LEASE_EXPIRED' WHERE state='running' AND deadline<=?`).run(ms);
+      const r = db.prepare(`SELECT r.version_id,r.session_id,r.user_id,v.asset_id,b.storage_key,b.sha256,b.byte_length
+        FROM pdf_parse_runs r JOIN asset_versions v ON v.id=r.version_id JOIN blobs b ON b.id=v.blob_id WHERE r.state='queued' ORDER BY r.rowid LIMIT 1`).get();
+      if (!r) return;
+      const version = String(r.version_id);
+      if (!this.permit(String(r.session_id), String(r.user_id), String(r.asset_id), true, now)) {
+        db.prepare("UPDATE pdf_parse_runs SET state='failed',error='AUTHORIZATION_LOST' WHERE version_id=?").run(version);
+        return;
+      }
+      const token = randomUUID3();
+      db.prepare("UPDATE pdf_parse_runs SET state='running',token=?,deadline=?,error=NULL WHERE version_id=?").run(token, ms + leaseMs, version);
+      return { version, token, key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length) };
+    });
+  }
+  leased(token, op) {
+    return this.tx("write", (db, now) => {
+      const ms = Date.parse(now), r = db.prepare(`SELECT r.*,v.asset_id FROM pdf_parse_runs r JOIN asset_versions v ON v.id=r.version_id
+        WHERE token=? AND state='running' AND deadline>?`).get(token, ms);
+      if (!r) return void 0;
+      if (!this.permit(String(r.session_id), String(r.user_id), String(r.asset_id), true, now)) {
+        db.prepare("UPDATE pdf_parse_runs SET state='failed',token=NULL,deadline=NULL,error='AUTHORIZATION_LOST' WHERE token=?").run(token);
+        return void 0;
+      }
+      return op(db, String(r.version_id), ms);
+    });
+  }
+  renew(token) {
+    return this.leased(token, (db, _v, ms) => Boolean(db.prepare("UPDATE pdf_parse_runs SET deadline=? WHERE token=?").run(ms + leaseMs, token).changes));
+  }
+  initialize(token, total) {
+    if (!Number.isSafeInteger(total) || total < 1 || total > 1e4) throw Error("PAGE_COUNT_LIMIT");
+    return this.leased(token, (db, v) => {
+      const before = Number(db.prepare("SELECT total FROM pdf_parse_runs WHERE version_id=?").get(v).total);
+      if (before && before !== total) throw Error("PAGE_COUNT_CHANGED");
+      if (!before) {
+        db.prepare("UPDATE pdf_parse_runs SET total=? WHERE version_id=?").run(total, v);
+        const insert = db.prepare("INSERT INTO pdf_pages(version_id,page,state) VALUES(?,?,'pending')");
+        for (let p = 1; p <= total; p++) insert.run(v, p);
+      }
+      return true;
+    });
+  }
+  next(token) {
+    return this.leased(token, (db, v) => {
+      const pending = db.prepare("SELECT page FROM pdf_pages WHERE version_id=? AND state='pending' ORDER BY page LIMIT 1").get(v);
+      if (pending) return Number(pending.page);
+      db.prepare(`UPDATE pdf_parse_runs SET state=CASE WHEN EXISTS(SELECT 1 FROM pdf_pages WHERE version_id=? AND state IN ('failed','review'))
+      THEN 'partial' ELSE 'complete' END,token=NULL,deadline=NULL,error=NULL WHERE version_id=?`).run(v, v);
+      return null;
+    });
+  }
+  publish(token, page, result) {
+    return this.leased(token, (db, v) => {
+      if (result && (result.text.length > 262144 || result.chapter.length > 512)) throw Error("PAGE_OUTPUT_LIMIT");
+      const state = result ? result.needsReview || !result.text.trim() ? "review" : "ready" : "failed";
+      const wrote = db.prepare(`UPDATE pdf_pages SET state=?,text=?,chapter=?,error=?,generation=generation+1
+      WHERE version_id=? AND page=? AND state='pending'`).run(state, result?.text ?? "", result?.chapter ?? "", result ? null : "PAGE_EXTRACTION_FAILED", v, page);
+      if (wrote.changes) db.prepare("UPDATE pdf_parse_runs SET losses=0 WHERE version_id=?").run(v);
+      return Boolean(wrote.changes);
+    });
+  }
+  fail(token) {
+    return this.leased(token, (db, v) => db.prepare("UPDATE pdf_parse_runs SET state='failed',token=NULL,deadline=NULL,error='DOCUMENT_UNAVAILABLE' WHERE version_id=?").run(v));
+  }
+};
+
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 7;
+var SCHEMA_VERSION = 8;
+var MIGRATION_V8_CHECKSUM = createHash3("sha256").update(PARSE_SCHEMA).digest("hex");
 var MIGRATION_V7_SQL = ASSET_SCHEMA;
 var MIGRATION_V7_CHECKSUM = createHash3("sha256").update(ASSET_SCHEMA).digest("hex");
 var MIGRATION_V6_SQL = JOB_SCHEMA;
@@ -479,7 +608,7 @@ var ProbeStorage = class {
   #state = "unavailable";
   #failure;
   #closed = false;
-  assets = new AssetStore((mode, op) => {
+  #assetTx = (mode, op) => {
     let db;
     try {
       db = this.#ensureReady();
@@ -495,10 +624,16 @@ var ProbeStorage = class {
       if (!this.#rollback(db)) throw this.#failure;
       throw e instanceof AssetError ? e : new AssetError(503, this.#mapError(e).code);
     }
-  }, (session, now) => {
+  };
+  #currentActor(session, now) {
     const ref = this.#ensureReady().prepare("SELECT token_hash FROM auth_sessions WHERE id=? AND user_id=?").get(session.sessionId, session.userId);
     return ref ? this.findActor(String(ref.token_hash), now) : void 0;
-  }, (actor, id, action, now) => Boolean(this.authorizeObject(actor, id, action, now)));
+  }
+  assets = new AssetStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (actor, id, action, now) => Boolean(this.authorizeObject(actor, id, action, now)));
+  parses = new ParseStore(this.#assetTx, (sessionId, userId, id, write, now) => {
+    const a = this.#currentActor({ sessionId, userId }, now);
+    return Boolean(a && this.authorizeObject(a, id, "read", now) && (!write || this.authorizeObject(a, id, "edit", now)));
+  });
   jobs = new JobStore((op) => {
     const db = this.#ensureReady();
     try {
@@ -563,12 +698,13 @@ var ProbeStorage = class {
       } else if (existing === "v3") {
         this.#migrateV4(db);
       }
-      if (existing !== "v6" && existing !== "v7") {
+      if (existing !== "v6" && existing !== "v7" && existing !== "v8") {
         if (existing !== "v5") this.#migrateV5(db);
         this.#migrateV6(db);
       }
-      if (existing !== "v7") this.#migrateV7(db);
-      this.#verify(db, 7);
+      if (existing !== "v7" && existing !== "v8") this.#migrateV7(db);
+      if (existing !== "v8") this.#migrateV8(db);
+      this.#verify(db, 8);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
       this.#db = db;
@@ -635,14 +771,14 @@ var ProbeStorage = class {
       }
       return "v5";
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8) {
       const db = new DatabaseSync(path, { readOnly: true });
       try {
         this.#verify(db, facts.userVersion);
       } finally {
         db.close();
       }
-      return facts.userVersion === 6 ? "v6" : "v7";
+      return facts.userVersion === 6 ? "v6" : facts.userVersion === 7 ? "v7" : "v8";
     }
     throw new RecordsError("STORAGE_INCOMPATIBLE", "database schema version is not supported");
   }
@@ -793,7 +929,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID3());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID4());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -879,13 +1015,26 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "asset migration failed", false, { cause: e });
     }
   }
+  #migrateV8(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(PARSE_SCHEMA);
+      this.#injectFailure("v8:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(8,?,?)").run(MIGRATION_V8_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=8; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "parse migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || facts.ledger[5]?.version !== 6 || facts.ledger[5].checksum !== MIGRATION_V6_CHECKSUM || version === 7 && (facts.ledger[6]?.version !== 7 || facts.ledger[6].checksum !== MIGRATION_V7_CHECKSUM)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
+    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || facts.ledger[5]?.version !== 6 || facts.ledger[5].checksum !== MIGRATION_V6_CHECKSUM || version >= 7 && (facts.ledger[6]?.version !== 7 || facts.ledger[6].checksum !== MIGRATION_V7_CHECKSUM) || version === 8 && (facts.ledger[7]?.version !== 8 || facts.ledger[7].checksum !== MIGRATION_V8_CHECKSUM)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
       reference.exec(JOB_SCHEMA);
-      if (version === 7) reference.exec(ASSET_SCHEMA);
+      if (version >= 7) reference.exec(ASSET_SCHEMA);
+      if (version >= 8) reference.exec(PARSE_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -988,9 +1137,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID3();
-      const spaceId = randomUUID3();
-      const credentialId = randomUUID3();
+      const userId = randomUUID4();
+      const spaceId = randomUUID4();
+      const credentialId = randomUUID4();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -1024,9 +1173,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID3();
-      const spaceId = randomUUID3();
-      const credentialId = randomUUID3();
+      const userId = randomUUID4();
+      const spaceId = randomUUID4();
+      const credentialId = randomUUID4();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -1191,7 +1340,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID3(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
+        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID4(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -1369,6 +1518,7 @@ export {
   MIGRATION_V6_SQL,
   MIGRATION_V7_CHECKSUM,
   MIGRATION_V7_SQL,
+  MIGRATION_V8_CHECKSUM,
   PROBE_SCHEMA_VERSION,
   PROBE_SUPPORTED_TABLES,
   ProbeStorage,

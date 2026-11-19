@@ -26,11 +26,13 @@ import { authorize, isGrantActive, type AuthorizationAction, type AuthorizationG
 import type { CreateOutcome, ProbeRecord, ProbeStorePort } from './records.ts'
 import { RecordsError } from './records.ts'
 import {ASSET_SCHEMA, AssetStore, AssetError} from './asset-store.ts'
+import {PARSE_SCHEMA, ParseStore, type ParseTx} from './parse-store.ts'
 
 /** Fixed application identity written to PRAGMA application_id (KOS1). */
 export const APPLICATION_ID = 0x4b4f5331
 /** Current application schema version. */
-export const SCHEMA_VERSION = 7
+export const SCHEMA_VERSION = 8
+export const MIGRATION_V8_CHECKSUM = createHash('sha256').update(PARSE_SCHEMA).digest('hex')
 export const MIGRATION_V7_SQL = ASSET_SCHEMA
 export const MIGRATION_V7_CHECKSUM = createHash('sha256').update(ASSET_SCHEMA).digest('hex')
 export const MIGRATION_V6_SQL = JOB_SCHEMA
@@ -231,6 +233,7 @@ export interface ProbeStorageOptions {
     | 'v4:after-rebuild' | 'v5:after-schema' | 'ai:after-update'
     | 'v6:after-schema' | 'job:after-result' | 'job:after-outbox' | 'event:after-receipt'
     | 'v7:after-schema'
+    | 'v8:after-schema'
 }
 
 export interface DatabaseFacts {
@@ -335,16 +338,22 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
   #failure: RecordsError | undefined
   #closed = false
 
-  readonly assets = new AssetStore((mode,op) => {
+  readonly #assetTx:ParseTx = (mode,op) => {
     let db:DatabaseSync
     try { db=this.#ensureReady();db.exec(mode==='write'?'BEGIN IMMEDIATE':'BEGIN') }
     catch(e){throw new AssetError(503,this.#mapError(e).code)} // No transaction began.
     try { const value=op(db,new Date().toISOString()); db.exec('COMMIT'); return value }
     catch(e){if(!this.#rollback(db))throw this.#failure;throw e instanceof AssetError?e:new AssetError(503,this.#mapError(e).code)}
-  }, (session,now)=>{
+  }
+  #currentActor(session:{sessionId:string;userId:string},now:string) {
     const ref=this.#ensureReady().prepare('SELECT token_hash FROM auth_sessions WHERE id=? AND user_id=?').get(session.sessionId,session.userId)
     return ref?this.findActor(String(ref.token_hash),now):undefined
-  }, (actor,id,action,now)=>Boolean(this.authorizeObject(actor,id,action,now)))
+  }
+  readonly assets = new AssetStore(this.#assetTx,(s,now)=>this.#currentActor(s,now), (actor,id,action,now)=>Boolean(this.authorizeObject(actor,id,action,now)))
+  readonly parses = new ParseStore(this.#assetTx,(sessionId,userId,id,write,now)=>{
+    const a=this.#currentActor({sessionId,userId},now)
+    return Boolean(a && this.authorizeObject(a,id,'read',now) && (!write || this.authorizeObject(a,id,'edit',now)))
+  })
 
   readonly jobs = new JobStore((op) => {
     const db = this.#ensureReady()
@@ -403,12 +412,13 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       } else if (existing === 'v3') {
         this.#migrateV4(db)
       }
-      if (existing !== 'v6' && existing !== 'v7') {
+      if (existing !== 'v6' && existing !== 'v7' && existing !== 'v8') {
         if (existing !== 'v5') this.#migrateV5(db)
         this.#migrateV6(db)
       }
-      if (existing !== 'v7') this.#migrateV7(db)
-      this.#verify(db,7)
+      if (existing !== 'v7' && existing !== 'v8') this.#migrateV7(db)
+      if (existing !== 'v8') this.#migrateV8(db)
+      this.#verify(db,8)
       const facts = readDatabaseFacts(path)
       const pragmas = this.#readPragmas(db)
       this.#db = db
@@ -422,7 +432,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     }
   }
 
-  #precheck(path: string): 'blank' | 'v1' | 'v2' | 'v3' | 'v4' | 'v5' | 'v6' | 'v7' {
+  #precheck(path: string): 'blank' | 'v1' | 'v2' | 'v3' | 'v4' | 'v5' | 'v6' | 'v7' | 'v8' {
     const facts = readDatabaseFacts(path)
     if (facts.applicationId === 0 && facts.userVersion === 0 && facts.objects.length === 0) return 'blank'
     if (facts.applicationId !== APPLICATION_ID) throw new RecordsError('STORAGE_INCOMPATIBLE', 'database belongs to another application')
@@ -455,10 +465,10 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       try { this.#assertV2Definitions(db); this.#assertV4Definitions(db); this.#assertV5Definitions(db) } finally { db.close() }
       return 'v5'
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8) {
       const db = new DatabaseSync(path, { readOnly: true })
       try { this.#verify(db,facts.userVersion) } finally { db.close() }
-      return facts.userVersion === 6 ? 'v6' : 'v7'
+      return facts.userVersion === 6 ? 'v6' : facts.userVersion === 7 ? 'v7' : 'v8'
     }
     throw new RecordsError('STORAGE_INCOMPATIBLE', 'database schema version is not supported')
   }
@@ -696,13 +706,23 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     } catch(e){if(!this.#rollback(db))throw this.#failure;throw new RecordsError('STORAGE_INCOMPATIBLE','asset migration failed',false,{cause:e})}
   }
 
-  #verify(db: DatabaseSync, version:6|7): void {
+  #migrateV8(db: DatabaseSync): void {
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      db.exec(PARSE_SCHEMA); this.#injectFailure('v8:after-schema')
+      db.prepare('INSERT INTO schema_migrations VALUES(8,?,?)').run(MIGRATION_V8_CHECKSUM,new Date().toISOString())
+      db.exec('PRAGMA user_version=8; COMMIT')
+    } catch(e){if(!this.#rollback(db))throw this.#failure;throw new RecordsError('STORAGE_INCOMPATIBLE','parse migration failed',false,{cause:e})}
+  }
+
+  #verify(db: DatabaseSync, version:6|7|8): void {
     const facts = readDatabaseFacts(this.databasePath)
-    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length!==version || facts.ledger[5]?.version!==6 || facts.ledger[5].checksum!==MIGRATION_V6_CHECKSUM || (version===7 && (facts.ledger[6]?.version!==7 || facts.ledger[6].checksum!==MIGRATION_V7_CHECKSUM))) throw new RecordsError('STORAGE_INCOMPATIBLE', 'database ownership/version verification failed')
+    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length!==version || facts.ledger[5]?.version!==6 || facts.ledger[5].checksum!==MIGRATION_V6_CHECKSUM || (version>=7 && (facts.ledger[6]?.version!==7 || facts.ledger[6].checksum!==MIGRATION_V7_CHECKSUM)) || (version===8 && (facts.ledger[7]?.version!==8 || facts.ledger[7].checksum!==MIGRATION_V8_CHECKSUM))) throw new RecordsError('STORAGE_INCOMPATIBLE', 'database ownership/version verification failed')
     const reference = new DatabaseSync(':memory:')
     try {
       reference.exec(JOB_SCHEMA)
-      if(version===7)reference.exec(ASSET_SCHEMA)
+      if(version>=7)reference.exec(ASSET_SCHEMA)
+      if(version>=8)reference.exec(PARSE_SCHEMA)
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all()
       for (const {name,sql} of definitions) {
         if (db.prepare('SELECT sql FROM sqlite_master WHERE name=?').get(name!)?.sql!==sql) throw new RecordsError('STORAGE_INCOMPATIBLE','jobs schema definition mismatch')
