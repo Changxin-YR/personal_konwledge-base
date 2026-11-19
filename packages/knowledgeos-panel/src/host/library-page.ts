@@ -105,7 +105,7 @@ function drawPages(s){
   s.group=Math.min(last,Math.max(0,s.group));const from=s.group*pageSize, end=Math.min(from+pageSize,pages.length);
   const items=pages.slice(from,end).map(p=>{
     const li=el('li');li.append(el('strong','第 '+p.page+' 页'),el('span',pageStates[p.state]),el('span',p.chapter));
-    if(!activeJob(state) && (p.state==='failed' || p.state==='review')){
+    if(state==='partial' && (p.state==='failed' || p.state==='review')){
       const retry=el('button','重试第 '+p.page+' 页');retry.type='button';retry.disabled=s.writing;
       retry.onclick=()=>requestProgress(s,'/retry/'+p.page);li.append(retry);
     }
@@ -120,9 +120,9 @@ function drawProgress(s){
   const summary=docStates[state]+' · 共 '+total+' 页'+Object.keys(pageStates).map(k=>' · '+pageStates[k]+' '+counts[k]).join('');
   if($('parse-summary').textContent!==summary)$('parse-summary').textContent=summary;
   $('parse-note').textContent=error || '';
-  const labels={idle:'开始解析',queued:'取消解析',running:'取消解析',failed:'重新解析',cancelled:'继续解析',partial:'继续解析'};
-  action.hidden=!labels[state];action.textContent=labels[state] || '';action.disabled=s.writing;
-  action.onclick=()=>requestProgress(s,activeJob(state)?'/cancel':'/start');drawPages(s);
+  const labels={idle:'开始解析',queued:'取消解析',running:'取消解析',failed:'重新解析',cancelled:'继续解析'};
+  action.hidden=!labels[state];action.textContent=labels[state] || '';action.disabled=action.hidden || s.writing;
+  action.onclick=action.hidden?null:()=>requestProgress(s,activeJob(state)?'/cancel':'/start');drawPages(s);
 }
 async function requestProgress(s,action=''){
   if(selection!==s || s.writing)return;

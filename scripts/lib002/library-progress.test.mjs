@@ -64,6 +64,21 @@ test('selected version only: paginate, display literal page errors, retry a page
   await select(0); assert.equal(await btn('取消解析').isVisible(), false)
 })
 
+test('cancelled resumes the document; partial offers only failed and review page retries', async t => {
+  const { f, page, select, btn } = await fixture(t)
+  const pages = ['ready', 'failed', 'pending', 'review'].map((state, i) => ({ page: i + 1, state, chapter: '第一章', error: null }))
+  f.reply = ({ action }) => ({ data: snapshot(action === '/start' ? 'partial' : action === '/retry/4' ? 'queued' : 'cancelled', pages) })
+  await select(1); await btn('继续解析').waitFor()
+  const retries = page.getByRole('button', { name: /^重试第 / })
+  assert.deepEqual(await retries.allTextContents(), []); await btn('继续解析').click()
+  await page.getByText(/部分完成 ·/).waitFor()
+  assert.equal(await page.locator('#parse-action').isVisible(), false)
+  assert.deepEqual(await retries.allTextContents(), ['重试第 2 页', '重试第 4 页'])
+  await btn('重试第 4 页').click(); await btn('取消解析').waitFor()
+  assert.deepEqual(await retries.allTextContents(), [])
+  assert.deepEqual(f.calls.map(c => c.action), ['', '/start', '/retry/4'])
+})
+
 test('a superseded poll cannot undo cancel; an earlier version cannot replace the new selection', async t => {
   const { f, page, paths, select, btn } = await fixture(t)
   const poll = Promise.withResolvers(), late = Promise.withResolvers(); t.after(() => { poll.resolve(); late.resolve() })
