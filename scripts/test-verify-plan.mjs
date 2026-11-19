@@ -36,6 +36,14 @@ const editPrompt = (ctx, edit) => {
   ctx.state.active_instruction.sha256 = createHash('sha256').update(ctx.prompt).digest('hex');
 };
 const records = id => ({acceptance: fixture + id + '-acceptance.json', independent: fixture + id + '-independent.json', provider: fixture + id + '-provider.json'});
+const digest = bytes => createHash('sha256').update(bytes).digest('hex');
+const imageFixtures = [
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==',
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGP4DwABAQEAsTj2FAAAAABJRU5ErkJggg==',
+].map(s => Buffer.from(s, 'base64'));
+const usage = attempts => ({attempts, reported_input_tokens: attempts, reported_output_tokens: 0,
+  unknown_cost_calls: attempts, known_estimated_usd: 0, budget_warning: false});
+const fileDigest = path => digest(readFileSync(join(temporary, path)));
 const editRecord = (p, change) => {
   const value = JSON.parse(readFileSync(join(temporary, p), 'utf8'));
   change(value);
@@ -54,12 +62,27 @@ function complete(ctx, id) {
   save(p.independent, {...binding, status: 'PASS', exit: 0, command: 'synthetic test only', results: ids.map(id => ({id, status: 'PASS'}))});
   if (id === 'FND-005') {
     Object.assign(u, {real_provider_status: 'PASS', real_provider_evidence: p.provider, blocked_test_ids: []});
-    proof.real_provider_record = p.provider;
-    save(p.provider, {...binding, independent: true, category: 'REAL_DEEPSEEK_UI_HTTP_SQLITE', status: 'PASS', provider: 'api', model: 'deepseek-v4.1-flash-1017/hs14',
-      upstream: ctx.state.upstream_commit, plugin_sha256: 'f'.repeat(64), loaded_plugin_sha256: 'f'.repeat(64),
-      prepare_requests: 2, successful_model_selections: 2, price_basis: {conservative_reservation_not_actual_invoice: true},
-      operations: ['knowledgeos_read_object', 'knowledgeos_update_object'].map((tool, i) => ({tool, object_id: 'fixture', revision: i + 1, receipts: i,
-        body_sha256: String(i).repeat(64), ui_reread_and_sql_agree: true, authenticated_http_status: 200, http_revision: i + 1, http_body_sha256: String(i).repeat(64)}))});
+    const route = {provider: 'native', model: 'deepseek-chat', endpoint: 'https://api.deepseek.com/v1'};
+    const tree = 'b'.repeat(40), runtime = 'c'.repeat(64), entry = 'd'.repeat(64), upstream = ctx.state.upstream_commit;
+    const when = seconds => new Date(Date.parse(startedAt) + seconds * 1000).toISOString();
+    Object.assign(proof, {real_provider_record: p.provider, route_projection_record: p.provider + '.discovery.json',
+      price_approval_record: p.provider + '.approval.json', reviewer_attestation_record: p.provider + '.review.json'});
+    save(proof.route_projection_record, {...binding, source: 'candidate-live discover', observed_at: when(-3),
+      fingerprint: digest(JSON.stringify([sha, tree, upstream, runtime, entry])), endpoint_origin: 'https://api.deepseek.com', discovery: route});
+    save(proof.price_approval_record, {...route, currency: 'USD_PER_MILLION_TOKENS', input: 1, output: 1,
+      pricing_page_sha256: 'e'.repeat(64), reviewed_at: when(-2)});
+    imageFixtures.forEach((bytes, i) => write(fixture + 'revision-' + (i + 1) + '.png', bytes));
+    save(p.provider, {...binding, tree, upstream, runtime_sha256: runtime, entry_sha256: entry, loader_sha256: entry,
+      category: 'REAL_DEEPSEEK_UI_HTTP_SQLITE', status: 'PASS', phase: 'COMPLETE', provider: route.provider, model: route.model,
+      price_approval_sha256: fileDigest(proof.price_approval_record), started_at: when(-1), finished_at: when(0), host_pid: 123,
+      prepare_requests: 2, native_dispatches: 2, successful_model_selections: 2,
+      operations: ['knowledgeos_read_object', 'knowledgeos_update_object'].map((tool, i) => ({tool, object_id: '00000000-0000-4000-8000-000000000001',
+        revision: i + 1, receipts: i, http_reread_agrees: true, ui_reread_and_sql_agree: true,
+        http_revision: i + 1, http_response_sha256: digest('fixture response ' + i), http_body_sha256: digest(['Synthetic baseline', 'Synthetic committed update'][i]),
+        usage_before: usage(i), usage_after: usage(i + 1), screenshot: 'revision-' + (i + 1) + '.png', screenshot_sha256: digest(imageFixtures[i])}))});
+    save(proof.reviewer_attestation_record, {...binding, category: 'INDEPENDENT_REVIEWER_ATTESTATION', status: 'PASS',
+      reviewer: 'test-only reviewer', findings: 'Structural fixture only.', reviewed_at: when(1),
+      real_provider_sha256: fileDigest(p.provider), route_projection_sha256: fileDigest(proof.route_projection_record), independent_sha256: fileDigest(p.independent)});
   }
   save(p.acceptance, proof);
 }
@@ -144,19 +167,90 @@ test('pre-fix HS14 proof cannot certify new candidate', c => {
 }, 'candidate unit mismatch');
 for (const [name, change, reason] of [
   ['old provider candidate', r => { r.candidate_sha = 'b'.repeat(40); }, 'candidate commit mismatch'],
-  ['provider run not independent', r => { r.independent = false; }, 'independent provider run required'],
-  ['wrong route', r => { r.model += '/fixture'; }, 'unexpected DeepSeek model route'],
-  ['unbound loaded Host', r => { delete r.loaded_plugin_sha256; }, 'loaded Host plugin differs'],
+  ['harness cannot attest independence', r => { r.independent = true; }, 'unexpected evidence field'],
+  ['wrong live provider', r => { r.provider = 'api'; }, 'live route differs'],
+  ['wrong live model', r => { r.model = 'deepseek-historical'; }, 'live route differs'],
+  ['different build', r => { r.entry_sha256 = r.loader_sha256 = 'f'.repeat(64); }, 'discovery and live build differ'],
+  ['loader hash differs', r => { r.loader_sha256 = 'f'.repeat(64); }, 'loaded entry differs'],
+  ['wrong HTTP revision', r => { r.operations[1].http_revision = 1; }, 'HTTP revision differs'],
+  ['missing response hash', r => { delete r.operations[0].http_response_sha256; }, 'missing HTTP response digest'],
+  ['same response at both revisions', r => { r.operations[1].http_response_sha256 = r.operations[0].http_response_sha256; }, 'HTTP responses must differ'],
+  ['incorrect reread body digest', r => { r.operations[1].http_body_sha256 = r.operations[0].http_body_sha256; }, 'authenticated reread body mismatch'],
+  ['screenshot outside export', r => { r.operations[0].screenshot = '../revision-1.png'; }, 'unexpected screenshot reference'],
+  ['screenshot digest mismatch', r => { r.operations[0].screenshot_sha256 = '1'.repeat(64); }, 'screenshot digest mismatch'],
+  ['wrong usage attempts', r => { r.operations[0].usage_before.attempts++; }, 'usage attempt mismatch'],
+  ['extra raw usage field', r => { r.operations[0].usage_after.raw = 'fixture'; }, 'unexpected evidence field'],
+  ['fractional usage', r => { r.operations[0].usage_after.reported_output_tokens = 0.5; }, 'invalid observed usage count'],
+  ['impossible unknown cost', r => { r.operations[0].usage_after.unknown_cost_calls = 2; }, 'invalid estimated or unknown cost'],
+  ['negative estimated price', r => { r.operations[0].usage_after.known_estimated_usd = -1; }, 'invalid estimated or unknown cost'],
+  ['missing budget warning', r => { delete r.operations[1].usage_before.budget_warning; }, 'missing budget warning state'],
+  ['usage totals move backwards', r => { r.operations[1].usage_after.reported_input_tokens = 0; }, 'usage totals decreased'],
+  ['usage discontinuity between operations', r => { r.operations[1].usage_before.reported_input_tokens = 0; }, 'usage totals decreased between operations'],
   ['additional prepare', r => { r.prepare_requests++; }, 'expected two prepares'],
+  ['missing dispatch', r => { r.native_dispatches--; }, 'expected two native dispatches'],
   ['missing successful selection', r => { r.successful_model_selections--; }, 'expected two successful model selections'],
   ['bad receipt count', r => { r.operations[1].receipts++; }, 'unexpected mutation receipts'],
-  ['wrong reread revision', r => { r.operations[1].http_revision--; }, 'HTTP revision differs'],
+  ['wrong revision', r => { r.operations[1].revision--; }, 'unexpected object revision'],
   ['wrong object', r => { r.operations[1].object_id = 'other'; }, 'provider object mismatch'],
-  ['no authenticated reread', r => { delete r.operations[1].authenticated_http_status; }, 'authenticated HTTP reread missing'],
-  ['different reread content', r => { r.operations[0].http_body_sha256 = 'b'.repeat(64); }, 'HTTP content differs'],
+  ['no authenticated reread', r => { delete r.operations[1].http_reread_agrees; }, 'authenticated HTTP reread missing'],
   ['UI reread disagrees', r => { r.operations[1].ui_reread_and_sql_agree = false; }, 'UI reread differs'],
-  ['estimated price mislabeled', r => { r.price_basis.conservative_reservation_not_actual_invoice = false; }, 'pricing estimate must not be represented as an invoice'],
 ]) test(name, c => { complete(c, 'FND-005'); editRecord(provider, change); }, reason);
+const discover = provider + '.discovery.json', approval = provider + '.approval.json', review = provider + '.review.json';
+for (const [name, path, change, reason] of [
+  ['projection from another candidate', discover, d => { d.candidate_sha = 'f'.repeat(40); }, 'candidate commit mismatch'],
+  ['self-declared route', discover, d => { d.source = 'live summary'; }, 'native discovery required'],
+  ['synthetic model', discover, d => { d.discovery.model = 'deepseek-synthetic'; }, 'expected native DeepSeek route'],
+  ['fixture provider', discover, d => { d.discovery.provider = 'fixture'; }, 'expected native DeepSeek route'],
+  ['non-DeepSeek model', discover, d => { d.discovery.model = 'other'; }, 'expected native DeepSeek route'],
+  ['unapproved origin', discover, d => { d.endpoint_origin = 'https://example.invalid'; d.discovery.endpoint = d.endpoint_origin; }, 'disallowed native endpoint'],
+  ['credential-bearing endpoint', discover, d => { d.discovery.endpoint += '?token=test-only'; }, 'disallowed native endpoint'],
+  ['raw profile field in discovery', discover, d => { d.discovery.headers = {}; }, 'unexpected evidence field'],
+  ['post-run discovery', discover, d => { d.observed_at = startedAt; }, 'discovery and approval must precede'],
+  ['approval not used by live run', approval, q => { q.input++; }, 'price approval digest mismatch'],
+  ['missing reviewer verdict', review, r => { delete r.status; }, 'independent reviewer PASS required'],
+  ['another candidate review', review, r => { r.candidate_sha = 'b'.repeat(40); }, 'candidate commit mismatch'],
+  ['review before live execution', review, r => { r.reviewed_at = '2000-01-01T00:00:00Z'; }, 'review predates live run'],
+  ['run edited after review', provider, r => { r.host_pid++; }, 'reviewed evidence digest mismatch'],
+  ['different discovery reviewed', review, r => { r.route_projection_sha256 = 'f'.repeat(64); }, 'reviewed evidence digest mismatch'],
+]) test(name, c => { complete(c, 'FND-005'); editRecord(path, change); }, reason);
+test('missing capture artifact', c => {
+  complete(c, 'FND-005'); rmSync(join(temporary, fixture, 'revision-2.png'));
+}, 'missing sibling screenshot');
+test('digest-matching non-PNG', c => {
+  complete(c, 'FND-005'); write(fixture + 'revision-1.png', 'not an image');
+  editRecord(provider, r => { r.operations[0].screenshot_sha256 = digest('not an image'); });
+}, 'expected PNG screenshot');
+// When integrated with the live harness, exercise its real offline publisher and layout.
+if (existsSync(join(root, 'scripts/fnd005/candidate-live-proof.mjs'))) {
+  const {publishProof} = await import('./fnd005/candidate-live-proof.mjs');
+  test('offline publisher output validates without adaptation', c => {
+    complete(c, 'FND-005');
+    const folder = fixture + 'publisher'; mkdirSync(join(temporary, folder));
+    const raw = JSON.parse(readFileSync(join(temporary, provider), 'utf8'));
+    publishProof(join(temporary, folder), raw, imageFixtures);
+    const published = folder + '/export/proof.json';
+    unit(c, 'FND-005').real_provider_evidence = published;
+    editRecord(records('FND-005').acceptance, p => { p.real_provider_record = published; });
+    editRecord(review, r => { r.real_provider_sha256 = fileDigest(published); });
+  });
+}
+test('independently reviewed native relay without historical provider/model IDs', c => {
+  complete(c, 'FND-005');
+  const route = {provider: 'native-relay', model: 'deepseek-chat/channel', endpoint: 'https://tokease.cn/v1'};
+  editRecord(discover, d => { d.endpoint_origin = 'https://tokease.cn'; d.discovery = route; });
+  editRecord(approval, q => { delete q.pricing_page_sha256; Object.assign(q, route, {billing_group: 'default'}); });
+  editRecord(provider, r => Object.assign(r, {provider: route.provider, model: route.model, price_approval_sha256: fileDigest(approval)}));
+  editRecord(review, r => Object.assign(r, {real_provider_sha256: fileDigest(provider), route_projection_sha256: fileDigest(discover)}));
+});
+test('approved endpoint differs even with matching live price digest', c => {
+  complete(c, 'FND-005');
+  editRecord(approval, q => { q.endpoint = 'https://tokease.cn/v1'; });
+  editRecord(provider, r => { r.price_approval_sha256 = fileDigest(approval); });
+  editRecord(review, r => { r.real_provider_sha256 = fileDigest(provider); });
+}, 'approved route differs from discovery');
+test('live summary cannot double as independent review', c => {
+  complete(c, 'FND-005'); editRecord(records('FND-005').acceptance, p => { p.reviewer_attestation_record = provider; });
+}, 'separate evidence records required');
 test('case requires passed owner', c => certifyCase(c, 'A07'), 'final owner has not passed');
 function acceptedCase(c) {
   complete(c, 'LIB-001'); complete(c, 'LIB-003'); complete(c, 'LIB-004'); certifyCase(c, 'A08');

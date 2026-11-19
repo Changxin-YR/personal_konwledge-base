@@ -1076,11 +1076,12 @@
         "docs/evidence/FND-005/independent/summary.json",
         "docs/evidence/FND-005/independent/REVIEW.md",
         "docs/evidence/FND-005/build-and-gates.json",
-        "docs/evidence/FND-005/delivery-safety.json"
+        "docs/evidence/FND-005/delivery-safety.json",
+        "docs/evidence/FND-005/continuous/discovery-blocked.json"
       ],
       "real_provider_status": "BLOCKED",
       "real_provider_evidence": "docs/evidence/FND-005/live-hs14-Oaxv9B/summary.json",
-      "blocked_reason": "修复前 HS14 的两次真实调用不等于修复后的独立模型验收。",
+      "blocked_reason": "隔离验收 Host 缺少可用原生路由；不能沿用旧插件证据",
       "technical_test_result_status": "PASS",
       "independent_technical_review_status": "PASS",
       "technical_retest_status": "PASS",

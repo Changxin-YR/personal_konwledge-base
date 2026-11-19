@@ -4,6 +4,8 @@
 
 ## 历史记录
 
+2026-11-19，FND-005：候选 `f1364b9` 已核对源码、入口与锁定 Host；独立测试 home 缺少已配置的原生路由，发现命令在启动阶段退出 1，零推理请求。历史专用 profile 的插件哈希不同，不能借用其旧结果。见[本次预检](../evidence/FND-005/continuous/discovery-blocked.json)。请通过 DSH 原生凭据管理在隔离测试 profile 中绑定已授权路由，或使用实际加载该候选并能证明预算、身份和数据隔离的授权 Host；不要将密钥发到聊天、日志或 Git。此项不阻塞 LIB-001。
+
 更新：2026-11-17（Asia/Shanghai）。FND-003 六项返修已关闭，FND-004 当前没有代码级阻塞。真实 DSH 浏览器对象 HTTP 矩阵、Connection 单独停用/恢复和完整 A02/A34/A46 仍是 NOT_RUN 或需真实上游能力证据；不以 Host 整体停止代替 Connection 测试，不把未实现搜索/AI/导出/邀请码/缓存路径记为 PASS。
 
 | 编号 | 状态 |

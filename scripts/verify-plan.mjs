@@ -286,6 +286,43 @@ function bindCandidate(run, unit) {
   assert.equal(run.candidate_sha, unit.candidate_commit, 'candidate commit mismatch');
 }
 
+const hashFile = name => createHash('sha256').update(readFileSync(resolve(root, evidenceFile(name)))).digest('hex');
+const hex64 = /^[0-9a-f]{64}$/;
+const originAllowed = origin => ['https://api.deepseek.com', 'https://tokease.cn'].includes(origin);
+function onlyFields(value, fields) {
+  assert(Object.keys(value).every(k => fields.includes(k)), 'unexpected evidence field');
+}
+
+const usageTotals = ['reported_input_tokens', 'reported_output_tokens', 'unknown_cost_calls', 'known_estimated_usd'];
+function checkUsage(usage, attempts) {
+  onlyFields(usage, ['attempts', ...usageTotals, 'budget_warning']);
+  assert.equal(usage.attempts, attempts, 'usage attempt mismatch');
+  for (const key of ['reported_input_tokens', 'reported_output_tokens', 'unknown_cost_calls']) {
+    assert(Number.isSafeInteger(usage[key]) && usage[key] >= 0, 'invalid observed usage count');
+  }
+  assert(usage.unknown_cost_calls <= attempts && Number.isFinite(usage.known_estimated_usd) && usage.known_estimated_usd >= 0, 'invalid estimated or unknown cost');
+  assert.equal(typeof usage.budget_warning, 'boolean', 'missing budget warning state');
+}
+
+function checkCapture(op, i, proofPath) {
+  const expectedBodies = ['Synthetic baseline', 'Synthetic committed update'];
+  assert.equal(op.http_revision, op.revision, 'HTTP revision differs from operation');
+  assert.match(op.http_response_sha256, hex64, 'missing HTTP response digest');
+  assert.equal(op.http_body_sha256, createHash('sha256').update(expectedBodies[i]).digest('hex'), 'authenticated reread body mismatch');
+  checkUsage(op.usage_before, i);
+  checkUsage(op.usage_after, i + 1);
+  assert(usageTotals.every(k => op.usage_after[k] >= op.usage_before[k]), 'usage totals decreased');
+
+  const filename = 'revision-' + (i + 1) + '.png';
+  assert.equal(op.screenshot, filename, 'unexpected screenshot reference');
+  const folder = dirname(realpathSync(resolve(root, evidenceFile(proofPath))));
+  const image = resolve(folder, filename);
+  assert(existsSync(image) && realpathSync(image) === image && statSync(image).isFile(), 'missing sibling screenshot');
+  const bytes = readFileSync(image);
+  assert(bytes.length > 8 && bytes.subarray(0, 8).toString('hex') === '89504e470d0a1a0a', 'expected PNG screenshot');
+  assert.equal(op.screenshot_sha256, createHash('sha256').update(bytes).digest('hex'), 'screenshot digest mismatch');
+}
+
 function checkRealProvider(unit, proof) {
   assert.equal(unit.real_provider_status, 'PASS', 'real provider acceptance required');
   assert.equal(unit.real_provider_evidence, proof.real_provider_record, 'provider evidence reference mismatch');
@@ -293,30 +330,74 @@ function checkRealProvider(unit, proof) {
   bindCandidate(run, unit);
   assert.equal(run.category, 'REAL_DEEPSEEK_UI_HTTP_SQLITE');
   assert.equal(run.status, 'PASS');
-  assert.equal(run.independent, true, 'independent provider run required');
-  if ('product_commit' in run) assert.equal(run.product_commit, unit.candidate_commit, 'provider product commit mismatch');
-  assert.equal(run.provider, 'api', 'unexpected provider route');
-  assert.equal(run.model, 'deepseek-v4.1-flash-1017/hs14', 'unexpected DeepSeek model route');
+  assert.equal(run.phase, 'COMPLETE');
   assert.equal(run.upstream, lock.upstream.commit, 'provider Host differs from lock');
-  assert.match(run.plugin_sha256, /^[0-9a-f]{64}$/, 'frozen plugin hash missing');
-  assert.equal(run.loaded_plugin_sha256, run.plugin_sha256, 'loaded Host plugin differs from frozen build');
+  assert.match(run.tree, /^[0-9a-f]{40}$/);
+  for (const key of ['runtime_sha256', 'entry_sha256', 'price_approval_sha256']) assert.match(run[key], hex64);
+  assert.equal(run.loader_sha256, run.entry_sha256, 'loaded entry differs from frozen entry');
+  assert(Number.isSafeInteger(run.host_pid) && run.host_pid > 0, 'missing live Host PID');
   assert.equal(run.prepare_requests, 2, 'expected two prepares');
+  assert.equal(run.native_dispatches, 2, 'expected two native dispatches');
   assert.equal(run.successful_model_selections, 2, 'expected two successful model selections');
-  assert.equal(run.price_basis?.conservative_reservation_not_actual_invoice, true, 'pricing estimate must not be represented as an invoice');
   assert.deepEqual(run.operations.map(op => op.tool), ['knowledgeos_read_object', 'knowledgeos_update_object'], 'expected one read followed by one update');
   const [first, second] = run.operations;
-  assert(text(first.object_id) && second.object_id === first.object_id, 'provider object mismatch');
+  assert.match(first.object_id, /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/);
+  assert.equal(second.object_id, first.object_id, 'provider object mismatch');
   for (const [i, op] of run.operations.entries()) {
+    onlyFields(op, ['tool','object_id','revision','receipts','http_reread_agrees','ui_reread_and_sql_agree',
+      'http_revision','http_response_sha256','http_body_sha256','usage_before','usage_after','screenshot','screenshot_sha256']);
     assert.equal(op.revision, i + 1, 'unexpected object revision');
     assert.equal(op.receipts, i, 'unexpected mutation receipts');
-    assert.equal(op.authenticated_http_status, 200, 'authenticated HTTP reread missing');
-    assert.equal(op.http_revision, op.revision, 'HTTP revision differs from SQLite');
-    assert.match(op.body_sha256, /^[0-9a-f]{64}$/);
-    assert.equal(op.http_body_sha256, op.body_sha256, 'HTTP content differs from SQLite');
+    assert.equal(op.http_reread_agrees, true, 'authenticated HTTP reread missing');
     assert.equal(op.ui_reread_and_sql_agree, true, 'UI reread differs from SQLite');
+    checkCapture(op, i, proof.real_provider_record);
   }
-  assert.notEqual(first.body_sha256, second.body_sha256, 'update did not change content');
+  assert.notEqual(first.http_response_sha256, second.http_response_sha256, 'read and update HTTP responses must differ');
+  assert.notEqual(first.screenshot_sha256, second.screenshot_sha256, 'read and update screenshots must differ');
+  assert(usageTotals.every(k => second.usage_before[k] >= first.usage_after[k]), 'usage totals decreased between operations');
+  onlyFields(run, ['unit_id','category','candidate_sha','tree','upstream','runtime_sha256','entry_sha256','price_approval_sha256','loader_sha256','status','phase','provider','model','host_pid','prepare_requests','native_dispatches','successful_model_selections','operations','started_at','finished_at']);
   assert(!(unit.blocked_test_ids ?? []).length, 'passed unit still has blocked tests');
+
+  // discover prints only a native route triple. The operator captures it before live, with
+  // the frozen binding fingerprint passed to discover; the reviewer attests the capture.
+  const capture = record(proof.route_projection_record);
+  bindCandidate(capture, unit);
+  onlyFields(capture, ['unit_id','candidate_sha','source','fingerprint','observed_at','endpoint_origin','discovery']);
+  assert.equal(capture.source, 'candidate-live discover', 'native discovery required');
+  const fingerprint = createHash('sha256').update(JSON.stringify([run.candidate_sha, run.tree, run.upstream, run.runtime_sha256, run.entry_sha256])).digest('hex');
+  assert.equal(capture.fingerprint, fingerprint, 'discovery and live build differ');
+  const route = capture.discovery;
+  onlyFields(route, ['provider', 'model', 'endpoint']);
+  assert(typeof route.provider === 'string' && /^[a-z][a-z0-9-]{0,63}$/.test(route.provider) &&
+    typeof route.model === 'string' && /^deepseek[-/][a-z0-9][a-z0-9.-]{0,80}(?:\/[a-z0-9-]{1,40})?$/i.test(route.model) &&
+    !/fixture|synthetic|mock|controlled|replay|stub|fake/i.test(route.provider + '/' + route.model), 'expected native DeepSeek route');
+  assert(originAllowed(capture.endpoint_origin) && [capture.endpoint_origin, capture.endpoint_origin + '/v1'].includes(route.endpoint), 'disallowed native endpoint');
+  assert(run.provider === route.provider && run.model === route.model, 'live route differs from native discovery');
+
+  // Validate the nonsecret, operator-authored price cap input, not an invoice or private Host settings.
+  const price = record(proof.price_approval_record);
+  onlyFields(price, ['provider','model','endpoint','currency','input','output','reviewed_at','billing_group','pricing_page_sha256']);
+  assert.equal(hashFile(proof.price_approval_record), run.price_approval_sha256, 'price approval digest mismatch');
+  assert(price.provider === route.provider && price.model === route.model && [route.endpoint, route.endpoint + '/'].includes(price.endpoint), 'approved route differs from discovery');
+  assert.equal(price.currency, 'USD_PER_MILLION_TOKENS');
+  assert([price.input, price.output].every(n => Number.isFinite(n) && n > 0 && n <= 1000), 'invalid price caps');
+  if (capture.endpoint_origin === 'https://tokease.cn') assert.equal(price.billing_group, 'default');
+  else assert.match(price.pricing_page_sha256, hex64);
+  const observed = Date.parse(capture.observed_at), approved = Date.parse(price.reviewed_at);
+  const started = Date.parse(run.started_at), finished = Date.parse(run.finished_at);
+  assert(observed <= approved && approved <= started && started - approved <= 3600000 && started <= finished, 'discovery and approval must precede live inference');
+
+  // Reviewer authorship is assessed outside this structural gate. Pin the exact bytes
+  // reviewed, not a reusable verdict or a harness-authored independence flag.
+  const review = record(proof.reviewer_attestation_record);
+  bindCandidate(review, unit);
+  const paths = [unit.acceptance_record, proof.independent_record, proof.real_provider_record, proof.route_projection_record, proof.price_approval_record, proof.reviewer_attestation_record];
+  assert.equal(new Set(paths.map(p => realpathSync(resolve(root, evidenceFile(p))))).size, paths.length, 'separate evidence records required');
+  assert(review.category === 'INDEPENDENT_REVIEWER_ATTESTATION' && review.status === 'PASS' && text(review.reviewer) && text(review.findings), 'independent reviewer PASS required');
+  assert(Date.parse(review.reviewed_at) >= finished, 'review predates live run');
+  for (const key of ['real_provider','route_projection','independent']) {
+    assert.equal(review[key + '_sha256'], hashFile(proof[key + '_record']), 'reviewed evidence digest mismatch: ' + key);
+  }
 }
 
 for (const unit of catalog.units.filter(u => u.status === 'passed' && !historicalUnits.has(u.id))) check(unit.id + ' candidate', () => {

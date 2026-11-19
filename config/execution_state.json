@@ -9,8 +9,8 @@
     "path": "CODEX_START.md",
     "sha256": "da73b65a0004bfa875d1435a61a555ba6f02d45c280aeb8ed6d2e62ab4bd39d8"
   },
-  "active_unit": "FND-005",
-  "unit_state": "blocked",
+  "active_unit": "LIB-001",
+  "unit_state": "ready",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "复验修复后候选；保留 FND-005 原 BLOCKED。",
+  "state_reason": "Selected after FND-005: BLOCKED",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,19 +127,25 @@
     }
   },
   "checkpoint": {
-    "unit_id": "FND-006",
-    "base_commit": "c03ec437b2c648b16449598f89ac289bf307ccd2",
-    "candidate_sha": "5e3cc68b7182146b45ae38d8059202b23fe23d83",
+    "unit_id": "FND-005",
+    "base_commit": "4d710fb993ff392e9a88ac22480cc2cc8a56ff00",
+    "candidate_sha": "f1364b91ca6fb54e91d8e9271dbe26f0c26a76cd",
     "completed": [
-      "历史冻结候选 T01–T08 独立验收已通过；本次未重跑。"
+      "技术基线回归 68 项通过；10 项新验收工具测试通过；冻结当前候选并运行无推理预检"
     ],
     "test_results": {
-      "historical_acceptance": "PASS",
-      "new_product_run": "NOT_RUN"
+      "unit_acceptance": "BLOCKED",
+      "technical_baseline": "PASS",
+      "live_read_update": "NOT_RUN",
+      "independent_live_acceptance": "NOT_RUN"
     },
-    "evidence": "docs/evidence/FND-006/acceptance.json",
-    "defects": [],
-    "next_task": "FND-005",
-    "blocked_dependencies": []
+    "evidence": "docs/evidence/FND-005/continuous/discovery-blocked.json",
+    "defects": [
+      "隔离验收 Host 缺少可用原生路由；不能沿用旧插件证据"
+    ],
+    "next_task": "LIB-001",
+    "blocked_dependencies": [
+      "isolated_authorized_native_deepseek_route"
+    ]
   }
 }
