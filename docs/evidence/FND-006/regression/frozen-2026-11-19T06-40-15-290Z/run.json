@@ -1,0 +1,1086 @@
+{
+  "phase": "frozen",
+  "expected": "80738ce0b1705dfc15a80ac9852d76a170d7ede1",
+  "command": [
+    "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+    "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\regression\\run.mjs",
+    "frozen",
+    "80738ce0b1705dfc15a80ac9852d76a170d7ede1",
+    "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+  ],
+  "cwd": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base",
+  "work": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\regression\\.cache\\r-eNM0ls",
+  "node": "v24.22.0",
+  "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+  "before": {
+    "head": "c03ec437b2c648b16449598f89ac289bf307ccd2",
+    "product_sha256": "f0fcc8a41b8894a4d61e74e22371b2107b626824711d365c13cbe9ffd00759c0",
+    "entry": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel\\lib\\index.js",
+    "entry_sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84",
+    "dirty_product": "M  packages/knowledgeos-panel/lib/index.js\nM  packages/knowledgeos-panel/lib/storage.js\nM  packages/knowledgeos-panel/lib/test-support.js\nM  packages/knowledgeos-panel/src/cordis.d.ts\nM  packages/knowledgeos-panel/src/host/ai-page.ts\nM  packages/knowledgeos-panel/src/host/ai-service.ts\nM  packages/knowledgeos-panel/src/host/config.ts\nM  packages/knowledgeos-panel/src/host/index.ts\nA  packages/knowledgeos-panel/src/host/jobs.ts\nM  packages/knowledgeos-panel/src/host/objects-http.ts\nM  packages/knowledgeos-panel/src/host/storage.ts",
+    "files": {
+      "packages/knowledgeos-panel/README.md": "0399997bbe65b5cc9567e4676dc347f09c393d8ec920e1c5f4e31a61b8f6c264",
+      "packages/knowledgeos-panel/build.mjs": "fd261eaf6ec914a897aa4ec50a93296525f4c080b2045804102fdf3a959b0147",
+      "packages/knowledgeos-panel/cordis.patch.yml": "2133c93965bc9b5ea4966999b418ad1fccc720cd5bc6da87ee78d3ddb4d68536",
+      "packages/knowledgeos-panel/lib/client.js": "dfa4a5e2fb8afcaf85657f22048185e3cb86444db87e8e6e4ec1d4b0bbe2e1a9",
+      "packages/knowledgeos-panel/lib/index.js": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84",
+      "packages/knowledgeos-panel/lib/storage.js": "7ed4c937a4533ebf7041b4d3526c468883ff56b1ae77ccc6d5a5c106608a673f",
+      "packages/knowledgeos-panel/lib/test-support.js": "3a5305d5934f403ae9149d4446a7eedf00d13edeaffad684d28beffc6b4e3b57",
+      "packages/knowledgeos-panel/package-lock.json": "9449dc7c97e8f4096f16b0334fb810b914edc1bc7630df5cb858f2d74262353a",
+      "packages/knowledgeos-panel/package.json": "48a6f24ff44437ebaee238ee53c96422fdcc7968f645582fb95b5585a52f1c55",
+      "packages/knowledgeos-panel/pnpm-lock.yaml": "c1225a2912e7420477e08b37b42bbd0b0523b45af7a6225b0b3c9c1cb72abb53",
+      "packages/knowledgeos-panel/pnpm-workspace.yaml": "d6d0c24446d91ef762d37c6ba801bb516e65d7055aa9f8027fcd457409a97ce1",
+      "packages/knowledgeos-panel/src/client/Panel.tsx": "1a425ecbe139262b883cb7007d9d8e757fbef168adc1f5f9d939f40c5cf42e85",
+      "packages/knowledgeos-panel/src/client/contracts.ts": "bb3aae37264d1efa92aac5ddc1f25d26fd41d983bfa03f11e3fcb0025a9dc5a6",
+      "packages/knowledgeos-panel/src/client/icon.tsx": "539022c192d37f4021e7b11c4018684abf0501df80f018550270d795cf136a17",
+      "packages/knowledgeos-panel/src/client/index.ts": "acd8e12c152e561d12bcaf0f74b79c7264d3e3c14c31ecd81dcccdc71e796991",
+      "packages/knowledgeos-panel/src/client/status-client.ts": "2dc80b975edd22917d64d99ba7b6c7997140636a19ea2f918c0ff4e8db25b9ca",
+      "packages/knowledgeos-panel/src/cordis.d.ts": "a61ec59f85cfe32024fe0018ee883e403d067821e8e30a47061c7573ce5e4547",
+      "packages/knowledgeos-panel/src/host/ai-http.ts": "46987b16b2458ba19df4126a89516f290b380b4884e947122bde9722138de742",
+      "packages/knowledgeos-panel/src/host/ai-page.ts": "507c5c74b2a08841990ba073c2fdc098175344540d67a809c4a2c83bb1235ce1",
+      "packages/knowledgeos-panel/src/host/ai-service.ts": "4a4481e0ca8ae567e632c293de7ba17b1613d00423a464316329ed95cff0d624",
+      "packages/knowledgeos-panel/src/host/ai-tools.ts": "4302faaa836d167f93045d5cce8fbbc9c161dd439b9d15b8c920114aa6bc9b0d",
+      "packages/knowledgeos-panel/src/host/authorization.ts": "515b78499fd8d5b42280f3959063934fe974fcf85b2f8dfe3e599b1eea22242c",
+      "packages/knowledgeos-panel/src/host/config.ts": "ad47cf447645a6ee77437bd522b5ad32e40c3ea2e09948763206bb55fe2f071b",
+      "packages/knowledgeos-panel/src/host/http.ts": "a20bd13760e141314ab46886440fc7157c0640788c4f45d72cd8d2f5b02f1ce6",
+      "packages/knowledgeos-panel/src/host/identity-http.ts": "79745a370742f195b026f68f9d4de65280ac467b261e02528b9150f1725a800b",
+      "packages/knowledgeos-panel/src/host/identity-peer.ts": "82fdc1662dc5cdc6f71be8e9387af6612a2b79c76db78dd7335c8db7461f04b4",
+      "packages/knowledgeos-panel/src/host/identity.ts": "80bebf3c3b6b6dd95539b5d13e545a5e978f75c0e9cedbbf451c222dc095a34b",
+      "packages/knowledgeos-panel/src/host/index.ts": "6ac1d4bc06f634c70d5fbe990f55c28760bd938f0ef3b70c0257761cd0294ebc",
+      "packages/knowledgeos-panel/src/host/jobs.ts": "ed8467fbdc2b2364c53b96ca2142210cf5ec5cf8c7f14f1ed889591322c06f0b",
+      "packages/knowledgeos-panel/src/host/objects-http.ts": "2264b7af1a73c2907574a9e7d35c6622b01df8d4a738cd20d98103aea90f59c6",
+      "packages/knowledgeos-panel/src/host/records.ts": "658553efd04345b770879ef5225da61463630fbbadf2818b2ba1ebb7373bf675",
+      "packages/knowledgeos-panel/src/host/status.ts": "33e6a9a4b05153e9a2364f3c7f458c373ff4a847ca4df6d84bee6b54353e642b",
+      "packages/knowledgeos-panel/src/host/storage.ts": "0d9ab8b132dee6c788a6917c3de160080fc3987ec6815ddc791a52df5f060914",
+      "packages/knowledgeos-panel/src/host/test-support.ts": "051e56c4d3a0bbe70005a7283ebfc592179df0e8254e02d0147da37c086eff29",
+      "packages/knowledgeos-panel/tsconfig.json": "41a6582773df67eb97a77e4646a07e01f7bcbcbf0fd934eb8da2b7954f26441e"
+    }
+  },
+  "base": "c03ec437b2c648b16449598f89ac289bf307ccd2",
+  "scripts": {
+    "scripts/fnd001/status-contract.mjs": {
+      "original": "74add325a88078b41ea29f568cf889bb84ef4363a6c9753f1e17233f171ce5b4",
+      "executed": "74add325a88078b41ea29f568cf889bb84ef4363a6c9753f1e17233f171ce5b4"
+    },
+    "scripts/fnd003/harness.mjs": {
+      "original": "19dec0129d2ad31cbfe15050c78b351632daf3291a47b5de88ec8efdf909dbd6",
+      "executed": "214e1ee3447230cd12bb76c0988e990083c43672abb215412d8611cc47920366"
+    },
+    "scripts/fnd004/harness.mjs": {
+      "original": "856136698eb2db4457e63e96477dd9df2da4e22f22283de064cc85a3d5f0557d",
+      "executed": "856136698eb2db4457e63e96477dd9df2da4e22f22283de064cc85a3d5f0557d"
+    },
+    "scripts/fnd005/harness.mjs": {
+      "original": "85ed1dad663652d89671203579178d498773f3f60063ea276b85010002c1588c",
+      "executed": "6213ae38b883c1ed2ba65c82591a6b09cbfdef88abf3317d9ac10247d46e5379"
+    },
+    "scripts/fnd005/regression-harness.mjs": {
+      "original": "40d6a139486242a3d28abf7f1c9d0855448cea3cc00a69687bcaa0528d7230b9",
+      "executed": "40d6a139486242a3d28abf7f1c9d0855448cea3cc00a69687bcaa0528d7230b9"
+    },
+    "scripts/fnd005/fixture-provider.mjs": {
+      "original": "67cc800cb67f2979a85128f24ad981a2398432c55b0b445019fa48df262ba3d3",
+      "executed": "67cc800cb67f2979a85128f24ad981a2398432c55b0b445019fa48df262ba3d3"
+    },
+    "scripts/fnd005/acl-regression.mjs": {
+      "original": "bcdf3b34469664f848250d07a8e5bea76492f9f82d911000236bc52093330709",
+      "executed": "779df775eb73a6fb999cd84c72ed4197974a8b2bb94c5499eec7442df4eaa2ef"
+    },
+    "scripts/fnd005/run-all.mjs": {
+      "original": "0d4faa08c4700b6ba1d1f197d83f103da701b1e39df57d3de144ac553442bb41",
+      "executed": "a56f0adb4d443eabc51c1870e304bf55eceedaee09eeb4cf377cee8a6b389547"
+    },
+    "scripts/fnd005/browser-checks.mjs": {
+      "original": "04a61887f710fc70f766d6e41de8366cc8fcb046c437f093e91c7cea5712684b",
+      "executed": "cf51a578c87521901bab250f11dedbc201e0c9c2cc6ed7f645752354a50d834e"
+    },
+    "scripts/fnd005/configuration-checks.mjs": {
+      "original": "125ce682e7e0f1fb46817c6617f0a556a9dadcdd29d7ea374b234b07a7103f14",
+      "executed": "fdc0c7096f11b6e9121d21a5ef0aeed39263281bafb43b44c0c6f28c31c83bb8"
+    }
+  },
+  "suites": [
+    {
+      "id": "ui",
+      "command": [
+        "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+        "scripts/fnd005/browser-checks.mjs",
+        "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\regression\\.cache\\r-eNM0ls\\evidence\\ui"
+      ],
+      "start": "2026-11-19T06:40:15.711Z",
+      "end": "2026-11-19T06:41:01.082Z",
+      "exit": 0,
+      "signal": null,
+      "status": "PASS",
+      "details": {
+        "category": "REAL_CHROME_UI_HTTP_SQLITE_WITH_CONTROLLED_MODEL_FIXTURE",
+        "real_gpt": false,
+        "status": "PASS",
+        "checks": [
+          {
+            "id": "T01.fixture-ui-read",
+            "status": "PASS",
+            "real_login_ui": true,
+            "tool": "knowledgeos_read_object"
+          },
+          {
+            "id": "T02.T08.fixture-ui-write-reread",
+            "status": "PASS",
+            "tool": "knowledgeos_update_object",
+            "revision": 2,
+            "sql_agrees": true
+          },
+          {
+            "id": "FND006-T08.three-way-reread",
+            "status": "PASS",
+            "facts": {
+              "before": {
+                "id": "960894fb-729b-4c8b-a0a3-74b1bc6c9525",
+                "revision": 1
+              },
+              "http": {
+                "id": "960894fb-729b-4c8b-a0a3-74b1bc6c9525",
+                "revision": 2,
+                "body": "UI synthetic committed update"
+              },
+              "sqlite": {
+                "id": "960894fb-729b-4c8b-a0a3-74b1bc6c9525",
+                "revision": 2,
+                "body": "UI synthetic committed update"
+              },
+              "ui": {
+                "id": "960894fb-729b-4c8b-a0a3-74b1bc6c9525",
+                "revision": "2",
+                "label": "UI 合成验收对象 · revision 2",
+                "input": "2",
+                "detail": {
+                  "id": "960894fb-729b-4c8b-a0a3-74b1bc6c9525",
+                  "service_id": "82887fe6-c0ab-4811-97a8-fc61787ba3a8",
+                  "space_id": "9611fde5-e6a2-4b2d-8ad2-53b8664c9917",
+                  "scope": "personal",
+                  "owner_user_id": "59b5f346-6db8-4725-90e7-c3b1ff31882d",
+                  "object_type": "note",
+                  "title": "UI 合成验收对象",
+                  "body": "UI synthetic committed update",
+                  "status": "active",
+                  "revision": 2,
+                  "created_at": "2026-11-19T06:40:28.307Z",
+                  "updated_at": "2026-11-19T06:40:30.123Z"
+                }
+              }
+            }
+          },
+          {
+            "id": "T08.draft-change-invalidates-prepared-action",
+            "status": "PASS"
+          },
+          {
+            "id": "T06.fixture-ui-revision-conflict",
+            "status": "PASS",
+            "draft_preserved": true
+          },
+          {
+            "id": "T07.fixture-ui-timeout-cancel",
+            "status": "PASS"
+          },
+          {
+            "id": "R5.late-prepare-does-not-restore-cancelled-ui",
+            "status": "PASS",
+            "transport_response_delayed": true
+          },
+          {
+            "id": "T08.account-switch-clears-private-view",
+            "status": "PASS"
+          },
+          {
+            "id": "T08.refresh-invalidates-prepared-tool",
+            "status": "PASS"
+          },
+          {
+            "id": "T08.unconfigured-ui-blocked",
+            "status": "PASS",
+            "provider_calls": 0
+          },
+          {
+            "id": "T08.unconfigured-draft-stays-blocked",
+            "status": "PASS"
+          }
+        ],
+        "started_at": "2026-11-19T06:40:15.999Z",
+        "page_errors": [],
+        "finished_at": "2026-11-19T06:40:46.784Z",
+        "loaded_candidate_sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+      }
+    },
+    {
+      "id": "configuration",
+      "command": [
+        "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+        "scripts/fnd005/configuration-checks.mjs",
+        "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\regression\\.cache\\r-eNM0ls\\evidence\\configuration"
+      ],
+      "start": "2026-11-19T06:41:01.094Z",
+      "end": "2026-11-19T06:43:15.645Z",
+      "exit": 0,
+      "signal": null,
+      "status": "PASS",
+      "details": {
+        "category": "REAL_HTTP_CONFIG_AND_CONTROLLED_ERROR_FIXTURE",
+        "real_gpt": false,
+        "status": "PASS",
+        "checks": [
+          {
+            "id": "unconfigured",
+            "status": "PASS",
+            "http": 503,
+            "code": "MODEL_NOT_CONFIGURED",
+            "attempts": 0
+          },
+          {
+            "id": "non-deepseek",
+            "status": "PASS",
+            "http": 503,
+            "code": "MODEL_NOT_CONFIGURED",
+            "attempts": 0
+          },
+          {
+            "id": "provider-unavailable",
+            "status": "PASS",
+            "http": 503,
+            "code": "MODEL_NOT_CONFIGURED",
+            "attempts": 0
+          },
+          {
+            "id": "model-not-found",
+            "status": "PASS",
+            "http": 404,
+            "code": "MODEL_NOT_FOUND",
+            "attempts": 0
+          },
+          {
+            "id": "prices-absent",
+            "status": "PASS",
+            "http": 200,
+            "attempts": 1
+          },
+          {
+            "id": "monetary-budget",
+            "status": "PASS",
+            "http": 200,
+            "attempts": 1
+          },
+          {
+            "id": "call-budget",
+            "status": "PASS",
+            "http": 200,
+            "attempts": 2
+          },
+          {
+            "id": "typed-MISSING_CREDENTIAL",
+            "status": "PASS",
+            "category": "CONTROLLED_ERROR_CLASSIFIER",
+            "code": "CREDENTIALS_MISSING"
+          },
+          {
+            "id": "typed-INVALID_CREDENTIAL",
+            "status": "PASS",
+            "category": "CONTROLLED_ERROR_CLASSIFIER",
+            "code": "CREDENTIALS_INVALID"
+          },
+          {
+            "id": "typed-ACCOUNT_QUOTA",
+            "status": "PASS",
+            "category": "CONTROLLED_ERROR_CLASSIFIER",
+            "code": "QUOTA_EXHAUSTED"
+          },
+          {
+            "id": "typed-QUOTA",
+            "status": "PASS",
+            "category": "CONTROLLED_ERROR_CLASSIFIER",
+            "code": "QUOTA_EXHAUSTED"
+          },
+          {
+            "id": "typed-UNKNOWN_MODEL",
+            "status": "PASS",
+            "category": "CONTROLLED_ERROR_CLASSIFIER",
+            "code": "MODEL_NOT_FOUND"
+          },
+          {
+            "id": "typed-MODEL_UNSUPPORTED",
+            "status": "PASS",
+            "category": "CONTROLLED_ERROR_CLASSIFIER",
+            "code": "MODEL_NOT_FOUND"
+          },
+          {
+            "id": "typed-NO_ADAPTER",
+            "status": "PASS",
+            "category": "CONTROLLED_ERROR_CLASSIFIER",
+            "code": "MODEL_NOT_CONFIGURED"
+          },
+          {
+            "id": "typed-TIMEOUT",
+            "status": "PASS",
+            "category": "CONTROLLED_ERROR_CLASSIFIER",
+            "code": "MODEL_TIMEOUT"
+          },
+          {
+            "id": "typed-ABORTED",
+            "status": "PASS",
+            "category": "CONTROLLED_ERROR_CLASSIFIER",
+            "code": "CANCELLED"
+          },
+          {
+            "id": "typed-RATE_LIMIT",
+            "status": "PASS",
+            "category": "CONTROLLED_ERROR_CLASSIFIER",
+            "code": "PROVIDER_RATE_LIMITED"
+          },
+          {
+            "id": "R4.CREDENTIALS_MISSING",
+            "status": "PASS",
+            "category": "CONTROLLED_ERROR_CLASSIFIER"
+          },
+          {
+            "id": "R4.CREDENTIALS_INVALID",
+            "status": "PASS",
+            "category": "CONTROLLED_ERROR_CLASSIFIER"
+          },
+          {
+            "id": "R4.PROVIDER_PERMISSION_DENIED",
+            "status": "PASS",
+            "category": "CONTROLLED_ERROR_CLASSIFIER"
+          },
+          {
+            "id": "actual-pi-ai-missing-credential",
+            "status": "PASS",
+            "category": "ACTUAL_PINNED_PI_AI_ADAPTER_REAL_HTTP_NO_CREDENTIAL",
+            "http": 503,
+            "code": "CREDENTIALS_MISSING",
+            "network_requests": 0
+          },
+          {
+            "id": "actual-pi-ai-unknown-model-with-hidden-catalog",
+            "status": "PASS",
+            "category": "ACTUAL_PINNED_PI_AI_ADAPTER_REAL_HTTP_NO_CREDENTIAL",
+            "http": 404,
+            "code": "MODEL_NOT_FOUND",
+            "network_requests": 0
+          }
+        ],
+        "started_at": "2026-11-19T06:41:01.194Z",
+        "finished_at": "2026-11-19T06:43:01.355Z"
+      }
+    },
+    {
+      "id": "policy",
+      "command": [
+        "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+        "scripts/fnd005/observations.mjs",
+        "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\regression\\.cache\\r-eNM0ls\\evidence\\policy",
+        "6"
+      ],
+      "start": "2026-11-19T06:43:15.645Z",
+      "end": "2026-11-19T06:44:32.454Z",
+      "exit": 0,
+      "signal": null,
+      "status": "PASS",
+      "details": {
+        "status": "PASS",
+        "checks": [
+          {
+            "id": "status-record-restart",
+            "status": "PASS",
+            "facts": {
+              "contracts": [
+                {
+                  "command": [
+                    "node",
+                    "scripts/fnd001/status-contract.mjs",
+                    "--mode",
+                    "same-instance",
+                    "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\regression\\.cache\\r-eNM0ls\\evidence\\policy\\first.json",
+                    "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\regression\\.cache\\r-eNM0ls\\evidence\\policy\\second.json"
+                  ],
+                  "exit": 0
+                },
+                {
+                  "command": [
+                    "node",
+                    "scripts/fnd001/status-contract.mjs",
+                    "--mode",
+                    "restart",
+                    "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\regression\\.cache\\r-eNM0ls\\evidence\\policy\\second.json",
+                    "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\regression\\.cache\\r-eNM0ls\\evidence\\policy\\restart.json"
+                  ],
+                  "exit": 0
+                }
+              ],
+              "before": {
+                "pid": 46236,
+                "instance": "aad5456a-7dc3-4167-8073-42c1f892fe2f",
+                "id": "3668fe07-5e63-4202-add9-f94a2f797a09",
+                "content": "回归 006 • persistent",
+                "user_version": 6,
+                "application_id": 1263489841,
+                "ledger": [
+                  {
+                    "version": 1,
+                    "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+                    "applied_at": "2026-11-19T06:43:24.770Z"
+                  },
+                  {
+                    "version": 2,
+                    "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+                    "applied_at": "2026-11-19T06:43:24.776Z"
+                  },
+                  {
+                    "version": 3,
+                    "checksum": "630937e1ad06487b53607cec01b30252bcdc6d273e962caa11642deb7d308464",
+                    "applied_at": "2026-11-19T06:43:24.778Z"
+                  },
+                  {
+                    "version": 4,
+                    "checksum": "02fae87367a3a3a849f1f79642fd8283069d9e1dad911e5d62a766108a7ad883",
+                    "applied_at": "2026-11-19T06:43:24.780Z"
+                  },
+                  {
+                    "version": 5,
+                    "checksum": "6a943f2b3c9c112b7dad4f5ff032ad6f1b7dbecfd8acef7be6c11eb117b856cc",
+                    "applied_at": "2026-11-19T06:43:24.781Z"
+                  },
+                  {
+                    "version": 6,
+                    "checksum": "e7a3f593c9f8c950035e381a9c8f43ec17a94026ecb136b696c1d4561befc32c",
+                    "applied_at": "2026-11-19T06:43:24.782Z"
+                  }
+                ]
+              },
+              "after": {
+                "pid": 44852,
+                "instance": "921c2d8e-b4c2-4482-a6f8-de49948a51f6",
+                "http": 200,
+                "id": "3668fe07-5e63-4202-add9-f94a2f797a09",
+                "content": "回归 006 • persistent",
+                "user_version": 6,
+                "application_id": 1263489841,
+                "ledger": [
+                  {
+                    "version": 1,
+                    "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+                    "applied_at": "2026-11-19T06:43:24.770Z"
+                  },
+                  {
+                    "version": 2,
+                    "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+                    "applied_at": "2026-11-19T06:43:24.776Z"
+                  },
+                  {
+                    "version": 3,
+                    "checksum": "630937e1ad06487b53607cec01b30252bcdc6d273e962caa11642deb7d308464",
+                    "applied_at": "2026-11-19T06:43:24.778Z"
+                  },
+                  {
+                    "version": 4,
+                    "checksum": "02fae87367a3a3a849f1f79642fd8283069d9e1dad911e5d62a766108a7ad883",
+                    "applied_at": "2026-11-19T06:43:24.780Z"
+                  },
+                  {
+                    "version": 5,
+                    "checksum": "6a943f2b3c9c112b7dad4f5ff032ad6f1b7dbecfd8acef7be6c11eb117b856cc",
+                    "applied_at": "2026-11-19T06:43:24.781Z"
+                  },
+                  {
+                    "version": 6,
+                    "checksum": "e7a3f593c9f8c950035e381a9c8f43ec17a94026ecb136b696c1d4561befc32c",
+                    "applied_at": "2026-11-19T06:43:24.782Z"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "id": "unpriced",
+            "status": "PASS",
+            "facts": {
+              "before": {
+                "provider": "fnd005-fixture",
+                "model": "deepseek-controlled-tool-model",
+                "configured": true,
+                "attempts": 0,
+                "timeout_ms": 30000,
+                "budget_usd": 0.001,
+                "known_estimated_usd": 0,
+                "unknown_cost_calls": 0,
+                "reported_input_tokens": 0,
+                "reported_output_tokens": 0,
+                "budget_warning": false,
+                "state": "ready"
+              },
+              "responses": [
+                {
+                  "http": 200,
+                  "usage": {
+                    "inputTokens": 100,
+                    "outputTokens": 40,
+                    "totalTokens": 140
+                  },
+                  "execute": 200
+                },
+                {
+                  "http": 200,
+                  "usage": {
+                    "inputTokens": 100,
+                    "outputTokens": 40,
+                    "totalTokens": 140
+                  },
+                  "execute": 200
+                }
+              ],
+              "after": {
+                "provider": "fnd005-fixture",
+                "model": "deepseek-controlled-tool-model",
+                "configured": true,
+                "attempts": 2,
+                "timeout_ms": 30000,
+                "budget_usd": 0.001,
+                "known_estimated_usd": 0,
+                "unknown_cost_calls": 2,
+                "reported_input_tokens": 200,
+                "reported_output_tokens": 80,
+                "budget_warning": true,
+                "state": "ready"
+              }
+            }
+          },
+          {
+            "id": "over-budget",
+            "status": "PASS",
+            "facts": {
+              "before": {
+                "provider": "fnd005-fixture",
+                "model": "deepseek-controlled-tool-model",
+                "configured": true,
+                "attempts": 0,
+                "timeout_ms": 30000,
+                "budget_usd": 0.001,
+                "known_estimated_usd": 0,
+                "unknown_cost_calls": 0,
+                "reported_input_tokens": 0,
+                "reported_output_tokens": 0,
+                "budget_warning": false,
+                "state": "ready"
+              },
+              "responses": [
+                {
+                  "http": 200,
+                  "usage": {
+                    "inputTokens": 100,
+                    "outputTokens": 40,
+                    "totalTokens": 140
+                  },
+                  "execute": 200
+                },
+                {
+                  "http": 200,
+                  "usage": {
+                    "inputTokens": 100,
+                    "outputTokens": 40,
+                    "totalTokens": 140
+                  },
+                  "execute": 200
+                }
+              ],
+              "after": {
+                "provider": "fnd005-fixture",
+                "model": "deepseek-controlled-tool-model",
+                "configured": true,
+                "attempts": 2,
+                "timeout_ms": 30000,
+                "budget_usd": 0.001,
+                "known_estimated_usd": 0.28,
+                "unknown_cost_calls": 0,
+                "reported_input_tokens": 200,
+                "reported_output_tokens": 80,
+                "budget_warning": true,
+                "state": "ready"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "integration",
+      "command": [
+        "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+        "scripts/fnd005/run-all.mjs",
+        "--out",
+        "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\regression\\.cache\\r-eNM0ls\\evidence\\integration",
+        "--port",
+        "3263"
+      ],
+      "start": "2026-11-19T06:44:32.454Z",
+      "end": "2026-11-19T06:45:10.351Z",
+      "exit": 0,
+      "signal": null,
+      "status": "PASS",
+      "details": {
+        "category": "CONTROLLED_MODEL_FIXTURE_WITH_REAL_HTTP_DSH_NATIVE_SQLITE",
+        "real_gpt": false,
+        "started_at": "2026-11-19T06:44:32.589Z",
+        "status": "PASS",
+        "checks": [
+          {
+            "id": "T03.native-unbound-execution-denied",
+            "status": "PASS",
+            "started_at": "2026-11-19T06:44:43.672Z",
+            "finished_at": "2026-11-19T06:44:43.672Z",
+            "facts": {
+              "category": "ACTUAL_DSH_NATIVE_EXECUTOR_WITHOUT_BUSINESS_CONTEXT",
+              "status": "PASS",
+              "code": "TOOL_CONTEXT_REQUIRED"
+            }
+          },
+          {
+            "id": "T09.identity-owner-separation",
+            "status": "PASS",
+            "started_at": "2026-11-19T06:44:43.672Z",
+            "finished_at": "2026-11-19T06:44:43.686Z",
+            "facts": {
+              "real_login": true,
+              "business_user_is_not_owner": true,
+              "owner_is_not_business_user": true,
+              "status_http": 200
+            }
+          },
+          {
+            "id": "T01.fixture-read-native-tool",
+            "status": "PASS",
+            "started_at": "2026-11-19T06:44:43.692Z",
+            "finished_at": "2026-11-19T06:44:43.705Z",
+            "facts": {
+              "provider": "fnd005-fixture",
+              "model": "deepseek-controlled-tool-model",
+              "tool": "knowledgeos_read_object",
+              "object_id": "38e388a5-5f05-4d2b-ae2d-856525d9a4f9",
+              "revision": 1,
+              "http": 200
+            }
+          },
+          {
+            "id": "T02.fixture-write-reread-sql",
+            "status": "PASS",
+            "started_at": "2026-11-19T06:44:43.705Z",
+            "finished_at": "2026-11-19T06:44:43.729Z",
+            "facts": {
+              "object_id": "38e388a5-5f05-4d2b-ae2d-856525d9a4f9",
+              "tool": "knowledgeos_update_object",
+              "revision_before": 1,
+              "revision_after": 2,
+              "body_sha256": "13501664711b154e83f71970895f9137844f71cf976fc8d66856ed7892ca155f",
+              "http_sql_get_agree": true,
+              "receipts": 1
+            }
+          },
+          {
+            "id": "T05.exact-replay-conflicts-concurrency",
+            "status": "PASS",
+            "started_at": "2026-11-19T06:44:43.729Z",
+            "finished_at": "2026-11-19T06:44:43.804Z",
+            "facts": {
+              "exact_original_result_after_later_edit": true,
+              "original_receipts": 1,
+              "different_parameters": 409,
+              "different_object": 409,
+              "parallel_http": [
+                200,
+                200
+              ],
+              "parallel_revision": 2,
+              "parallel_receipts": 1
+            }
+          },
+          {
+            "id": "T06.stale-revision",
+            "status": "PASS",
+            "started_at": "2026-11-19T06:44:43.804Z",
+            "finished_at": "2026-11-19T06:44:43.814Z",
+            "facts": {
+              "http": 409,
+              "unchanged": true,
+              "receipt_count": 0
+            }
+          },
+          {
+            "id": "T03.private-and-forged-identity",
+            "status": "PASS",
+            "started_at": "2026-11-19T06:44:43.814Z",
+            "finished_at": "2026-11-19T06:44:43.841Z",
+            "facts": {
+              "cross_user_read": 404,
+              "cross_user_write": 404,
+              "forged_model_identity": 422,
+              "forged_request_identity": 422,
+              "unchanged": true
+            }
+          },
+          {
+            "id": "T04.revoke-after-prepare-and-replay",
+            "status": "PASS",
+            "started_at": "2026-11-19T06:44:43.863Z",
+            "finished_at": "2026-11-19T06:44:43.905Z",
+            "facts": {
+              "prepared_read": 404,
+              "prepared_write": 404,
+              "protected_replay": 404,
+              "revision": 2,
+              "revoked_grant_history": 1,
+              "regrant_restored": true
+            }
+          },
+          {
+            "id": "T04.membership-expiry-after-prepare",
+            "status": "PASS",
+            "started_at": "2026-11-19T06:44:43.905Z",
+            "finished_at": "2026-11-19T06:44:43.923Z",
+            "facts": {
+              "http": 404,
+              "valid_action_grants_do_not_bypass_expired_membership": true,
+              "unchanged": true
+            }
+          },
+          {
+            "id": "T04.logout-after-prepare",
+            "status": "PASS",
+            "started_at": "2026-11-19T06:44:43.924Z",
+            "finished_at": "2026-11-19T06:44:43.931Z",
+            "facts": {
+              "http": 401,
+              "no_tool_result": true
+            }
+          },
+          {
+            "id": "T07.typed-model-failures",
+            "status": "PASS",
+            "started_at": "2026-11-19T06:44:43.931Z",
+            "finished_at": "2026-11-19T06:44:44.954Z",
+            "facts": [
+              {
+                "fixture": "fixture:missing",
+                "http": 503,
+                "code": "CREDENTIALS_MISSING"
+              },
+              {
+                "fixture": "fixture:invalid",
+                "http": 502,
+                "code": "CREDENTIALS_INVALID"
+              },
+              {
+                "fixture": "fixture:quota",
+                "http": 429,
+                "code": "QUOTA_EXHAUSTED"
+              },
+              {
+                "fixture": "fixture:permission",
+                "http": 403,
+                "code": "PROVIDER_PERMISSION_DENIED"
+              },
+              {
+                "fixture": "fixture:failure",
+                "http": 502,
+                "code": "MODEL_FAILED"
+              },
+              {
+                "fixture": "fixture:timeout",
+                "http": 504,
+                "code": "MODEL_TIMEOUT"
+              },
+              {
+                "fixture": "fixture:multiple",
+                "http": 502,
+                "code": "MODEL_OUTPUT_INVALID"
+              }
+            ]
+          },
+          {
+            "id": "T07.cancellation",
+            "status": "PASS",
+            "started_at": "2026-11-19T06:44:44.954Z",
+            "finished_at": "2026-11-19T06:44:45.123Z",
+            "facts": {
+              "stream_cancel": 409,
+              "prepared_cancel": 409,
+              "unchanged": true
+            }
+          },
+          {
+            "id": "T09.persistence-restart",
+            "status": "PASS",
+            "started_at": "2026-11-19T06:44:45.123Z",
+            "finished_at": "2026-11-19T06:44:55.313Z",
+            "facts": {
+              "old_pid_stopped": true,
+              "new_pid": true,
+              "user_version": 6,
+              "ledger": 6,
+              "persistent_original_replay": true,
+              "current_revision": 3
+            }
+          },
+          {
+            "id": "T09.foundation-record-and-identity",
+            "status": "PASS",
+            "started_at": "2026-11-19T06:44:55.313Z",
+            "finished_at": "2026-11-19T06:44:55.324Z",
+            "facts": {
+              "foundation_record_create": 201,
+              "read": 200,
+              "preferences_conflict": 409
+            }
+          }
+        ],
+        "loaded_bundle_sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84",
+        "schema": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a"
+          },
+          {
+            "version": 2,
+            "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2"
+          },
+          {
+            "version": 3,
+            "checksum": "630937e1ad06487b53607cec01b30252bcdc6d273e962caa11642deb7d308464"
+          },
+          {
+            "version": 4,
+            "checksum": "02fae87367a3a3a849f1f79642fd8283069d9e1dad911e5d62a766108a7ad883"
+          },
+          {
+            "version": 5,
+            "checksum": "6a943f2b3c9c112b7dad4f5ff032ad6f1b7dbecfd8acef7be6c11eb117b856cc"
+          },
+          {
+            "version": 6,
+            "checksum": "e7a3f593c9f8c950035e381a9c8f43ec17a94026ecb136b696c1d4561befc32c"
+          }
+        ],
+        "finished_at": "2026-11-19T06:44:56.062Z"
+      }
+    },
+    {
+      "id": "acl",
+      "command": [
+        "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+        "scripts/fnd005/acl-regression.mjs",
+        "--out",
+        "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\regression\\.cache\\r-eNM0ls\\evidence\\acl",
+        "--port",
+        "3265"
+      ],
+      "start": "2026-11-19T06:45:10.351Z",
+      "end": "2026-11-19T06:45:36.570Z",
+      "exit": 0,
+      "signal": null,
+      "status": "PASS",
+      "details": {
+        "status": "PASS",
+        "candidate": "WORKTREE",
+        "dsh_host": {
+          "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+          "profile": "knowledgeos-identity-test",
+          "port": 3265
+        },
+        "checks": [
+          {
+            "id": "FND-004-T01",
+            "status": "PASS",
+            "evidence": "FND-004-T01.json"
+          },
+          {
+            "id": "FND-004-T02",
+            "status": "PASS",
+            "evidence": "FND-004-T02.json"
+          },
+          {
+            "id": "FND-004-T03",
+            "status": "PASS",
+            "evidence": "FND-004-T03.json"
+          },
+          {
+            "id": "FND-004-T04",
+            "status": "PASS",
+            "evidence": "FND-004-T04.json"
+          },
+          {
+            "id": "FND-004-T05",
+            "status": "PASS",
+            "evidence": "FND-004-T05.json"
+          },
+          {
+            "id": "FND-004-T06",
+            "status": "PASS",
+            "evidence": "FND-004-T06.json"
+          },
+          {
+            "id": "FND-004-T07",
+            "status": "PASS",
+            "evidence": "FND-004-T07.json"
+          }
+        ],
+        "not_run": [
+          "search_index",
+          "ai_summary",
+          "file_download",
+          "invite_redemption",
+          "full_cache_invalidation",
+          "complete_A02_A34_A46"
+        ]
+      }
+    }
+  ],
+  "started_at": "2026-11-19T06:40:15.296Z",
+  "real_model_calls": 0,
+  "after": {
+    "head": "c03ec437b2c648b16449598f89ac289bf307ccd2",
+    "product_sha256": "f0fcc8a41b8894a4d61e74e22371b2107b626824711d365c13cbe9ffd00759c0",
+    "entry": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel\\lib\\index.js",
+    "entry_sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84",
+    "dirty_product": "M  packages/knowledgeos-panel/lib/index.js\nM  packages/knowledgeos-panel/lib/storage.js\nM  packages/knowledgeos-panel/lib/test-support.js\nM  packages/knowledgeos-panel/src/cordis.d.ts\nM  packages/knowledgeos-panel/src/host/ai-page.ts\nM  packages/knowledgeos-panel/src/host/ai-service.ts\nM  packages/knowledgeos-panel/src/host/config.ts\nM  packages/knowledgeos-panel/src/host/index.ts\nA  packages/knowledgeos-panel/src/host/jobs.ts\nM  packages/knowledgeos-panel/src/host/objects-http.ts\nM  packages/knowledgeos-panel/src/host/storage.ts",
+    "files": {
+      "packages/knowledgeos-panel/README.md": "0399997bbe65b5cc9567e4676dc347f09c393d8ec920e1c5f4e31a61b8f6c264",
+      "packages/knowledgeos-panel/build.mjs": "fd261eaf6ec914a897aa4ec50a93296525f4c080b2045804102fdf3a959b0147",
+      "packages/knowledgeos-panel/cordis.patch.yml": "2133c93965bc9b5ea4966999b418ad1fccc720cd5bc6da87ee78d3ddb4d68536",
+      "packages/knowledgeos-panel/lib/client.js": "dfa4a5e2fb8afcaf85657f22048185e3cb86444db87e8e6e4ec1d4b0bbe2e1a9",
+      "packages/knowledgeos-panel/lib/index.js": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84",
+      "packages/knowledgeos-panel/lib/storage.js": "7ed4c937a4533ebf7041b4d3526c468883ff56b1ae77ccc6d5a5c106608a673f",
+      "packages/knowledgeos-panel/lib/test-support.js": "3a5305d5934f403ae9149d4446a7eedf00d13edeaffad684d28beffc6b4e3b57",
+      "packages/knowledgeos-panel/package-lock.json": "9449dc7c97e8f4096f16b0334fb810b914edc1bc7630df5cb858f2d74262353a",
+      "packages/knowledgeos-panel/package.json": "48a6f24ff44437ebaee238ee53c96422fdcc7968f645582fb95b5585a52f1c55",
+      "packages/knowledgeos-panel/pnpm-lock.yaml": "c1225a2912e7420477e08b37b42bbd0b0523b45af7a6225b0b3c9c1cb72abb53",
+      "packages/knowledgeos-panel/pnpm-workspace.yaml": "d6d0c24446d91ef762d37c6ba801bb516e65d7055aa9f8027fcd457409a97ce1",
+      "packages/knowledgeos-panel/src/client/Panel.tsx": "1a425ecbe139262b883cb7007d9d8e757fbef168adc1f5f9d939f40c5cf42e85",
+      "packages/knowledgeos-panel/src/client/contracts.ts": "bb3aae37264d1efa92aac5ddc1f25d26fd41d983bfa03f11e3fcb0025a9dc5a6",
+      "packages/knowledgeos-panel/src/client/icon.tsx": "539022c192d37f4021e7b11c4018684abf0501df80f018550270d795cf136a17",
+      "packages/knowledgeos-panel/src/client/index.ts": "acd8e12c152e561d12bcaf0f74b79c7264d3e3c14c31ecd81dcccdc71e796991",
+      "packages/knowledgeos-panel/src/client/status-client.ts": "2dc80b975edd22917d64d99ba7b6c7997140636a19ea2f918c0ff4e8db25b9ca",
+      "packages/knowledgeos-panel/src/cordis.d.ts": "a61ec59f85cfe32024fe0018ee883e403d067821e8e30a47061c7573ce5e4547",
+      "packages/knowledgeos-panel/src/host/ai-http.ts": "46987b16b2458ba19df4126a89516f290b380b4884e947122bde9722138de742",
+      "packages/knowledgeos-panel/src/host/ai-page.ts": "507c5c74b2a08841990ba073c2fdc098175344540d67a809c4a2c83bb1235ce1",
+      "packages/knowledgeos-panel/src/host/ai-service.ts": "4a4481e0ca8ae567e632c293de7ba17b1613d00423a464316329ed95cff0d624",
+      "packages/knowledgeos-panel/src/host/ai-tools.ts": "4302faaa836d167f93045d5cce8fbbc9c161dd439b9d15b8c920114aa6bc9b0d",
+      "packages/knowledgeos-panel/src/host/authorization.ts": "515b78499fd8d5b42280f3959063934fe974fcf85b2f8dfe3e599b1eea22242c",
+      "packages/knowledgeos-panel/src/host/config.ts": "ad47cf447645a6ee77437bd522b5ad32e40c3ea2e09948763206bb55fe2f071b",
+      "packages/knowledgeos-panel/src/host/http.ts": "a20bd13760e141314ab46886440fc7157c0640788c4f45d72cd8d2f5b02f1ce6",
+      "packages/knowledgeos-panel/src/host/identity-http.ts": "79745a370742f195b026f68f9d4de65280ac467b261e02528b9150f1725a800b",
+      "packages/knowledgeos-panel/src/host/identity-peer.ts": "82fdc1662dc5cdc6f71be8e9387af6612a2b79c76db78dd7335c8db7461f04b4",
+      "packages/knowledgeos-panel/src/host/identity.ts": "80bebf3c3b6b6dd95539b5d13e545a5e978f75c0e9cedbbf451c222dc095a34b",
+      "packages/knowledgeos-panel/src/host/index.ts": "6ac1d4bc06f634c70d5fbe990f55c28760bd938f0ef3b70c0257761cd0294ebc",
+      "packages/knowledgeos-panel/src/host/jobs.ts": "ed8467fbdc2b2364c53b96ca2142210cf5ec5cf8c7f14f1ed889591322c06f0b",
+      "packages/knowledgeos-panel/src/host/objects-http.ts": "2264b7af1a73c2907574a9e7d35c6622b01df8d4a738cd20d98103aea90f59c6",
+      "packages/knowledgeos-panel/src/host/records.ts": "658553efd04345b770879ef5225da61463630fbbadf2818b2ba1ebb7373bf675",
+      "packages/knowledgeos-panel/src/host/status.ts": "33e6a9a4b05153e9a2364f3c7f458c373ff4a847ca4df6d84bee6b54353e642b",
+      "packages/knowledgeos-panel/src/host/storage.ts": "0d9ab8b132dee6c788a6917c3de160080fc3987ec6815ddc791a52df5f060914",
+      "packages/knowledgeos-panel/src/host/test-support.ts": "051e56c4d3a0bbe70005a7283ebfc592179df0e8254e02d0147da37c086eff29",
+      "packages/knowledgeos-panel/tsconfig.json": "41a6582773df67eb97a77e4646a07e01f7bcbcbf0fd934eb8da2b7954f26441e"
+    }
+  },
+  "loads": [
+    {
+      "pid": 44852,
+      "path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel\\lib\\index.js",
+      "sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+    },
+    {
+      "pid": 52128,
+      "path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel\\lib\\index.js",
+      "sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+    },
+    {
+      "pid": 68804,
+      "path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel\\lib\\index.js",
+      "sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+    },
+    {
+      "pid": 49928,
+      "path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel\\lib\\index.js",
+      "sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+    },
+    {
+      "pid": 51656,
+      "path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel\\lib\\index.js",
+      "sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+    },
+    {
+      "pid": 63492,
+      "path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel\\lib\\index.js",
+      "sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+    },
+    {
+      "pid": 47288,
+      "path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel\\lib\\index.js",
+      "sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+    },
+    {
+      "pid": 63036,
+      "path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel\\lib\\index.js",
+      "sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+    },
+    {
+      "pid": 55492,
+      "path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel\\lib\\index.js",
+      "sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+    },
+    {
+      "pid": 69652,
+      "path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel\\lib\\index.js",
+      "sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+    },
+    {
+      "pid": 65100,
+      "path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel\\lib\\index.js",
+      "sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+    },
+    {
+      "pid": 46236,
+      "path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel\\lib\\index.js",
+      "sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+    },
+    {
+      "pid": 44852,
+      "path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel\\lib\\index.js",
+      "sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+    },
+    {
+      "pid": 53108,
+      "path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel\\lib\\index.js",
+      "sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+    },
+    {
+      "pid": 57700,
+      "path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel\\lib\\index.js",
+      "sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+    },
+    {
+      "pid": 68704,
+      "path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel\\lib\\index.js",
+      "sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+    },
+    {
+      "pid": 72308,
+      "path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel\\lib\\index.js",
+      "sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+    },
+    {
+      "pid": 72076,
+      "path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel\\lib\\index.js",
+      "sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+    }
+  ],
+  "stable": true,
+  "load_verified": true,
+  "status": "PASS",
+  "exit": 0,
+  "finished_at": "2026-11-19T06:45:36.975Z"
+}

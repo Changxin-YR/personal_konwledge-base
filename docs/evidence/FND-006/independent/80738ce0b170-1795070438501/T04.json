@@ -1,0 +1,375 @@
+{
+  "id": "T04",
+  "pid": 63276,
+  "command": [
+    "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+    "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\independent\\case.mjs",
+    "T04",
+    "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\docs\\evidence\\FND-006\\independent\\80738ce0b170-1795070438501"
+  ],
+  "directory": "C:\\Users\\27363\\AppData\\Local\\Temp\\fnd006-T04-XgkjSN",
+  "status": "PASS",
+  "events": [
+    {
+      "at": "2026-11-19T06:41:39.428Z",
+      "label": "first lease",
+      "facts": {
+        "id": "67ebe635-5ada-402c-aa09-2525bbaeca5b",
+        "state": "running",
+        "attempts": 1,
+        "checkpoint": 0,
+        "lease_token": "2fac505bebf5b2d7c7c4c9d254d7e77791000592a01cc4b3427eaccc7f2ce81b",
+        "lease_until": 1795070502412,
+        "available_at": 1795070499405,
+        "last_error": null,
+        "runs": [
+          {
+            "job_id": "67ebe635-5ada-402c-aa09-2525bbaeca5b",
+            "attempt": 1,
+            "worker": "w1",
+            "started_at": 1795070499412,
+            "start_checkpoint": 0,
+            "ended_at": null,
+            "outcome": null
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:41:40.445Z",
+      "label": "renewed",
+      "facts": {
+        "id": "67ebe635-5ada-402c-aa09-2525bbaeca5b",
+        "state": "running",
+        "attempts": 1,
+        "checkpoint": 0,
+        "lease_token": "2fac505bebf5b2d7c7c4c9d254d7e77791000592a01cc4b3427eaccc7f2ce81b",
+        "lease_until": 1795070503432,
+        "available_at": 1795070499405,
+        "last_error": null,
+        "runs": [
+          {
+            "job_id": "67ebe635-5ada-402c-aa09-2525bbaeca5b",
+            "attempt": 1,
+            "worker": "w1",
+            "started_at": 1795070499412,
+            "start_checkpoint": 0,
+            "ended_at": null,
+            "outcome": null
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:41:43.462Z",
+      "label": "expired 1",
+      "facts": {
+        "id": "67ebe635-5ada-402c-aa09-2525bbaeca5b",
+        "state": "queued",
+        "attempts": 1,
+        "checkpoint": 0,
+        "lease_token": null,
+        "lease_until": null,
+        "available_at": 1795070503701,
+        "last_error": "LEASE_EXPIRED",
+        "runs": [
+          {
+            "job_id": "67ebe635-5ada-402c-aa09-2525bbaeca5b",
+            "attempt": 1,
+            "worker": "w1",
+            "started_at": 1795070499412,
+            "start_checkpoint": 0,
+            "ended_at": 1795070503451,
+            "outcome": "LEASE_EXPIRED"
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:41:43.724Z",
+      "label": "reclaimed 2",
+      "facts": {
+        "id": "67ebe635-5ada-402c-aa09-2525bbaeca5b",
+        "state": "running",
+        "attempts": 2,
+        "checkpoint": 0,
+        "lease_token": "13177543268fa132206f79f2bfc36aac2aee88e8dcc10f41858b16e285792248",
+        "lease_until": 1795070506710,
+        "available_at": 1795070503701,
+        "last_error": "LEASE_EXPIRED",
+        "runs": [
+          {
+            "job_id": "67ebe635-5ada-402c-aa09-2525bbaeca5b",
+            "attempt": 1,
+            "worker": "w1",
+            "started_at": 1795070499412,
+            "start_checkpoint": 0,
+            "ended_at": 1795070503451,
+            "outcome": "LEASE_EXPIRED"
+          },
+          {
+            "job_id": "67ebe635-5ada-402c-aa09-2525bbaeca5b",
+            "attempt": 2,
+            "worker": "w2",
+            "started_at": 1795070503710,
+            "start_checkpoint": 0,
+            "ended_at": null,
+            "outcome": null
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:41:46.744Z",
+      "label": "expired 2",
+      "facts": {
+        "id": "67ebe635-5ada-402c-aa09-2525bbaeca5b",
+        "state": "queued",
+        "attempts": 2,
+        "checkpoint": 0,
+        "lease_token": null,
+        "lease_until": null,
+        "available_at": 1795070506978,
+        "last_error": "LEASE_EXPIRED",
+        "runs": [
+          {
+            "job_id": "67ebe635-5ada-402c-aa09-2525bbaeca5b",
+            "attempt": 1,
+            "worker": "w1",
+            "started_at": 1795070499412,
+            "start_checkpoint": 0,
+            "ended_at": 1795070503451,
+            "outcome": "LEASE_EXPIRED"
+          },
+          {
+            "job_id": "67ebe635-5ada-402c-aa09-2525bbaeca5b",
+            "attempt": 2,
+            "worker": "w2",
+            "started_at": 1795070503710,
+            "start_checkpoint": 0,
+            "ended_at": 1795070506728,
+            "outcome": "LEASE_EXPIRED"
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:41:47.018Z",
+      "label": "reclaimed 3",
+      "facts": {
+        "id": "67ebe635-5ada-402c-aa09-2525bbaeca5b",
+        "state": "running",
+        "attempts": 3,
+        "checkpoint": 0,
+        "lease_token": "ac41ffc08e4c5b42fdf1f09e4a0ff6af9e87b493fe38d5c2b2037fa56bb75438",
+        "lease_until": 1795070510004,
+        "available_at": 1795070506978,
+        "last_error": "LEASE_EXPIRED",
+        "runs": [
+          {
+            "job_id": "67ebe635-5ada-402c-aa09-2525bbaeca5b",
+            "attempt": 1,
+            "worker": "w1",
+            "started_at": 1795070499412,
+            "start_checkpoint": 0,
+            "ended_at": 1795070503451,
+            "outcome": "LEASE_EXPIRED"
+          },
+          {
+            "job_id": "67ebe635-5ada-402c-aa09-2525bbaeca5b",
+            "attempt": 2,
+            "worker": "w2",
+            "started_at": 1795070503710,
+            "start_checkpoint": 0,
+            "ended_at": 1795070506728,
+            "outcome": "LEASE_EXPIRED"
+          },
+          {
+            "job_id": "67ebe635-5ada-402c-aa09-2525bbaeca5b",
+            "attempt": 3,
+            "worker": "w3",
+            "started_at": 1795070507004,
+            "start_checkpoint": 0,
+            "ended_at": null,
+            "outcome": null
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:41:50.031Z",
+      "label": "expired 3",
+      "facts": {
+        "id": "67ebe635-5ada-402c-aa09-2525bbaeca5b",
+        "state": "failed",
+        "attempts": 3,
+        "checkpoint": 0,
+        "lease_token": null,
+        "lease_until": null,
+        "available_at": 1795070510020,
+        "last_error": "LEASE_EXPIRED",
+        "runs": [
+          {
+            "job_id": "67ebe635-5ada-402c-aa09-2525bbaeca5b",
+            "attempt": 1,
+            "worker": "w1",
+            "started_at": 1795070499412,
+            "start_checkpoint": 0,
+            "ended_at": 1795070503451,
+            "outcome": "LEASE_EXPIRED"
+          },
+          {
+            "job_id": "67ebe635-5ada-402c-aa09-2525bbaeca5b",
+            "attempt": 2,
+            "worker": "w2",
+            "started_at": 1795070503710,
+            "start_checkpoint": 0,
+            "ended_at": 1795070506728,
+            "outcome": "LEASE_EXPIRED"
+          },
+          {
+            "job_id": "67ebe635-5ada-402c-aa09-2525bbaeca5b",
+            "attempt": 3,
+            "worker": "w3",
+            "started_at": 1795070507004,
+            "start_checkpoint": 0,
+            "ended_at": 1795070510020,
+            "outcome": "LEASE_EXPIRED"
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:41:50.048Z",
+      "label": "worker error 1",
+      "facts": {
+        "id": "56077aa6-edbf-49a9-95e8-22072eb12e13",
+        "state": "queued",
+        "attempts": 1,
+        "checkpoint": 0,
+        "lease_token": null,
+        "lease_until": null,
+        "available_at": 1795070510286,
+        "last_error": "WORKER_ERROR",
+        "runs": [
+          {
+            "job_id": "56077aa6-edbf-49a9-95e8-22072eb12e13",
+            "attempt": 1,
+            "worker": "error-worker",
+            "started_at": 1795070510034,
+            "start_checkpoint": 0,
+            "ended_at": 1795070510036,
+            "outcome": "WORKER_ERROR"
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:41:50.313Z",
+      "label": "worker error 2",
+      "facts": {
+        "id": "56077aa6-edbf-49a9-95e8-22072eb12e13",
+        "state": "queued",
+        "attempts": 2,
+        "checkpoint": 0,
+        "lease_token": null,
+        "lease_until": null,
+        "available_at": 1795070510554,
+        "last_error": "WORKER_ERROR",
+        "runs": [
+          {
+            "job_id": "56077aa6-edbf-49a9-95e8-22072eb12e13",
+            "attempt": 1,
+            "worker": "error-worker",
+            "started_at": 1795070510034,
+            "start_checkpoint": 0,
+            "ended_at": 1795070510036,
+            "outcome": "WORKER_ERROR"
+          },
+          {
+            "job_id": "56077aa6-edbf-49a9-95e8-22072eb12e13",
+            "attempt": 2,
+            "worker": "error-worker",
+            "started_at": 1795070510303,
+            "start_checkpoint": 0,
+            "ended_at": 1795070510304,
+            "outcome": "WORKER_ERROR"
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:41:50.575Z",
+      "label": "worker error 3",
+      "facts": {
+        "id": "56077aa6-edbf-49a9-95e8-22072eb12e13",
+        "state": "failed",
+        "attempts": 3,
+        "checkpoint": 0,
+        "lease_token": null,
+        "lease_until": null,
+        "available_at": 1795070510564,
+        "last_error": "WORKER_ERROR",
+        "runs": [
+          {
+            "job_id": "56077aa6-edbf-49a9-95e8-22072eb12e13",
+            "attempt": 1,
+            "worker": "error-worker",
+            "started_at": 1795070510034,
+            "start_checkpoint": 0,
+            "ended_at": 1795070510036,
+            "outcome": "WORKER_ERROR"
+          },
+          {
+            "job_id": "56077aa6-edbf-49a9-95e8-22072eb12e13",
+            "attempt": 2,
+            "worker": "error-worker",
+            "started_at": 1795070510303,
+            "start_checkpoint": 0,
+            "ended_at": 1795070510304,
+            "outcome": "WORKER_ERROR"
+          },
+          {
+            "job_id": "56077aa6-edbf-49a9-95e8-22072eb12e13",
+            "attempt": 3,
+            "worker": "error-worker",
+            "started_at": 1795070510561,
+            "start_checkpoint": 0,
+            "ended_at": 1795070510564,
+            "outcome": "WORKER_ERROR"
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    }
+  ]
+}

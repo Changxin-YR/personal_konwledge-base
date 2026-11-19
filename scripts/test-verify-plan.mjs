@@ -34,7 +34,11 @@ const editPromptAndHash = (repo, change) => {
 // This is a synthetic structure fixture, not evidence of real product completion.
 const completedFixture = (repo) => {
   const evidence = 'docs/evidence/FND-006/synthetic-gate-fixture.json';
-  save(repo, evidence, {candidate_sha:'a'.repeat(40),passed_test_ids:currentTestIds,independent_status:'PASS'});
+  const tree='a'.repeat(40), jobs=evidence+'.jobs', regression=evidence+'.regression', extra=evidence+'.extra';
+  save(repo,jobs,{status:'PASS',exit:0,before:{tree},after:{tree},results:['T01','T02','T03','T04','T05','T06','V6'].map(id=>({id,exit:0}))});
+  save(repo,regression,{status:'PASS',exit:0,expected:tree,stable:true,load_verified:true});
+  save(repo,extra,{status:'PASS',exit:0,tree,stable:true});
+  save(repo, evidence, {candidate_sha:tree,passed_test_ids:currentTestIds,independent_status:'PASS',jobs_record:jobs,regression_record:regression,supplement_record:extra});
   editUnit(repo, (unit) => Object.assign(unit, {
     status: 'passed', test_result_status: 'PASS', independent_review_status: 'PASS', retest_status: 'PASS',
     completed_test_ids: [...currentTestIds], open_review_items: [],
@@ -140,6 +144,7 @@ const cases = [
   }, 'foundation slice must not certify complete requirements'],
   ['cannot certify FND-005', 1, repo=>editCatalog(repo,c=>{c.units.find(u=>u.id==='FND-005').status='passed'}), 'FND-005 remains blocked'],
   ['synthetic valid completed structure', 0, completedFixture, null],
+  ['cross-candidate evidence rejected', 1, repo=>{completedFixture(repo); const p=json(repo,catalogPath).units.find(u=>u.id===currentUnit).acceptance_record;const proof=json(repo,p);proof.candidate_sha='b'.repeat(40);save(repo,p,proof)},'independent runs must match frozen tree'],
 ];
 
 try {

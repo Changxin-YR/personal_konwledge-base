@@ -1,0 +1,20 @@
+{
+  "candidate_sha": "80738ce0b1705dfc15a80ac9852d76a170d7ede1",
+  "candidate_sha_type": "git_tree",
+  "candidate_commit": "5e3cc68b7182146b45ae38d8059202b23fe23d83",
+  "passed_test_ids": [
+    "FND-006-T01",
+    "FND-006-T02",
+    "FND-006-T03",
+    "FND-006-T04",
+    "FND-006-T05",
+    "FND-006-T06",
+    "FND-006-T07",
+    "FND-006-T08"
+  ],
+  "independent_status": "PASS",
+  "jobs_record": "docs/evidence/FND-006/independent/80738ce0b170-1795070594256/summary.json",
+  "regression_record": "docs/evidence/FND-006/regression/frozen-2026-11-19T06-40-15-290Z/run.json",
+  "supplement_record": "docs/evidence/FND-006/regression/frozen-2026-11-19T06-40-15-290Z/supplement.json",
+  "real_model_calls": 0
+}

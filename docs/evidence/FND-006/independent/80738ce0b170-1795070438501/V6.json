@@ -1,0 +1,1374 @@
+{
+  "id": "V6",
+  "pid": 55376,
+  "command": [
+    "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+    "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\independent\\case.mjs",
+    "V6",
+    "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\docs\\evidence\\FND-006\\independent\\80738ce0b170-1795070438501"
+  ],
+  "directory": "C:\\Users\\27363\\AppData\\Local\\Temp\\fnd006-V6-WzVdF8",
+  "status": "PASS",
+  "events": [
+    {
+      "at": "2026-11-19T06:42:10.271Z",
+      "label": "seed",
+      "facts": {
+        "command": [
+          "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+          "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\independent\\migration-child.mjs",
+          "C:\\Users\\27363\\AppData\\Local\\Temp\\fnd006-V6-WzVdF8",
+          "seed"
+        ],
+        "exit": 0,
+        "result": {
+          "pid": 44036,
+          "baseline_bundle_sha256": "7848b7abf7062c7299cb0c9cd190c34c1599cfbcdae14dd55651e8d452cea071"
+        }
+      }
+    },
+    {
+      "at": "2026-11-19T06:42:10.275Z",
+      "label": "populated v5",
+      "facts": {
+        "version": 5,
+        "application": 1263489841,
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-19T06:42:09.591Z"
+          },
+          {
+            "version": 2,
+            "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+            "applied_at": "2026-11-19T06:42:09.597Z"
+          },
+          {
+            "version": 3,
+            "checksum": "630937e1ad06487b53607cec01b30252bcdc6d273e962caa11642deb7d308464",
+            "applied_at": "2026-11-19T06:42:09.599Z"
+          },
+          {
+            "version": 4,
+            "checksum": "02fae87367a3a3a849f1f79642fd8283069d9e1dad911e5d62a766108a7ad883",
+            "applied_at": "2026-11-19T06:42:09.604Z"
+          },
+          {
+            "version": 5,
+            "checksum": "6a943f2b3c9c112b7dad4f5ff032ad6f1b7dbecfd8acef7be6c11eb117b856cc",
+            "applied_at": "2026-11-19T06:42:09.606Z"
+          }
+        ],
+        "schema": [
+          {
+            "type": "index",
+            "name": "resource_grants_active_subject_action_uq",
+            "tbl_name": "resource_grants",
+            "sql": "CREATE UNIQUE INDEX resource_grants_active_subject_action_uq\n  ON resource_grants (resource_id, subject_type, subject_id, action)\n  WHERE revoked_at IS NULL"
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_ai_tool_mutations_1",
+            "tbl_name": "ai_tool_mutations",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_auth_sessions_1",
+            "tbl_name": "auth_sessions",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_auth_sessions_2",
+            "tbl_name": "auth_sessions",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_knowledge_objects_1",
+            "tbl_name": "knowledge_objects",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_knowledge_projects_1",
+            "tbl_name": "knowledge_projects",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_password_credentials_1",
+            "tbl_name": "password_credentials",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_project_memberships_1",
+            "tbl_name": "project_memberships",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_resource_grants_1",
+            "tbl_name": "resource_grants",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_service_identity_1",
+            "tbl_name": "service_identity",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_service_identity_2",
+            "tbl_name": "service_identity",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_spaces_1",
+            "tbl_name": "spaces",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_spaces_2",
+            "tbl_name": "spaces",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_storage_probe_records_1",
+            "tbl_name": "storage_probe_records",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_storage_probe_records_2",
+            "tbl_name": "storage_probe_records",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_users_1",
+            "tbl_name": "users",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_users_2",
+            "tbl_name": "users",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_users_3",
+            "tbl_name": "users",
+            "sql": null
+          },
+          {
+            "type": "table",
+            "name": "ai_tool_mutations",
+            "tbl_name": "ai_tool_mutations",
+            "sql": "CREATE TABLE ai_tool_mutations (\n  service_id TEXT NOT NULL REFERENCES service_identity(service_id),\n  user_id TEXT NOT NULL REFERENCES users(id),\n  idempotency_key TEXT NOT NULL,\n  request_digest TEXT NOT NULL,\n  object_id TEXT NOT NULL REFERENCES knowledge_objects(id),\n  result_json TEXT NOT NULL,\n  created_at TEXT NOT NULL,\n  PRIMARY KEY (service_id, user_id, idempotency_key)\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "auth_sessions",
+            "tbl_name": "auth_sessions",
+            "sql": "CREATE TABLE auth_sessions (\n  id TEXT PRIMARY KEY,\n  user_id TEXT NOT NULL REFERENCES users(id),\n  token_hash TEXT NOT NULL UNIQUE,\n  created_at TEXT NOT NULL,\n  expires_at TEXT NOT NULL,\n  revoked_at TEXT\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "knowledge_objects",
+            "tbl_name": "knowledge_objects",
+            "sql": "CREATE TABLE knowledge_objects (\n  id TEXT PRIMARY KEY,\n  service_id TEXT NOT NULL REFERENCES service_identity(service_id),\n  space_id TEXT NOT NULL REFERENCES spaces(id),\n  scope_kind TEXT NOT NULL CHECK (scope_kind IN ('personal', 'project')),\n  project_id TEXT REFERENCES knowledge_projects(id),\n  owner_user_id TEXT NOT NULL REFERENCES users(id),\n  object_type TEXT NOT NULL,\n  title TEXT NOT NULL,\n  body TEXT NOT NULL,\n  status TEXT NOT NULL CHECK (status IN ('active', 'deleted')),\n  revision INTEGER NOT NULL,\n  created_at TEXT NOT NULL,\n  updated_at TEXT NOT NULL,\n  CHECK ((scope_kind = 'personal' AND project_id IS NULL) OR (scope_kind = 'project' AND project_id IS NOT NULL))\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "knowledge_projects",
+            "tbl_name": "knowledge_projects",
+            "sql": "CREATE TABLE knowledge_projects (\n  id TEXT PRIMARY KEY,\n  service_id TEXT NOT NULL REFERENCES service_identity(service_id),\n  owner_user_id TEXT NOT NULL REFERENCES users(id),\n  name TEXT NOT NULL,\n  status TEXT NOT NULL CHECK (status IN ('active', 'disabled')),\n  created_at TEXT NOT NULL,\n  updated_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "password_credentials",
+            "tbl_name": "password_credentials",
+            "sql": "CREATE TABLE password_credentials (\n  id TEXT PRIMARY KEY,\n  algorithm TEXT NOT NULL,\n  version INTEGER NOT NULL,\n  n INTEGER NOT NULL,\n  r INTEGER NOT NULL,\n  p INTEGER NOT NULL,\n  maxmem INTEGER NOT NULL,\n  salt BLOB NOT NULL,\n  derived_key BLOB NOT NULL,\n  created_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "project_memberships",
+            "tbl_name": "project_memberships",
+            "sql": "CREATE TABLE project_memberships (\n  project_id TEXT NOT NULL REFERENCES knowledge_projects(id),\n  user_id TEXT NOT NULL REFERENCES users(id),\n  role TEXT NOT NULL CHECK (role IN ('member', 'owner')),\n  valid_from TEXT NOT NULL,\n  expires_at TEXT,\n  revoked_at TEXT,\n  PRIMARY KEY (project_id, user_id)\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "resource_grants",
+            "tbl_name": "resource_grants",
+            "sql": "CREATE TABLE resource_grants (\n  id TEXT PRIMARY KEY,\n  service_id TEXT NOT NULL REFERENCES service_identity(service_id),\n  resource_type TEXT NOT NULL CHECK (resource_type = 'knowledge_object'),\n  resource_id TEXT NOT NULL REFERENCES knowledge_objects(id),\n  subject_type TEXT NOT NULL CHECK (subject_type IN ('user', 'project')),\n  subject_id TEXT NOT NULL,\n  action TEXT NOT NULL CHECK (action IN ('read', 'comment', 'edit', 'export', 'manage_share', 'delete', 'review', 'view_learning_records')),\n  valid_from TEXT NOT NULL,\n  expires_at TEXT,\n  revoked_at TEXT,\n  created_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "schema_migrations",
+            "tbl_name": "schema_migrations",
+            "sql": "CREATE TABLE schema_migrations (\n  version INTEGER PRIMARY KEY,\n  checksum TEXT NOT NULL,\n  applied_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "service_identity",
+            "tbl_name": "service_identity",
+            "sql": "CREATE TABLE service_identity (\n  id INTEGER PRIMARY KEY CHECK (id = 1),\n  service_id TEXT NOT NULL UNIQUE,\n  bootstrap_admin_user_id TEXT UNIQUE REFERENCES users(id),\n  initialized_at TEXT\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "spaces",
+            "tbl_name": "spaces",
+            "sql": "CREATE TABLE spaces (\n  id TEXT PRIMARY KEY,\n  service_id TEXT NOT NULL REFERENCES service_identity(service_id),\n  kind TEXT NOT NULL CHECK (kind = 'personal'),\n  owner_user_id TEXT NOT NULL UNIQUE REFERENCES users(id),\n  status TEXT NOT NULL CHECK (status IN ('active', 'disabled')),\n  revision INTEGER NOT NULL,\n  created_at TEXT NOT NULL,\n  updated_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records",
+            "tbl_name": "storage_probe_records",
+            "sql": "CREATE TABLE storage_probe_records (\n  id TEXT PRIMARY KEY,\n  idempotency_key TEXT NOT NULL UNIQUE,\n  request_digest TEXT NOT NULL,\n  content TEXT NOT NULL,\n  created_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "users",
+            "tbl_name": "users",
+            "sql": "CREATE TABLE users (\n  id TEXT PRIMARY KEY,\n  login_name TEXT NOT NULL UNIQUE,\n  display_name TEXT NOT NULL,\n  credential_ref TEXT NOT NULL UNIQUE REFERENCES password_credentials(id),\n  role TEXT NOT NULL CHECK (role IN ('admin', 'member')),\n  status TEXT NOT NULL CHECK (status IN ('active', 'disabled')),\n  timezone TEXT NOT NULL,\n  planning_home_service_id TEXT NOT NULL,\n  domains TEXT NOT NULL,\n  learning_tracks TEXT NOT NULL,\n  goal_text TEXT NOT NULL,\n  revision INTEGER NOT NULL,\n  created_at TEXT NOT NULL,\n  updated_at TEXT NOT NULL\n) STRICT"
+          }
+        ],
+        "data": {
+          "ai_tool_mutations": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "auth_sessions": {
+            "rows": 1,
+            "sha256": "23f031387c82b9e5b7a3a32543d274acd58f82fa9342c32ec8fa6ce87c6e1037"
+          },
+          "knowledge_objects": {
+            "rows": 1,
+            "sha256": "8f203e1c1b6dff31fff266a43347515e1785b82751e9bc043707fdf86f633941"
+          },
+          "knowledge_projects": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "password_credentials": {
+            "rows": 1,
+            "sha256": "bbdfffbf71cc2b8f2dd1a26bf635ef90b9413f36e4d51613687f4e51ca56e0dc"
+          },
+          "project_memberships": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "resource_grants": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "schema_migrations": {
+            "rows": 5,
+            "sha256": "b32f0d719a480f2f6d3b9ace425edc8f26f4435a88692b67dfdfe7a57a6fa82b"
+          },
+          "service_identity": {
+            "rows": 1,
+            "sha256": "59f2b9b991d59fdfcde803de71b1b8948c14719c03ed421e59a515f2400ab453"
+          },
+          "spaces": {
+            "rows": 1,
+            "sha256": "7e9a42415edcb5933a5c78ce388a0d58184f8fe9ffdb0a6414f1f9774ec75931"
+          },
+          "storage_probe_records": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "users": {
+            "rows": 1,
+            "sha256": "eda3d54e0d88a8c0104dfb860821cc9b7927bc5e41f99db3747c8d10e37508d1"
+          }
+        }
+      }
+    },
+    {
+      "at": "2026-11-19T06:42:10.367Z",
+      "label": "fault",
+      "facts": {
+        "command": [
+          "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+          "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\independent\\migration-child.mjs",
+          "C:\\Users\\27363\\AppData\\Local\\Temp\\fnd006-V6-WzVdF8",
+          "fault"
+        ],
+        "exit": 0,
+        "result": {
+          "pid": 74404,
+          "available": false,
+          "chain": [
+            "jobs migration failed",
+            "controlled storage failure at v6:after-schema"
+          ]
+        }
+      }
+    },
+    {
+      "at": "2026-11-19T06:42:10.370Z",
+      "label": "v6 transaction rolled back",
+      "facts": {
+        "version": 5,
+        "application": 1263489841,
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-19T06:42:09.591Z"
+          },
+          {
+            "version": 2,
+            "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+            "applied_at": "2026-11-19T06:42:09.597Z"
+          },
+          {
+            "version": 3,
+            "checksum": "630937e1ad06487b53607cec01b30252bcdc6d273e962caa11642deb7d308464",
+            "applied_at": "2026-11-19T06:42:09.599Z"
+          },
+          {
+            "version": 4,
+            "checksum": "02fae87367a3a3a849f1f79642fd8283069d9e1dad911e5d62a766108a7ad883",
+            "applied_at": "2026-11-19T06:42:09.604Z"
+          },
+          {
+            "version": 5,
+            "checksum": "6a943f2b3c9c112b7dad4f5ff032ad6f1b7dbecfd8acef7be6c11eb117b856cc",
+            "applied_at": "2026-11-19T06:42:09.606Z"
+          }
+        ],
+        "schema": [
+          {
+            "type": "index",
+            "name": "resource_grants_active_subject_action_uq",
+            "tbl_name": "resource_grants",
+            "sql": "CREATE UNIQUE INDEX resource_grants_active_subject_action_uq\n  ON resource_grants (resource_id, subject_type, subject_id, action)\n  WHERE revoked_at IS NULL"
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_ai_tool_mutations_1",
+            "tbl_name": "ai_tool_mutations",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_auth_sessions_1",
+            "tbl_name": "auth_sessions",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_auth_sessions_2",
+            "tbl_name": "auth_sessions",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_knowledge_objects_1",
+            "tbl_name": "knowledge_objects",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_knowledge_projects_1",
+            "tbl_name": "knowledge_projects",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_password_credentials_1",
+            "tbl_name": "password_credentials",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_project_memberships_1",
+            "tbl_name": "project_memberships",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_resource_grants_1",
+            "tbl_name": "resource_grants",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_service_identity_1",
+            "tbl_name": "service_identity",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_service_identity_2",
+            "tbl_name": "service_identity",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_spaces_1",
+            "tbl_name": "spaces",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_spaces_2",
+            "tbl_name": "spaces",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_storage_probe_records_1",
+            "tbl_name": "storage_probe_records",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_storage_probe_records_2",
+            "tbl_name": "storage_probe_records",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_users_1",
+            "tbl_name": "users",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_users_2",
+            "tbl_name": "users",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_users_3",
+            "tbl_name": "users",
+            "sql": null
+          },
+          {
+            "type": "table",
+            "name": "ai_tool_mutations",
+            "tbl_name": "ai_tool_mutations",
+            "sql": "CREATE TABLE ai_tool_mutations (\n  service_id TEXT NOT NULL REFERENCES service_identity(service_id),\n  user_id TEXT NOT NULL REFERENCES users(id),\n  idempotency_key TEXT NOT NULL,\n  request_digest TEXT NOT NULL,\n  object_id TEXT NOT NULL REFERENCES knowledge_objects(id),\n  result_json TEXT NOT NULL,\n  created_at TEXT NOT NULL,\n  PRIMARY KEY (service_id, user_id, idempotency_key)\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "auth_sessions",
+            "tbl_name": "auth_sessions",
+            "sql": "CREATE TABLE auth_sessions (\n  id TEXT PRIMARY KEY,\n  user_id TEXT NOT NULL REFERENCES users(id),\n  token_hash TEXT NOT NULL UNIQUE,\n  created_at TEXT NOT NULL,\n  expires_at TEXT NOT NULL,\n  revoked_at TEXT\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "knowledge_objects",
+            "tbl_name": "knowledge_objects",
+            "sql": "CREATE TABLE knowledge_objects (\n  id TEXT PRIMARY KEY,\n  service_id TEXT NOT NULL REFERENCES service_identity(service_id),\n  space_id TEXT NOT NULL REFERENCES spaces(id),\n  scope_kind TEXT NOT NULL CHECK (scope_kind IN ('personal', 'project')),\n  project_id TEXT REFERENCES knowledge_projects(id),\n  owner_user_id TEXT NOT NULL REFERENCES users(id),\n  object_type TEXT NOT NULL,\n  title TEXT NOT NULL,\n  body TEXT NOT NULL,\n  status TEXT NOT NULL CHECK (status IN ('active', 'deleted')),\n  revision INTEGER NOT NULL,\n  created_at TEXT NOT NULL,\n  updated_at TEXT NOT NULL,\n  CHECK ((scope_kind = 'personal' AND project_id IS NULL) OR (scope_kind = 'project' AND project_id IS NOT NULL))\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "knowledge_projects",
+            "tbl_name": "knowledge_projects",
+            "sql": "CREATE TABLE knowledge_projects (\n  id TEXT PRIMARY KEY,\n  service_id TEXT NOT NULL REFERENCES service_identity(service_id),\n  owner_user_id TEXT NOT NULL REFERENCES users(id),\n  name TEXT NOT NULL,\n  status TEXT NOT NULL CHECK (status IN ('active', 'disabled')),\n  created_at TEXT NOT NULL,\n  updated_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "password_credentials",
+            "tbl_name": "password_credentials",
+            "sql": "CREATE TABLE password_credentials (\n  id TEXT PRIMARY KEY,\n  algorithm TEXT NOT NULL,\n  version INTEGER NOT NULL,\n  n INTEGER NOT NULL,\n  r INTEGER NOT NULL,\n  p INTEGER NOT NULL,\n  maxmem INTEGER NOT NULL,\n  salt BLOB NOT NULL,\n  derived_key BLOB NOT NULL,\n  created_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "project_memberships",
+            "tbl_name": "project_memberships",
+            "sql": "CREATE TABLE project_memberships (\n  project_id TEXT NOT NULL REFERENCES knowledge_projects(id),\n  user_id TEXT NOT NULL REFERENCES users(id),\n  role TEXT NOT NULL CHECK (role IN ('member', 'owner')),\n  valid_from TEXT NOT NULL,\n  expires_at TEXT,\n  revoked_at TEXT,\n  PRIMARY KEY (project_id, user_id)\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "resource_grants",
+            "tbl_name": "resource_grants",
+            "sql": "CREATE TABLE resource_grants (\n  id TEXT PRIMARY KEY,\n  service_id TEXT NOT NULL REFERENCES service_identity(service_id),\n  resource_type TEXT NOT NULL CHECK (resource_type = 'knowledge_object'),\n  resource_id TEXT NOT NULL REFERENCES knowledge_objects(id),\n  subject_type TEXT NOT NULL CHECK (subject_type IN ('user', 'project')),\n  subject_id TEXT NOT NULL,\n  action TEXT NOT NULL CHECK (action IN ('read', 'comment', 'edit', 'export', 'manage_share', 'delete', 'review', 'view_learning_records')),\n  valid_from TEXT NOT NULL,\n  expires_at TEXT,\n  revoked_at TEXT,\n  created_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "schema_migrations",
+            "tbl_name": "schema_migrations",
+            "sql": "CREATE TABLE schema_migrations (\n  version INTEGER PRIMARY KEY,\n  checksum TEXT NOT NULL,\n  applied_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "service_identity",
+            "tbl_name": "service_identity",
+            "sql": "CREATE TABLE service_identity (\n  id INTEGER PRIMARY KEY CHECK (id = 1),\n  service_id TEXT NOT NULL UNIQUE,\n  bootstrap_admin_user_id TEXT UNIQUE REFERENCES users(id),\n  initialized_at TEXT\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "spaces",
+            "tbl_name": "spaces",
+            "sql": "CREATE TABLE spaces (\n  id TEXT PRIMARY KEY,\n  service_id TEXT NOT NULL REFERENCES service_identity(service_id),\n  kind TEXT NOT NULL CHECK (kind = 'personal'),\n  owner_user_id TEXT NOT NULL UNIQUE REFERENCES users(id),\n  status TEXT NOT NULL CHECK (status IN ('active', 'disabled')),\n  revision INTEGER NOT NULL,\n  created_at TEXT NOT NULL,\n  updated_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records",
+            "tbl_name": "storage_probe_records",
+            "sql": "CREATE TABLE storage_probe_records (\n  id TEXT PRIMARY KEY,\n  idempotency_key TEXT NOT NULL UNIQUE,\n  request_digest TEXT NOT NULL,\n  content TEXT NOT NULL,\n  created_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "users",
+            "tbl_name": "users",
+            "sql": "CREATE TABLE users (\n  id TEXT PRIMARY KEY,\n  login_name TEXT NOT NULL UNIQUE,\n  display_name TEXT NOT NULL,\n  credential_ref TEXT NOT NULL UNIQUE REFERENCES password_credentials(id),\n  role TEXT NOT NULL CHECK (role IN ('admin', 'member')),\n  status TEXT NOT NULL CHECK (status IN ('active', 'disabled')),\n  timezone TEXT NOT NULL,\n  planning_home_service_id TEXT NOT NULL,\n  domains TEXT NOT NULL,\n  learning_tracks TEXT NOT NULL,\n  goal_text TEXT NOT NULL,\n  revision INTEGER NOT NULL,\n  created_at TEXT NOT NULL,\n  updated_at TEXT NOT NULL\n) STRICT"
+          }
+        ],
+        "data": {
+          "ai_tool_mutations": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "auth_sessions": {
+            "rows": 1,
+            "sha256": "23f031387c82b9e5b7a3a32543d274acd58f82fa9342c32ec8fa6ce87c6e1037"
+          },
+          "knowledge_objects": {
+            "rows": 1,
+            "sha256": "8f203e1c1b6dff31fff266a43347515e1785b82751e9bc043707fdf86f633941"
+          },
+          "knowledge_projects": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "password_credentials": {
+            "rows": 1,
+            "sha256": "bbdfffbf71cc2b8f2dd1a26bf635ef90b9413f36e4d51613687f4e51ca56e0dc"
+          },
+          "project_memberships": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "resource_grants": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "schema_migrations": {
+            "rows": 5,
+            "sha256": "b32f0d719a480f2f6d3b9ace425edc8f26f4435a88692b67dfdfe7a57a6fa82b"
+          },
+          "service_identity": {
+            "rows": 1,
+            "sha256": "59f2b9b991d59fdfcde803de71b1b8948c14719c03ed421e59a515f2400ab453"
+          },
+          "spaces": {
+            "rows": 1,
+            "sha256": "7e9a42415edcb5933a5c78ce388a0d58184f8fe9ffdb0a6414f1f9774ec75931"
+          },
+          "storage_probe_records": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "users": {
+            "rows": 1,
+            "sha256": "eda3d54e0d88a8c0104dfb860821cc9b7927bc5e41f99db3747c8d10e37508d1"
+          }
+        }
+      }
+    },
+    {
+      "at": "2026-11-19T06:42:10.502Z",
+      "label": "upgrade",
+      "facts": {
+        "command": [
+          "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+          "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\independent\\migration-child.mjs",
+          "C:\\Users\\27363\\AppData\\Local\\Temp\\fnd006-V6-WzVdF8",
+          "upgrade"
+        ],
+        "exit": 0,
+        "result": {
+          "pid": 63620,
+          "available": true,
+          "chain": []
+        }
+      }
+    },
+    {
+      "at": "2026-11-19T06:42:10.505Z",
+      "label": "upgraded",
+      "facts": {
+        "version": 6,
+        "application": 1263489841,
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-19T06:42:09.591Z"
+          },
+          {
+            "version": 2,
+            "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+            "applied_at": "2026-11-19T06:42:09.597Z"
+          },
+          {
+            "version": 3,
+            "checksum": "630937e1ad06487b53607cec01b30252bcdc6d273e962caa11642deb7d308464",
+            "applied_at": "2026-11-19T06:42:09.599Z"
+          },
+          {
+            "version": 4,
+            "checksum": "02fae87367a3a3a849f1f79642fd8283069d9e1dad911e5d62a766108a7ad883",
+            "applied_at": "2026-11-19T06:42:09.604Z"
+          },
+          {
+            "version": 5,
+            "checksum": "6a943f2b3c9c112b7dad4f5ff032ad6f1b7dbecfd8acef7be6c11eb117b856cc",
+            "applied_at": "2026-11-19T06:42:09.606Z"
+          },
+          {
+            "version": 6,
+            "checksum": "e7a3f593c9f8c950035e381a9c8f43ec17a94026ecb136b696c1d4561befc32c",
+            "applied_at": "2026-11-19T06:42:10.449Z"
+          }
+        ],
+        "schema": [
+          {
+            "type": "index",
+            "name": "jobs_ready",
+            "tbl_name": "jobs",
+            "sql": "CREATE INDEX jobs_ready ON jobs(state,available_at)"
+          },
+          {
+            "type": "index",
+            "name": "resource_grants_active_subject_action_uq",
+            "tbl_name": "resource_grants",
+            "sql": "CREATE UNIQUE INDEX resource_grants_active_subject_action_uq\n  ON resource_grants (resource_id, subject_type, subject_id, action)\n  WHERE revoked_at IS NULL"
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_ai_tool_mutations_1",
+            "tbl_name": "ai_tool_mutations",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_auth_sessions_1",
+            "tbl_name": "auth_sessions",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_auth_sessions_2",
+            "tbl_name": "auth_sessions",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_event_receipts_1",
+            "tbl_name": "event_receipts",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_job_results_1",
+            "tbl_name": "job_results",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_job_runs_1",
+            "tbl_name": "job_runs",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_jobs_1",
+            "tbl_name": "jobs",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_jobs_2",
+            "tbl_name": "jobs",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_jobs_3",
+            "tbl_name": "jobs",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_knowledge_objects_1",
+            "tbl_name": "knowledge_objects",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_knowledge_projects_1",
+            "tbl_name": "knowledge_projects",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_outbox_1",
+            "tbl_name": "outbox",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_outbox_2",
+            "tbl_name": "outbox",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_password_credentials_1",
+            "tbl_name": "password_credentials",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_project_memberships_1",
+            "tbl_name": "project_memberships",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_resource_grants_1",
+            "tbl_name": "resource_grants",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_service_identity_1",
+            "tbl_name": "service_identity",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_service_identity_2",
+            "tbl_name": "service_identity",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_spaces_1",
+            "tbl_name": "spaces",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_spaces_2",
+            "tbl_name": "spaces",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_storage_probe_records_1",
+            "tbl_name": "storage_probe_records",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_storage_probe_records_2",
+            "tbl_name": "storage_probe_records",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_users_1",
+            "tbl_name": "users",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_users_2",
+            "tbl_name": "users",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_users_3",
+            "tbl_name": "users",
+            "sql": null
+          },
+          {
+            "type": "table",
+            "name": "ai_tool_mutations",
+            "tbl_name": "ai_tool_mutations",
+            "sql": "CREATE TABLE ai_tool_mutations (\n  service_id TEXT NOT NULL REFERENCES service_identity(service_id),\n  user_id TEXT NOT NULL REFERENCES users(id),\n  idempotency_key TEXT NOT NULL,\n  request_digest TEXT NOT NULL,\n  object_id TEXT NOT NULL REFERENCES knowledge_objects(id),\n  result_json TEXT NOT NULL,\n  created_at TEXT NOT NULL,\n  PRIMARY KEY (service_id, user_id, idempotency_key)\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "auth_sessions",
+            "tbl_name": "auth_sessions",
+            "sql": "CREATE TABLE auth_sessions (\n  id TEXT PRIMARY KEY,\n  user_id TEXT NOT NULL REFERENCES users(id),\n  token_hash TEXT NOT NULL UNIQUE,\n  created_at TEXT NOT NULL,\n  expires_at TEXT NOT NULL,\n  revoked_at TEXT\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "event_receipts",
+            "tbl_name": "event_receipts",
+            "sql": "CREATE TABLE event_receipts (consumer_name TEXT NOT NULL, event_id TEXT NOT NULL REFERENCES outbox(event_id), PRIMARY KEY(consumer_name,event_id)) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "job_results",
+            "tbl_name": "job_results",
+            "sql": "CREATE TABLE job_results (job_id TEXT PRIMARY KEY REFERENCES jobs(id), input_revision INTEGER NOT NULL) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "job_runs",
+            "tbl_name": "job_runs",
+            "sql": "CREATE TABLE job_runs (job_id TEXT NOT NULL REFERENCES jobs(id), attempt INTEGER NOT NULL, worker TEXT NOT NULL,\n  started_at INTEGER NOT NULL, start_checkpoint INTEGER NOT NULL, ended_at INTEGER, outcome TEXT, PRIMARY KEY(job_id,attempt)) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "jobs",
+            "tbl_name": "jobs",
+            "sql": "CREATE TABLE jobs (\n  id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), session_id TEXT NOT NULL REFERENCES auth_sessions(id),\n  object_id TEXT NOT NULL REFERENCES knowledge_objects(id), expected_revision INTEGER NOT NULL, idempotency_key TEXT NOT NULL,\n  state TEXT NOT NULL CHECK(state IN ('queued','running','succeeded','failed','cancelled')), attempts INTEGER NOT NULL DEFAULT 0,\n  checkpoint INTEGER NOT NULL DEFAULT 0 CHECK(checkpoint IN (0,1)), lease_token TEXT UNIQUE, lease_until INTEGER,\n  available_at INTEGER NOT NULL, last_error TEXT, UNIQUE(user_id,idempotency_key),\n  CHECK((state='running')=(lease_token IS NOT NULL)), CHECK((state='running')=(lease_until IS NOT NULL))\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "knowledge_objects",
+            "tbl_name": "knowledge_objects",
+            "sql": "CREATE TABLE knowledge_objects (\n  id TEXT PRIMARY KEY,\n  service_id TEXT NOT NULL REFERENCES service_identity(service_id),\n  space_id TEXT NOT NULL REFERENCES spaces(id),\n  scope_kind TEXT NOT NULL CHECK (scope_kind IN ('personal', 'project')),\n  project_id TEXT REFERENCES knowledge_projects(id),\n  owner_user_id TEXT NOT NULL REFERENCES users(id),\n  object_type TEXT NOT NULL,\n  title TEXT NOT NULL,\n  body TEXT NOT NULL,\n  status TEXT NOT NULL CHECK (status IN ('active', 'deleted')),\n  revision INTEGER NOT NULL,\n  created_at TEXT NOT NULL,\n  updated_at TEXT NOT NULL,\n  CHECK ((scope_kind = 'personal' AND project_id IS NULL) OR (scope_kind = 'project' AND project_id IS NOT NULL))\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "knowledge_projects",
+            "tbl_name": "knowledge_projects",
+            "sql": "CREATE TABLE knowledge_projects (\n  id TEXT PRIMARY KEY,\n  service_id TEXT NOT NULL REFERENCES service_identity(service_id),\n  owner_user_id TEXT NOT NULL REFERENCES users(id),\n  name TEXT NOT NULL,\n  status TEXT NOT NULL CHECK (status IN ('active', 'disabled')),\n  created_at TEXT NOT NULL,\n  updated_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "outbox",
+            "tbl_name": "outbox",
+            "sql": "CREATE TABLE outbox (event_id TEXT PRIMARY KEY, job_id TEXT NOT NULL UNIQUE REFERENCES job_results(job_id), created_at INTEGER NOT NULL,\n  delivered_at INTEGER, failures INTEGER NOT NULL DEFAULT 0, retry_at INTEGER NOT NULL DEFAULT 0, last_error TEXT) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "password_credentials",
+            "tbl_name": "password_credentials",
+            "sql": "CREATE TABLE password_credentials (\n  id TEXT PRIMARY KEY,\n  algorithm TEXT NOT NULL,\n  version INTEGER NOT NULL,\n  n INTEGER NOT NULL,\n  r INTEGER NOT NULL,\n  p INTEGER NOT NULL,\n  maxmem INTEGER NOT NULL,\n  salt BLOB NOT NULL,\n  derived_key BLOB NOT NULL,\n  created_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "project_memberships",
+            "tbl_name": "project_memberships",
+            "sql": "CREATE TABLE project_memberships (\n  project_id TEXT NOT NULL REFERENCES knowledge_projects(id),\n  user_id TEXT NOT NULL REFERENCES users(id),\n  role TEXT NOT NULL CHECK (role IN ('member', 'owner')),\n  valid_from TEXT NOT NULL,\n  expires_at TEXT,\n  revoked_at TEXT,\n  PRIMARY KEY (project_id, user_id)\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "resource_grants",
+            "tbl_name": "resource_grants",
+            "sql": "CREATE TABLE resource_grants (\n  id TEXT PRIMARY KEY,\n  service_id TEXT NOT NULL REFERENCES service_identity(service_id),\n  resource_type TEXT NOT NULL CHECK (resource_type = 'knowledge_object'),\n  resource_id TEXT NOT NULL REFERENCES knowledge_objects(id),\n  subject_type TEXT NOT NULL CHECK (subject_type IN ('user', 'project')),\n  subject_id TEXT NOT NULL,\n  action TEXT NOT NULL CHECK (action IN ('read', 'comment', 'edit', 'export', 'manage_share', 'delete', 'review', 'view_learning_records')),\n  valid_from TEXT NOT NULL,\n  expires_at TEXT,\n  revoked_at TEXT,\n  created_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "schema_migrations",
+            "tbl_name": "schema_migrations",
+            "sql": "CREATE TABLE schema_migrations (\n  version INTEGER PRIMARY KEY,\n  checksum TEXT NOT NULL,\n  applied_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "service_identity",
+            "tbl_name": "service_identity",
+            "sql": "CREATE TABLE service_identity (\n  id INTEGER PRIMARY KEY CHECK (id = 1),\n  service_id TEXT NOT NULL UNIQUE,\n  bootstrap_admin_user_id TEXT UNIQUE REFERENCES users(id),\n  initialized_at TEXT\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "spaces",
+            "tbl_name": "spaces",
+            "sql": "CREATE TABLE spaces (\n  id TEXT PRIMARY KEY,\n  service_id TEXT NOT NULL REFERENCES service_identity(service_id),\n  kind TEXT NOT NULL CHECK (kind = 'personal'),\n  owner_user_id TEXT NOT NULL UNIQUE REFERENCES users(id),\n  status TEXT NOT NULL CHECK (status IN ('active', 'disabled')),\n  revision INTEGER NOT NULL,\n  created_at TEXT NOT NULL,\n  updated_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records",
+            "tbl_name": "storage_probe_records",
+            "sql": "CREATE TABLE storage_probe_records (\n  id TEXT PRIMARY KEY,\n  idempotency_key TEXT NOT NULL UNIQUE,\n  request_digest TEXT NOT NULL,\n  content TEXT NOT NULL,\n  created_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "users",
+            "tbl_name": "users",
+            "sql": "CREATE TABLE users (\n  id TEXT PRIMARY KEY,\n  login_name TEXT NOT NULL UNIQUE,\n  display_name TEXT NOT NULL,\n  credential_ref TEXT NOT NULL UNIQUE REFERENCES password_credentials(id),\n  role TEXT NOT NULL CHECK (role IN ('admin', 'member')),\n  status TEXT NOT NULL CHECK (status IN ('active', 'disabled')),\n  timezone TEXT NOT NULL,\n  planning_home_service_id TEXT NOT NULL,\n  domains TEXT NOT NULL,\n  learning_tracks TEXT NOT NULL,\n  goal_text TEXT NOT NULL,\n  revision INTEGER NOT NULL,\n  created_at TEXT NOT NULL,\n  updated_at TEXT NOT NULL\n) STRICT"
+          }
+        ],
+        "data": {
+          "ai_tool_mutations": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "auth_sessions": {
+            "rows": 1,
+            "sha256": "23f031387c82b9e5b7a3a32543d274acd58f82fa9342c32ec8fa6ce87c6e1037"
+          },
+          "event_receipts": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "job_results": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "job_runs": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "jobs": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "knowledge_objects": {
+            "rows": 1,
+            "sha256": "8f203e1c1b6dff31fff266a43347515e1785b82751e9bc043707fdf86f633941"
+          },
+          "knowledge_projects": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "outbox": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "password_credentials": {
+            "rows": 1,
+            "sha256": "bbdfffbf71cc2b8f2dd1a26bf635ef90b9413f36e4d51613687f4e51ca56e0dc"
+          },
+          "project_memberships": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "resource_grants": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "schema_migrations": {
+            "rows": 6,
+            "sha256": "541165785d1488afdf2efcb5f91864a9e3e65ce12c24bfd4fafb295538518aa4"
+          },
+          "service_identity": {
+            "rows": 1,
+            "sha256": "59f2b9b991d59fdfcde803de71b1b8948c14719c03ed421e59a515f2400ab453"
+          },
+          "spaces": {
+            "rows": 1,
+            "sha256": "7e9a42415edcb5933a5c78ce388a0d58184f8fe9ffdb0a6414f1f9774ec75931"
+          },
+          "storage_probe_records": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "users": {
+            "rows": 1,
+            "sha256": "eda3d54e0d88a8c0104dfb860821cc9b7927bc5e41f99db3747c8d10e37508d1"
+          }
+        }
+      }
+    },
+    {
+      "at": "2026-11-19T06:42:10.623Z",
+      "label": "reopen",
+      "facts": {
+        "command": [
+          "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+          "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\independent\\migration-child.mjs",
+          "C:\\Users\\27363\\AppData\\Local\\Temp\\fnd006-V6-WzVdF8",
+          "reopen"
+        ],
+        "exit": 0,
+        "result": {
+          "pid": 74216,
+          "available": true,
+          "chain": []
+        }
+      }
+    },
+    {
+      "at": "2026-11-19T06:42:10.626Z",
+      "label": "reopened",
+      "facts": {
+        "version": 6,
+        "application": 1263489841,
+        "ledger": [
+          {
+            "version": 1,
+            "checksum": "033dcf95cd9e7c6e4fa964804de7944c1b99daa4b4acd5b92708555cb15dc84a",
+            "applied_at": "2026-11-19T06:42:09.591Z"
+          },
+          {
+            "version": 2,
+            "checksum": "ef6bbe386b4292b660004fa1f8ad4e38316c22ea3250d37f2d836096e16167b2",
+            "applied_at": "2026-11-19T06:42:09.597Z"
+          },
+          {
+            "version": 3,
+            "checksum": "630937e1ad06487b53607cec01b30252bcdc6d273e962caa11642deb7d308464",
+            "applied_at": "2026-11-19T06:42:09.599Z"
+          },
+          {
+            "version": 4,
+            "checksum": "02fae87367a3a3a849f1f79642fd8283069d9e1dad911e5d62a766108a7ad883",
+            "applied_at": "2026-11-19T06:42:09.604Z"
+          },
+          {
+            "version": 5,
+            "checksum": "6a943f2b3c9c112b7dad4f5ff032ad6f1b7dbecfd8acef7be6c11eb117b856cc",
+            "applied_at": "2026-11-19T06:42:09.606Z"
+          },
+          {
+            "version": 6,
+            "checksum": "e7a3f593c9f8c950035e381a9c8f43ec17a94026ecb136b696c1d4561befc32c",
+            "applied_at": "2026-11-19T06:42:10.449Z"
+          }
+        ],
+        "schema": [
+          {
+            "type": "index",
+            "name": "jobs_ready",
+            "tbl_name": "jobs",
+            "sql": "CREATE INDEX jobs_ready ON jobs(state,available_at)"
+          },
+          {
+            "type": "index",
+            "name": "resource_grants_active_subject_action_uq",
+            "tbl_name": "resource_grants",
+            "sql": "CREATE UNIQUE INDEX resource_grants_active_subject_action_uq\n  ON resource_grants (resource_id, subject_type, subject_id, action)\n  WHERE revoked_at IS NULL"
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_ai_tool_mutations_1",
+            "tbl_name": "ai_tool_mutations",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_auth_sessions_1",
+            "tbl_name": "auth_sessions",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_auth_sessions_2",
+            "tbl_name": "auth_sessions",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_event_receipts_1",
+            "tbl_name": "event_receipts",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_job_results_1",
+            "tbl_name": "job_results",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_job_runs_1",
+            "tbl_name": "job_runs",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_jobs_1",
+            "tbl_name": "jobs",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_jobs_2",
+            "tbl_name": "jobs",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_jobs_3",
+            "tbl_name": "jobs",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_knowledge_objects_1",
+            "tbl_name": "knowledge_objects",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_knowledge_projects_1",
+            "tbl_name": "knowledge_projects",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_outbox_1",
+            "tbl_name": "outbox",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_outbox_2",
+            "tbl_name": "outbox",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_password_credentials_1",
+            "tbl_name": "password_credentials",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_project_memberships_1",
+            "tbl_name": "project_memberships",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_resource_grants_1",
+            "tbl_name": "resource_grants",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_service_identity_1",
+            "tbl_name": "service_identity",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_service_identity_2",
+            "tbl_name": "service_identity",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_spaces_1",
+            "tbl_name": "spaces",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_spaces_2",
+            "tbl_name": "spaces",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_storage_probe_records_1",
+            "tbl_name": "storage_probe_records",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_storage_probe_records_2",
+            "tbl_name": "storage_probe_records",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_users_1",
+            "tbl_name": "users",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_users_2",
+            "tbl_name": "users",
+            "sql": null
+          },
+          {
+            "type": "index",
+            "name": "sqlite_autoindex_users_3",
+            "tbl_name": "users",
+            "sql": null
+          },
+          {
+            "type": "table",
+            "name": "ai_tool_mutations",
+            "tbl_name": "ai_tool_mutations",
+            "sql": "CREATE TABLE ai_tool_mutations (\n  service_id TEXT NOT NULL REFERENCES service_identity(service_id),\n  user_id TEXT NOT NULL REFERENCES users(id),\n  idempotency_key TEXT NOT NULL,\n  request_digest TEXT NOT NULL,\n  object_id TEXT NOT NULL REFERENCES knowledge_objects(id),\n  result_json TEXT NOT NULL,\n  created_at TEXT NOT NULL,\n  PRIMARY KEY (service_id, user_id, idempotency_key)\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "auth_sessions",
+            "tbl_name": "auth_sessions",
+            "sql": "CREATE TABLE auth_sessions (\n  id TEXT PRIMARY KEY,\n  user_id TEXT NOT NULL REFERENCES users(id),\n  token_hash TEXT NOT NULL UNIQUE,\n  created_at TEXT NOT NULL,\n  expires_at TEXT NOT NULL,\n  revoked_at TEXT\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "event_receipts",
+            "tbl_name": "event_receipts",
+            "sql": "CREATE TABLE event_receipts (consumer_name TEXT NOT NULL, event_id TEXT NOT NULL REFERENCES outbox(event_id), PRIMARY KEY(consumer_name,event_id)) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "job_results",
+            "tbl_name": "job_results",
+            "sql": "CREATE TABLE job_results (job_id TEXT PRIMARY KEY REFERENCES jobs(id), input_revision INTEGER NOT NULL) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "job_runs",
+            "tbl_name": "job_runs",
+            "sql": "CREATE TABLE job_runs (job_id TEXT NOT NULL REFERENCES jobs(id), attempt INTEGER NOT NULL, worker TEXT NOT NULL,\n  started_at INTEGER NOT NULL, start_checkpoint INTEGER NOT NULL, ended_at INTEGER, outcome TEXT, PRIMARY KEY(job_id,attempt)) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "jobs",
+            "tbl_name": "jobs",
+            "sql": "CREATE TABLE jobs (\n  id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), session_id TEXT NOT NULL REFERENCES auth_sessions(id),\n  object_id TEXT NOT NULL REFERENCES knowledge_objects(id), expected_revision INTEGER NOT NULL, idempotency_key TEXT NOT NULL,\n  state TEXT NOT NULL CHECK(state IN ('queued','running','succeeded','failed','cancelled')), attempts INTEGER NOT NULL DEFAULT 0,\n  checkpoint INTEGER NOT NULL DEFAULT 0 CHECK(checkpoint IN (0,1)), lease_token TEXT UNIQUE, lease_until INTEGER,\n  available_at INTEGER NOT NULL, last_error TEXT, UNIQUE(user_id,idempotency_key),\n  CHECK((state='running')=(lease_token IS NOT NULL)), CHECK((state='running')=(lease_until IS NOT NULL))\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "knowledge_objects",
+            "tbl_name": "knowledge_objects",
+            "sql": "CREATE TABLE knowledge_objects (\n  id TEXT PRIMARY KEY,\n  service_id TEXT NOT NULL REFERENCES service_identity(service_id),\n  space_id TEXT NOT NULL REFERENCES spaces(id),\n  scope_kind TEXT NOT NULL CHECK (scope_kind IN ('personal', 'project')),\n  project_id TEXT REFERENCES knowledge_projects(id),\n  owner_user_id TEXT NOT NULL REFERENCES users(id),\n  object_type TEXT NOT NULL,\n  title TEXT NOT NULL,\n  body TEXT NOT NULL,\n  status TEXT NOT NULL CHECK (status IN ('active', 'deleted')),\n  revision INTEGER NOT NULL,\n  created_at TEXT NOT NULL,\n  updated_at TEXT NOT NULL,\n  CHECK ((scope_kind = 'personal' AND project_id IS NULL) OR (scope_kind = 'project' AND project_id IS NOT NULL))\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "knowledge_projects",
+            "tbl_name": "knowledge_projects",
+            "sql": "CREATE TABLE knowledge_projects (\n  id TEXT PRIMARY KEY,\n  service_id TEXT NOT NULL REFERENCES service_identity(service_id),\n  owner_user_id TEXT NOT NULL REFERENCES users(id),\n  name TEXT NOT NULL,\n  status TEXT NOT NULL CHECK (status IN ('active', 'disabled')),\n  created_at TEXT NOT NULL,\n  updated_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "outbox",
+            "tbl_name": "outbox",
+            "sql": "CREATE TABLE outbox (event_id TEXT PRIMARY KEY, job_id TEXT NOT NULL UNIQUE REFERENCES job_results(job_id), created_at INTEGER NOT NULL,\n  delivered_at INTEGER, failures INTEGER NOT NULL DEFAULT 0, retry_at INTEGER NOT NULL DEFAULT 0, last_error TEXT) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "password_credentials",
+            "tbl_name": "password_credentials",
+            "sql": "CREATE TABLE password_credentials (\n  id TEXT PRIMARY KEY,\n  algorithm TEXT NOT NULL,\n  version INTEGER NOT NULL,\n  n INTEGER NOT NULL,\n  r INTEGER NOT NULL,\n  p INTEGER NOT NULL,\n  maxmem INTEGER NOT NULL,\n  salt BLOB NOT NULL,\n  derived_key BLOB NOT NULL,\n  created_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "project_memberships",
+            "tbl_name": "project_memberships",
+            "sql": "CREATE TABLE project_memberships (\n  project_id TEXT NOT NULL REFERENCES knowledge_projects(id),\n  user_id TEXT NOT NULL REFERENCES users(id),\n  role TEXT NOT NULL CHECK (role IN ('member', 'owner')),\n  valid_from TEXT NOT NULL,\n  expires_at TEXT,\n  revoked_at TEXT,\n  PRIMARY KEY (project_id, user_id)\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "resource_grants",
+            "tbl_name": "resource_grants",
+            "sql": "CREATE TABLE resource_grants (\n  id TEXT PRIMARY KEY,\n  service_id TEXT NOT NULL REFERENCES service_identity(service_id),\n  resource_type TEXT NOT NULL CHECK (resource_type = 'knowledge_object'),\n  resource_id TEXT NOT NULL REFERENCES knowledge_objects(id),\n  subject_type TEXT NOT NULL CHECK (subject_type IN ('user', 'project')),\n  subject_id TEXT NOT NULL,\n  action TEXT NOT NULL CHECK (action IN ('read', 'comment', 'edit', 'export', 'manage_share', 'delete', 'review', 'view_learning_records')),\n  valid_from TEXT NOT NULL,\n  expires_at TEXT,\n  revoked_at TEXT,\n  created_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "schema_migrations",
+            "tbl_name": "schema_migrations",
+            "sql": "CREATE TABLE schema_migrations (\n  version INTEGER PRIMARY KEY,\n  checksum TEXT NOT NULL,\n  applied_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "service_identity",
+            "tbl_name": "service_identity",
+            "sql": "CREATE TABLE service_identity (\n  id INTEGER PRIMARY KEY CHECK (id = 1),\n  service_id TEXT NOT NULL UNIQUE,\n  bootstrap_admin_user_id TEXT UNIQUE REFERENCES users(id),\n  initialized_at TEXT\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "spaces",
+            "tbl_name": "spaces",
+            "sql": "CREATE TABLE spaces (\n  id TEXT PRIMARY KEY,\n  service_id TEXT NOT NULL REFERENCES service_identity(service_id),\n  kind TEXT NOT NULL CHECK (kind = 'personal'),\n  owner_user_id TEXT NOT NULL UNIQUE REFERENCES users(id),\n  status TEXT NOT NULL CHECK (status IN ('active', 'disabled')),\n  revision INTEGER NOT NULL,\n  created_at TEXT NOT NULL,\n  updated_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "storage_probe_records",
+            "tbl_name": "storage_probe_records",
+            "sql": "CREATE TABLE storage_probe_records (\n  id TEXT PRIMARY KEY,\n  idempotency_key TEXT NOT NULL UNIQUE,\n  request_digest TEXT NOT NULL,\n  content TEXT NOT NULL,\n  created_at TEXT NOT NULL\n) STRICT"
+          },
+          {
+            "type": "table",
+            "name": "users",
+            "tbl_name": "users",
+            "sql": "CREATE TABLE users (\n  id TEXT PRIMARY KEY,\n  login_name TEXT NOT NULL UNIQUE,\n  display_name TEXT NOT NULL,\n  credential_ref TEXT NOT NULL UNIQUE REFERENCES password_credentials(id),\n  role TEXT NOT NULL CHECK (role IN ('admin', 'member')),\n  status TEXT NOT NULL CHECK (status IN ('active', 'disabled')),\n  timezone TEXT NOT NULL,\n  planning_home_service_id TEXT NOT NULL,\n  domains TEXT NOT NULL,\n  learning_tracks TEXT NOT NULL,\n  goal_text TEXT NOT NULL,\n  revision INTEGER NOT NULL,\n  created_at TEXT NOT NULL,\n  updated_at TEXT NOT NULL\n) STRICT"
+          }
+        ],
+        "data": {
+          "ai_tool_mutations": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "auth_sessions": {
+            "rows": 1,
+            "sha256": "23f031387c82b9e5b7a3a32543d274acd58f82fa9342c32ec8fa6ce87c6e1037"
+          },
+          "event_receipts": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "job_results": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "job_runs": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "jobs": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "knowledge_objects": {
+            "rows": 1,
+            "sha256": "8f203e1c1b6dff31fff266a43347515e1785b82751e9bc043707fdf86f633941"
+          },
+          "knowledge_projects": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "outbox": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "password_credentials": {
+            "rows": 1,
+            "sha256": "bbdfffbf71cc2b8f2dd1a26bf635ef90b9413f36e4d51613687f4e51ca56e0dc"
+          },
+          "project_memberships": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "resource_grants": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "schema_migrations": {
+            "rows": 6,
+            "sha256": "541165785d1488afdf2efcb5f91864a9e3e65ce12c24bfd4fafb295538518aa4"
+          },
+          "service_identity": {
+            "rows": 1,
+            "sha256": "59f2b9b991d59fdfcde803de71b1b8948c14719c03ed421e59a515f2400ab453"
+          },
+          "spaces": {
+            "rows": 1,
+            "sha256": "7e9a42415edcb5933a5c78ce388a0d58184f8fe9ffdb0a6414f1f9774ec75931"
+          },
+          "storage_probe_records": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "users": {
+            "rows": 1,
+            "sha256": "eda3d54e0d88a8c0104dfb860821cc9b7927bc5e41f99db3747c8d10e37508d1"
+          }
+        }
+      }
+    }
+  ]
+}

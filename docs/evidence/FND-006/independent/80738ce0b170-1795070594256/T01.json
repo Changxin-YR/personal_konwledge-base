@@ -1,0 +1,252 @@
+{
+  "id": "T01",
+  "pid": 56752,
+  "command": [
+    "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+    "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\independent\\case.mjs",
+    "T01",
+    "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\docs\\evidence\\FND-006\\independent\\80738ce0b170-1795070594256"
+  ],
+  "directory": "C:\\Users\\27363\\AppData\\Local\\Temp\\fnd006-T01-dtOY0Q",
+  "status": "PASS",
+  "events": [
+    {
+      "at": "2026-11-19T06:43:21.949Z",
+      "label": "Host ready",
+      "facts": {
+        "pid": 76716,
+        "port": 54668,
+        "args": [
+          "--import",
+          "tsx/esm",
+          "apps/cli/src/bin.ts",
+          "--profile",
+          "knowledgeos-identity-test",
+          "--port",
+          "54668",
+          "--no-open"
+        ],
+        "bundle_sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+      }
+    },
+    {
+      "at": "2026-11-19T06:43:23.103Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/auth/bootstrap",
+        "status": 201
+      }
+    },
+    {
+      "at": "2026-11-19T06:43:23.389Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/auth/register",
+        "status": 201
+      }
+    },
+    {
+      "at": "2026-11-19T06:43:23.693Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/auth/register",
+        "status": 201
+      }
+    },
+    {
+      "at": "2026-11-19T06:43:23.985Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/auth/login",
+        "status": 200
+      }
+    },
+    {
+      "at": "2026-11-19T06:43:24.267Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/auth/login",
+        "status": 200
+      }
+    },
+    {
+      "at": "2026-11-19T06:43:24.273Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/objects",
+        "status": 201
+      }
+    },
+    {
+      "at": "2026-11-19T06:43:24.279Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/jobs",
+        "status": 202
+      }
+    },
+    {
+      "at": "2026-11-19T06:43:24.834Z",
+      "label": "live checkpoint",
+      "facts": {
+        "id": "9c513b6e-b107-4d09-ac2f-a05dfc0fc218",
+        "state": "running",
+        "attempts": 1,
+        "checkpoint": 1,
+        "lease_token": "acfa1d61c67fe81dbacf31be83a4873b7a533ae18eb7bba18e8e2a47e81f943d",
+        "lease_until": 1795070607825,
+        "available_at": 1795070604279,
+        "last_error": null,
+        "runs": [
+          {
+            "job_id": "9c513b6e-b107-4d09-ac2f-a05dfc0fc218",
+            "attempt": 1,
+            "worker": "c93c804b-c609-4539-8d33-2d60305fc789",
+            "started_at": 1795070604310,
+            "start_checkpoint": 0,
+            "ended_at": null,
+            "outcome": null
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:43:24.878Z",
+      "label": "Host exited",
+      "facts": {
+        "pid": 76716,
+        "force": true,
+        "code": null,
+        "signal": "SIGKILL"
+      }
+    },
+    {
+      "at": "2026-11-19T06:43:24.881Z",
+      "label": "durable after hard kill",
+      "facts": {
+        "id": "9c513b6e-b107-4d09-ac2f-a05dfc0fc218",
+        "state": "running",
+        "attempts": 1,
+        "checkpoint": 1,
+        "lease_token": "acfa1d61c67fe81dbacf31be83a4873b7a533ae18eb7bba18e8e2a47e81f943d",
+        "lease_until": 1795070607825,
+        "available_at": 1795070604279,
+        "last_error": null,
+        "runs": [
+          {
+            "job_id": "9c513b6e-b107-4d09-ac2f-a05dfc0fc218",
+            "attempt": 1,
+            "worker": "c93c804b-c609-4539-8d33-2d60305fc789",
+            "started_at": 1795070604310,
+            "start_checkpoint": 0,
+            "ended_at": null,
+            "outcome": null
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:43:36.809Z",
+      "label": "Host ready",
+      "facts": {
+        "pid": 72076,
+        "port": 54668,
+        "args": [
+          "--import",
+          "tsx/esm",
+          "apps/cli/src/bin.ts",
+          "--profile",
+          "knowledgeos-identity-test",
+          "--port",
+          "54668",
+          "--no-open"
+        ],
+        "bundle_sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+      }
+    },
+    {
+      "at": "2026-11-19T06:43:39.297Z",
+      "label": "succeeded",
+      "facts": {
+        "id": "9c513b6e-b107-4d09-ac2f-a05dfc0fc218",
+        "state": "succeeded",
+        "attempts": 2,
+        "checkpoint": 1,
+        "lease_token": null,
+        "lease_until": null,
+        "available_at": 1795070619253,
+        "last_error": null,
+        "runs": [
+          {
+            "job_id": "9c513b6e-b107-4d09-ac2f-a05dfc0fc218",
+            "attempt": 1,
+            "worker": "c93c804b-c609-4539-8d33-2d60305fc789",
+            "started_at": 1795070604310,
+            "start_checkpoint": 0,
+            "ended_at": 1795070618231,
+            "outcome": "LEASE_EXPIRED"
+          },
+          {
+            "job_id": "9c513b6e-b107-4d09-ac2f-a05dfc0fc218",
+            "attempt": 2,
+            "worker": "9cf144de-bfb4-41b0-980b-7a63bbc3e4ca",
+            "started_at": 1795070618733,
+            "start_checkpoint": 1,
+            "ended_at": 1795070619253,
+            "outcome": "succeeded"
+          }
+        ],
+        "results": [
+          {
+            "job_id": "9c513b6e-b107-4d09-ac2f-a05dfc0fc218",
+            "input_revision": 1
+          }
+        ],
+        "events": [
+          {
+            "event_id": "f39a78b3-c538-465d-8040-4906f2332ad7",
+            "job_id": "9c513b6e-b107-4d09-ac2f-a05dfc0fc218",
+            "created_at": 1795070619253,
+            "delivered_at": null,
+            "failures": 0,
+            "retry_at": 0,
+            "last_error": null
+          }
+        ],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:43:39.303Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "GET",
+        "path": "/jobs/9c513b6e-b107-4d09-ac2f-a05dfc0fc218",
+        "status": 200
+      }
+    },
+    {
+      "at": "2026-11-19T06:43:39.339Z",
+      "label": "Host exited",
+      "facts": {
+        "pid": 72076,
+        "force": false,
+        "code": null,
+        "signal": "SIGTERM"
+      }
+    }
+  ]
+}

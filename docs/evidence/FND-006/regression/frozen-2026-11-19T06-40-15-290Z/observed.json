@@ -1,0 +1,250 @@
+{
+  "tree": "80738ce0b1705dfc15a80ac9852d76a170d7ede1",
+  "status_contract": {
+    "first": {
+      "schema_version": 1,
+      "product": "KnowledgeOS",
+      "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+      "upstream_version": "0.2.2-rc.3",
+      "expected_upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+      "upstream_commit_verified": true,
+      "host_instance_id": "aad5456a-7dc3-4167-8073-42c1f892fe2f",
+      "started_at": "2026-11-19T06:43:24.761Z",
+      "checked_at": "2026-11-19T06:43:25.992Z",
+      "status": "ok"
+    },
+    "second": {
+      "schema_version": 1,
+      "product": "KnowledgeOS",
+      "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+      "upstream_version": "0.2.2-rc.3",
+      "expected_upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+      "upstream_commit_verified": true,
+      "host_instance_id": "aad5456a-7dc3-4167-8073-42c1f892fe2f",
+      "started_at": "2026-11-19T06:43:24.761Z",
+      "checked_at": "2026-11-19T06:43:26.033Z",
+      "status": "ok"
+    },
+    "restart": {
+      "schema_version": 1,
+      "product": "KnowledgeOS",
+      "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+      "upstream_version": "0.2.2-rc.3",
+      "expected_upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+      "upstream_commit_verified": true,
+      "host_instance_id": "921c2d8e-b4c2-4482-a6f8-de49948a51f6",
+      "started_at": "2026-11-19T06:43:42.627Z",
+      "checked_at": "2026-11-19T06:43:44.286Z",
+      "status": "ok"
+    }
+  },
+  "acl": [
+    {
+      "id": "FND-004-T01",
+      "status": "PASS",
+      "started_at": "2026-11-19T06:45:21.116Z",
+      "evidence": [
+        "real_http_three_cookies",
+        "personal_direct_url_and_list",
+        "forged_identity_input"
+      ],
+      "result": {
+        "statuses": {
+          "own": 200,
+          "bob": 404,
+          "admin": 404,
+          "bob_list": 200,
+          "forged": 422
+        },
+        "cookies": [
+          "<redacted>",
+          "<redacted>",
+          "<redacted>"
+        ]
+      },
+      "finished_at": "2026-11-19T06:45:21.127Z"
+    },
+    {
+      "id": "FND-004-T02",
+      "status": "PASS",
+      "started_at": "2026-11-19T06:45:21.128Z",
+      "evidence": [
+        "real_http_action_matrix",
+        "edit_without_delete_or_manage_share"
+      ],
+      "result": {
+        "owner": {
+          "read": 200,
+          "comment": 200,
+          "edit": 200,
+          "export": 200,
+          "manage_share": 200,
+          "delete": 200,
+          "review": 200,
+          "view_learning_records": 200
+        },
+        "member_before_grant": {
+          "read": 404,
+          "comment": 404,
+          "edit": 404,
+          "export": 404,
+          "manage_share": 404,
+          "delete": 404,
+          "review": 404,
+          "view_learning_records": 404
+        },
+        "after_edit_grant": {
+          "edit": 200,
+          "delete": 404,
+          "manage_share": 404
+        }
+      },
+      "finished_at": "2026-11-19T06:45:21.168Z"
+    },
+    {
+      "id": "FND-004-T03",
+      "status": "PASS",
+      "started_at": "2026-11-19T06:45:21.168Z",
+      "evidence": [
+        "cross_project_creation_denial",
+        "membership_without_grant",
+        "explicit_learning_record_grant",
+        "cross_service_project_rejection",
+        "expired_membership_blocks_get_list_action_patch_delete"
+      ],
+      "result": {
+        "statuses": {
+          "non_member_create": 404,
+          "invalid_project": 404,
+          "read_before_grant": 404,
+          "learning_before": 404,
+          "learning_after": 200,
+          "invalid_subject_project": 404
+        },
+        "expired_membership": {
+          "get": 404,
+          "list": 200,
+          "action": 404,
+          "patch": 404,
+          "delete": 404
+        },
+        "knowledge_objects": 3
+      },
+      "finished_at": "2026-11-19T06:45:21.216Z"
+    },
+    {
+      "id": "FND-004-T04",
+      "status": "PASS",
+      "started_at": "2026-11-19T06:45:21.217Z",
+      "evidence": [
+        "expected_revision_409",
+        "future_grant_denial",
+        "real_http_revoke_race",
+        "post_revoke_read_list_action",
+        "regrant_restores_read",
+        "revoked_history_retained_one_active"
+      ],
+      "result": {
+        "future": 404,
+        "conflict": 409,
+        "stale": 409,
+        "revoke_race": [
+          204,
+          404
+        ],
+        "after_revoke": {
+          "get": 404,
+          "list": 200,
+          "action": 404
+        },
+        "regrant": {
+          "create": 201,
+          "read": 200,
+          "history_rows": 2,
+          "active_rows": 1
+        }
+      },
+      "finished_at": "2026-11-19T06:45:21.251Z"
+    },
+    {
+      "id": "FND-004-T05",
+      "status": "PASS",
+      "started_at": "2026-11-19T06:45:21.252Z",
+      "evidence": [
+        "v4_failure_rollback",
+        "transaction_rollback",
+        "forged_schema_rejection",
+        "normal_recovery"
+      ],
+      "result": {
+        "failed": {
+          "user_version": 3,
+          "ledger": 3
+        },
+        "recovered": {
+          "user_version": 6,
+          "ledger": 6
+        },
+        "transaction": {
+          "rolledBack": true,
+          "primaryCode": 19,
+          "rows": 0
+        },
+        "forged_schema": {
+          "rejected": true,
+          "unchanged": true
+        },
+        "restored": true
+      },
+      "finished_at": "2026-11-19T06:45:21.530Z"
+    },
+    {
+      "id": "FND-004-T06",
+      "status": "PASS",
+      "started_at": "2026-11-19T06:45:21.531Z",
+      "evidence": [
+        "real_business_cookie_privilege_probes",
+        "owner_host_status_probe",
+        "dedicated_shared_profile"
+      ],
+      "result": {
+        "host": "loopback",
+        "profile": "knowledgeos-identity-test",
+        "owner_status": 200,
+        "business_status": 401,
+        "probes": {
+          "/api": 401,
+          "/rpc": 404,
+          "/shell": 404,
+          "/files": 404,
+          "/plugins": 404,
+          "/session/attachments": 404,
+          "/sessions/attachments": 404,
+          "/connect": 401
+        }
+      },
+      "finished_at": "2026-11-19T06:45:21.547Z"
+    },
+    {
+      "id": "FND-004-T07",
+      "status": "PASS",
+      "started_at": "2026-11-19T06:45:21.547Z",
+      "evidence": [
+        "candidate_artifacts",
+        "http_database_v4_facts"
+      ],
+      "result": {
+        "artifacts": [
+          "lib/index.js",
+          "lib/storage.js",
+          "lib/test-support.js"
+        ],
+        "schema": {
+          "user_version": 6,
+          "ledger": 6
+        }
+      },
+      "finished_at": "2026-11-19T06:45:21.552Z"
+    }
+  ]
+}

@@ -1,0 +1,132 @@
+{
+  "command": [
+    "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+    "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\independent\\run.mjs",
+    "80738ce0b1705dfc15a80ac9852d76a170d7ede1",
+    "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+  ],
+  "started": "2026-11-19T06:40:38.501Z",
+  "node": "v24.22.0",
+  "results": [
+    {
+      "id": "T01",
+      "command": [
+        "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+        "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\independent\\case.mjs",
+        "T01",
+        "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\docs\\evidence\\FND-006\\independent\\80738ce0b170-1795070438501"
+      ],
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "id": "T02",
+      "command": [
+        "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+        "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\independent\\case.mjs",
+        "T02",
+        "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\docs\\evidence\\FND-006\\independent\\80738ce0b170-1795070438501"
+      ],
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "id": "T03",
+      "command": [
+        "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+        "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\independent\\case.mjs",
+        "T03",
+        "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\docs\\evidence\\FND-006\\independent\\80738ce0b170-1795070438501"
+      ],
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "id": "T04",
+      "command": [
+        "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+        "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\independent\\case.mjs",
+        "T04",
+        "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\docs\\evidence\\FND-006\\independent\\80738ce0b170-1795070438501"
+      ],
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "id": "T05",
+      "command": [
+        "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+        "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\independent\\case.mjs",
+        "T05",
+        "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\docs\\evidence\\FND-006\\independent\\80738ce0b170-1795070438501"
+      ],
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "id": "T06",
+      "command": [
+        "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+        "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\independent\\case.mjs",
+        "T06",
+        "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\docs\\evidence\\FND-006\\independent\\80738ce0b170-1795070438501"
+      ],
+      "exit": 1,
+      "signal": null
+    },
+    {
+      "id": "V6",
+      "command": [
+        "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+        "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\independent\\case.mjs",
+        "V6",
+        "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\docs\\evidence\\FND-006\\independent\\80738ce0b170-1795070438501"
+      ],
+      "exit": 0,
+      "signal": null
+    }
+  ],
+  "status": "FAIL",
+  "before": {
+    "tree": "80738ce0b1705dfc15a80ac9852d76a170d7ede1",
+    "files": {
+      "lib/index.js": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84",
+      "lib/test-support.js": "3a5305d5934f403ae9149d4446a7eedf00d13edeaffad684d28beffc6b4e3b57",
+      "lib/storage.js": "7ed4c937a4533ebf7041b4d3526c468883ff56b1ae77ccc6d5a5c106608a673f"
+    },
+    "runner": {
+      "case.mjs": "2437d4214a549ed36f993ed910fd59d1718e5707b12a463b3633d698abe9d29e",
+      "claim-child.mjs": "1e292e1f523dfb0192c79895b742b91aa3f4ecb123f204a59adf1cb58b699758",
+      "common.mjs": "8209fd11ebff6f70e03f736f30a738b14a525fe542c7f006fac183e0e3653f59",
+      "host-cases.mjs": "8d373ed70734849e78ab392d31453b9147fe9d2177a1ba7b7164257255b9f5fa",
+      "migration-child.mjs": "6264d5e8e605d95c49541a8ce5d6130efad250239405526da45e10103042feba",
+      "migration.mjs": "6410675ef63eda518d4fbfe4050e53ab5d5b05a60076a22367bfbcd232f53c75",
+      "run.mjs": "8b075f66fedc0777cdb0481de771f43268c6bd9aff24b3e4323ac6a6906389e6",
+      "storage-cases.mjs": "3919d35cc6f5e67ca3d5147ab89142f3ce3fc25d82e407671fb0a17dc1c1c550"
+    },
+    "pinned": "39163dd30f703a79079e2d2446545cff3c453738",
+    "cli_sha256": "7081b6503a635eb6c6d9c3e4619e740afe157252b246aa17acbf1a1ceec54c88"
+  },
+  "after": {
+    "tree": "80738ce0b1705dfc15a80ac9852d76a170d7ede1",
+    "files": {
+      "lib/index.js": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84",
+      "lib/test-support.js": "3a5305d5934f403ae9149d4446a7eedf00d13edeaffad684d28beffc6b4e3b57",
+      "lib/storage.js": "7ed4c937a4533ebf7041b4d3526c468883ff56b1ae77ccc6d5a5c106608a673f"
+    },
+    "runner": {
+      "case.mjs": "2437d4214a549ed36f993ed910fd59d1718e5707b12a463b3633d698abe9d29e",
+      "claim-child.mjs": "1e292e1f523dfb0192c79895b742b91aa3f4ecb123f204a59adf1cb58b699758",
+      "common.mjs": "8209fd11ebff6f70e03f736f30a738b14a525fe542c7f006fac183e0e3653f59",
+      "host-cases.mjs": "8d373ed70734849e78ab392d31453b9147fe9d2177a1ba7b7164257255b9f5fa",
+      "migration-child.mjs": "6264d5e8e605d95c49541a8ce5d6130efad250239405526da45e10103042feba",
+      "migration.mjs": "6410675ef63eda518d4fbfe4050e53ab5d5b05a60076a22367bfbcd232f53c75",
+      "run.mjs": "8b075f66fedc0777cdb0481de771f43268c6bd9aff24b3e4323ac6a6906389e6",
+      "storage-cases.mjs": "3919d35cc6f5e67ca3d5147ab89142f3ce3fc25d82e407671fb0a17dc1c1c550"
+    },
+    "pinned": "39163dd30f703a79079e2d2446545cff3c453738",
+    "cli_sha256": "7081b6503a635eb6c6d9c3e4619e740afe157252b246aa17acbf1a1ceec54c88"
+  },
+  "ended": "2026-11-19T06:42:10.795Z",
+  "exit": 1
+}

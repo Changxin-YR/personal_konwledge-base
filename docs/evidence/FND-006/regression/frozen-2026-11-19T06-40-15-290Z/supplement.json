@@ -1,0 +1,178 @@
+{
+  "tree": "80738ce0b1705dfc15a80ac9852d76a170d7ede1",
+  "command": [
+    "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+    "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\regression\\supplement.mjs",
+    "frozen-2026-11-19T06-40-15-290Z"
+  ],
+  "loads": [
+    {
+      "pid": 68228,
+      "path": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\packages\\knowledgeos-panel\\lib\\index.js",
+      "sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+    }
+  ],
+  "stable": true,
+  "results": [
+    {
+      "name": "storage-checks",
+      "original": "b243d2ec075ee490065ccbdc818b65dd2d3fecb52c7eab1b1d1c41a751e1dfd1",
+      "executed": "8d56dfbb297d0cfab7f78e9a43cc062f46d6a11f1251f0b36cef771f79b465ef",
+      "command": [
+        "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+        "scripts/fnd005/storage-checks.mjs",
+        "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\regression\\.cache\\r-eNM0ls\\evidence\\storage-checks"
+      ],
+      "cwd": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\regression\\.cache\\r-eNM0ls",
+      "start": "2026-11-19T06:46:11.699Z",
+      "end": "2026-11-19T06:46:13.881Z",
+      "exit": 0,
+      "details": {
+        "category": "REAL_SQLITE_WITH_CONTROLLED_FAULT_SEAMS",
+        "started_at": "2026-11-19T06:46:11.824Z",
+        "status": "PASS",
+        "checks": [
+          {
+            "id": "T09.v4-upgrade-preserves-historical-sql-and-ledger",
+            "status": "PASS",
+            "started_at": "2026-11-19T06:46:11.826Z",
+            "facts": {
+              "before": 4,
+              "after": 6,
+              "historical_checksums_unchanged": true,
+              "ledger_count": 6
+            }
+          },
+          {
+            "id": "T09.v5-migration-fault-rolls-back",
+            "status": "PASS",
+            "started_at": "2026-11-19T06:46:12.068Z",
+            "facts": {
+              "fault_version": 4,
+              "receipt_table_absent": true,
+              "recovery_version": 6
+            }
+          },
+          {
+            "id": "T09.forged-schema-rejected-without-rewrite",
+            "status": "PASS",
+            "started_at": "2026-11-19T06:46:12.239Z",
+            "facts": {
+              "code": "STORAGE_INCOMPATIBLE",
+              "unchanged": true
+            }
+          },
+          {
+            "id": "T05.update-and-receipt-atomic-rollback",
+            "status": "PASS",
+            "started_at": "2026-11-19T06:46:13.157Z",
+            "facts": {
+              "revision": 1,
+              "receipt_rows": 0,
+              "atomic_rollback": true
+            }
+          },
+          {
+            "id": "T04.fresh-auth-clock-after-real-lock-wait",
+            "status": "PASS",
+            "started_at": "2026-11-19T06:46:13.204Z",
+            "facts": {
+              "lock_wait_ms": 206,
+              "session_expired_before_lock_release": true,
+              "result": "session_expired",
+              "no_write": true
+            }
+          },
+          {
+            "id": "T09.bounded-lock-and-transaction-regression",
+            "status": "PASS",
+            "started_at": "2026-11-19T06:46:13.505Z",
+            "facts": {
+              "busy_timeout_ms": 250,
+              "observed_ms": 329,
+              "rollback": {
+                "rolledBack": true,
+                "primaryCode": 19,
+                "rows": 0
+              }
+            }
+          }
+        ],
+        "finished_at": "2026-11-19T06:46:13.868Z"
+      }
+    },
+    {
+      "name": "barrier-checks",
+      "original": "084006901263e09fd4b0adbf540fe05874588e23af90cd9154f3783667292474",
+      "executed": "2387107827facf1f9db0bd25305e2312c6c2d6505ff9a969e87c417e6e04b01e",
+      "command": [
+        "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+        "scripts/fnd005/barrier-checks.mjs",
+        "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\regression\\.cache\\r-eNM0ls\\evidence\\barrier-checks"
+      ],
+      "cwd": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\regression\\.cache\\r-eNM0ls",
+      "start": "2026-11-19T06:46:13.951Z",
+      "end": "2026-11-19T06:46:41.298Z",
+      "exit": 0,
+      "details": {
+        "category": "REAL_DSH_NATIVE_HTTP_SQLITE_WITH_CONTROLLED_MODEL_POLICY_BARRIERS",
+        "status": "PASS",
+        "real_gpt": false,
+        "started_at": "2026-11-19T06:46:14.103Z",
+        "checks": [
+          {
+            "id": "R1.post-body-revocation-suppresses-publication",
+            "status": "PASS",
+            "facts": {
+              "native_body_completed": true,
+              "revocation_before_publication": true,
+              "http": 404,
+              "no_body_disclosed": true
+            }
+          },
+          {
+            "id": "R1.post-body-logout-suppresses-publication",
+            "status": "PASS",
+            "facts": {
+              "http": 401,
+              "no_body_disclosed": true
+            }
+          },
+          {
+            "id": "R2.cancel-native-wait-before-body",
+            "status": "PASS",
+            "facts": {
+              "http": 409,
+              "code": "CANCELLED",
+              "revision": 1,
+              "no_write": true
+            }
+          },
+          {
+            "id": "R3.native-aborted-before-dispatch-classified",
+            "status": "PASS",
+            "facts": {
+              "native_code": "ABORTED_BEFORE_DISPATCH",
+              "http": 409,
+              "code": "CANCELLED"
+            }
+          },
+          {
+            "id": "R2.cancel-after-commit-preserves-receipt",
+            "status": "PASS",
+            "facts": {
+              "cancel_http": 409,
+              "code": "OPERATION_ALREADY_COMPLETED",
+              "execute_http": 200,
+              "revision": 2,
+              "receipt_count": 1
+            }
+          }
+        ],
+        "finished_at": "2026-11-19T06:46:27.012Z"
+      }
+    }
+  ],
+  "status": "PASS",
+  "exit": 0
+}

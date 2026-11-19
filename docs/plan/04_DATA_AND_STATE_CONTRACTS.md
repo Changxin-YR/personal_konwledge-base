@@ -1,15 +1,15 @@
 # KnowledgeOS｜数据与状态契约
 
 
-> 当前收口：FND-003提交b1ff9ae复核需要返修，按唯一CODEX_START.md v3.1.1关闭六项问题并重新验收；FND-004未激活。后文全周期设计不扩大本轮范围。
-> 执行范围：本页为产品目标契约，按已激活功能逐项实现。当前仅执行 CODEX_START.md 中的 FND-003 身份与个人空间边界；M0 不授权一次开发全部数据库、身份、模型或打包功能。未来 API/表清单不授权提前开发。
+> FND-006 是唯一已激活单元，正式依赖为已通过的 FND-004。FND-005 保持 blocked；继承代码不等于继承验收。完整产品审查未激活。
+> 此页是全周期目标；实际实施范围以唯一 CODEX_START.md 为准。
 
 - 版本：1.0，2026-11-16（Asia/Shanghai）。
 - 状态：**planned**。以下为拟实现的 KnowledgeOS 数据规则，不代表 DSH 已提供这些业务能力，也不代表已运行验证。
 - 适用：`Changxin-YR/personal_konwledge-base`；DSH 固定上游 `39163dd30f703a79079e2d2446545cff3c453738`。
 - 需求权威：`01_REQUIREMENTS_BASELINE.md`；验收权威：`07_ACCEPTANCE_MATRIX.md`。本文件负责数据一致性、版本、事务和状态转换。
 
-## 0. FND-003 当前身份切片
+## 0. FND-003 身份切片（历史边界）
 
 FND-002两表/v1及归属修复已验收。当前在同一knowledgeos.sqlite新增原子v2身份迁移，实际职责限定为service_identity、users、password_credentials、auth_sessions和spaces；保留application_id、旧v1 SQL/checksum/账本和探针记录。当前精确字段与默认值在唯一 [CODEX_START.md](../../CODEX_START.md) 冻结。
 

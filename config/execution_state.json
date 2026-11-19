@@ -10,7 +10,7 @@
     "sha256": "c3897e097129207ab07c314483e4f921a8e7b3cab00f6ab53e49a76065d8a1a8"
   },
   "active_unit": "FND-006",
-  "unit_state": "in_progress",
+  "unit_state": "awaiting_user",
   "execution_mode": "single_feature_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "awaiting_user": "current unit has passed and awaits a user choice; active_unit is not advanced"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "仅推进 FND-006，无外部模型依赖；FND-005 等待独立真实 DeepSeek 验收。",
+  "state_reason": "FND-006 T01–T08 已在冻结产品候选独立验收通过；停在本单元，FND-005 真实 DeepSeek 验收仍 blocked。",
   "working_branch": "codex/knowledgeos-fnd-006",
   "activation_basis": "explicit_user_selection_of_FND006",
   "base_commit": "c03ec437b2c648b16449598f89ac289bf307ccd2",
@@ -114,6 +114,13 @@
     "real_provider_calls": 0,
     "technical_checks": "PASS",
     "unit_acceptance": "BLOCKED",
+    "stop_after_delivery": true,
+    "auto_advance": false
+  },
+  "current_unit_stop": {
+    "candidate_commit": "5e3cc68b7182146b45ae38d8059202b23fe23d83",
+    "candidate_tree": "80738ce0b1705dfc15a80ac9852d76a170d7ede1",
+    "unit_acceptance": "PASS",
     "stop_after_delivery": true,
     "auto_advance": false
   }

@@ -1,0 +1,212 @@
+{
+  "id": "T03",
+  "pid": 39036,
+  "command": [
+    "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+    "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\independent\\case.mjs",
+    "T03",
+    "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\docs\\evidence\\FND-006\\independent\\80738ce0b170-1795070594256"
+  ],
+  "directory": "C:\\Users\\27363\\AppData\\Local\\Temp\\fnd006-T03-zcjCwW",
+  "status": "PASS",
+  "events": [
+    {
+      "at": "2026-11-19T06:44:21.242Z",
+      "label": "queued",
+      "facts": {
+        "id": "62f88d89-2d72-4f76-b7a2-0bd62ba1867e",
+        "state": "queued",
+        "attempts": 0,
+        "checkpoint": 0,
+        "lease_token": null,
+        "lease_until": null,
+        "available_at": 1795070661232,
+        "last_error": null,
+        "runs": [],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:21.597Z",
+      "label": "synchronized independent claims",
+      "facts": {
+        "command": "node claim-child.mjs <isolated-db> <worker>",
+        "at": 1795070661570,
+        "workers": [
+          {
+            "worker": "alpha",
+            "pid": 62960,
+            "started": 1795070661571,
+            "ended": 1795070661576,
+            "won": true,
+            "exit": 0
+          },
+          {
+            "worker": "beta",
+            "pid": 69676,
+            "started": 1795070661571,
+            "ended": 1795070661589,
+            "won": false,
+            "exit": 0
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:21.599Z",
+      "label": "race winner",
+      "facts": {
+        "id": "62f88d89-2d72-4f76-b7a2-0bd62ba1867e",
+        "state": "running",
+        "attempts": 1,
+        "checkpoint": 0,
+        "lease_token": "94d61d75a623366946c5550c781ff21d1b98348b7c59f07ab4c6cd6cd76346b8",
+        "lease_until": 1795070664571,
+        "available_at": 1795070661232,
+        "last_error": null,
+        "runs": [
+          {
+            "job_id": "62f88d89-2d72-4f76-b7a2-0bd62ba1867e",
+            "attempt": 1,
+            "worker": "alpha",
+            "started_at": 1795070661571,
+            "start_checkpoint": 0,
+            "ended_at": null,
+            "outcome": null
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:24.873Z",
+      "label": "new lease, checkpoint zero",
+      "facts": {
+        "id": "62f88d89-2d72-4f76-b7a2-0bd62ba1867e",
+        "state": "running",
+        "attempts": 2,
+        "checkpoint": 0,
+        "lease_token": "a3dff11c77c8313727586be4d79f528e37033bc76a533c5bf8721115e8130b41",
+        "lease_until": 1795070667864,
+        "available_at": 1795070664847,
+        "last_error": "LEASE_EXPIRED",
+        "runs": [
+          {
+            "job_id": "62f88d89-2d72-4f76-b7a2-0bd62ba1867e",
+            "attempt": 1,
+            "worker": "alpha",
+            "started_at": 1795070661571,
+            "start_checkpoint": 0,
+            "ended_at": 1795070664597,
+            "outcome": "LEASE_EXPIRED"
+          },
+          {
+            "job_id": "62f88d89-2d72-4f76-b7a2-0bd62ba1867e",
+            "attempt": 2,
+            "worker": "beta",
+            "started_at": 1795070664864,
+            "start_checkpoint": 0,
+            "ended_at": null,
+            "outcome": null
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:24.884Z",
+      "label": "new lease, checkpoint one",
+      "facts": {
+        "id": "62f88d89-2d72-4f76-b7a2-0bd62ba1867e",
+        "state": "running",
+        "attempts": 2,
+        "checkpoint": 1,
+        "lease_token": "a3dff11c77c8313727586be4d79f528e37033bc76a533c5bf8721115e8130b41",
+        "lease_until": 1795070667864,
+        "available_at": 1795070664847,
+        "last_error": "LEASE_EXPIRED",
+        "runs": [
+          {
+            "job_id": "62f88d89-2d72-4f76-b7a2-0bd62ba1867e",
+            "attempt": 1,
+            "worker": "alpha",
+            "started_at": 1795070661571,
+            "start_checkpoint": 0,
+            "ended_at": 1795070664597,
+            "outcome": "LEASE_EXPIRED"
+          },
+          {
+            "job_id": "62f88d89-2d72-4f76-b7a2-0bd62ba1867e",
+            "attempt": 2,
+            "worker": "beta",
+            "started_at": 1795070664864,
+            "start_checkpoint": 0,
+            "ended_at": null,
+            "outcome": null
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:24.894Z",
+      "label": "winner committed",
+      "facts": {
+        "id": "62f88d89-2d72-4f76-b7a2-0bd62ba1867e",
+        "state": "succeeded",
+        "attempts": 2,
+        "checkpoint": 1,
+        "lease_token": null,
+        "lease_until": null,
+        "available_at": 1795070664885,
+        "last_error": null,
+        "runs": [
+          {
+            "job_id": "62f88d89-2d72-4f76-b7a2-0bd62ba1867e",
+            "attempt": 1,
+            "worker": "alpha",
+            "started_at": 1795070661571,
+            "start_checkpoint": 0,
+            "ended_at": 1795070664597,
+            "outcome": "LEASE_EXPIRED"
+          },
+          {
+            "job_id": "62f88d89-2d72-4f76-b7a2-0bd62ba1867e",
+            "attempt": 2,
+            "worker": "beta",
+            "started_at": 1795070664864,
+            "start_checkpoint": 0,
+            "ended_at": 1795070664885,
+            "outcome": "succeeded"
+          }
+        ],
+        "results": [
+          {
+            "job_id": "62f88d89-2d72-4f76-b7a2-0bd62ba1867e",
+            "input_revision": 1
+          }
+        ],
+        "events": [
+          {
+            "event_id": "aa420776-ae83-43f2-af4c-4091e5af79fd",
+            "job_id": "62f88d89-2d72-4f76-b7a2-0bd62ba1867e",
+            "created_at": 1795070664885,
+            "delivered_at": null,
+            "failures": 0,
+            "retry_at": 0,
+            "last_error": null
+          }
+        ],
+        "receipts": []
+      }
+    }
+  ]
+}

@@ -1168,17 +1168,35 @@
       ],
       "final_acceptance_ids": [],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
-      "status": "in_progress",
+      "status": "passed",
       "test_plan_status": "detailed_active_unit",
       "instruction_revision": "3.4.0",
       "working_branch": "codex/knowledgeos-fnd-006",
       "base_commit": "c03ec437b2c648b16449598f89ac289bf307ccd2",
-      "test_result_status": "NOT_RUN",
-      "retest_status": "NOT_RUN",
-      "independent_review_status": "NOT_RUN",
-      "completed_test_ids": [],
+      "test_result_status": "PASS",
+      "retest_status": "PASS",
+      "independent_review_status": "PASS",
+      "completed_test_ids": [
+        "FND-006-T01",
+        "FND-006-T02",
+        "FND-006-T03",
+        "FND-006-T04",
+        "FND-006-T05",
+        "FND-006-T06",
+        "FND-006-T07",
+        "FND-006-T08"
+      ],
       "open_review_items": [],
-      "closed_review_items": []
+      "closed_review_items": [],
+      "completed_at": "2026-11-19T06:51:01.925Z",
+      "acceptance_record": "docs/evidence/FND-006/acceptance.json",
+      "candidate_commit": "5e3cc68b7182146b45ae38d8059202b23fe23d83",
+      "evidence_paths": [
+        "docs/evidence/FND-006/acceptance.json",
+        "docs/evidence/FND-006/REPORT.md",
+        "docs/evidence/FND-006/independent/review.md",
+        "docs/evidence/FND-006/regression/REPORT.md"
+      ]
     },
     {
       "id": "LIB-001",

@@ -1,0 +1,232 @@
+{
+  "id": "T05",
+  "pid": 74908,
+  "command": [
+    "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+    "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\independent\\case.mjs",
+    "T05",
+    "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\docs\\evidence\\FND-006\\independent\\80738ce0b170-1795070594256"
+  ],
+  "directory": "C:\\Users\\27363\\AppData\\Local\\Temp\\fnd006-T05-Arz3BZ",
+  "status": "PASS",
+  "events": [
+    {
+      "at": "2026-11-19T06:44:37.328Z",
+      "label": "before job:after-result",
+      "facts": {
+        "id": "e88ea31e-45de-471e-bfe3-fdcda1d3fe65",
+        "state": "running",
+        "attempts": 1,
+        "checkpoint": 1,
+        "lease_token": "0baae24ca68794c6853a13d8a7a038cf74bb45bf94c4ad6977d63ae7c0e02806",
+        "lease_until": 1795070680319,
+        "available_at": 1795070677313,
+        "last_error": null,
+        "runs": [
+          {
+            "job_id": "e88ea31e-45de-471e-bfe3-fdcda1d3fe65",
+            "attempt": 1,
+            "worker": "atomic",
+            "started_at": 1795070677319,
+            "start_checkpoint": 0,
+            "ended_at": null,
+            "outcome": null
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:37.339Z",
+      "label": "injected error",
+      "facts": {
+        "chain": [
+          "storage operation failed",
+          "controlled storage failure at job:after-result"
+        ]
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:37.340Z",
+      "label": "rolled back job:after-result",
+      "facts": {
+        "id": "e88ea31e-45de-471e-bfe3-fdcda1d3fe65",
+        "state": "running",
+        "attempts": 1,
+        "checkpoint": 1,
+        "lease_token": "0baae24ca68794c6853a13d8a7a038cf74bb45bf94c4ad6977d63ae7c0e02806",
+        "lease_until": 1795070680319,
+        "available_at": 1795070677313,
+        "last_error": null,
+        "runs": [
+          {
+            "job_id": "e88ea31e-45de-471e-bfe3-fdcda1d3fe65",
+            "attempt": 1,
+            "worker": "atomic",
+            "started_at": 1795070677319,
+            "start_checkpoint": 0,
+            "ended_at": null,
+            "outcome": null
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:37.350Z",
+      "label": "retried job:after-result",
+      "facts": {
+        "id": "e88ea31e-45de-471e-bfe3-fdcda1d3fe65",
+        "state": "succeeded",
+        "attempts": 1,
+        "checkpoint": 1,
+        "lease_token": null,
+        "lease_until": null,
+        "available_at": 1795070677341,
+        "last_error": null,
+        "runs": [
+          {
+            "job_id": "e88ea31e-45de-471e-bfe3-fdcda1d3fe65",
+            "attempt": 1,
+            "worker": "atomic",
+            "started_at": 1795070677319,
+            "start_checkpoint": 0,
+            "ended_at": 1795070677341,
+            "outcome": "succeeded"
+          }
+        ],
+        "results": [
+          {
+            "job_id": "e88ea31e-45de-471e-bfe3-fdcda1d3fe65",
+            "input_revision": 1
+          }
+        ],
+        "events": [
+          {
+            "event_id": "1bf990ad-5742-464c-a620-3dea7dab8c76",
+            "job_id": "e88ea31e-45de-471e-bfe3-fdcda1d3fe65",
+            "created_at": 1795070677341,
+            "delivered_at": null,
+            "failures": 0,
+            "retry_at": 0,
+            "last_error": null
+          }
+        ],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:37.363Z",
+      "label": "before job:after-outbox",
+      "facts": {
+        "id": "9e00909b-6981-4731-b43d-6255c8da25c9",
+        "state": "running",
+        "attempts": 1,
+        "checkpoint": 1,
+        "lease_token": "a58a94103b06a9669d35218310c4a9af51bdfe1b0bc4a77719f21775ac3b9e91",
+        "lease_until": 1795070680352,
+        "available_at": 1795070677351,
+        "last_error": null,
+        "runs": [
+          {
+            "job_id": "9e00909b-6981-4731-b43d-6255c8da25c9",
+            "attempt": 1,
+            "worker": "atomic",
+            "started_at": 1795070677352,
+            "start_checkpoint": 0,
+            "ended_at": null,
+            "outcome": null
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:37.373Z",
+      "label": "injected error",
+      "facts": {
+        "chain": [
+          "storage operation failed",
+          "controlled storage failure at job:after-outbox"
+        ]
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:37.374Z",
+      "label": "rolled back job:after-outbox",
+      "facts": {
+        "id": "9e00909b-6981-4731-b43d-6255c8da25c9",
+        "state": "running",
+        "attempts": 1,
+        "checkpoint": 1,
+        "lease_token": "a58a94103b06a9669d35218310c4a9af51bdfe1b0bc4a77719f21775ac3b9e91",
+        "lease_until": 1795070680352,
+        "available_at": 1795070677351,
+        "last_error": null,
+        "runs": [
+          {
+            "job_id": "9e00909b-6981-4731-b43d-6255c8da25c9",
+            "attempt": 1,
+            "worker": "atomic",
+            "started_at": 1795070677352,
+            "start_checkpoint": 0,
+            "ended_at": null,
+            "outcome": null
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:37.384Z",
+      "label": "retried job:after-outbox",
+      "facts": {
+        "id": "9e00909b-6981-4731-b43d-6255c8da25c9",
+        "state": "succeeded",
+        "attempts": 1,
+        "checkpoint": 1,
+        "lease_token": null,
+        "lease_until": null,
+        "available_at": 1795070677375,
+        "last_error": null,
+        "runs": [
+          {
+            "job_id": "9e00909b-6981-4731-b43d-6255c8da25c9",
+            "attempt": 1,
+            "worker": "atomic",
+            "started_at": 1795070677352,
+            "start_checkpoint": 0,
+            "ended_at": 1795070677375,
+            "outcome": "succeeded"
+          }
+        ],
+        "results": [
+          {
+            "job_id": "9e00909b-6981-4731-b43d-6255c8da25c9",
+            "input_revision": 1
+          }
+        ],
+        "events": [
+          {
+            "event_id": "fec1d7f3-a12c-42ac-a208-ccf1f5b68189",
+            "job_id": "9e00909b-6981-4731-b43d-6255c8da25c9",
+            "created_at": 1795070677375,
+            "delivered_at": null,
+            "failures": 0,
+            "retry_at": 0,
+            "last_error": null
+          }
+        ],
+        "receipts": []
+      }
+    }
+  ]
+}

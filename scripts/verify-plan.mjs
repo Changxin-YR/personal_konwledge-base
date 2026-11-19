@@ -211,6 +211,16 @@ check('current unit execution state', () => {
     assert.match(proof.candidate_sha, /^[a-f0-9]{40}$/);
     assert.deepEqual(proof.passed_test_ids, currentTestIds, 'candidate must cover all eight checks');
     assert.equal(proof.independent_status, 'PASS', 'candidate lacks independent evidence');
+    const jobs = JSON.parse(read(proof.jobs_record));
+    const regress = JSON.parse(read(proof.regression_record));
+    const supplement = JSON.parse(read(proof.supplement_record));
+    for (const report of [jobs,regress,supplement]) {
+      assert.equal(report.status, 'PASS', 'failed run cannot certify candidate');
+      assert.equal(report.exit, 0, 'nonzero exit cannot certify candidate');
+    }
+    for (const tree of [jobs.before.tree,jobs.after.tree,regress.expected,supplement.tree]) assert.equal(tree, proof.candidate_sha, 'independent runs must match frozen tree');
+    assert.deepEqual(jobs.results.map(r => r.id), ['T01','T02','T03','T04','T05','T06','V6']);
+    assert(jobs.results.every(r => r.exit === 0) && regress.stable && regress.load_verified && supplement.stable, 'all candidate checks and actual Host binding required');
     assert.equal(unit.test_result_status, 'PASS', 'passed unit still has failed or missing test results');
     assert.equal(unit.independent_review_status, 'PASS', 'independent review must pass before completion');
     assert.equal(unit.retest_status, 'PASS', 'repair candidate retests must pass before completion');

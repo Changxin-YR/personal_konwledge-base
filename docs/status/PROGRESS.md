@@ -1,5 +1,9 @@
 # 实际进度
 
+2026-11-19：FND-006 是唯一已激活单元，正式依赖为已通过的 FND-004。FND-005 保持 blocked；继承代码不等于继承验收。完整产品审查未激活。 当前证据见 [FND-006](../evidence/FND-006/REPORT.md)。
+
+## 历史记录
+
 更新：2026-11-17（Asia/Shanghai）。唯一 `CODEX_START.md` v3.2.0；执行器 Codex；active_unit=FND-004；auto_advance=false；unit_state=awaiting_user。FND-003 保持 passed，基线提交为 `5621f3d0e40dc11bcd2062687a9ad3087f8c4442`。
 
 FND-004 已完成 v3 对象/项目/成员/grant 迁移、统一授权入口、个人对象隔离、项目动作差异、到期撤销和精确共享路由注册。T01–T07、类型检查、构建、FND-002/FND-003 范围回归及独立复核均 PASS；完整 A02/A34/A46 的搜索、AI、导出、邀请码和缓存部分保持 NOT_RUN。

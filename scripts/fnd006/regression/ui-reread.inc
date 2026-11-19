@@ -1,0 +1,5 @@
+// Additional independent observation after the original UI write/reread assertions.
+ const http=await api(run.port,c.alice.cookie,'GET','/knowledge/v1/objects/'+id);assert.equal(http.status,200)
+ const selected=page.locator('#objects option:checked'),shown=JSON.parse(await page.locator('#object').textContent())
+ const evidence={before:{id,revision:object.json.data.revision},http:{id:http.json.data.id,revision:http.json.data.revision,body:http.json.data.body},sqlite:{id,revision:db.revision,body:db.body},ui:{id:await selected.getAttribute('value'),revision:await selected.getAttribute('data-revision'),label:await selected.innerText(),input:await page.locator('#revision').inputValue(),detail:shown}}
+ assert.equal(evidence.before.revision,1);assert.deepEqual(evidence.http,evidence.sqlite);assert.equal(evidence.ui.id,id);assert.equal(evidence.ui.input,'2');assert.equal(shown.id,id);assert.equal(shown.revision,2);assert.equal(shown.body,db.body);report.checks.push({id:'FND006-T08.three-way-reread',status:'PASS',facts:evidence})

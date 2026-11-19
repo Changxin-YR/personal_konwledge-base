@@ -10,13 +10,13 @@ for (const scenario of ['wrong-provider', 'preflight-rejected', 'write-did-not-c
   let prepares = 0, objectCreates = 0
   const tool = () => prepares === 1 ? 'knowledgeos_read_object' : 'knowledgeos_update_object'
   const server = createServer((req,res) => {
-    const object = { id: 'synthetic', revision: 1, body: 'synthetic GPT baseline' }
+    const object = { id: 'synthetic', revision: 1, body: 'synthetic DeepSeek baseline' }
     let body, status = 200
     switch (req.url) {
       case '/knowledge/v1/auth/login': res.setHeader('set-cookie','test=fixture'); body = {}; break
-      case '/knowledge/v1/ai/status': body = { model:'gpt-evidence-fixture', provider:scenario==='wrong-provider'?'other':'test-only', configured:true };break
+      case '/knowledge/v1/ai/status': body = { model:'deepseek-evidence-fixture', provider:scenario==='wrong-provider'?'other':'test-only', configured:true };break
       case '/knowledge/v1/objects': objectCreates++;status=201; body=object;break
-      case '/knowledge/v1/ai/prepare': prepares++;if(scenario==='preflight-rejected')status=503;body={provider:'test-only',model:'gpt-evidence-fixture',tool:tool(),prepared_id:'fixture'};break
+      case '/knowledge/v1/ai/prepare': prepares++;if(scenario==='preflight-rejected')status=503;body={provider:'test-only',model:'deepseek-evidence-fixture',tool:tool(),prepared_id:'fixture'};break
       case '/knowledge/v1/ai/execute':body={result:{code:prepares===1?'READ':'UPDATED',object}};break
       case '/knowledge/v1/objects/synthetic':body=object;break
       default: status=404
@@ -26,7 +26,7 @@ for (const scenario of ['wrong-provider', 'preflight-rejected', 'write-did-not-c
   await new Promise(r=>server.listen(0,'127.0.0.1',r))
   try {
     const out=await mkdtemp(join(tmpdir(),'ko-evidence-oracle-'))
-    const child=spawn(process.execPath,['scripts/fnd005/real-provider-check.mjs','--port',String(server.address().port),'--expect-provider','test-only','--expect-model','gpt-evidence-fixture','--candidate','TEST_ONLY','--out',out],{stdio:'ignore',env:{...process.env,KO_FND005_LOGIN:'test',KO_FND005_PASSWORD:'synthetic'}})
+    const child=spawn(process.execPath,['scripts/fnd005/real-provider-check.mjs','--port',String(server.address().port),'--expect-provider','test-only','--expect-model','deepseek-evidence-fixture','--candidate','TEST_ONLY','--out',out],{stdio:'ignore',env:{...process.env,KO_FND005_LOGIN:'test',KO_FND005_PASSWORD:'synthetic'}})
     const exit=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('exit',resolve)})
     const report=JSON.parse(await readFile(join(out,'summary.json'),'utf8'))
     assert.equal(exit,1);assert.equal(report.status,'FAIL');assert(!report.operations.some(o=>o.tool==='knowledgeos_update_object'))

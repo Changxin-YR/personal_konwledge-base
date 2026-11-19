@@ -1,0 +1,565 @@
+{
+  "id": "T06",
+  "pid": 62960,
+  "command": [
+    "D:\\依赖\\Node.js\\node-v24.22.0-win-x64\\node.exe",
+    "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\scripts\\fnd006\\independent\\case.mjs",
+    "T06",
+    "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base\\docs\\evidence\\FND-006\\independent\\80738ce0b170-1795070594256"
+  ],
+  "directory": "C:\\Users\\27363\\AppData\\Local\\Temp\\fnd006-T06-zQwOCW",
+  "status": "PASS",
+  "events": [
+    {
+      "at": "2026-11-19T06:44:44.798Z",
+      "label": "Host ready",
+      "facts": {
+        "pid": 57832,
+        "port": 62388,
+        "args": [
+          "--import",
+          "tsx/esm",
+          "apps/cli/src/bin.ts",
+          "--profile",
+          "knowledgeos-identity-test",
+          "--port",
+          "62388",
+          "--no-open"
+        ],
+        "bundle_sha256": "239c5f9ac7e242de566d9544aca2aed82fceb74d68683ae2d3842385d0e21c84"
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:45.832Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/auth/bootstrap",
+        "status": 201
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:46.104Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/auth/register",
+        "status": 201
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:46.379Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/auth/register",
+        "status": 201
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:46.688Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/auth/login",
+        "status": 200
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:46.937Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/auth/login",
+        "status": 200
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:46.942Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/objects",
+        "status": 201
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:46.947Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/jobs",
+        "status": 202
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:48.059Z",
+      "label": "succeeded",
+      "facts": {
+        "id": "1ef4a7b6-b36c-4b88-8efe-a3a32bbede07",
+        "state": "succeeded",
+        "attempts": 1,
+        "checkpoint": 1,
+        "lease_token": null,
+        "lease_until": null,
+        "available_at": 1795070688038,
+        "last_error": null,
+        "runs": [
+          {
+            "job_id": "1ef4a7b6-b36c-4b88-8efe-a3a32bbede07",
+            "attempt": 1,
+            "worker": "6db47097-6e98-40ad-b058-2e985dc309bd",
+            "started_at": 1795070687032,
+            "start_checkpoint": 0,
+            "ended_at": 1795070688038,
+            "outcome": "succeeded"
+          }
+        ],
+        "results": [
+          {
+            "job_id": "1ef4a7b6-b36c-4b88-8efe-a3a32bbede07",
+            "input_revision": 1
+          }
+        ],
+        "events": [
+          {
+            "event_id": "981644ba-cf48-41c0-9032-95c4dbc6a166",
+            "job_id": "1ef4a7b6-b36c-4b88-8efe-a3a32bbede07",
+            "created_at": 1795070688038,
+            "delivered_at": null,
+            "failures": 0,
+            "retry_at": 0,
+            "last_error": null
+          }
+        ],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:48.065Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/projects",
+        "status": 201
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:48.070Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/objects",
+        "status": 201
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:48.073Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "GET",
+        "path": "/me",
+        "status": 200
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:48.079Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/projects/e9551d9e-3e3d-471b-9290-f1c5068d0df0/memberships",
+        "status": 204
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:48.083Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/grants",
+        "status": 201
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:48.085Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "GET",
+        "path": "/objects/bcd6a833-f177-48e1-9466-125cd41fa4d7",
+        "status": 200
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:48.087Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/jobs",
+        "status": 202
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:49.065Z",
+      "label": "live checkpoint",
+      "facts": {
+        "id": "1519366f-ad27-49db-9e10-1bd76efb473e",
+        "state": "running",
+        "attempts": 1,
+        "checkpoint": 1,
+        "lease_token": "7e348a67e4c644bb8d095cae12956b19779b699ef987f02ed97e2a71afde56c0",
+        "lease_until": 1795070692036,
+        "available_at": 1795070688085,
+        "last_error": null,
+        "runs": [
+          {
+            "job_id": "1519366f-ad27-49db-9e10-1bd76efb473e",
+            "attempt": 1,
+            "worker": "6db47097-6e98-40ad-b058-2e985dc309bd",
+            "started_at": 1795070688537,
+            "start_checkpoint": 0,
+            "ended_at": null,
+            "outcome": null
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:49.072Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/jobs/1519366f-ad27-49db-9e10-1bd76efb473e/cancel",
+        "status": 200
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:49.108Z",
+      "label": "commit after cancel",
+      "facts": {
+        "actual": "lost"
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:49.109Z",
+      "label": "after barrier cancel",
+      "facts": {
+        "id": "1519366f-ad27-49db-9e10-1bd76efb473e",
+        "state": "cancelled",
+        "attempts": 1,
+        "checkpoint": 1,
+        "lease_token": null,
+        "lease_until": null,
+        "available_at": 1795070689068,
+        "last_error": "CANCELLED",
+        "runs": [
+          {
+            "job_id": "1519366f-ad27-49db-9e10-1bd76efb473e",
+            "attempt": 1,
+            "worker": "6db47097-6e98-40ad-b058-2e985dc309bd",
+            "started_at": 1795070688537,
+            "start_checkpoint": 0,
+            "ended_at": 1795070689068,
+            "outcome": "CANCELLED"
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:49.115Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/jobs",
+        "status": 202
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:50.560Z",
+      "label": "live checkpoint",
+      "facts": {
+        "id": "28826f38-6ffe-4f1c-9e8a-5d9fca219454",
+        "state": "running",
+        "attempts": 1,
+        "checkpoint": 1,
+        "lease_token": "b6c4dcac92df4d1b257144f371f75d17ca0da98311aad3cbbec0068c822e354c",
+        "lease_until": 1795070693539,
+        "available_at": 1795070689111,
+        "last_error": null,
+        "runs": [
+          {
+            "job_id": "28826f38-6ffe-4f1c-9e8a-5d9fca219454",
+            "attempt": 1,
+            "worker": "6db47097-6e98-40ad-b058-2e985dc309bd",
+            "started_at": 1795070690039,
+            "start_checkpoint": 0,
+            "ended_at": null,
+            "outcome": null
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:50.566Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "PATCH",
+        "path": "/objects/6a69e752-f0d7-44d7-a0e8-953f879a7909",
+        "status": 200
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:50.567Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "GET",
+        "path": "/objects/6a69e752-f0d7-44d7-a0e8-953f879a7909",
+        "status": 200
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:50.591Z",
+      "label": "commit after revision",
+      "facts": {
+        "actual": "failed"
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:50.599Z",
+      "label": "after barrier revision",
+      "facts": {
+        "id": "28826f38-6ffe-4f1c-9e8a-5d9fca219454",
+        "state": "failed",
+        "attempts": 1,
+        "checkpoint": 1,
+        "lease_token": null,
+        "lease_until": null,
+        "available_at": 1795070690588,
+        "last_error": "REVISION_CONFLICT",
+        "runs": [
+          {
+            "job_id": "28826f38-6ffe-4f1c-9e8a-5d9fca219454",
+            "attempt": 1,
+            "worker": "6db47097-6e98-40ad-b058-2e985dc309bd",
+            "started_at": 1795070690039,
+            "start_checkpoint": 0,
+            "ended_at": 1795070690588,
+            "outcome": "REVISION_CONFLICT"
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:50.604Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/jobs",
+        "status": 202
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:52.090Z",
+      "label": "live checkpoint",
+      "facts": {
+        "id": "d98d034b-0d51-45cb-b52e-e09472b592fe",
+        "state": "running",
+        "attempts": 1,
+        "checkpoint": 1,
+        "lease_token": "3c699f41c0bcbb2f0e3b7650e5a356970cdf118116f81d7b10e1671782facb81",
+        "lease_until": 1795070695065,
+        "available_at": 1795070690601,
+        "last_error": null,
+        "runs": [
+          {
+            "job_id": "d98d034b-0d51-45cb-b52e-e09472b592fe",
+            "attempt": 1,
+            "worker": "6db47097-6e98-40ad-b058-2e985dc309bd",
+            "started_at": 1795070691559,
+            "start_checkpoint": 0,
+            "ended_at": null,
+            "outcome": null
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:52.094Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/grants/revoke",
+        "status": 204
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:52.096Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "GET",
+        "path": "/objects/bcd6a833-f177-48e1-9466-125cd41fa4d7",
+        "status": 404,
+        "code": "NOT_FOUND"
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:52.117Z",
+      "label": "commit after acl",
+      "facts": {
+        "actual": "failed"
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:52.125Z",
+      "label": "after barrier acl",
+      "facts": {
+        "id": "d98d034b-0d51-45cb-b52e-e09472b592fe",
+        "state": "failed",
+        "attempts": 1,
+        "checkpoint": 1,
+        "lease_token": null,
+        "lease_until": null,
+        "available_at": 1795070692114,
+        "last_error": "AUTH_REVOKED",
+        "runs": [
+          {
+            "job_id": "d98d034b-0d51-45cb-b52e-e09472b592fe",
+            "attempt": 1,
+            "worker": "6db47097-6e98-40ad-b058-2e985dc309bd",
+            "started_at": 1795070691559,
+            "start_checkpoint": 0,
+            "ended_at": 1795070692114,
+            "outcome": "AUTH_REVOKED"
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:52.128Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/objects",
+        "status": 201
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:52.130Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/jobs",
+        "status": 202
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:53.594Z",
+      "label": "live checkpoint",
+      "facts": {
+        "id": "8a393983-57fa-41ae-8e00-ffed959d9ec3",
+        "state": "running",
+        "attempts": 1,
+        "checkpoint": 1,
+        "lease_token": "47fe94d4ad54f09a1b9fc9537a135031fbc1c22e7767a214b257f7b4b6ee108a",
+        "lease_until": 1795070696573,
+        "available_at": 1795070692128,
+        "last_error": null,
+        "runs": [
+          {
+            "job_id": "8a393983-57fa-41ae-8e00-ffed959d9ec3",
+            "attempt": 1,
+            "worker": "6db47097-6e98-40ad-b058-2e985dc309bd",
+            "started_at": 1795070693069,
+            "start_checkpoint": 0,
+            "ended_at": null,
+            "outcome": null
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:53.601Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "POST",
+        "path": "/auth/logout",
+        "status": 204
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:53.603Z",
+      "label": "HTTP",
+      "facts": {
+        "method": "GET",
+        "path": "/me",
+        "status": 401,
+        "code": "SESSION_EXPIRED"
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:53.624Z",
+      "label": "commit after session",
+      "facts": {
+        "actual": "failed"
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:53.631Z",
+      "label": "after barrier session",
+      "facts": {
+        "id": "8a393983-57fa-41ae-8e00-ffed959d9ec3",
+        "state": "failed",
+        "attempts": 1,
+        "checkpoint": 1,
+        "lease_token": null,
+        "lease_until": null,
+        "available_at": 1795070693621,
+        "last_error": "AUTH_REVOKED",
+        "runs": [
+          {
+            "job_id": "8a393983-57fa-41ae-8e00-ffed959d9ec3",
+            "attempt": 1,
+            "worker": "6db47097-6e98-40ad-b058-2e985dc309bd",
+            "started_at": 1795070693069,
+            "start_checkpoint": 0,
+            "ended_at": 1795070693621,
+            "outcome": "AUTH_REVOKED"
+          }
+        ],
+        "results": [],
+        "events": [],
+        "receipts": []
+      }
+    },
+    {
+      "at": "2026-11-19T06:44:53.647Z",
+      "label": "Host exited",
+      "facts": {
+        "pid": 57832,
+        "force": false,
+        "code": null,
+        "signal": "SIGTERM"
+      }
+    }
+  ]
+}
