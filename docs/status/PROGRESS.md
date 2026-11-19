@@ -1,8 +1,10 @@
 # 实际进度
 
-2026-11-19：FND-006 是唯一已激活单元，正式依赖为已通过的 FND-004。FND-005 保持 blocked；继承代码不等于继承验收。完整产品审查未激活。 当前证据见 [FND-006](../evidence/FND-006/REPORT.md)。
+2026-11-19：持续协议迁移起点：FND-001～004、006 历史 passed；FND-005 保持 blocked，等待新候选真实 DeepSeek 复验。 当前证据见 [FND-006](../evidence/FND-006/REPORT.md)。
 
 ## 历史记录
+
+2026-11-19 协议 v4.0.0：通过 SSH fetch 与远端回读确认接手提交 `2329f9d8f37aa985c51efe8365889ff2934bb5f1`。对照该提交，76 单元依赖、测试义务、状态、证据归属及 44 需求 / 66 场景矩阵未变。工作分支 `codex/knowledgeos-autonomous-20261119`。`node scripts/verify-plan.mjs` 通过；`node scripts/test-verify-plan.mjs` 80 项正反例通过；`node --test scripts/test-unit-queue.mjs` 4 项通过。`node scripts/unit-queue.mjs` 返回 FND-005 blocked，LIB-001、REPO-001 就绪。这些结果仅证明调度和证据门禁，不是产品验收。
 
 更新：2026-11-17（Asia/Shanghai）。唯一 `CODEX_START.md` v3.2.0；执行器 Codex；active_unit=FND-004；auto_advance=false；unit_state=awaiting_user。FND-003 保持 passed，基线提交为 `5621f3d0e40dc11bcd2062687a9ad3087f8c4442`。
 

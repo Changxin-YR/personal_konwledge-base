@@ -1,21 +1,21 @@
 {
   "schema_version": "2.0",
-  "instruction_revision": "3.4.0",
+  "instruction_revision": "4.0.0",
   "updated_at": "2026-11-19",
   "timezone": "Asia/Shanghai",
-  "execution_phase": "codex_foundation",
+  "execution_phase": "codex_continuous",
   "executor": "codex",
   "active_instruction": {
     "path": "CODEX_START.md",
-    "sha256": "c3897e097129207ab07c314483e4f921a8e7b3cab00f6ab53e49a76065d8a1a8"
+    "sha256": "da73b65a0004bfa875d1435a61a555ba6f02d45c280aeb8ed6d2e62ab4bd39d8"
   },
-  "active_unit": "FND-006",
-  "unit_state": "awaiting_user",
-  "execution_mode": "single_feature_gated",
+  "active_unit": "FND-005",
+  "unit_state": "blocked",
+  "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
-  "auto_advance": false,
-  "next_unit_requires": "explicit_user_selection_and_atomic_instruction_replacement",
+  "auto_advance": true,
+  "next_unit_requires": "verified_checkpoint_and_passed_dependencies",
   "retired_instruction_paths": [
     "DSH_START.md"
   ],
@@ -25,23 +25,23 @@
     "state": "not_started",
     "active_prompt": null,
     "activation_requires": [
-      "all_foundation_work_units_passed_with_per_feature_tests",
-      "all_44_requirements_and_66_acceptance_states_honest_and_traceable",
-      "no_blocked_or_not_run_result_counted_as_pass",
-      "explicit_user_activation_of_full_product_review"
+      "CHECK-004_dependencies_passed",
+      "all_nonfinal_units_passed",
+      "complete_traceability_and_candidate_evidence"
     ]
   },
   "state_semantics": {
-    "ready": "current selected unit not yet started",
-    "in_progress": "current unit implementation/test/rework only",
-    "blocked": "real current-unit dependency blocks completion",
-    "awaiting_user": "current unit has passed and awaits a user choice; active_unit is not advanced"
+    "ready": "selected; prerequisites passed",
+    "in_progress": "implementation or verification in progress",
+    "blocked": "record external blocker; dependent units stay ineligible",
+    "passed": "candidate accepted; checkpoint before advance",
+    "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "FND-006 T01–T08 已在冻结产品候选独立验收通过；停在本单元，FND-005 真实 DeepSeek 验收仍 blocked。",
-  "working_branch": "codex/knowledgeos-fnd-006",
-  "activation_basis": "explicit_user_selection_of_FND006",
-  "base_commit": "c03ec437b2c648b16449598f89ac289bf307ccd2",
+  "state_reason": "复验修复后候选；保留 FND-005 原 BLOCKED。",
+  "working_branch": "codex/knowledgeos-autonomous-20261119",
+  "activation_basis": "continuous_authorization_20261119",
+  "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
   "prerequisite_acceptance": {
     "unit_id": "FND-004",
     "status": "passed",
@@ -108,20 +108,38 @@
       "review_outcome": "accepted_prerequisite_unit"
     }
   ],
-  "previous_unit_stop": {
-    "candidate": "FND-005-d0ec209b8161e14e",
-    "reason": "NO_AUTHORIZED_USABLE_GPT_API",
-    "real_provider_calls": 0,
-    "technical_checks": "PASS",
-    "unit_acceptance": "BLOCKED",
-    "stop_after_delivery": true,
-    "auto_advance": false
+  "previous_unit_stops": {
+    "fnd005": {
+      "candidate": "FND-005-d0ec209b8161e14e",
+      "reason": "NO_AUTHORIZED_USABLE_GPT_API",
+      "real_provider_calls": 0,
+      "technical_checks": "PASS",
+      "unit_acceptance": "BLOCKED",
+      "stop_after_delivery": true,
+      "auto_advance": false
+    },
+    "fnd006": {
+      "candidate_commit": "5e3cc68b7182146b45ae38d8059202b23fe23d83",
+      "candidate_tree": "80738ce0b1705dfc15a80ac9852d76a170d7ede1",
+      "unit_acceptance": "PASS",
+      "stop_after_delivery": true,
+      "auto_advance": false
+    }
   },
-  "current_unit_stop": {
-    "candidate_commit": "5e3cc68b7182146b45ae38d8059202b23fe23d83",
-    "candidate_tree": "80738ce0b1705dfc15a80ac9852d76a170d7ede1",
-    "unit_acceptance": "PASS",
-    "stop_after_delivery": true,
-    "auto_advance": false
+  "checkpoint": {
+    "unit_id": "FND-006",
+    "base_commit": "c03ec437b2c648b16449598f89ac289bf307ccd2",
+    "candidate_sha": "5e3cc68b7182146b45ae38d8059202b23fe23d83",
+    "completed": [
+      "历史冻结候选 T01–T08 独立验收已通过；本次未重跑。"
+    ],
+    "test_results": {
+      "historical_acceptance": "PASS",
+      "new_product_run": "NOT_RUN"
+    },
+    "evidence": "docs/evidence/FND-006/acceptance.json",
+    "defects": [],
+    "next_task": "FND-005",
+    "blocked_dependencies": []
   }
 }

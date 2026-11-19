@@ -4,7 +4,7 @@
 
 ## 当前唯一执行入口
 
-**[当前执行指令](CODEX_START.md)**：FND-006 后台任务与事务事件。FND-004 已通过；FND-005 已继承但仍 blocked。本轮无外部模型调用，不自动推进。
+**[当前执行指令](CODEX_START.md)**：Codex 按依赖连续开发，每个候选单独测试与独立验收。
 
 ## 规范与结果
 
@@ -14,7 +14,7 @@
 | [执行索引](docs/plan/00_EXECUTION_INDEX.md) | 唯一指令与阅读顺序 |
 | [需求基线](docs/plan/01_REQUIREMENTS_BASELINE.md) | 44项产品功能及不变量 |
 | [总体架构](docs/plan/03_ARCHITECTURE.md) | 分层模块化单体与DSH边界 |
-| [工作单元](config/work_units.json) | 当前六项问题、十二项义务和未来目录 |
+| [工作单元](config/work_units.json) | 76 单元的范围、依赖、状态与测试义务 |
 | [验收矩阵](docs/plan/07_ACCEPTANCE_MATRIX.md) | 66个完整场景，未提前PASS |
 | [协作协议](docs/plan/11_AGENT_AND_PROMPT_PROTOCOL.md) | 同功能多角色、单产品写者 |
 | [进度](docs/status/PROGRESS.md) | 已完成、待修复和待复验事项 |

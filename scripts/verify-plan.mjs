@@ -2,8 +2,8 @@
 /** Check the executable plan's references and traceability, not product behavior. */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { dirname, extname, resolve } from 'node:path';
+import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
+import { dirname, extname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -13,7 +13,7 @@ const lock = JSON.parse(read('config/upstream.lock.json'));
 const releases = JSON.parse(read('releases/index.json'));
 const execution = JSON.parse(read('config/execution_state.json'));
 const catalog = JSON.parse(read('config/work_units.json'));
-const activePrompt = read(execution.active_instruction.path);
+const activePrompt = read('CODEX_START.md');
 const errors = [];
 const check = (label, operation) => {
   try { operation(); } catch (error) { errors.push(`${label}: ${error.message}`); }
@@ -48,7 +48,7 @@ for (const item of matrix.requirements) check(item.id, () => {
     assert(cases.get(id)?.requirement_ids.includes(item.id), `missing reciprocal case ${id}`);
   }
   if (item.implementation_status === 'verified') {
-    assert(item.evidence_paths?.length, 'verified needs evidence');
+    evidenceFiles(item.evidence_paths);
     assert(item.acceptance_ids.every((id) => cases.get(id)?.status === 'PASS'), 'verified requires every linked case PASS');
   }
 });
@@ -57,7 +57,7 @@ for (const item of matrix.acceptance_cases) check(item.id, () => {
   assert(caseStates.has(item.status), 'invalid acceptance status');
   for (const field of ['preconditions', 'steps', 'expected', 'level', 'evidence_required']) assert(item[field], `missing ${field}`);
   for (const id of item.requirement_ids) assert(requirements.get(id)?.acceptance_ids.includes(item.id), `missing reciprocal requirement ${id}`);
-  if (item.status === 'PASS') assert(item.evidence_paths?.length, 'PASS needs real execution evidence paths');
+
 });
 
 const reqText = read('docs/plan/01_REQUIREMENTS_BASELINE.md');
@@ -80,23 +80,42 @@ check('release claims', () => {
 const units = new Map(catalog.units.map((item) => [item.id, item]));
 const finalOwners = new Map([...caseIds].map((id) => [id, []]));
 const unitTestIds = new Set();
-const activeUnit = execution.active_unit;
-const currentTestIds = Array.from({ length: 8 }, (_, index) => `FND-006-T${String(index + 1).padStart(2, '0')}`);
-const currentReviewItemIds = [];
+// Evidence references must resolve to files in this checkout, including after symlink resolution.
+function evidenceFile(name) {
+  assert(typeof name === 'string' && name.trim() && !isAbsolute(name), 'expected repository-relative evidence path');
+  const rel = relative(realpathSync(root), realpathSync(resolve(root, name)));
+  assert(rel && !isAbsolute(rel) && rel !== '..' && !rel.startsWith('..' + sep) && statSync(resolve(root, name)).isFile(), 'expected local evidence file');
+  return name;
+}
+function evidenceFiles(paths) {
+  assert(Array.isArray(paths) && paths.length, 'evidence paths required');
+  paths.forEach(evidenceFile);
+}
+const record = (name) => JSON.parse(read(evidenceFile(name)));
+const sameIds = (actual, expected, message) => {
+  assert(Array.isArray(actual), message);
+  assert.deepEqual([...actual].sort(), [...expected].sort(), message);
+};
 check('single current instruction', () => {
-  assert.equal(execution.executor, 'codex', 'current foundation executor must be Codex');
-  assert.equal(execution.execution_phase, 'codex_foundation', 'the completed takeover phase is no longer active');
-  assert.equal(execution.active_unit, 'FND-006', 'current authorization must be FND-006');
-  assert.equal(execution.execution_mode, 'single_feature_gated');
+  assert.equal(execution.executor, 'codex');
+  assert.equal(execution.execution_phase, 'codex_continuous');
+  assert.equal(execution.instruction_revision, '4.0.0');
+  assert.equal(execution.execution_mode, 'continuous_unit_gated');
+  assert.equal(execution.base_commit, '2329f9d8f37aa985c51efe8365889ff2934bb5f1', 'migration anchor changed');
+  assert(activePrompt.includes(execution.base_commit), 'migration anchor missing from prompt');
   assert.equal(execution.max_active_units, 1);
   assert.equal(execution.max_product_code_writers, 1);
-  assert.equal(execution.auto_advance, false, 'automatic advance contradicts staged execution');
+  assert.equal(execution.auto_advance, true, 'continuous execution requires automatic advance');
   assert.equal(execution.active_instruction.path, 'CODEX_START.md');
   assert.equal(execution.active_instruction.sha256, createHash('sha256').update(activePrompt).digest('hex'), 'active prompt content changed without its state hash');
-  for (const [key, value] of Object.entries({ instruction_revision: execution.instruction_revision, execution_phase: execution.execution_phase, executor: execution.executor, active_unit: execution.active_unit })) {
-    assert(activePrompt.includes(`${key}: "${value}"`), `prompt metadata disagrees: ${key}`);
+  const header = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(activePrompt)?.[1];
+  assert(header, 'prompt metadata missing');
+  const metadata = header.split(/\r?\n/);
+  for (const [key, expected] of Object.entries({ instruction_revision: '"4.0.0"', execution_phase: '"codex_continuous"', executor: '"codex"', active_unit_source: '"config/execution_state.json"', auto_advance: 'true' })) {
+    assert.deepEqual(metadata.filter(line => line.split(':')[0].trim() === key), [key + ': ' + expected], 'prompt metadata disagrees: ' + key);
   }
-  assert(activePrompt.includes('auto_advance: false'));
+  assert(!metadata.some(line => line.split(':')[0].trim() === 'active_unit'), 'prompt must not pin active_unit');
+  assert(activePrompt.includes('config/work_units.json'), 'prompt must reference the work catalog');
   const roots = readdirSync(root).filter((name) => /(?:START|PROMPT).*\.md$/i.test(name));
   assert.deepEqual(roots, ['CODEX_START.md'], 'only one root executable prompt is permitted');
   assert.deepEqual(execution.retired_instruction_paths, ['DSH_START.md']);
@@ -105,20 +124,24 @@ check('single current instruction', () => {
   assert.equal(execution.takeover.product_host, 'deepseek_harness', 'changing the developer does not remove the product host');
   assert.equal(execution.takeover.state, 'completed_historical_phase');
   assert.equal(execution.codex_review.scope, 'full_product_review');
-  assert.equal(execution.codex_review.state, 'not_started', 'current feature is not the full product review');
+  if (execution.codex_review.state !== 'not_started') {
+    assert(execution.active_unit === 'CHECK-004' && catalog.units.every(u => u.id === 'CHECK-004' || u.status === 'passed'), 'full product review prerequisites not passed');
+    assert(['active', 'completed'].includes(execution.codex_review.state), 'invalid full product review state');
+    if (execution.codex_review.state === 'completed') assert(units.get('CHECK-004').status === 'passed');
+  }
   assert.equal(execution.codex_review.active_prompt, null);
 });
 check('work catalog scope', () => {
-  assert.equal(catalog.mode, 'single_feature_gated');
+  assert.equal(catalog.mode, 'continuous_unit_gated');
   assert.equal(catalog.current_executor, execution.executor);
   assert.equal(catalog.only_active_prompt, execution.active_instruction.path);
   assert.equal(catalog.active_unit_source, 'config/execution_state.json');
   assert.equal(catalog.rules.max_active_units, execution.max_active_units);
   assert.equal(catalog.rules.max_implementation_writers, execution.max_product_code_writers);
-  assert.equal(catalog.rules.allow_cross_unit_auto_advance, false);
+  assert.equal(catalog.rules.allow_cross_unit_auto_advance, true);
   assert.equal(catalog.rules.allow_parallel_feature_implementation, false);
   assert.equal(catalog.rules.test_during_each_unit, true);
-  assert.equal(catalog.rules.codex_role, 'active_feature_development_and_test_then_wait_for_user_selection');
+  assert.equal(catalog.rules.codex_role, 'continuous_development_and_independent_verification');
   assert.equal(catalog.catalog_is_execution_authorization, false);
   assert.equal(units.size, catalog.units.length, 'duplicate unit ids');
   assert(units.has(execution.active_unit), 'active unit is not in the catalog');
@@ -129,7 +152,13 @@ for (const item of catalog.units) check(item.id, () => {
   assert(['planned', 'in_progress', 'passed', 'failed', 'blocked'].includes(item.status), 'invalid unit status');
   assert(item.scope?.length && item.not_in_scope?.length && item.test_obligations?.length && item.completion_gate, 'unit scope/tests/gate missing');
   for (const id of item.requirement_ids) assert(requirementIds.has(id), `unknown requirement ${id}`);
-  for (const id of item.depends_on) assert(units.has(id) && id !== item.id, `invalid dependency ${id}`);
+  assert.equal(new Set(item.depends_on).size, item.depends_on.length, 'duplicate dependency');
+  for (const id of item.depends_on) {
+    assert(units.has(id) && id !== item.id, `invalid dependency ${id}`);
+    if (item.status === 'passed' || item.id === execution.active_unit) {
+      assert.equal(units.get(id).status, 'passed', `dependency not passed: ${id}`);
+    }
+  }
   for (const id of item.acceptance_ids) assert(caseIds.has(id), `unknown acceptance ${id}`);
   for (const id of item.final_acceptance_ids) {
     assert(item.acceptance_ids.includes(id), `final case ${id} must also be associated`);
@@ -141,7 +170,24 @@ for (const item of catalog.units) check(item.id, () => {
     assert(!unitTestIds.has(test.id), `duplicate local test ${test.id}`);
     unitTestIds.add(test.id);
   }
-  if (item.status === 'passed') assert(item.evidence_paths?.length, 'passed unit requires evidence_paths');
+  if (item.status === 'passed') {
+    if (['FND-001', 'FND-002'].includes(item.id)) {
+      // These accepted reports predate file-level references and include run directories.
+      assert(item.evidence_paths?.length && item.evidence_paths.every(p => existsSync(resolve(root, p))), 'historical evidence missing');
+    } else evidenceFiles(item.evidence_paths);
+  }
+});
+check('documented unit graph', () => {
+  const rows = new Map();
+  for (const line of read('docs/plan/06_IMPLEMENTATION_PLAN.md').split(/\r?\n/)) {
+    const [, id, , deps] = line.split('|').map(cell => cell.trim());
+    if (!/^\s*\|/.test(line) || !/^[A-Z]+-\d{3}$/.test(id)) continue;
+    assert(!rows.has(id), 'duplicate implementation plan row: ' + id);
+    rows.set(id, deps === '\u65e0' ? [] : deps.split(',').map(s => s.trim()));
+  }
+  assert.equal(rows.size, 76, 'implementation plan must document all 76 units');
+  sameIds([...rows.keys()], [...units.keys()], 'implementation plan and catalog unit IDs differ');
+  for (const [id, deps] of rows) sameIds(units.get(id).depends_on, deps, 'documented dependencies differ: ' + id);
 });
 check('dependency order and final owners', () => {
   for (const [id, owners] of finalOwners) assert.equal(owners.length, 1, `complete case ${id} needs one final owner`);
@@ -170,9 +216,6 @@ check('accepted foundation history', () => {
   assert(previous.evidence_paths?.length && previous.evidence_paths.every((path) => existsSync(resolve(root, path))), 'FND-002 accepted evidence is missing');
   assert.equal(execution.prerequisite_acceptance.unit_id, 'FND-004');
   assert.equal(execution.prerequisite_acceptance.status, 'passed');
-  assert.match(execution.base_commit, /^[a-f0-9]{40}$/);
-  assert.match(execution.base_commit, /^[a-f0-9]{40}$/, 'current feature base commit is missing');
-  assert(activePrompt.includes(execution.base_commit), 'current base commit is missing from the active instruction');
   const fnd3 = units.get('FND-003');
   assert.equal(fnd3?.status, 'passed', 'FND-003 acceptance must remain passed');
   assert.equal(fnd3?.test_result_status, 'PASS', 'FND-003 accepted tests must remain PASS');
@@ -182,57 +225,135 @@ check('accepted foundation history', () => {
   assert.equal(fnd4?.test_result_status, 'PASS');
   assert.equal(fnd4?.independent_review_status, 'PASS');
 });
+const historicalUnits = new Set(['FND-001', 'FND-002', 'FND-003', 'FND-004', 'FND-006']);
+const testIds = unit => unit.test_obligations.map(test => test.id);
+const foundationIds = (id, n) => Array.from({ length: n }, (_, i) => id + '-T' + String(i + 1).padStart(2, '0'));
+const text = value => typeof value === 'string' && value.trim().length > 0;
+
+function checkCompletion(unit) {
+  for (const field of ['test_result_status', 'independent_review_status', 'retest_status']) {
+    assert.equal(unit[field], 'PASS', field + ' must be PASS');
+  }
+  sameIds(unit.completed_test_ids, testIds(unit), 'completion requires exactly the catalog tests');
+  assert.deepEqual(unit.open_review_items, [], 'open findings prevent completion');
+  assert(Array.isArray(unit.closed_review_items) && (unit.required_review_item_ids ?? []).every(id => unit.closed_review_items.includes(id)), 'missing required review closure');
+  assert(text(unit.completed_at) && Number.isFinite(Date.parse(unit.completed_at)), 'completion needs a valid timestamp');
+  evidenceFiles(unit.evidence_paths);
+}
+
+// This legacy acceptance binds a Git tree, whereas new acceptances bind a commit.
+check('historical FND-006', () => {
+  const unit = units.get('FND-006');
+  assert.equal(unit?.status, 'passed', 'FND-006 acceptance must remain passed');
+  sameIds(testIds(unit), foundationIds(unit.id, 8), 'FND-006 requires exactly T01-T08');
+  assert.deepEqual(unit.depends_on, ['FND-004']);
+  checkCompletion(unit);
+  const proof = record(unit.acceptance_record);
+  assert.equal(proof.candidate_sha_type, 'git_tree');
+  assert.equal(proof.candidate_sha, '80738ce0b1705dfc15a80ac9852d76a170d7ede1', 'historical tree changed');
+  assert.equal(proof.candidate_commit, '5e3cc68b7182146b45ae38d8059202b23fe23d83');
+  assert.equal(unit.candidate_commit, proof.candidate_commit);
+  sameIds(proof.passed_test_ids, testIds(unit), 'historical candidate must cover all eight tests');
+  assert.equal(proof.independent_status, 'PASS');
+  const jobs = record(proof.jobs_record), regress = record(proof.regression_record), supplement = record(proof.supplement_record);
+  for (const run of [jobs, regress, supplement]) {
+    assert.equal(run.status, 'PASS', 'failed run cannot certify candidate');
+    assert.equal(run.exit, 0, 'nonzero exit cannot certify candidate');
+  }
+  for (const tree of [jobs.before.tree, jobs.after.tree, regress.expected, supplement.tree]) assert.equal(tree, proof.candidate_sha, 'independent runs must match frozen tree');
+  assert.deepEqual(jobs.results.map(r => r.id), ['T01', 'T02', 'T03', 'T04', 'T05', 'T06', 'V6']);
+  assert(jobs.results.every(r => r.exit === 0) && regress.stable === true && regress.load_verified === true && supplement.stable === true, 'all candidate checks and actual Host binding required');
+});
+
 check('current unit execution state', () => {
   const unit = units.get(execution.active_unit);
   assert(unit, 'active unit not found');
-  assert.equal(unit.instruction_revision, execution.instruction_revision);
-  assert.equal(unit.working_branch, execution.working_branch);
-  assert.equal(unit.base_commit, execution.base_commit, 'current unit and execution base_commit disagree');
-  assert.deepEqual(unit.test_obligations.map((test) => test.id).sort(), currentTestIds, 'FND-006 requires exactly T01-T08');
-  assert.deepEqual(unit.depends_on, ['FND-004']);
-  assert.equal(units.get('FND-005').status, 'blocked', 'FND-005 remains blocked');
-  assert(['ready', 'in_progress', 'blocked', 'awaiting_user'].includes(execution.unit_state));
-  const running = catalog.units.filter((item) => item.status === 'in_progress');
-  assert(running.length <= 1 && running.every((item) => item.id === unit.id), 'another feature is being developed');
-  for (const dependency of unit.depends_on) assert.equal(units.get(dependency)?.status, 'passed', `active dependency not passed: ${dependency}`);
-  const requiredStatus = { ready: 'planned', in_progress: 'in_progress', blocked: 'blocked', awaiting_user: 'passed' }[execution.unit_state];
-  assert.equal(unit.status, requiredStatus, 'execution state and unit outcome disagree');
-  for (const item of catalog.units) {
-    if (!['FND-001', 'FND-002', 'FND-003', 'FND-004', 'FND-005', 'FND-006'].includes(item.id)) assert.equal(item.status, 'planned', `future unit changed before authorization: ${item.id}`);
+  const states = new Map([['ready', 'planned'], ['in_progress', 'in_progress'], ['blocked', 'blocked'], ['passed', 'passed'], ['failed', 'failed']]);
+  assert(states.has(execution.unit_state), 'invalid execution unit_state');
+  assert.equal(unit.status, states.get(execution.unit_state), 'execution state and unit outcome disagree');
+  assert(catalog.units.every(u => u.status !== 'in_progress' || u.id === unit.id), 'another feature is being developed');
+  for (const field of ['test_result_status', 'independent_review_status', 'retest_status']) {
+    if (field in unit) assert(caseStates.has(unit[field]), 'invalid current ' + field);
   }
-  assert(matrix.acceptance_cases.every((item) => item.status === 'NOT_RUN'), 'foundation slice must not certify complete product acceptance cases');
-  assert(matrix.requirements.every((item) => item.implementation_status !== 'verified'), 'foundation slice must not certify complete requirements');
-  assert(['NOT_RUN', 'PASS', 'FAIL', 'BLOCKED'].includes(unit.test_result_status), 'invalid current test result');
-  assert(['NOT_RUN', 'PASS', 'FAIL', 'BLOCKED'].includes(unit.independent_review_status), 'invalid independent review result');
-  assert(['NOT_RUN', 'PASS', 'FAIL', 'BLOCKED'].includes(unit.retest_status), 'invalid current repair retest result');
-  assert(Array.isArray(unit.completed_test_ids) && new Set(unit.completed_test_ids).size === unit.completed_test_ids.length && unit.completed_test_ids.every((id) => currentTestIds.includes(id)), 'completed test ids must be a unique current-unit subset');
-  if (unit.status === 'passed') {
-    const proof = JSON.parse(read(unit.acceptance_record));
-    assert.match(proof.candidate_sha, /^[a-f0-9]{40}$/);
-    assert.deepEqual(proof.passed_test_ids, currentTestIds, 'candidate must cover all eight checks');
-    assert.equal(proof.independent_status, 'PASS', 'candidate lacks independent evidence');
-    const jobs = JSON.parse(read(proof.jobs_record));
-    const regress = JSON.parse(read(proof.regression_record));
-    const supplement = JSON.parse(read(proof.supplement_record));
-    for (const report of [jobs,regress,supplement]) {
-      assert.equal(report.status, 'PASS', 'failed run cannot certify candidate');
-      assert.equal(report.exit, 0, 'nonzero exit cannot certify candidate');
-    }
-    for (const tree of [jobs.before.tree,jobs.after.tree,regress.expected,supplement.tree]) assert.equal(tree, proof.candidate_sha, 'independent runs must match frozen tree');
-    assert.deepEqual(jobs.results.map(r => r.id), ['T01','T02','T03','T04','T05','T06','V6']);
-    assert(jobs.results.every(r => r.exit === 0) && regress.stable && regress.load_verified && supplement.stable, 'all candidate checks and actual Host binding required');
-    assert.equal(unit.test_result_status, 'PASS', 'passed unit still has failed or missing test results');
-    assert.equal(unit.independent_review_status, 'PASS', 'independent review must pass before completion');
-    assert.equal(unit.retest_status, 'PASS', 'repair candidate retests must pass before completion');
-    assert.deepEqual([...unit.completed_test_ids].sort(), currentTestIds, 'completion requires all current test ids');
-    assert.deepEqual(unit.open_review_items, [], 'open findings prevent completion');
-    assert(Array.isArray(unit.closed_review_items) && currentReviewItemIds.every((id) => unit.closed_review_items.includes(id)), 'completion requires closure of required review items');
-    assert(unit.completed_at && Number.isFinite(Date.parse(unit.completed_at)), 'completion needs an actual valid timestamp');
-    assert(unit.evidence_paths?.length && unit.evidence_paths.every((path) => existsSync(resolve(root, path))), 'completion evidence path is missing');
+  if ('completed_test_ids' in unit) {
+    const ids = unit.completed_test_ids;
+    assert(Array.isArray(ids) && new Set(ids).size === ids.length && ids.every(id => testIds(unit).includes(id)), 'invalid current completed_test_ids');
   }
-  for (const test of unit.test_obligations) {
-    const shortId = test.id.slice(unit.id.length + 1);
-    assert(activePrompt.includes(`| ${shortId} |`) || activePrompt.includes(test.id), `current prompt omits local test ${test.id}`);
+});
+
+function bindCandidate(run, unit) {
+  assert.equal(run.unit_id, unit.id, 'candidate unit mismatch');
+  assert.equal(run.candidate_sha, unit.candidate_commit, 'candidate commit mismatch');
+}
+
+function checkRealProvider(unit, proof) {
+  assert.equal(unit.real_provider_status, 'PASS', 'real provider acceptance required');
+  assert.equal(unit.real_provider_evidence, proof.real_provider_record, 'provider evidence reference mismatch');
+  const run = record(proof.real_provider_record);
+  bindCandidate(run, unit);
+  assert.equal(run.category, 'REAL_DEEPSEEK_UI_HTTP_SQLITE');
+  assert.equal(run.status, 'PASS');
+  assert.equal(run.independent, true, 'independent provider run required');
+  if ('product_commit' in run) assert.equal(run.product_commit, unit.candidate_commit, 'provider product commit mismatch');
+  assert.equal(run.provider, 'api', 'unexpected provider route');
+  assert.equal(run.model, 'deepseek-v4.1-flash-1017/hs14', 'unexpected DeepSeek model route');
+  assert.equal(run.upstream, lock.upstream.commit, 'provider Host differs from lock');
+  assert.match(run.plugin_sha256, /^[0-9a-f]{64}$/, 'frozen plugin hash missing');
+  assert.equal(run.loaded_plugin_sha256, run.plugin_sha256, 'loaded Host plugin differs from frozen build');
+  assert.equal(run.prepare_requests, 2, 'expected two prepares');
+  assert.equal(run.successful_model_selections, 2, 'expected two successful model selections');
+  assert.equal(run.price_basis?.conservative_reservation_not_actual_invoice, true, 'pricing estimate must not be represented as an invoice');
+  assert.deepEqual(run.operations.map(op => op.tool), ['knowledgeos_read_object', 'knowledgeos_update_object'], 'expected one read followed by one update');
+  const [first, second] = run.operations;
+  assert(text(first.object_id) && second.object_id === first.object_id, 'provider object mismatch');
+  for (const [i, op] of run.operations.entries()) {
+    assert.equal(op.revision, i + 1, 'unexpected object revision');
+    assert.equal(op.receipts, i, 'unexpected mutation receipts');
+    assert.equal(op.authenticated_http_status, 200, 'authenticated HTTP reread missing');
+    assert.equal(op.http_revision, op.revision, 'HTTP revision differs from SQLite');
+    assert.match(op.body_sha256, /^[0-9a-f]{64}$/);
+    assert.equal(op.http_body_sha256, op.body_sha256, 'HTTP content differs from SQLite');
+    assert.equal(op.ui_reread_and_sql_agree, true, 'UI reread differs from SQLite');
+  }
+  assert.notEqual(first.body_sha256, second.body_sha256, 'update did not change content');
+  assert(!(unit.blocked_test_ids ?? []).length, 'passed unit still has blocked tests');
+}
+
+for (const unit of catalog.units.filter(u => u.status === 'passed' && !historicalUnits.has(u.id))) check(unit.id + ' candidate', () => {
+  checkCompletion(unit);
+  assert.match(unit.candidate_commit, /^[a-f0-9]{40}$/, 'frozen candidate commit required');
+  const proof = record(unit.acceptance_record);
+  bindCandidate(proof, unit);
+  sameIds(proof.passed_test_ids, testIds(unit), 'acceptance must cover every catalog test');
+  assert.equal(proof.independent_status, 'PASS');
+  assert.notEqual(realpathSync(resolve(root, evidenceFile(unit.acceptance_record))), realpathSync(resolve(root, evidenceFile(proof.independent_record))), 'independent record must be separate from acceptance');
+  const run = record(proof.independent_record);
+  bindCandidate(run, unit);
+  assert.equal(run.status, 'PASS', 'independent run failed');
+  assert.equal(run.exit, 0, 'independent run exit must be zero');
+  assert(text(run.command), 'independent command missing');
+  sameIds(run.results.map(r => r.id), testIds(unit), 'independent result coverage mismatch');
+  assert(run.results.every(r => r.status === 'PASS'), 'independent test failed');
+  if (unit.id === 'FND-005') {
+    sameIds(testIds(unit), foundationIds(unit.id, 9), 'FND-005 requires exactly T01-T09');
+    checkRealProvider(unit, proof);
+  }
+});
+
+for (const item of cases.values()) if (item.status === 'PASS') check(item.id + ' final case proof', () => {
+  const owner = units.get(finalOwners.get(item.id)[0]);
+  assert.equal(owner?.status, 'passed', 'final owner has not passed');
+  evidenceFiles(item.evidence_paths);
+  assert(item.evidence_paths.filter(p => extname(p) === '.json').map(record).some(run =>
+    run.case_id === item.id && run.unit_id === owner.id && run.candidate_sha === owner.candidate_commit &&
+    /^[a-f0-9]{40}$/.test(run.candidate_sha) && run.status === 'PASS' && run.exit === 0 && text(run.command)),
+  'missing case execution proof for final owner and candidate');
+});
+
+check('final product completion', () => {
+  if (units.get('CHECK-004')?.status === 'passed') {
+    assert(catalog.units.every(u => u.status === 'passed'), 'CHECK-004 requires every other unit passed');
+    assert(matrix.acceptance_cases.every(c => c.status === 'PASS'), 'CHECK-004 requires every complete case PASS');
   }
 });
 

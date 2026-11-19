@@ -1,7 +1,7 @@
 # KnowledgeOS｜数据与状态契约
 
 
-> FND-006 是唯一已激活单元，正式依赖为已通过的 FND-004。FND-005 保持 blocked；继承代码不等于继承验收。完整产品审查未激活。
+> 当前单元由 config/execution_state.json 唯一指定；依赖与候选门禁见 CODEX_START.md。
 > 此页是全周期目标；实际实施范围以唯一 CODEX_START.md 为准。
 
 - 版本：1.0，2026-11-16（Asia/Shanghai）。

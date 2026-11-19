@@ -1,8 +1,8 @@
 {
   "schema_version": "2.0",
-  "updated_at": "2026-11-18",
+  "updated_at": "2026-11-19",
   "timezone": "Asia/Shanghai",
-  "mode": "single_feature_gated",
+  "mode": "continuous_unit_gated",
   "current_executor": "codex",
   "active_unit_source": "config/execution_state.json",
   "only_active_prompt": "CODEX_START.md",
@@ -10,10 +10,10 @@
   "rules": {
     "max_active_units": 1,
     "max_implementation_writers": 1,
-    "allow_cross_unit_auto_advance": false,
+    "allow_cross_unit_auto_advance": true,
     "allow_parallel_feature_implementation": false,
     "test_during_each_unit": true,
-    "codex_role": "active_feature_development_and_test_then_wait_for_user_selection"
+    "codex_role": "continuous_development_and_independent_verification"
   },
   "acceptance_semantics": {
     "acceptance_ids": "关联完整场景及当前可验证子集；不能仅因本单元测试通过就标完整场景PASS。",
@@ -89,7 +89,7 @@
         "A50"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "passed",
       "requirement_evidence_scope": {
         "F01": "partial_foundation",
@@ -321,7 +321,7 @@
         "A07"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "passed",
       "test_plan_status": "detailed_current_unit",
       "instruction_revision": "3.0.0",
@@ -980,8 +980,7 @@
         "最小持久幂等记录与真实provider/model脱敏证据"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -1117,8 +1116,7 @@
         "统一幂等和恢复协议"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -1167,7 +1165,7 @@
         "A29"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "passed",
       "test_plan_status": "detailed_active_unit",
       "instruction_revision": "3.4.0",
@@ -1217,8 +1215,7 @@
         "显示接收结果和可操作错误"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -1237,7 +1234,7 @@
         "A45"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -1259,8 +1256,7 @@
         "取消与局部重试"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -1282,7 +1278,7 @@
       "final_acceptance_ids": [
         "A07"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -1302,8 +1298,7 @@
         "保留结构块与字符定位"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -1321,7 +1316,7 @@
         "A05"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -1344,8 +1339,7 @@
         "质量问题供预览"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -1366,7 +1360,7 @@
       "final_acceptance_ids": [
         "A08"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -1388,8 +1382,7 @@
         "限制穿越、符号链接逃逸和展开资源"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -1409,7 +1402,7 @@
       "final_acceptance_ids": [
         "A05"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -1433,8 +1426,7 @@
         "未解析范围可见"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -1454,7 +1446,7 @@
         "A45"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -1474,8 +1466,7 @@
         "关闭重开后恢复阅读位置"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -1494,7 +1485,7 @@
         "A09"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -1513,8 +1504,7 @@
         "绑定原文版本与个人/项目可见范围"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -1533,7 +1523,7 @@
         "A46"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -1554,8 +1544,7 @@
         "权限前过滤与返回复验"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -1576,7 +1565,7 @@
       "final_acceptance_ids": [
         "A09"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -1600,8 +1589,7 @@
         "在真实约40MB/730页规模下验证已实现流水线"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -1623,7 +1611,7 @@
         "P02",
         "A06"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -1646,8 +1634,7 @@
         "整组续期语义"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -1668,7 +1655,7 @@
       "final_acceptance_ids": [
         "A34"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -1691,8 +1678,7 @@
         "保存与冲突恢复"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -1713,7 +1699,7 @@
       "final_acceptance_ids": [
         "A04"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -1732,8 +1718,7 @@
         "删除父节点影响预览"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -1751,7 +1736,7 @@
         "A17"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -1771,8 +1756,7 @@
         "脑图编辑回写统一模型"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -1792,7 +1776,7 @@
       "final_acceptance_ids": [
         "A17"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -1812,8 +1796,7 @@
         "临时查词和正式条目分开"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -1832,7 +1815,7 @@
         "A10"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -1854,8 +1837,7 @@
         "版本记录"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -1874,7 +1856,7 @@
         "A12"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -1895,8 +1877,7 @@
         "图与列表共用关系记录"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -1917,7 +1898,7 @@
       "final_acceptance_ids": [
         "A11"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -1940,8 +1921,7 @@
         "先保存首次答案再展示解析"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -1960,7 +1940,7 @@
         "A14"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -1984,8 +1964,7 @@
         "题目质量状态"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2006,7 +1985,7 @@
       "final_acceptance_ids": [
         "A13"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2028,8 +2007,7 @@
         "纠正题目后保留历史并重算影响"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2051,7 +2029,7 @@
         "P05",
         "A14"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2072,8 +2050,7 @@
         "保存进度"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2094,7 +2071,7 @@
       "final_acceptance_ids": [
         "P04"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2114,8 +2091,7 @@
         "等难度迁移题记录"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2135,7 +2111,7 @@
       "final_acceptance_ids": [
         "A15"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2160,8 +2136,7 @@
         "按用户保留进度"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2183,7 +2158,7 @@
         "P03",
         "A10"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2211,8 +2186,7 @@
         "本单元不实现每日评分/任务管理"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2233,7 +2207,7 @@
       "final_acceptance_ids": [
         "P01"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2254,8 +2228,7 @@
         "凭据引用"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2273,7 +2246,7 @@
         "A19"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2292,8 +2265,7 @@
         "独立凭据和平台错误处理"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2311,7 +2283,7 @@
         "A19"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2330,8 +2302,7 @@
         "核对三平台能力与只读行为"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2351,7 +2322,7 @@
       "final_acceptance_ids": [
         "A19"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2373,8 +2344,7 @@
         "引用行段"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2393,7 +2363,7 @@
         "P07"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2414,8 +2384,7 @@
         "约束与设计取舍说明"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2435,7 +2404,7 @@
       "final_acceptance_ids": [
         "A20"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2458,8 +2427,7 @@
         "分层提示"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2478,7 +2446,7 @@
         "A21"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2499,8 +2467,7 @@
         "形成案例草稿"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2521,7 +2488,7 @@
       "final_acceptance_ids": [
         "A21"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2544,8 +2511,7 @@
         "正常记录不按30天清理"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2567,7 +2533,7 @@
         "P07",
         "A16"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2587,8 +2553,7 @@
         "关联架构知识"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2607,7 +2572,7 @@
         "A03"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2627,8 +2592,7 @@
         "版本对照和反馈"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2646,7 +2610,7 @@
         "A22"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2670,8 +2634,7 @@
         "核对四领域、工程/备考/知识三目标的可达入口"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2693,7 +2656,7 @@
         "A03",
         "A22"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2715,8 +2678,7 @@
         "个人与项目任务归属"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2737,7 +2699,7 @@
       "final_acceptance_ids": [
         "A30"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2761,8 +2723,7 @@
         "退回和再提交"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2784,7 +2745,7 @@
         "P08",
         "A31"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2805,8 +2766,7 @@
         "原因与旧裁决保留"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2826,7 +2786,7 @@
       "final_acceptance_ids": [
         "A32"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2849,8 +2809,7 @@
         "发布裁决变更事件供评分订阅"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2871,7 +2830,7 @@
       "final_acceptance_ids": [
         "A33"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2891,8 +2850,7 @@
         "同任务引用"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2913,7 +2871,7 @@
       "final_acceptance_ids": [
         "A23"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2934,8 +2892,7 @@
         "重叠时段计时口径"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -2955,7 +2912,7 @@
         "P06"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -2979,8 +2936,7 @@
         "复习和项目投入同口径"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3000,7 +2956,7 @@
       "final_acceptance_ids": [
         "P06"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3022,8 +2978,7 @@
         "裁决更正后新评分版本"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3044,7 +2999,7 @@
       "final_acceptance_ids": [
         "A24"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3065,8 +3020,7 @@
         "有限执行与逐任务阻塞处理"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3089,7 +3043,7 @@
         "P09",
         "A26"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3113,8 +3067,7 @@
         "外部弹窗unknown记录"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3140,7 +3093,7 @@
         "A28",
         "A29"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3163,8 +3116,7 @@
         "历史通知保留说明"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3184,7 +3136,7 @@
       "final_acceptance_ids": [
         "P11"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3206,8 +3158,7 @@
         "私人学习记录单独授权"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3228,7 +3179,7 @@
       "final_acceptance_ids": [
         "A35"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3252,8 +3203,7 @@
         "恢复后版本/权限复验"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3273,7 +3223,7 @@
       "final_acceptance_ids": [
         "P14"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3297,8 +3247,7 @@
         "修复当前混合提交/审核/授权竞争缺陷"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3318,7 +3267,7 @@
       "final_acceptance_ids": [
         "A51"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3340,8 +3289,7 @@
         "按已有授权直接执行或提供具体动作票据"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3361,7 +3309,7 @@
       "final_acceptance_ids": [
         "A36"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3384,8 +3332,7 @@
         "小幅变更限制"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3405,7 +3352,7 @@
       "final_acceptance_ids": [
         "A18"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3429,8 +3376,7 @@
         "不提前冻结"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3450,7 +3396,7 @@
         "A41"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3471,8 +3417,7 @@
         "新版本旧票隔离"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3496,7 +3441,7 @@
         "A38",
         "A39"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3517,8 +3462,7 @@
         "禁止自动继续下一阶段"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3538,7 +3482,7 @@
       "final_acceptance_ids": [
         "A40"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3562,8 +3506,7 @@
         "设计结论与任务实际验收分开"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3583,7 +3526,7 @@
       "final_acceptance_ids": [
         "A42"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3605,8 +3548,7 @@
         "业务预算与账户限制分开"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3626,7 +3568,7 @@
       "final_acceptance_ids": [
         "A41"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3648,8 +3590,7 @@
         "核心功能保护"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3670,7 +3611,7 @@
       "final_acceptance_ids": [
         "A37"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3694,8 +3635,7 @@
         "到期永久清理与blob引用检查"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3715,7 +3655,7 @@
       "final_acceptance_ids": [
         "A43"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3738,8 +3678,7 @@
         "旧授权不复活"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3761,7 +3700,7 @@
         "P13",
         "A44"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3787,8 +3726,7 @@
         "旧证据保留"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3810,7 +3748,7 @@
         "A12",
         "A45"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3832,8 +3770,7 @@
         "清理索引不能延迟拒绝"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3853,7 +3790,7 @@
       "final_acceptance_ids": [
         "A46"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3875,8 +3812,7 @@
         "重连对账与权限复验"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3896,7 +3832,7 @@
       "final_acceptance_ids": [
         "A47"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3917,8 +3853,7 @@
         "不导出凭据"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3936,7 +3871,7 @@
         "A48"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -3959,8 +3894,7 @@
         "撤销信息复核"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -3980,7 +3914,7 @@
       "final_acceptance_ids": [
         "A48"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -4005,8 +3939,7 @@
         "真实干净安装与二次启动"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -4024,7 +3957,7 @@
         "A49"
       ],
       "final_acceptance_ids": [],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -4046,8 +3979,7 @@
         "卸载默认保留用户数据"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -4067,7 +3999,7 @@
       "final_acceptance_ids": [
         "A49"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -4091,8 +4023,7 @@
         "Windows尺寸缩放深浅色"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -4112,7 +4043,7 @@
       "final_acceptance_ids": [
         "A50"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -4136,8 +4067,7 @@
         "修复当前访问边界漏口"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -4157,7 +4087,7 @@
       "final_acceptance_ids": [
         "A02"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -4180,8 +4110,7 @@
         "原生通知与应用账本分开"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -4201,7 +4130,7 @@
       "final_acceptance_ids": [
         "A27"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     },
@@ -4234,8 +4163,7 @@
         "整理待用户激活的完整产品审查交接材料"
       ],
       "not_in_scope": [
-        "未激活的其他功能",
-        "自动开始下一单元"
+        "未激活的其他功能"
       ],
       "test_obligations": [
         {
@@ -4255,7 +4183,7 @@
       "final_acceptance_ids": [
         "A52"
       ],
-      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；停止并等待用户激活下一单元。",
+      "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
       "status": "planned",
       "test_plan_status": "planning_baseline_expand_on_activation"
     }

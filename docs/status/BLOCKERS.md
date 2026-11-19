@@ -1,6 +1,6 @@
 # 当前收口问题
 
-2026-11-19：FND-006 是唯一已激活单元，正式依赖为已通过的 FND-004。FND-005 保持 blocked；继承代码不等于继承验收。完整产品审查未激活。 当前证据见 [FND-006](../evidence/FND-006/REPORT.md)。
+2026-11-19：持续协议迁移起点：FND-001～004、006 历史 passed；FND-005 保持 blocked，等待新候选真实 DeepSeek 复验。 当前证据见 [FND-006](../evidence/FND-006/REPORT.md)。
 
 ## 历史记录
 
