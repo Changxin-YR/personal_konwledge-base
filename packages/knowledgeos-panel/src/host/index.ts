@@ -22,6 +22,10 @@ import { startWorker } from './jobs.ts'
 import { AiService } from './ai-service.ts'
 import { createAiHandler } from './ai-http.ts'
 import { buildAiHtml } from './ai-page.ts'
+import { join } from 'node:path'
+import { PdfOriginals } from './pdf-originals.ts'
+import { libraryHandler } from './library-http.ts'
+import { buildLibraryHtml } from './library-page.ts'
 
 export { Config }
 
@@ -225,7 +229,7 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
       res.statusCode = 200
       res.setHeader('content-type', 'text/html; charset=utf-8')
       res.setHeader('cache-control', 'no-store')
-      res.end(buildAccountHtml().replace('</main>', '<p><a href="/knowledgeos/ai">受控 AI 工具</a></p></main>'))
+      res.end(buildAccountHtml().replace('</main>', '<p><a href="/knowledgeos/library">知识库</a> · <a href="/knowledgeos/ai">受控 AI 工具</a></p></main>'))
     }
     const withPeer = (handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, peer?: import('./identity-peer.ts').PeerScope) => Promise<void>) => {
       return (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, peer?: unknown): Promise<void> => {
@@ -238,6 +242,15 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
     identityContext.effect(() => {
       const disposers: Array<() => void> = []
       disposers.push(identityContext.webServer.register({ kind: 'exact', path: ACCOUNT_PATH, auth: 'anonymous', handler: accountPage }))
+      if(storage && dataDir){
+        const originals=new PdfOriginals(join(dataDir,'originals'))
+        const handler=libraryHandler(storage.assets,originals,actualOrigin,req=>{const origin=actualOrigin();if(!origin||!identityAvailable())return undefined;return identity.actor(readCookie(req,businessCookieName(identity.setupState.serviceId,origin)))})
+        disposers.push(identityContext.webServer.register({kind:'exact',path:'/knowledgeos/library',auth:'anonymous',handler:(req,res)=>{
+          if(req.method!=='GET'){res.statusCode=405;res.end();return}res.setHeader('content-type','text/html; charset=utf-8');res.setHeader('cache-control','no-store');res.end(buildLibraryHtml())
+        }}))
+        disposers.push(identityContext.webServer.register({kind:'exact',path:'/knowledge/v1/imports',auth:'anonymous',handler:withPeer(handler)}))
+        disposers.push(identityContext.webServer.register({kind:'prefix',path:'/knowledge/v1/assets',auth:'anonymous',handler:withPeer(handler)}))
+      }
       disposers.push(identityContext.webServer.register({ kind: 'exact', path: '/knowledgeos/ai', auth: 'anonymous', handler: (req, res) => { if (req.method !== 'GET') { res.statusCode = 405; res.end(); return }; res.setHeader('content-type', 'text/html; charset=utf-8'); res.setHeader('cache-control', 'no-store'); res.end(buildAiHtml()) } }))
       const aiHandler = createAiHandler({ service: () => ai, origin: actualOrigin, actorFor: req => { const origin = actualOrigin(); if (origin === undefined || !identityAvailable()) return undefined; return identity.actor(readCookie(req, businessCookieName(identity.setupState.serviceId, origin))) } })
       disposers.push(identityContext.webServer.register({ kind: 'prefix', path: '/knowledge/v1/ai', auth: 'anonymous', handler: withPeer(async (req, res) => aiHandler(req, res)) }))

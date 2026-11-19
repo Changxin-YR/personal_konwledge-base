@@ -25,11 +25,14 @@ import type {
 import { authorize, isGrantActive, type AuthorizationAction, type AuthorizationGrant, type AuthorizationTarget, type ProjectMembership, type ResourceScope } from './authorization.ts'
 import type { CreateOutcome, ProbeRecord, ProbeStorePort } from './records.ts'
 import { RecordsError } from './records.ts'
+import {ASSET_SCHEMA, AssetStore, AssetError} from './asset-store.ts'
 
 /** Fixed application identity written to PRAGMA application_id (KOS1). */
 export const APPLICATION_ID = 0x4b4f5331
 /** Current application schema version. */
-export const SCHEMA_VERSION = 6
+export const SCHEMA_VERSION = 7
+export const MIGRATION_V7_SQL = ASSET_SCHEMA
+export const MIGRATION_V7_CHECKSUM = createHash('sha256').update(ASSET_SCHEMA).digest('hex')
 export const MIGRATION_V6_SQL = JOB_SCHEMA
 export const MIGRATION_V6_CHECKSUM = createHash('sha256').update(JOB_SCHEMA).digest('hex')
 /** Historical v1 schema version used by FND-002 fixtures. */
@@ -227,6 +230,7 @@ export interface ProbeStorageOptions {
     | 'v3:after-projects' | 'v3:after-memberships' | 'v3:after-objects' | 'v3:after-grants'
     | 'v4:after-rebuild' | 'v5:after-schema' | 'ai:after-update'
     | 'v6:after-schema' | 'job:after-result' | 'job:after-outbox' | 'event:after-receipt'
+    | 'v7:after-schema'
 }
 
 export interface DatabaseFacts {
@@ -331,6 +335,16 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
   #failure: RecordsError | undefined
   #closed = false
 
+  readonly assets = new AssetStore(op => {
+    const db=this.#ensureReady()
+    try { db.exec('BEGIN IMMEDIATE') } catch (e) { throw this.#mapError(e) }
+    try { const value=op(db,new Date().toISOString()); db.exec('COMMIT'); return value }
+    catch(e){if(!this.#rollback(db))throw this.#failure;throw e instanceof AssetError?e:this.#mapError(e)}
+  }, (session,now)=>{
+    const ref=this.#ensureReady().prepare('SELECT token_hash FROM auth_sessions WHERE id=? AND user_id=?').get(session.sessionId,session.userId)
+    return ref?this.findActor(String(ref.token_hash),now):undefined
+  }, (actor,id,action,now)=>Boolean(this.authorizeObject(actor,id,action,now)))
+
   readonly jobs = new JobStore((op) => {
     const db = this.#ensureReady()
     try { db.exec('BEGIN IMMEDIATE') } catch (err) { throw this.#mapError(err) }
@@ -388,11 +402,12 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       } else if (existing === 'v3') {
         this.#migrateV4(db)
       }
-      if (existing !== 'v6') {
+      if (existing !== 'v6' && existing !== 'v7') {
         if (existing !== 'v5') this.#migrateV5(db)
         this.#migrateV6(db)
       }
-      this.#verify(db)
+      if (existing !== 'v7') this.#migrateV7(db)
+      this.#verify(db,7)
       const facts = readDatabaseFacts(path)
       const pragmas = this.#readPragmas(db)
       this.#db = db
@@ -406,7 +421,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     }
   }
 
-  #precheck(path: string): 'blank' | 'v1' | 'v2' | 'v3' | 'v4' | 'v5' | 'v6' {
+  #precheck(path: string): 'blank' | 'v1' | 'v2' | 'v3' | 'v4' | 'v5' | 'v6' | 'v7' {
     const facts = readDatabaseFacts(path)
     if (facts.applicationId === 0 && facts.userVersion === 0 && facts.objects.length === 0) return 'blank'
     if (facts.applicationId !== APPLICATION_ID) throw new RecordsError('STORAGE_INCOMPATIBLE', 'database belongs to another application')
@@ -439,10 +454,10 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       try { this.#assertV2Definitions(db); this.#assertV4Definitions(db); this.#assertV5Definitions(db) } finally { db.close() }
       return 'v5'
     }
-    if (facts.userVersion === 6) {
+    if (facts.userVersion === 6 || facts.userVersion === 7) {
       const db = new DatabaseSync(path, { readOnly: true })
-      try { this.#verify(db) } finally { db.close() }
-      return 'v6'
+      try { this.#verify(db,facts.userVersion) } finally { db.close() }
+      return facts.userVersion === 6 ? 'v6' : 'v7'
     }
     throw new RecordsError('STORAGE_INCOMPATIBLE', 'database schema version is not supported')
   }
@@ -671,12 +686,22 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     }
   }
 
-  #verify(db: DatabaseSync): void {
+  #migrateV7(db: DatabaseSync): void {
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      db.exec(ASSET_SCHEMA);this.#injectFailure('v7:after-schema')
+      db.prepare('INSERT INTO schema_migrations VALUES(7,?,?)').run(MIGRATION_V7_CHECKSUM,new Date().toISOString())
+      db.exec('PRAGMA user_version=7; COMMIT')
+    } catch(e){if(!this.#rollback(db))throw this.#failure;throw new RecordsError('STORAGE_INCOMPATIBLE','asset migration failed',false,{cause:e})}
+  }
+
+  #verify(db: DatabaseSync, version:6|7): void {
     const facts = readDatabaseFacts(this.databasePath)
-    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== 6 || facts.ledger.length!==6 || facts.ledger[5]?.version!==6 || facts.ledger[5].checksum!==MIGRATION_V6_CHECKSUM) throw new RecordsError('STORAGE_INCOMPATIBLE', 'database ownership/version verification failed')
+    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length!==version || facts.ledger[5]?.version!==6 || facts.ledger[5].checksum!==MIGRATION_V6_CHECKSUM || (version===7 && (facts.ledger[6]?.version!==7 || facts.ledger[6].checksum!==MIGRATION_V7_CHECKSUM))) throw new RecordsError('STORAGE_INCOMPATIBLE', 'database ownership/version verification failed')
     const reference = new DatabaseSync(':memory:')
     try {
       reference.exec(JOB_SCHEMA)
+      if(version===7)reference.exec(ASSET_SCHEMA)
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all()
       for (const {name,sql} of definitions) {
         if (db.prepare('SELECT sql FROM sqlite_master WHERE name=?').get(name!)?.sql!==sql) throw new RecordsError('STORAGE_INCOMPATIBLE','jobs schema definition mismatch')

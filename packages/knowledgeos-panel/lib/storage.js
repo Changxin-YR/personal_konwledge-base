@@ -1,7 +1,7 @@
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash2, randomUUID as randomUUID2 } from "node:crypto";
+import { createHash as createHash3, randomUUID as randomUUID3 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -163,11 +163,98 @@ var RecordsError = class extends Error {
   }
 };
 
+// src/host/asset-store.ts
+import { createHash as createHash2, randomUUID as randomUUID2 } from "node:crypto";
+var ASSET_SCHEMA = `CREATE TABLE blobs (
+  id TEXT PRIMARY KEY, storage_key TEXT UNIQUE NOT NULL, sha256 TEXT NOT NULL CHECK(length(sha256)=64),
+  byte_length INTEGER NOT NULL CHECK(byte_length>0), media_type TEXT NOT NULL CHECK(media_type='application/pdf')
+) STRICT;
+CREATE TABLE assets (id TEXT PRIMARY KEY REFERENCES knowledge_objects(id)) STRICT;
+CREATE TABLE asset_versions (
+  id TEXT PRIMARY KEY, asset_id TEXT NOT NULL REFERENCES assets(id), version INTEGER NOT NULL CHECK(version>0),
+  parent_version_id TEXT REFERENCES asset_versions(id), blob_id TEXT NOT NULL UNIQUE REFERENCES blobs(id),
+  original_name TEXT NOT NULL, created_by TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL, request_digest TEXT NOT NULL, UNIQUE(asset_id,version), UNIQUE(created_by,idempotency_key)
+) STRICT;`;
+var AssetError = class extends Error {
+  constructor(status, code) {
+    super(code);
+    this.status = status;
+    this.code = code;
+  }
+};
+var receiptSQL = `SELECT v.asset_id AS id,v.original_name AS title,v.id AS version_id,v.version,b.sha256,b.byte_length FROM asset_versions v JOIN blobs b ON b.id=v.blob_id `;
+var AssetStore = class {
+  constructor(tx, current, allowed) {
+    this.tx = tx;
+    this.current = current;
+    this.allowed = allowed;
+  }
+  actor(prior, now) {
+    const actor = this.current(prior, now);
+    if (!actor) throw new AssetError(401, "AUTH_REQUIRED");
+    return actor;
+  }
+  check(actor, id, action, now) {
+    if (!this.allowed(actor, id, action, now)) throw new AssetError(404, "ASSET_NOT_FOUND");
+  }
+  publish(prior, spec, blob) {
+    return this.tx((db, now) => {
+      const actor = this.actor(prior, now), digest = createHash2("sha256").update(JSON.stringify([spec.title, spec.assetId ?? null, spec.expectedVersion ?? null, blob.sha256, blob.byteLength])).digest("hex");
+      const prev = db.prepare("SELECT id,asset_id,request_digest FROM asset_versions WHERE created_by=? AND idempotency_key=?").get(actor.userId, spec.key);
+      if (prev) {
+        this.check(actor, String(prev.asset_id), "read", now);
+        this.check(actor, String(prev.asset_id), "edit", now);
+        if (prev.request_digest !== digest) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        return { receipt: { ...db.prepare(receiptSQL + "WHERE v.id=?").get(prev.id) }, replayed: true };
+      }
+      const id = spec.assetId ?? randomUUID2(), vid = randomUUID2(), bid = randomUUID2();
+      let version = 1, parent = null;
+      if (spec.assetId) {
+        this.check(actor, id, "read", now);
+        this.check(actor, id, "edit", now);
+        const last = db.prepare("SELECT id,version FROM asset_versions WHERE asset_id=? ORDER BY version DESC LIMIT 1").get(id);
+        if (!last) throw new AssetError(404, "ASSET_NOT_FOUND");
+        if (last.version !== spec.expectedVersion) throw new AssetError(409, "VERSION_CONFLICT");
+        version = Number(last.version) + 1;
+        parent = String(last.id);
+        db.prepare("UPDATE knowledge_objects SET revision=revision+1,updated_at=? WHERE id=?").run(now, id);
+      } else {
+        db.prepare(`INSERT INTO knowledge_objects (id,service_id,space_id,scope_kind,project_id,owner_user_id,object_type,title,body,status,revision,created_at,updated_at) VALUES (?,?,?,'personal',NULL,?,'asset',?,'','active',1,?,?)`).run(id, actor.serviceId, actor.personalSpaceId, actor.userId, spec.title, now, now);
+        db.prepare("INSERT INTO assets VALUES (?)").run(id);
+      }
+      db.prepare("INSERT INTO blobs VALUES (?,?,?,?,'application/pdf')").run(bid, blob.key, blob.sha256, blob.byteLength);
+      db.prepare("INSERT INTO asset_versions VALUES (?,?,?,?,?,?,?,?,?,?)").run(vid, id, version, parent, bid, spec.title, actor.userId, now, spec.key, digest);
+      return { receipt: { id, title: spec.title, version_id: vid, version, sha256: blob.sha256, byte_length: blob.byteLength }, replayed: false };
+    });
+  }
+  list(prior) {
+    return this.tx((db, now) => {
+      const actor = this.actor(prior, now);
+      return db.prepare(receiptSQL + `JOIN knowledge_objects o ON o.id=v.asset_id
+      WHERE o.owner_user_id=? AND o.service_id=? AND o.status='active'
+      ORDER BY v.created_at DESC,v.version DESC,v.id`).all(actor.userId, actor.serviceId).filter((v) => this.allowed(actor, v.id, "read", now)).map((v) => ({ ...v }));
+    });
+  }
+  original(prior, id, versionId, download) {
+    return this.tx((db, now) => {
+      const actor = this.actor(prior, now);
+      this.check(actor, id, "read", now);
+      if (download) this.check(actor, id, "export", now);
+      const r = db.prepare("SELECT b.storage_key,b.sha256,b.byte_length FROM asset_versions v JOIN blobs b ON b.id=v.blob_id WHERE v.asset_id=? AND v.id=?").get(id, versionId);
+      if (!r) throw new AssetError(404, "ASSET_NOT_FOUND");
+      return { key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length) };
+    });
+  }
+};
+
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 6;
+var SCHEMA_VERSION = 7;
+var MIGRATION_V7_SQL = ASSET_SCHEMA;
+var MIGRATION_V7_CHECKSUM = createHash3("sha256").update(ASSET_SCHEMA).digest("hex");
 var MIGRATION_V6_SQL = JOB_SCHEMA;
-var MIGRATION_V6_CHECKSUM = createHash2("sha256").update(JOB_SCHEMA).digest("hex");
+var MIGRATION_V6_CHECKSUM = createHash3("sha256").update(JOB_SCHEMA).digest("hex");
 var PROBE_SCHEMA_VERSION = 1;
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
@@ -184,7 +271,7 @@ CREATE TABLE storage_probe_records (
   created_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V1_CHECKSUM = createHash2("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
+var MIGRATION_V1_CHECKSUM = createHash3("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
 var MIGRATION_V2_SQL = `CREATE TABLE password_credentials (
   id TEXT PRIMARY KEY,
   algorithm TEXT NOT NULL,
@@ -238,7 +325,7 @@ CREATE TABLE spaces (
   updated_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V2_CHECKSUM = createHash2("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
+var MIGRATION_V2_CHECKSUM = createHash3("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
 var MIGRATION_V3_SQL = `CREATE TABLE knowledge_projects (
   id TEXT PRIMARY KEY,
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
@@ -288,7 +375,7 @@ CREATE TABLE resource_grants (
   UNIQUE (resource_id, subject_type, subject_id, action)
 ) STRICT;
 `;
-var MIGRATION_V3_CHECKSUM = createHash2("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
+var MIGRATION_V3_CHECKSUM = createHash3("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
 var MIGRATION_V4_SQL = `ALTER TABLE resource_grants RENAME TO resource_grants_v3;
 CREATE TABLE resource_grants (
   id TEXT PRIMARY KEY,
@@ -310,7 +397,7 @@ CREATE UNIQUE INDEX resource_grants_active_subject_action_uq
   WHERE revoked_at IS NULL;
 DROP TABLE resource_grants_v3;
 `;
-var MIGRATION_V4_CHECKSUM = createHash2("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
+var MIGRATION_V4_CHECKSUM = createHash3("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
 var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -322,7 +409,7 @@ var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   PRIMARY KEY (service_id, user_id, idempotency_key)
 ) STRICT;
 `;
-var MIGRATION_V5_CHECKSUM = createHash2("sha256").update(MIGRATION_V5_SQL).digest("hex");
+var MIGRATION_V5_CHECKSUM = createHash3("sha256").update(MIGRATION_V5_SQL).digest("hex");
 var PROBE_SUPPORTED_TABLES = ["schema_migrations", "storage_probe_records"];
 var IDENTITY_SUPPORTED_TABLES = [
   "auth_sessions",
@@ -392,6 +479,25 @@ var ProbeStorage = class {
   #state = "unavailable";
   #failure;
   #closed = false;
+  assets = new AssetStore((op) => {
+    const db = this.#ensureReady();
+    try {
+      db.exec("BEGIN IMMEDIATE");
+    } catch (e) {
+      throw this.#mapError(e);
+    }
+    try {
+      const value = op(db, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("COMMIT");
+      return value;
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw e instanceof AssetError ? e : this.#mapError(e);
+    }
+  }, (session, now) => {
+    const ref = this.#ensureReady().prepare("SELECT token_hash FROM auth_sessions WHERE id=? AND user_id=?").get(session.sessionId, session.userId);
+    return ref ? this.findActor(String(ref.token_hash), now) : void 0;
+  }, (actor, id, action, now) => Boolean(this.authorizeObject(actor, id, action, now)));
   jobs = new JobStore((op) => {
     const db = this.#ensureReady();
     try {
@@ -456,11 +562,12 @@ var ProbeStorage = class {
       } else if (existing === "v3") {
         this.#migrateV4(db);
       }
-      if (existing !== "v6") {
+      if (existing !== "v6" && existing !== "v7") {
         if (existing !== "v5") this.#migrateV5(db);
         this.#migrateV6(db);
       }
-      this.#verify(db);
+      if (existing !== "v7") this.#migrateV7(db);
+      this.#verify(db, 7);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
       this.#db = db;
@@ -527,14 +634,14 @@ var ProbeStorage = class {
       }
       return "v5";
     }
-    if (facts.userVersion === 6) {
+    if (facts.userVersion === 6 || facts.userVersion === 7) {
       const db = new DatabaseSync(path, { readOnly: true });
       try {
-        this.#verify(db);
+        this.#verify(db, facts.userVersion);
       } finally {
         db.close();
       }
-      return "v6";
+      return facts.userVersion === 6 ? "v6" : "v7";
     }
     throw new RecordsError("STORAGE_INCOMPATIBLE", "database schema version is not supported");
   }
@@ -685,7 +792,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID2());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID3());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -759,12 +866,25 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs migration failed", false, { cause: err });
     }
   }
-  #verify(db) {
+  #migrateV7(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(ASSET_SCHEMA);
+      this.#injectFailure("v7:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(7,?,?)").run(MIGRATION_V7_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=7; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "asset migration failed", false, { cause: e });
+    }
+  }
+  #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== 6 || facts.ledger.length !== 6 || facts.ledger[5]?.version !== 6 || facts.ledger[5].checksum !== MIGRATION_V6_CHECKSUM) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
+    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || facts.ledger[5]?.version !== 6 || facts.ledger[5].checksum !== MIGRATION_V6_CHECKSUM || version === 7 && (facts.ledger[6]?.version !== 7 || facts.ledger[6].checksum !== MIGRATION_V7_CHECKSUM)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
       reference.exec(JOB_SCHEMA);
+      if (version === 7) reference.exec(ASSET_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -867,9 +987,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID2();
-      const spaceId = randomUUID2();
-      const credentialId = randomUUID2();
+      const userId = randomUUID3();
+      const spaceId = randomUUID3();
+      const credentialId = randomUUID3();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -903,9 +1023,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID2();
-      const spaceId = randomUUID2();
-      const credentialId = randomUUID2();
+      const userId = randomUUID3();
+      const spaceId = randomUUID3();
+      const credentialId = randomUUID3();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -1070,7 +1190,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID2(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
+        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID3(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -1167,8 +1287,8 @@ var ProbeStorage = class {
     let primaryCode;
     let failed = false;
     try {
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash2("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash2("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash3("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash3("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
     } catch (error) {
       failed = true;
       primaryCode = primarySqliteCode(error);
@@ -1246,6 +1366,8 @@ export {
   MIGRATION_V5_SQL,
   MIGRATION_V6_CHECKSUM,
   MIGRATION_V6_SQL,
+  MIGRATION_V7_CHECKSUM,
+  MIGRATION_V7_SQL,
   PROBE_SCHEMA_VERSION,
   PROBE_SUPPORTED_TABLES,
   ProbeStorage,

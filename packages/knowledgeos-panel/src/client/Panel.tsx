@@ -207,7 +207,7 @@ export function KnowledgeOsPanel(): JSX.Element {
       </div>
 
       <footer className="kos-foot">
-        <p className="kos-note">数据来自本机 DSH Host 插件；仅包含版本、提交、实例与时间等运行元数据。<br /><a href="/knowledgeos/account" style={{ color: '#3D7E86' }}>打开账号与个人空间</a></p>
+        <p className="kos-note">数据来自本机 DSH Host 插件；仅包含版本、提交、实例与时间等运行元数据。<br /><a href="/knowledgeos/library" style={{ color: '#3D7E86' }}>知识库</a> · <a href="/knowledgeos/account" style={{ color: '#3D7E86' }}>打开账号与个人空间</a></p>
         <button type="button" className="kos-button kos-button--ghost" onClick={refresh} disabled={phase === 'loading'} data-testid="kos-refresh">
           {phase === 'error' ? '重新连接' : '刷新'}
         </button>

@@ -1228,6 +1228,26 @@
           "id": "LIB-001-T02",
           "scenario": "损坏输入、磁盘失败和重复提交",
           "expected": "失败可见，原件不被覆盖，同动作不重复建资料"
+        },
+        {
+          "id": "LIB-001-T03",
+          "scenario": "同键重试与旧版本竞争",
+          "expected": "重试返回原版本，变参或旧版本冲突，前一版本字节与哈希仍一致"
+        },
+        {
+          "id": "LIB-001-T04",
+          "scenario": "可信登录与跨身份资料读取",
+          "expected": "匿名、他人和过期会话不能列出或读取私人原件；写请求拒绝跨站"
+        },
+        {
+          "id": "LIB-001-T05",
+          "scenario": "v6 数据升级与故障",
+          "expected": "既有记录/账本不变；注入 v7 故障回滚后可重新升级并重开"
+        },
+        {
+          "id": "LIB-001-T06",
+          "scenario": "真实浏览器上传与回读",
+          "expected": "在固定 DSH 和合成业务登录下上传、重启、选择新版本；UI 与 HTTP/SQLite 版本一致"
         }
       ],
       "acceptance_ids": [
@@ -1236,8 +1256,11 @@
       ],
       "final_acceptance_ids": [],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "planned",
-      "test_plan_status": "planning_baseline_expand_on_activation"
+      "status": "in_progress",
+      "test_plan_status": "detailed_active_unit",
+      "base_commit": "164cbc3e3abf7a7a6e7150c27fa598c58bf7fed5",
+      "test_result_status": "NOT_RUN",
+      "independent_review_status": "NOT_RUN"
     },
     {
       "id": "LIB-002",
