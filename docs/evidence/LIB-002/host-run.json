@@ -1,0 +1,1182 @@
+{
+  "candidate_sha": "971f6bd14f6d12e4ab508091180b4eba0473a7e7",
+  "tree": "822435d0ab917f8f99814f2cf7ab28c6cc38f8c9",
+  "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+  "entry_sha256": "9efadf29cdfc98bbf56d379b0f225220b81da6d1c13c0af31787193a8fda38d6",
+  "parser": {
+    "pdf-extractor.js": "7108161642a6ffa39ea003210438762f0566be91e83b82f25333d6e8d4cf430a",
+    "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+  },
+  "scope": {
+    "T01": "PASS",
+    "T02": "PASS",
+    "A07": "PASS",
+    "P02": "NOT_RUN",
+    "A06": "NOT_RUN"
+  },
+  "status": "PASS",
+  "events": [
+    {
+      "at": "2026-11-19T10:12:21.262Z",
+      "name": "boot"
+    },
+    {
+      "at": "2026-11-19T10:12:22.944Z",
+      "name": "chrome",
+      "version": "157.0.8103.79"
+    },
+    {
+      "at": "2026-11-19T10:12:23.604Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:24.066Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:24.081Z",
+      "name": "http",
+      "method": "POST",
+      "status": 201
+    },
+    {
+      "at": "2026-11-19T10:12:24.082Z",
+      "name": "input",
+      "tag": "recovery",
+      "byte_length": 2243,
+      "sha256": "0e97dbcbb7db9e784550e0639e4d55fe1295634da0d2dc50f9c132da11fcc21d"
+    },
+    {
+      "at": "2026-11-19T10:12:24.192Z",
+      "name": "http",
+      "method": "POST",
+      "status": 202
+    },
+    {
+      "at": "2026-11-19T10:12:24.449Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:24.452Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:24.460Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:24.467Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:24.471Z",
+      "name": "pre-kill",
+      "sql": {
+        "state": "running",
+        "total": 6,
+        "error": null,
+        "pages": [
+          {
+            "page": 1,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 19,
+            "sha256": "fe9337eb184b05487c8b170d562aebc04e9906232b0e83c507dc50cb5e62a7f2",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 2,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 19,
+            "sha256": "feb52e28996ef9f8239e9a6a49ec6245b707d4c60df504b02d24a43b54b41f7e",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 3,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          },
+          {
+            "page": 4,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          },
+          {
+            "page": 5,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          },
+          {
+            "page": 6,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-11-19T10:12:24.542Z",
+      "name": "browser:partial-before-kill",
+      "sha256": "9a43fe4f4bd55e9cd421ba434f2184f983565dba66f4d68ff7d3ddceb3a875c4",
+      "summary": "解析中 · 共 6 页 · 未处理 4 · 可用 2 · 待复核 0 · 失败 0"
+    },
+    {
+      "at": "2026-11-19T10:12:24.575Z",
+      "name": "host-exit",
+      "worker_pages": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "at": "2026-11-19T10:12:24.577Z",
+      "name": "after-kill",
+      "sql": {
+        "state": "running",
+        "total": 6,
+        "error": null,
+        "pages": [
+          {
+            "page": 1,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 19,
+            "sha256": "fe9337eb184b05487c8b170d562aebc04e9906232b0e83c507dc50cb5e62a7f2",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 2,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 19,
+            "sha256": "feb52e28996ef9f8239e9a6a49ec6245b707d4c60df504b02d24a43b54b41f7e",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 3,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          },
+          {
+            "page": 4,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          },
+          {
+            "page": 5,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          },
+          {
+            "page": 6,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-11-19T10:12:32.326Z",
+      "name": "boot"
+    },
+    {
+      "at": "2026-11-19T10:12:39.892Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:39.898Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:39.909Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:39.919Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:39.926Z",
+      "name": "after-takeover",
+      "sql": {
+        "state": "partial",
+        "total": 6,
+        "error": null,
+        "pages": [
+          {
+            "page": 1,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 19,
+            "sha256": "fe9337eb184b05487c8b170d562aebc04e9906232b0e83c507dc50cb5e62a7f2",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 2,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 19,
+            "sha256": "feb52e28996ef9f8239e9a6a49ec6245b707d4c60df504b02d24a43b54b41f7e",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 3,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 19,
+            "sha256": "25c236e472d2b7cf8318af428889a0f52e5c51a36293098a92bff85421bdee3c",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 4,
+            "state": "failed",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": "PAGE_EXTRACTION_FAILED",
+            "generation": 1
+          },
+          {
+            "page": 5,
+            "state": "review",
+            "chapter": "Second unit",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 6,
+            "state": "ready",
+            "chapter": "Second unit",
+            "chars": 19,
+            "sha256": "a97f4599720197671b5258830733a39ad30b3eee41fc3eae834445e8611acf9a",
+            "error": null,
+            "generation": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-11-19T10:12:40.009Z",
+      "name": "browser:failed-and-review",
+      "sha256": "70cf407ae6f50398727c8435cb2309d014d92cf924368c97efa867c6408940af",
+      "summary": "部分完成 · 共 6 页 · 未处理 0 · 可用 4 · 待复核 1 · 失败 1"
+    },
+    {
+      "at": "2026-11-19T10:12:40.036Z",
+      "name": "http",
+      "method": "POST",
+      "status": 202
+    },
+    {
+      "at": "2026-11-19T10:12:40.278Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:40.282Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:40.291Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:40.302Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:40.307Z",
+      "name": "failed-again",
+      "sql": {
+        "state": "partial",
+        "total": 6,
+        "error": null,
+        "pages": [
+          {
+            "page": 1,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 19,
+            "sha256": "fe9337eb184b05487c8b170d562aebc04e9906232b0e83c507dc50cb5e62a7f2",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 2,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 19,
+            "sha256": "feb52e28996ef9f8239e9a6a49ec6245b707d4c60df504b02d24a43b54b41f7e",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 3,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 19,
+            "sha256": "25c236e472d2b7cf8318af428889a0f52e5c51a36293098a92bff85421bdee3c",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 4,
+            "state": "failed",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": "PAGE_EXTRACTION_FAILED",
+            "generation": 2
+          },
+          {
+            "page": 5,
+            "state": "review",
+            "chapter": "Second unit",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 6,
+            "state": "ready",
+            "chapter": "Second unit",
+            "chars": 19,
+            "sha256": "a97f4599720197671b5258830733a39ad30b3eee41fc3eae834445e8611acf9a",
+            "error": null,
+            "generation": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-11-19T10:12:40.312Z",
+      "name": "http",
+      "method": "GET",
+      "status": 404
+    },
+    {
+      "at": "2026-11-19T10:12:40.321Z",
+      "name": "http",
+      "method": "GET",
+      "status": 404
+    },
+    {
+      "at": "2026-11-19T10:12:40.334Z",
+      "name": "http",
+      "method": "GET",
+      "status": 404
+    },
+    {
+      "at": "2026-11-19T10:12:40.343Z",
+      "name": "http",
+      "method": "POST",
+      "status": 404
+    },
+    {
+      "at": "2026-11-19T10:12:40.353Z",
+      "name": "http",
+      "method": "POST",
+      "status": 404
+    },
+    {
+      "at": "2026-11-19T10:12:40.361Z",
+      "name": "http",
+      "method": "POST",
+      "status": 404
+    },
+    {
+      "at": "2026-11-19T10:12:40.373Z",
+      "name": "http",
+      "method": "POST",
+      "status": 404
+    },
+    {
+      "at": "2026-11-19T10:12:40.381Z",
+      "name": "http",
+      "method": "GET",
+      "status": 401
+    },
+    {
+      "at": "2026-11-19T10:12:40.393Z",
+      "name": "http",
+      "method": "GET",
+      "status": 401
+    },
+    {
+      "at": "2026-11-19T10:12:40.431Z",
+      "name": "http",
+      "method": "GET",
+      "status": 401
+    },
+    {
+      "at": "2026-11-19T10:12:40.436Z",
+      "name": "http",
+      "method": "POST",
+      "status": 401
+    },
+    {
+      "at": "2026-11-19T10:12:40.449Z",
+      "name": "http",
+      "method": "POST",
+      "status": 401
+    },
+    {
+      "at": "2026-11-19T10:12:40.462Z",
+      "name": "http",
+      "method": "POST",
+      "status": 401
+    },
+    {
+      "at": "2026-11-19T10:12:40.476Z",
+      "name": "http",
+      "method": "POST",
+      "status": 401
+    },
+    {
+      "at": "2026-11-19T10:12:40.489Z",
+      "name": "http",
+      "method": "POST",
+      "status": 403
+    },
+    {
+      "at": "2026-11-19T10:12:40.528Z",
+      "name": "host-exit",
+      "worker_pages": [
+        3,
+        4,
+        5,
+        6,
+        4
+      ]
+    },
+    {
+      "at": "2026-11-19T10:12:50.270Z",
+      "name": "boot"
+    },
+    {
+      "at": "2026-11-19T10:12:51.045Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:51.049Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:51.058Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:51.066Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:51.071Z",
+      "name": "failure-survived-restart",
+      "sql": {
+        "state": "partial",
+        "total": 6,
+        "error": null,
+        "pages": [
+          {
+            "page": 1,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 19,
+            "sha256": "fe9337eb184b05487c8b170d562aebc04e9906232b0e83c507dc50cb5e62a7f2",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 2,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 19,
+            "sha256": "feb52e28996ef9f8239e9a6a49ec6245b707d4c60df504b02d24a43b54b41f7e",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 3,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 19,
+            "sha256": "25c236e472d2b7cf8318af428889a0f52e5c51a36293098a92bff85421bdee3c",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 4,
+            "state": "failed",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": "PAGE_EXTRACTION_FAILED",
+            "generation": 2
+          },
+          {
+            "page": 5,
+            "state": "review",
+            "chapter": "Second unit",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 6,
+            "state": "ready",
+            "chapter": "Second unit",
+            "chars": 19,
+            "sha256": "a97f4599720197671b5258830733a39ad30b3eee41fc3eae834445e8611acf9a",
+            "error": null,
+            "generation": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-11-19T10:12:51.078Z",
+      "name": "http",
+      "method": "POST",
+      "status": 202
+    },
+    {
+      "at": "2026-11-19T10:12:51.643Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:51.648Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:51.658Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:51.666Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:51.672Z",
+      "name": "retry-recovered-text",
+      "sql": {
+        "state": "partial",
+        "total": 6,
+        "error": null,
+        "pages": [
+          {
+            "page": 1,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 19,
+            "sha256": "fe9337eb184b05487c8b170d562aebc04e9906232b0e83c507dc50cb5e62a7f2",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 2,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 19,
+            "sha256": "feb52e28996ef9f8239e9a6a49ec6245b707d4c60df504b02d24a43b54b41f7e",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 3,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 19,
+            "sha256": "25c236e472d2b7cf8318af428889a0f52e5c51a36293098a92bff85421bdee3c",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 4,
+            "state": "ready",
+            "chapter": "Second unit",
+            "chars": 19,
+            "sha256": "ce82a1dcbb0ca32309d1711040e9692a7ba983afb86c3ac14b8d97451ab5ae68",
+            "error": null,
+            "generation": 3
+          },
+          {
+            "page": 5,
+            "state": "review",
+            "chapter": "Second unit",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 6,
+            "state": "ready",
+            "chapter": "Second unit",
+            "chars": 19,
+            "sha256": "a97f4599720197671b5258830733a39ad30b3eee41fc3eae834445e8611acf9a",
+            "error": null,
+            "generation": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-11-19T10:12:51.739Z",
+      "name": "browser:repaired-with-review",
+      "sha256": "c4d98723d7c8ced0d7ff72def3740156adc4d6a337aefa8ba73ee4c785004621",
+      "summary": "部分完成 · 共 6 页 · 未处理 0 · 可用 5 · 待复核 1 · 失败 0"
+    },
+    {
+      "at": "2026-11-19T10:12:51.743Z",
+      "name": "http",
+      "method": "POST",
+      "status": 409
+    },
+    {
+      "at": "2026-11-19T10:12:51.752Z",
+      "name": "http",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:12:51.801Z",
+      "name": "host-exit",
+      "worker_pages": [
+        4
+      ]
+    },
+    {
+      "at": "2026-11-19T10:12:59.799Z",
+      "name": "boot"
+    },
+    {
+      "at": "2026-11-19T10:13:00.528Z",
+      "name": "http",
+      "method": "POST",
+      "status": 201
+    },
+    {
+      "at": "2026-11-19T10:13:00.529Z",
+      "name": "input",
+      "tag": "cancel",
+      "byte_length": 2233,
+      "sha256": "f4afbcbc9af3ae19dea47c9cc28cfd9da7e8f8bb698cdee6a86c4f522523bfee"
+    },
+    {
+      "at": "2026-11-19T10:13:00.628Z",
+      "name": "http",
+      "method": "POST",
+      "status": 202
+    },
+    {
+      "at": "2026-11-19T10:13:01.121Z",
+      "name": "http",
+      "method": "POST",
+      "status": 202
+    },
+    {
+      "at": "2026-11-19T10:13:01.143Z",
+      "name": "http",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:13:01.189Z",
+      "name": "late-result:cancel",
+      "before": {
+        "state": "running",
+        "total": 6,
+        "error": null,
+        "pages": [
+          {
+            "page": 1,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 17,
+            "sha256": "fc84a0b52e650b631cb118e09e05166c68a55bc59f14679c89e817c436dd68b3",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 2,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 17,
+            "sha256": "43ab9f4f9fabfb0de63eb100b41a269cc1ef236c3ff1405b0300ce576a25bfd7",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 3,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          },
+          {
+            "page": 4,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          },
+          {
+            "page": 5,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          },
+          {
+            "page": 6,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          }
+        ]
+      },
+      "after": {
+        "state": "cancelled",
+        "total": 6,
+        "error": "CANCELLED",
+        "pages": [
+          {
+            "page": 1,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 17,
+            "sha256": "fc84a0b52e650b631cb118e09e05166c68a55bc59f14679c89e817c436dd68b3",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 2,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 17,
+            "sha256": "43ab9f4f9fabfb0de63eb100b41a269cc1ef236c3ff1405b0300ce576a25bfd7",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 3,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          },
+          {
+            "page": 4,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          },
+          {
+            "page": 5,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          },
+          {
+            "page": 6,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          }
+        ]
+      },
+      "worker_pages": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "at": "2026-11-19T10:13:01.193Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:13:01.202Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:13:01.211Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:13:01.219Z",
+      "name": "http",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "at": "2026-11-19T10:13:01.223Z",
+      "name": "cancelled-readback",
+      "sql": {
+        "state": "cancelled",
+        "total": 6,
+        "error": "CANCELLED",
+        "pages": [
+          {
+            "page": 1,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 17,
+            "sha256": "fc84a0b52e650b631cb118e09e05166c68a55bc59f14679c89e817c436dd68b3",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 2,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 17,
+            "sha256": "43ab9f4f9fabfb0de63eb100b41a269cc1ef236c3ff1405b0300ce576a25bfd7",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 3,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          },
+          {
+            "page": 4,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          },
+          {
+            "page": 5,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          },
+          {
+            "page": 6,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-11-19T10:13:01.289Z",
+      "name": "browser:cancelled",
+      "sha256": "3a8dbf6e1441b8fe7a4389c70c40008348076674b9393fc43513e276644bff93",
+      "summary": "已取消 · 共 6 页 · 未处理 4 · 可用 2 · 待复核 0 · 失败 0"
+    },
+    {
+      "at": "2026-11-19T10:13:01.318Z",
+      "name": "host-exit",
+      "worker_pages": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "at": "2026-11-19T10:13:09.066Z",
+      "name": "boot"
+    },
+    {
+      "at": "2026-11-19T10:13:09.670Z",
+      "name": "http",
+      "method": "POST",
+      "status": 201
+    },
+    {
+      "at": "2026-11-19T10:13:09.671Z",
+      "name": "input",
+      "tag": "revoked",
+      "byte_length": 2238,
+      "sha256": "5d33f0eb367b0d85f22e2b74402e840ac42d2b2f042d19cbb4eee9d16be5253a"
+    },
+    {
+      "at": "2026-11-19T10:13:09.745Z",
+      "name": "http",
+      "method": "POST",
+      "status": 202
+    },
+    {
+      "at": "2026-11-19T10:13:10.253Z",
+      "name": "http",
+      "method": "POST",
+      "status": 204
+    },
+    {
+      "at": "2026-11-19T10:13:10.256Z",
+      "name": "http",
+      "method": "GET",
+      "status": 401
+    },
+    {
+      "at": "2026-11-19T10:13:10.307Z",
+      "name": "late-result:revoked",
+      "before": {
+        "state": "running",
+        "total": 6,
+        "error": null,
+        "pages": [
+          {
+            "page": 1,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 18,
+            "sha256": "69a397781c1fe99ad91a4edd7c30ab79e80c5a1e393d62af00d3326cbd683111",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 2,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 18,
+            "sha256": "66410046031aa7435f34f3d788859d58ae97dbf74ac7f02d3ab4efb758676d6f",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 3,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          },
+          {
+            "page": 4,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          },
+          {
+            "page": 5,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          },
+          {
+            "page": 6,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          }
+        ]
+      },
+      "after": {
+        "state": "failed",
+        "total": 6,
+        "error": "AUTHORIZATION_LOST",
+        "pages": [
+          {
+            "page": 1,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 18,
+            "sha256": "69a397781c1fe99ad91a4edd7c30ab79e80c5a1e393d62af00d3326cbd683111",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 2,
+            "state": "ready",
+            "chapter": "First unit",
+            "chars": 18,
+            "sha256": "66410046031aa7435f34f3d788859d58ae97dbf74ac7f02d3ab4efb758676d6f",
+            "error": null,
+            "generation": 1
+          },
+          {
+            "page": 3,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          },
+          {
+            "page": 4,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          },
+          {
+            "page": 5,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          },
+          {
+            "page": 6,
+            "state": "pending",
+            "chapter": "",
+            "chars": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "error": null,
+            "generation": 0
+          }
+        ]
+      },
+      "worker_pages": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "at": "2026-11-19T10:13:10.342Z",
+      "name": "host-exit",
+      "worker_pages": [
+        1,
+        2,
+        3
+      ]
+    }
+  ]
+}

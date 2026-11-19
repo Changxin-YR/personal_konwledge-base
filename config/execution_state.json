@@ -10,7 +10,7 @@
     "sha256": "da73b65a0004bfa875d1435a61a555ba6f02d45c280aeb8ed6d2e62ab4bd39d8"
   },
   "active_unit": "LIB-002",
-  "unit_state": "in_progress",
+  "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Implement version-scoped PDF page parsing with fenced leases; A07 requires real worker restart and single-page failure/retry.",
+  "state_reason": "A07 and T01/T02 passed on independently rerun frozen Host candidate.",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,20 +127,22 @@
     }
   },
   "checkpoint": {
-    "unit_id": "LIB-001",
-    "base_commit": "164cbc3e3abf7a7a6e7150c27fa598c58bf7fed5",
-    "candidate_sha": "5d9dc58866d518c496677b3e85ba60c217323291",
+    "unit_id": "LIB-002",
+    "base_commit": "9d1df534bed4a0f980d0a8a78daf5d914b1983a3",
+    "candidate_sha": "971f6bd14f6d12e4ab508091180b4eba0473a7e7",
     "completed": [
-      "Versioned private PDF imports, immutable originals, migration and independent Host/browser acceptance."
+      "Version-scoped page checkpoints, bounded offline PDFium, restart, cancellation, retry, and authenticated progress UI."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
       "independent": "PASS",
-      "supporting_suite": "PASS"
+      "A07": "PASS",
+      "P02": "NOT_RUN",
+      "A06": "NOT_RUN"
     },
-    "evidence": "docs/evidence/LIB-001/acceptance.json",
+    "evidence": "docs/evidence/LIB-002/acceptance.json",
     "defects": [],
-    "next_task": "LIB-002",
+    "next_task": "LIB-003",
     "blocked_dependencies": []
   }
 }

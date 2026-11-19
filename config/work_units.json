@@ -1329,11 +1329,32 @@
         "A07"
       ],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "in_progress",
+      "status": "passed",
       "test_plan_status": "detailed_active_unit",
       "base_commit": "9d1df534bed4a0f980d0a8a78daf5d914b1983a3",
-      "test_result_status": "NOT_RUN",
-      "independent_review_status": "NOT_RUN"
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "candidate_commit": "971f6bd14f6d12e4ab508091180b4eba0473a7e7",
+      "completed_at": "2026-11-19T10:16:16.836Z",
+      "completed_test_ids": [
+        "LIB-002-T01",
+        "LIB-002-T02"
+      ],
+      "retest_status": "PASS",
+      "open_review_items": [],
+      "closed_review_items": [
+        "PARTIAL_AND_CANCELLED_CONTROL_MATCH",
+        "ISOLATE_FAILED_PAGE"
+      ],
+      "acceptance_record": "docs/evidence/LIB-002/acceptance.json",
+      "evidence_paths": [
+        "docs/evidence/LIB-002/acceptance.json",
+        "docs/evidence/LIB-002/independent.json",
+        "docs/evidence/LIB-002/host-run.json",
+        "docs/evidence/LIB-002/A07.json",
+        "docs/evidence/LIB-002/failed-and-review.png",
+        "docs/evidence/LIB-002/repaired-with-review.png"
+      ]
     },
     {
       "id": "LIB-003",

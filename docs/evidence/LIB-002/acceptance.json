@@ -1,0 +1,22 @@
+{
+  "unit_id": "LIB-002",
+  "candidate_sha": "971f6bd14f6d12e4ab508091180b4eba0473a7e7",
+  "entry_sha256": "9efadf29cdfc98bbf56d379b0f225220b81da6d1c13c0af31787193a8fda38d6",
+  "unit_acceptance": "PASS",
+  "exit": 0,
+  "command": "node scripts/lib002/host-acceptance.mjs 971f6bd14f6d12e4ab508091180b4eba0473a7e7 9efadf29cdfc98bbf56d379b0f225220b81da6d1c13c0af31787193a8fda38d6",
+  "suite_command": "node --test scripts/lib002/parse-store.test.mjs scripts/lib002/extractor.test.mjs scripts/lib002/library-progress.test.mjs",
+  "suite_passed": 17,
+  "passed_test_ids": [
+    "LIB-002-T01",
+    "LIB-002-T02"
+  ],
+  "host_record": "docs/evidence/LIB-002/host-run.json",
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/LIB-002/independent.json",
+  "final_case": "docs/evidence/LIB-002/A07.json",
+  "not_run": [
+    "A06",
+    "P02"
+  ]
+}

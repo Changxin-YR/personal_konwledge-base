@@ -1,0 +1,43 @@
+{
+  "unit_id": "LIB-002",
+  "candidate_sha": "971f6bd14f6d12e4ab508091180b4eba0473a7e7",
+  "entry_sha256": "9efadf29cdfc98bbf56d379b0f225220b81da6d1c13c0af31787193a8fda38d6",
+  "reviewer": "Euclid (independent Codex execution)",
+  "command": "node scripts/lib002/host-acceptance.mjs 971f6bd14f6d12e4ab508091180b4eba0473a7e7 9efadf29cdfc98bbf56d379b0f225220b81da6d1c13c0af31787193a8fda38d6",
+  "status": "PASS",
+  "exit": 0,
+  "suite_command": "node --test scripts/lib002/parse-store.test.mjs scripts/lib002/extractor.test.mjs scripts/lib002/library-progress.test.mjs",
+  "suite_passed": 17,
+  "suite_skipped": 0,
+  "actual_commands": [
+    "node --test scripts/lib002/parse-store.test.mjs",
+    "node --test scripts/lib002/extractor.test.mjs",
+    "node --test scripts/lib002/library-progress.test.mjs"
+  ],
+  "source_digests": {
+    "a07-D0LsSZ/summary.json": "dcbb640c714856334296677fb6642455943c743e2a1936e7be5132cb68eda67d",
+    "store.tap": "385209165ade63c5a2daafa87f2375fc0c83c92de998d8179141ae2d1fb8ae11",
+    "extractor.tap": "a320669a2fe16245f404860641da94f2fc9625a3ac47aa69003262a9d5fea25c",
+    "ui.tap": "f79323d358627e37cce2b43f49ceaf5959ddc056b3a17ef85e5de39bff5d9c91"
+  },
+  "results": [
+    {
+      "id": "LIB-002-T01",
+      "status": "PASS",
+      "observed": "Replacement process first requested page 3 after lease expiry. Six rows retained, four states differentiated. After persistent injected page 4 failure, retry ran only that page at generation 3."
+    },
+    {
+      "id": "LIB-002-T02",
+      "status": "PASS",
+      "observed": "In-flight replay preserved lease; completed replay did not rerun extraction. Cancelled and logged-out late replies created no page. Cross-user, anonymous and missing-marker operations rejected."
+    }
+  ],
+  "screenshots_inspected": 4,
+  "case_results": {
+    "T01": "PASS",
+    "T02": "PASS",
+    "A07": "PASS",
+    "P02": "NOT_RUN",
+    "A06": "NOT_RUN"
+  }
+}

@@ -98,8 +98,10 @@
         "P02",
         "A06"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/LIB-002/acceptance.json"
+      ]
     },
     {
       "id": "F07",
@@ -115,7 +117,8 @@
       ],
       "implementation_status": "in_progress",
       "evidence_paths": [
-        "docs/evidence/LIB-001/acceptance.json"
+        "docs/evidence/LIB-001/acceptance.json",
+        "docs/evidence/LIB-002/acceptance.json"
       ]
     },
     {
@@ -583,8 +586,10 @@
         "A47",
         "A49"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/LIB-002/acceptance.json"
+      ]
     },
     {
       "id": "F43",
@@ -950,8 +955,12 @@
       "expected": "复用已完成成果；无重复页/章节；失败与未处理可辨；重试不会把错误页静默标成功。",
       "level": "integration",
       "evidence_required": "测试记录、关键状态与操作证据",
-      "status": "NOT_RUN",
-      "final_milestone": "M1"
+      "status": "PASS",
+      "final_milestone": "M1",
+      "evidence_paths": [
+        "docs/evidence/LIB-002/A07.json",
+        "docs/evidence/LIB-002/independent.json"
+      ]
     },
     {
       "id": "A08",
