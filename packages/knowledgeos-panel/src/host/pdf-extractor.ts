@@ -20,7 +20,7 @@ function pdfError(code: ErrorCode, message: string) { return Object.assign(new E
 
 /** One-based physical pages. Callers own the handle and must close it in finally. */
 export function openPdf(bytes: Uint8Array): Promise<Omit<Doc, 'renderPage'>> { return open(bytes, 'extract') }
-export function openReaderPdf(bytes: Uint8Array, signal?: AbortSignal): Promise<Pick<Doc, 'close' | 'renderPage'>> {
+export function openReaderPdf(bytes: Uint8Array, signal?: AbortSignal): Promise<Doc> {
   return open(bytes, 'reader', signal)
 }
 

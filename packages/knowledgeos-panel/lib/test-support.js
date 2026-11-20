@@ -1070,24 +1070,24 @@ function resolveCitationText(text, anchor) {
 import { createHash as createHash6 } from "node:crypto";
 var hash = (x) => createHash6("sha256").update(x, "utf8").digest("hex");
 function makeLocator(s, text, start, end, neighbors, w) {
-  const lineStart = text.lastIndexOf("\n", Math.max(0, start - 1)), lineEnd = text.indexOf("\n", end);
-  const lo = s.kind === "office" && start !== 0 ? lineStart + 1 : 0, hi = s.kind === "office" && lineEnd !== -1 ? lineEnd : text.length;
-  const blockId = hash(JSON.stringify([s.version_id, s.conversion_id ?? null, s.ordinal, lo, hi]));
-  const previous = s.kind === "office" && lo > 0 ? hash(text.slice(lo > 1 ? text.lastIndexOf("\n", lo - 2) + 1 : 0, lo - 1)) : neighbors.previous;
-  const nextEnd = text.indexOf("\n", hi + 1), next = s.kind === "office" && hi < text.length ? hash(text.slice(hi + 1, nextEnd < 0 ? text.length : nextEnd)) : neighbors.next;
+  const word = s.kind === "office" ? w?.word : void 0;
+  if (s.kind === "office" && (!word?.blocks.length || word.source_sha256 !== s.wordOriginal?.sha256)) throw new AssetError(422, "WORD_STRUCTURE_UNVERIFIED");
+  const first = word?.blocks[0], last = word?.blocks.at(-1);
+  const lo = first ? Math.min(start, first.page_start) : 0, hi = last ? Math.max(end, last.page_end) : text.length;
+  const blockId = first?.block_id ?? hash(JSON.stringify([s.version_id, null, s.ordinal, lo, hi]));
   const context = {
     block_id: blockId,
     block_start: lo,
     block_end: hi,
-    previous,
-    next,
+    previous: first ? first.previous : neighbors.previous,
+    next: last ? last.next : neighbors.next,
     before_hash: hash(text.slice(Math.max(0, start - 64), start)),
     after_hash: hash(text.slice(end, end + 64))
   };
   if (s.kind === "text") return { context, geometry: null };
   if (!w || !s.ref || s.ref.sha256 !== w.sha256 || s.conversion_id !== w.conversion_id || s.ordinal !== w.ordinal || w.text !== text) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
   const boxes = w.boxes.filter((b) => b.start < end && b.end > start).map(({ start: start2, end: end2, x, y, width, height }) => ({ start: start2, end: end2, x, y, width, height }));
-  return { context, geometry: { page: s.ordinal, width: w.width, height: w.height, source_sha256: w.sha256, boxes } };
+  return { context, geometry: { page: s.ordinal, width: w.width, height: w.height, source_sha256: w.sha256, boxes }, ...word ? { word } : {} };
 }
 
 // src/host/citation-store.ts
@@ -1151,9 +1151,18 @@ var CitationStore = class {
       if (t.conversion_id) throw notFound2();
       return { ...base, kind: "office", total: 0, state: "unconverted" };
     }
+    if (r.media_type !== WORD_MEDIA.doc && r.media_type !== WORD_MEDIA.docx) throw notFound2();
     const total = Number(c.page_count);
     if (t.ordinal > total) throw invalid();
-    return { ...base, conversion_id: String(c.id), kind: "office", total, state: "ready", ref: { key: String(c.storage_key), byteLength: Number(c.byte_length), sha256: String(c.sha256) } };
+    return {
+      ...base,
+      conversion_id: String(c.id),
+      kind: "office",
+      total,
+      state: "ready",
+      ref: { key: String(c.storage_key), byteLength: Number(c.byte_length), sha256: String(c.sha256) },
+      wordOriginal: { key: String(r.storage_key), byteLength: Number(r.byte_length), sha256: String(r.sha256), media: r.media_type }
+    };
   }
   source(prior, t) {
     return this.tx("read", (db, now) => this.read(db, this.actor(prior, now), t, now));
@@ -1178,6 +1187,21 @@ var CitationStore = class {
     const r = db.prepare("SELECT snapshot FROM citation_locators WHERE citation_id=?").get(id);
     return r ? JSON.parse(String(r.snapshot)) : null;
   }
+  receipt(db, a, now, spec, key, range) {
+    const old = db.prepare(`SELECT ${fields} FROM citations WHERE created_by=? AND request_key=?`).get(a.userId, key);
+    if (!old) return;
+    if (!this.allowed(a, String(old.asset_id), now)) throw notFound2();
+    if (old.asset_id !== spec.asset_id || old.version_id !== spec.version_id || old.ordinal !== spec.ordinal || old.conversion_id !== (spec.conversion_id ?? null) || old.start !== range.start || old.end !== range.end || old.source_hash !== range.source_hash) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+    return { data: { ...dto(old), locator: this.locator(db, String(old.id)) }, replayed: true };
+  }
+  replay(prior, spec, key, w) {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(prior, now), src = this.read(db, a, spec, now), text = this.text(src, w);
+      if (!uuid2.test(key)) throw new AssetError(422, "INVALID_CITATION");
+      if (sha(text) !== spec.source_hash) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
+      return this.receipt(db, a, now, spec, key, citationAnchor(text, spec.start, spec.end));
+    });
+  }
   create(prior, spec, key, w) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now), src = this.read(db, a, spec, now);
@@ -1185,12 +1209,8 @@ var CitationStore = class {
       const text = this.text(src, w);
       if (sha(text) !== spec.source_hash) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
       const range = citationAnchor(text, spec.start, spec.end);
-      const old = db.prepare(`SELECT ${fields} FROM citations WHERE created_by=? AND request_key=?`).get(a.userId, key);
-      if (old) {
-        if (!this.allowed(a, String(old.asset_id), now)) throw notFound2();
-        if (old.asset_id !== spec.asset_id || old.version_id !== spec.version_id || old.ordinal !== spec.ordinal || old.conversion_id !== (spec.conversion_id ?? null) || old.start !== range.start || old.end !== range.end || old.source_hash !== range.source_hash) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
-        return { data: { ...dto(old), locator: this.locator(db, String(old.id)) }, replayed: true };
-      }
+      const old = this.receipt(db, a, now, spec, key, range);
+      if (old) return old;
       const neighbor = (n) => {
         if (src.kind !== "text") return null;
         const r = db.prepare("SELECT anchor FROM text_blocks WHERE version_id=? AND ordinal=?").get(src.version_id, n);

@@ -1,5 +1,6 @@
 import {WORD_MEDIA,type WordMedia} from './office-schema.ts'
-import {crc32,createInflateRaw} from 'node:zlib'
+import {crc32,createInflateRaw,inflateRaw} from 'node:zlib'
+import {promisify} from 'node:util'
 
 export class WordInputError extends Error {constructor(){super('INVALID_WORD')}}
 const invalid=():never=>{throw new WordInputError()}
@@ -7,7 +8,7 @@ export const isWordMedia=(media:unknown):media is WordMedia=>media===WORD_MEDIA.
 
 // Bounded format identification, not Office conversion. Do not extract ZIP
 // members or hand client-controlled paths to the filesystem.
-interface Member {start:number; packed:number; size:number; method:number; crc:number}
+interface Member {name:string; start:number; packed:number; size:number; method:number; crc:number}
 export function checkWordEnvelope(b:Buffer, media:WordMedia):Member[] {
   if(media===WORD_MEDIA.doc){
     if(b.length<512||b.subarray(0,8).toString('hex')!=='d0cf11e0a1b11ae1'||b.readUInt16LE(28)!==0xfffe||![9,12].includes(b.readUInt16LE(30)))invalid()
@@ -29,11 +30,21 @@ export function checkWordEnvelope(b:Buffer, media:WordMedia):Member[] {
     if(b.readUInt16LE(local+26)!==n||!name.equals(b.subarray(local+30,local+30+n))||names.has(key)||start+b.readUInt32LE(pos+20)>central)invalid()
     if(b.readUInt16LE(pos+8)&1||b.readUInt16LE(local+6)&1||!([0,8].includes(b.readUInt16LE(pos+10)))||b.readUInt16LE(local+8)!==b.readUInt16LE(pos+10))invalid()
     expanded+=b.readUInt32LE(pos+24);if(expanded>256*1024*1024)invalid()
-    members.push({start,packed:b.readUInt32LE(pos+20),size:b.readUInt32LE(pos+24),method:b.readUInt16LE(pos+10),crc:b.readUInt32LE(pos+16)})
+    members.push({name:key,start,packed:b.readUInt32LE(pos+20),size:b.readUInt32LE(pos+24),method:b.readUInt16LE(pos+10),crc:b.readUInt32LE(pos+16)})
     names.add(key);pos=next
   }
   if(pos!==e||!['[Content_Types].xml','_rels/.rels','word/document.xml'].every(k=>names.has(k)))invalid()
   return members
+}
+
+const inflate=promisify(inflateRaw)
+export async function wordBodyXml(bytes:Buffer){
+  const m=checkWordEnvelope(bytes,WORD_MEDIA.docx).find(m=>m.name==='word/document.xml')
+  if(!m||m.size<1||m.size>4*1024*1024)return invalid()
+  const packed=bytes.subarray(m.start,m.start+m.packed)
+  const body=m.method?await inflate(packed,{maxOutputLength:m.size}):packed
+  if(body.length!==m.size||crc32(body)!==m.crc)return invalid()
+  return new TextDecoder('utf-8',{fatal:true}).decode(body)
 }
 
 // Count actual output without accumulating it or writing archive paths. Enforce

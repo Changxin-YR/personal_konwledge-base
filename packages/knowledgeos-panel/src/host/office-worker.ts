@@ -6,9 +6,10 @@ type Store=Pick<OfficeStore,'claim'|'source'|'renew'|'complete'|'fail'>
 type Originals=Pick<PdfOriginals,'read'|'put'|'retain'|'discard'>
 type Doc={numPages:number;page(n:number):Promise<unknown>;close():Promise<void>}
 type Source=NonNullable<ReturnType<Store['source']>>
+type OfficeSource={key:string;version:string;bytes:number;read(signal:AbortSignal,maxBytes:number):Promise<{bytes:Uint8Array;version:string}>}
 interface OfficeKit {
-  convert(request:{extension:'doc'|'docx';priority:'background';source:{key:string;version:string;bytes:number;
-    read(signal:AbortSignal,maxBytes:number):Promise<{bytes:Uint8Array;version:string}>}},signal:AbortSignal):Promise<{pdf:Uint8Array;missingFonts:string[]}>
+  convert(request:{extension:'doc'|'docx';priority:'background';source:OfficeSource},signal:AbortSignal):Promise<{pdf:Uint8Array;missingFonts:string[]}>
+  convertTo?(request:{extension:'doc';format:'docx';source:OfficeSource;output:{owner:string;name:string}},signal:AbortSignal):Promise<{path:string;bytes:number}>
 }
 const maxPdf=64*1024*1024
 const knownCodes=new Set(['input-too-large','output-too-large','invalid-document','unsupported-format','invalid-output','timeout','unavailable','failed','busy','source-changed','invalid-request'])

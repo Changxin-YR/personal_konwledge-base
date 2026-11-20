@@ -5,15 +5,19 @@ import {AssetError} from './asset-store.ts'
 import type {CitationStore,CitationSpec,ReaderSource,ReaderTarget} from './citation-store.ts'
 import type {RenderWitness} from './citation-locator.ts'
 import type {PdfOriginals} from './pdf-originals.ts'
+import {alignWordSelection,wordPageLimit,wordParagraphs} from './word-locator.ts'
+import {WORD_MEDIA} from './office-schema.ts'
 
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/
 const hash=(s:string)=>createHash('sha256').update(s,'utf8').digest('hex')
 type Current=()=>SessionActor
 type Rendered={text:string;image:string;width:number;height:number;boxes:{start:number;end:number;x:number;y:number;width:number;height:number}[]}
 export type PageRenderer=(bytes:Buffer,ordinal:number,signal:AbortSignal)=>Promise<Rendered>
+export type WordPages=(bytes:Buffer,signal:AbortSignal)=>Promise<{numPages:number;page(n:number):Promise<{text:string}>;close():Promise<void>}>
+export type LegacyWordSource=(s:NonNullable<ReaderSource['wordOriginal']>,check:()=>void,signal:AbortSignal)=>Promise<Buffer>
 
 export class ReaderService {
-  constructor(private store:CitationStore,private originals:PdfOriginals,private render?:PageRenderer){}
+  constructor(private store:CitationStore,private originals:PdfOriginals,private render?:PageRenderer,private wordPages?:WordPages,private legacyWord?:LegacyWordSource){}
   access(current:Current,asset:string,version:string){return this.store.access(current(),asset,version)}
   private async rendered(current:Current,s:ReaderSource,signal:AbortSignal){
     if(!this.render||!s.ref)throw new AssetError(503,'PAGE_RENDER_UNAVAILABLE')
@@ -26,7 +30,7 @@ export class ReaderService {
     return rendered
   }
   async page(current:Current,t:ReaderTarget,signal:AbortSignal){
-    const s=this.store.source(current(),t),{ref:_private,...publicFields}=s
+    const s=this.store.source(current(),t),{ref:_private,wordOriginal:_word,...publicFields}=s
     if(s.kind==='text'||!['ready','review'].includes(s.state))return {...publicFields,anchor:hash(s.text)}
     const {text,image,width,height,boxes}=await this.rendered(current,s,signal)
     return {...publicFields,text,anchor:hash(text),image,width,height,boxes,original_sha256:s.ref!.sha256}
@@ -38,7 +42,42 @@ export class ReaderService {
     const {text,width,height,boxes}=await this.rendered(current,s,signal)
     return {...(s.conversion_id?{conversion_id:s.conversion_id}:{}),sha256:s.ref!.sha256,ordinal:t.ordinal,text,width,height,boxes}
   }
-  async create(current:Current,spec:CitationSpec,key:string,signal:AbortSignal){const w=await this.witness(current,spec,signal);return this.store.create(current(),spec,key,w)}
+  private async wordSelection(current:Current,s:ReaderSource,spec:CitationSpec,w:RenderWitness,signal:AbortSignal){
+    const original=s.wordOriginal,ref=s.ref
+    if(!original||!ref||!this.wordPages||s.total>wordPageLimit)return
+    const deadline=AbortSignal.any([signal,AbortSignal.timeout(25_000)])
+    const check=()=>{
+      if(signal.aborted)throw new AssetError(409,'READ_CANCELLED')
+      const r=this.store.source(current(),s)
+      if(r.conversion_id!==s.conversion_id||r.ref?.sha256!==ref.sha256||r.wordOriginal?.sha256!==original.sha256)throw new AssetError(409,'CITATION_SOURCE_CHANGED')
+    }
+    try{
+      check()
+      const docx=original.media===WORD_MEDIA.docx?await this.originals.read(original.key,original.sha256,original.byteLength):await this.legacyWord?.(original,check,deadline)
+      check();if(!docx)return
+      const paragraphs=await wordParagraphs(docx),pdf=await this.originals.read(ref.key,ref.sha256,ref.byteLength)
+      check();const doc=await this.wordPages(pdf,deadline)
+      try{
+        if(doc.numPages!==s.total)return
+        return await alignWordSelection(paragraphs,s.version_id,original.sha256,s.ordinal,w.text,spec.start,spec.end,doc.numPages,async n=>{
+          check();deadline.throwIfAborted();return (await doc.page(n)).text
+        })
+      }finally{await doc.close()}
+    }catch(e){
+      check()
+      if((e as {code?:string})?.code==='PDF_BUSY')throw new AssetError(429,'PAGE_RENDER_BUSY')
+      if(deadline.aborted)throw new AssetError(503,'WORD_STRUCTURE_UNAVAILABLE')
+    }
+  }
+  async create(current:Current,spec:CitationSpec,key:string,signal:AbortSignal){
+    const w=await this.witness(current,spec,signal)
+    if(w?.conversion_id){
+      const old=this.store.replay(current(),spec,key,w);if(old)return old
+      const word=await this.wordSelection(current,this.store.source(current(),spec),spec,w,signal)
+      if(word)w.word=word
+    }
+    return this.store.create(current(),spec,key,w)
+  }
   async resolve(current:Current,id:string,signal:AbortSignal){const t=this.store.target(current(),id),w=t.conversion_id?await this.witness(current,t,signal):undefined;return this.store.resolve(current(),id,w)}
 }
 

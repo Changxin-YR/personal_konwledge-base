@@ -15,7 +15,7 @@ const sha=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256
 let gen=0, owner=null, ordinal=1, total=0, conversion=null, page=null, selection=null, pending=null, posting=false, mode=null, resolved=null, versionLabel='', followCitation=!!cid;
 async function api(path,options){
   const r=await fetch('/knowledge/v1/'+path,{credentials:'same-origin',cache:'no-store',redirect:'error',...options});
-  if(!r.ok)throw problem(r.status);return (await r.json()).data;
+  if(!r.ok){const e=problem(r.status);if(r.status===422)e.code=(await r.json().catch(()=>null))?.code;throw e}return (await r.json()).data;
 }
 async function access(g){
   if(g!==gen||document.hidden)return false;
@@ -162,6 +162,7 @@ async function createCitation(){
     $('link').href=u.href;$('link').hidden=false;draw();status('引用链接已生成。');
   }catch(e){
     if(g!==gen)return;if([401,403,404,409].includes(e.http)){failure(e,g);return}
+    if(e.code==='WORD_STRUCTURE_UNVERIFIED'){status('选区无法可靠定位到 Word 源段落，未生成引用。');return}
     // A lost response is not proof of a failed write. Preserve the request key for this exact range.
     status('未收到有效回执，可以重试本次引用。');
   }finally{if(g===gen){posting=false;$('cite').disabled=!selection}}

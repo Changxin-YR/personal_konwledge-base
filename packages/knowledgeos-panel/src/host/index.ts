@@ -29,7 +29,9 @@ import { ReaderService } from './reader-http.ts'
 import { render as renderReaderPage } from './reader-render.ts'
 import { startParseWorker } from './parse-worker.ts'
 import { startOfficeWorker } from './office-worker.ts'
-import { openPdf } from './pdf-extractor.ts'
+import { openPdf,openReaderPdf } from './pdf-extractor.ts'
+import { legacyWordSource } from './legacy-word-source.ts'
+import type { LegacyWordSource } from './reader-http.ts'
 import { buildLibraryHtml } from './library-page.ts'
 import { buildReaderHtml } from './reader-page.ts'
 
@@ -245,12 +247,13 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
         return pending
       }
     }
-    let officeMount:symbol|undefined
+    let officeMount:symbol|undefined,readLegacyWord:LegacyWordSource|undefined
     if(storage?.available && dataDir){
       const office=storage.office,originals=new PdfOriginals(join(dataDir,'originals'))
       identityContext.inject(['officeKit'],scope=>{
         scope.effect(()=>{const stop=startOfficeWorker(office,originals,scope.officeKit,openPdf,log),mount=Symbol();officeMount=mount
-          return async()=>{if(officeMount===mount)officeMount=undefined;await stop()}
+          readLegacyWord=legacyWordSource(scope.officeKit,originals)
+          return async()=>{if(officeMount===mount){officeMount=undefined;readLegacyWord=undefined}await stop()}
         },'knowledgeos-office: versioned conversion worker')
       })
     }
@@ -259,7 +262,10 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
       disposers.push(identityContext.webServer.register({ kind: 'exact', path: ACCOUNT_PATH, auth: 'anonymous', handler: accountPage }))
       if(storage && dataDir){
         const originals=new PdfOriginals(join(dataDir,'originals'))
-        const reader=new ReaderService(storage.citations,originals,renderReaderPage)
+        const reader=new ReaderService(storage.citations,originals,renderReaderPage,openReaderPdf,(s,check,signal)=>{
+          if(!readLegacyWord)throw new Error('Office structure conversion unavailable')
+          return readLegacyWord(s,check,signal)
+        })
         const handler=libraryHandler(storage.assets,originals,actualOrigin,req=>{const origin=actualOrigin();if(!origin||!identityAvailable())return undefined;return identity.actor(readCookie(req,businessCookieName(identity.setupState.serviceId,origin)))},storage.parses,storage.office,()=>!!officeMount,storage.archives,reader)
         if(storage.available)disposers.push(startParseWorker(storage.parses,originals,openPdf,log))
         disposers.push(identityContext.webServer.register({kind:'exact',path:'/knowledgeos/library',auth:'anonymous',handler:(req,res)=>{

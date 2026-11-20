@@ -1,5 +1,1939 @@
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __commonJS = (cb, mod) => function __require() {
+  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
+
+// node_modules/xmlchars/xml/1.0/ed5.js
+var require_ed5 = __commonJS({
+  "node_modules/xmlchars/xml/1.0/ed5.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.CHAR = "	\n\r -\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}";
+    exports.S = " 	\r\n";
+    exports.NAME_START_CHAR = ":A-Z_a-z\xC0-\xD6\xD8-\xF6\xF8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD\u{10000}-\u{EFFFF}";
+    exports.NAME_CHAR = "-" + exports.NAME_START_CHAR + ".0-9\xB7\u0300-\u036F\u203F-\u2040";
+    exports.CHAR_RE = new RegExp("^[" + exports.CHAR + "]$", "u");
+    exports.S_RE = new RegExp("^[" + exports.S + "]+$", "u");
+    exports.NAME_START_CHAR_RE = new RegExp("^[" + exports.NAME_START_CHAR + "]$", "u");
+    exports.NAME_CHAR_RE = new RegExp("^[" + exports.NAME_CHAR + "]$", "u");
+    exports.NAME_RE = new RegExp("^[" + exports.NAME_START_CHAR + "][" + exports.NAME_CHAR + "]*$", "u");
+    exports.NMTOKEN_RE = new RegExp("^[" + exports.NAME_CHAR + "]+$", "u");
+    var TAB = 9;
+    var NL = 10;
+    var CR = 13;
+    var SPACE = 32;
+    exports.S_LIST = [SPACE, NL, CR, TAB];
+    function isChar(c) {
+      return c >= SPACE && c <= 55295 || c === NL || c === CR || c === TAB || c >= 57344 && c <= 65533 || c >= 65536 && c <= 1114111;
+    }
+    exports.isChar = isChar;
+    function isS(c) {
+      return c === SPACE || c === NL || c === CR || c === TAB;
+    }
+    exports.isS = isS;
+    function isNameStartChar(c) {
+      return c >= 65 && c <= 90 || c >= 97 && c <= 122 || c === 58 || c === 95 || c === 8204 || c === 8205 || c >= 192 && c <= 214 || c >= 216 && c <= 246 || c >= 248 && c <= 767 || c >= 880 && c <= 893 || c >= 895 && c <= 8191 || c >= 8304 && c <= 8591 || c >= 11264 && c <= 12271 || c >= 12289 && c <= 55295 || c >= 63744 && c <= 64975 || c >= 65008 && c <= 65533 || c >= 65536 && c <= 983039;
+    }
+    exports.isNameStartChar = isNameStartChar;
+    function isNameChar(c) {
+      return isNameStartChar(c) || c >= 48 && c <= 57 || c === 45 || c === 46 || c === 183 || c >= 768 && c <= 879 || c >= 8255 && c <= 8256;
+    }
+    exports.isNameChar = isNameChar;
+  }
+});
+
+// node_modules/xmlchars/xml/1.1/ed2.js
+var require_ed2 = __commonJS({
+  "node_modules/xmlchars/xml/1.1/ed2.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.CHAR = "-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}";
+    exports.RESTRICTED_CHAR = "-\b\v\f-\x7F-\x84\x86-\x9F";
+    exports.S = " 	\r\n";
+    exports.NAME_START_CHAR = ":A-Z_a-z\xC0-\xD6\xD8-\xF6\xF8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD\u{10000}-\u{EFFFF}";
+    exports.NAME_CHAR = "-" + exports.NAME_START_CHAR + ".0-9\xB7\u0300-\u036F\u203F-\u2040";
+    exports.CHAR_RE = new RegExp("^[" + exports.CHAR + "]$", "u");
+    exports.RESTRICTED_CHAR_RE = new RegExp("^[" + exports.RESTRICTED_CHAR + "]$", "u");
+    exports.S_RE = new RegExp("^[" + exports.S + "]+$", "u");
+    exports.NAME_START_CHAR_RE = new RegExp("^[" + exports.NAME_START_CHAR + "]$", "u");
+    exports.NAME_CHAR_RE = new RegExp("^[" + exports.NAME_CHAR + "]$", "u");
+    exports.NAME_RE = new RegExp("^[" + exports.NAME_START_CHAR + "][" + exports.NAME_CHAR + "]*$", "u");
+    exports.NMTOKEN_RE = new RegExp("^[" + exports.NAME_CHAR + "]+$", "u");
+    var TAB = 9;
+    var NL = 10;
+    var CR = 13;
+    var SPACE = 32;
+    exports.S_LIST = [SPACE, NL, CR, TAB];
+    function isChar(c) {
+      return c >= 1 && c <= 55295 || c >= 57344 && c <= 65533 || c >= 65536 && c <= 1114111;
+    }
+    exports.isChar = isChar;
+    function isRestrictedChar(c) {
+      return c >= 1 && c <= 8 || c === 11 || c === 12 || c >= 14 && c <= 31 || c >= 127 && c <= 132 || c >= 134 && c <= 159;
+    }
+    exports.isRestrictedChar = isRestrictedChar;
+    function isCharAndNotRestricted(c) {
+      return c === 9 || c === 10 || c === 13 || c > 31 && c < 127 || c === 133 || c > 159 && c <= 55295 || c >= 57344 && c <= 65533 || c >= 65536 && c <= 1114111;
+    }
+    exports.isCharAndNotRestricted = isCharAndNotRestricted;
+    function isS(c) {
+      return c === SPACE || c === NL || c === CR || c === TAB;
+    }
+    exports.isS = isS;
+    function isNameStartChar(c) {
+      return c >= 65 && c <= 90 || c >= 97 && c <= 122 || c === 58 || c === 95 || c === 8204 || c === 8205 || c >= 192 && c <= 214 || c >= 216 && c <= 246 || c >= 248 && c <= 767 || c >= 880 && c <= 893 || c >= 895 && c <= 8191 || c >= 8304 && c <= 8591 || c >= 11264 && c <= 12271 || c >= 12289 && c <= 55295 || c >= 63744 && c <= 64975 || c >= 65008 && c <= 65533 || c >= 65536 && c <= 983039;
+    }
+    exports.isNameStartChar = isNameStartChar;
+    function isNameChar(c) {
+      return isNameStartChar(c) || c >= 48 && c <= 57 || c === 45 || c === 46 || c === 183 || c >= 768 && c <= 879 || c >= 8255 && c <= 8256;
+    }
+    exports.isNameChar = isNameChar;
+  }
+});
+
+// node_modules/xmlchars/xmlns/1.0/ed3.js
+var require_ed3 = __commonJS({
+  "node_modules/xmlchars/xmlns/1.0/ed3.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.NC_NAME_START_CHAR = "A-Z_a-z\xC0-\xD6\xD8-\xF6\xF8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD\u{10000}-\u{EFFFF}";
+    exports.NC_NAME_CHAR = "-" + exports.NC_NAME_START_CHAR + ".0-9\xB7\u0300-\u036F\u203F-\u2040";
+    exports.NC_NAME_START_CHAR_RE = new RegExp("^[" + exports.NC_NAME_START_CHAR + "]$", "u");
+    exports.NC_NAME_CHAR_RE = new RegExp("^[" + exports.NC_NAME_CHAR + "]$", "u");
+    exports.NC_NAME_RE = new RegExp("^[" + exports.NC_NAME_START_CHAR + "][" + exports.NC_NAME_CHAR + "]*$", "u");
+    function isNCNameStartChar(c) {
+      return c >= 65 && c <= 90 || c === 95 || c >= 97 && c <= 122 || c >= 192 && c <= 214 || c >= 216 && c <= 246 || c >= 248 && c <= 767 || c >= 880 && c <= 893 || c >= 895 && c <= 8191 || c >= 8204 && c <= 8205 || c >= 8304 && c <= 8591 || c >= 11264 && c <= 12271 || c >= 12289 && c <= 55295 || c >= 63744 && c <= 64975 || c >= 65008 && c <= 65533 || c >= 65536 && c <= 983039;
+    }
+    exports.isNCNameStartChar = isNCNameStartChar;
+    function isNCNameChar(c) {
+      return isNCNameStartChar(c) || (c === 45 || c === 46 || c >= 48 && c <= 57 || c === 183 || c >= 768 && c <= 879 || c >= 8255 && c <= 8256);
+    }
+    exports.isNCNameChar = isNCNameChar;
+  }
+});
+
+// node_modules/saxes/saxes.js
+var require_saxes = __commonJS({
+  "node_modules/saxes/saxes.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.SaxesParser = exports.EVENTS = void 0;
+    var ed5 = require_ed5();
+    var ed2 = require_ed2();
+    var NSed3 = require_ed3();
+    var isS = ed5.isS;
+    var isChar10 = ed5.isChar;
+    var isNameStartChar = ed5.isNameStartChar;
+    var isNameChar = ed5.isNameChar;
+    var S_LIST = ed5.S_LIST;
+    var NAME_RE = ed5.NAME_RE;
+    var isChar11 = ed2.isChar;
+    var isNCNameStartChar = NSed3.isNCNameStartChar;
+    var isNCNameChar = NSed3.isNCNameChar;
+    var NC_NAME_RE = NSed3.NC_NAME_RE;
+    var XML_NAMESPACE = "http://www.w3.org/XML/1998/namespace";
+    var XMLNS_NAMESPACE = "http://www.w3.org/2000/xmlns/";
+    var rootNS = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+      __proto__: null,
+      xml: XML_NAMESPACE,
+      xmlns: XMLNS_NAMESPACE
+    };
+    var XML_ENTITIES = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+      __proto__: null,
+      amp: "&",
+      gt: ">",
+      lt: "<",
+      quot: '"',
+      apos: "'"
+    };
+    var EOC = -1;
+    var NL_LIKE = -2;
+    var S_BEGIN = 0;
+    var S_BEGIN_WHITESPACE = 1;
+    var S_DOCTYPE = 2;
+    var S_DOCTYPE_QUOTE = 3;
+    var S_DTD = 4;
+    var S_DTD_QUOTED = 5;
+    var S_DTD_OPEN_WAKA = 6;
+    var S_DTD_OPEN_WAKA_BANG = 7;
+    var S_DTD_COMMENT = 8;
+    var S_DTD_COMMENT_ENDING = 9;
+    var S_DTD_COMMENT_ENDED = 10;
+    var S_DTD_PI = 11;
+    var S_DTD_PI_ENDING = 12;
+    var S_TEXT = 13;
+    var S_ENTITY = 14;
+    var S_OPEN_WAKA = 15;
+    var S_OPEN_WAKA_BANG = 16;
+    var S_COMMENT = 17;
+    var S_COMMENT_ENDING = 18;
+    var S_COMMENT_ENDED = 19;
+    var S_CDATA = 20;
+    var S_CDATA_ENDING = 21;
+    var S_CDATA_ENDING_2 = 22;
+    var S_PI_FIRST_CHAR = 23;
+    var S_PI_REST = 24;
+    var S_PI_BODY = 25;
+    var S_PI_ENDING = 26;
+    var S_XML_DECL_NAME_START = 27;
+    var S_XML_DECL_NAME = 28;
+    var S_XML_DECL_EQ = 29;
+    var S_XML_DECL_VALUE_START = 30;
+    var S_XML_DECL_VALUE = 31;
+    var S_XML_DECL_SEPARATOR = 32;
+    var S_XML_DECL_ENDING = 33;
+    var S_OPEN_TAG = 34;
+    var S_OPEN_TAG_SLASH = 35;
+    var S_ATTRIB = 36;
+    var S_ATTRIB_NAME = 37;
+    var S_ATTRIB_NAME_SAW_WHITE = 38;
+    var S_ATTRIB_VALUE = 39;
+    var S_ATTRIB_VALUE_QUOTED = 40;
+    var S_ATTRIB_VALUE_CLOSED = 41;
+    var S_ATTRIB_VALUE_UNQUOTED = 42;
+    var S_CLOSE_TAG = 43;
+    var S_CLOSE_TAG_SAW_WHITE = 44;
+    var TAB = 9;
+    var NL = 10;
+    var CR = 13;
+    var SPACE = 32;
+    var BANG = 33;
+    var DQUOTE = 34;
+    var AMP = 38;
+    var SQUOTE = 39;
+    var MINUS = 45;
+    var FORWARD_SLASH = 47;
+    var SEMICOLON = 59;
+    var LESS = 60;
+    var EQUAL = 61;
+    var GREATER = 62;
+    var QUESTION = 63;
+    var OPEN_BRACKET = 91;
+    var CLOSE_BRACKET = 93;
+    var NEL = 133;
+    var LS = 8232;
+    var isQuote = (c) => c === DQUOTE || c === SQUOTE;
+    var QUOTES = [DQUOTE, SQUOTE];
+    var DOCTYPE_TERMINATOR = [...QUOTES, OPEN_BRACKET, GREATER];
+    var DTD_TERMINATOR = [...QUOTES, LESS, CLOSE_BRACKET];
+    var XML_DECL_NAME_TERMINATOR = [EQUAL, QUESTION, ...S_LIST];
+    var ATTRIB_VALUE_UNQUOTED_TERMINATOR = [...S_LIST, GREATER, AMP, LESS];
+    function nsPairCheck(parser, prefix, uri) {
+      switch (prefix) {
+        case "xml":
+          if (uri !== XML_NAMESPACE) {
+            parser.fail(`xml prefix must be bound to ${XML_NAMESPACE}.`);
+          }
+          break;
+        case "xmlns":
+          if (uri !== XMLNS_NAMESPACE) {
+            parser.fail(`xmlns prefix must be bound to ${XMLNS_NAMESPACE}.`);
+          }
+          break;
+        default:
+      }
+      switch (uri) {
+        case XMLNS_NAMESPACE:
+          parser.fail(prefix === "" ? `the default namespace may not be set to ${uri}.` : `may not assign a prefix (even "xmlns") to the URI ${XMLNS_NAMESPACE}.`);
+          break;
+        case XML_NAMESPACE:
+          switch (prefix) {
+            case "xml":
+              break;
+            case "":
+              parser.fail(`the default namespace may not be set to ${uri}.`);
+              break;
+            default:
+              parser.fail("may not assign the xml namespace to another prefix.");
+          }
+          break;
+        default:
+      }
+    }
+    function nsMappingCheck(parser, mapping) {
+      for (const local of Object.keys(mapping)) {
+        nsPairCheck(parser, local, mapping[local]);
+      }
+    }
+    var isNCName = (name2) => NC_NAME_RE.test(name2);
+    var isName = (name2) => NAME_RE.test(name2);
+    var FORBIDDEN_START = 0;
+    var FORBIDDEN_BRACKET = 1;
+    var FORBIDDEN_BRACKET_BRACKET = 2;
+    exports.EVENTS = [
+      "xmldecl",
+      "text",
+      "processinginstruction",
+      "doctype",
+      "comment",
+      "opentagstart",
+      "attribute",
+      "opentag",
+      "closetag",
+      "cdata",
+      "error",
+      "end",
+      "ready"
+    ];
+    var EVENT_NAME_TO_HANDLER_NAME = {
+      xmldecl: "xmldeclHandler",
+      text: "textHandler",
+      processinginstruction: "piHandler",
+      doctype: "doctypeHandler",
+      comment: "commentHandler",
+      opentagstart: "openTagStartHandler",
+      attribute: "attributeHandler",
+      opentag: "openTagHandler",
+      closetag: "closeTagHandler",
+      cdata: "cdataHandler",
+      error: "errorHandler",
+      end: "endHandler",
+      ready: "readyHandler"
+    };
+    var SaxesParser2 = class {
+      /**
+       * @param opt The parser options.
+       */
+      constructor(opt) {
+        this.opt = opt !== null && opt !== void 0 ? opt : {};
+        this.fragmentOpt = !!this.opt.fragment;
+        const xmlnsOpt = this.xmlnsOpt = !!this.opt.xmlns;
+        this.trackPosition = this.opt.position !== false;
+        this.fileName = this.opt.fileName;
+        if (xmlnsOpt) {
+          this.nameStartCheck = isNCNameStartChar;
+          this.nameCheck = isNCNameChar;
+          this.isName = isNCName;
+          this.processAttribs = this.processAttribsNS;
+          this.pushAttrib = this.pushAttribNS;
+          this.ns = Object.assign({ __proto__: null }, rootNS);
+          const additional = this.opt.additionalNamespaces;
+          if (additional != null) {
+            nsMappingCheck(this, additional);
+            Object.assign(this.ns, additional);
+          }
+        } else {
+          this.nameStartCheck = isNameStartChar;
+          this.nameCheck = isNameChar;
+          this.isName = isName;
+          this.processAttribs = this.processAttribsPlain;
+          this.pushAttrib = this.pushAttribPlain;
+        }
+        this.stateTable = [
+          /* eslint-disable @typescript-eslint/unbound-method */
+          this.sBegin,
+          this.sBeginWhitespace,
+          this.sDoctype,
+          this.sDoctypeQuote,
+          this.sDTD,
+          this.sDTDQuoted,
+          this.sDTDOpenWaka,
+          this.sDTDOpenWakaBang,
+          this.sDTDComment,
+          this.sDTDCommentEnding,
+          this.sDTDCommentEnded,
+          this.sDTDPI,
+          this.sDTDPIEnding,
+          this.sText,
+          this.sEntity,
+          this.sOpenWaka,
+          this.sOpenWakaBang,
+          this.sComment,
+          this.sCommentEnding,
+          this.sCommentEnded,
+          this.sCData,
+          this.sCDataEnding,
+          this.sCDataEnding2,
+          this.sPIFirstChar,
+          this.sPIRest,
+          this.sPIBody,
+          this.sPIEnding,
+          this.sXMLDeclNameStart,
+          this.sXMLDeclName,
+          this.sXMLDeclEq,
+          this.sXMLDeclValueStart,
+          this.sXMLDeclValue,
+          this.sXMLDeclSeparator,
+          this.sXMLDeclEnding,
+          this.sOpenTag,
+          this.sOpenTagSlash,
+          this.sAttrib,
+          this.sAttribName,
+          this.sAttribNameSawWhite,
+          this.sAttribValue,
+          this.sAttribValueQuoted,
+          this.sAttribValueClosed,
+          this.sAttribValueUnquoted,
+          this.sCloseTag,
+          this.sCloseTagSawWhite
+          /* eslint-enable @typescript-eslint/unbound-method */
+        ];
+        this._init();
+      }
+      /**
+       * Indicates whether or not the parser is closed. If ``true``, wait for
+       * the ``ready`` event to write again.
+       */
+      get closed() {
+        return this._closed;
+      }
+      _init() {
+        var _a;
+        this.openWakaBang = "";
+        this.text = "";
+        this.name = "";
+        this.piTarget = "";
+        this.entity = "";
+        this.q = null;
+        this.tags = [];
+        this.tag = null;
+        this.topNS = null;
+        this.chunk = "";
+        this.chunkPosition = 0;
+        this.i = 0;
+        this.prevI = 0;
+        this.carriedFromPrevious = void 0;
+        this.forbiddenState = FORBIDDEN_START;
+        this.attribList = [];
+        const { fragmentOpt } = this;
+        this.state = fragmentOpt ? S_TEXT : S_BEGIN;
+        this.reportedTextBeforeRoot = this.reportedTextAfterRoot = this.closedRoot = this.sawRoot = fragmentOpt;
+        this.xmlDeclPossible = !fragmentOpt;
+        this.xmlDeclExpects = ["version"];
+        this.entityReturnState = void 0;
+        let { defaultXMLVersion } = this.opt;
+        if (defaultXMLVersion === void 0) {
+          if (this.opt.forceXMLVersion === true) {
+            throw new Error("forceXMLVersion set but defaultXMLVersion is not set");
+          }
+          defaultXMLVersion = "1.0";
+        }
+        this.setXMLVersion(defaultXMLVersion);
+        this.positionAtNewLine = 0;
+        this.doctype = false;
+        this._closed = false;
+        this.xmlDecl = {
+          version: void 0,
+          encoding: void 0,
+          standalone: void 0
+        };
+        this.line = 1;
+        this.column = 0;
+        this.ENTITIES = Object.create(XML_ENTITIES);
+        (_a = this.readyHandler) === null || _a === void 0 ? void 0 : _a.call(this);
+      }
+      /**
+       * The stream position the parser is currently looking at. This field is
+       * zero-based.
+       *
+       * This field is not based on counting Unicode characters but is to be
+       * interpreted as a plain index into a JavaScript string.
+       */
+      get position() {
+        return this.chunkPosition + this.i;
+      }
+      /**
+       * The column number of the next character to be read by the parser.  *
+       * This field is zero-based. (The first column in a line is 0.)
+       *
+       * This field reports the index at which the next character would be in the
+       * line if the line were represented as a JavaScript string.  Note that this
+       * *can* be different to a count based on the number of *Unicode characters*
+       * due to how JavaScript handles astral plane characters.
+       *
+       * See [[column]] for a number that corresponds to a count of Unicode
+       * characters.
+       */
+      get columnIndex() {
+        return this.position - this.positionAtNewLine;
+      }
+      /**
+       * Set an event listener on an event. The parser supports one handler per
+       * event type. If you try to set an event handler over an existing handler,
+       * the old handler is silently overwritten.
+       *
+       * @param name The event to listen to.
+       *
+       * @param handler The handler to set.
+       */
+      on(name2, handler) {
+        this[EVENT_NAME_TO_HANDLER_NAME[name2]] = handler;
+      }
+      /**
+       * Unset an event handler.
+       *
+       * @parma name The event to stop listening to.
+       */
+      off(name2) {
+        this[EVENT_NAME_TO_HANDLER_NAME[name2]] = void 0;
+      }
+      /**
+       * Make an error object. The error object will have a message that contains
+       * the ``fileName`` option passed at the creation of the parser. If position
+       * tracking was turned on, it will also have line and column number
+       * information.
+       *
+       * @param message The message describing the error to report.
+       *
+       * @returns An error object with a properly formatted message.
+       */
+      makeError(message) {
+        var _a;
+        let msg = (_a = this.fileName) !== null && _a !== void 0 ? _a : "";
+        if (this.trackPosition) {
+          if (msg.length > 0) {
+            msg += ":";
+          }
+          msg += `${this.line}:${this.column}`;
+        }
+        if (msg.length > 0) {
+          msg += ": ";
+        }
+        return new Error(msg + message);
+      }
+      /**
+       * Report a parsing error. This method is made public so that client code may
+       * check for issues that are outside the scope of this project and can report
+       * errors.
+       *
+       * @param message The error to report.
+       *
+       * @returns this
+       */
+      fail(message) {
+        const err = this.makeError(message);
+        const handler = this.errorHandler;
+        if (handler === void 0) {
+          throw err;
+        } else {
+          handler(err);
+        }
+        return this;
+      }
+      /**
+       * Write a XML data to the parser.
+       *
+       * @param chunk The XML data to write.
+       *
+       * @returns this
+       */
+      // We do need object for the type here. Yes, it often causes problems
+      // but not in this case.
+      write(chunk2) {
+        if (this.closed) {
+          return this.fail("cannot write after close; assign an onready handler.");
+        }
+        let end = false;
+        if (chunk2 === null) {
+          end = true;
+          chunk2 = "";
+        } else if (typeof chunk2 === "object") {
+          chunk2 = chunk2.toString();
+        }
+        if (this.carriedFromPrevious !== void 0) {
+          chunk2 = `${this.carriedFromPrevious}${chunk2}`;
+          this.carriedFromPrevious = void 0;
+        }
+        let limit2 = chunk2.length;
+        const lastCode = chunk2.charCodeAt(limit2 - 1);
+        if (!end && // A trailing CR or surrogate must be carried over to the next
+        // chunk.
+        (lastCode === CR || lastCode >= 55296 && lastCode <= 56319)) {
+          this.carriedFromPrevious = chunk2[limit2 - 1];
+          limit2--;
+          chunk2 = chunk2.slice(0, limit2);
+        }
+        const { stateTable } = this;
+        this.chunk = chunk2;
+        this.i = 0;
+        while (this.i < limit2) {
+          stateTable[this.state].call(this);
+        }
+        this.chunkPosition += limit2;
+        return end ? this.end() : this;
+      }
+      /**
+       * Close the current stream. Perform final well-formedness checks and reset
+       * the parser tstate.
+       *
+       * @returns this
+       */
+      close() {
+        return this.write(null);
+      }
+      /**
+       * Get a single code point out of the current chunk. This updates the current
+       * position if we do position tracking.
+       *
+       * This is the algorithm to use for XML 1.0.
+       *
+       * @returns The character read.
+       */
+      getCode10() {
+        const { chunk: chunk2, i } = this;
+        this.prevI = i;
+        this.i = i + 1;
+        if (i >= chunk2.length) {
+          return EOC;
+        }
+        const code = chunk2.charCodeAt(i);
+        this.column++;
+        if (code < 55296) {
+          if (code >= SPACE || code === TAB) {
+            return code;
+          }
+          switch (code) {
+            case NL:
+              this.line++;
+              this.column = 0;
+              this.positionAtNewLine = this.position;
+              return NL;
+            case CR:
+              if (chunk2.charCodeAt(i + 1) === NL) {
+                this.i = i + 2;
+              }
+              this.line++;
+              this.column = 0;
+              this.positionAtNewLine = this.position;
+              return NL_LIKE;
+            default:
+              this.fail("disallowed character.");
+              return code;
+          }
+        }
+        if (code > 56319) {
+          if (!(code >= 57344 && code <= 65533)) {
+            this.fail("disallowed character.");
+          }
+          return code;
+        }
+        const final = 65536 + (code - 55296) * 1024 + (chunk2.charCodeAt(i + 1) - 56320);
+        this.i = i + 2;
+        if (final > 1114111) {
+          this.fail("disallowed character.");
+        }
+        return final;
+      }
+      /**
+       * Get a single code point out of the current chunk. This updates the current
+       * position if we do position tracking.
+       *
+       * This is the algorithm to use for XML 1.1.
+       *
+       * @returns {number} The character read.
+       */
+      getCode11() {
+        const { chunk: chunk2, i } = this;
+        this.prevI = i;
+        this.i = i + 1;
+        if (i >= chunk2.length) {
+          return EOC;
+        }
+        const code = chunk2.charCodeAt(i);
+        this.column++;
+        if (code < 55296) {
+          if (code > 31 && code < 127 || code > 159 && code !== LS || code === TAB) {
+            return code;
+          }
+          switch (code) {
+            case NL:
+              this.line++;
+              this.column = 0;
+              this.positionAtNewLine = this.position;
+              return NL;
+            case CR: {
+              const next = chunk2.charCodeAt(i + 1);
+              if (next === NL || next === NEL) {
+                this.i = i + 2;
+              }
+            }
+            /* yes, fall through */
+            case NEL:
+            // 0x85
+            case LS:
+              this.line++;
+              this.column = 0;
+              this.positionAtNewLine = this.position;
+              return NL_LIKE;
+            default:
+              this.fail("disallowed character.");
+              return code;
+          }
+        }
+        if (code > 56319) {
+          if (!(code >= 57344 && code <= 65533)) {
+            this.fail("disallowed character.");
+          }
+          return code;
+        }
+        const final = 65536 + (code - 55296) * 1024 + (chunk2.charCodeAt(i + 1) - 56320);
+        this.i = i + 2;
+        if (final > 1114111) {
+          this.fail("disallowed character.");
+        }
+        return final;
+      }
+      /**
+       * Like ``getCode`` but with the return value normalized so that ``NL`` is
+       * returned for ``NL_LIKE``.
+       */
+      getCodeNorm() {
+        const c = this.getCode();
+        return c === NL_LIKE ? NL : c;
+      }
+      unget() {
+        this.i = this.prevI;
+        this.column--;
+      }
+      /**
+       * Capture characters into a buffer until encountering one of a set of
+       * characters.
+       *
+       * @param chars An array of codepoints. Encountering a character in the array
+       * ends the capture. (``chars`` may safely contain ``NL``.)
+       *
+       * @return The character code that made the capture end, or ``EOC`` if we hit
+       * the end of the chunk. The return value cannot be NL_LIKE: NL is returned
+       * instead.
+       */
+      captureTo(chars) {
+        let { i: start } = this;
+        const { chunk: chunk2 } = this;
+        while (true) {
+          const c = this.getCode();
+          const isNLLike = c === NL_LIKE;
+          const final = isNLLike ? NL : c;
+          if (final === EOC || chars.includes(final)) {
+            this.text += chunk2.slice(start, this.prevI);
+            return final;
+          }
+          if (isNLLike) {
+            this.text += `${chunk2.slice(start, this.prevI)}
+`;
+            start = this.i;
+          }
+        }
+      }
+      /**
+       * Capture characters into a buffer until encountering a character.
+       *
+       * @param char The codepoint that ends the capture. **NOTE ``char`` MAY NOT
+       * CONTAIN ``NL``.** Passing ``NL`` will result in buggy behavior.
+       *
+       * @return ``true`` if we ran into the character. Otherwise, we ran into the
+       * end of the current chunk.
+       */
+      captureToChar(char) {
+        let { i: start } = this;
+        const { chunk: chunk2 } = this;
+        while (true) {
+          let c = this.getCode();
+          switch (c) {
+            case NL_LIKE:
+              this.text += `${chunk2.slice(start, this.prevI)}
+`;
+              start = this.i;
+              c = NL;
+              break;
+            case EOC:
+              this.text += chunk2.slice(start);
+              return false;
+            default:
+          }
+          if (c === char) {
+            this.text += chunk2.slice(start, this.prevI);
+            return true;
+          }
+        }
+      }
+      /**
+       * Capture characters that satisfy ``isNameChar`` into the ``name`` field of
+       * this parser.
+       *
+       * @return The character code that made the test fail, or ``EOC`` if we hit
+       * the end of the chunk. The return value cannot be NL_LIKE: NL is returned
+       * instead.
+       */
+      captureNameChars() {
+        const { chunk: chunk2, i: start } = this;
+        while (true) {
+          const c = this.getCode();
+          if (c === EOC) {
+            this.name += chunk2.slice(start);
+            return EOC;
+          }
+          if (!isNameChar(c)) {
+            this.name += chunk2.slice(start, this.prevI);
+            return c === NL_LIKE ? NL : c;
+          }
+        }
+      }
+      /**
+       * Skip white spaces.
+       *
+       * @return The character that ended the skip, or ``EOC`` if we hit
+       * the end of the chunk. The return value cannot be NL_LIKE: NL is returned
+       * instead.
+       */
+      skipSpaces() {
+        while (true) {
+          const c = this.getCodeNorm();
+          if (c === EOC || !isS(c)) {
+            return c;
+          }
+        }
+      }
+      setXMLVersion(version) {
+        this.currentXMLVersion = version;
+        if (version === "1.0") {
+          this.isChar = isChar10;
+          this.getCode = this.getCode10;
+        } else {
+          this.isChar = isChar11;
+          this.getCode = this.getCode11;
+        }
+      }
+      // STATE ENGINE METHODS
+      // This needs to be a state separate from S_BEGIN_WHITESPACE because we want
+      // to be sure never to come back to this state later.
+      sBegin() {
+        if (this.chunk.charCodeAt(0) === 65279) {
+          this.i++;
+          this.column++;
+        }
+        this.state = S_BEGIN_WHITESPACE;
+      }
+      sBeginWhitespace() {
+        const iBefore = this.i;
+        const c = this.skipSpaces();
+        if (this.prevI !== iBefore) {
+          this.xmlDeclPossible = false;
+        }
+        switch (c) {
+          case LESS:
+            this.state = S_OPEN_WAKA;
+            if (this.text.length !== 0) {
+              throw new Error("no-empty text at start");
+            }
+            break;
+          case EOC:
+            break;
+          default:
+            this.unget();
+            this.state = S_TEXT;
+            this.xmlDeclPossible = false;
+        }
+      }
+      sDoctype() {
+        var _a;
+        const c = this.captureTo(DOCTYPE_TERMINATOR);
+        switch (c) {
+          case GREATER: {
+            (_a = this.doctypeHandler) === null || _a === void 0 ? void 0 : _a.call(this, this.text);
+            this.text = "";
+            this.state = S_TEXT;
+            this.doctype = true;
+            break;
+          }
+          case EOC:
+            break;
+          default:
+            this.text += String.fromCodePoint(c);
+            if (c === OPEN_BRACKET) {
+              this.state = S_DTD;
+            } else if (isQuote(c)) {
+              this.state = S_DOCTYPE_QUOTE;
+              this.q = c;
+            }
+        }
+      }
+      sDoctypeQuote() {
+        const q = this.q;
+        if (this.captureToChar(q)) {
+          this.text += String.fromCodePoint(q);
+          this.q = null;
+          this.state = S_DOCTYPE;
+        }
+      }
+      sDTD() {
+        const c = this.captureTo(DTD_TERMINATOR);
+        if (c === EOC) {
+          return;
+        }
+        this.text += String.fromCodePoint(c);
+        if (c === CLOSE_BRACKET) {
+          this.state = S_DOCTYPE;
+        } else if (c === LESS) {
+          this.state = S_DTD_OPEN_WAKA;
+        } else if (isQuote(c)) {
+          this.state = S_DTD_QUOTED;
+          this.q = c;
+        }
+      }
+      sDTDQuoted() {
+        const q = this.q;
+        if (this.captureToChar(q)) {
+          this.text += String.fromCodePoint(q);
+          this.state = S_DTD;
+          this.q = null;
+        }
+      }
+      sDTDOpenWaka() {
+        const c = this.getCodeNorm();
+        this.text += String.fromCodePoint(c);
+        switch (c) {
+          case BANG:
+            this.state = S_DTD_OPEN_WAKA_BANG;
+            this.openWakaBang = "";
+            break;
+          case QUESTION:
+            this.state = S_DTD_PI;
+            break;
+          default:
+            this.state = S_DTD;
+        }
+      }
+      sDTDOpenWakaBang() {
+        const char = String.fromCodePoint(this.getCodeNorm());
+        const owb = this.openWakaBang += char;
+        this.text += char;
+        if (owb !== "-") {
+          this.state = owb === "--" ? S_DTD_COMMENT : S_DTD;
+          this.openWakaBang = "";
+        }
+      }
+      sDTDComment() {
+        if (this.captureToChar(MINUS)) {
+          this.text += "-";
+          this.state = S_DTD_COMMENT_ENDING;
+        }
+      }
+      sDTDCommentEnding() {
+        const c = this.getCodeNorm();
+        this.text += String.fromCodePoint(c);
+        this.state = c === MINUS ? S_DTD_COMMENT_ENDED : S_DTD_COMMENT;
+      }
+      sDTDCommentEnded() {
+        const c = this.getCodeNorm();
+        this.text += String.fromCodePoint(c);
+        if (c === GREATER) {
+          this.state = S_DTD;
+        } else {
+          this.fail("malformed comment.");
+          this.state = S_DTD_COMMENT;
+        }
+      }
+      sDTDPI() {
+        if (this.captureToChar(QUESTION)) {
+          this.text += "?";
+          this.state = S_DTD_PI_ENDING;
+        }
+      }
+      sDTDPIEnding() {
+        const c = this.getCodeNorm();
+        this.text += String.fromCodePoint(c);
+        if (c === GREATER) {
+          this.state = S_DTD;
+        }
+      }
+      sText() {
+        if (this.tags.length !== 0) {
+          this.handleTextInRoot();
+        } else {
+          this.handleTextOutsideRoot();
+        }
+      }
+      sEntity() {
+        let { i: start } = this;
+        const { chunk: chunk2 } = this;
+        loop:
+          while (true) {
+            switch (this.getCode()) {
+              case NL_LIKE:
+                this.entity += `${chunk2.slice(start, this.prevI)}
+`;
+                start = this.i;
+                break;
+              case SEMICOLON: {
+                const { entityReturnState } = this;
+                const entity = this.entity + chunk2.slice(start, this.prevI);
+                this.state = entityReturnState;
+                let parsed;
+                if (entity === "") {
+                  this.fail("empty entity name.");
+                  parsed = "&;";
+                } else {
+                  parsed = this.parseEntity(entity);
+                  this.entity = "";
+                }
+                if (entityReturnState !== S_TEXT || this.textHandler !== void 0) {
+                  this.text += parsed;
+                }
+                break loop;
+              }
+              case EOC:
+                this.entity += chunk2.slice(start);
+                break loop;
+              default:
+            }
+          }
+      }
+      sOpenWaka() {
+        const c = this.getCode();
+        if (isNameStartChar(c)) {
+          this.state = S_OPEN_TAG;
+          this.unget();
+          this.xmlDeclPossible = false;
+        } else {
+          switch (c) {
+            case FORWARD_SLASH:
+              this.state = S_CLOSE_TAG;
+              this.xmlDeclPossible = false;
+              break;
+            case BANG:
+              this.state = S_OPEN_WAKA_BANG;
+              this.openWakaBang = "";
+              this.xmlDeclPossible = false;
+              break;
+            case QUESTION:
+              this.state = S_PI_FIRST_CHAR;
+              break;
+            default:
+              this.fail("disallowed character in tag name");
+              this.state = S_TEXT;
+              this.xmlDeclPossible = false;
+          }
+        }
+      }
+      sOpenWakaBang() {
+        this.openWakaBang += String.fromCodePoint(this.getCodeNorm());
+        switch (this.openWakaBang) {
+          case "[CDATA[":
+            if (!this.sawRoot && !this.reportedTextBeforeRoot) {
+              this.fail("text data outside of root node.");
+              this.reportedTextBeforeRoot = true;
+            }
+            if (this.closedRoot && !this.reportedTextAfterRoot) {
+              this.fail("text data outside of root node.");
+              this.reportedTextAfterRoot = true;
+            }
+            this.state = S_CDATA;
+            this.openWakaBang = "";
+            break;
+          case "--":
+            this.state = S_COMMENT;
+            this.openWakaBang = "";
+            break;
+          case "DOCTYPE":
+            this.state = S_DOCTYPE;
+            if (this.doctype || this.sawRoot) {
+              this.fail("inappropriately located doctype declaration.");
+            }
+            this.openWakaBang = "";
+            break;
+          default:
+            if (this.openWakaBang.length >= 7) {
+              this.fail("incorrect syntax.");
+            }
+        }
+      }
+      sComment() {
+        if (this.captureToChar(MINUS)) {
+          this.state = S_COMMENT_ENDING;
+        }
+      }
+      sCommentEnding() {
+        var _a;
+        const c = this.getCodeNorm();
+        if (c === MINUS) {
+          this.state = S_COMMENT_ENDED;
+          (_a = this.commentHandler) === null || _a === void 0 ? void 0 : _a.call(this, this.text);
+          this.text = "";
+        } else {
+          this.text += `-${String.fromCodePoint(c)}`;
+          this.state = S_COMMENT;
+        }
+      }
+      sCommentEnded() {
+        const c = this.getCodeNorm();
+        if (c !== GREATER) {
+          this.fail("malformed comment.");
+          this.text += `--${String.fromCodePoint(c)}`;
+          this.state = S_COMMENT;
+        } else {
+          this.state = S_TEXT;
+        }
+      }
+      sCData() {
+        if (this.captureToChar(CLOSE_BRACKET)) {
+          this.state = S_CDATA_ENDING;
+        }
+      }
+      sCDataEnding() {
+        const c = this.getCodeNorm();
+        if (c === CLOSE_BRACKET) {
+          this.state = S_CDATA_ENDING_2;
+        } else {
+          this.text += `]${String.fromCodePoint(c)}`;
+          this.state = S_CDATA;
+        }
+      }
+      sCDataEnding2() {
+        var _a;
+        const c = this.getCodeNorm();
+        switch (c) {
+          case GREATER: {
+            (_a = this.cdataHandler) === null || _a === void 0 ? void 0 : _a.call(this, this.text);
+            this.text = "";
+            this.state = S_TEXT;
+            break;
+          }
+          case CLOSE_BRACKET:
+            this.text += "]";
+            break;
+          default:
+            this.text += `]]${String.fromCodePoint(c)}`;
+            this.state = S_CDATA;
+        }
+      }
+      // We need this separate state to check the first character fo the pi target
+      // with this.nameStartCheck which allows less characters than this.nameCheck.
+      sPIFirstChar() {
+        const c = this.getCodeNorm();
+        if (this.nameStartCheck(c)) {
+          this.piTarget += String.fromCodePoint(c);
+          this.state = S_PI_REST;
+        } else if (c === QUESTION || isS(c)) {
+          this.fail("processing instruction without a target.");
+          this.state = c === QUESTION ? S_PI_ENDING : S_PI_BODY;
+        } else {
+          this.fail("disallowed character in processing instruction name.");
+          this.piTarget += String.fromCodePoint(c);
+          this.state = S_PI_REST;
+        }
+      }
+      sPIRest() {
+        const { chunk: chunk2, i: start } = this;
+        while (true) {
+          const c = this.getCodeNorm();
+          if (c === EOC) {
+            this.piTarget += chunk2.slice(start);
+            return;
+          }
+          if (!this.nameCheck(c)) {
+            this.piTarget += chunk2.slice(start, this.prevI);
+            const isQuestion = c === QUESTION;
+            if (isQuestion || isS(c)) {
+              if (this.piTarget === "xml") {
+                if (!this.xmlDeclPossible) {
+                  this.fail("an XML declaration must be at the start of the document.");
+                }
+                this.state = isQuestion ? S_XML_DECL_ENDING : S_XML_DECL_NAME_START;
+              } else {
+                this.state = isQuestion ? S_PI_ENDING : S_PI_BODY;
+              }
+            } else {
+              this.fail("disallowed character in processing instruction name.");
+              this.piTarget += String.fromCodePoint(c);
+            }
+            break;
+          }
+        }
+      }
+      sPIBody() {
+        if (this.text.length === 0) {
+          const c = this.getCodeNorm();
+          if (c === QUESTION) {
+            this.state = S_PI_ENDING;
+          } else if (!isS(c)) {
+            this.text = String.fromCodePoint(c);
+          }
+        } else if (this.captureToChar(QUESTION)) {
+          this.state = S_PI_ENDING;
+        }
+      }
+      sPIEnding() {
+        var _a;
+        const c = this.getCodeNorm();
+        if (c === GREATER) {
+          const { piTarget } = this;
+          if (piTarget.toLowerCase() === "xml") {
+            this.fail("the XML declaration must appear at the start of the document.");
+          }
+          (_a = this.piHandler) === null || _a === void 0 ? void 0 : _a.call(this, {
+            target: piTarget,
+            body: this.text
+          });
+          this.piTarget = this.text = "";
+          this.state = S_TEXT;
+        } else if (c === QUESTION) {
+          this.text += "?";
+        } else {
+          this.text += `?${String.fromCodePoint(c)}`;
+          this.state = S_PI_BODY;
+        }
+        this.xmlDeclPossible = false;
+      }
+      sXMLDeclNameStart() {
+        const c = this.skipSpaces();
+        if (c === QUESTION) {
+          this.state = S_XML_DECL_ENDING;
+          return;
+        }
+        if (c !== EOC) {
+          this.state = S_XML_DECL_NAME;
+          this.name = String.fromCodePoint(c);
+        }
+      }
+      sXMLDeclName() {
+        const c = this.captureTo(XML_DECL_NAME_TERMINATOR);
+        if (c === QUESTION) {
+          this.state = S_XML_DECL_ENDING;
+          this.name += this.text;
+          this.text = "";
+          this.fail("XML declaration is incomplete.");
+          return;
+        }
+        if (!(isS(c) || c === EQUAL)) {
+          return;
+        }
+        this.name += this.text;
+        this.text = "";
+        if (!this.xmlDeclExpects.includes(this.name)) {
+          switch (this.name.length) {
+            case 0:
+              this.fail("did not expect any more name/value pairs.");
+              break;
+            case 1:
+              this.fail(`expected the name ${this.xmlDeclExpects[0]}.`);
+              break;
+            default:
+              this.fail(`expected one of ${this.xmlDeclExpects.join(", ")}`);
+          }
+        }
+        this.state = c === EQUAL ? S_XML_DECL_VALUE_START : S_XML_DECL_EQ;
+      }
+      sXMLDeclEq() {
+        const c = this.getCodeNorm();
+        if (c === QUESTION) {
+          this.state = S_XML_DECL_ENDING;
+          this.fail("XML declaration is incomplete.");
+          return;
+        }
+        if (isS(c)) {
+          return;
+        }
+        if (c !== EQUAL) {
+          this.fail("value required.");
+        }
+        this.state = S_XML_DECL_VALUE_START;
+      }
+      sXMLDeclValueStart() {
+        const c = this.getCodeNorm();
+        if (c === QUESTION) {
+          this.state = S_XML_DECL_ENDING;
+          this.fail("XML declaration is incomplete.");
+          return;
+        }
+        if (isS(c)) {
+          return;
+        }
+        if (!isQuote(c)) {
+          this.fail("value must be quoted.");
+          this.q = SPACE;
+        } else {
+          this.q = c;
+        }
+        this.state = S_XML_DECL_VALUE;
+      }
+      sXMLDeclValue() {
+        const c = this.captureTo([this.q, QUESTION]);
+        if (c === QUESTION) {
+          this.state = S_XML_DECL_ENDING;
+          this.text = "";
+          this.fail("XML declaration is incomplete.");
+          return;
+        }
+        if (c === EOC) {
+          return;
+        }
+        const value = this.text;
+        this.text = "";
+        switch (this.name) {
+          case "version": {
+            this.xmlDeclExpects = ["encoding", "standalone"];
+            const version = value;
+            this.xmlDecl.version = version;
+            if (!/^1\.[0-9]+$/.test(version)) {
+              this.fail("version number must match /^1\\.[0-9]+$/.");
+            } else if (!this.opt.forceXMLVersion) {
+              this.setXMLVersion(version);
+            }
+            break;
+          }
+          case "encoding":
+            if (!/^[A-Za-z][A-Za-z0-9._-]*$/.test(value)) {
+              this.fail("encoding value must match /^[A-Za-z0-9][A-Za-z0-9._-]*$/.");
+            }
+            this.xmlDeclExpects = ["standalone"];
+            this.xmlDecl.encoding = value;
+            break;
+          case "standalone":
+            if (value !== "yes" && value !== "no") {
+              this.fail('standalone value must match "yes" or "no".');
+            }
+            this.xmlDeclExpects = [];
+            this.xmlDecl.standalone = value;
+            break;
+          default:
+        }
+        this.name = "";
+        this.state = S_XML_DECL_SEPARATOR;
+      }
+      sXMLDeclSeparator() {
+        const c = this.getCodeNorm();
+        if (c === QUESTION) {
+          this.state = S_XML_DECL_ENDING;
+          return;
+        }
+        if (!isS(c)) {
+          this.fail("whitespace required.");
+          this.unget();
+        }
+        this.state = S_XML_DECL_NAME_START;
+      }
+      sXMLDeclEnding() {
+        var _a;
+        const c = this.getCodeNorm();
+        if (c === GREATER) {
+          if (this.piTarget !== "xml") {
+            this.fail("processing instructions are not allowed before root.");
+          } else if (this.name !== "version" && this.xmlDeclExpects.includes("version")) {
+            this.fail("XML declaration must contain a version.");
+          }
+          (_a = this.xmldeclHandler) === null || _a === void 0 ? void 0 : _a.call(this, this.xmlDecl);
+          this.name = "";
+          this.piTarget = this.text = "";
+          this.state = S_TEXT;
+        } else {
+          this.fail("The character ? is disallowed anywhere in XML declarations.");
+        }
+        this.xmlDeclPossible = false;
+      }
+      sOpenTag() {
+        var _a;
+        const c = this.captureNameChars();
+        if (c === EOC) {
+          return;
+        }
+        const tag = this.tag = {
+          name: this.name,
+          attributes: /* @__PURE__ */ Object.create(null)
+        };
+        this.name = "";
+        if (this.xmlnsOpt) {
+          this.topNS = tag.ns = /* @__PURE__ */ Object.create(null);
+        }
+        (_a = this.openTagStartHandler) === null || _a === void 0 ? void 0 : _a.call(this, tag);
+        this.sawRoot = true;
+        if (!this.fragmentOpt && this.closedRoot) {
+          this.fail("documents may contain only one root.");
+        }
+        switch (c) {
+          case GREATER:
+            this.openTag();
+            break;
+          case FORWARD_SLASH:
+            this.state = S_OPEN_TAG_SLASH;
+            break;
+          default:
+            if (!isS(c)) {
+              this.fail("disallowed character in tag name.");
+            }
+            this.state = S_ATTRIB;
+        }
+      }
+      sOpenTagSlash() {
+        if (this.getCode() === GREATER) {
+          this.openSelfClosingTag();
+        } else {
+          this.fail("forward-slash in opening tag not followed by >.");
+          this.state = S_ATTRIB;
+        }
+      }
+      sAttrib() {
+        const c = this.skipSpaces();
+        if (c === EOC) {
+          return;
+        }
+        if (isNameStartChar(c)) {
+          this.unget();
+          this.state = S_ATTRIB_NAME;
+        } else if (c === GREATER) {
+          this.openTag();
+        } else if (c === FORWARD_SLASH) {
+          this.state = S_OPEN_TAG_SLASH;
+        } else {
+          this.fail("disallowed character in attribute name.");
+        }
+      }
+      sAttribName() {
+        const c = this.captureNameChars();
+        if (c === EQUAL) {
+          this.state = S_ATTRIB_VALUE;
+        } else if (isS(c)) {
+          this.state = S_ATTRIB_NAME_SAW_WHITE;
+        } else if (c === GREATER) {
+          this.fail("attribute without value.");
+          this.pushAttrib(this.name, this.name);
+          this.name = this.text = "";
+          this.openTag();
+        } else if (c !== EOC) {
+          this.fail("disallowed character in attribute name.");
+        }
+      }
+      sAttribNameSawWhite() {
+        const c = this.skipSpaces();
+        switch (c) {
+          case EOC:
+            return;
+          case EQUAL:
+            this.state = S_ATTRIB_VALUE;
+            break;
+          default:
+            this.fail("attribute without value.");
+            this.text = "";
+            this.name = "";
+            if (c === GREATER) {
+              this.openTag();
+            } else if (isNameStartChar(c)) {
+              this.unget();
+              this.state = S_ATTRIB_NAME;
+            } else {
+              this.fail("disallowed character in attribute name.");
+              this.state = S_ATTRIB;
+            }
+        }
+      }
+      sAttribValue() {
+        const c = this.getCodeNorm();
+        if (isQuote(c)) {
+          this.q = c;
+          this.state = S_ATTRIB_VALUE_QUOTED;
+        } else if (!isS(c)) {
+          this.fail("unquoted attribute value.");
+          this.state = S_ATTRIB_VALUE_UNQUOTED;
+          this.unget();
+        }
+      }
+      sAttribValueQuoted() {
+        const { q, chunk: chunk2 } = this;
+        let { i: start } = this;
+        while (true) {
+          switch (this.getCode()) {
+            case q:
+              this.pushAttrib(this.name, this.text + chunk2.slice(start, this.prevI));
+              this.name = this.text = "";
+              this.q = null;
+              this.state = S_ATTRIB_VALUE_CLOSED;
+              return;
+            case AMP:
+              this.text += chunk2.slice(start, this.prevI);
+              this.state = S_ENTITY;
+              this.entityReturnState = S_ATTRIB_VALUE_QUOTED;
+              return;
+            case NL:
+            case NL_LIKE:
+            case TAB:
+              this.text += `${chunk2.slice(start, this.prevI)} `;
+              start = this.i;
+              break;
+            case LESS:
+              this.text += chunk2.slice(start, this.prevI);
+              this.fail("disallowed character.");
+              return;
+            case EOC:
+              this.text += chunk2.slice(start);
+              return;
+            default:
+          }
+        }
+      }
+      sAttribValueClosed() {
+        const c = this.getCodeNorm();
+        if (isS(c)) {
+          this.state = S_ATTRIB;
+        } else if (c === GREATER) {
+          this.openTag();
+        } else if (c === FORWARD_SLASH) {
+          this.state = S_OPEN_TAG_SLASH;
+        } else if (isNameStartChar(c)) {
+          this.fail("no whitespace between attributes.");
+          this.unget();
+          this.state = S_ATTRIB_NAME;
+        } else {
+          this.fail("disallowed character in attribute name.");
+        }
+      }
+      sAttribValueUnquoted() {
+        const c = this.captureTo(ATTRIB_VALUE_UNQUOTED_TERMINATOR);
+        switch (c) {
+          case AMP:
+            this.state = S_ENTITY;
+            this.entityReturnState = S_ATTRIB_VALUE_UNQUOTED;
+            break;
+          case LESS:
+            this.fail("disallowed character.");
+            break;
+          case EOC:
+            break;
+          default:
+            if (this.text.includes("]]>")) {
+              this.fail('the string "]]>" is disallowed in char data.');
+            }
+            this.pushAttrib(this.name, this.text);
+            this.name = this.text = "";
+            if (c === GREATER) {
+              this.openTag();
+            } else {
+              this.state = S_ATTRIB;
+            }
+        }
+      }
+      sCloseTag() {
+        const c = this.captureNameChars();
+        if (c === GREATER) {
+          this.closeTag();
+        } else if (isS(c)) {
+          this.state = S_CLOSE_TAG_SAW_WHITE;
+        } else if (c !== EOC) {
+          this.fail("disallowed character in closing tag.");
+        }
+      }
+      sCloseTagSawWhite() {
+        switch (this.skipSpaces()) {
+          case GREATER:
+            this.closeTag();
+            break;
+          case EOC:
+            break;
+          default:
+            this.fail("disallowed character in closing tag.");
+        }
+      }
+      // END OF STATE ENGINE METHODS
+      handleTextInRoot() {
+        let { i: start, forbiddenState } = this;
+        const { chunk: chunk2, textHandler: handler } = this;
+        scanLoop:
+          while (true) {
+            switch (this.getCode()) {
+              case LESS: {
+                this.state = S_OPEN_WAKA;
+                if (handler !== void 0) {
+                  const { text: text2 } = this;
+                  const slice = chunk2.slice(start, this.prevI);
+                  if (text2.length !== 0) {
+                    handler(text2 + slice);
+                    this.text = "";
+                  } else if (slice.length !== 0) {
+                    handler(slice);
+                  }
+                }
+                forbiddenState = FORBIDDEN_START;
+                break scanLoop;
+              }
+              case AMP:
+                this.state = S_ENTITY;
+                this.entityReturnState = S_TEXT;
+                if (handler !== void 0) {
+                  this.text += chunk2.slice(start, this.prevI);
+                }
+                forbiddenState = FORBIDDEN_START;
+                break scanLoop;
+              case CLOSE_BRACKET:
+                switch (forbiddenState) {
+                  case FORBIDDEN_START:
+                    forbiddenState = FORBIDDEN_BRACKET;
+                    break;
+                  case FORBIDDEN_BRACKET:
+                    forbiddenState = FORBIDDEN_BRACKET_BRACKET;
+                    break;
+                  case FORBIDDEN_BRACKET_BRACKET:
+                    break;
+                  default:
+                    throw new Error("impossible state");
+                }
+                break;
+              case GREATER:
+                if (forbiddenState === FORBIDDEN_BRACKET_BRACKET) {
+                  this.fail('the string "]]>" is disallowed in char data.');
+                }
+                forbiddenState = FORBIDDEN_START;
+                break;
+              case NL_LIKE:
+                if (handler !== void 0) {
+                  this.text += `${chunk2.slice(start, this.prevI)}
+`;
+                }
+                start = this.i;
+                forbiddenState = FORBIDDEN_START;
+                break;
+              case EOC:
+                if (handler !== void 0) {
+                  this.text += chunk2.slice(start);
+                }
+                break scanLoop;
+              default:
+                forbiddenState = FORBIDDEN_START;
+            }
+          }
+        this.forbiddenState = forbiddenState;
+      }
+      handleTextOutsideRoot() {
+        let { i: start } = this;
+        const { chunk: chunk2, textHandler: handler } = this;
+        let nonSpace = false;
+        outRootLoop:
+          while (true) {
+            const code = this.getCode();
+            switch (code) {
+              case LESS: {
+                this.state = S_OPEN_WAKA;
+                if (handler !== void 0) {
+                  const { text: text2 } = this;
+                  const slice = chunk2.slice(start, this.prevI);
+                  if (text2.length !== 0) {
+                    handler(text2 + slice);
+                    this.text = "";
+                  } else if (slice.length !== 0) {
+                    handler(slice);
+                  }
+                }
+                break outRootLoop;
+              }
+              case AMP:
+                this.state = S_ENTITY;
+                this.entityReturnState = S_TEXT;
+                if (handler !== void 0) {
+                  this.text += chunk2.slice(start, this.prevI);
+                }
+                nonSpace = true;
+                break outRootLoop;
+              case NL_LIKE:
+                if (handler !== void 0) {
+                  this.text += `${chunk2.slice(start, this.prevI)}
+`;
+                }
+                start = this.i;
+                break;
+              case EOC:
+                if (handler !== void 0) {
+                  this.text += chunk2.slice(start);
+                }
+                break outRootLoop;
+              default:
+                if (!isS(code)) {
+                  nonSpace = true;
+                }
+            }
+          }
+        if (!nonSpace) {
+          return;
+        }
+        if (!this.sawRoot && !this.reportedTextBeforeRoot) {
+          this.fail("text data outside of root node.");
+          this.reportedTextBeforeRoot = true;
+        }
+        if (this.closedRoot && !this.reportedTextAfterRoot) {
+          this.fail("text data outside of root node.");
+          this.reportedTextAfterRoot = true;
+        }
+      }
+      pushAttribNS(name2, value) {
+        var _a;
+        const { prefix, local } = this.qname(name2);
+        const attr = { name: name2, prefix, local, value };
+        this.attribList.push(attr);
+        (_a = this.attributeHandler) === null || _a === void 0 ? void 0 : _a.call(this, attr);
+        if (prefix === "xmlns") {
+          const trimmed = value.trim();
+          if (this.currentXMLVersion === "1.0" && trimmed === "") {
+            this.fail("invalid attempt to undefine prefix in XML 1.0");
+          }
+          this.topNS[local] = trimmed;
+          nsPairCheck(this, local, trimmed);
+        } else if (name2 === "xmlns") {
+          const trimmed = value.trim();
+          this.topNS[""] = trimmed;
+          nsPairCheck(this, "", trimmed);
+        }
+      }
+      pushAttribPlain(name2, value) {
+        var _a;
+        const attr = { name: name2, value };
+        this.attribList.push(attr);
+        (_a = this.attributeHandler) === null || _a === void 0 ? void 0 : _a.call(this, attr);
+      }
+      /**
+       * End parsing. This performs final well-formedness checks and resets the
+       * parser to a clean state.
+       *
+       * @returns this
+       */
+      end() {
+        var _a, _b;
+        if (!this.sawRoot) {
+          this.fail("document must contain a root element.");
+        }
+        const { tags } = this;
+        while (tags.length > 0) {
+          const tag = tags.pop();
+          this.fail(`unclosed tag: ${tag.name}`);
+        }
+        if (this.state !== S_BEGIN && this.state !== S_TEXT) {
+          this.fail("unexpected end.");
+        }
+        const { text: text2 } = this;
+        if (text2.length !== 0) {
+          (_a = this.textHandler) === null || _a === void 0 ? void 0 : _a.call(this, text2);
+          this.text = "";
+        }
+        this._closed = true;
+        (_b = this.endHandler) === null || _b === void 0 ? void 0 : _b.call(this);
+        this._init();
+        return this;
+      }
+      /**
+       * Resolve a namespace prefix.
+       *
+       * @param prefix The prefix to resolve.
+       *
+       * @returns The namespace URI or ``undefined`` if the prefix is not defined.
+       */
+      resolve(prefix) {
+        var _a, _b;
+        let uri = this.topNS[prefix];
+        if (uri !== void 0) {
+          return uri;
+        }
+        const { tags } = this;
+        for (let index = tags.length - 1; index >= 0; index--) {
+          uri = tags[index].ns[prefix];
+          if (uri !== void 0) {
+            return uri;
+          }
+        }
+        uri = this.ns[prefix];
+        if (uri !== void 0) {
+          return uri;
+        }
+        return (_b = (_a = this.opt).resolvePrefix) === null || _b === void 0 ? void 0 : _b.call(_a, prefix);
+      }
+      /**
+       * Parse a qname into its prefix and local name parts.
+       *
+       * @param name The name to parse
+       *
+       * @returns
+       */
+      qname(name2) {
+        const colon = name2.indexOf(":");
+        if (colon === -1) {
+          return { prefix: "", local: name2 };
+        }
+        const local = name2.slice(colon + 1);
+        const prefix = name2.slice(0, colon);
+        if (prefix === "" || local === "" || local.includes(":")) {
+          this.fail(`malformed name: ${name2}.`);
+        }
+        return { prefix, local };
+      }
+      processAttribsNS() {
+        var _a;
+        const { attribList } = this;
+        const tag = this.tag;
+        {
+          const { prefix, local } = this.qname(tag.name);
+          tag.prefix = prefix;
+          tag.local = local;
+          const uri = tag.uri = (_a = this.resolve(prefix)) !== null && _a !== void 0 ? _a : "";
+          if (prefix !== "") {
+            if (prefix === "xmlns") {
+              this.fail('tags may not have "xmlns" as prefix.');
+            }
+            if (uri === "") {
+              this.fail(`unbound namespace prefix: ${JSON.stringify(prefix)}.`);
+              tag.uri = prefix;
+            }
+          }
+        }
+        if (attribList.length === 0) {
+          return;
+        }
+        const { attributes } = tag;
+        const seen = /* @__PURE__ */ new Set();
+        for (const attr of attribList) {
+          const { name: name2, prefix, local } = attr;
+          let uri;
+          let eqname;
+          if (prefix === "") {
+            uri = name2 === "xmlns" ? XMLNS_NAMESPACE : "";
+            eqname = name2;
+          } else {
+            uri = this.resolve(prefix);
+            if (uri === void 0) {
+              this.fail(`unbound namespace prefix: ${JSON.stringify(prefix)}.`);
+              uri = prefix;
+            }
+            eqname = `{${uri}}${local}`;
+          }
+          if (seen.has(eqname)) {
+            this.fail(`duplicate attribute: ${eqname}.`);
+          }
+          seen.add(eqname);
+          attr.uri = uri;
+          attributes[name2] = attr;
+        }
+        this.attribList = [];
+      }
+      processAttribsPlain() {
+        const { attribList } = this;
+        const attributes = this.tag.attributes;
+        for (const { name: name2, value } of attribList) {
+          if (attributes[name2] !== void 0) {
+            this.fail(`duplicate attribute: ${name2}.`);
+          }
+          attributes[name2] = value;
+        }
+        this.attribList = [];
+      }
+      /**
+       * Handle a complete open tag. This parser code calls this once it has seen
+       * the whole tag. This method checks for well-formeness and then emits
+       * ``onopentag``.
+       */
+      openTag() {
+        var _a;
+        this.processAttribs();
+        const { tags } = this;
+        const tag = this.tag;
+        tag.isSelfClosing = false;
+        (_a = this.openTagHandler) === null || _a === void 0 ? void 0 : _a.call(this, tag);
+        tags.push(tag);
+        this.state = S_TEXT;
+        this.name = "";
+      }
+      /**
+       * Handle a complete self-closing tag. This parser code calls this once it has
+       * seen the whole tag. This method checks for well-formeness and then emits
+       * ``onopentag`` and ``onclosetag``.
+       */
+      openSelfClosingTag() {
+        var _a, _b, _c;
+        this.processAttribs();
+        const { tags } = this;
+        const tag = this.tag;
+        tag.isSelfClosing = true;
+        (_a = this.openTagHandler) === null || _a === void 0 ? void 0 : _a.call(this, tag);
+        (_b = this.closeTagHandler) === null || _b === void 0 ? void 0 : _b.call(this, tag);
+        const top = this.tag = (_c = tags[tags.length - 1]) !== null && _c !== void 0 ? _c : null;
+        if (top === null) {
+          this.closedRoot = true;
+        }
+        this.state = S_TEXT;
+        this.name = "";
+      }
+      /**
+       * Handle a complete close tag. This parser code calls this once it has seen
+       * the whole tag. This method checks for well-formeness and then emits
+       * ``onclosetag``.
+       */
+      closeTag() {
+        const { tags, name: name2 } = this;
+        this.state = S_TEXT;
+        this.name = "";
+        if (name2 === "") {
+          this.fail("weird empty close tag.");
+          this.text += "</>";
+          return;
+        }
+        const handler = this.closeTagHandler;
+        let l = tags.length;
+        while (l-- > 0) {
+          const tag = this.tag = tags.pop();
+          this.topNS = tag.ns;
+          handler === null || handler === void 0 ? void 0 : handler(tag);
+          if (tag.name === name2) {
+            break;
+          }
+          this.fail("unexpected close tag.");
+        }
+        if (l === 0) {
+          this.closedRoot = true;
+        } else if (l < 0) {
+          this.fail(`unmatched closing tag: ${name2}.`);
+          this.text += `</${name2}>`;
+        }
+      }
+      /**
+       * Resolves an entity. Makes any necessary well-formedness checks.
+       *
+       * @param entity The entity to resolve.
+       *
+       * @returns The parsed entity.
+       */
+      parseEntity(entity) {
+        if (entity[0] !== "#") {
+          const defined = this.ENTITIES[entity];
+          if (defined !== void 0) {
+            return defined;
+          }
+          this.fail(this.isName(entity) ? "undefined entity." : "disallowed character in entity name.");
+          return `&${entity};`;
+        }
+        let num = NaN;
+        if (entity[1] === "x" && /^#x[0-9a-f]+$/i.test(entity)) {
+          num = parseInt(entity.slice(2), 16);
+        } else if (/^#[0-9]+$/.test(entity)) {
+          num = parseInt(entity.slice(1), 10);
+        }
+        if (!this.isChar(num)) {
+          this.fail("malformed character entity.");
+          return `&${entity};`;
+        }
+        return String.fromCodePoint(num);
+      }
+    };
+    exports.SaxesParser = SaxesParser2;
+  }
+});
+
 // src/host/index.ts
-import { randomUUID as randomUUID16 } from "node:crypto";
+import { randomUUID as randomUUID17 } from "node:crypto";
 
 // src/host/status.ts
 var EXPECTED_UPSTREAM_COMMIT = "39163dd30f703a79079e2d2446545cff3c453738";
@@ -1066,24 +3000,24 @@ function resolveCitationText(text2, anchor) {
 import { createHash as createHash5 } from "node:crypto";
 var hash = (x) => createHash5("sha256").update(x, "utf8").digest("hex");
 function makeLocator(s, text2, start, end, neighbors, w) {
-  const lineStart = text2.lastIndexOf("\n", Math.max(0, start - 1)), lineEnd = text2.indexOf("\n", end);
-  const lo = s.kind === "office" && start !== 0 ? lineStart + 1 : 0, hi = s.kind === "office" && lineEnd !== -1 ? lineEnd : text2.length;
-  const blockId = hash(JSON.stringify([s.version_id, s.conversion_id ?? null, s.ordinal, lo, hi]));
-  const previous = s.kind === "office" && lo > 0 ? hash(text2.slice(lo > 1 ? text2.lastIndexOf("\n", lo - 2) + 1 : 0, lo - 1)) : neighbors.previous;
-  const nextEnd = text2.indexOf("\n", hi + 1), next = s.kind === "office" && hi < text2.length ? hash(text2.slice(hi + 1, nextEnd < 0 ? text2.length : nextEnd)) : neighbors.next;
+  const word = s.kind === "office" ? w?.word : void 0;
+  if (s.kind === "office" && (!word?.blocks.length || word.source_sha256 !== s.wordOriginal?.sha256)) throw new AssetError(422, "WORD_STRUCTURE_UNVERIFIED");
+  const first = word?.blocks[0], last = word?.blocks.at(-1);
+  const lo = first ? Math.min(start, first.page_start) : 0, hi = last ? Math.max(end, last.page_end) : text2.length;
+  const blockId = first?.block_id ?? hash(JSON.stringify([s.version_id, null, s.ordinal, lo, hi]));
   const context = {
     block_id: blockId,
     block_start: lo,
     block_end: hi,
-    previous,
-    next,
+    previous: first ? first.previous : neighbors.previous,
+    next: last ? last.next : neighbors.next,
     before_hash: hash(text2.slice(Math.max(0, start - 64), start)),
     after_hash: hash(text2.slice(end, end + 64))
   };
   if (s.kind === "text") return { context, geometry: null };
   if (!w || !s.ref || s.ref.sha256 !== w.sha256 || s.conversion_id !== w.conversion_id || s.ordinal !== w.ordinal || w.text !== text2) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
   const boxes = w.boxes.filter((b) => b.start < end && b.end > start).map(({ start: start2, end: end2, x, y, width, height }) => ({ start: start2, end: end2, x, y, width, height }));
-  return { context, geometry: { page: s.ordinal, width: w.width, height: w.height, source_sha256: w.sha256, boxes } };
+  return { context, geometry: { page: s.ordinal, width: w.width, height: w.height, source_sha256: w.sha256, boxes }, ...word ? { word } : {} };
 }
 
 // src/host/citation-store.ts
@@ -1147,9 +3081,18 @@ var CitationStore = class {
       if (t.conversion_id) throw notFound2();
       return { ...base, kind: "office", total: 0, state: "unconverted" };
     }
+    if (r.media_type !== WORD_MEDIA.doc && r.media_type !== WORD_MEDIA.docx) throw notFound2();
     const total = Number(c.page_count);
     if (t.ordinal > total) throw invalid();
-    return { ...base, conversion_id: String(c.id), kind: "office", total, state: "ready", ref: { key: String(c.storage_key), byteLength: Number(c.byte_length), sha256: String(c.sha256) } };
+    return {
+      ...base,
+      conversion_id: String(c.id),
+      kind: "office",
+      total,
+      state: "ready",
+      ref: { key: String(c.storage_key), byteLength: Number(c.byte_length), sha256: String(c.sha256) },
+      wordOriginal: { key: String(r.storage_key), byteLength: Number(r.byte_length), sha256: String(r.sha256), media: r.media_type }
+    };
   }
   source(prior, t) {
     return this.tx("read", (db, now) => this.read(db, this.actor(prior, now), t, now));
@@ -1174,6 +3117,21 @@ var CitationStore = class {
     const r = db.prepare("SELECT snapshot FROM citation_locators WHERE citation_id=?").get(id);
     return r ? JSON.parse(String(r.snapshot)) : null;
   }
+  receipt(db, a, now, spec, key, range) {
+    const old = db.prepare(`SELECT ${fields} FROM citations WHERE created_by=? AND request_key=?`).get(a.userId, key);
+    if (!old) return;
+    if (!this.allowed(a, String(old.asset_id), now)) throw notFound2();
+    if (old.asset_id !== spec.asset_id || old.version_id !== spec.version_id || old.ordinal !== spec.ordinal || old.conversion_id !== (spec.conversion_id ?? null) || old.start !== range.start || old.end !== range.end || old.source_hash !== range.source_hash) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+    return { data: { ...dto(old), locator: this.locator(db, String(old.id)) }, replayed: true };
+  }
+  replay(prior, spec, key, w) {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(prior, now), src = this.read(db, a, spec, now), text2 = this.text(src, w);
+      if (!uuid2.test(key)) throw new AssetError(422, "INVALID_CITATION");
+      if (sha(text2) !== spec.source_hash) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
+      return this.receipt(db, a, now, spec, key, citationAnchor(text2, spec.start, spec.end));
+    });
+  }
   create(prior, spec, key, w) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now), src = this.read(db, a, spec, now);
@@ -1181,12 +3139,8 @@ var CitationStore = class {
       const text2 = this.text(src, w);
       if (sha(text2) !== spec.source_hash) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
       const range = citationAnchor(text2, spec.start, spec.end);
-      const old = db.prepare(`SELECT ${fields} FROM citations WHERE created_by=? AND request_key=?`).get(a.userId, key);
-      if (old) {
-        if (!this.allowed(a, String(old.asset_id), now)) throw notFound2();
-        if (old.asset_id !== spec.asset_id || old.version_id !== spec.version_id || old.ordinal !== spec.ordinal || old.conversion_id !== (spec.conversion_id ?? null) || old.start !== range.start || old.end !== range.end || old.source_hash !== range.source_hash) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
-        return { data: { ...dto(old), locator: this.locator(db, String(old.id)) }, replayed: true };
-      }
+      const old = this.receipt(db, a, now, spec, key, range);
+      if (old) return old;
       const neighbor = (n) => {
         if (src.kind !== "text") return null;
         const r = db.prepare("SELECT anchor FROM text_blocks WHERE version_id=? AND ordinal=?").get(src.version_id, n);
@@ -3663,7 +5617,8 @@ import fs from "node:fs/promises";
 import { dirname, join as join2, resolve } from "node:path";
 
 // src/host/word-original.ts
-import { crc32, createInflateRaw } from "node:zlib";
+import { crc32, createInflateRaw, inflateRaw } from "node:zlib";
+import { promisify } from "node:util";
 var WordInputError = class extends Error {
   constructor() {
     super("INVALID_WORD");
@@ -3696,12 +5651,21 @@ function checkWordEnvelope(b, media) {
     if (b.readUInt16LE(pos + 8) & 1 || b.readUInt16LE(local + 6) & 1 || ![0, 8].includes(b.readUInt16LE(pos + 10)) || b.readUInt16LE(local + 8) !== b.readUInt16LE(pos + 10)) invalid2();
     expanded += b.readUInt32LE(pos + 24);
     if (expanded > 256 * 1024 * 1024) invalid2();
-    members.push({ start, packed: b.readUInt32LE(pos + 20), size: b.readUInt32LE(pos + 24), method: b.readUInt16LE(pos + 10), crc: b.readUInt32LE(pos + 16) });
+    members.push({ name: key, start, packed: b.readUInt32LE(pos + 20), size: b.readUInt32LE(pos + 24), method: b.readUInt16LE(pos + 10), crc: b.readUInt32LE(pos + 16) });
     names.add(key);
     pos = next;
   }
   if (pos !== e || !["[Content_Types].xml", "_rels/.rels", "word/document.xml"].every((k) => names.has(k))) invalid2();
   return members;
+}
+var inflate = promisify(inflateRaw);
+async function wordBodyXml(bytes) {
+  const m = checkWordEnvelope(bytes, WORD_MEDIA.docx).find((m2) => m2.name === "word/document.xml");
+  if (!m || m.size < 1 || m.size > 4 * 1024 * 1024) return invalid2();
+  const packed = bytes.subarray(m.start, m.start + m.packed);
+  const body = m.method ? await inflate(packed, { maxOutputLength: m.size }) : packed;
+  if (body.length !== m.size || crc32(body) !== m.crc) return invalid2();
+  return new TextDecoder("utf-8", { fatal: true }).decode(body);
 }
 async function verifyWordBytes(b, media) {
   const members = checkWordEnvelope(b, media);
@@ -4076,14 +6040,135 @@ function decodeText(bytes, media, requestedEncoding) {
 }
 
 // src/host/reader-http.ts
+import { createHash as createHash14 } from "node:crypto";
+
+// src/host/word-locator.ts
+var import_saxes = __toESM(require_saxes(), 1);
 import { createHash as createHash13 } from "node:crypto";
+var sha2 = (text2) => createHash13("sha256").update(text2, "utf8").digest("hex");
+var wordNs = /* @__PURE__ */ new Set(["http://schemas.openxmlformats.org/wordprocessingml/2006/main", "http://purl.oclc.org/ooxml/wordprocessingml/main"]);
+var bodyLimit = 1e6;
+var wordPageLimit = 512;
+async function wordParagraphs(bytes) {
+  const xml = await wordBodyXml(bytes), p = new import_saxes.SaxesParser({ xmlns: true }), stack = [], paragraphs = [];
+  let ns = "", body = 0, paragraph = 0, runText = 0, omitted = 0, text2 = "", count = 0;
+  const invalid4 = () => {
+    throw new Error("Unsupported Word structure");
+  };
+  const add = (s) => {
+    count += s.length;
+    if (count > bodyLimit) invalid4();
+    text2 += s;
+  };
+  p.on("doctype", invalid4);
+  p.on("opentag", (tag) => {
+    stack.push(tag.uri === ns ? tag.local : "");
+    const depth = stack.length;
+    if (depth > 128) invalid4();
+    if (depth === 1) {
+      if (!wordNs.has(tag.uri) || tag.local !== "document") invalid4();
+      ns = tag.uri;
+      return;
+    }
+    if (depth === 2 && tag.uri === ns && tag.local === "body") {
+      if (body || paragraphs.length) invalid4();
+      body = depth;
+      return;
+    }
+    if (!body || omitted) return;
+    if (tag.local === "AlternateContent" || tag.uri === ns && ["altChunk", "txbxContent", "headerReference", "footerReference"].includes(tag.local)) invalid4();
+    if (tag.uri !== ns) return;
+    if (["del", "moveFrom"].includes(tag.local)) {
+      omitted = depth;
+      return;
+    }
+    if (tag.local === "p") {
+      if (paragraph || paragraphs.length >= 32768) invalid4();
+      paragraph = depth;
+      text2 = "";
+      return;
+    }
+    if (!paragraph || stack[depth - 2] !== "r") return;
+    if (tag.local === "t") runText = depth;
+    if (["tab", "br", "cr", "ptab"].includes(tag.local)) add(tag.local === "tab" || tag.local === "ptab" ? "	" : "\n");
+    if (tag.local === "noBreakHyphen") add("\u2011");
+    if (tag.local === "softHyphen") add("\xAD");
+  });
+  const characters = (s) => {
+    if (runText && !omitted) add(s);
+  };
+  p.on("text", characters);
+  p.on("cdata", characters);
+  p.on("closetag", () => {
+    const depth = stack.length;
+    if (depth === runText) runText = 0;
+    if (depth === omitted) omitted = 0;
+    if (depth === paragraph) {
+      paragraphs.push(text2);
+      paragraph = 0;
+    }
+    if (depth === body) body = 0;
+    stack.pop();
+  });
+  p.write(xml).close();
+  return paragraphs;
+}
+var compact = (s) => s.replace(/\s/gu, "");
+function offsets(s) {
+  const indices = [];
+  for (const part of s.matchAll(/\S+/gu)) for (let i = 0; i < part[0].length; i++) indices.push(part.index + i);
+  return indices;
+}
+async function alignWordSelection(paragraphs, version, sourceSha, ordinal, text2, start, end, pageCount, page) {
+  if (pageCount > wordPageLimit || ordinal > pageCount) return;
+  const parts = paragraphs.map(compact), body = parts.join("");
+  if (!body || body.length > bodyLimit) return;
+  let pageStart = 0, cursor = 0;
+  for (let n = 1; n <= pageCount; n++) {
+    const pageText = await page(n), part = compact(pageText);
+    if (!body.startsWith(part, cursor) || n === ordinal && pageText !== text2) return;
+    if (n === ordinal) pageStart = cursor;
+    cursor += part.length;
+  }
+  if (cursor !== body.length) return;
+  const pageOffsets = offsets(text2), first = pageOffsets.findIndex((i) => i >= start);
+  if (first < 0 || pageOffsets[first] >= end) return;
+  let last = first;
+  while (last + 1 < pageOffsets.length && pageOffsets[last + 1] < end) last++;
+  const lo = pageStart + first, hi = pageStart + last + 1, blocks = [];
+  cursor = 0;
+  for (const [i, part] of parts.entries()) {
+    const startAt = cursor;
+    cursor += part.length;
+    if (!part || cursor <= lo) continue;
+    if (startAt >= hi) break;
+    const source = offsets(paragraphs[i]), ordinal2 = i + 1;
+    const previous = paragraphs[i - 1], next = paragraphs[i + 1];
+    blocks.push({
+      block_id: sha2(JSON.stringify(["word-paragraph-v1", version, sourceSha, ordinal2])),
+      ordinal: ordinal2,
+      start: source[Math.max(lo, startAt) - startAt],
+      end: source[Math.min(hi, cursor) - startAt - 1] + 1,
+      page_start: pageOffsets[Math.max(0, startAt - pageStart)],
+      page_end: pageOffsets[Math.min(pageOffsets.length, cursor - pageStart) - 1] + 1,
+      previous: previous === void 0 ? null : sha2(previous),
+      next: next === void 0 ? null : sha2(next)
+    });
+    if (blocks.length > 1024) return;
+  }
+  if (blocks.length) return { source_sha256: sourceSha, blocks };
+}
+
+// src/host/reader-http.ts
 var uuid3 = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
-var hash2 = (s) => createHash13("sha256").update(s, "utf8").digest("hex");
+var hash2 = (s) => createHash14("sha256").update(s, "utf8").digest("hex");
 var ReaderService = class {
-  constructor(store, originals, render2) {
+  constructor(store, originals, render2, wordPages, legacyWord) {
     this.store = store;
     this.originals = originals;
     this.render = render2;
+    this.wordPages = wordPages;
+    this.legacyWord = legacyWord;
   }
   access(current, asset, version) {
     return this.store.access(current(), asset, version);
@@ -4110,7 +6195,7 @@ var ReaderService = class {
     return rendered;
   }
   async page(current, t, signal) {
-    const s = this.store.source(current(), t), { ref: _private, ...publicFields } = s;
+    const s = this.store.source(current(), t), { ref: _private, wordOriginal: _word, ...publicFields } = s;
     if (s.kind === "text" || !["ready", "review"].includes(s.state)) return { ...publicFields, anchor: hash2(s.text) };
     const { text: text2, image, width, height, boxes } = await this.rendered(current, s, signal);
     return { ...publicFields, text: text2, anchor: hash2(text2), image, width, height, boxes, original_sha256: s.ref.sha256 };
@@ -4123,8 +6208,47 @@ var ReaderService = class {
     const { text: text2, width, height, boxes } = await this.rendered(current, s, signal);
     return { ...s.conversion_id ? { conversion_id: s.conversion_id } : {}, sha256: s.ref.sha256, ordinal: t.ordinal, text: text2, width, height, boxes };
   }
+  async wordSelection(current, s, spec, w, signal) {
+    const original = s.wordOriginal, ref = s.ref;
+    if (!original || !ref || !this.wordPages || s.total > wordPageLimit) return;
+    const deadline2 = AbortSignal.any([signal, AbortSignal.timeout(25e3)]);
+    const check = () => {
+      if (signal.aborted) throw new AssetError(409, "READ_CANCELLED");
+      const r = this.store.source(current(), s);
+      if (r.conversion_id !== s.conversion_id || r.ref?.sha256 !== ref.sha256 || r.wordOriginal?.sha256 !== original.sha256) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
+    };
+    try {
+      check();
+      const docx = original.media === WORD_MEDIA.docx ? await this.originals.read(original.key, original.sha256, original.byteLength) : await this.legacyWord?.(original, check, deadline2);
+      check();
+      if (!docx) return;
+      const paragraphs = await wordParagraphs(docx), pdf = await this.originals.read(ref.key, ref.sha256, ref.byteLength);
+      check();
+      const doc = await this.wordPages(pdf, deadline2);
+      try {
+        if (doc.numPages !== s.total) return;
+        return await alignWordSelection(paragraphs, s.version_id, original.sha256, s.ordinal, w.text, spec.start, spec.end, doc.numPages, async (n) => {
+          check();
+          deadline2.throwIfAborted();
+          return (await doc.page(n)).text;
+        });
+      } finally {
+        await doc.close();
+      }
+    } catch (e) {
+      check();
+      if (e?.code === "PDF_BUSY") throw new AssetError(429, "PAGE_RENDER_BUSY");
+      if (deadline2.aborted) throw new AssetError(503, "WORD_STRUCTURE_UNAVAILABLE");
+    }
+  }
   async create(current, spec, key, signal) {
     const w = await this.witness(current, spec, signal);
+    if (w?.conversion_id) {
+      const old = this.store.replay(current(), spec, key, w);
+      if (old) return old;
+      const word = await this.wordSelection(current, this.store.source(current(), spec), spec, w, signal);
+      if (word) w.word = word;
+    }
     return this.store.create(current(), spec, key, w);
   }
   async resolve(current, id, signal) {
@@ -5085,7 +7209,7 @@ async function render(bytes, ordinal, signal) {
 }
 
 // src/host/parse-worker.ts
-function startParseWorker(store, originals, open2, log) {
+function startParseWorker(store, originals, open3, log) {
   let stopped = false, pending;
   async function tick() {
     const job = store.claim();
@@ -5101,7 +7225,7 @@ function startParseWorker(store, originals, open2, log) {
     try {
       const bytes = await originals.read(job.key, job.sha256, job.byteLength);
       if (stopped || !active3 || !store.renew(job.token)) return;
-      doc = await open2(bytes);
+      doc = await open3(bytes);
       if (stopped || !active3 || !store.initialize(job.token, doc.numPages)) return;
       let consecutiveFailures = 0;
       while (!stopped && active3) {
@@ -5112,7 +7236,7 @@ function startParseWorker(store, originals, open2, log) {
             store.fail(job.token);
             break;
           }
-          doc = await open2(bytes);
+          doc = await open3(bytes);
           if (!store.initialize(job.token, doc.numPages)) break;
         }
         let result;
@@ -5255,6 +7379,46 @@ function startOfficeWorker(store, originals, kit, openPdf2, log) {
     clearInterval(timer);
     active3?.abort();
     await pending;
+  };
+}
+
+// src/host/legacy-word-source.ts
+import { randomUUID as randomUUID16 } from "node:crypto";
+import { open as open2, unlink } from "node:fs/promises";
+function legacyWordSource(kit, originals) {
+  return async (source, check, signal) => {
+    if (!kit.convertTo) throw new Error("Office structure conversion unavailable");
+    const result = await kit.convertTo({ extension: "doc", format: "docx", output: { owner: randomUUID16(), name: "structure.docx" }, source: {
+      key: `knowledgeos-word-structure:${source.sha256}`,
+      version: source.sha256,
+      bytes: source.byteLength,
+      async read(active3, maxBytes) {
+        active3.throwIfAborted();
+        check();
+        if (source.byteLength > maxBytes) throw new Error("Office source exceeds reservation");
+        const bytes = await originals.read(source.key, source.sha256, source.byteLength);
+        active3.throwIfAborted();
+        check();
+        return { bytes, version: source.sha256 };
+      }
+    } }, signal);
+    try {
+      signal.throwIfAborted();
+      check();
+      if (!Number.isSafeInteger(result.bytes) || result.bytes < 1 || result.bytes > 32 * 1024 * 1024) throw new Error("Office structure exceeds limit");
+      const file = await open2(result.path, "r");
+      try {
+        if ((await file.stat()).size !== result.bytes) throw new Error("Office structure changed");
+        const bytes = Buffer.alloc(result.bytes + 1), { bytesRead } = await file.read({ buffer: bytes, length: bytes.length, position: 0 });
+        if (bytesRead !== result.bytes) throw new Error("Office structure changed");
+        return bytes.subarray(0, bytesRead);
+      } finally {
+        await file.close();
+      }
+    } finally {
+      await unlink(result.path).catch(() => {
+      });
+    }
   };
 }
 
@@ -5817,7 +7981,7 @@ const sha=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256
 let gen=0, owner=null, ordinal=1, total=0, conversion=null, page=null, selection=null, pending=null, posting=false, mode=null, resolved=null, versionLabel='', followCitation=!!cid;
 async function api(path,options){
   const r=await fetch('/knowledge/v1/'+path,{credentials:'same-origin',cache:'no-store',redirect:'error',...options});
-  if(!r.ok)throw problem(r.status);return (await r.json()).data;
+  if(!r.ok){const e=problem(r.status);if(r.status===422)e.code=(await r.json().catch(()=>null))?.code;throw e}return (await r.json()).data;
 }
 async function access(g){
   if(g!==gen||document.hidden)return false;
@@ -5964,6 +8128,7 @@ async function createCitation(){
     $('link').href=u.href;$('link').hidden=false;draw();status('引用链接已生成。');
   }catch(e){
     if(g!==gen)return;if([401,403,404,409].includes(e.http)){failure(e,g);return}
+    if(e.code==='WORD_STRUCTURE_UNVERIFIED'){status('选区无法可靠定位到 Word 源段落，未生成引用。');return}
     // A lost response is not proof of a failed write. Preserve the request key for this exact range.
     status('未收到有效回执，可以重试本次引用。');
   }finally{if(g===gen){posting=false;$('cite').disabled=!selection}}
@@ -6057,7 +8222,7 @@ function apply(ctx, config = {}) {
       if (closing) throw new RecordsError("STORAGE_CLOSED", "storage is closing");
       if (storage === void 0) throw new RecordsError("STORAGE_UNAVAILABLE", "storage is not configured");
       return createProbeRecord(storage, {
-        newId: () => randomUUID16(),
+        newId: () => randomUUID17(),
         now: () => (/* @__PURE__ */ new Date()).toISOString()
       }, { idempotencyKey, content });
     },
@@ -6122,7 +8287,7 @@ function apply(ctx, config = {}) {
     res.statusCode = 503;
     res.setHeader("content-type", "application/json; charset=utf-8");
     res.setHeader("cache-control", "no-store");
-    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID16(), retryable: true, safe_details: {} }));
+    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID17(), retryable: true, safe_details: {} }));
   };
   const registerIdentityRoutes = (identityContext) => {
     const identityAvailable = () => {
@@ -6214,15 +8379,19 @@ function apply(ctx, config = {}) {
         return pending;
       };
     };
-    let officeMount;
+    let officeMount, readLegacyWord;
     if (storage?.available && dataDir) {
       const office = storage.office, originals = new PdfOriginals(join3(dataDir, "originals"));
       identityContext.inject(["officeKit"], (scope) => {
         scope.effect(() => {
           const stop = startOfficeWorker(office, originals, scope.officeKit, openPdf, log), mount = Symbol();
           officeMount = mount;
+          readLegacyWord = legacyWordSource(scope.officeKit, originals);
           return async () => {
-            if (officeMount === mount) officeMount = void 0;
+            if (officeMount === mount) {
+              officeMount = void 0;
+              readLegacyWord = void 0;
+            }
             await stop();
           };
         }, "knowledgeos-office: versioned conversion worker");
@@ -6233,7 +8402,10 @@ function apply(ctx, config = {}) {
       disposers.push(identityContext.webServer.register({ kind: "exact", path: ACCOUNT_PATH, auth: "anonymous", handler: accountPage }));
       if (storage && dataDir) {
         const originals = new PdfOriginals(join3(dataDir, "originals"));
-        const reader = new ReaderService(storage.citations, originals, render);
+        const reader = new ReaderService(storage.citations, originals, render, openReaderPdf, (s, check, signal) => {
+          if (!readLegacyWord) throw new Error("Office structure conversion unavailable");
+          return readLegacyWord(s, check, signal);
+        });
         const handler = libraryHandler(storage.assets, originals, actualOrigin, (req) => {
           const origin = actualOrigin();
           if (!origin || !identityAvailable()) return void 0;
@@ -6343,3 +8515,32 @@ export {
   inject,
   name
 };
+/*! Bundled license information:
+
+xmlchars/xml/1.0/ed5.js:
+  (**
+   * Character classes and associated utilities for the 5th edition of XML 1.0.
+   *
+   * @author Louis-Dominique Dubeau
+   * @license MIT
+   * @copyright Louis-Dominique Dubeau
+   *)
+
+xmlchars/xml/1.1/ed2.js:
+  (**
+   * Character classes and associated utilities for the 2nd edition of XML 1.1.
+   *
+   * @author Louis-Dominique Dubeau
+   * @license MIT
+   * @copyright Louis-Dominique Dubeau
+   *)
+
+xmlchars/xmlns/1.0/ed3.js:
+  (**
+   * Character class utilities for XML NS 1.0 edition 3.
+   *
+   * @author Louis-Dominique Dubeau
+   * @license MIT
+   * @copyright Louis-Dominique Dubeau
+   *)
+*/

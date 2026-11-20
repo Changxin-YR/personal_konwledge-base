@@ -9,7 +9,7 @@ import {fileURLToPath} from 'node:url'
 import {isolate,until} from '../lib002/a07-isolated-host.mjs'
 import {knownPdf,textFor} from '../lib002/a07-known-pdf.mjs'
 import {acceptanceSamples} from '../lib004/acceptance-samples.mjs'
-import {wordFixture,before,after,passage} from './word-fixture.mjs'
+import {wordFixture,before as beforeBlock,after as afterBlock,passage} from './word-fixture.mjs'
 import {api,dbPath,entryCookie,login,sql} from '../fnd004/harness.mjs'
 
 const [candidate,entry,parent=tmpdir()]=process.argv.slice(2),root=fileURLToPath(new URL('../../',import.meta.url)),sha=b=>createHash('sha256').update(b).digest('hex')
@@ -53,7 +53,7 @@ try{
   const selected=[];for(const s of [a,b,{...a,end:b.end}])selected.push(await post('/citations',201,s))
   for(const [i,j] of selected.entries()){
     const c=j.locator.context;assert.equal(c.block_id,selected[0].locator.context.block_id)
-    assert.deepEqual([c.block_start,c.block_end,c.previous,c.next],[a.start,b.end,sha(before),sha(after)])
+    assert.deepEqual([c.block_start,c.block_end,c.previous,c.next],[a.start,b.end,sha(beforeBlock),sha(afterBlock)])
     const locator=j.locator.word;assert.equal(locator.source_sha256,wrap.sha256);assert.equal(locator.blocks.length,1)
     const block=locator.blocks[0];assert.equal(block.ordinal,2);assert.equal(block.block_id,c.block_id)
     assert.deepEqual([block.start,block.end],[[0,9],[passage.length-7,passage.length],[0,passage.length]][i]);assert(j.locator.geometry.boxes.length)
@@ -61,8 +61,26 @@ try{
   const cid2=await convert(base(wrap)+'/office'),wp2=await page(wrap,1,cid2),again=await post('/citations',201,image(wp2,'word-wrap-rerender','STARTMARK'))
   assert.equal(again.locator.context.block_id,selected[0].locator.context.block_id)
   step(phase,{source_sha256:wrap.sha256,rendered_lines:wp.text.split('\n').length,source_ordinal:2,selection_count:selected.length,stable_across_conversions:true})
+  phase='Word repeated source blocks and page continuation'
+  const long='STARTPAGE '+('a line of material for a natural page break '.repeat(155))+'ENDPAGE'
+  const many=await upload('word-many.docx',word,wordFixture([beforeBlock,'RepeatKey','RepeatKey',long,afterBlock])),manyId=await convert(base(many)+'/office'),p1=await page(many,1,manyId)
+  assert(p1.total>1);const finalPage=await page(many,p1.total,manyId),firstWord=image(p1,'word-first-page','STARTPAGE'),lastWord=image(finalPage,'word-final-page','ENDPAGE')
+  const firstAnchor=(await post('/citations',201,firstWord)).locator.word.blocks[0],lastAnchor=(await post('/citations',201,lastWord)).locator.word.blocks[0]
+  assert.equal(firstAnchor.block_id,lastAnchor.block_id);assert.equal(firstAnchor.ordinal,4);assert.deepEqual([firstAnchor.start,firstAnchor.end,lastAnchor.start,lastAnchor.end],[0,9,long.length-7,long.length])
+  const ra=p1.text.indexOf('RepeatKey'),rb=p1.text.lastIndexOf('RepeatKey');assert(ra>=0&&rb>ra)
+  const both=await post('/citations',201,{...firstWord,start:ra,end:rb+9});assert.deepEqual(both.locator.word.blocks.map(b=>[b.ordinal,b.start,b.end]),[[2,0,9],[3,0,9]])
+  assert.notEqual(both.locator.word.blocks[0].block_id,both.locator.word.blocks[1].block_id)
+  assert(!('wordOriginal' in p1));step(phase,{pages:p1.total,continued_source_ordinal:lastAnchor.ordinal,distinct_repetitions:true})
+  phase='binary Word source structure'
+  const upstream=join(process.env.KO_TEST_CACHE??join(root,'.cache'),'upstream/deepseek-harness'),binary=execFileSync('git',['show',h.facts.upstream+':apps/web/tests/fixtures/office/preview.doc'],{cwd:upstream})
+  assert.equal(binary.subarray(0,8).toString('hex'),'d0cf11e0a1b11ae1')
+  const legacy=await upload('word97.doc','application/msword',binary),legacyId=await convert(base(legacy)+'/office'),legacyPage=await page(legacy,1,legacyId),legacySelect=image(legacyPage,'word97','Office preview')
+  const legacyCitation=await post('/citations',201,legacySelect),legacyBlock=legacyCitation.locator.word.blocks[0]
+  assert.equal(legacyCitation.locator.word.source_sha256,sha(binary));assert.deepEqual([legacyBlock.ordinal,legacyBlock.start,legacyBlock.end],[1,0,14]);step(phase,{source_sha256:sha(binary),source_ordinal:legacyBlock.ordinal})
   phase='restart and retry failed page';await h.stop();const second=await h.start();user=await authenticate();assert.notEqual(second.pid,first.pid)
   const restored=await send('/citations/'+pdfCitation.id+'/resolve',200);assert.equal(restored.quote,'reader');assert.deepEqual(restored.locator.geometry,saved);assert.deepEqual(await send('/citations/'+wc.id+'/resolve',200),old)
+  assert.deepEqual((await send('/citations/'+legacyCitation.id+'/resolve',200)).locator,legacyCitation.locator)
+  assert.deepEqual((await send('/citations/'+selected[0].id+'/resolve',200)).locator,selected[0].locator)
   await post('/assets/'+r.id+'/process',202,{version_id:r.version_id,page:4});await until(()=>sql(db,'SELECT state FROM pdf_pages WHERE version_id=? AND page=4',[r.version_id])[0]?.state==='ready','single page retry',45000)
   assert.equal((await page(r,4)).text,textFor('reader',4));step(phase,{before:'failed',after:'ready',pdf_version:r.version_id,office_version:source.version_id,original_conversion:c1,new_conversion:c2});report.status='PASS'
 }catch(e){report.status='FAIL';report.failure={phase,type:e.name,line:String(e.stack).match(/host-page-citations\.mjs:\d+/)?.[0]};process.exitCode=1}

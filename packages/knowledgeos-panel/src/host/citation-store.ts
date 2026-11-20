@@ -5,6 +5,7 @@ import {citationAnchor,resolveCitationText} from './citation-anchor.ts'
 import {makeLocator,type RenderWitness} from './citation-locator.ts'
 import type {SessionActor} from './identity.ts'
 import type {ParseTx} from './parse-store.ts'
+import {WORD_MEDIA,type WordMedia} from './office-schema.ts'
 
 export const CITATION_SCHEMA=`CREATE TABLE citations (
   id TEXT PRIMARY KEY, created_by TEXT NOT NULL REFERENCES users(id), request_key TEXT NOT NULL,
@@ -18,6 +19,7 @@ export interface ReaderTarget {asset_id:string;version_id:string;ordinal:number;
 export interface CitationSpec extends ReaderTarget {start:number;end:number;source_hash:string}
 export interface ReaderSource extends ReaderTarget {
   kind:'pdf'|'text'|'office';total:number;state:string;text:string;title:string;chapter:string;ref?:BlobRef
+  wordOriginal?:BlobRef&{media:WordMedia}
 }
 // Only the Host renderer may supply this witness. Never deserialize it from client input.
 const notFound=()=>new AssetError(404,'SOURCE_NOT_FOUND')
@@ -56,7 +58,9 @@ export class CitationStore {
       WHERE c.version_id=? AND c.state='ready' `
     const c=t.conversion_id?db.prepare(sql+'AND c.id=?').get(t.version_id,t.conversion_id):db.prepare(sql+'ORDER BY c.rowid DESC LIMIT 1').get(t.version_id)
     if(!c){if(t.conversion_id)throw notFound();return {...base,kind:'office',total:0,state:'unconverted'}}
-    const total=Number(c.page_count);if(t.ordinal>total)throw invalid();return {...base,conversion_id:String(c.id),kind:'office',total,state:'ready',ref:{key:String(c.storage_key),byteLength:Number(c.byte_length),sha256:String(c.sha256)}}
+    if(r.media_type!==WORD_MEDIA.doc&&r.media_type!==WORD_MEDIA.docx)throw notFound()
+    const total=Number(c.page_count);if(t.ordinal>total)throw invalid();return {...base,conversion_id:String(c.id),kind:'office',total,state:'ready',ref:{key:String(c.storage_key),byteLength:Number(c.byte_length),sha256:String(c.sha256)},
+      wordOriginal:{key:String(r.storage_key),byteLength:Number(r.byte_length),sha256:String(r.sha256),media:r.media_type}}
   }
   source(prior:SessionActor,t:ReaderTarget){return this.tx('read',(db,now)=>this.read(db,this.actor(prior,now),t,now))}
   access(prior:SessionActor,asset:string,version:string){return this.tx('read',(db,now)=>{
@@ -73,13 +77,25 @@ export class CitationStore {
     return w.text
   }
   private locator(db:DatabaseSync,id:string){const r=db.prepare('SELECT snapshot FROM citation_locators WHERE citation_id=?').get(id);return r?JSON.parse(String(r.snapshot)) as ReturnType<typeof makeLocator>:null}
+  private receipt(db:DatabaseSync,a:SessionActor,now:string,spec:CitationSpec,key:string,range:ReturnType<typeof citationAnchor>){
+    const old=db.prepare(`SELECT ${fields} FROM citations WHERE created_by=? AND request_key=?`).get(a.userId,key)
+    if(!old)return
+    if(!this.allowed(a,String(old.asset_id),now))throw notFound()
+    if(old.asset_id!==spec.asset_id||old.version_id!==spec.version_id||old.ordinal!==spec.ordinal||old.conversion_id!==(spec.conversion_id??null)||old.start!==range.start||old.end!==range.end||old.source_hash!==range.source_hash)throw new AssetError(409,'IDEMPOTENCY_CONFLICT')
+    return {data:{...dto(old),locator:this.locator(db,String(old.id))},replayed:true}
+  }
+  replay(prior:SessionActor,spec:CitationSpec,key:string,w:RenderWitness){return this.tx('read',(db,now)=>{
+    const a=this.actor(prior,now),src=this.read(db,a,spec,now),text=this.text(src,w)
+    if(!uuid.test(key))throw new AssetError(422,'INVALID_CITATION')
+    if(sha(text)!==spec.source_hash)throw new AssetError(409,'CITATION_SOURCE_CHANGED')
+    return this.receipt(db,a,now,spec,key,citationAnchor(text,spec.start,spec.end))
+  })}
   create(prior:SessionActor,spec:CitationSpec,key:string,w?:RenderWitness){return this.tx('write',(db,now)=>{
     const a=this.actor(prior,now),src=this.read(db,a,spec,now)
     if(!uuid.test(key)||src.kind==='office'&&!spec.conversion_id)throw new AssetError(422,'INVALID_CITATION')
     const text=this.text(src,w);if(sha(text)!==spec.source_hash)throw new AssetError(409,'CITATION_SOURCE_CHANGED')
     const range=citationAnchor(text,spec.start,spec.end)
-    const old=db.prepare(`SELECT ${fields} FROM citations WHERE created_by=? AND request_key=?`).get(a.userId,key)
-    if(old){if(!this.allowed(a,String(old.asset_id),now))throw notFound();if(old.asset_id!==spec.asset_id||old.version_id!==spec.version_id||old.ordinal!==spec.ordinal||old.conversion_id!==(spec.conversion_id??null)||old.start!==range.start||old.end!==range.end||old.source_hash!==range.source_hash)throw new AssetError(409,'IDEMPOTENCY_CONFLICT');return {data:{...dto(old),locator:this.locator(db,String(old.id))},replayed:true}}
+    const old=this.receipt(db,a,now,spec,key,range);if(old)return old
     const neighbor=(n:number)=>{if(src.kind!=='text')return null;const r=db.prepare('SELECT anchor FROM text_blocks WHERE version_id=? AND ordinal=?').get(src.version_id,n);return r?String(r.anchor):null}
     const locator=makeLocator(src,text,spec.start,spec.end,{previous:neighbor(src.ordinal-1),next:neighbor(src.ordinal+1)},w)
     const id=randomUUID();db.prepare('INSERT INTO citations VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').run(id,a.userId,key,spec.asset_id,spec.version_id,spec.conversion_id??null,spec.ordinal,range.start,range.end,range.source_hash,range.quote_hash,now)
