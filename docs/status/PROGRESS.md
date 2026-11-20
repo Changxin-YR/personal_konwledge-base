@@ -1,5 +1,7 @@
 # 实际进度
 
+2026-11-20：LIB-004 进行中，起点 `58cea367`；`7cbed4c3cc1cd9ead3cc3361fca6e57c03ac4ad7` 为中间检查点，不是验收候选。v10/v11 迁移、授权 Word 原件、转换任务与租约、版本绑定 PDF、逐页反馈和 Word 界面已合入。42 项相关回归通过，含真实 SQLite 回滚和晚到回调、HTTP 权限与 Chrome 合成 API 界面测试。原生 Office 引擎已在隔离 DSH Host 单独验证；此提交还没有把引擎 worker 接入产品。恢复时先核对工作分支，整合 worker，构建并冻结候选，再执行真实 Host T02 竞态、T01/A08 Session 释放及独立复验；这三项仍为 NOT_RUN。测试预期见 [LIB-004 验收计划](../../scripts/lib004/acceptance-plan.md)。
+
 2026-11-20：LIB-003 在 `0e9f37e` 通过 [T01、T02](../evidence/LIB-003/acceptance.json) 和[独立复核](../evidence/LIB-003/independent.json)。两次隔离运行均验证编码错误不发布、原件字节、版本定位、权限拒绝和重启回读；12 项专项测试通过。旧候选测试器失败已保留。F05、F07 仍在实现，A05 未作整体验收。下一单元 LIB-004。
 
 2026-11-19：LIB-002 和完整场景 [A07](../evidence/LIB-002/A07.json) 在 `971f6bd14f6d12e4ab508091180b4eba0473a7e7` 上通过主运行与[独立复核](../evidence/LIB-002/independent.json)。真实 DSH 与 Chrome 在第 3 页处理中断，租约过期后从第 3 页接管；单页故障持久化，解除后只重试第 4 页，保留其余页状态。17 项配套回归分别通过，另外两个场景 P02/A06 没有运行；F06/F07/F42 不作整体通过声明。下一单元 LIB-003。
