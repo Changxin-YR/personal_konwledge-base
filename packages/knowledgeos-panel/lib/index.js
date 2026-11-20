@@ -1,5 +1,5 @@
 // src/host/index.ts
-import { randomUUID as randomUUID14 } from "node:crypto";
+import { randomUUID as randomUUID15 } from "node:crypto";
 
 // src/host/status.ts
 var EXPECTED_UPSTREAM_COMMIT = "39163dd30f703a79079e2d2446545cff3c453738";
@@ -123,8 +123,8 @@ function recordsErrorToApi(error) {
       return new ApiError(500, "INTERNAL_ERROR", "internal error");
   }
 }
-async function readBody(req, limit) {
-  return await new Promise((resolve2, reject) => {
+async function readBody(req, limit2) {
+  return await new Promise((resolve2, reject2) => {
     let settled = false;
     let total = 0;
     const chunks = [];
@@ -132,12 +132,12 @@ async function readBody(req, limit) {
       if (settled) return;
       settled = true;
       req.resume();
-      reject(error);
+      reject2(error);
     };
     req.on("data", (chunk) => {
       if (settled) return;
       total += chunk.length;
-      if (total > limit) {
+      if (total > limit2) {
         fail(new ApiError(413, "PAYLOAD_TOO_LARGE", "request body exceeds the limit"));
         return;
       }
@@ -154,7 +154,7 @@ async function readBody(req, limit) {
     req.on("aborted", () => {
       if (settled) return;
       settled = true;
-      reject(new ApiError(400, "INVALID_JSON", "request was aborted"));
+      reject2(new ApiError(400, "INVALID_JSON", "request was aborted"));
     });
   });
 }
@@ -287,7 +287,7 @@ function createRecordsHandlers(service, basePath, log) {
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash3, randomUUID as randomUUID6 } from "node:crypto";
+import { createHash as createHash4, randomUUID as randomUUID7 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -496,7 +496,7 @@ var AssetStore = class {
   check(actor2, id, action2, now) {
     if (!this.allowed(actor2, id, action2, now)) throw new AssetError(404, "ASSET_NOT_FOUND");
   }
-  publish(prior, spec, blob, format) {
+  publish(prior, spec, blob, format, onPublish) {
     const text2 = format && "blocks" in format ? format : void 0;
     return this.tx("write", (db, now) => {
       const actor2 = this.actor(prior, now), digest2 = createHash2("sha256").update(JSON.stringify([spec.title, spec.assetId ?? null, spec.expectedVersion ?? null, blob.sha256, blob.byteLength, ...text2 ? [text2.media, text2.encoding] : format ? [format.media] : []])).digest("hex");
@@ -505,7 +505,9 @@ var AssetStore = class {
         this.check(actor2, String(prev.asset_id), "read", now);
         this.check(actor2, String(prev.asset_id), "edit", now);
         if (prev.request_digest !== digest2) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
-        return { receipt: receipt(db.prepare(receiptSQL + "WHERE v.id=?").get(prev.id)), replayed: true };
+        const r = receipt(db.prepare(receiptSQL + "WHERE v.id=?").get(prev.id));
+        onPublish?.(db, actor2, r);
+        return { receipt: r, replayed: true };
       }
       const id = spec.assetId ?? randomUUID3(), vid = randomUUID3(), bid = randomUUID3();
       let version = 1, parent = null;
@@ -530,7 +532,9 @@ var AssetStore = class {
         const insert = db.prepare("INSERT INTO text_blocks VALUES(?,?,?,?,?,?,?)");
         text2.blocks.forEach((b, i) => insert.run(vid, i + 1, b.kind, b.start, b.end, b.text, b.anchor));
       }
-      return { receipt: { id, title: spec.title, version_id: vid, version, sha256: blob.sha256, byte_length: blob.byteLength, ...format ? { media_type: format.media } : {} }, replayed: false };
+      const published = { id, title: spec.title, version_id: vid, version, sha256: blob.sha256, byte_length: blob.byteLength, ...format ? { media_type: format.media } : {} };
+      onPublish?.(db, actor2, published);
+      return { receipt: published, replayed: false };
     });
   }
   list(prior) {
@@ -551,20 +555,114 @@ var AssetStore = class {
       return { key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length), ...r.media_type === "application/pdf" ? {} : { media: String(r.media_type) }, ...typeof r.encoding === "string" ? { encoding: r.encoding } : {} };
     });
   }
-  blocks(prior, id, v, from, limit) {
+  blocks(prior, id, v, from, limit2) {
     return this.tx("read", (db, now) => {
       const actor2 = this.actor(prior, now);
       this.check(actor2, id, "read", now);
-      if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit) || limit < 1 || limit > 10) throw new AssetError(422, "INVALID_BLOCK_RANGE");
+      if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit2) || limit2 < 1 || limit2 > 10) throw new AssetError(422, "INVALID_BLOCK_RANGE");
       const meta = db.prepare("SELECT encoding,block_count AS total FROM text_versions t JOIN asset_versions a ON a.id=t.version_id WHERE a.asset_id=? AND a.id=?").get(id, v);
       if (!meta) throw new AssetError(404, "ASSET_NOT_FOUND");
-      return { version_id: v, ...meta, blocks: db.prepare("SELECT ordinal,kind,start,end,text,anchor FROM text_blocks WHERE version_id=? AND ordinal>=? ORDER BY ordinal LIMIT ?").all(v, from, limit) };
+      return { version_id: v, ...meta, blocks: db.prepare("SELECT ordinal,kind,start,end,text,anchor FROM text_blocks WHERE version_id=? AND ordinal>=? ORDER BY ordinal LIMIT ?").all(v, from, limit2) };
     });
   }
 };
 
+// src/host/zip-store.ts
+import { createHash as createHash3, randomUUID as randomUUID4 } from "node:crypto";
+var notFound = () => new AssetError(404, "IMPORT_NOT_FOUND");
+var uuid = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
+var ZipStore = class {
+  constructor(tx, current, readable) {
+    this.tx = tx;
+    this.current = current;
+    this.readable = readable;
+  }
+  actor(prior, now) {
+    const a = this.current(prior, now);
+    if (!a) throw new AssetError(401, "AUTH_REQUIRED");
+    return a;
+  }
+  owned(db, a, id) {
+    const row = db.prepare("SELECT id,title,storage_key,sha256,byte_length FROM zip_imports WHERE id=? AND owner_id=?").get(id, a.userId);
+    if (!row) throw notFound();
+    return row;
+  }
+  stage(prior, spec, blob, members) {
+    return this.tx("write", (db, now) => {
+      const a = this.actor(prior, now), old = db.prepare("SELECT * FROM zip_imports WHERE owner_id=? AND upload_key=?").get(a.userId, spec.key);
+      if (old) {
+        if (old.sha256 !== blob.sha256 || old.byte_length !== blob.byteLength || old.title !== spec.title) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        return { id: String(old.id), replayed: true };
+      }
+      const id = randomUUID4();
+      db.prepare("INSERT INTO zip_imports VALUES(?,?,?,?,?,?,?,?)").run(id, a.userId, spec.key, spec.title, blob.key, blob.sha256, blob.byteLength, now);
+      const insert = db.prepare(`INSERT INTO zip_entries(id,import_id,ordinal,name,path,byte_length,compressed_size,media_type,reason,state,publish_key) VALUES(?,?,?,?,?,?,?,?,?,'available',?)`);
+      for (const m of members) insert.run(randomUUID4(), id, m.ordinal, m.name, m.path, m.size, m.compressedSize, m.media, m.reason, randomUUID4());
+      return { id, replayed: false };
+    });
+  }
+  list(prior) {
+    return this.tx("read", (db, now) => db.prepare("SELECT id,title,byte_length,sha256,created_at FROM zip_imports WHERE owner_id=? ORDER BY created_at DESC,id").all(this.actor(prior, now).userId));
+  }
+  source(prior, id) {
+    return this.tx("read", (db, now) => {
+      const r = this.owned(db, this.actor(prior, now), id);
+      return { key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length) };
+    });
+  }
+  manifest(prior, id) {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(prior, now), r = this.owned(db, a, id);
+      const rows = db.prepare(`SELECT e.id,e.name,e.path,e.byte_length AS size,e.compressed_size,e.media_type,e.reason,e.state,e.error,
+      v.asset_id,v.id AS version_id,v.version,v.original_name,b.sha256,b.byte_length FROM zip_entries e
+      LEFT JOIN asset_versions v ON v.id=e.version_id LEFT JOIN blobs b ON b.id=v.blob_id WHERE e.import_id=? ORDER BY e.ordinal`).all(id);
+      const entries = rows.map(({ asset_id, version_id, version, original_name, sha256, byte_length, ...e }) => {
+        const receipt2 = asset_id && this.readable(a, String(asset_id), now) ? { id: asset_id, version_id, version, title: original_name, sha256, byte_length, media_type: e.media_type } : void 0;
+        return { ...e, ...receipt2 ? { receipt: receipt2 } : {} };
+      });
+      const state = rows.some((x) => x.state === "selected") ? "selected" : rows.some((x) => x.state === "failed") ? "partial" : rows.some((x) => x.state === "imported") ? "imported" : "staged";
+      return { id, title: r.title, byte_length: r.byte_length, sha256: r.sha256, state, entries };
+    });
+  }
+  select(prior, id, key, ids) {
+    return this.tx("write", (db, now) => {
+      const a = this.actor(prior, now);
+      this.owned(db, a, id);
+      if (!uuid.test(key) || !Array.isArray(ids) || !ids.length || ids.length > 512 || ids.some((x) => typeof x !== "string" || !uuid.test(x)) || new Set(ids).size !== ids.length) throw new AssetError(422, "INVALID_SELECTION");
+      const canonical = JSON.stringify([...ids].sort()), digest2 = createHash3("sha256").update(canonical).digest("hex");
+      const seen = db.prepare("SELECT import_id,selection_digest FROM zip_selections WHERE owner_id=? AND request_key=?").get(a.userId, key);
+      if (seen && (seen.import_id !== id || seen.selection_digest !== digest2)) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+      const get = db.prepare("SELECT id,ordinal,path,media_type,reason,state,publish_key FROM zip_entries WHERE import_id=? AND id=?");
+      const members = ids.map((entry) => {
+        const r = get.get(id, entry);
+        if (!r || r.reason !== null || !r.media_type) throw new AssetError(422, "INVALID_SELECTION");
+        return { id: entry, ordinal: Number(r.ordinal), path: String(r.path), media: String(r.media_type), key: String(r.publish_key), imported: r.state === "imported" };
+      });
+      if (!seen) db.prepare("INSERT INTO zip_selections VALUES(?,?,?,?,?,?,?)").run(randomUUID4(), id, a.userId, key, digest2, canonical, now);
+      const mark = db.prepare("UPDATE zip_entries SET state='selected',error=NULL WHERE import_id=? AND id=? AND state IN ('available','failed')");
+      for (const entry of ids) mark.run(id, entry);
+      return members.sort((a2, b) => a2.ordinal - b.ordinal);
+    });
+  }
+  failure(prior, id, entry, code) {
+    this.tx("write", (db, now) => {
+      this.owned(db, this.actor(prior, now), id);
+      db.prepare("UPDATE zip_entries SET state='failed',error=? WHERE import_id=? AND id=? AND state='selected'").run(code, id, entry);
+    });
+  }
+  // Called inside AssetStore.publish's transaction; never open a nested transaction.
+  publication(id, entry, key) {
+    return (db, a, r) => {
+      this.owned(db, a, id);
+      const updated = db.prepare(`UPDATE zip_entries SET state='imported',version_id=?,error=NULL WHERE import_id=? AND id=? AND publish_key=?
+      AND (state='selected' OR (state='imported' AND version_id=?))`).run(r.version_id, id, entry, key, r.version_id);
+      if (updated.changes !== 1) throw new AssetError(409, "SELECTION_CHANGED");
+    };
+  }
+};
+
 // src/host/parse-store.ts
-import { randomUUID as randomUUID4 } from "node:crypto";
+import { randomUUID as randomUUID5 } from "node:crypto";
 var PARSE_SCHEMA = `CREATE TABLE pdf_parse_runs (
   version_id TEXT PRIMARY KEY REFERENCES asset_versions(id), session_id TEXT NOT NULL REFERENCES auth_sessions(id),
   user_id TEXT NOT NULL REFERENCES users(id), state TEXT NOT NULL CHECK(state IN ('queued','running','complete','partial','failed','cancelled')),
@@ -591,12 +689,12 @@ var ParseStore = class {
     });
     return this.control(actor2, id, v, "status");
   }
-  pages(actor2, id, v, from, limit) {
-    if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit) || limit < 1 || limit > 10) throw new AssetError(422, "INVALID_PAGE_RANGE");
+  pages(actor2, id, v, from, limit2) {
+    if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit2) || limit2 < 1 || limit2 > 10) throw new AssetError(422, "INVALID_PAGE_RANGE");
     return this.tx("read", (db, now) => {
       if (!this.permit(actor2.sessionId, actor2.userId, id, false, now) || !this.pdfVersion(db, id, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
       const rows = db.prepare(`SELECT page,state,chapter,error,CASE WHEN state IN ('ready','review') THEN text ELSE NULL END AS text
-        FROM pdf_pages WHERE version_id=? AND page>=? ORDER BY page LIMIT ?`).all(v, from, limit);
+        FROM pdf_pages WHERE version_id=? AND page>=? ORDER BY page LIMIT ?`).all(v, from, limit2);
       return { version_id: v, from, pages: rows };
     });
   }
@@ -637,7 +735,7 @@ var ParseStore = class {
         db.prepare("UPDATE pdf_parse_runs SET state='failed',error='AUTHORIZATION_LOST' WHERE version_id=?").run(version);
         return;
       }
-      const token = randomUUID4();
+      const token = randomUUID5();
       db.prepare("UPDATE pdf_parse_runs SET state='running',token=?,deadline=?,error=NULL WHERE version_id=?").run(token, ms + leaseMs, version);
       return { version, token, key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length) };
     });
@@ -749,7 +847,7 @@ CREATE TABLE office_quality_notes (
 ) STRICT;`;
 
 // src/host/office-store.ts
-import { randomUUID as randomUUID5 } from "node:crypto";
+import { randomUUID as randomUUID6 } from "node:crypto";
 var historyLimit = 10;
 var conversionFields = "id,state,page_count,missing_fonts,failure_code";
 var missing = () => new AssetError(404, "ASSET_NOT_FOUND");
@@ -830,7 +928,7 @@ var OfficeStore = class {
       if (!row.head) throw new AssetError(409, "SOURCE_CHANGED");
       if (db.prepare("SELECT 1 FROM office_conversions WHERE version_id=? AND state IN ('queued','running')").get(v)) throw new AssetError(409, "CONVERSION_IN_PROGRESS");
       if (!available) throw new AssetError(503, "OFFICE_UNAVAILABLE");
-      const cid = randomUUID5();
+      const cid = randomUUID6();
       db.prepare("INSERT INTO office_conversions(id,version_id,actor_id,request_key,state,created_at,updated_at) VALUES(?,?,?,?,'queued',?,?)").run(cid, v, a.userId, key, now, now);
       db.prepare("INSERT INTO office_authorizations VALUES(?,?)").run(cid, a.sessionId);
       return { id: cid, state: "queued", replayed: false };
@@ -868,7 +966,7 @@ var OfficeStore = class {
         if (prev.conversion_id !== cid || prev.page !== page || prev.body !== body) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
         return { id: String(prev.id), replayed: true };
       }
-      const note = randomUUID5();
+      const note = randomUUID6();
       db.prepare("INSERT INTO office_quality_notes VALUES(?,?,?,?,?,?,?)").run(note, cid, a.userId, page, body, now, key);
       return { id: note, replayed: false };
     });
@@ -882,7 +980,7 @@ var OfficeStore = class {
         db.prepare("UPDATE office_conversions SET state='failed',failure_code='LEASE_EXPIRED',lease_token=NULL,lease_until=NULL,updated_at=? WHERE id=?").run(now, row.id);
         return;
       }
-      const token = randomUUID5();
+      const token = randomUUID6();
       db.prepare("UPDATE office_conversions SET state='running',attempt=attempt+1,lease_token=?,lease_until=?,updated_at=? WHERE id=?").run(token, deadline(now), now, row.id);
       return this.authority(db, now, token) ? { token } : void 0;
     });
@@ -908,7 +1006,7 @@ var OfficeStore = class {
     return this.tx("write", (db, now) => {
       if (!this.authority(db, now, token)) return false;
       if (!Number.isSafeInteger(pageCount) || pageCount < 1 || pageCount > 1e4 || !Number.isSafeInteger(blob.byteLength) || blob.byteLength <= 0 || blob.byteLength > 64 * 1024 * 1024 || !Array.isArray(fonts) || fonts.length > 1024 || fonts.some((f) => typeof f !== "string" || f.length > 512)) throw new AssetError(422, "INVALID_OFFICE_RESULT");
-      const bid = randomUUID5();
+      const bid = randomUUID6();
       db.prepare("INSERT INTO blobs VALUES(?,?,?,?,'application/pdf')").run(bid, blob.key, blob.sha256, blob.byteLength);
       db.prepare("UPDATE office_conversions SET state='ready',result_blob_id=?,page_count=?,missing_fonts=?,failure_code=NULL,lease_token=NULL,lease_until=NULL,updated_at=? WHERE lease_token=?").run(bid, pageCount, JSON.stringify(fonts), now, token);
       return true;
@@ -922,16 +1020,40 @@ var OfficeStore = class {
   }
 };
 
+// src/host/zip-schema.ts
+var ZIP_SCHEMA = `CREATE TABLE zip_imports (
+  id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES users(id), upload_key TEXT NOT NULL,
+  title TEXT NOT NULL, storage_key TEXT NOT NULL UNIQUE, sha256 TEXT NOT NULL CHECK(length(sha256)=64),
+  byte_length INTEGER NOT NULL CHECK(byte_length>0), created_at TEXT NOT NULL,
+  UNIQUE(owner_id,upload_key)
+) STRICT;
+CREATE INDEX zip_import_owner ON zip_imports(owner_id);
+CREATE TABLE zip_entries (
+  id TEXT PRIMARY KEY, import_id TEXT NOT NULL REFERENCES zip_imports(id), ordinal INTEGER NOT NULL CHECK(ordinal>=0),
+  name TEXT NOT NULL, path TEXT NOT NULL, byte_length INTEGER NOT NULL CHECK(byte_length>=0),
+  compressed_size INTEGER NOT NULL CHECK(compressed_size>=0), media_type TEXT, reason TEXT,
+  state TEXT NOT NULL CHECK(state IN ('available','selected','imported','failed')),
+  publish_key TEXT NOT NULL UNIQUE, version_id TEXT UNIQUE REFERENCES asset_versions(id), error TEXT,
+  CHECK((state='imported')=(version_id IS NOT NULL)), CHECK((state='failed')=(error IS NOT NULL)),
+  CHECK(reason IS NULL OR state='available'), UNIQUE(import_id,ordinal), UNIQUE(import_id,path)
+) STRICT;
+CREATE TABLE zip_selections (
+  id TEXT PRIMARY KEY, import_id TEXT NOT NULL REFERENCES zip_imports(id), owner_id TEXT NOT NULL REFERENCES users(id),
+  request_key TEXT NOT NULL, selection_digest TEXT NOT NULL CHECK(length(selection_digest)=64), member_ids TEXT NOT NULL CHECK(json_valid(member_ids) AND json_type(member_ids)='array'), created_at TEXT NOT NULL,
+  UNIQUE(owner_id,request_key)
+) STRICT;`;
+
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 12;
-var MIGRATION_V12_CHECKSUM = createHash3("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
-var MIGRATION_V11_CHECKSUM = createHash3("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
-var MIGRATION_V10_CHECKSUM = createHash3("sha256").update(OFFICE_SCHEMA).digest("hex");
-var MIGRATION_V9_CHECKSUM = createHash3("sha256").update(TEXT_SCHEMA).digest("hex");
-var MIGRATION_V8_CHECKSUM = createHash3("sha256").update(PARSE_SCHEMA).digest("hex");
-var MIGRATION_V7_CHECKSUM = createHash3("sha256").update(ASSET_SCHEMA).digest("hex");
-var MIGRATION_V6_CHECKSUM = createHash3("sha256").update(JOB_SCHEMA).digest("hex");
+var SCHEMA_VERSION = 13;
+var MIGRATION_V13_CHECKSUM = createHash4("sha256").update(ZIP_SCHEMA).digest("hex");
+var MIGRATION_V12_CHECKSUM = createHash4("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
+var MIGRATION_V11_CHECKSUM = createHash4("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
+var MIGRATION_V10_CHECKSUM = createHash4("sha256").update(OFFICE_SCHEMA).digest("hex");
+var MIGRATION_V9_CHECKSUM = createHash4("sha256").update(TEXT_SCHEMA).digest("hex");
+var MIGRATION_V8_CHECKSUM = createHash4("sha256").update(PARSE_SCHEMA).digest("hex");
+var MIGRATION_V7_CHECKSUM = createHash4("sha256").update(ASSET_SCHEMA).digest("hex");
+var MIGRATION_V6_CHECKSUM = createHash4("sha256").update(JOB_SCHEMA).digest("hex");
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
 var MIGRATION_V1_SQL = `CREATE TABLE schema_migrations (
@@ -947,7 +1069,7 @@ CREATE TABLE storage_probe_records (
   created_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V1_CHECKSUM = createHash3("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
+var MIGRATION_V1_CHECKSUM = createHash4("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
 var MIGRATION_V2_SQL = `CREATE TABLE password_credentials (
   id TEXT PRIMARY KEY,
   algorithm TEXT NOT NULL,
@@ -1001,7 +1123,7 @@ CREATE TABLE spaces (
   updated_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V2_CHECKSUM = createHash3("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
+var MIGRATION_V2_CHECKSUM = createHash4("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
 var MIGRATION_V3_SQL = `CREATE TABLE knowledge_projects (
   id TEXT PRIMARY KEY,
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
@@ -1051,7 +1173,7 @@ CREATE TABLE resource_grants (
   UNIQUE (resource_id, subject_type, subject_id, action)
 ) STRICT;
 `;
-var MIGRATION_V3_CHECKSUM = createHash3("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
+var MIGRATION_V3_CHECKSUM = createHash4("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
 var MIGRATION_V4_SQL = `ALTER TABLE resource_grants RENAME TO resource_grants_v3;
 CREATE TABLE resource_grants (
   id TEXT PRIMARY KEY,
@@ -1073,7 +1195,7 @@ CREATE UNIQUE INDEX resource_grants_active_subject_action_uq
   WHERE revoked_at IS NULL;
 DROP TABLE resource_grants_v3;
 `;
-var MIGRATION_V4_CHECKSUM = createHash3("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
+var MIGRATION_V4_CHECKSUM = createHash4("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
 var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -1085,7 +1207,7 @@ var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   PRIMARY KEY (service_id, user_id, idempotency_key)
 ) STRICT;
 `;
-var MIGRATION_V5_CHECKSUM = createHash3("sha256").update(MIGRATION_V5_SQL).digest("hex");
+var MIGRATION_V5_CHECKSUM = createHash4("sha256").update(MIGRATION_V5_SQL).digest("hex");
 var PROBE_SUPPORTED_TABLES = ["schema_migrations", "storage_probe_records"];
 var IDENTITY_SUPPORTED_TABLES = [
   "auth_sessions",
@@ -1173,6 +1295,7 @@ var ProbeStorage = class {
     return ref ? this.findActor(String(ref.token_hash), now) : void 0;
   }
   assets = new AssetStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (actor2, id, action2, now) => Boolean(this.authorizeObject(actor2, id, action2, now)));
+  archives = new ZipStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id, now) => Boolean(this.authorizeObject(a, id, "read", now)));
   office = new OfficeStore(this.#assetTx, (sessionId, userId, id, action2, now) => {
     const actor2 = this.#currentActor({ sessionId, userId }, now);
     return !!actor2 && !!this.authorizeObject(actor2, id, action2, now);
@@ -1256,7 +1379,8 @@ var ProbeStorage = class {
       if (priorVersion < 10) this.#migrateV10(db);
       if (priorVersion < 11) this.#migrateV11(db);
       if (priorVersion < 12) this.#migrateV12(db);
-      this.#verify(db, 12);
+      if (priorVersion < 13) this.#migrateV13(db);
+      this.#verify(db, 13);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
       this.#db = db;
@@ -1323,7 +1447,7 @@ var ProbeStorage = class {
       }
       return "v5";
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13) {
       const db = new DatabaseSync(path, { readOnly: true });
       try {
         this.#verify(db, facts.userVersion);
@@ -1481,7 +1605,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID6());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID7());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -1631,9 +1755,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "office history index migration failed", false, { cause: e });
     }
   }
+  #migrateV13(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(ZIP_SCHEMA);
+      this.#injectFailure("v13:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(13,?,?)").run(MIGRATION_V13_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=13; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "ZIP import migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -1644,6 +1780,7 @@ var ProbeStorage = class {
       if (version >= 10) reference.exec(OFFICE_SCHEMA);
       if (version >= 11) reference.exec(OFFICE_AUTH_SCHEMA);
       if (version >= 12) reference.exec(OFFICE_HISTORY_SCHEMA);
+      if (version >= 13) reference.exec(ZIP_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name: name2, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name2)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -1746,9 +1883,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID6();
-      const spaceId = randomUUID6();
-      const credentialId = randomUUID6();
+      const userId = randomUUID7();
+      const spaceId = randomUUID7();
+      const credentialId = randomUUID7();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -1782,9 +1919,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID6();
-      const spaceId = randomUUID6();
-      const credentialId = randomUUID6();
+      const userId = randomUUID7();
+      const spaceId = randomUUID7();
+      const credentialId = randomUUID7();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -1949,7 +2086,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action2 of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID6(), input.serviceId, input.id, input.ownerUserId, action2, input.now, input.now);
+        for (const action2 of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID7(), input.serviceId, input.id, input.ownerUserId, action2, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -2046,8 +2183,8 @@ var ProbeStorage = class {
     let primaryCode;
     let failed = false;
     try {
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash3("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash3("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash4("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash4("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
     } catch (error) {
       failed = true;
       primaryCode = primarySqliteCode(error);
@@ -2105,7 +2242,7 @@ var ProbeStorage = class {
 };
 
 // src/host/identity.ts
-import { createHash as createHash4, randomBytes, randomUUID as randomUUID7, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
+import { createHash as createHash5, randomBytes, randomUUID as randomUUID8, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
 var DOMAINS = ["software_engineering", "system_architecture", "hardware_engineering", "ai_development"];
 var LEARNING_TRACKS = ["engineering_practice", "architecture_exam", "knowledge_accumulation"];
 var DEFAULT_TIMEZONE = "Asia/Shanghai";
@@ -2181,7 +2318,7 @@ function validateExpectedRevision(value) {
   return Number(value);
 }
 function tokenHash(token) {
-  return createHash4("sha256").update(token, "utf8").digest("hex");
+  return createHash5("sha256").update(token, "utf8").digest("hex");
 }
 function makeToken() {
   return randomBytes(32).toString("base64url");
@@ -2219,15 +2356,15 @@ var KdfScheduler = class {
     if (signal?.aborted) throw new DOMException("aborted", "AbortError");
     if (this.#running >= this.#maxRunning && this.#queue.length >= this.#maxQueued) throw new IdentityError("AUTH_RATE_LIMITED", "authentication work is busy", true);
     if (this.#running < this.#maxRunning) return await this.#start(password, salt, signal);
-    return await new Promise((resolve2, reject) => {
-      const item = { password, salt, signal, resolve: resolve2, reject };
+    return await new Promise((resolve2, reject2) => {
+      const item = { password, salt, signal, resolve: resolve2, reject: reject2 };
       this.#queue.push(item);
       const onAbort = () => {
         const index = this.#queue.indexOf(item);
         if (index !== -1) {
           this.#queue.splice(index, 1);
           this.#queuedCancelled += 1;
-          reject(new DOMException("aborted", "AbortError"));
+          reject2(new DOMException("aborted", "AbortError"));
         }
       };
       signal?.addEventListener("abort", onAbort, { once: true });
@@ -2238,9 +2375,9 @@ var KdfScheduler = class {
     this.#peakRunning = Math.max(this.#peakRunning, this.#running);
     this.#started += 1;
     try {
-      return await new Promise((resolve2, reject) => {
+      return await new Promise((resolve2, reject2) => {
         nodeScrypt(password, salt, KDF_CONFIG.keyLen, { N: KDF_CONFIG.n, r: KDF_CONFIG.r, p: KDF_CONFIG.p, maxmem: KDF_CONFIG.maxmem }, (error, derived) => {
-          if (error) reject(error);
+          if (error) reject2(error);
           else {
             this.#completed += 1;
             resolve2(derived);
@@ -2371,22 +2508,22 @@ var IdentityService = class {
     const password = validatePassword(input.password);
     this.#limiter.attempt(loginName, input.source);
     const lookup = this.#store.findLogin(loginName);
-    let valid = false;
+    let valid2 = false;
     try {
-      valid = await verifyPassword(this.#kdf, password, lookup?.credential ?? { algorithm: "scrypt", version: 1, n: KDF_CONFIG.n, r: KDF_CONFIG.r, p: KDF_CONFIG.p, maxmem: KDF_CONFIG.maxmem, salt: Buffer.alloc(KDF_CONFIG.saltBytes), derivedKey: Buffer.alloc(KDF_CONFIG.keyLen) }, input.signal);
+      valid2 = await verifyPassword(this.#kdf, password, lookup?.credential ?? { algorithm: "scrypt", version: 1, n: KDF_CONFIG.n, r: KDF_CONFIG.r, p: KDF_CONFIG.p, maxmem: KDF_CONFIG.maxmem, salt: Buffer.alloc(KDF_CONFIG.saltBytes), derivedKey: Buffer.alloc(KDF_CONFIG.keyLen) }, input.signal);
     } catch (error) {
       if (error instanceof IdentityError && error.code === "AUTH_RATE_LIMITED") throw error;
-      valid = false;
+      valid2 = false;
     }
     if (input.signal?.aborted) throw new DOMException("aborted", "AbortError");
-    if (!lookup || lookup.status !== "active" || !valid) {
+    if (!lookup || lookup.status !== "active" || !valid2) {
       this.#limiter.failure(loginName, input.source);
       throw new IdentityError("INVALID_CREDENTIALS", "invalid credentials");
     }
     const token = makeToken();
     const createdAt = /* @__PURE__ */ new Date();
     const expiresAt = new Date(createdAt.getTime() + SESSION_TTL_MS).toISOString();
-    this.#store.createSession({ sessionId: randomUUID7(), userId: lookup.userId, tokenHash: tokenHash(token), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
+    this.#store.createSession({ sessionId: randomUUID8(), userId: lookup.userId, tokenHash: tokenHash(token), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
     const user = this.#store.getProfile(lookup.userId);
     if (user === void 0) throw new IdentityError("STORAGE_UNAVAILABLE", "user profile unavailable");
     return { user, token, expiresAt };
@@ -2414,7 +2551,7 @@ var IdentityService = class {
 };
 
 // src/host/identity-http.ts
-import { createHash as createHash5, randomUUID as randomUUID8 } from "node:crypto";
+import { createHash as createHash6, randomUUID as randomUUID9 } from "node:crypto";
 import { isIP } from "node:net";
 var HttpError = class extends Error {
   constructor(status, code, message, retryable = false, headers = {}) {
@@ -2491,7 +2628,7 @@ function isIdentityRuntimeAvailable(facts) {
   }
 }
 function businessCookieName(serviceId, origin) {
-  return `kos_session_${createHash5("sha256").update(`${serviceId}|${origin}`).digest("hex").slice(0, 16)}`;
+  return `kos_session_${createHash6("sha256").update(`${serviceId}|${origin}`).digest("hex").slice(0, 16)}`;
 }
 function readCookie(req, name2) {
   const raw = req.headers.cookie;
@@ -2511,7 +2648,7 @@ function clearCookie(name2, origin, protocol) {
   return `${name2}=; Path=/knowledge/v1; HttpOnly; SameSite=Strict${secure}; Max-Age=0`;
 }
 async function readBody2(req) {
-  return await new Promise((resolve2, reject) => {
+  return await new Promise((resolve2, reject2) => {
     let total = 0;
     let settled = false;
     const chunks = [];
@@ -2519,7 +2656,7 @@ async function readBody2(req) {
       if (settled) return;
       settled = true;
       req.resume();
-      reject(error);
+      reject2(error);
     };
     req.on("data", (chunk) => {
       if (settled) return;
@@ -2538,13 +2675,13 @@ async function readBody2(req) {
       try {
         text2 = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks));
       } catch {
-        reject(new HttpError(400, "INVALID_JSON", "request body is not valid UTF-8"));
+        reject2(new HttpError(400, "INVALID_JSON", "request body is not valid UTF-8"));
         return;
       }
       try {
         resolve2(JSON.parse(text2));
       } catch {
-        reject(new HttpError(400, "INVALID_JSON", "request body is not valid JSON"));
+        reject2(new HttpError(400, "INVALID_JSON", "request body is not valid JSON"));
       }
     });
     req.on("error", () => fail(new HttpError(400, "INVALID_JSON", "request body could not be read")));
@@ -2621,7 +2758,7 @@ function createIdentityHandlers(options) {
     return actor2;
   };
   const dispatch = async (req, res, action2) => {
-    const requestId = randomUUID8();
+    const requestId = randomUUID9();
     try {
       assertAvailable();
       assertNoQuery(req);
@@ -2650,7 +2787,7 @@ function createIdentityHandlers(options) {
     requireMethod(req, "GET");
     assertTrust(req, false);
     const state = service.setupState;
-    sendJson2(res, 200, withMeta(randomUUID8(), { setup_required: !state.initialized, available: true }));
+    sendJson2(res, 200, withMeta(randomUUID9(), { setup_required: !state.initialized, available: true }));
   });
   const bootstrap = async (req, res, peer) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -2661,7 +2798,7 @@ function createIdentityHandlers(options) {
     const body = bodyObject(await readBody2(req));
     assertKeys(body, ["login_name", "password", "display_name", "timezone"]);
     const user = await service.bootstrap({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, source: requestSource(req), signal });
-    sendJson2(res, 201, withMeta(randomUUID8(), safeProfile(user)));
+    sendJson2(res, 201, withMeta(randomUUID9(), safeProfile(user)));
   });
   const register = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -2671,7 +2808,7 @@ function createIdentityHandlers(options) {
     const body = bodyObject(await readBody2(req));
     assertKeys(body, ["login_name", "password", "display_name", "timezone"]);
     const user = await service.register({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, source: requestSource(req), signal });
-    sendJson2(res, 201, withMeta(randomUUID8(), safeProfile(user)));
+    sendJson2(res, 201, withMeta(randomUUID9(), safeProfile(user)));
   });
   const login = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -2686,7 +2823,7 @@ function createIdentityHandlers(options) {
     const state = service.setupState;
     const name2 = businessCookieName(state.serviceId, origin);
     const maxAge = Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1e3);
-    sendJson2(res, 200, withMeta(randomUUID8(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin, options.protocol(), maxAge) });
+    sendJson2(res, 200, withMeta(randomUUID9(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin, options.protocol(), maxAge) });
   });
   const logout = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -2707,7 +2844,7 @@ function createIdentityHandlers(options) {
     const actor2 = requireActor(req);
     const profile = service.profile(actor2.userId);
     if (profile === void 0) throw new HttpError(401, "SESSION_EXPIRED", "business session is required");
-    sendJson2(res, 200, withMeta(randomUUID8(), safeProfile(profile)));
+    sendJson2(res, 200, withMeta(randomUUID9(), safeProfile(profile)));
   });
   const preferences = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "PATCH");
@@ -2724,14 +2861,14 @@ function createIdentityHandlers(options) {
     if (body.learning_tracks !== void 0) patch.learningTracks = validateLearningTracks(body.learning_tracks);
     if (body.goal_text !== void 0) patch.goalText = validateGoalText(body.goal_text);
     if (Object.keys(patch).length === 0) throw new HttpError(422, "INPUT_INVALID", "at least one preference is required");
-    sendJson2(res, 200, withMeta(randomUUID8(), safeProfile(service.preferences(actor2.userId, expectedRevision, patch))));
+    sendJson2(res, 200, withMeta(randomUUID9(), safeProfile(service.preferences(actor2.userId, expectedRevision, patch))));
   });
   const spaces = async (req, res) => dispatch(req, res, () => {
     requireMethod(req, "GET");
     assertTrust(req, false);
     const actor2 = requireActor(req);
     const data = service.spaces(actor2.userId).map((space) => ({ id: space.id, service_id: space.serviceId, kind: space.kind, owner_user_id: space.ownerUserId, status: space.status, revision: space.revision, created_at: space.createdAt, updated_at: space.updatedAt }));
-    sendJson2(res, 200, withMeta(randomUUID8(), data));
+    sendJson2(res, 200, withMeta(randomUUID9(), data));
   });
   return { status, bootstrap, register, login, logout, me, preferences, spaces };
 }
@@ -2748,7 +2885,7 @@ function buildSetupHtml() {
 }
 
 // src/host/objects-http.ts
-import { randomUUID as randomUUID9 } from "node:crypto";
+import { randomUUID as randomUUID10 } from "node:crypto";
 var ObjectHttpError = class extends Error {
   constructor(status, code, message) {
     super(message);
@@ -2765,13 +2902,13 @@ var json = (res, status, data) => {
 };
 var pathOf = (req) => new URL(req.url ?? "/", "http://localhost").pathname;
 var safeObject = (object, includeBody = true) => ({ id: object.id, service_id: object.serviceId, space_id: object.spaceId, scope: object.scope, project_id: object.projectId, owner_user_id: object.ownerUserId, object_type: object.objectType, title: object.title, ...includeBody ? { body: object.body } : {}, status: object.status, revision: object.revision, created_at: object.createdAt, updated_at: object.updatedAt });
-var readBody3 = async (req) => await new Promise((resolve2, reject) => {
+var readBody3 = async (req) => await new Promise((resolve2, reject2) => {
   const chunks = [];
   let size = 0;
   req.on("data", (chunk) => {
     size += chunk.length;
     if (size > 16 * 1024) {
-      reject(new ObjectHttpError(413, "PAYLOAD_TOO_LARGE", "request body exceeds the limit"));
+      reject2(new ObjectHttpError(413, "PAYLOAD_TOO_LARGE", "request body exceeds the limit"));
       req.resume();
     } else chunks.push(chunk);
   });
@@ -2781,10 +2918,10 @@ var readBody3 = async (req) => await new Promise((resolve2, reject) => {
       if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error();
       resolve2(value);
     } catch {
-      reject(new ObjectHttpError(400, "INVALID_JSON", "request body is not valid JSON"));
+      reject2(new ObjectHttpError(400, "INVALID_JSON", "request body is not valid JSON"));
     }
   });
-  req.on("error", () => reject(new ObjectHttpError(400, "INVALID_JSON", "request body could not be read")));
+  req.on("error", () => reject2(new ObjectHttpError(400, "INVALID_JSON", "request body could not be read")));
 });
 var keys = (body, allowed) => {
   if (Object.keys(body).some((key) => !allowed.includes(key))) throw new ObjectHttpError(422, "INPUT_INVALID", "body contains an unsupported field");
@@ -2811,7 +2948,7 @@ function actor(options, req) {
 }
 function createObjectHandlers(options) {
   return async (req, res) => {
-    const requestId = randomUUID9();
+    const requestId = randomUUID10();
     try {
       const path = pathOf(req);
       const segments = path.split("/").filter(Boolean);
@@ -2836,7 +2973,7 @@ function createObjectHandlers(options) {
       if (segments[2] === "projects" && segments.length === 3 && req.method === "POST") {
         const body = await readBody3(req);
         keys(body, ["name"]);
-        const project = options.storage.createProject({ id: randomUUID9(), serviceId: current.serviceId, ownerUserId: current.userId, name: text(body.name, "name", 200), now });
+        const project = options.storage.createProject({ id: randomUUID10(), serviceId: current.serviceId, ownerUserId: current.userId, name: text(body.name, "name", 200), now });
         json(res, 201, { data: project, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
         return;
       }
@@ -2866,7 +3003,7 @@ function createObjectHandlers(options) {
           if (scope === "project" && !options.storage.canCreateProjectObject(current, projectId, now)) throw new ObjectHttpError(404, "NOT_FOUND", "project not found");
           const title = text(body.title, "title", 200);
           const content = text(body.body, "body", 1e5);
-          const object = options.storage.createObject({ id: randomUUID9(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId, ownerUserId: current.userId, objectType: body.object_type === void 0 ? "note" : text(body.object_type, "object_type", 80), title, body: content, now });
+          const object = options.storage.createObject({ id: randomUUID10(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId, ownerUserId: current.userId, objectType: body.object_type === void 0 ? "note" : text(body.object_type, "object_type", 80), title, body: content, now });
           json(res, 201, { data: safeObject(object), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
           return;
         }
@@ -2907,7 +3044,7 @@ function createObjectHandlers(options) {
         const body = await readBody3(req);
         keys(body, ["object_id", "subject_type", "subject_id", "action", "valid_from", "expires_at"]);
         if (body.subject_type !== "user" && body.subject_type !== "project") throw new ObjectHttpError(422, "INPUT_INVALID", "subject_type is invalid");
-        const grant = options.storage.grantObject(current, { id: randomUUID9(), objectId: text(body.object_id, "object_id", 80), serviceId: current.serviceId, subjectType: body.subject_type, subjectId: text(body.subject_id, "subject_id", 80), action: action(body.action), validFrom: body.valid_from === void 0 ? now : text(body.valid_from, "valid_from", 40), expiresAt: body.expires_at === void 0 ? void 0 : text(body.expires_at, "expires_at", 40), now });
+        const grant = options.storage.grantObject(current, { id: randomUUID10(), objectId: text(body.object_id, "object_id", 80), serviceId: current.serviceId, subjectType: body.subject_type, subjectId: text(body.subject_id, "subject_id", 80), action: action(body.action), validFrom: body.valid_from === void 0 ? now : text(body.valid_from, "valid_from", 40), expiresAt: body.expires_at === void 0 ? void 0 : text(body.expires_at, "expires_at", 40), now });
         if (grant === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
         json(res, 201, { data: grant, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
         return;
@@ -2942,11 +3079,11 @@ function createObjectHandlers(options) {
 }
 
 // src/host/ai-service.ts
-import { randomUUID as randomUUID10 } from "node:crypto";
+import { randomUUID as randomUUID11 } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 // src/host/ai-tools.ts
-import { createHash as createHash6 } from "node:crypto";
+import { createHash as createHash7 } from "node:crypto";
 var AiError = class extends Error {
   constructor(status, code) {
     super(code);
@@ -2985,7 +3122,7 @@ function toolArguments(call) {
   return { object_id, expected_revision: Number(args.expected_revision), ...args.title === void 0 ? {} : { title: aiText(args.title, 200) }, ...args.body === void 0 ? {} : { body: aiText(args.body, 2e3, true) } };
 }
 function toolDigest(name2, input) {
-  return createHash6("sha256").update(JSON.stringify([name2, input.object_id, input.expected_revision ?? null, input.title ?? null, input.body ?? null])).digest("hex");
+  return createHash7("sha256").update(JSON.stringify([name2, input.object_id, input.expected_revision ?? null, input.title ?? null, input.body ?? null])).digest("hex");
 }
 function runBusinessTool(store, actor2, call, key, now) {
   const input = toolArguments(call);
@@ -3122,7 +3259,7 @@ var AiService = class {
       if (finish !== "tool-calls" || calls.length !== 1) throw new AiError(502, "MODEL_OUTPUT_INVALID");
       const call = calls[0], args = toolArguments(call);
       if (args.object_id !== objectId || call.name === TOOL_NAMES[1] && args.expected_revision !== raw.expected_revision) throw new AiError(422, "MODEL_TARGET_MISMATCH");
-      const prepared = { id: randomUUID10(), requestId, actor: actor2, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
+      const prepared = { id: randomUUID11(), requestId, actor: actor2, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
       this.#prepared.set(prepared.id, prepared);
       return { ...this.#view(prepared), usage: usage ?? null };
     } catch (error) {
@@ -3131,10 +3268,10 @@ var AiService = class {
       if (attempted) {
         const counts = usage;
         const input = counts?.inputTokens, output = counts?.outputTokens;
-        const valid = (x) => x !== void 0 && Number.isFinite(x) && x >= 0;
-        if (valid(input)) this.#inputTokens += input;
-        if (valid(output)) this.#outputTokens += output;
-        if (valid(input) && valid(output) && valid(this.config.inputUsdPerMillion) && valid(this.config.outputUsdPerMillion)) this.#estimatedUsd += (input * this.config.inputUsdPerMillion + output * this.config.outputUsdPerMillion) / 1e6;
+        const valid2 = (x) => x !== void 0 && Number.isFinite(x) && x >= 0;
+        if (valid2(input)) this.#inputTokens += input;
+        if (valid2(output)) this.#outputTokens += output;
+        if (valid2(input) && valid2(output) && valid2(this.config.inputUsdPerMillion) && valid2(this.config.outputUsdPerMillion)) this.#estimatedUsd += (input * this.config.inputUsdPerMillion + output * this.config.outputUsdPerMillion) / 1e6;
         else this.#unknownCostCalls++;
       }
       clearTimeout(timer);
@@ -3144,10 +3281,10 @@ var AiService = class {
   }
   async #abortable(pending, signal) {
     if (signal.aborted) throw signal.reason;
-    return await new Promise((resolve2, reject) => {
-      const abort = () => reject(signal.reason);
+    return await new Promise((resolve2, reject2) => {
+      const abort = () => reject2(signal.reason);
       signal.addEventListener("abort", abort, { once: true });
-      pending.then(resolve2, reject).finally(() => signal.removeEventListener("abort", abort));
+      pending.then(resolve2, reject2).finally(() => signal.removeEventListener("abort", abort));
     });
   }
   #view(item) {
@@ -3224,10 +3361,10 @@ var AiService = class {
 };
 
 // src/host/ai-http.ts
-import { randomUUID as randomUUID11 } from "node:crypto";
+import { randomUUID as randomUUID12 } from "node:crypto";
 function createAiHandler(options) {
   return async (req, res) => {
-    const requestId = randomUUID11(), controller = new AbortController();
+    const requestId = randomUUID12(), controller = new AbortController();
     const disconnect = () => {
       if (!res.writableEnded) controller.abort();
     };
@@ -3311,7 +3448,7 @@ body{margin:0;background:#f4f8f8;color:#23333a;font:15px/1.65 "Segoe UI","Micros
 import { join as join3 } from "node:path";
 
 // src/host/pdf-originals.ts
-import { createHash as createHash7, randomUUID as randomUUID12 } from "node:crypto";
+import { createHash as createHash8, randomUUID as randomUUID13 } from "node:crypto";
 import { constants } from "node:fs";
 import fs from "node:fs/promises";
 import { dirname, join as join2, resolve } from "node:path";
@@ -3388,8 +3525,8 @@ async function verifyWordBytes(b, media) {
 
 // src/host/pdf-originals.ts
 var MAX = 64 * 1024 * 1024;
-var KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:pdf|txt|docx?)$/;
-var digest = (b) => createHash7("sha256").update(b).digest("hex");
+var KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:pdf|txt|docx?|zip)$/;
+var digest = (b) => createHash8("sha256").update(b).digest("hex");
 var PdfInputError = class extends Error {
   code = "PDF_INVALID_INPUT";
   constructor() {
@@ -3533,11 +3670,19 @@ var PdfOriginals = class {
       throw unavailable();
     }
   }
+  async putArchive(bytes) {
+    if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX) throw unavailable();
+    try {
+      return await this.#write(Buffer.from(bytes), "zip");
+    } catch {
+      throw unavailable();
+    }
+  }
   async #write(data, extension) {
     const sha256 = digest(data);
     await this.#directory(true);
-    const stage = join2(this.#root, `.${randomUUID12()}.pending`);
-    const key = `${randomUUID12()}.${extension}`, final = join2(this.#root, key);
+    const stage = join2(this.#root, `.${randomUUID13()}.pending`);
+    const key = `${randomUUID13()}.${extension}`, final = join2(this.#root, key);
     const file = await fs.open(stage, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | noFollow, 384);
     let id, staged = true, linked = false;
     try {
@@ -3616,10 +3761,10 @@ var PdfOriginals = class {
 };
 
 // src/host/library-http.ts
-import { randomUUID as randomUUID13 } from "node:crypto";
+import { randomUUID as randomUUID14 } from "node:crypto";
 
 // src/host/text-document.ts
-import { createHash as createHash8 } from "node:crypto";
+import { createHash as createHash9 } from "node:crypto";
 var MAX_BYTES = 8 * 1024 * 1024;
 var MAX_BLOCKS = 16384;
 var messages = {
@@ -3661,7 +3806,7 @@ function indexBlocks(source, markdown) {
     if (!pending) return;
     if (blocks.length >= MAX_BLOCKS) throw new TextInputError("TEXT_TOO_LARGE");
     const text2 = source.slice(start, end);
-    const anchor = createHash8("sha256").update(text2, "utf8").digest("hex");
+    const anchor = createHash9("sha256").update(text2, "utf8").digest("hex");
     blocks.push({ kind: pending, start, end, text: text2, anchor });
     start = end;
     pending = void 0;
@@ -3721,8 +3866,226 @@ function decodeText(bytes, media, requestedEncoding) {
   return { encoding, blocks: indexBlocks(text2, media === "text/markdown") };
 }
 
+// src/host/zip-reader.ts
+import { crc32 as crc322, createInflateRaw as createInflateRaw2 } from "node:zlib";
+var MiB = 1024 * 1024;
+var ZIP_LIMITS = Object.freeze({
+  archiveBytes: 64 * MiB,
+  memberBytes: 64 * MiB,
+  expandedBytes: 128 * MiB,
+  entries: 512,
+  pathBytes: 1024,
+  pathDepth: 16,
+  archiveDepth: 0
+});
+var ZipInputError = class extends Error {
+  constructor(code) {
+    super(code);
+    this.code = code;
+    this.name = "ZipInputError";
+  }
+};
+function reject(code) {
+  throw new ZipInputError(code);
+}
+function valid(condition) {
+  if (!condition) reject("ZIP_MALFORMED");
+}
+function limit(condition) {
+  if (!condition) reject("ZIP_LIMIT_EXCEEDED");
+}
+function active(signal) {
+  if (signal?.aborted) reject("ZIP_CANCELLED");
+}
+var utf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+var mediaTypes = /* @__PURE__ */ new Map([
+  ["pdf", "application/pdf"],
+  ["doc", WORD_MEDIA.doc],
+  ["docx", WORD_MEDIA.docx],
+  ["md", "text/markdown"],
+  ["markdown", "text/markdown"],
+  ["txt", "text/plain"]
+]);
+var nestedName = /\.(?:zipx?|7z|rar|tar|tgz|gz|bz2|xz|jar|war)$/i;
+var forbidden = /[\\/:*?"<>|\p{Cc}\p{Cf}]/u;
+var reserved = /^(?:CON|PRN|AUX|NUL|CONIN\$|CONOUT\$|(?:COM|LPT)[1-9])(?: *\.|$)/iu;
+function manifestPath(name2, directory, seen) {
+  const parts = (directory ? name2.slice(0, -1) : name2).split("/");
+  limit(parts.length <= ZIP_LIMITS.pathDepth);
+  let key = "", original = "";
+  for (const [i, part] of parts.entries()) {
+    const normal = part.normalize("NFKC");
+    if (!normal || forbidden.test(normal) || /[. ]$/.test(normal) || reserved.test(normal) || /~[0-9]+(?:\.|$)/i.test(normal)) reject("ZIP_UNSAFE_PATH");
+    limit(Buffer.byteLength(part) <= 255);
+    const last = i === parts.length - 1, dir = !last || directory;
+    original += "/" + part;
+    key += "/" + normal.toUpperCase();
+    const old = seen.get(key);
+    if (old && (old.original !== original || old.directory !== dir || last && old.explicit)) reject("ZIP_PATH_ALIAS");
+    seen.set(key, { original, directory: dir, explicit: last || !!old?.explicit });
+  }
+  return parts.join("/").normalize("NFC");
+}
+function checkExtras(b, pos, end) {
+  while (pos < end) {
+    valid(pos + 4 <= end);
+    const tag = b.readUInt16LE(pos), length = b.readUInt16LE(pos + 2);
+    pos += 4;
+    valid(pos + length <= end);
+    if (![21589, 30837, 10].includes(tag)) reject("ZIP_UNSUPPORTED_FEATURE");
+    if (tag === 10 && !(length === 32 && b.readUInt32LE(pos) === 0 && b.readUInt16LE(pos + 4) === 1 && b.readUInt16LE(pos + 6) === 24)) reject("ZIP_UNSUPPORTED_FEATURE");
+    pos += length;
+  }
+}
+function findEnd(b) {
+  for (let pos = b.length - 22, floor = Math.max(0, pos - 65535); pos >= floor; --pos) {
+    if (b.readUInt32LE(pos) === 101010256 && pos + 22 + b.readUInt16LE(pos + 20) === b.length) return pos;
+  }
+  return reject("ZIP_MALFORMED");
+}
+function parse(bytes) {
+  valid(Buffer.isBuffer(bytes));
+  limit(bytes.length <= ZIP_LIMITS.archiveBytes);
+  if (bytes.buffer instanceof SharedArrayBuffer) reject("ZIP_UNSUPPORTED_FEATURE");
+  const b = bytes, end = findEnd(b), count = b.readUInt16LE(end + 10), central = b.readUInt32LE(end + 16);
+  if (b.readUInt32LE(end + 4) !== 0 || count === 65535 || central === 4294967295) reject("ZIP_UNSUPPORTED_FEATURE");
+  valid(b.readUInt16LE(end + 8) === count && central + b.readUInt32LE(end + 12) === end);
+  limit(count <= ZIP_LIMITS.entries);
+  let pos = central, expanded = 0;
+  const seen = /* @__PURE__ */ new Map(), records = [];
+  for (let ordinal = 0; ordinal < count; ++ordinal) {
+    valid(pos + 46 <= end && b.readUInt32LE(pos) === 33639248);
+    const flags = b.readUInt16LE(pos + 8), method = b.readUInt16LE(pos + 10), crc = b.readUInt32LE(pos + 16), compressedSize = b.readUInt32LE(pos + 20), size = b.readUInt32LE(pos + 24), n = b.readUInt16LE(pos + 28), x = b.readUInt16LE(pos + 30), extraEnd = pos + 46 + n + x, next = extraEnd + b.readUInt16LE(pos + 32), local = b.readUInt32LE(pos + 42);
+    if (flags & ~(2056 | (method === 8 ? 6 : 0)) || method !== 0 && method !== 8 || b.readUInt16LE(pos + 34) !== 0 || [compressedSize, size, local].includes(4294967295)) reject("ZIP_UNSUPPORTED_FEATURE");
+    valid(n > 0 && next <= end && local + 30 <= central && b.readUInt32LE(local) === 67324752);
+    expanded += size;
+    limit(n <= ZIP_LIMITS.pathBytes && size <= ZIP_LIMITS.memberBytes && expanded <= ZIP_LIMITS.expandedBytes);
+    const raw = b.subarray(pos + 46, pos + 46 + n);
+    if (!(flags & 2048) && raw.some((byte) => byte >= 128)) reject("ZIP_UNSUPPORTED_FEATURE");
+    let name2;
+    try {
+      name2 = utf8.decode(raw);
+    } catch {
+      return reject("ZIP_MALFORMED");
+    }
+    const directory = name2.endsWith("/"), attrs = b.readUInt32LE(pos + 38), kind = attrs >>> 16 & 61440;
+    if (![0, 3, 10, 19].includes(b[pos + 5])) reject("ZIP_UNSUPPORTED_FEATURE");
+    if (attrs & 1096 || kind !== 0 && kind !== (directory ? 16384 : 32768) || (attrs & 16) !== 0 && !directory) reject("ZIP_UNSAFE_TYPE");
+    const path = manifestPath(name2, directory, seen);
+    if (!directory && nestedName.test(path)) reject("ZIP_NESTED_ARCHIVE");
+    valid(!directory || size === 0 && crc === 0);
+    valid(method !== 0 || size === compressedSize);
+    checkExtras(b, pos + 46 + n, extraEnd);
+    const start = local + 30 + n + b.readUInt16LE(local + 28), dataEnd = start + compressedSize;
+    valid(dataEnd <= central && b.readUInt16LE(local + 26) === n && raw.equals(b.subarray(local + 30, local + 30 + n)));
+    valid(b.readUInt16LE(local + 6) === flags && b.readUInt16LE(local + 8) === method && b.readUInt16LE(local + 4) === b.readUInt16LE(pos + 6));
+    checkExtras(b, local + 30 + n, start);
+    const descriptor = (flags & 8) !== 0;
+    for (const [off, expected] of [[14, crc], [18, compressedSize], [22, size]]) {
+      const value = b.readUInt32LE(local + off);
+      valid(value === expected || descriptor && value === 0);
+    }
+    let recordEnd = dataEnd;
+    if (descriptor) {
+      valid(recordEnd + 12 <= central);
+      if (b.readUInt32LE(recordEnd) === 134695760) recordEnd += 4;
+      valid(recordEnd + 12 <= central && b.readUInt32LE(recordEnd) === crc && b.readUInt32LE(recordEnd + 4) === compressedSize && b.readUInt32LE(recordEnd + 8) === size);
+      recordEnd += 12;
+    }
+    const ext = /\.([a-z]+)$/i.exec(path)?.[1]?.toLowerCase(), media = !directory && ext && mediaTypes.get(ext) || null;
+    records.push({
+      entry: { ordinal, name: name2, path, size, compressedSize, media, reason: directory ? "ZIP_DIRECTORY" : media ? null : "ZIP_UNSUPPORTED_MEDIA" },
+      local,
+      start,
+      end: recordEnd,
+      method,
+      crc
+    });
+    pos = next;
+  }
+  valid(pos === end);
+  let tail = 0;
+  for (const r of [...records].sort((a, b2) => a.local - b2.local)) {
+    valid(r.local === tail);
+    tail = r.end;
+  }
+  valid(tail === central);
+  return records;
+}
+function inspectZip(bytes) {
+  return parse(bytes).map((r) => r.entry);
+}
+function selectable(records, ordinal) {
+  if (!Number.isSafeInteger(ordinal) || ordinal < 0 || ordinal >= records.length) reject("ZIP_INVALID_SELECTION");
+  const r = records[ordinal];
+  if (r.entry.reason) reject(r.entry.reason);
+  return r;
+}
+function checkContainer(bytes, media) {
+  const sig = bytes.length >= 4 ? bytes.readUInt32LE(0) : 0;
+  if ([67324752, 101010256, 134695760].includes(sig)) {
+    if (media === WORD_MEDIA.docx) {
+      try {
+        checkWordEnvelope(bytes, WORD_MEDIA.docx);
+        return;
+      } catch {
+      }
+    }
+    reject("ZIP_NESTED_ARCHIVE");
+  }
+  if (bytes.subarray(0, 2).equals(Buffer.from([31, 139])) || bytes.subarray(0, 6).toString("hex") === "377abcaf271c" || bytes.subarray(0, 6).toString("hex") === "fd377a585a00" || bytes.subarray(0, 4).toString("hex") === "52617221") reject("ZIP_NESTED_ARCHIVE");
+}
+async function decode(packed, r, signal) {
+  active(signal);
+  const { size, media } = r.entry;
+  let output;
+  if (r.method === 0) {
+    if (crc322(packed) !== r.crc) reject("ZIP_INTEGRITY");
+    output = Buffer.from(packed);
+  } else {
+    output = Buffer.allocUnsafe(size);
+    const stream = createInflateRaw2({ chunkSize: 32 * 1024 }), abort = () => {
+      stream.destroy();
+    };
+    signal?.addEventListener("abort", abort, { once: true });
+    try {
+      stream.end(packed);
+      let written = 0, crc = 0;
+      for await (const chunk of stream) {
+        active(signal);
+        if (chunk.length > size - written) reject("ZIP_INTEGRITY");
+        chunk.copy(output, written);
+        written += chunk.length;
+        crc = crc322(chunk, crc);
+      }
+      active(signal);
+      if (written !== size || stream.bytesWritten !== packed.length || crc !== r.crc) reject("ZIP_INTEGRITY");
+    } catch {
+      active(signal);
+      return reject("ZIP_INTEGRITY");
+    } finally {
+      signal?.removeEventListener("abort", abort);
+      stream.destroy();
+    }
+  }
+  checkContainer(output, media);
+  return output;
+}
+async function readZipMember(bytes, ordinal, signal) {
+  active(signal);
+  const r = selectable(parse(bytes), ordinal), slice = bytes.subarray(r.start, r.start + r.entry.compressedSize);
+  return decode(r.method === 0 ? slice : Buffer.from(slice), r, signal);
+}
+async function preflightZipSelection(bytes, ordinals, signal) {
+  active(signal);
+  const records = parse(bytes);
+  if (!Array.isArray(ordinals) || !ordinals.length || ordinals.length > records.length || new Set(ordinals).size !== ordinals.length) reject("ZIP_INVALID_SELECTION");
+  const selected = Array.from(ordinals, (i) => selectable(records, i)), snapshot = Buffer.from(bytes);
+  for (const r of selected) await decode(snapshot.subarray(r.start, r.start + r.entry.compressedSize), r, signal);
+}
+
 // src/host/library-http.ts
-var uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
+var uuid2 = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 var max = 64 * 1024 * 1024;
 async function processInput(req) {
   if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
@@ -3740,18 +4103,18 @@ async function processInput(req) {
   } catch {
     throw new AssetError(422, "INVALID_PROCESS");
   }
-  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((k) => !["version_id", "page"].includes(k)) || typeof value.version_id !== "string" || !uuid.test(value.version_id) || "page" in value && (!Number.isSafeInteger(value.page) || value.page < 1 || value.page > 1e4)) throw new AssetError(422, "INVALID_PROCESS");
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((k) => !["version_id", "page"].includes(k)) || typeof value.version_id !== "string" || !uuid2.test(value.version_id) || "page" in value && (!Number.isSafeInteger(value.page) || value.page < 1 || value.page > 1e4)) throw new AssetError(422, "INVALID_PROCESS");
   return value;
 }
-async function receive(req, emptyCode, limit) {
+async function receive(req, emptyCode, limit2) {
   const declared = req.headers["content-length"];
-  if (declared !== void 0 && (!/^\d+$/.test(declared) || Number(declared) > limit)) throw new AssetError(413, "FILE_TOO_LARGE");
+  if (declared !== void 0 && (!/^\d+$/.test(declared) || Number(declared) > limit2)) throw new AssetError(413, "FILE_TOO_LARGE");
   const chunks = [];
   let count = 0;
   for await (const chunk of req) {
     const b = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     count += b.length;
-    if (count > limit) throw new AssetError(413, "FILE_TOO_LARGE");
+    if (count > limit2) throw new AssetError(413, "FILE_TOO_LARGE");
     chunks.push(b);
   }
   if (!count) throw new AssetError(422, emptyCode);
@@ -3759,7 +4122,7 @@ async function receive(req, emptyCode, limit) {
 }
 function specFor(req) {
   const key = req.headers["idempotency-key"], name2 = req.headers["x-knowledgeos-filename"], assetId = req.headers["x-knowledgeos-asset-id"], version = req.headers["x-knowledgeos-expected-version"];
-  if (typeof key !== "string" || !uuid.test(key) || typeof name2 !== "string" || name2.length > 2200) throw new AssetError(422, "INVALID_IMPORT");
+  if (typeof key !== "string" || !uuid2.test(key) || typeof name2 !== "string" || name2.length > 2200) throw new AssetError(422, "INVALID_IMPORT");
   let title;
   try {
     title = decodeURIComponent(name2).trim().normalize("NFC");
@@ -3768,13 +4131,40 @@ function specFor(req) {
   }
   if (!title || title.length > 200 || /[\\/\x00-\x1f\x7f]/u.test(title)) throw new AssetError(422, "INVALID_FILENAME");
   if (assetId === void 0 && version === void 0) return { title, key };
-  if (typeof assetId !== "string" || !uuid.test(assetId) || typeof version !== "string" || !/^\d{1,9}$/.test(version) || Number(version) < 1) throw new AssetError(422, "INVALID_VERSION");
+  if (typeof assetId !== "string" || !uuid2.test(assetId) || typeof version !== "string" || !/^\d{1,9}$/.test(version) || Number(version) < 1) throw new AssetError(422, "INVALID_VERSION");
   return { title, key, assetId, expectedVersion: Number(version) };
 }
-function libraryHandler(store, originals, origin, actorFor, parses, office, officeAvailable = () => true) {
+function inputError(e) {
+  if (e instanceof TextInputError) return new AssetError(e.code === "TEXT_TOO_LARGE" ? 413 : 422, e.code);
+  if (e instanceof WordInputError) return new AssetError(422, "INVALID_WORD");
+  if (e instanceof PdfInputError) return new AssetError(422, "INVALID_PDF");
+  if (e instanceof ZipInputError) return new AssetError(e.code === "ZIP_LIMIT_EXCEEDED" ? 413 : 422, e.code);
+}
+async function publishInput(store, originals, current, spec, bytes, media, encoding, hook) {
+  const word = isWordMedia(media), isText = media === "text/plain" || media === "text/markdown";
+  if (!isText && !word && media !== "application/pdf") throw new AssetError(415, "UNSUPPORTED_MEDIA_TYPE");
+  const text2 = isText ? { media, ...decodeText(bytes, media, encoding) } : void 0;
+  const blob = text2 ? await originals.putText(bytes) : word ? await originals.putWord(bytes, media) : await originals.put(bytes);
+  let result;
+  try {
+    result = store.publish(current(), spec, blob, word ? { media } : text2, hook);
+  } catch (e) {
+    if (e instanceof AssetError) await originals.discard(blob.key);
+    else originals.retain(blob.key);
+    throw e;
+  }
+  if (result.replayed) {
+    await originals.discard(blob.key);
+    const old = store.original(current(), result.receipt.id, result.receipt.version_id, false);
+    await originals.read(old.key, old.sha256, old.byteLength);
+  } else originals.retain(blob.key);
+  store.original(current(), result.receipt.id, result.receipt.version_id, false);
+  return result;
+}
+function libraryHandler(store, originals, origin, actorFor, parses, office, officeAvailable = () => true, archives) {
   let transfers = 0;
   return async (req, res) => {
-    const requestId = randomUUID13();
+    const requestId = randomUUID14();
     let transfer = false, handlerDone = false, responseDone = false;
     res.setHeader("cache-control", "no-store");
     res.setHeader("x-content-type-options", "nosniff");
@@ -3822,7 +4212,7 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
         return;
       }
       const op = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/office(?:\/(start)|\/([a-f0-9-]+)\/(cancel|notes|pdf))?$/.exec(url.pathname);
-      if (office && op && uuid.test(op[1]) && uuid.test(op[2]) && (!op[4] || uuid.test(op[4]))) {
+      if (office && op && uuid2.test(op[1]) && uuid2.test(op[2]) && (!op[4] || uuid2.test(op[4]))) {
         const id = op[1], v = op[2], cid = op[4], command = op[3] ?? op[5], key = req.headers["idempotency-key"];
         const send = (status, data) => json2(status, { data, request_id: requestId });
         if (req.method === "GET" && !command) {
@@ -3867,8 +4257,86 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
           return;
         }
       }
+      if (archives && !url.search) {
+        const archive = /^\/knowledge\/v1\/imports\/([a-f0-9-]+)\/(entries|selection)$/.exec(url.pathname);
+        if (req.method === "GET" && url.pathname === "/knowledge/v1/imports") {
+          json2(200, { data: { items: archives.list(current()) }, request_id: requestId });
+          return;
+        }
+        if (archive && uuid2.test(archive[1])) {
+          const id = archive[1];
+          if (req.method === "GET" && archive[2] === "entries") {
+            json2(200, { data: archives.manifest(current(), id), request_id: requestId });
+            return;
+          }
+          if (req.method === "POST" && archive[2] === "selection") {
+            const key = req.headers["idempotency-key"];
+            if (typeof key !== "string" || !uuid2.test(key)) throw new AssetError(422, "INVALID_SELECTION");
+            if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
+            reserve();
+            const body = await receive(req, "INVALID_SELECTION", 24 * 1024);
+            let input;
+            try {
+              input = JSON.parse(body.toString("utf8"));
+            } catch {
+              throw new AssetError(422, "INVALID_SELECTION");
+            }
+            if (!input || typeof input !== "object" || Object.keys(input).length !== 1 || !Array.isArray(input.entry_ids)) throw new AssetError(422, "INVALID_SELECTION");
+            const ref = archives.source(current(), id), items = archives.select(current(), id, key, input.entry_ids), pending = items.filter((e) => !e.imported);
+            if (pending.length) {
+              const bytes = await originals.read(ref.key, ref.sha256, ref.byteLength);
+              try {
+                await preflightZipSelection(bytes, pending.map((e) => e.ordinal));
+              } catch (e) {
+                if (e instanceof ZipInputError) for (const m of pending) archives.failure(current(), id, m.id, e.code);
+                throw e;
+              }
+              for (const m of pending) {
+                current();
+                const content = await readZipMember(bytes, m.ordinal), title = m.path.split("/").at(-1);
+                if (title.length > 200) {
+                  archives.failure(current(), id, m.id, "INVALID_FILENAME");
+                  continue;
+                }
+                try {
+                  await publishInput(store, originals, current, { title, key: m.key }, content, m.media, void 0, archives.publication(id, m.id, m.key));
+                } catch (e) {
+                  const invalid3 = inputError(e);
+                  if (!invalid3) throw e;
+                  archives.failure(current(), id, m.id, invalid3.code);
+                }
+              }
+            }
+            json2(200, { data: archives.manifest(current(), id), request_id: requestId });
+            return;
+          }
+        }
+      }
       if (req.method === "POST" && url.pathname === "/knowledge/v1/imports" && !url.search) {
         const media = req.headers["content-type"]?.split(";")[0]?.trim().toLowerCase();
+        if (media === "application/zip" && archives) {
+          const spec2 = specFor(req);
+          if (spec2.assetId || req.headers["x-knowledgeos-encoding"] !== void 0) throw new AssetError(422, "INVALID_IMPORT");
+          reserve();
+          const bytes2 = await receive(req, "ZIP_MALFORMED", max);
+          current();
+          const members = inspectZip(bytes2), blob = await originals.putArchive(bytes2);
+          let staged;
+          try {
+            staged = archives.stage(current(), spec2, blob, members);
+          } catch (e) {
+            if (e instanceof AssetError) await originals.discard(blob.key);
+            else originals.retain(blob.key);
+            throw e;
+          }
+          if (staged.replayed) {
+            await originals.discard(blob.key);
+            const ref = archives.source(current(), staged.id);
+            await originals.read(ref.key, ref.sha256, ref.byteLength);
+          } else originals.retain(blob.key);
+          json2(staged.replayed ? 200 : 201, { data: archives.manifest(current(), staged.id), request_id: requestId });
+          return;
+        }
         const word = isWordMedia(media), isText = media === "text/plain" || media === "text/markdown";
         if (media !== "application/pdf" && !isText && !word) throw new AssetError(415, "UNSUPPORTED_MEDIA_TYPE");
         const encoding = req.headers["x-knowledgeos-encoding"];
@@ -3877,71 +4345,49 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
         reserve();
         const bytes = await receive(req, isText ? "TEXT_INVALID_INPUT" : word ? "INVALID_WORD" : "INVALID_PDF", isText ? MAX_BYTES : max);
         current();
-        const text2 = isText ? { media, ...decodeText(bytes, media, encoding) } : void 0;
-        const blob = text2 ? await originals.putText(bytes) : word ? await originals.putWord(bytes, media) : await originals.put(bytes);
-        let verified;
-        try {
-          verified = current();
-        } catch (e) {
-          await originals.discard(blob.key);
-          throw e;
-        }
-        let result;
-        try {
-          result = store.publish(verified, spec, blob, word ? { media } : text2);
-        } catch (e) {
-          if (e instanceof AssetError) await originals.discard(blob.key);
-          else originals.retain(blob.key);
-          throw e;
-        }
-        if (result.replayed) {
-          await originals.discard(blob.key);
-          const old = store.original(current(), result.receipt.id, result.receipt.version_id, false);
-          await originals.read(old.key, old.sha256, old.byteLength);
-        } else originals.retain(blob.key);
-        store.original(current(), result.receipt.id, result.receipt.version_id, false);
+        const result = await publishInput(store, originals, current, spec, bytes, media, encoding);
         json2(result.replayed ? 200 : 201, { data: result.receipt, request_id: requestId });
         return;
       }
-      const parse2 = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/parse(?:\/(start|cancel|retry\/([1-9]\d{0,4})))?$/.exec(url.pathname);
+      const parse3 = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/parse(?:\/(start|cancel|retry\/([1-9]\d{0,4})))?$/.exec(url.pathname);
       const processPath = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/process$/.exec(url.pathname);
       const pagesPath = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/pages$/.exec(url.pathname);
       const operation = /^\/knowledge\/v1\/operations\/([a-f0-9-]+)$/.exec(url.pathname);
       const blockPath = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/blocks$/.exec(url.pathname);
-      if (blockPath && req.method === "GET" && uuid.test(blockPath[1]) && uuid.test(blockPath[2])) {
+      if (blockPath && req.method === "GET" && uuid2.test(blockPath[1]) && uuid2.test(blockPath[2])) {
         const keys2 = [...url.searchParams.keys()];
         if (keys2.some((k) => !["from", "limit"].includes(k)) || new Set(keys2).size !== keys2.length) throw new AssetError(422, "INVALID_BLOCK_RANGE");
         json2(200, { data: store.blocks(current(), blockPath[1], blockPath[2], Number(url.searchParams.get("from") ?? 1), Number(url.searchParams.get("limit") ?? 5)), request_id: requestId });
         return;
       }
       const respond = (v, data, asyncRequest) => {
-        const active2 = ["queued", "running"].includes(String(data.state)), location = "/knowledge/v1/operations/" + v;
-        if (asyncRequest && active2) res.setHeader("location", location);
-        json2(asyncRequest && active2 ? 202 : 200, { data: { ...data, operation_id: v, status_url: location, cancellable: active2 }, request_id: requestId });
+        const active3 = ["queued", "running"].includes(String(data.state)), location = "/knowledge/v1/operations/" + v;
+        if (asyncRequest && active3) res.setHeader("location", location);
+        json2(asyncRequest && active3 ? 202 : 200, { data: { ...data, operation_id: v, status_url: location, cancellable: active3 }, request_id: requestId });
       };
-      if (operation && parses && req.method === "GET" && !url.search && uuid.test(operation[1])) {
+      if (operation && parses && req.method === "GET" && !url.search && uuid2.test(operation[1])) {
         respond(operation[1], parses.operation(current(), operation[1]), false);
         return;
       }
-      if (processPath && parses && req.method === "POST" && !url.search && uuid.test(processPath[1])) {
+      if (processPath && parses && req.method === "POST" && !url.search && uuid2.test(processPath[1])) {
         const { version_id: v, page } = await processInput(req);
         respond(v, parses.control(current(), processPath[1], v, page ? "retry" : "start", page), true);
         return;
       }
-      if (pagesPath && parses && req.method === "GET" && uuid.test(pagesPath[1]) && uuid.test(pagesPath[2])) {
+      if (pagesPath && parses && req.method === "GET" && uuid2.test(pagesPath[1]) && uuid2.test(pagesPath[2])) {
         const keys2 = [...url.searchParams.keys()];
         if (keys2.some((k) => !["from", "limit"].includes(k)) || new Set(keys2).size !== keys2.length) throw new AssetError(422, "INVALID_PAGE_RANGE");
-        const from = Number(url.searchParams.get("from") ?? 1), limit = Number(url.searchParams.get("limit") ?? 5);
-        json2(200, { data: parses.pages(current(), pagesPath[1], pagesPath[2], from, limit), request_id: requestId });
+        const from = Number(url.searchParams.get("from") ?? 1), limit2 = Number(url.searchParams.get("limit") ?? 5);
+        json2(200, { data: parses.pages(current(), pagesPath[1], pagesPath[2], from, limit2), request_id: requestId });
         return;
       }
-      if (parse2 && parses && !url.search && uuid.test(parse2[1]) && uuid.test(parse2[2]) && req.method === (parse2[3] ? "POST" : "GET")) {
-        const op2 = parse2[4] ? "retry" : parse2[3] === "start" ? "start" : parse2[3] === "cancel" ? "cancel" : "status";
-        respond(parse2[2], parses.control(current(), parse2[1], parse2[2], op2, parse2[4] ? Number(parse2[4]) : void 0), op2 === "start" || op2 === "retry");
+      if (parse3 && parses && !url.search && uuid2.test(parse3[1]) && uuid2.test(parse3[2]) && req.method === (parse3[3] ? "POST" : "GET")) {
+        const op2 = parse3[4] ? "retry" : parse3[3] === "start" ? "start" : parse3[3] === "cancel" ? "cancel" : "status";
+        respond(parse3[2], parses.control(current(), parse3[1], parse3[2], op2, parse3[4] ? Number(parse3[4]) : void 0), op2 === "start" || op2 === "retry");
         return;
       }
       const path = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/original$/.exec(url.pathname);
-      if (req.method === "GET" && path && uuid.test(path[1]) && uuid.test(path[2]) && (!url.search || url.search === "?download=1")) {
+      if (req.method === "GET" && path && uuid2.test(path[1]) && uuid2.test(path[2]) && (!url.search || url.search === "?download=1")) {
         reserve();
         const download = Boolean(url.search), original = () => store.original(current(), path[1], path[2], download), r = original();
         const word = isWordMedia(r.media), ext = word ? r.media === WORD_MEDIA.doc ? "doc" : "docx" : r.media === "text/plain" ? "txt" : r.media === "text/markdown" ? "md" : "pdf";
@@ -3958,7 +4404,7 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
       }
       throw new AssetError(404, "NOT_FOUND");
     } catch (e) {
-      const error = e instanceof AssetError ? e : e instanceof TextInputError ? new AssetError(e.code === "TEXT_TOO_LARGE" ? 413 : 422, e.code) : e instanceof WordInputError ? new AssetError(422, "INVALID_WORD") : e instanceof PdfInputError ? new AssetError(422, "INVALID_PDF") : new AssetError(503, "ORIGINAL_UNAVAILABLE");
+      const error = e instanceof AssetError ? e : inputError(e) ?? new AssetError(503, "ORIGINAL_UNAVAILABLE");
       json2(error.status, { code: error.code, message: error.code, request_id: requestId });
     } finally {
       handlerDone = true;
@@ -3973,21 +4419,21 @@ function startParseWorker(store, originals, open, log) {
   async function tick() {
     const job = store.claim();
     if (!job) return;
-    let doc, active2 = true;
+    let doc, active3 = true;
     const heart = setInterval(() => {
       try {
-        if (!store.renew(job.token)) active2 = false;
+        if (!store.renew(job.token)) active3 = false;
       } catch {
-        active2 = false;
+        active3 = false;
       }
     }, 4e3);
     try {
       const bytes = await originals.read(job.key, job.sha256, job.byteLength);
-      if (stopped || !active2 || !store.renew(job.token)) return;
+      if (stopped || !active3 || !store.renew(job.token)) return;
       doc = await open(bytes);
-      if (stopped || !active2 || !store.initialize(job.token, doc.numPages)) return;
+      if (stopped || !active3 || !store.initialize(job.token, doc.numPages)) return;
       let consecutiveFailures = 0;
-      while (!stopped && active2) {
+      while (!stopped && active3) {
         const page = store.next(job.token);
         if (page == null) break;
         if (!doc) {
@@ -4008,11 +4454,11 @@ function startParseWorker(store, originals, open, log) {
           await doc.close();
           doc = void 0;
         }
-        if (stopped || !active2 || !store.publish(job.token, page, result)) break;
+        if (stopped || !active3 || !store.publish(job.token, page, result)) break;
         await new Promise((resolve2) => setImmediate(resolve2));
       }
     } catch {
-      if (!stopped && active2) store.fail(job.token);
+      if (!stopped && active3) store.fail(job.token);
     } finally {
       clearInterval(heart);
       await doc?.close();
@@ -4036,12 +4482,12 @@ var maxPdf = 64 * 1024 * 1024;
 var knownCodes = /* @__PURE__ */ new Set(["input-too-large", "output-too-large", "invalid-document", "unsupported-format", "invalid-output", "timeout", "unavailable", "failed", "busy", "source-changed", "invalid-request"]);
 var same2 = (a, b) => a.assetId === b.assetId && a.versionId === b.versionId && a.key === b.key && a.sha256 === b.sha256 && a.byteLength === b.byteLength && a.extension === b.extension;
 function startOfficeWorker(store, originals, kit, openPdf2, log) {
-  let stopped = false, pending, active2;
+  let stopped = false, pending, active3;
   async function tick() {
     const job = store.claim();
     if (!job) return;
     const { token } = job, controller = new AbortController();
-    active2 = controller;
+    active3 = controller;
     const source = () => {
       controller.signal.throwIfAborted();
       const s = store.source(token);
@@ -4119,7 +4565,7 @@ function startOfficeWorker(store, originals, kit, openPdf2, log) {
       }
     } finally {
       clearInterval(heartbeat);
-      active2 = void 0;
+      active3 = void 0;
       try {
         if (stage) await originals.discard(stage.key);
       } finally {
@@ -4136,7 +4582,7 @@ function startOfficeWorker(store, originals, kit, openPdf2, log) {
   return async () => {
     stopped = true;
     clearInterval(timer);
-    active2?.abort();
+    active3?.abort();
     await pending;
   };
 }
@@ -4144,9 +4590,9 @@ function startOfficeWorker(store, originals, kit, openPdf2, log) {
 // src/host/pdf-extractor.ts
 import { readFile } from "node:fs/promises";
 import { Worker, parentPort, workerData } from "node:worker_threads";
-var MiB = 1024 * 1024;
-var MAX_BYTES2 = 64 * MiB;
-var MAX_MEMORY = 256 * MiB;
+var MiB2 = 1024 * 1024;
+var MAX_BYTES2 = 64 * MiB2;
+var MAX_MEMORY = 256 * MiB2;
 var MAX_PAGES = 1e4;
 var MAX_CHARS = 32e3;
 var MAX_BOOKMARKS = 2048;
@@ -4154,14 +4600,14 @@ var MAX_TITLE_BYTES = 512;
 var DEADLINE_MS = 15e3;
 var MAX_WORKERS = 2;
 var role = "knowledgeos:pdf-extractor:v1";
-var active = 0;
+var active2 = 0;
 function pdfError(code, message) {
   return Object.assign(new Error(message), { code });
 }
 async function openPdf(bytes) {
   if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX_BYTES2)
     throw pdfError("PDF_OPEN_FAILED", "Invalid PDF input size or type");
-  if (active >= MAX_WORKERS) throw pdfError("PDF_BUSY", "PDF extractor busy");
+  if (active2 >= MAX_WORKERS) throw pdfError("PDF_BUSY", "PDF extractor busy");
   const copy = new Uint8Array(bytes);
   const worker = new Worker(new URL("./pdf-extractor.js", import.meta.url), {
     workerData: role,
@@ -4169,14 +4615,14 @@ async function openPdf(bytes) {
     execArgv: [],
     resourceLimits: { maxOldGenerationSizeMb: 48, maxYoungGenerationSizeMb: 8 }
   });
-  active++;
+  active2++;
   let pending;
   let closing;
   const close = () => {
     if (!closing) {
       closing = worker.terminate().then(() => {
       }).finally(() => {
-        active--;
+        active2--;
       });
       pending?.({ error: "PDF closed", fatal: true });
     }
@@ -4195,14 +4641,14 @@ async function openPdf(bytes) {
   function request(input) {
     if (closing) return Promise.reject(pdfError("PDF_HANDLE_CLOSED", "PDF closed"));
     if (pending) return Promise.reject(pdfError("PDF_BUSY", "PDF extractor busy"));
-    return new Promise((resolve2, reject) => {
+    return new Promise((resolve2, reject2) => {
       const timer = setTimeout(() => fail("PDF parser deadline exceeded"), DEADLINE_MS);
       pending = (msg) => {
         clearTimeout(timer);
         pending = void 0;
         if ("error" in msg) {
           const code = typeof input !== "number" ? "PDF_OPEN_FAILED" : msg.fatal ? "PDF_HANDLE_CLOSED" : "PDF_PAGE_FAILED";
-          reject(pdfError(code, msg.error));
+          reject2(pdfError(code, msg.error));
         } else resolve2(msg.value);
       };
       try {
@@ -4244,7 +4690,7 @@ async function loadEngine() {
     emscripten_resize_heap: (size) => {
       const old = api.memory.buffer.byteLength;
       if (size >>> 0 > MAX_MEMORY) throw new Error("PDF parser memory limit");
-      const target = Math.min(MAX_MEMORY, Math.max(size >>> 0, old + 8 * MiB));
+      const target = Math.min(MAX_MEMORY, Math.max(size >>> 0, old + 8 * MiB2));
       api.memory.grow(Math.ceil((target - old) / 65536));
       return 1;
     }
@@ -4297,7 +4743,7 @@ function chapters(api, doc, pages) {
 }
 var PageFailure = class extends Error {
 };
-async function parse(bytes) {
+async function parse2(bytes) {
   const api = await loadEngine(), ptr = allocate(api, bytes.length);
   new Uint8Array(api.memory.buffer, ptr, bytes.length).set(bytes);
   const doc = api.FPDF_LoadMemDocument(ptr, bytes.length, 0);
@@ -4346,7 +4792,7 @@ if (parentPort && workerData === role) {
   port.on("message", async (input) => {
     try {
       if (typeof input !== "number") {
-        document = await parse(input);
+        document = await parse2(input);
         port.postMessage({ value: document.numPages });
       } else port.postMessage({ value: document.page(input) });
     } catch (err) {
@@ -4869,7 +5315,7 @@ function apply(ctx, config = {}) {
       if (closing) throw new RecordsError("STORAGE_CLOSED", "storage is closing");
       if (storage === void 0) throw new RecordsError("STORAGE_UNAVAILABLE", "storage is not configured");
       return createProbeRecord(storage, {
-        newId: () => randomUUID14(),
+        newId: () => randomUUID15(),
         now: () => (/* @__PURE__ */ new Date()).toISOString()
       }, { idempotencyKey, content });
     },
@@ -4934,7 +5380,7 @@ function apply(ctx, config = {}) {
     res.statusCode = 503;
     res.setHeader("content-type", "application/json; charset=utf-8");
     res.setHeader("cache-control", "no-store");
-    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID14(), retryable: true, safe_details: {} }));
+    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID15(), retryable: true, safe_details: {} }));
   };
   const registerIdentityRoutes = (identityContext) => {
     const identityAvailable = () => {
@@ -4952,18 +5398,18 @@ function apply(ctx, config = {}) {
     identityContext.inject(["llm", "tools"], (aiContext) => {
       aiContext.effect(() => {
         ai.close();
-        let active2;
+        let active3;
         try {
-          active2 = new AiService(storage, route(), aiContext.llm, aiContext.tools);
+          active3 = new AiService(storage, route(), aiContext.llm, aiContext.tools);
         } catch {
           console.warn("knowledgeos-ai: TOOL_REGISTRATION_FAILED");
           ai = new AiService(storage, route());
           return () => ai.close();
         }
-        ai = active2;
+        ai = active3;
         return () => {
-          active2.close();
-          if (ai === active2) ai = new AiService(storage, route());
+          active3.close();
+          if (ai === active3) ai = new AiService(storage, route());
         };
       }, "knowledgeos-ai: controlled tools");
     });
@@ -5049,7 +5495,7 @@ function apply(ctx, config = {}) {
           const origin = actualOrigin();
           if (!origin || !identityAvailable()) return void 0;
           return identity.actor(readCookie(req, businessCookieName(identity.setupState.serviceId, origin)));
-        }, storage.parses, storage.office, () => !!officeMount);
+        }, storage.parses, storage.office, () => !!officeMount, storage.archives);
         if (storage.available) disposers.push(startParseWorker(storage.parses, originals, openPdf, log));
         disposers.push(identityContext.webServer.register({ kind: "exact", path: "/knowledgeos/library", auth: "anonymous", handler: (req, res) => {
           if (req.method !== "GET") {
@@ -5061,7 +5507,7 @@ function apply(ctx, config = {}) {
           res.setHeader("cache-control", "no-store");
           res.end(buildLibraryHtml());
         } }));
-        disposers.push(identityContext.webServer.register({ kind: "exact", path: "/knowledge/v1/imports", auth: "anonymous", handler: withPeer(handler) }));
+        disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/imports", auth: "anonymous", handler: withPeer(handler) }));
         disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/assets", auth: "anonymous", handler: withPeer(handler) }));
         disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/operations", auth: "anonymous", handler: withPeer(handler) }));
       }

@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url'
 import { crc32 } from 'node:zlib'
 
 // A classic ZIP with stored entries, ASCII part names and fixed DOS date 1980-01-01.
-function zip(parts) {
+export function zip(parts) {
   const local = [], directory = []
   let offset = 0
   for (const [path, value] of Object.entries(parts)) {

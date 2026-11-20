@@ -8,6 +8,8 @@ import {decodeText,TextInputError,MAX_BYTES as textLimit} from './text-document.
 import {isWordMedia,WordInputError} from './word-original.ts'
 import {WORD_MEDIA} from './office-schema.ts'
 import type {OfficeStore} from './office-store.ts'
+import type {ZipStore} from './zip-store.ts'
+import {inspectZip,preflightZipSelection,readZipMember,ZipInputError} from './zip-reader.ts'
 
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/
 const max=64*1024*1024
@@ -35,7 +37,32 @@ function specFor(req:IncomingMessage):ImportSpec {
   return {title,key,assetId,expectedVersion:Number(version)}
 }
 
-export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:()=>string|undefined,actorFor:(req:IncomingMessage)=>SessionActor|undefined, parses?:ParseStore, office?:OfficeStore,officeAvailable=()=>true){
+function inputError(e:unknown){
+  if(e instanceof TextInputError)return new AssetError(e.code==='TEXT_TOO_LARGE'?413:422,e.code)
+  if(e instanceof WordInputError)return new AssetError(422,'INVALID_WORD')
+  if(e instanceof PdfInputError)return new AssetError(422,'INVALID_PDF')
+  if(e instanceof ZipInputError)return new AssetError(e.code==='ZIP_LIMIT_EXCEEDED'?413:422,e.code)
+}
+
+async function publishInput(store:AssetStore,originals:PdfOriginals,current:()=>SessionActor,spec:ImportSpec,bytes:Buffer,media:string,encoding?:string,hook?:Parameters<AssetStore['publish']>[4]){
+  const word=isWordMedia(media),isText=media==='text/plain'||media==='text/markdown'
+  if(!isText&&!word&&media!=='application/pdf')throw new AssetError(415,'UNSUPPORTED_MEDIA_TYPE')
+  const text:IndexedText|undefined=isText?{media,...decodeText(bytes,media,encoding)}:undefined
+  const blob=text?await originals.putText(bytes):word?await originals.putWord(bytes,media):await originals.put(bytes)
+  let result:ReturnType<AssetStore['publish']>
+  try{result=store.publish(current(),spec,blob,word?{media}:text,hook)}catch(e){
+    if(e instanceof AssetError)await originals.discard(blob.key);else originals.retain(blob.key)
+    throw e
+  }
+  if(result.replayed){
+    await originals.discard(blob.key);const old=store.original(current(),result.receipt.id,result.receipt.version_id,false)
+    await originals.read(old.key,old.sha256,old.byteLength)
+  }else originals.retain(blob.key)
+  store.original(current(),result.receipt.id,result.receipt.version_id,false)
+  return result
+}
+
+export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:()=>string|undefined,actorFor:(req:IncomingMessage)=>SessionActor|undefined, parses?:ParseStore, office?:OfficeStore,officeAvailable=()=>true,archives?:ZipStore){
   let transfers=0
   return async(req:IncomingMessage,res:ServerResponse)=>{
     const requestId=randomUUID();let transfer=false,handlerDone=false,responseDone=false
@@ -70,31 +97,52 @@ export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:
           res.setHeader('content-type','application/pdf');res.setHeader('content-length',bytes.length);res.setHeader('content-security-policy',"sandbox; default-src 'none'");res.setHeader('content-disposition',`${download?'attachment':'inline'}; filename="preview.pdf"`);res.end(bytes);return
         }
       }
+      if(archives&&!url.search){
+        const archive=/^\/knowledge\/v1\/imports\/([a-f0-9-]+)\/(entries|selection)$/.exec(url.pathname)
+        if(req.method==='GET'&&url.pathname==='/knowledge/v1/imports'){json(200,{data:{items:archives.list(current())},request_id:requestId});return}
+        if(archive&&uuid.test(archive[1]!)){
+          const id=archive[1]!
+          if(req.method==='GET'&&archive[2]==='entries'){json(200,{data:archives.manifest(current(),id),request_id:requestId});return}
+          if(req.method==='POST'&&archive[2]==='selection'){
+            const key=req.headers['idempotency-key'];if(typeof key!=='string'||!uuid.test(key))throw new AssetError(422,'INVALID_SELECTION')
+            if(req.headers['content-type']?.split(';')[0]!=='application/json')throw new AssetError(415,'JSON_REQUIRED')
+            reserve();const body=await receive(req,'INVALID_SELECTION',24*1024)
+            let input;try{input=JSON.parse(body.toString('utf8'))}catch{throw new AssetError(422,'INVALID_SELECTION')}
+            if(!input||typeof input!=='object'||Object.keys(input).length!==1||!Array.isArray(input.entry_ids))throw new AssetError(422,'INVALID_SELECTION')
+            const ref=archives.source(current(),id),items=archives.select(current(),id,key,input.entry_ids),pending=items.filter(e=>!e.imported)
+            if(pending.length){
+              const bytes=await originals.read(ref.key,ref.sha256,ref.byteLength)
+              try{await preflightZipSelection(bytes,pending.map(e=>e.ordinal))}catch(e){
+                if(e instanceof ZipInputError)for(const m of pending)archives.failure(current(),id,m.id,e.code)
+                throw e
+              }
+              for(const m of pending){
+                current();const content=await readZipMember(bytes,m.ordinal),title=m.path.split('/').at(-1)!
+                if(title.length>200){archives.failure(current(),id,m.id,'INVALID_FILENAME');continue}
+                try{await publishInput(store,originals,current,{title,key:m.key},content,m.media,undefined,archives.publication(id,m.id,m.key))}
+                catch(e){const invalid=inputError(e);if(!invalid)throw e;archives.failure(current(),id,m.id,invalid.code)}
+              }
+            }
+            json(200,{data:archives.manifest(current(),id),request_id:requestId});return
+          }
+        }
+      }
       if(req.method==='POST'&&url.pathname==='/knowledge/v1/imports'&&!url.search){
         const media=req.headers['content-type']?.split(';')[0]?.trim().toLowerCase()
+        if(media==='application/zip'&&archives){
+          const spec=specFor(req);if(spec.assetId||req.headers['x-knowledgeos-encoding']!==undefined)throw new AssetError(422,'INVALID_IMPORT')
+          reserve();const bytes=await receive(req,'ZIP_MALFORMED',max);current();const members=inspectZip(bytes),blob=await originals.putArchive(bytes)
+          let staged:ReturnType<ZipStore['stage']>
+          try{staged=archives.stage(current(),spec,blob,members)}catch(e){if(e instanceof AssetError)await originals.discard(blob.key);else originals.retain(blob.key);throw e}
+          if(staged.replayed){await originals.discard(blob.key);const ref=archives.source(current(),staged.id);await originals.read(ref.key,ref.sha256,ref.byteLength)}else originals.retain(blob.key)
+          json(staged.replayed?200:201,{data:archives.manifest(current(),staged.id),request_id:requestId});return
+        }
         const word=isWordMedia(media),isText=media==='text/plain'||media==='text/markdown'
         if(media!=='application/pdf'&&!isText&&!word)throw new AssetError(415,'UNSUPPORTED_MEDIA_TYPE')
         const encoding=req.headers['x-knowledgeos-encoding']
         if(encoding!==undefined&&(typeof encoding!=='string'||!isText))throw new AssetError(422,'TEXT_UNSUPPORTED_ENCODING')
         const spec=specFor(req);reserve();const bytes=await receive(req,isText?'TEXT_INVALID_INPUT':word?'INVALID_WORD':'INVALID_PDF',isText?textLimit:max);current()
-        const text:IndexedText|undefined=isText?{media,...decodeText(bytes,media,encoding)}:undefined
-        const blob=text?await originals.putText(bytes):word?await originals.putWord(bytes,media):await originals.put(bytes)
-        // An uncertain COMMIT must never delete an original that might be referenced.
-        // Unreferenced objects from a failed transaction remain private for safe reconciliation.
-        let verified:SessionActor
-        try {verified=current()}catch(e){await originals.discard(blob.key);throw e}
-        let result:ReturnType<AssetStore['publish']>
-        try {result=store.publish(verified,spec,blob,word?{media}:text)}catch(e){
-          if(e instanceof AssetError)await originals.discard(blob.key);else originals.retain(blob.key)
-          throw e
-        }
-        if(result.replayed){
-          await originals.discard(blob.key)
-          const old=store.original(current(),result.receipt.id,result.receipt.version_id,false)
-          await originals.read(old.key,old.sha256,old.byteLength)
-        }else originals.retain(blob.key)
-        // A replay cleanup may have yielded; do not publish stale authorized metadata.
-        store.original(current(),result.receipt.id,result.receipt.version_id,false)
+        const result=await publishInput(store,originals,current,spec,bytes,media,encoding)
         json(result.replayed?200:201,{data:result.receipt,request_id:requestId});return
       }
       const parse=/^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/parse(?:\/(start|cancel|retry\/([1-9]\d{0,4})))?$/.exec(url.pathname)
@@ -134,7 +182,7 @@ export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:
         res.statusCode=200;res.setHeader('content-type',word?r.media!:r.media?`${download?r.media:'text/plain'}; charset=${r.encoding}`:'application/pdf');res.setHeader('content-security-policy',"sandbox; default-src 'none'");res.setHeader('content-disposition',`${download?'attachment':'inline'}; filename="document.${ext}"`);res.setHeader('content-length',bytes.length);res.end(bytes);return
       }
       throw new AssetError(404,'NOT_FOUND')
-    }catch(e){const error=e instanceof AssetError?e:e instanceof TextInputError?new AssetError(e.code==='TEXT_TOO_LARGE'?413:422,e.code):e instanceof WordInputError?new AssetError(422,'INVALID_WORD'):e instanceof PdfInputError?new AssetError(422,'INVALID_PDF'):new AssetError(503,'ORIGINAL_UNAVAILABLE');json(error.status,{code:error.code,message:error.code,request_id:requestId})}
+    }catch(e){const error=e instanceof AssetError?e:inputError(e)??new AssetError(503,'ORIGINAL_UNAVAILABLE');json(error.status,{code:error.code,message:error.code,request_id:requestId})}
     finally{handlerDone=true;release()}
   }
 }

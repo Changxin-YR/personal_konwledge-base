@@ -36,12 +36,12 @@ export class AssetStore {
   private actor(prior:SessionActor,now:string) {const actor=this.current(prior,now);if(!actor)throw new AssetError(401,'AUTH_REQUIRED');return actor}
   private check(actor:SessionActor,id:string,action:AuthorizationAction,now:string) {if(!this.allowed(actor,id,action,now))throw new AssetError(404,'ASSET_NOT_FOUND')}
 
-  publish(prior:SessionActor, spec:ImportSpec, blob:BlobRef,format?:IndexedText|{media:WordMedia}):{receipt:AssetReceipt;replayed:boolean} {
+  publish(prior:SessionActor, spec:ImportSpec, blob:BlobRef,format?:IndexedText|{media:WordMedia},onPublish?:(db:DatabaseSync,actor:SessionActor,receipt:AssetReceipt)=>void):{receipt:AssetReceipt;replayed:boolean} {
     const text=format && 'blocks' in format ? format : undefined
     return this.tx('write',(db,now)=>{
       const actor=this.actor(prior,now), digest=createHash('sha256').update(JSON.stringify([spec.title,spec.assetId??null,spec.expectedVersion??null,blob.sha256,blob.byteLength,...(text?[text.media,text.encoding]:format?[format.media]:[])])).digest('hex')
       const prev=db.prepare('SELECT id,asset_id,request_digest FROM asset_versions WHERE created_by=? AND idempotency_key=?').get(actor.userId,spec.key)
-      if(prev){this.check(actor,String(prev.asset_id),'read',now);this.check(actor,String(prev.asset_id),'edit',now);if(prev.request_digest!==digest)throw new AssetError(409,'IDEMPOTENCY_CONFLICT');return {receipt:receipt(db.prepare(receiptSQL+'WHERE v.id=?').get(prev.id!)!),replayed:true}}
+      if(prev){this.check(actor,String(prev.asset_id),'read',now);this.check(actor,String(prev.asset_id),'edit',now);if(prev.request_digest!==digest)throw new AssetError(409,'IDEMPOTENCY_CONFLICT');const r=receipt(db.prepare(receiptSQL+'WHERE v.id=?').get(prev.id!)!);onPublish?.(db,actor,r);return {receipt:r,replayed:true}}
       const id=spec.assetId??randomUUID(), vid=randomUUID(), bid=randomUUID();let version=1,parent:string|null=null
       if(spec.assetId){
         this.check(actor,id,'read',now);this.check(actor,id,'edit',now)
@@ -60,7 +60,9 @@ export class AssetStore {
         const insert=db.prepare('INSERT INTO text_blocks VALUES(?,?,?,?,?,?,?)')
         text.blocks.forEach((b,i)=>insert.run(vid,i+1,b.kind,b.start,b.end,b.text,b.anchor))
       }
-      return {receipt:{id,title:spec.title,version_id:vid,version,sha256:blob.sha256,byte_length:blob.byteLength,...(format?{media_type:format.media}:{})},replayed:false}
+      const published={id,title:spec.title,version_id:vid,version,sha256:blob.sha256,byte_length:blob.byteLength,...(format?{media_type:format.media}:{})}
+      onPublish?.(db,actor,published)
+      return {receipt:published,replayed:false}
     })
   }
 

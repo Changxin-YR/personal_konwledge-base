@@ -6,7 +6,7 @@ import {verifyWordBytes} from './word-original.ts'
 import {WORD_MEDIA,type WordMedia} from './office-schema.ts'
 
 const MAX = 64 * 1024 * 1024
-const KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:pdf|txt|docx?)$/
+const KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:pdf|txt|docx?|zip)$/
 const digest = (b: Buffer) => createHash('sha256').update(b).digest('hex')
 export class PdfInputError extends Error {
   readonly code = 'PDF_INVALID_INPUT'
@@ -153,7 +153,12 @@ export class PdfOriginals {
     try{return await this.#write(data,media===WORD_MEDIA.doc?'doc':'docx')}catch{throw unavailable()}
   }
 
-  async #write(data: Buffer, extension:'txt'|'pdf'|'doc'|'docx') {
+  async putArchive(bytes:Uint8Array) {
+    if(!(bytes instanceof Uint8Array)||!bytes.byteLength||bytes.byteLength>MAX)throw unavailable()
+    try{return await this.#write(Buffer.from(bytes),'zip')}catch{throw unavailable()}
+  }
+
+  async #write(data: Buffer, extension:'txt'|'pdf'|'doc'|'docx'|'zip') {
     const sha256 = digest(data)
     await this.#directory(true)
     const stage = join(this.#root, `.${randomUUID()}.pending`)
