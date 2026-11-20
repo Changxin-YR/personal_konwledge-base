@@ -25,8 +25,15 @@ export function buildLibraryHtml(): string {
 <div id="office-result" hidden><h3>可用转换结果</h3><p id="office-quality"></p>
 <div class="links"><a id="office-preview" target="_blank" rel="noopener">预览转换 PDF</a><a id="office-download" download>下载转换 PDF</a></div>
 <h3>逐页质量记录</h3><ol id="office-notes" aria-label="逐页质量记录"></ol>
+<button id="office-older-notes" type="button" hidden>查看更早质量记录</button>
 <form id="office-note-form"><label>页码<input type="number" id="office-page" min="1" step="1" required></label>
-<label>质量问题<textarea id="office-body" rows="2" required></textarea></label><button type="submit" id="office-save">保存质量记录</button></form></div></div></section>
+<label>质量问题<textarea id="office-body" rows="2" required></textarea></label><button type="submit" id="office-save">保存质量记录</button></form></div>
+<section id="office-history" aria-label="转换历史" hidden><h3>转换历史</h3><ol id="office-attempts"></ol>
+<div class="links"><button id="office-older" type="button" hidden>更早转换</button><button id="office-newest" type="button" hidden>返回最近转换</button></div></section>
+<section id="office-detail" aria-label="历史质量记录" hidden><h3 id="office-detail-title" tabindex="-1">历史质量记录</h3>
+<a id="office-detail-pdf" target="_blank" rel="noopener">预览此记录的 PDF</a><ol id="office-detail-notes"></ol>
+<div class="links"><button id="office-detail-older" type="button" hidden>更早记录</button><button id="office-detail-newest" type="button" hidden>最新记录</button>
+<button id="office-detail-close" type="button">关闭历史记录</button></div></section><p id="office-nav-status" role="status"></p></div></section>
 <section id="reader" aria-labelledby="reader-heading" hidden><h2 id="reader-heading">文本回读</h2>
 <label id="block-picker">文本版本<select id="block-version"></select></label>
 <p id="block-summary" aria-live="polite"></p><ol id="blocks" aria-label="文本块"></ol>
@@ -241,32 +248,85 @@ const officeStates={queued:'排队中',running:'转换中',ready:'转换完成',
 let office=null;
 function resetOfficeResult(){
   $('office-result').hidden=true;$('office-quality').textContent='';$('office-notes').replaceChildren();
+  $('office-older-notes').hidden=true;
   $('office-preview').removeAttribute('href');$('office-download').removeAttribute('href');
   $('office-body').value='';$('office-page').value='1';
 }
 function resetOffice(){
-  clearTimeout(office?.timer);office=null;resetOfficeResult();$('office-panel').hidden=true;
+  clearTimeout(office?.timer);office=null;resetOfficeHistory();resetOfficeResult();$('office-panel').hidden=true;
   $('office-status').textContent='';$('office-action').hidden=true;$('office-refresh').disabled=false;
 }
 function clearOffice(){resetOffice();officeVersion.replaceChildren();$('office').hidden=true}
 function officeData(data,version){
-  if(data?.version_id!==version || !Array.isArray(data.conversions))throw problem(502);
+  if(data?.version_id!==version || !Array.isArray(data.conversions) || data.conversions.length>10 ||
+    (data.next_before!==undefined && (!uuid.test(data.next_before)||data.next_before!==data.conversions.at(-1)?.id)))throw problem(502);
   const ids=new Set();
-  for(const c of data.conversions){
+  if(data.latest_ready!==undefined && data.latest_ready?.state!=='ready')throw problem(502);
+  for(const c of [...data.conversions,...(data.latest_ready?[data.latest_ready]:[])]){
     if(!c || typeof c.id!=='string' || !/^[a-zA-Z0-9_-]+$/.test(c.id) || ids.has(c.id) || !Object.hasOwn(officeStates,c.state) ||
       (c.page_count!=null && (!Number.isSafeInteger(c.page_count) || c.page_count<0)) || (c.state==='ready' && !(c.page_count>0)) ||
       (c.failure_code!=null && typeof c.failure_code!=='string') || !Array.isArray(c.missing_fonts) || !c.missing_fonts.every(f=>typeof f==='string') ||
-      !Array.isArray(c.notes) || !c.notes.every(n=>n && Number.isSafeInteger(n.page) && n.page>=1 && n.page<=c.page_count && typeof n.body==='string'))throw problem(502);
+      !Array.isArray(c.notes) || c.notes.length>10 || !c.notes.every(n=>n && Number.isSafeInteger(n.page) && n.page>=1 && n.page<=c.page_count && typeof n.body==='string') ||
+      (c.notes_next_before!==undefined && (!uuid.test(c.notes_next_before)||c.notes_next_before!==c.notes[0]?.id)))throw problem(502);
     ids.add(c.id);
   }
-  return data.conversions;
+  return data;
+}
+function closeOfficeDetail(){
+  $('office-detail').hidden=true;$('office-detail-title').textContent='历史质量记录';
+  $('office-detail-notes').replaceChildren();$('office-detail-pdf').removeAttribute('href');
+}
+function resetOfficeHistory(){
+  closeOfficeDetail();$('office-history').hidden=true;$('office-attempts').replaceChildren();$('office-nav-status').textContent='';
+}
+function drawAttempts(s){
+  const page=s.history||s.head,history=$('office-history');
+  history.hidden=!s.history && page.conversions.length<2 && !page.next_before;
+  $('office-older').hidden=!page.next_before;$('office-newest').hidden=!s.history;
+  // Don't replace focused controls on every live status poll.
+  const key=JSON.stringify(page.conversions.map(c=>[c.id,c.state,c.failure_code]));if(key===s.historyKey)return;s.historyKey=key;
+  $('office-attempts').replaceChildren(...page.conversions.map(c=>{
+    const li=el('li',officeStates[c.state]+' · '+c.id+(c.failure_code?' · '+c.failure_code:''));
+    if(c.state==='ready'){
+      const b=el('button','查看质量记录');b.type='button';b.setAttribute('aria-label','查看质量记录：'+c.id);
+      b.onclick=()=>readOfficePage(s,{conversion:c.id});li.append(' ',b);
+    }
+    return li;
+  }));
+}
+const noteRows=c=>c.notes.map(n=>el('li','第 '+n.page+' 页：'+n.body));
+async function readOfficePage(s,query){
+  if(!s?.head)return;
+  const token=++s.nav,current=()=>office===s && token===s.nav;
+  $('office-nav-status').textContent='正在读取历史…';
+  try{
+    if(!await checkOwnerWhile(current))return;
+    const data=officeData(await request(s.path+'?'+new URLSearchParams(query)),s.version);
+    if(!await checkOwnerWhile(current))return;
+    if(query.conversion){
+      const c=data.conversions[0];if(data.conversions.length!==1 || c.id!==query.conversion || c.state!=='ready')throw problem(502);
+      s.detail=c;$('office-detail-title').textContent='历史质量记录 · '+c.id;
+      $('office-detail-pdf').href=api+s.path+'/'+c.id+'/pdf';$('office-detail-notes').replaceChildren(...noteRows(c));
+      $('office-detail-older').hidden=!c.notes_next_before;$('office-detail-newest').hidden=!query.notes_before;
+      $('office-detail').hidden=false;$('office-detail-title').focus();
+    }else{
+      s.history=data;s.detail=null;closeOfficeDetail();drawAttempts(s);
+      $('office-newest').focus();
+    }
+    $('office-nav-status').textContent=query.conversion?'质量记录已刷新。':'已显示更早转换。';
+  }catch(e){
+    if(!current())return;
+    if([401,403,404].includes(e.http)){fail(e,generation,false);return}
+    $('office-nav-status').textContent='历史记录读取失败，请重试。';
+  }
 }
 function officeControls(s){
   $('office-action').disabled=$('office-page').disabled=$('office-body').disabled=$('office-save').disabled=s.writing;
   $('office-refresh').disabled=s.writing;
 }
-function drawOffice(s,items){
-  const latest=items[0], result=items.find(c=>c.state==='ready');
+function drawOffice(s,data){
+  s.head=data;drawAttempts(s);
+  const items=data.conversions,latest=items[0],result=data.latest_ready||items.find(c=>c.state==='ready');
   const statusText=latest?'最近一次：'+officeStates[latest.state]+(latest.failure_code?' · '+latest.failure_code:''):'尚未转换。';
   if($('office-status').textContent!==statusText)$('office-status').textContent=statusText;
   s.active=items.find(c=>activeJob(c.state));
@@ -280,8 +340,14 @@ function drawOffice(s,items){
   $('office-result').hidden=false;$('office-page').max=String(result.page_count);
   $('office-quality').textContent=(result!==latest?'上一次可用结果':'当前可用结果')+' · '+result.page_count+' 页 · '+
     (result.missing_fonts.length?'缺失字体：'+result.missing_fonts.join('、'):'未报告缺失字体');
-  $('office-notes').replaceChildren(...result.notes.map(n=>el('li','第 '+n.page+' 页：'+n.body)));
+  $('office-notes').replaceChildren(...noteRows(result));$('office-older-notes').hidden=!result.notes_next_before;
 }
+$('office-older').onclick=()=>{const s=office;void readOfficePage(s,{before:(s.history||s.head).next_before})};
+$('office-newest').onclick=()=>{const s=office;++s.nav;s.history=s.detail=null;closeOfficeDetail();drawAttempts(s);void syncOffice(s);$('office-nav-status').textContent='已返回最近转换。'};
+$('office-older-notes').onclick=()=>{const c=office.result;void readOfficePage(office,{conversion:c.id,notes_before:c.notes_next_before})};
+$('office-detail-older').onclick=()=>{const c=office.detail;void readOfficePage(office,{conversion:c.id,notes_before:c.notes_next_before})};
+$('office-detail-newest').onclick=()=>void readOfficePage(office,{conversion:office.detail.id});
+$('office-detail-close').onclick=()=>{++office.nav;office.detail=null;closeOfficeDetail();$('office-nav-status').textContent='';$('office-refresh').focus()};
 async function syncOffice(s,action='',note=null){
   if(!s || s!==office || s.writing)return;
   clearTimeout(s.timer);const seq=++s.seq,current=()=>s===office && s.seq===seq;
@@ -307,14 +373,14 @@ async function syncOffice(s,action='',note=null){
   }catch(e){
     if(!current())return;
     if([401,403,404].includes(e.http)){fail(e,generation,false);return}
-    s.result=s.active=null;resetOfficeResult();$('office-action').hidden=true;
+    ++s.nav;s.head=s.history=s.historyKey=s.detail=null;resetOfficeHistory();s.result=s.active=null;resetOfficeResult();$('office-action').hidden=true;
     $('office-status').textContent='无法确认转换状态，请刷新转换状态后再操作。';
   }finally{if(current()){s.writing=false;officeControls(s)}}
 }
 officeVersion.onchange=()=>{
   resetOffice();const r=rows.find(row=>row.version_id===officeVersion.value);
   if(!r || !isWord(r) || !ready || busy)return;
-  office={version:r.version_id,path:'assets/'+r.id+'/versions/'+r.version_id+'/office',seq:0,writing:false};
+  office={version:r.version_id,path:'assets/'+r.id+'/versions/'+r.version_id+'/office',seq:0,nav:0,writing:false};
   $('office-panel').hidden=false;$('office-status').textContent='正在读取转换状态…';void syncOffice(office);
 };
 $('office-refresh').onclick=()=>void syncOffice(office);

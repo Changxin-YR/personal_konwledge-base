@@ -97,7 +97,7 @@ test('polls active jobs; failed and cancelled retries keep the last ready PDF an
   await select(w1); const preview = page.getByRole('link', { name: '预览转换 PDF' }); await preview.waitFor()
   advance = true; await btn('重新转换').click(); await page.getByText('最近一次：排队中').waitFor()
   await page.getByLabel('质量问题').fill('暂存'); await page.getByText('最近一次：转换中').waitFor()
-  await page.getByText(/转换失败.*FONT_ERROR/).waitFor(); assert.equal(await page.getByLabel('质量问题').inputValue(), '暂存')
+  await page.locator('#office-status').filter({ hasText: /转换失败.*FONT_ERROR/ }).waitFor(); assert.equal(await page.getByLabel('质量问题').inputValue(), '暂存')
   assert.equal(await preview.getAttribute('href'), `${base(w1)}/${good.id}/pdf`)
   assert.equal(await page.getByRole('link', { name: '下载转换 PDF' }).getAttribute('href'), `${base(w1)}/${good.id}/pdf?download=1`)
   await page.getByText(/上一次可用结果.*3 页.*<b>Mono<\/b>/).waitFor()
@@ -147,4 +147,54 @@ test('returning to a version waits for its pending start; current permission den
   assert.equal(await page.locator('#office-preview').getAttribute('href'), null)
   assert.equal(await page.getByLabel('质量问题').inputValue(), '')
   assert.doesNotMatch(await page.locator('body').textContent(), /私人样本|另一个版本|alice/)
+})
+
+test('off-page ready PDF, latest notes, history navigation and live head remain independently accessible', async t => {
+  const { w1, peer, page, select, btn } = await fixture(t)
+  const notes = Array.from({ length: 23 }, (_, i) => ({ id: randomUUID(), page: 1, body: 'quality ' + (i + 1) }))
+  const old = conversion('ready', { notes: [{ id: randomUUID(), page: 2, body: 'older PDF note' }] })
+  const good = conversion('ready', { notes: notes.slice(-10), notes_next_before: notes[13].id })
+  const head = Array.from({ length: 10 }, () => conversion('failed')), status = page.locator('#office-status')
+  head[0].state = 'running'
+  let finish = false
+  peer.office = (_r, action, req) => {
+    assert.equal(action, ''); const q = Object.fromEntries(new URL(req.url()).searchParams)
+    if (q.before) { assert.deepEqual(q, { before: head[9].id }); return { conversions: [good, old] } }
+    if (q.conversion === old.id) { assert.deepEqual(q, { conversion: old.id });return { conversions: [old] } }
+    if (q.conversion === good.id) {
+      if (!q.notes_before) return { conversions: [good] }
+      const end = notes.findIndex(n => n.id === q.notes_before);assert.ok([3,13].includes(end))
+      return { conversions: [{ ...good, notes: notes.slice(Math.max(0,end-10),end), notes_next_before: end>10 ? notes[end-10].id : undefined }] }
+    }
+    assert.deepEqual(q, {});if (finish) head[0].state = 'failed'
+    return { conversions: head, next_before: head[9].id, latest_ready: good }
+  }
+  await select(w1); await status.filter({hasText:'转换中'}).waitFor();await page.getByLabel('质量问题').fill('draft')
+  const preview = page.getByRole('link', { name: '预览转换 PDF' }), detail = page.getByRole('region', { name: '历史质量记录' })
+  assert.equal(await preview.getAttribute('href'),`${base(w1)}/${good.id}/pdf`)
+  await page.locator('#office-notes').getByText('第 1 页：quality 23', {exact:true}).waitFor()
+  await btn('查看更早质量记录').click();await detail.getByText('第 1 页：quality 13', {exact:true}).waitFor()
+  await btn('更早记录').click();await detail.getByText('第 1 页：quality 1', {exact:true}).waitFor();assert.equal(await btn('更早记录').count(),0)
+  await btn('最新记录').click();await detail.getByText('第 1 页：quality 23', {exact:true}).waitFor()
+  await btn('更早转换').click();await btn('查看质量记录：'+old.id).click();await detail.getByText('第 2 页：older PDF note').waitFor()
+  finish=true;await status.filter({hasText:'转换失败'}).waitFor();await btn('重新转换').waitFor()
+  assert.equal(await page.getByLabel('质量问题').inputValue(),'draft');assert.equal(await detail.getByRole('link').getAttribute('href'),`${base(w1)}/${old.id}/pdf`)
+  assert.equal(await preview.getAttribute('href'),`${base(w1)}/${good.id}/pdf`);await btn('返回最近转换').click()
+  await btn('更早转换').waitFor();assert.equal(await detail.count(),0);assert.equal(await page.locator('#office-attempts li').count(),10)
+})
+
+test('late detail cannot restore prior version history; current denied history clears private state',async t=>{
+  const { w1, w2, peer, page, select, btn } = await fixture(t),hold=Promise.withResolvers(),arrived=Promise.withResolvers()
+  t.after(()=>hold.resolve());const good=conversion('ready'),failed=conversion('failed');let deny=false
+  peer.office=async(r,_action,req)=>{
+    if(new URL(req.url()).searchParams.has('conversion')){
+      if(deny)return {status:404};arrived.resolve();await hold.promise;return {conversions:[good]}
+    }
+    return {conversions:r===w1?[failed,good]:[]}
+  }
+  await select(w1);await btn('查看质量记录：'+good.id).click();await arrived.promise
+  await select(w2);await btn('开始转换').waitFor();const late=page.waitForResponse(r=>r.url().includes('?conversion='));hold.resolve();await (await late).finished()
+  assert.equal(await page.locator('#office-detail-pdf').getAttribute('href'),null);assert.equal(await page.locator('#office-attempts li').count(),0)
+  await select(w1);deny=true;await btn('查看质量记录：'+good.id).click();await page.getByRole('status').filter({hasText:'资料不可访问'}).waitFor()
+  assert.equal(await page.locator('#office-preview').getAttribute('href'),null);assert.doesNotMatch(await page.locator('body').textContent(),new RegExp(good.id))
 })

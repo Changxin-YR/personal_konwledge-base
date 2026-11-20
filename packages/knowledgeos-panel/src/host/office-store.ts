@@ -1,5 +1,5 @@
 import {randomUUID} from 'node:crypto'
-import type {DatabaseSync} from 'node:sqlite'
+import type {DatabaseSync,SQLOutputValue} from 'node:sqlite'
 import {AssetError,type BlobRef} from './asset-store.ts'
 import type {SessionActor} from './identity.ts'
 import type {ParseTx} from './parse-store.ts'
@@ -7,6 +7,11 @@ import {WORD_MEDIA} from './office-schema.ts'
 import type {AuthorizationAction} from './authorization.ts'
 
 type Permit=(session:string,user:string,asset:string,action:AuthorizationAction,now:string)=>boolean
+// Exclusive UUID cursors: before pages a version's conversions; conversion selects
+// one result, optionally with notes_before. The two modes cannot be combined.
+export type OfficeListOptions={before?:string,conversion?:string,notes_before?:string}
+const historyLimit=10
+const conversionFields='id,state,page_count,missing_fonts,failure_code'
 const missing=()=>new AssetError(404,'ASSET_NOT_FOUND')
 const keyPattern=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/
 const checkKey=(key:string)=>{if(!keyPattern.test(key)||key.length!==36)throw new AssetError(422,'INVALID_IDEMPOTENCY_KEY')}
@@ -25,19 +30,45 @@ export class OfficeStore {
     const row=this.sourceRow(db,v);if(!row||row.asset_id!==id)throw missing();return row
   }
 
-  list(a:SessionActor,id:string,v:string){return this.tx('read',(db,now)=>{
+  list(a:SessionActor,id:string,v:string,options:OfficeListOptions={}){return this.tx('read',(db,now)=>{
     this.access(db,now,a,id,v,'read')
-    const rows=db.prepare('SELECT id,state,page_count,missing_fonts,failure_code FROM office_conversions WHERE version_id=? ORDER BY rowid DESC').all(v)
-    const notes=db.prepare('SELECT id,page,body FROM office_quality_notes WHERE conversion_id=? ORDER BY rowid')
-    return {version_id:v,conversions:rows.map(r=>({...r,missing_fonts:r.missing_fonts?JSON.parse(String(r.missing_fonts)):[],notes:notes.all(r.id!)}))}
+    const {before,conversion,notes_before}=options
+    if(Object.keys(options).some(k=>!['before','conversion','notes_before'].includes(k)) ||
+      [before,conversion,notes_before].some(x=>x!==undefined&&(typeof x!=='string'||x.length!==36||!keyPattern.test(x))) ||
+      (before&&conversion)||(notes_before&&!conversion))throw new AssetError(422,'INVALID_HISTORY_CURSOR')
+
+    // Resolve public IDs in their parent scope before seeking by insertion order.
+    const seek=(sql:string,cursor:string,parent:string)=>{
+      const row=db.prepare(sql).get(cursor,parent);if(!row)throw missing();return row.rowid!
+    }
+    const notePos=notes_before?seek('SELECT rowid FROM office_quality_notes WHERE id=? AND conversion_id=?',notes_before,conversion!):undefined
+    const notes=db.prepare(`SELECT id,page,body FROM office_quality_notes WHERE conversion_id=? ${notePos===undefined?'':'AND rowid<?'} ORDER BY rowid DESC LIMIT ?`)
+    const present=(r:Record<string,SQLOutputValue>)=>{
+      const page=notes.all(r.id!,...(notePos===undefined?[]:[notePos]),historyLimit+1)
+      const more=page.length>historyLimit;if(more)page.pop()
+      return {...r,missing_fonts:r.missing_fonts?JSON.parse(String(r.missing_fonts)):[],
+        ...(more?{notes_next_before:page.at(-1)!.id}:{}),notes:page.reverse()}
+    }
+    const select=`SELECT ${conversionFields} FROM office_conversions WHERE version_id=?`
+    if(conversion){
+      const row=db.prepare(select+' AND id=?').get(v,conversion);if(!row)throw missing()
+      return {version_id:v,conversions:[present(row)]}
+    }
+    const pos=before?seek('SELECT rowid FROM office_conversions WHERE id=? AND version_id=?',before,v):undefined
+    const rows=db.prepare(select+(before?' AND rowid<?':'')+' ORDER BY rowid DESC LIMIT ?').all(v,...(pos===undefined?[]:[pos]),historyLimit+1)
+    const more=rows.length>historyLimit;if(more)rows.pop()
+    const ready=db.prepare(select+" AND state='ready' ORDER BY rowid DESC LIMIT 1").get(v)
+    return {version_id:v,conversions:rows.map(present),...(more?{next_before:rows.at(-1)!.id}:{}),
+      ...(ready&&!rows.some(r=>r.id===ready.id)?{latest_ready:present(ready)}:{})}
   })}
 
-  start(a:SessionActor,id:string,v:string,key:string){return this.tx('write',(db,now)=>{
+  start(a:SessionActor,id:string,v:string,key:string,available=true){return this.tx('write',(db,now)=>{
     const row=this.access(db,now,a,id,v,'edit');checkKey(key)
     const prev=db.prepare('SELECT id,version_id,state FROM office_conversions WHERE actor_id=? AND request_key=?').get(a.userId,key)
     if(prev){if(prev.version_id!==v)throw new AssetError(409,'IDEMPOTENCY_CONFLICT');return {id:String(prev.id),state:String(prev.state),replayed:true}}
     if(!row.head)throw new AssetError(409,'SOURCE_CHANGED')
     if(db.prepare("SELECT 1 FROM office_conversions WHERE version_id=? AND state IN ('queued','running')").get(v))throw new AssetError(409,'CONVERSION_IN_PROGRESS')
+    if(!available)throw new AssetError(503,'OFFICE_UNAVAILABLE')
     const cid=randomUUID()
     db.prepare("INSERT INTO office_conversions(id,version_id,actor_id,request_key,state,created_at,updated_at) VALUES(?,?,?,?,'queued',?,?)").run(cid,v,a.userId,key,now,now)
     db.prepare('INSERT INTO office_authorizations VALUES(?,?)').run(cid,a.sessionId)
