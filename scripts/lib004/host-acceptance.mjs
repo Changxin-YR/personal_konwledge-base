@@ -139,7 +139,7 @@ if (args[0] === '--self-test') {
     // isolated fixture DB. Never change scope on the private T01 material or seed any ACL rows.
     const project=await data(await post(owner,prefix+'/projects',{name:'A08 ACL fixture'}),201)
     assert.equal((await post(owner,prefix+'/projects/'+project.id+'/memberships',{user_id:readerId,role:'member'})).status(),204)
-    const obj=await data(await post(owner,prefix+'/objects',{scope:'project',project_id:project.id,object_type:'asset',title:'ACL fixture',body:''}),201)
+    const obj=await data(await post(owner,prefix+'/objects',{scope:'project',project_id:project.id,object_type:'asset',title:'ACL fixture',body:'Synthetic project asset for read and revoke checks.'}),201)
     const seed=await upload('a08-v1.docx');const db=new DatabaseSync(dbPath(host.data))
     try{
       db.exec('PRAGMA foreign_keys=ON; BEGIN IMMEDIATE');assert.equal(db.prepare('SELECT scope_kind,project_id FROM knowledge_objects WHERE id=?').get(obj.id).project_id,project.id)
