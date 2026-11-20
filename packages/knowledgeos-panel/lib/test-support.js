@@ -313,7 +313,7 @@ var AiService = class {
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash7, randomUUID as randomUUID8 } from "node:crypto";
+import { createHash as createHash8, randomUUID as randomUUID8 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -1048,15 +1048,15 @@ CREATE TABLE zip_selections (
 ) STRICT;`;
 
 // src/host/citation-store.ts
-import { createHash as createHash6, randomUUID as randomUUID7 } from "node:crypto";
+import { createHash as createHash7, randomUUID as randomUUID7 } from "node:crypto";
 
 // src/host/citation-anchor.ts
 import { createHash as createHash5 } from "node:crypto";
 function citationAnchor(text, start, end) {
   const split = (n) => n > 0 && n < text.length && text.charCodeAt(n - 1) >= 55296 && text.charCodeAt(n - 1) <= 56319 && text.charCodeAt(n) >= 56320 && text.charCodeAt(n) <= 57343;
   if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end <= start || end > text.length || split(start) || split(end)) throw new AssetError(422, "INVALID_CITATION_RANGE");
-  const quote = text.slice(start, end), hash = (s) => createHash5("sha256").update(s, "utf8").digest("hex");
-  return { start, end, quote_hash: hash(quote), source_hash: hash(text) };
+  const quote = text.slice(start, end), hash2 = (s) => createHash5("sha256").update(s, "utf8").digest("hex");
+  return { start, end, quote_hash: hash2(quote), source_hash: hash2(text) };
 }
 function resolveCitationText(text, anchor) {
   const digest = createHash5("sha256").update(text, "utf8").digest("hex");
@@ -1064,6 +1064,30 @@ function resolveCitationText(text, anchor) {
   const actual = citationAnchor(text, anchor.start, anchor.end);
   if (actual.quote_hash !== anchor.quote_hash) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
   return text.slice(anchor.start, anchor.end);
+}
+
+// src/host/citation-locator.ts
+import { createHash as createHash6 } from "node:crypto";
+var hash = (x) => createHash6("sha256").update(x, "utf8").digest("hex");
+function makeLocator(s, text, start, end, neighbors, w) {
+  const lineStart = text.lastIndexOf("\n", Math.max(0, start - 1)), lineEnd = text.indexOf("\n", end);
+  const lo = s.kind === "office" && start !== 0 ? lineStart + 1 : 0, hi = s.kind === "office" && lineEnd !== -1 ? lineEnd : text.length;
+  const blockId = hash(JSON.stringify([s.version_id, s.conversion_id ?? null, s.ordinal, lo, hi]));
+  const previous = s.kind === "office" && lo > 0 ? hash(text.slice(lo > 1 ? text.lastIndexOf("\n", lo - 2) + 1 : 0, lo - 1)) : neighbors.previous;
+  const nextEnd = text.indexOf("\n", hi + 1), next = s.kind === "office" && hi < text.length ? hash(text.slice(hi + 1, nextEnd < 0 ? text.length : nextEnd)) : neighbors.next;
+  const context = {
+    block_id: blockId,
+    block_start: lo,
+    block_end: hi,
+    previous,
+    next,
+    before_hash: hash(text.slice(Math.max(0, start - 64), start)),
+    after_hash: hash(text.slice(end, end + 64))
+  };
+  if (s.kind === "text") return { context, geometry: null };
+  if (!w || !s.ref || s.ref.sha256 !== w.sha256 || s.conversion_id !== w.conversion_id || s.ordinal !== w.ordinal || w.text !== text) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
+  const boxes = w.boxes.filter((b) => b.start < end && b.end > start).map(({ start: start2, end: end2, x, y, width, height }) => ({ start: start2, end: end2, x, y, width, height }));
+  return { context, geometry: { page: s.ordinal, width: w.width, height: w.height, source_sha256: w.sha256, boxes } };
 }
 
 // src/host/citation-store.ts
@@ -1077,7 +1101,7 @@ var CITATION_SCHEMA = `CREATE TABLE citations (
 ) STRICT;`;
 var notFound2 = () => new AssetError(404, "SOURCE_NOT_FOUND");
 var invalid = () => new AssetError(422, "INVALID_READER_UNIT");
-var sha = (s) => createHash6("sha256").update(s, "utf8").digest("hex");
+var sha = (s) => createHash7("sha256").update(s, "utf8").digest("hex");
 var uuid2 = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 var fields = "id,asset_id,version_id,conversion_id,ordinal,start,end,source_hash,quote_hash";
 function dto(row) {
@@ -1134,11 +1158,25 @@ var CitationStore = class {
   source(prior, t) {
     return this.tx("read", (db, now) => this.read(db, this.actor(prior, now), t, now));
   }
+  access(prior, asset, version) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(prior, now);
+      if (!this.allowed(actor, asset, now)) throw notFound2();
+      const row = db.prepare(`SELECT v.version,NOT EXISTS(SELECT 1 FROM asset_versions n WHERE n.asset_id=v.asset_id AND n.version>v.version) AS latest
+      FROM asset_versions v WHERE v.asset_id=? AND v.id=?`).get(asset, version);
+      if (!row) throw notFound2();
+      return { actor_id: actor.userId, asset_id: asset, version_id: version, version: Number(row.version), is_latest: !!row.latest };
+    });
+  }
   text(s, w) {
     if (s.state !== "ready" && s.state !== "review") throw new AssetError(409, "SOURCE_NOT_READY");
     if (s.kind !== "office") return s.text;
     if (!w || w.conversion_id !== s.conversion_id || w.sha256 !== s.ref?.sha256 || w.ordinal !== s.ordinal) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
     return w.text;
+  }
+  locator(db, id) {
+    const r = db.prepare("SELECT snapshot FROM citation_locators WHERE citation_id=?").get(id);
+    return r ? JSON.parse(String(r.snapshot)) : null;
   }
   create(prior, spec, key, w) {
     return this.tx("write", (db, now) => {
@@ -1151,11 +1189,18 @@ var CitationStore = class {
       if (old) {
         if (!this.allowed(a, String(old.asset_id), now)) throw notFound2();
         if (old.asset_id !== spec.asset_id || old.version_id !== spec.version_id || old.ordinal !== spec.ordinal || old.conversion_id !== (spec.conversion_id ?? null) || old.start !== range.start || old.end !== range.end || old.source_hash !== range.source_hash) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
-        return { data: dto(old), replayed: true };
+        return { data: { ...dto(old), locator: this.locator(db, String(old.id)) }, replayed: true };
       }
+      const neighbor = (n) => {
+        if (src.kind !== "text") return null;
+        const r = db.prepare("SELECT anchor FROM text_blocks WHERE version_id=? AND ordinal=?").get(src.version_id, n);
+        return r ? String(r.anchor) : null;
+      };
+      const locator = makeLocator(src, text, spec.start, spec.end, { previous: neighbor(src.ordinal - 1), next: neighbor(src.ordinal + 1) }, w);
       const id = randomUUID7();
       db.prepare("INSERT INTO citations VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run(id, a.userId, key, spec.asset_id, spec.version_id, spec.conversion_id ?? null, spec.ordinal, range.start, range.end, range.source_hash, range.quote_hash, now);
-      return { data: { ...spec, ...range, id }, replayed: false };
+      db.prepare("INSERT INTO citation_locators(citation_id,snapshot) VALUES(?,?)").run(id, JSON.stringify(locator));
+      return { data: { ...spec, ...range, id, locator }, replayed: false };
     });
   }
   lookup(db, a, id, now) {
@@ -1169,23 +1214,30 @@ var CitationStore = class {
   resolve(prior, id, w) {
     return this.tx("read", (db, now) => {
       const a = this.actor(prior, now), r = this.lookup(db, a, id, now), source = this.read(db, a, r, now);
-      return { ...r, quote: resolveCitationText(this.text(source, w), r) };
+      return { ...r, quote: resolveCitationText(this.text(source, w), r), locator: this.locator(db, id) };
     });
   }
 };
 
+// src/host/citation-locator-schema.ts
+var CITATION_LOCATOR_SCHEMA = `CREATE TABLE citation_locators (
+  citation_id TEXT PRIMARY KEY REFERENCES citations(id),
+  snapshot TEXT NOT NULL CHECK(json_valid(snapshot) AND json_type(snapshot)='object')
+) STRICT;`;
+
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 14;
-var MIGRATION_V13_CHECKSUM = createHash7("sha256").update(ZIP_SCHEMA).digest("hex");
-var MIGRATION_V14_CHECKSUM = createHash7("sha256").update(CITATION_SCHEMA).digest("hex");
-var MIGRATION_V12_CHECKSUM = createHash7("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
-var MIGRATION_V11_CHECKSUM = createHash7("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
-var MIGRATION_V10_CHECKSUM = createHash7("sha256").update(OFFICE_SCHEMA).digest("hex");
-var MIGRATION_V9_CHECKSUM = createHash7("sha256").update(TEXT_SCHEMA).digest("hex");
-var MIGRATION_V8_CHECKSUM = createHash7("sha256").update(PARSE_SCHEMA).digest("hex");
-var MIGRATION_V7_CHECKSUM = createHash7("sha256").update(ASSET_SCHEMA).digest("hex");
-var MIGRATION_V6_CHECKSUM = createHash7("sha256").update(JOB_SCHEMA).digest("hex");
+var SCHEMA_VERSION = 15;
+var MIGRATION_V15_CHECKSUM = createHash8("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
+var MIGRATION_V13_CHECKSUM = createHash8("sha256").update(ZIP_SCHEMA).digest("hex");
+var MIGRATION_V14_CHECKSUM = createHash8("sha256").update(CITATION_SCHEMA).digest("hex");
+var MIGRATION_V12_CHECKSUM = createHash8("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
+var MIGRATION_V11_CHECKSUM = createHash8("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
+var MIGRATION_V10_CHECKSUM = createHash8("sha256").update(OFFICE_SCHEMA).digest("hex");
+var MIGRATION_V9_CHECKSUM = createHash8("sha256").update(TEXT_SCHEMA).digest("hex");
+var MIGRATION_V8_CHECKSUM = createHash8("sha256").update(PARSE_SCHEMA).digest("hex");
+var MIGRATION_V7_CHECKSUM = createHash8("sha256").update(ASSET_SCHEMA).digest("hex");
+var MIGRATION_V6_CHECKSUM = createHash8("sha256").update(JOB_SCHEMA).digest("hex");
 var PROBE_SCHEMA_VERSION = 1;
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
@@ -1202,7 +1254,7 @@ CREATE TABLE storage_probe_records (
   created_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V1_CHECKSUM = createHash7("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
+var MIGRATION_V1_CHECKSUM = createHash8("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
 var MIGRATION_V2_SQL = `CREATE TABLE password_credentials (
   id TEXT PRIMARY KEY,
   algorithm TEXT NOT NULL,
@@ -1256,7 +1308,7 @@ CREATE TABLE spaces (
   updated_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V2_CHECKSUM = createHash7("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
+var MIGRATION_V2_CHECKSUM = createHash8("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
 var MIGRATION_V3_SQL = `CREATE TABLE knowledge_projects (
   id TEXT PRIMARY KEY,
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
@@ -1306,7 +1358,7 @@ CREATE TABLE resource_grants (
   UNIQUE (resource_id, subject_type, subject_id, action)
 ) STRICT;
 `;
-var MIGRATION_V3_CHECKSUM = createHash7("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
+var MIGRATION_V3_CHECKSUM = createHash8("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
 var MIGRATION_V4_SQL = `ALTER TABLE resource_grants RENAME TO resource_grants_v3;
 CREATE TABLE resource_grants (
   id TEXT PRIMARY KEY,
@@ -1328,7 +1380,7 @@ CREATE UNIQUE INDEX resource_grants_active_subject_action_uq
   WHERE revoked_at IS NULL;
 DROP TABLE resource_grants_v3;
 `;
-var MIGRATION_V4_CHECKSUM = createHash7("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
+var MIGRATION_V4_CHECKSUM = createHash8("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
 var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -1340,7 +1392,7 @@ var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   PRIMARY KEY (service_id, user_id, idempotency_key)
 ) STRICT;
 `;
-var MIGRATION_V5_CHECKSUM = createHash7("sha256").update(MIGRATION_V5_SQL).digest("hex");
+var MIGRATION_V5_CHECKSUM = createHash8("sha256").update(MIGRATION_V5_SQL).digest("hex");
 var PROBE_SUPPORTED_TABLES = ["schema_migrations", "storage_probe_records"];
 var IDENTITY_SUPPORTED_TABLES = [
   "auth_sessions",
@@ -1519,7 +1571,8 @@ var ProbeStorage = class {
       if (priorVersion < 12) this.#migrateV12(db);
       if (priorVersion < 13) this.#migrateV13(db);
       if (priorVersion < 14) this.#migrateV14(db);
-      this.#verify(db, 14);
+      if (priorVersion < 15) this.#migrateV15(db);
+      this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
       this.#db = db;
@@ -1586,7 +1639,7 @@ var ProbeStorage = class {
       }
       return "v5";
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15) {
       const db = new DatabaseSync(path, { readOnly: true });
       try {
         this.#verify(db, facts.userVersion);
@@ -1918,10 +1971,22 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "citation migration failed", false, { cause: e });
     }
   }
+  #migrateV15(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(CITATION_LOCATOR_SCHEMA);
+      this.#injectFailure("v15:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(15,?,?)").run(MIGRATION_V15_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=15; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "citation locator migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM].slice(0, version - 5);
-    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM].slice(0, version - 5);
+    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash2, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash2)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
       reference.exec(JOB_SCHEMA);
@@ -1933,6 +1998,7 @@ var ProbeStorage = class {
       if (version >= 12) reference.exec(OFFICE_HISTORY_SCHEMA);
       if (version >= 13) reference.exec(ZIP_SCHEMA);
       if (version >= 14) reference.exec(CITATION_SCHEMA);
+      if (version >= 15) reference.exec(CITATION_LOCATOR_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -2335,8 +2401,8 @@ var ProbeStorage = class {
     let primaryCode;
     let failed = false;
     try {
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash7("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash7("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash8("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash8("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
     } catch (error) {
       failed = true;
       primaryCode = primarySqliteCode(error);
@@ -2394,7 +2460,7 @@ var ProbeStorage = class {
 };
 
 // src/host/identity.ts
-import { createHash as createHash8, randomBytes, randomUUID as randomUUID9, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
+import { createHash as createHash9, randomBytes, randomUUID as randomUUID9, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
 var DOMAINS = ["software_engineering", "system_architecture", "hardware_engineering", "ai_development"];
 var LEARNING_TRACKS = ["engineering_practice", "architecture_exam", "knowledge_accumulation"];
 var DEFAULT_TIMEZONE = "Asia/Shanghai";
@@ -2466,7 +2532,7 @@ function validateGoalText(value) {
   return value;
 }
 function tokenHash(token) {
-  return createHash8("sha256").update(token, "utf8").digest("hex");
+  return createHash9("sha256").update(token, "utf8").digest("hex");
 }
 function makeToken() {
   return randomBytes(32).toString("base64url");
@@ -2699,7 +2765,7 @@ var IdentityService = class {
 };
 
 // src/host/identity-http.ts
-import { createHash as createHash9, randomUUID as randomUUID10 } from "node:crypto";
+import { createHash as createHash10, randomUUID as randomUUID10 } from "node:crypto";
 import { isIP } from "node:net";
 function isLoopbackAddress(value) {
   if (value === void 0) return false;

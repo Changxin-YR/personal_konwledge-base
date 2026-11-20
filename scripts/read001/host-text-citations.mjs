@@ -34,6 +34,11 @@ try{
   assert.equal(await post(user,'/citations',409,{...spec,version_id:v2.version_id},randomUUID()),'CITATION_SOURCE_CHANGED')
   const db=dbPath(h.data);assert.deepEqual(sql(db,'SELECT version_id,start,end,quote_hash FROM citations WHERE id=?',[cite.id]).map(x=>[x.version_id,x.start,x.end,x.quote_hash]),[[doc.version_id,start,text.length,sha(phrase)]])
   step(phase,{version:doc.version_id,new_version:v2.version_id,source_hash:block.anchor,quote_hash:sha(phrase),utf16:[start,text.length]})
+  phase='Markdown structural neighbors';const heading='# Before\n',middle='same same\n',after='# After\n'
+  const md=await send(user,'/imports',201,Buffer.from(heading+middle+after),{'content-type':'text/markdown','idempotency-key':randomUUID(),'x-knowledgeos-filename':'anchors.md'})
+  const mc=await post(user,'/citations',201,{asset_id:md.id,version_id:md.version_id,ordinal:2,start:5,end:9,source_hash:sha(middle)},randomUUID())
+  const ml=mc.locator;assert.equal(ml.geometry,null);assert.equal(ml.context.block_id,sha(JSON.stringify([md.version_id,null,2,0,middle.length])));assert.equal(ml.context.previous,sha(heading));assert.equal(ml.context.next,sha(after));assert.equal(ml.context.before_hash,sha('same '));assert.equal(ml.context.after_hash,sha('\n'))
+  assert.deepEqual(JSON.parse(sql(db,'SELECT snapshot FROM citation_locators WHERE citation_id=?',[mc.id])[0].snapshot),ml);step(phase,{ordinal:2,block_id:ml.context.block_id,adjacent_blocks:2})
   phase='restart';await h.stop();const second=await h.start();assert.notEqual(first.pid,second.pid);user=await signIn('owner');reader=await signIn('reader');assert.deepEqual(await send(user,path,200),resolved);step(phase,{pids:[first.pid,second.pid]})
   phase='current project read grant';const pid=(await post(user,'/projects',201,{name:'Reader ACL fixture'})).id,readerId=(await send(reader,'/me',200)).id
   await post(user,`/projects/${pid}/memberships`,204,{user_id:readerId,role:'member'})

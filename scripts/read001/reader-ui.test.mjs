@@ -31,6 +31,10 @@ async function fixture(t) {
     if(p===base+'/parse')return reply({state:'partial',total:12,error:null,pages:[{page:12,state:'ready',chapter:'第十二章',error:null},{page:11,state:'failed',chapter:'未完成',error:'ERR'}]})
     if(p===base+'/office')return reply({version_id:version,conversions:[cid,conversion].map(id=>({id,state:'ready',page_count:12,missing_fonts:[],failure_code:null,notes:[]}))})
     if(peer.denied) return r.fulfill({status:404})
+    if(p===base+'/reader-access'){
+      const data={actor_id:peer.user,asset_id:asset,version_id:version,version:1,is_latest:false}
+      if(peer.access)await peer.access();return reply(data)
+    }
     if(p==='/knowledge/v1/citations/'+cid+'/resolve') return reply(peer.citation)
     if(p==='/knowledge/v1/citations') {
       peer.writes.push({body:r.request().postDataJSON(),headers:r.request().headers()}); if(peer.drop){peer.drop=false;return r.abort('failed')} return reply(peer.citation)
@@ -49,7 +53,7 @@ test('library opens fixed version; virtual navigation, exact repeat selection an
   assert.equal(page.url(),url); await page.getByText(/旧版本/).first().waitFor()
   await page.getByLabel('跳转位置').fill('1000'); await page.getByRole('button',{name:'跳转',exact:true}).click()
   await page.getByText('章节 1000',{exact:true}).waitFor(); assert.deepEqual(peer.calls,[{unit:'1'},{unit:'1000',conversion}]); assert.ok(await page.locator('#window button').count()<30)
-  await page.getByRole('button',{name:'结构文本',exact:true}).click(); assert.equal(await page.locator('#text').innerText(),text)
+  await page.getByRole('button',{name:'结构文本',exact:true}).click(); await page.locator('#text').waitFor();assert.equal(await page.locator('#text').innerText(),text)
   await page.locator('#text').evaluate(el=>{const r=new Range(); r.setStart(el.firstChild,5); r.setEnd(el.firstChild,8); getSelection().removeAllRanges();getSelection().addRange(r)})
   peer.drop=true; await page.getByRole('button',{name:'生成引用链接'}).click(); await page.getByText(/重试本次引用/).waitFor(); await page.getByRole('button',{name:'生成引用链接'}).click()
   const out=page.getByRole('link',{name:'打开引用'}); await out.waitFor(); assert.equal(await out.getAttribute('href'),url+'&citation='+cid)
@@ -72,6 +76,17 @@ test('different account opens shared link via resolve and protected source; hash
   peer.denied=false;peer.citation.quote_hash=sha('different');await page.reload();await page.getByText(/引用.*不匹配/).waitFor();assert.equal(await page.locator('mark,.highlight').count(),0)
 })
 
+test('idle foreground reader clears cached content after revocation without reloading the page',async t=>{
+  const {page,peer,url}=await fixture(t);await page.goto(url);await page.locator('#original img').waitFor();peer.denied=true
+  await page.getByText(/不可访问/).waitFor();assert.equal(await page.locator('#text').textContent(),'');assert.equal(await page.locator('img,#window button').count(),0);assert.equal(await page.locator('#version').textContent(),'');assert.equal(peer.calls.length,1)
+})
+
+test('view switch fails closed on slow access check; releasing a late grant does not restore content',async t=>{
+  const {page,peer,url}=await fixture(t);await page.goto(url);await page.locator('#original img').waitFor();const held=Promise.withResolvers();t.after(()=>held.resolve());peer.access=()=>held.promise
+  await page.locator('#structured').click();assert.equal(await page.locator('#text').textContent(),'');await page.getByText(/无法确认/).waitFor();assert.equal(await page.locator('img').count(),0)
+  held.resolve();await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));assert.equal(await page.locator('#text').textContent(),'');assert.equal(await page.locator('#modes').isVisible(),false)
+})
+
 test('T01 parsed chapter opens its exact PDF page with no first-page fetch',async t=>{
   const {page,peer,url,version}=await fixture(t), source=peer.reader;peer.row={media_type:'application/pdf'};peer.reader=n=>({...source(n),kind:'pdf',conversion_id:undefined})
   await page.goto('http://localhost/knowledgeos/library');await page.locator('#parse-version').selectOption(version)
@@ -91,5 +106,14 @@ test('text-only deep link verifies the exact source range; missing pixel boundar
   await page.goto(url+'&citation='+cid);await page.locator('#text mark').waitFor();assert.equal(await page.locator('#text').innerText(),text);assert.equal(await page.locator('img').count(),0)
   peer.reader=n=>({...src(n),kind:'pdf',conversion_id:undefined,boxes:[{start:0,end:text.length,x:0,y:0,width:100,height:20}]})
   await page.reload();await page.getByText(/缺少精确选区坐标/).waitFor();assert.equal(await page.locator('.highlight').count(),0)
+  await page.locator('#structured').click();assert.equal(await page.locator('#text mark').innerText(),'例🙂')
+})
+
+test('deep link uses saved glyphs exclusively, and refuses geometry from a different original',async t=>{
+  const {page,peer,url,cid}=await fixture(t),src=peer.reader,original=sha('fixed conversion bytes')
+  peer.reader=n=>({...src(n),original_sha256:original});const d=peer.reader(1000)
+  peer.citation.locator={geometry:{page:1000,width:d.width,height:d.height,source_sha256:original,boxes:[{...d.boxes[0],x:53}]}}
+  await page.goto(url+'&citation='+cid);await page.locator('.highlight').waitFor();assert.equal(await page.locator('.highlight').evaluate(el=>el.style.left),'53%')
+  peer.citation.locator.geometry.source_sha256=sha('unrelated original');await page.reload();await page.getByText(/缺少精确选区坐标/).waitFor();assert.equal(await page.locator('.highlight').count(),0)
   await page.locator('#structured').click();assert.equal(await page.locator('#text mark').innerText(),'例🙂')
 })

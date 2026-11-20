@@ -17,11 +17,15 @@ async function api(path,options){
   const r=await fetch('/knowledge/v1/'+path,{credentials:'same-origin',cache:'no-store',redirect:'error',...options});
   if(!r.ok)throw problem(r.status);return (await r.json()).data;
 }
-async function principal(g){
-  const m=await api('me');if(g!==gen)return false;
-  if(!m||typeof m.id!=='string'||!m.id)throw invalid();
-  if(owner!==null && owner!==m.id){lock('账号已切换，请刷新以重新检查资料权限。');return false}
-  owner=m.id;return true;
+async function access(g){
+  if(g!==gen||document.hidden)return false;
+  try{
+    const m=await api('assets/'+asset+'/versions/'+version+'/reader-access',{signal:AbortSignal.timeout(2000)});
+    if(g!==gen||document.hidden)return false;
+    if(!m||typeof m.actor_id!=='string'||!m.actor_id||m.asset_id!==asset||m.version_id!==version||!integer(m.version)||m.version<1||typeof m.is_latest!=='boolean')throw invalid();
+    if(owner!==null && owner!==m.actor_id){lock('账号已切换，请刷新以重新检查资料权限。');return false}
+    owner=m.actor_id;versionLabel=(m.is_latest?'固定版本':'旧版本')+' v'+m.version;return true;
+  }catch(e){failure(e,g);return false}
 }
 function clearPage(){
   page=null;selection=null;posting=false;getSelection().removeAllRanges();
@@ -69,18 +73,12 @@ function validate(d,n,cv){
   if(d.image!=null && (typeof d.image!=='string'||!/^data:image\/png;base64,[A-Za-z\d+/]+=*$/.test(d.image)||!(d.width>0&&Number.isFinite(d.width)&&d.height>0&&Number.isFinite(d.height))))throw invalid();
   return d;
 }
-async function metadata(){
-  const data=await api('assets');if(!Array.isArray(data?.items))throw invalid();
-  const rows=data.items.filter(r=>r.id===asset), row=rows.find(r=>r.version_id===version);
-  return row && integer(row.version)?(rows.some(r=>r.version>row.version)?'旧版本':'固定版本')+' v'+row.version:'固定版本（无法确认是否最新）';
-}
 async function load(n,{fresh=false,openCitation=false}={}){
+  if(document.hidden)return;
   const g=++gen;clearPage();ordinal=n;navigation();status('正在读取…');
   try{
     if(!uuid(asset)||!uuid(version)||(cid!==null&&!uuid(cid))||!/^\d{1,9}$/.test(requestedUnit)||Number(requestedUnit)<1||(requestedConversion!==null&&!uuid(requestedConversion)))throw invalid();
-    if(!await principal(g))return;
-    const label=fresh?await metadata():versionLabel;
-    if(g!==gen)return;
+    if(!await access(g))return;
     const c=openCitation && cid?locator(await api('citations/'+cid+'/resolve'),cid):null;
     if(g!==gen)return;
     if(c && ((q.has('unit')&&Number(requestedUnit)!==c.ordinal)||(requestedConversion && requestedConversion!==c.conversion_id)))throw problem(409);
@@ -90,21 +88,26 @@ async function load(n,{fresh=false,openCitation=false}={}){
     if(!digest(d.anchor)||await sha(d.text)!==d.anchor)throw problem(409);
     if(c && (c.conversion_id??null)!==(d.conversion_id??null))throw invalid();
     if(c && ready(d) && (!validRange(d.text,c.start,c.end)||await sha(d.text)!==c.source_hash||await sha(d.text.slice(c.start,c.end))!==c.quote_hash))throw problem(409);
-    if(!await principal(g))return;
-    resolved=c;versionLabel=label;ordinal=at;total=d.total;conversion=d.conversion_id??null;page=d;navigation();
-    $('version').textContent=label+' · '+version;$('title').textContent=d.title||'版本阅读';$('anchor').textContent=d.chapter||((d.kind==='text'?'文本块 ':'第 ')+at+(d.kind==='text'?'':' 页'));
+    if(!await access(g))return;
+    resolved=c;ordinal=at;total=d.total;conversion=d.conversion_id??null;page=d;navigation();
+    $('version').textContent=versionLabel+' · '+version;$('title').textContent=d.title||'版本阅读';$('anchor').textContent=d.chapter||((d.kind==='text'?'文本块 ':'第 ')+at+(d.kind==='text'?'':' 页'));
     if(c && ready(d))selection={start:c.start,end:c.end};
     draw();if(c)document.querySelector('#original .highlight,#text mark')?.scrollIntoView({block:'nearest'});
   }catch(e){
     if(g!==gen)return;
     if(total && !fresh && (e.http===503||e.http===502||e.http===500)){
-      try{if(await principal(g))status('本处加载失败，请刷新重试或选择其他位置。')}catch(err){failure(err,g)}
+      try{if(await access(g))status('本处加载失败，请刷新重试或选择其他位置。')}catch(err){failure(err,g)}
     }else failure(e,g);
   }
 }
 function navigate(n){if(!integer(n)||n<1||n>total)return;void load(n)}
 // A partial glyph/run has no known pixel boundary. Never interpolate a rectangle.
 function exactBoxes(d,s){
+  if(resolved && s?.start===resolved.start && s?.end===resolved.end && resolved.locator?.geometry){
+    const g=resolved.locator.geometry;
+    if(g.page!==d.ordinal||g.width!==d.width||g.height!==d.height||!digest(g.source_sha256)||g.source_sha256!==d.original_sha256)return [];
+    d={...d,boxes:g.boxes};
+  }
   if(!s||!Array.isArray(d.boxes))return [];
   const boxes=d.boxes.filter(b=>b && b.end>s.start && b.start<s.end).sort((a,b)=>a.start-b.start);
   let at=s.start;
@@ -150,9 +153,9 @@ async function createCitation(){
     const body={asset_id:asset,version_id:version,ordinal:d.ordinal,start,end,source_hash,...(d.conversion_id?{conversion_id:d.conversion_id}:{})};
     const signature=JSON.stringify([owner,body]);
     const key=pending?.signature===signature?pending.key:crypto.randomUUID();pending={signature,key};
-    if(!await principal(g))return;
+    if(!await access(g))return;
     const receipt=await api('citations',{method:'POST',headers:{'Content-Type':'application/json','X-KnowledgeOS-Request':'1','Idempotency-Key':key},body:JSON.stringify(body)});
-    if(!await principal(g))return;
+    if(!await access(g))return;
     const c=locator(receipt);if(!uuid(c.id)||c.ordinal!==body.ordinal||c.start!==start||c.end!==end||c.source_hash!==source_hash||c.quote_hash!==quote||(c.conversion_id??null)!==(body.conversion_id??null))throw invalid();
     const u=new URL('/knowledgeos/reader',location.origin);u.search=new URLSearchParams({asset,version,citation:c.id});
     $('link').href=u.href;$('link').hidden=false;draw();status('引用链接已生成。');
@@ -162,17 +165,30 @@ async function createCitation(){
     status('未收到有效回执，可以重试本次引用。');
   }finally{if(g===gen){posting=false;$('cite').disabled=!selection}}
 }
-$('paper').onclick=()=>{mode='paper';draw()};$('structured').onclick=()=>{mode='text';draw()};
+let modeSequence=0,polling=false,resumeAt=null;
+async function switchMode(target){
+  const g=gen,seq=++modeSequence;
+  if(page&&await access(g)&&seq===modeSequence){mode=target;draw()}
+}
+async function recheck(){
+  if(!owner||document.hidden||polling)return;
+  const g=gen;polling=true;
+  try{if(await access(g)&&page)$('version').textContent=versionLabel+' · '+version}finally{polling=false}
+}
+$('paper').onclick=()=>switchMode('paper');$('structured').onclick=()=>switchMode('text');
 $('cite').onpointerdown=e=>e.preventDefault();$('cite').onclick=createCitation;document.addEventListener('selectionchange',capture);
 $('jump').onsubmit=e=>{e.preventDefault();navigate(Number($('number').value))};$('prev').onclick=()=>navigate(ordinal-1);$('next').onclick=()=>navigate(ordinal+1);
 $('rail').onscroll=renderWindow;new ResizeObserver(renderWindow).observe($('rail'));
 function refresh(){void load(total?ordinal:Number(requestedUnit),{fresh:true,openCitation:!!cid && (!page || !!resolved)})}
 $('refresh').onclick=refresh;
-// Recheck source ACL as well as account on return; never restore private pixels from bfcache.
-window.addEventListener('pagehide',()=>lock('阅读页已关闭。'));
-window.addEventListener('pageshow',e=>{if(e.persisted)refresh()});
-window.addEventListener('focus',()=>{if(owner && !document.hidden)refresh()});
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
+// Preserve the fixed position, never the page body, while hidden or in bfcache.
+function suspend(){resumeAt??={n:total?ordinal:Number(requestedUnit),cv:conversion,cite:!!cid&&(!page||!!resolved)};lock('返回后将重新检查阅读权限。')}
+function resume(){if(document.hidden||!resumeAt)return;const prior=resumeAt;resumeAt=null;conversion=prior.cv;void load(prior.n,{fresh:true,openCitation:prior.cite})}
+window.addEventListener('pagehide',suspend);
+window.addEventListener('pageshow',e=>{if(e.persisted)resume()});
+window.addEventListener('focus',recheck);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)suspend();else if(resumeAt)resume();else refresh()});
+setInterval(recheck,2000);
 void load(Number(requestedUnit),{fresh:true,openCitation:true});
 </script></body></html>`
 }

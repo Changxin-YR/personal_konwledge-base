@@ -2,6 +2,7 @@ import {createHash,randomUUID} from 'node:crypto'
 import type {DatabaseSync} from 'node:sqlite'
 import {AssetError,type BlobRef} from './asset-store.ts'
 import {citationAnchor,resolveCitationText} from './citation-anchor.ts'
+import {makeLocator,type RenderWitness} from './citation-locator.ts'
 import type {SessionActor} from './identity.ts'
 import type {ParseTx} from './parse-store.ts'
 
@@ -19,7 +20,6 @@ export interface ReaderSource extends ReaderTarget {
   kind:'pdf'|'text'|'office';total:number;state:string;text:string;title:string;chapter:string;ref?:BlobRef
 }
 // Only the Host renderer may supply this witness. Never deserialize it from client input.
-export interface OfficePageWitness {conversion_id:string;sha256:string;ordinal:number;text:string}
 const notFound=()=>new AssetError(404,'SOURCE_NOT_FOUND')
 const invalid=()=>new AssetError(422,'INVALID_READER_UNIT')
 const sha=(s:string)=>createHash('sha256').update(s,'utf8').digest('hex')
@@ -59,28 +59,39 @@ export class CitationStore {
     const total=Number(c.page_count);if(t.ordinal>total)throw invalid();return {...base,conversion_id:String(c.id),kind:'office',total,state:'ready',ref:{key:String(c.storage_key),byteLength:Number(c.byte_length),sha256:String(c.sha256)}}
   }
   source(prior:SessionActor,t:ReaderTarget){return this.tx('read',(db,now)=>this.read(db,this.actor(prior,now),t,now))}
-  private text(s:ReaderSource,w?:OfficePageWitness){
+  access(prior:SessionActor,asset:string,version:string){return this.tx('read',(db,now)=>{
+    const actor=this.actor(prior,now);if(!this.allowed(actor,asset,now))throw notFound()
+    const row=db.prepare(`SELECT v.version,NOT EXISTS(SELECT 1 FROM asset_versions n WHERE n.asset_id=v.asset_id AND n.version>v.version) AS latest
+      FROM asset_versions v WHERE v.asset_id=? AND v.id=?`).get(asset,version)
+    if(!row)throw notFound()
+    return {actor_id:actor.userId,asset_id:asset,version_id:version,version:Number(row.version),is_latest:!!row.latest}
+  })}
+  private text(s:ReaderSource,w?:RenderWitness){
     if(s.state!=='ready'&&s.state!=='review')throw new AssetError(409,'SOURCE_NOT_READY')
     if(s.kind!=='office')return s.text
     if(!w||w.conversion_id!==s.conversion_id||w.sha256!==s.ref?.sha256||w.ordinal!==s.ordinal)throw new AssetError(409,'CITATION_SOURCE_CHANGED')
     return w.text
   }
-  create(prior:SessionActor,spec:CitationSpec,key:string,w?:OfficePageWitness){return this.tx('write',(db,now)=>{
+  private locator(db:DatabaseSync,id:string){const r=db.prepare('SELECT snapshot FROM citation_locators WHERE citation_id=?').get(id);return r?JSON.parse(String(r.snapshot)) as ReturnType<typeof makeLocator>:null}
+  create(prior:SessionActor,spec:CitationSpec,key:string,w?:RenderWitness){return this.tx('write',(db,now)=>{
     const a=this.actor(prior,now),src=this.read(db,a,spec,now)
     if(!uuid.test(key)||src.kind==='office'&&!spec.conversion_id)throw new AssetError(422,'INVALID_CITATION')
     const text=this.text(src,w);if(sha(text)!==spec.source_hash)throw new AssetError(409,'CITATION_SOURCE_CHANGED')
     const range=citationAnchor(text,spec.start,spec.end)
     const old=db.prepare(`SELECT ${fields} FROM citations WHERE created_by=? AND request_key=?`).get(a.userId,key)
-    if(old){if(!this.allowed(a,String(old.asset_id),now))throw notFound();if(old.asset_id!==spec.asset_id||old.version_id!==spec.version_id||old.ordinal!==spec.ordinal||old.conversion_id!==(spec.conversion_id??null)||old.start!==range.start||old.end!==range.end||old.source_hash!==range.source_hash)throw new AssetError(409,'IDEMPOTENCY_CONFLICT');return {data:dto(old),replayed:true}}
+    if(old){if(!this.allowed(a,String(old.asset_id),now))throw notFound();if(old.asset_id!==spec.asset_id||old.version_id!==spec.version_id||old.ordinal!==spec.ordinal||old.conversion_id!==(spec.conversion_id??null)||old.start!==range.start||old.end!==range.end||old.source_hash!==range.source_hash)throw new AssetError(409,'IDEMPOTENCY_CONFLICT');return {data:{...dto(old),locator:this.locator(db,String(old.id))},replayed:true}}
+    const neighbor=(n:number)=>{if(src.kind!=='text')return null;const r=db.prepare('SELECT anchor FROM text_blocks WHERE version_id=? AND ordinal=?').get(src.version_id,n);return r?String(r.anchor):null}
+    const locator=makeLocator(src,text,spec.start,spec.end,{previous:neighbor(src.ordinal-1),next:neighbor(src.ordinal+1)},w)
     const id=randomUUID();db.prepare('INSERT INTO citations VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').run(id,a.userId,key,spec.asset_id,spec.version_id,spec.conversion_id??null,spec.ordinal,range.start,range.end,range.source_hash,range.quote_hash,now)
-    return {data:{...spec,...range,id},replayed:false}
+    db.prepare('INSERT INTO citation_locators(citation_id,snapshot) VALUES(?,?)').run(id,JSON.stringify(locator))
+    return {data:{...spec,...range,id,locator},replayed:false}
   })}
   private lookup(db:DatabaseSync,a:SessionActor,id:string,now:string){
     const r=db.prepare(`SELECT ${fields} FROM citations WHERE id=?`).get(id);if(!r||!this.allowed(a,String(r.asset_id),now))throw notFound();return dto(r)
   }
   target(prior:SessionActor,id:string){return this.tx('read',(db,now)=>this.lookup(db,this.actor(prior,now),id,now))}
-  resolve(prior:SessionActor,id:string,w?:OfficePageWitness){return this.tx('read',(db,now)=>{
+  resolve(prior:SessionActor,id:string,w?:RenderWitness){return this.tx('read',(db,now)=>{
     const a=this.actor(prior,now),r=this.lookup(db,a,id,now),source=this.read(db,a,r,now)
-    return {...r,quote:resolveCitationText(this.text(source,w),r)}
+    return {...r,quote:resolveCitationText(this.text(source,w),r),locator:this.locator(db,id)}
   })}
 }

@@ -2,7 +2,8 @@ import {createHash} from 'node:crypto'
 import type {IncomingMessage} from 'node:http'
 import type {SessionActor} from './identity.ts'
 import {AssetError} from './asset-store.ts'
-import type {CitationStore,CitationSpec,ReaderSource,ReaderTarget,OfficePageWitness} from './citation-store.ts'
+import type {CitationStore,CitationSpec,ReaderSource,ReaderTarget} from './citation-store.ts'
+import type {RenderWitness} from './citation-locator.ts'
 import type {PdfOriginals} from './pdf-originals.ts'
 
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/
@@ -13,6 +14,7 @@ export type PageRenderer=(bytes:Buffer,ordinal:number,signal:AbortSignal)=>Promi
 
 export class ReaderService {
   constructor(private store:CitationStore,private originals:PdfOriginals,private render?:PageRenderer){}
+  access(current:Current,asset:string,version:string){return this.store.access(current(),asset,version)}
   private async rendered(current:Current,s:ReaderSource,signal:AbortSignal){
     if(!this.render||!s.ref)throw new AssetError(503,'PAGE_RENDER_UNAVAILABLE')
     const bytes=await this.originals.read(s.ref.key,s.ref.sha256,s.ref.byteLength)
@@ -27,19 +29,25 @@ export class ReaderService {
     const s=this.store.source(current(),t),{ref:_private,...publicFields}=s
     if(s.kind==='text'||!['ready','review'].includes(s.state))return {...publicFields,anchor:hash(s.text)}
     const {text,image,width,height,boxes}=await this.rendered(current,s,signal)
-    return {...publicFields,text,anchor:hash(text),image,width,height,boxes}
+    return {...publicFields,text,anchor:hash(text),image,width,height,boxes,original_sha256:s.ref!.sha256}
   }
-  private async office(current:Current,t:ReaderTarget,signal:AbortSignal):Promise<OfficePageWitness|undefined>{
-    if(!t.conversion_id)return
-    const s=this.store.source(current(),t),{text}=await this.rendered(current,s,signal)
-    return {conversion_id:t.conversion_id,sha256:s.ref!.sha256,ordinal:t.ordinal,text}
+  private async witness(current:Current,t:ReaderTarget,signal:AbortSignal):Promise<RenderWitness|undefined>{
+    const s=this.store.source(current(),t);if(s.kind==='text')return
+    if(s.state!=='ready'&&s.state!=='review')throw new AssetError(409,'SOURCE_NOT_READY')
+    if(s.kind==='office'&&!t.conversion_id)throw new AssetError(422,'INVALID_CITATION')
+    const {text,width,height,boxes}=await this.rendered(current,s,signal)
+    return {...(s.conversion_id?{conversion_id:s.conversion_id}:{}),sha256:s.ref!.sha256,ordinal:t.ordinal,text,width,height,boxes}
   }
-  async create(current:Current,spec:CitationSpec,key:string,signal:AbortSignal){const w=await this.office(current,spec,signal);return this.store.create(current(),spec,key,w)}
-  async resolve(current:Current,id:string,signal:AbortSignal){const t=this.store.target(current(),id),w=await this.office(current,t,signal);return this.store.resolve(current(),id,w)}
+  async create(current:Current,spec:CitationSpec,key:string,signal:AbortSignal){const w=await this.witness(current,spec,signal);return this.store.create(current(),spec,key,w)}
+  async resolve(current:Current,id:string,signal:AbortSignal){const t=this.store.target(current(),id),w=t.conversion_id?await this.witness(current,t,signal):undefined;return this.store.resolve(current(),id,w)}
 }
 
 export async function readerRoute(req:IncomingMessage,url:URL,service:ReaderService,current:Current,signal:AbortSignal,
   body:(req:IncomingMessage,empty:string,max:number)=>Promise<Buffer>,reserve:()=>void,send:(status:number,data:unknown)=>void){
+  const access=/^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/reader-access$/.exec(url.pathname)
+  if(access&&uuid.test(access[1]!)&&uuid.test(access[2]!)&&!url.search&&req.method==='GET'){
+    send(200,service.access(current,access[1]!,access[2]!));return true
+  }
   const reader=/^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/reader$/.exec(url.pathname)
   if(reader&&uuid.test(reader[1]!)&&uuid.test(reader[2]!)&&req.method==='GET'){
     const p=url.searchParams,keys=[...p.keys()],unit=p.get('unit')??'1',cid=p.get('conversion')

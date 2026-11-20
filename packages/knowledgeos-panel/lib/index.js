@@ -287,7 +287,7 @@ function createRecordsHandlers(service, basePath, log) {
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash6, randomUUID as randomUUID8 } from "node:crypto";
+import { createHash as createHash7, randomUUID as randomUUID8 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -1044,15 +1044,15 @@ CREATE TABLE zip_selections (
 ) STRICT;`;
 
 // src/host/citation-store.ts
-import { createHash as createHash5, randomUUID as randomUUID7 } from "node:crypto";
+import { createHash as createHash6, randomUUID as randomUUID7 } from "node:crypto";
 
 // src/host/citation-anchor.ts
 import { createHash as createHash4 } from "node:crypto";
 function citationAnchor(text2, start, end) {
   const split = (n) => n > 0 && n < text2.length && text2.charCodeAt(n - 1) >= 55296 && text2.charCodeAt(n - 1) <= 56319 && text2.charCodeAt(n) >= 56320 && text2.charCodeAt(n) <= 57343;
   if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end <= start || end > text2.length || split(start) || split(end)) throw new AssetError(422, "INVALID_CITATION_RANGE");
-  const quote = text2.slice(start, end), hash2 = (s) => createHash4("sha256").update(s, "utf8").digest("hex");
-  return { start, end, quote_hash: hash2(quote), source_hash: hash2(text2) };
+  const quote = text2.slice(start, end), hash3 = (s) => createHash4("sha256").update(s, "utf8").digest("hex");
+  return { start, end, quote_hash: hash3(quote), source_hash: hash3(text2) };
 }
 function resolveCitationText(text2, anchor) {
   const digest2 = createHash4("sha256").update(text2, "utf8").digest("hex");
@@ -1060,6 +1060,30 @@ function resolveCitationText(text2, anchor) {
   const actual = citationAnchor(text2, anchor.start, anchor.end);
   if (actual.quote_hash !== anchor.quote_hash) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
   return text2.slice(anchor.start, anchor.end);
+}
+
+// src/host/citation-locator.ts
+import { createHash as createHash5 } from "node:crypto";
+var hash = (x) => createHash5("sha256").update(x, "utf8").digest("hex");
+function makeLocator(s, text2, start, end, neighbors, w) {
+  const lineStart = text2.lastIndexOf("\n", Math.max(0, start - 1)), lineEnd = text2.indexOf("\n", end);
+  const lo = s.kind === "office" && start !== 0 ? lineStart + 1 : 0, hi = s.kind === "office" && lineEnd !== -1 ? lineEnd : text2.length;
+  const blockId = hash(JSON.stringify([s.version_id, s.conversion_id ?? null, s.ordinal, lo, hi]));
+  const previous = s.kind === "office" && lo > 0 ? hash(text2.slice(lo > 1 ? text2.lastIndexOf("\n", lo - 2) + 1 : 0, lo - 1)) : neighbors.previous;
+  const nextEnd = text2.indexOf("\n", hi + 1), next = s.kind === "office" && hi < text2.length ? hash(text2.slice(hi + 1, nextEnd < 0 ? text2.length : nextEnd)) : neighbors.next;
+  const context = {
+    block_id: blockId,
+    block_start: lo,
+    block_end: hi,
+    previous,
+    next,
+    before_hash: hash(text2.slice(Math.max(0, start - 64), start)),
+    after_hash: hash(text2.slice(end, end + 64))
+  };
+  if (s.kind === "text") return { context, geometry: null };
+  if (!w || !s.ref || s.ref.sha256 !== w.sha256 || s.conversion_id !== w.conversion_id || s.ordinal !== w.ordinal || w.text !== text2) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
+  const boxes = w.boxes.filter((b) => b.start < end && b.end > start).map(({ start: start2, end: end2, x, y, width, height }) => ({ start: start2, end: end2, x, y, width, height }));
+  return { context, geometry: { page: s.ordinal, width: w.width, height: w.height, source_sha256: w.sha256, boxes } };
 }
 
 // src/host/citation-store.ts
@@ -1073,7 +1097,7 @@ var CITATION_SCHEMA = `CREATE TABLE citations (
 ) STRICT;`;
 var notFound2 = () => new AssetError(404, "SOURCE_NOT_FOUND");
 var invalid = () => new AssetError(422, "INVALID_READER_UNIT");
-var sha = (s) => createHash5("sha256").update(s, "utf8").digest("hex");
+var sha = (s) => createHash6("sha256").update(s, "utf8").digest("hex");
 var uuid2 = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 var fields = "id,asset_id,version_id,conversion_id,ordinal,start,end,source_hash,quote_hash";
 function dto(row) {
@@ -1130,11 +1154,25 @@ var CitationStore = class {
   source(prior, t) {
     return this.tx("read", (db, now) => this.read(db, this.actor(prior, now), t, now));
   }
+  access(prior, asset, version) {
+    return this.tx("read", (db, now) => {
+      const actor2 = this.actor(prior, now);
+      if (!this.allowed(actor2, asset, now)) throw notFound2();
+      const row = db.prepare(`SELECT v.version,NOT EXISTS(SELECT 1 FROM asset_versions n WHERE n.asset_id=v.asset_id AND n.version>v.version) AS latest
+      FROM asset_versions v WHERE v.asset_id=? AND v.id=?`).get(asset, version);
+      if (!row) throw notFound2();
+      return { actor_id: actor2.userId, asset_id: asset, version_id: version, version: Number(row.version), is_latest: !!row.latest };
+    });
+  }
   text(s, w) {
     if (s.state !== "ready" && s.state !== "review") throw new AssetError(409, "SOURCE_NOT_READY");
     if (s.kind !== "office") return s.text;
     if (!w || w.conversion_id !== s.conversion_id || w.sha256 !== s.ref?.sha256 || w.ordinal !== s.ordinal) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
     return w.text;
+  }
+  locator(db, id) {
+    const r = db.prepare("SELECT snapshot FROM citation_locators WHERE citation_id=?").get(id);
+    return r ? JSON.parse(String(r.snapshot)) : null;
   }
   create(prior, spec, key, w) {
     return this.tx("write", (db, now) => {
@@ -1147,11 +1185,18 @@ var CitationStore = class {
       if (old) {
         if (!this.allowed(a, String(old.asset_id), now)) throw notFound2();
         if (old.asset_id !== spec.asset_id || old.version_id !== spec.version_id || old.ordinal !== spec.ordinal || old.conversion_id !== (spec.conversion_id ?? null) || old.start !== range.start || old.end !== range.end || old.source_hash !== range.source_hash) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
-        return { data: dto(old), replayed: true };
+        return { data: { ...dto(old), locator: this.locator(db, String(old.id)) }, replayed: true };
       }
+      const neighbor = (n) => {
+        if (src.kind !== "text") return null;
+        const r = db.prepare("SELECT anchor FROM text_blocks WHERE version_id=? AND ordinal=?").get(src.version_id, n);
+        return r ? String(r.anchor) : null;
+      };
+      const locator = makeLocator(src, text2, spec.start, spec.end, { previous: neighbor(src.ordinal - 1), next: neighbor(src.ordinal + 1) }, w);
       const id = randomUUID7();
       db.prepare("INSERT INTO citations VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run(id, a.userId, key, spec.asset_id, spec.version_id, spec.conversion_id ?? null, spec.ordinal, range.start, range.end, range.source_hash, range.quote_hash, now);
-      return { data: { ...spec, ...range, id }, replayed: false };
+      db.prepare("INSERT INTO citation_locators(citation_id,snapshot) VALUES(?,?)").run(id, JSON.stringify(locator));
+      return { data: { ...spec, ...range, id, locator }, replayed: false };
     });
   }
   lookup(db, a, id, now) {
@@ -1165,23 +1210,30 @@ var CitationStore = class {
   resolve(prior, id, w) {
     return this.tx("read", (db, now) => {
       const a = this.actor(prior, now), r = this.lookup(db, a, id, now), source = this.read(db, a, r, now);
-      return { ...r, quote: resolveCitationText(this.text(source, w), r) };
+      return { ...r, quote: resolveCitationText(this.text(source, w), r), locator: this.locator(db, id) };
     });
   }
 };
 
+// src/host/citation-locator-schema.ts
+var CITATION_LOCATOR_SCHEMA = `CREATE TABLE citation_locators (
+  citation_id TEXT PRIMARY KEY REFERENCES citations(id),
+  snapshot TEXT NOT NULL CHECK(json_valid(snapshot) AND json_type(snapshot)='object')
+) STRICT;`;
+
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 14;
-var MIGRATION_V13_CHECKSUM = createHash6("sha256").update(ZIP_SCHEMA).digest("hex");
-var MIGRATION_V14_CHECKSUM = createHash6("sha256").update(CITATION_SCHEMA).digest("hex");
-var MIGRATION_V12_CHECKSUM = createHash6("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
-var MIGRATION_V11_CHECKSUM = createHash6("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
-var MIGRATION_V10_CHECKSUM = createHash6("sha256").update(OFFICE_SCHEMA).digest("hex");
-var MIGRATION_V9_CHECKSUM = createHash6("sha256").update(TEXT_SCHEMA).digest("hex");
-var MIGRATION_V8_CHECKSUM = createHash6("sha256").update(PARSE_SCHEMA).digest("hex");
-var MIGRATION_V7_CHECKSUM = createHash6("sha256").update(ASSET_SCHEMA).digest("hex");
-var MIGRATION_V6_CHECKSUM = createHash6("sha256").update(JOB_SCHEMA).digest("hex");
+var SCHEMA_VERSION = 15;
+var MIGRATION_V15_CHECKSUM = createHash7("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
+var MIGRATION_V13_CHECKSUM = createHash7("sha256").update(ZIP_SCHEMA).digest("hex");
+var MIGRATION_V14_CHECKSUM = createHash7("sha256").update(CITATION_SCHEMA).digest("hex");
+var MIGRATION_V12_CHECKSUM = createHash7("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
+var MIGRATION_V11_CHECKSUM = createHash7("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
+var MIGRATION_V10_CHECKSUM = createHash7("sha256").update(OFFICE_SCHEMA).digest("hex");
+var MIGRATION_V9_CHECKSUM = createHash7("sha256").update(TEXT_SCHEMA).digest("hex");
+var MIGRATION_V8_CHECKSUM = createHash7("sha256").update(PARSE_SCHEMA).digest("hex");
+var MIGRATION_V7_CHECKSUM = createHash7("sha256").update(ASSET_SCHEMA).digest("hex");
+var MIGRATION_V6_CHECKSUM = createHash7("sha256").update(JOB_SCHEMA).digest("hex");
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
 var MIGRATION_V1_SQL = `CREATE TABLE schema_migrations (
@@ -1197,7 +1249,7 @@ CREATE TABLE storage_probe_records (
   created_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V1_CHECKSUM = createHash6("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
+var MIGRATION_V1_CHECKSUM = createHash7("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
 var MIGRATION_V2_SQL = `CREATE TABLE password_credentials (
   id TEXT PRIMARY KEY,
   algorithm TEXT NOT NULL,
@@ -1251,7 +1303,7 @@ CREATE TABLE spaces (
   updated_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V2_CHECKSUM = createHash6("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
+var MIGRATION_V2_CHECKSUM = createHash7("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
 var MIGRATION_V3_SQL = `CREATE TABLE knowledge_projects (
   id TEXT PRIMARY KEY,
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
@@ -1301,7 +1353,7 @@ CREATE TABLE resource_grants (
   UNIQUE (resource_id, subject_type, subject_id, action)
 ) STRICT;
 `;
-var MIGRATION_V3_CHECKSUM = createHash6("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
+var MIGRATION_V3_CHECKSUM = createHash7("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
 var MIGRATION_V4_SQL = `ALTER TABLE resource_grants RENAME TO resource_grants_v3;
 CREATE TABLE resource_grants (
   id TEXT PRIMARY KEY,
@@ -1323,7 +1375,7 @@ CREATE UNIQUE INDEX resource_grants_active_subject_action_uq
   WHERE revoked_at IS NULL;
 DROP TABLE resource_grants_v3;
 `;
-var MIGRATION_V4_CHECKSUM = createHash6("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
+var MIGRATION_V4_CHECKSUM = createHash7("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
 var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -1335,7 +1387,7 @@ var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   PRIMARY KEY (service_id, user_id, idempotency_key)
 ) STRICT;
 `;
-var MIGRATION_V5_CHECKSUM = createHash6("sha256").update(MIGRATION_V5_SQL).digest("hex");
+var MIGRATION_V5_CHECKSUM = createHash7("sha256").update(MIGRATION_V5_SQL).digest("hex");
 var PROBE_SUPPORTED_TABLES = ["schema_migrations", "storage_probe_records"];
 var IDENTITY_SUPPORTED_TABLES = [
   "auth_sessions",
@@ -1510,7 +1562,8 @@ var ProbeStorage = class {
       if (priorVersion < 12) this.#migrateV12(db);
       if (priorVersion < 13) this.#migrateV13(db);
       if (priorVersion < 14) this.#migrateV14(db);
-      this.#verify(db, 14);
+      if (priorVersion < 15) this.#migrateV15(db);
+      this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
       this.#db = db;
@@ -1577,7 +1630,7 @@ var ProbeStorage = class {
       }
       return "v5";
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15) {
       const db = new DatabaseSync(path, { readOnly: true });
       try {
         this.#verify(db, facts.userVersion);
@@ -1909,10 +1962,22 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "citation migration failed", false, { cause: e });
     }
   }
+  #migrateV15(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(CITATION_LOCATOR_SCHEMA);
+      this.#injectFailure("v15:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(15,?,?)").run(MIGRATION_V15_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=15; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "citation locator migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM].slice(0, version - 5);
-    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash2, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash2)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM].slice(0, version - 5);
+    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash3, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash3)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
       reference.exec(JOB_SCHEMA);
@@ -1924,6 +1989,7 @@ var ProbeStorage = class {
       if (version >= 12) reference.exec(OFFICE_HISTORY_SCHEMA);
       if (version >= 13) reference.exec(ZIP_SCHEMA);
       if (version >= 14) reference.exec(CITATION_SCHEMA);
+      if (version >= 15) reference.exec(CITATION_LOCATOR_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name: name2, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name2)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -2326,8 +2392,8 @@ var ProbeStorage = class {
     let primaryCode;
     let failed = false;
     try {
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash6("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash6("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash7("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash7("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
     } catch (error) {
       failed = true;
       primaryCode = primarySqliteCode(error);
@@ -2385,7 +2451,7 @@ var ProbeStorage = class {
 };
 
 // src/host/identity.ts
-import { createHash as createHash7, randomBytes, randomUUID as randomUUID9, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
+import { createHash as createHash8, randomBytes, randomUUID as randomUUID9, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
 var DOMAINS = ["software_engineering", "system_architecture", "hardware_engineering", "ai_development"];
 var LEARNING_TRACKS = ["engineering_practice", "architecture_exam", "knowledge_accumulation"];
 var DEFAULT_TIMEZONE = "Asia/Shanghai";
@@ -2461,7 +2527,7 @@ function validateExpectedRevision(value) {
   return Number(value);
 }
 function tokenHash(token) {
-  return createHash7("sha256").update(token, "utf8").digest("hex");
+  return createHash8("sha256").update(token, "utf8").digest("hex");
 }
 function makeToken() {
   return randomBytes(32).toString("base64url");
@@ -2694,7 +2760,7 @@ var IdentityService = class {
 };
 
 // src/host/identity-http.ts
-import { createHash as createHash8, randomUUID as randomUUID10 } from "node:crypto";
+import { createHash as createHash9, randomUUID as randomUUID10 } from "node:crypto";
 import { isIP } from "node:net";
 var HttpError = class extends Error {
   constructor(status, code, message, retryable = false, headers = {}) {
@@ -2771,7 +2837,7 @@ function isIdentityRuntimeAvailable(facts) {
   }
 }
 function businessCookieName(serviceId, origin) {
-  return `kos_session_${createHash8("sha256").update(`${serviceId}|${origin}`).digest("hex").slice(0, 16)}`;
+  return `kos_session_${createHash9("sha256").update(`${serviceId}|${origin}`).digest("hex").slice(0, 16)}`;
 }
 function readCookie(req, name2) {
   const raw = req.headers.cookie;
@@ -3226,7 +3292,7 @@ import { randomUUID as randomUUID12 } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 // src/host/ai-tools.ts
-import { createHash as createHash9 } from "node:crypto";
+import { createHash as createHash10 } from "node:crypto";
 var AiError = class extends Error {
   constructor(status, code) {
     super(code);
@@ -3265,7 +3331,7 @@ function toolArguments(call) {
   return { object_id, expected_revision: Number(args.expected_revision), ...args.title === void 0 ? {} : { title: aiText(args.title, 200) }, ...args.body === void 0 ? {} : { body: aiText(args.body, 2e3, true) } };
 }
 function toolDigest(name2, input) {
-  return createHash9("sha256").update(JSON.stringify([name2, input.object_id, input.expected_revision ?? null, input.title ?? null, input.body ?? null])).digest("hex");
+  return createHash10("sha256").update(JSON.stringify([name2, input.object_id, input.expected_revision ?? null, input.title ?? null, input.body ?? null])).digest("hex");
 }
 function runBusinessTool(store, actor2, call, key, now) {
   const input = toolArguments(call);
@@ -3591,7 +3657,7 @@ body{margin:0;background:#f4f8f8;color:#23333a;font:15px/1.65 "Segoe UI","Micros
 import { join as join3 } from "node:path";
 
 // src/host/pdf-originals.ts
-import { createHash as createHash10, randomUUID as randomUUID14 } from "node:crypto";
+import { createHash as createHash11, randomUUID as randomUUID14 } from "node:crypto";
 import { constants } from "node:fs";
 import fs from "node:fs/promises";
 import { dirname, join as join2, resolve } from "node:path";
@@ -3669,7 +3735,7 @@ async function verifyWordBytes(b, media) {
 // src/host/pdf-originals.ts
 var MAX = 64 * 1024 * 1024;
 var KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:pdf|txt|docx?|zip)$/;
-var digest = (b) => createHash10("sha256").update(b).digest("hex");
+var digest = (b) => createHash11("sha256").update(b).digest("hex");
 var PdfInputError = class extends Error {
   code = "PDF_INVALID_INPUT";
   constructor() {
@@ -3907,7 +3973,7 @@ var PdfOriginals = class {
 import { randomUUID as randomUUID15 } from "node:crypto";
 
 // src/host/text-document.ts
-import { createHash as createHash11 } from "node:crypto";
+import { createHash as createHash12 } from "node:crypto";
 var MAX_BYTES = 8 * 1024 * 1024;
 var MAX_BLOCKS = 16384;
 var messages = {
@@ -3949,7 +4015,7 @@ function indexBlocks(source, markdown) {
     if (!pending) return;
     if (blocks.length >= MAX_BLOCKS) throw new TextInputError("TEXT_TOO_LARGE");
     const text2 = source.slice(start, end);
-    const anchor = createHash11("sha256").update(text2, "utf8").digest("hex");
+    const anchor = createHash12("sha256").update(text2, "utf8").digest("hex");
     blocks.push({ kind: pending, start, end, text: text2, anchor });
     start = end;
     pending = void 0;
@@ -4010,14 +4076,17 @@ function decodeText(bytes, media, requestedEncoding) {
 }
 
 // src/host/reader-http.ts
-import { createHash as createHash12 } from "node:crypto";
+import { createHash as createHash13 } from "node:crypto";
 var uuid3 = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
-var hash = (s) => createHash12("sha256").update(s, "utf8").digest("hex");
+var hash2 = (s) => createHash13("sha256").update(s, "utf8").digest("hex");
 var ReaderService = class {
   constructor(store, originals, render2) {
     this.store = store;
     this.originals = originals;
     this.render = render2;
+  }
+  access(current, asset, version) {
+    return this.store.access(current(), asset, version);
   }
   async rendered(current, s, signal) {
     if (!this.render || !s.ref) throw new AssetError(503, "PAGE_RENDER_UNAVAILABLE");
@@ -4042,25 +4111,33 @@ var ReaderService = class {
   }
   async page(current, t, signal) {
     const s = this.store.source(current(), t), { ref: _private, ...publicFields } = s;
-    if (s.kind === "text" || !["ready", "review"].includes(s.state)) return { ...publicFields, anchor: hash(s.text) };
+    if (s.kind === "text" || !["ready", "review"].includes(s.state)) return { ...publicFields, anchor: hash2(s.text) };
     const { text: text2, image, width, height, boxes } = await this.rendered(current, s, signal);
-    return { ...publicFields, text: text2, anchor: hash(text2), image, width, height, boxes };
+    return { ...publicFields, text: text2, anchor: hash2(text2), image, width, height, boxes, original_sha256: s.ref.sha256 };
   }
-  async office(current, t, signal) {
-    if (!t.conversion_id) return;
-    const s = this.store.source(current(), t), { text: text2 } = await this.rendered(current, s, signal);
-    return { conversion_id: t.conversion_id, sha256: s.ref.sha256, ordinal: t.ordinal, text: text2 };
+  async witness(current, t, signal) {
+    const s = this.store.source(current(), t);
+    if (s.kind === "text") return;
+    if (s.state !== "ready" && s.state !== "review") throw new AssetError(409, "SOURCE_NOT_READY");
+    if (s.kind === "office" && !t.conversion_id) throw new AssetError(422, "INVALID_CITATION");
+    const { text: text2, width, height, boxes } = await this.rendered(current, s, signal);
+    return { ...s.conversion_id ? { conversion_id: s.conversion_id } : {}, sha256: s.ref.sha256, ordinal: t.ordinal, text: text2, width, height, boxes };
   }
   async create(current, spec, key, signal) {
-    const w = await this.office(current, spec, signal);
+    const w = await this.witness(current, spec, signal);
     return this.store.create(current(), spec, key, w);
   }
   async resolve(current, id, signal) {
-    const t = this.store.target(current(), id), w = await this.office(current, t, signal);
+    const t = this.store.target(current(), id), w = t.conversion_id ? await this.witness(current, t, signal) : void 0;
     return this.store.resolve(current(), id, w);
   }
 };
 async function readerRoute(req, url, service, current, signal, body, reserve, send) {
+  const access = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/reader-access$/.exec(url.pathname);
+  if (access && uuid3.test(access[1]) && uuid3.test(access[2]) && !url.search && req.method === "GET") {
+    send(200, service.access(current, access[1], access[2]));
+    return true;
+  }
   const reader = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/reader$/.exec(url.pathname);
   if (reader && uuid3.test(reader[1]) && uuid3.test(reader[2]) && req.method === "GET") {
     const p = url.searchParams, keys2 = [...p.keys()], unit = p.get("unit") ?? "1", cid = p.get("conversion");
@@ -4436,7 +4513,7 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
       };
       const url = new URL(req.url ?? "/", host);
       if (url.origin !== host) throw new AssetError(403, "CSRF_REJECTED");
-      if (reader && (url.pathname.endsWith("/reader") || url.pathname.startsWith("/knowledge/v1/citations"))) {
+      if (reader && (url.pathname.endsWith("/reader") || url.pathname.endsWith("/reader-access") || url.pathname.startsWith("/knowledge/v1/citations"))) {
         const ac = new AbortController(), stop = () => ac.abort();
         res.once("close", stop);
         if (res.destroyed) stop();
@@ -5742,11 +5819,15 @@ async function api(path,options){
   const r=await fetch('/knowledge/v1/'+path,{credentials:'same-origin',cache:'no-store',redirect:'error',...options});
   if(!r.ok)throw problem(r.status);return (await r.json()).data;
 }
-async function principal(g){
-  const m=await api('me');if(g!==gen)return false;
-  if(!m||typeof m.id!=='string'||!m.id)throw invalid();
-  if(owner!==null && owner!==m.id){lock('账号已切换，请刷新以重新检查资料权限。');return false}
-  owner=m.id;return true;
+async function access(g){
+  if(g!==gen||document.hidden)return false;
+  try{
+    const m=await api('assets/'+asset+'/versions/'+version+'/reader-access',{signal:AbortSignal.timeout(2000)});
+    if(g!==gen||document.hidden)return false;
+    if(!m||typeof m.actor_id!=='string'||!m.actor_id||m.asset_id!==asset||m.version_id!==version||!integer(m.version)||m.version<1||typeof m.is_latest!=='boolean')throw invalid();
+    if(owner!==null && owner!==m.actor_id){lock('账号已切换，请刷新以重新检查资料权限。');return false}
+    owner=m.actor_id;versionLabel=(m.is_latest?'固定版本':'旧版本')+' v'+m.version;return true;
+  }catch(e){failure(e,g);return false}
 }
 function clearPage(){
   page=null;selection=null;posting=false;getSelection().removeAllRanges();
@@ -5794,18 +5875,12 @@ function validate(d,n,cv){
   if(d.image!=null && (typeof d.image!=='string'||!/^data:image\/png;base64,[A-Za-z\d+/]+=*$/.test(d.image)||!(d.width>0&&Number.isFinite(d.width)&&d.height>0&&Number.isFinite(d.height))))throw invalid();
   return d;
 }
-async function metadata(){
-  const data=await api('assets');if(!Array.isArray(data?.items))throw invalid();
-  const rows=data.items.filter(r=>r.id===asset), row=rows.find(r=>r.version_id===version);
-  return row && integer(row.version)?(rows.some(r=>r.version>row.version)?'旧版本':'固定版本')+' v'+row.version:'固定版本（无法确认是否最新）';
-}
 async function load(n,{fresh=false,openCitation=false}={}){
+  if(document.hidden)return;
   const g=++gen;clearPage();ordinal=n;navigation();status('正在读取…');
   try{
     if(!uuid(asset)||!uuid(version)||(cid!==null&&!uuid(cid))||!/^\d{1,9}$/.test(requestedUnit)||Number(requestedUnit)<1||(requestedConversion!==null&&!uuid(requestedConversion)))throw invalid();
-    if(!await principal(g))return;
-    const label=fresh?await metadata():versionLabel;
-    if(g!==gen)return;
+    if(!await access(g))return;
     const c=openCitation && cid?locator(await api('citations/'+cid+'/resolve'),cid):null;
     if(g!==gen)return;
     if(c && ((q.has('unit')&&Number(requestedUnit)!==c.ordinal)||(requestedConversion && requestedConversion!==c.conversion_id)))throw problem(409);
@@ -5815,21 +5890,26 @@ async function load(n,{fresh=false,openCitation=false}={}){
     if(!digest(d.anchor)||await sha(d.text)!==d.anchor)throw problem(409);
     if(c && (c.conversion_id??null)!==(d.conversion_id??null))throw invalid();
     if(c && ready(d) && (!validRange(d.text,c.start,c.end)||await sha(d.text)!==c.source_hash||await sha(d.text.slice(c.start,c.end))!==c.quote_hash))throw problem(409);
-    if(!await principal(g))return;
-    resolved=c;versionLabel=label;ordinal=at;total=d.total;conversion=d.conversion_id??null;page=d;navigation();
-    $('version').textContent=label+' · '+version;$('title').textContent=d.title||'版本阅读';$('anchor').textContent=d.chapter||((d.kind==='text'?'文本块 ':'第 ')+at+(d.kind==='text'?'':' 页'));
+    if(!await access(g))return;
+    resolved=c;ordinal=at;total=d.total;conversion=d.conversion_id??null;page=d;navigation();
+    $('version').textContent=versionLabel+' · '+version;$('title').textContent=d.title||'版本阅读';$('anchor').textContent=d.chapter||((d.kind==='text'?'文本块 ':'第 ')+at+(d.kind==='text'?'':' 页'));
     if(c && ready(d))selection={start:c.start,end:c.end};
     draw();if(c)document.querySelector('#original .highlight,#text mark')?.scrollIntoView({block:'nearest'});
   }catch(e){
     if(g!==gen)return;
     if(total && !fresh && (e.http===503||e.http===502||e.http===500)){
-      try{if(await principal(g))status('本处加载失败，请刷新重试或选择其他位置。')}catch(err){failure(err,g)}
+      try{if(await access(g))status('本处加载失败，请刷新重试或选择其他位置。')}catch(err){failure(err,g)}
     }else failure(e,g);
   }
 }
 function navigate(n){if(!integer(n)||n<1||n>total)return;void load(n)}
 // A partial glyph/run has no known pixel boundary. Never interpolate a rectangle.
 function exactBoxes(d,s){
+  if(resolved && s?.start===resolved.start && s?.end===resolved.end && resolved.locator?.geometry){
+    const g=resolved.locator.geometry;
+    if(g.page!==d.ordinal||g.width!==d.width||g.height!==d.height||!digest(g.source_sha256)||g.source_sha256!==d.original_sha256)return [];
+    d={...d,boxes:g.boxes};
+  }
   if(!s||!Array.isArray(d.boxes))return [];
   const boxes=d.boxes.filter(b=>b && b.end>s.start && b.start<s.end).sort((a,b)=>a.start-b.start);
   let at=s.start;
@@ -5875,9 +5955,9 @@ async function createCitation(){
     const body={asset_id:asset,version_id:version,ordinal:d.ordinal,start,end,source_hash,...(d.conversion_id?{conversion_id:d.conversion_id}:{})};
     const signature=JSON.stringify([owner,body]);
     const key=pending?.signature===signature?pending.key:crypto.randomUUID();pending={signature,key};
-    if(!await principal(g))return;
+    if(!await access(g))return;
     const receipt=await api('citations',{method:'POST',headers:{'Content-Type':'application/json','X-KnowledgeOS-Request':'1','Idempotency-Key':key},body:JSON.stringify(body)});
-    if(!await principal(g))return;
+    if(!await access(g))return;
     const c=locator(receipt);if(!uuid(c.id)||c.ordinal!==body.ordinal||c.start!==start||c.end!==end||c.source_hash!==source_hash||c.quote_hash!==quote||(c.conversion_id??null)!==(body.conversion_id??null))throw invalid();
     const u=new URL('/knowledgeos/reader',location.origin);u.search=new URLSearchParams({asset,version,citation:c.id});
     $('link').href=u.href;$('link').hidden=false;draw();status('引用链接已生成。');
@@ -5887,17 +5967,30 @@ async function createCitation(){
     status('未收到有效回执，可以重试本次引用。');
   }finally{if(g===gen){posting=false;$('cite').disabled=!selection}}
 }
-$('paper').onclick=()=>{mode='paper';draw()};$('structured').onclick=()=>{mode='text';draw()};
+let modeSequence=0,polling=false,resumeAt=null;
+async function switchMode(target){
+  const g=gen,seq=++modeSequence;
+  if(page&&await access(g)&&seq===modeSequence){mode=target;draw()}
+}
+async function recheck(){
+  if(!owner||document.hidden||polling)return;
+  const g=gen;polling=true;
+  try{if(await access(g)&&page)$('version').textContent=versionLabel+' · '+version}finally{polling=false}
+}
+$('paper').onclick=()=>switchMode('paper');$('structured').onclick=()=>switchMode('text');
 $('cite').onpointerdown=e=>e.preventDefault();$('cite').onclick=createCitation;document.addEventListener('selectionchange',capture);
 $('jump').onsubmit=e=>{e.preventDefault();navigate(Number($('number').value))};$('prev').onclick=()=>navigate(ordinal-1);$('next').onclick=()=>navigate(ordinal+1);
 $('rail').onscroll=renderWindow;new ResizeObserver(renderWindow).observe($('rail'));
 function refresh(){void load(total?ordinal:Number(requestedUnit),{fresh:true,openCitation:!!cid && (!page || !!resolved)})}
 $('refresh').onclick=refresh;
-// Recheck source ACL as well as account on return; never restore private pixels from bfcache.
-window.addEventListener('pagehide',()=>lock('阅读页已关闭。'));
-window.addEventListener('pageshow',e=>{if(e.persisted)refresh()});
-window.addEventListener('focus',()=>{if(owner && !document.hidden)refresh()});
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
+// Preserve the fixed position, never the page body, while hidden or in bfcache.
+function suspend(){resumeAt??={n:total?ordinal:Number(requestedUnit),cv:conversion,cite:!!cid&&(!page||!!resolved)};lock('返回后将重新检查阅读权限。')}
+function resume(){if(document.hidden||!resumeAt)return;const prior=resumeAt;resumeAt=null;conversion=prior.cv;void load(prior.n,{fresh:true,openCitation:prior.cite})}
+window.addEventListener('pagehide',suspend);
+window.addEventListener('pageshow',e=>{if(e.persisted)resume()});
+window.addEventListener('focus',recheck);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)suspend();else if(resumeAt)resume();else refresh()});
+setInterval(recheck,2000);
 void load(Number(requestedUnit),{fresh:true,openCitation:true});
 </script></body></html>`;
 }
