@@ -7,13 +7,15 @@ import {join} from 'node:path'
 import {DatabaseSync} from 'node:sqlite'
 import test from 'node:test'
 import {pathToFileURL} from 'node:url'
-import {ProbeStorage} from '../../packages/knowledgeos-panel/src/host/storage.ts'
 import {decodeText} from '../../packages/knowledgeos-panel/src/host/text-document.ts'
 import {seed} from '../fnd006/independent/common.mjs'
 
 test('v16 rollback is atomic and upgrade preserves published v15 asset, citation and locator',async()=>{
   const dir=mkdtempSync(join(tmpdir(),'kos-v16-')),prior=join(dir,'v15.mjs')
   writeFileSync(prior,execFileSync('git',['show','fdac3b02fc5ac42eabef72374aee9b7050c942e3:packages/knowledgeos-panel/lib/test-support.js']))
+  const target=join(dir,'v16.mjs')
+  writeFileSync(target,execFileSync('git',['show','08889f97a612b34ae205f0dfa3af6064c3585f19:packages/knowledgeos-panel/lib/storage.js']))
+  const {ProbeStorage}=await import(pathToFileURL(target).href)
   const old=await import(pathToFileURL(prior).href),{actor}=await seed(old,dir),s=new old.ProbeStorage({dataDir:dir})
   const bytes=Buffer.from('actual source with quote'),hash=createHash('sha256').update(bytes).digest('hex')
   const {receipt:r}=s.assets.publish(actor,{title:'v15.txt',key:randomUUID()},{key:randomUUID()+'.txt',byteLength:bytes.length,sha256:hash},{media:'text/plain',...decodeText(bytes,'text/plain')})

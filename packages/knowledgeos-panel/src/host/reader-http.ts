@@ -8,6 +8,7 @@ import type {PdfOriginals} from './pdf-originals.ts'
 import {alignWordSelection,wordPageLimit,wordParagraphs} from './word-locator.ts'
 import {WORD_MEDIA} from './office-schema.ts'
 import {canRemember,positionHash,type ReadingPoint} from './reading-state.ts'
+import type {AnnotationDraft} from './annotation-store.ts'
 
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/
 const hash=(s:string)=>createHash('sha256').update(s,'utf8').digest('hex')
@@ -24,6 +25,10 @@ export class ReaderService {
   savePosition(current:Current,t:ReaderTarget&ReadingPoint,r:number,a:string){return this.store.savePosition(current(),t,r,a)}
   addBookmark(current:Current,t:ReaderTarget&ReadingPoint,title:string,a:string){return this.store.addBookmark(current(),t,title,a)}
   deleteBookmark(current:Current,t:ReaderTarget,id:string,a:string){return this.store.deleteBookmark(current(),t,id,a)}
+  listAnnotations(current:Current,t:ReaderTarget){return this.store.listAnnotations(current(),t)}
+  addAnnotation(current:Current,t:ReaderTarget,draft:AnnotationDraft,a:string){return this.store.addAnnotation(current(),t,draft,a)}
+  updateAnnotation(current:Current,t:ReaderTarget,id:string,r:number,body:string,a:string){return this.store.updateAnnotation(current(),t,id,r,body,a)}
+  deleteAnnotation(current:Current,t:ReaderTarget,id:string,r:number,a:string){return this.store.deleteAnnotation(current(),t,id,r,a)}
   async outline(current:Current,t:ReaderTarget,signal:AbortSignal){
     const {actor_id,source,items}=this.store.outline(current(),t)
     if(source.kind!=='pdf')return {actor_id,items}
@@ -103,6 +108,31 @@ export class ReaderService {
 
 export async function readerRoute(req:IncomingMessage,url:URL,service:ReaderService,current:Current,signal:AbortSignal,
   body:(req:IncomingMessage,empty:string,max:number)=>Promise<Buffer>,reserve:()=>void,send:(status:number,data:unknown)=>void){
+  const annotations=/^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/reader-annotations(?:\/([a-f0-9-]+))?$/.exec(url.pathname)
+  if(annotations&&uuid.test(annotations[1]!)&&uuid.test(annotations[2]!)&&(!annotations[3]||uuid.test(annotations[3]))){
+    const p=url.searchParams,keys=[...p.keys()],n=p.get('unit')??'1',cv=p.get('conversion'),id=annotations[3],m=req.method
+    if(keys.some(k=>k!=='unit'&&k!=='conversion')||new Set(keys).size!==keys.length||!/^\d{1,9}$/.test(n)||Number(n)<1||cv&&!uuid.test(cv)||cv==='')throw new AssetError(422,'INVALID_READER_UNIT')
+    const t={asset_id:annotations[1]!,version_id:annotations[2]!,ordinal:Number(n),...(cv?{conversion_id:cv}:{})}
+    if(m==='GET'&&!id){send(200,service.listAnnotations(current,t));return true}
+    if(m==='POST'&&!id||id&&(m==='PATCH'||m==='DELETE')){
+      const a=req.headers['x-knowledgeos-reader-actor'];if(typeof a!=='string'||!uuid.test(a))throw new AssetError(422,'INVALID_READER_ACTOR')
+      if(req.headers['content-type']?.split(';')[0]!=='application/json')throw new AssetError(415,'JSON_REQUIRED')
+      reserve();const b=await body(req,'INVALID_ANNOTATION',26_000)
+      let v;try{v=JSON.parse(b.toString('utf8'))}catch{throw new AssetError(422,'INVALID_ANNOTATION')}
+      const allowed=m==='POST'?['citation_id','visibility','body']:m==='PATCH'?['body','expected_revision']:['expected_revision']
+      if(!v||typeof v!=='object'||Array.isArray(v)||Object.keys(v).some(k=>!allowed.includes(k))||m!=='DELETE'&&
+        (typeof v.body!=='string'||!v.body.trim()||v.body.length>4000||v.body.includes('\0')))throw new AssetError(422,'INVALID_ANNOTATION')
+      if(m==='POST'){
+        if(typeof v.citation_id!=='string'||!uuid.test(v.citation_id)||!['private','project'].includes(v.visibility))throw new AssetError(422,'INVALID_ANNOTATION')
+        send(201,service.addAnnotation(current,t,v,a))
+      }else if(id){
+        const r=v.expected_revision
+        if(!Number.isSafeInteger(r)||r<1||r>=Number.MAX_SAFE_INTEGER)throw new AssetError(422,'INVALID_ANNOTATION_REVISION')
+        send(200,m==='PATCH'?service.updateAnnotation(current,t,id,r,v.body,a):service.deleteAnnotation(current,t,id,r,a))
+      }
+      return true
+    }
+  }
   const reading=/^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/reader-(state|outline|bookmarks)(?:\/([a-f0-9-]+))?$/.exec(url.pathname)
   if(reading&&uuid.test(reading[1]!)&&uuid.test(reading[2]!)&&!url.search){
     const t={asset_id:reading[1]!,version_id:reading[2]!,ordinal:1},kind=reading[3],id=reading[4],method=req.method

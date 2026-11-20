@@ -1933,7 +1933,7 @@ var require_saxes = __commonJS({
 });
 
 // src/host/index.ts
-import { randomUUID as randomUUID18 } from "node:crypto";
+import { randomUUID as randomUUID19 } from "node:crypto";
 
 // src/host/status.ts
 var EXPECTED_UPSTREAM_COMMIT = "39163dd30f703a79079e2d2446545cff3c453738";
@@ -2221,7 +2221,7 @@ function createRecordsHandlers(service, basePath, log) {
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash8, randomUUID as randomUUID9 } from "node:crypto";
+import { createHash as createHash8, randomUUID as randomUUID10 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -2978,7 +2978,7 @@ CREATE TABLE zip_selections (
 ) STRICT;`;
 
 // src/host/citation-store.ts
-import { createHash as createHash7, randomUUID as randomUUID8 } from "node:crypto";
+import { createHash as createHash7, randomUUID as randomUUID9 } from "node:crypto";
 
 // src/host/citation-anchor.ts
 import { createHash as createHash4 } from "node:crypto";
@@ -3057,6 +3057,60 @@ function createBookmark(db, user, version, p, title) {
   return { id, title, ordinal: p.ordinal, source_hash: p.source_hash, ...p.conversion_id ? { conversion_id: p.conversion_id } : {} };
 }
 
+// src/host/annotation-store.ts
+import { randomUUID as randomUUID8 } from "node:crypto";
+var ANNOTATION_SCHEMA = `CREATE TABLE reader_annotations (
+  id TEXT PRIMARY KEY, citation_id TEXT NOT NULL REFERENCES citations(id),
+  author_id TEXT NOT NULL REFERENCES users(id), project_id TEXT REFERENCES knowledge_projects(id),
+  body TEXT NOT NULL CHECK(length(body) BETWEEN 1 AND 4000), revision INTEGER NOT NULL CHECK(revision>=1)
+) STRICT;
+CREATE INDEX reader_annotations_citation ON reader_annotations(citation_id);`;
+var records = `SELECT a.id,a.citation_id,a.author_id,a.project_id,a.body,a.revision,c.ordinal,c.start,c.end,c.source_hash,c.conversion_id
+  FROM reader_annotations a JOIN citations c ON c.id=a.citation_id`;
+var inSource = "c.asset_id=? AND c.version_id=? AND c.ordinal=? AND c.conversion_id IS ?";
+var args = (t) => [t.asset_id, t.version_id, t.ordinal, t.conversion_id ?? null];
+var hidden = () => new AssetError(404, "ANNOTATION_NOT_FOUND");
+var visibleAnnotation = (r, user, scope) => r.project_id === null ? r.author_id === user : r.project_id === scope.project_id;
+function dto(r, user, scope) {
+  return {
+    id: String(r.id),
+    citation_id: String(r.citation_id),
+    ordinal: Number(r.ordinal),
+    start: Number(r.start),
+    end: Number(r.end),
+    source_hash: String(r.source_hash),
+    ...r.conversion_id ? { conversion_id: String(r.conversion_id) } : {},
+    visibility: r.project_id ? "project" : "private",
+    body: String(r.body),
+    revision: Number(r.revision),
+    can_edit: r.author_id === user && scope.canComment
+  };
+}
+function listAnnotations(db, t, user, scope) {
+  const rows = db.prepare(`${records} WHERE ${inSource} AND ((a.project_id IS NULL AND a.author_id=?) OR a.project_id=?) ORDER BY a.rowid`).all(...args(t), user, scope.project_id ?? null);
+  return { actor_id: user, can_comment: scope.canComment, can_share: scope.canComment && Boolean(scope.project_id), items: rows.map((r) => dto(r, user, scope)) };
+}
+function insertAnnotation(db, t, user, scope, draft, citation) {
+  const project = draft.visibility === "project" ? scope.project_id : null;
+  if (draft.visibility === "project" && !project) throw new AssetError(422, "ANNOTATION_SCOPE_UNAVAILABLE");
+  const count = db.prepare(`${records.replace(/^SELECT[\s\S]*?FROM/, "SELECT count(*) AS n FROM")} WHERE ${inSource} AND a.project_id IS ?${project ? "" : " AND a.author_id=?"}`).get(...args(t), project ?? null, ...project ? [] : [user]);
+  if (Number(count?.n) >= 200) throw new AssetError(409, "ANNOTATION_LIMIT");
+  const id = randomUUID8();
+  db.prepare("INSERT INTO reader_annotations VALUES(?,?,?,?,?,1)").run(id, draft.citation_id, user, project ?? null, draft.body);
+  return dto({ ...citation, id, citation_id: draft.citation_id, author_id: user, project_id: project ?? null, body: draft.body, revision: 1 }, user, scope);
+}
+function mutateAnnotation(db, t, user, scope, id, revision, body) {
+  const row = db.prepare(`${records} WHERE ${inSource} AND a.id=? AND a.author_id=?`).get(...args(t), id, user);
+  if (!row || !visibleAnnotation(row, user, scope)) throw hidden();
+  if (row.revision !== revision) throw new AssetError(409, "ANNOTATION_REVISION_CONFLICT");
+  if (body === void 0) {
+    db.prepare("DELETE FROM reader_annotations WHERE id=?").run(id);
+    return { id };
+  }
+  db.prepare("UPDATE reader_annotations SET body=?,revision=? WHERE id=?").run(body, revision + 1, id);
+  return dto({ ...row, body, revision: revision + 1 }, user, scope);
+}
+
 // src/host/citation-store.ts
 var CITATION_SCHEMA = `CREATE TABLE citations (
   id TEXT PRIMARY KEY, created_by TEXT NOT NULL REFERENCES users(id), request_key TEXT NOT NULL,
@@ -3071,15 +3125,16 @@ var invalid = () => new AssetError(422, "INVALID_READER_UNIT");
 var sha = (s) => createHash7("sha256").update(s, "utf8").digest("hex");
 var uuid2 = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 var fields = "id,asset_id,version_id,conversion_id,ordinal,start,end,source_hash,quote_hash";
-function dto(row) {
+function dto2(row) {
   const { conversion_id, ...rest } = row;
   return { ...rest, ...conversion_id ? { conversion_id } : {} };
 }
 var CitationStore = class {
-  constructor(tx, current, allowed) {
+  constructor(tx, current, allowed, annotationAccess) {
     this.tx = tx;
     this.current = current;
     this.allowed = allowed;
+    this.annotationAccess = annotationAccess;
   }
   actor(prior, now) {
     const a = this.current(prior, now);
@@ -3190,6 +3245,38 @@ var CitationStore = class {
       return { id };
     });
   }
+  annotatable(db, a, t, now, write = false) {
+    const src = this.read(db, a, t, now), scope = this.annotationAccess?.(a, t.asset_id, now);
+    if (!scope || write && !scope.canComment) throw notFound2();
+    return { src, scope };
+  }
+  listAnnotations(prior, t) {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(prior, now), { src, scope } = this.annotatable(db, a, t, now);
+      return listAnnotations(db, src, a.userId, scope);
+    });
+  }
+  addAnnotation(prior, t, draft, expectedActor) {
+    return this.tx("write", (db, now) => {
+      const a = this.writer(prior, expectedActor, now), { src, scope } = this.annotatable(db, a, t, now, true);
+      const row = db.prepare(`SELECT ${fields} FROM citations WHERE id=? AND created_by=? AND asset_id=? AND version_id=? AND ordinal=? AND conversion_id IS ?`).get(draft.citation_id, a.userId, src.asset_id, src.version_id, src.ordinal, src.conversion_id ?? null);
+      if (!row) throw notFound2();
+      if (src.state !== "ready" && src.state !== "review" || src.kind !== "office" && row.source_hash !== sha(src.text)) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
+      return insertAnnotation(db, src, a.userId, scope, draft, dto2(row));
+    });
+  }
+  updateAnnotation(prior, t, id, revision, body, expectedActor) {
+    return this.tx("write", (db, now) => {
+      const a = this.writer(prior, expectedActor, now), { src, scope } = this.annotatable(db, a, t, now, true);
+      return mutateAnnotation(db, src, a.userId, scope, id, revision, body);
+    });
+  }
+  deleteAnnotation(prior, t, id, revision, expectedActor) {
+    return this.tx("write", (db, now) => {
+      const a = this.writer(prior, expectedActor, now), { src, scope } = this.annotatable(db, a, t, now, true);
+      return mutateAnnotation(db, src, a.userId, scope, id, revision);
+    });
+  }
   access(prior, asset, version) {
     return this.tx("read", (db, now) => {
       const actor2 = this.actor(prior, now);
@@ -3215,7 +3302,7 @@ var CitationStore = class {
     if (!old) return;
     if (!this.allowed(a, String(old.asset_id), now)) throw notFound2();
     if (old.asset_id !== spec.asset_id || old.version_id !== spec.version_id || old.ordinal !== spec.ordinal || old.conversion_id !== (spec.conversion_id ?? null) || old.start !== range.start || old.end !== range.end || old.source_hash !== range.source_hash) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
-    return { data: { ...dto(old), locator: this.locator(db, String(old.id)) }, replayed: true };
+    return { data: { ...dto2(old), locator: this.locator(db, String(old.id)) }, replayed: true };
   }
   replay(prior, spec, key, w) {
     return this.tx("read", (db, now) => {
@@ -3240,7 +3327,7 @@ var CitationStore = class {
         return r ? String(r.anchor) : null;
       };
       const locator = makeLocator(src, text2, spec.start, spec.end, { previous: neighbor(src.ordinal - 1), next: neighbor(src.ordinal + 1) }, w);
-      const id = randomUUID8();
+      const id = randomUUID9();
       db.prepare("INSERT INTO citations VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run(id, a.userId, key, spec.asset_id, spec.version_id, spec.conversion_id ?? null, spec.ordinal, range.start, range.end, range.source_hash, range.quote_hash, now);
       db.prepare("INSERT INTO citation_locators(citation_id,snapshot) VALUES(?,?)").run(id, JSON.stringify(locator));
       return { data: { ...spec, ...range, id, locator }, replayed: false };
@@ -3249,7 +3336,7 @@ var CitationStore = class {
   lookup(db, a, id, now) {
     const r = db.prepare(`SELECT ${fields} FROM citations WHERE id=?`).get(id);
     if (!r || !this.allowed(a, String(r.asset_id), now)) throw notFound2();
-    return dto(r);
+    return dto2(r);
   }
   target(prior, id) {
     return this.tx("read", (db, now) => this.lookup(db, this.actor(prior, now), id, now));
@@ -3270,7 +3357,8 @@ var CITATION_LOCATOR_SCHEMA = `CREATE TABLE citation_locators (
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 16;
+var SCHEMA_VERSION = 17;
+var MIGRATION_V17_CHECKSUM = createHash8("sha256").update(ANNOTATION_SCHEMA).digest("hex");
 var MIGRATION_V16_CHECKSUM = createHash8("sha256").update(READING_STATE_SCHEMA).digest("hex");
 var MIGRATION_V15_CHECKSUM = createHash8("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
 var MIGRATION_V13_CHECKSUM = createHash8("sha256").update(ZIP_SCHEMA).digest("hex");
@@ -3524,7 +3612,10 @@ var ProbeStorage = class {
   }
   assets = new AssetStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (actor2, id, action2, now) => Boolean(this.authorizeObject(actor2, id, action2, now)));
   archives = new ZipStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id, now) => Boolean(this.authorizeObject(a, id, "read", now)));
-  citations = new CitationStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id, now) => Boolean(this.authorizeObject(a, id, "read", now)));
+  citations = new CitationStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id, now) => Boolean(this.authorizeObject(a, id, "read", now)), (a, id, now) => {
+    const source = this.authorizeObject(a, id, "read", now);
+    return source && { ...source.projectId ? { project_id: source.projectId } : {}, canComment: Boolean(this.authorizeObject(a, id, "comment", now)) };
+  });
   office = new OfficeStore(this.#assetTx, (sessionId, userId, id, action2, now) => {
     const actor2 = this.#currentActor({ sessionId, userId }, now);
     return !!actor2 && !!this.authorizeObject(actor2, id, action2, now);
@@ -3612,6 +3703,7 @@ var ProbeStorage = class {
       if (priorVersion < 14) this.#migrateV14(db);
       if (priorVersion < 15) this.#migrateV15(db);
       if (priorVersion < 16) this.#migrateV16(db);
+      if (priorVersion < 17) this.#migrateV17(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -3679,7 +3771,7 @@ var ProbeStorage = class {
       }
       return "v5";
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15 || facts.userVersion === 16) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15 || facts.userVersion === 16 || facts.userVersion === 17) {
       const db = new DatabaseSync(path, { readOnly: true });
       try {
         this.#verify(db, facts.userVersion);
@@ -3837,7 +3929,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID9());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID10());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -4035,9 +4127,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "reading state migration failed", false, { cause: e });
     }
   }
+  #migrateV17(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(ANNOTATION_SCHEMA);
+      this.#injectFailure("v17:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(17,?,?)").run(MIGRATION_V17_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=17; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "annotation migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash3, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash3)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -4052,6 +4156,7 @@ var ProbeStorage = class {
       if (version >= 14) reference.exec(CITATION_SCHEMA);
       if (version >= 15) reference.exec(CITATION_LOCATOR_SCHEMA);
       if (version >= 16) reference.exec(READING_STATE_SCHEMA);
+      if (version >= 17) reference.exec(ANNOTATION_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name: name2, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name2)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -4154,9 +4259,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID9();
-      const spaceId = randomUUID9();
-      const credentialId = randomUUID9();
+      const userId = randomUUID10();
+      const spaceId = randomUUID10();
+      const credentialId = randomUUID10();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -4190,9 +4295,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID9();
-      const spaceId = randomUUID9();
-      const credentialId = randomUUID9();
+      const userId = randomUUID10();
+      const spaceId = randomUUID10();
+      const credentialId = randomUUID10();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -4357,7 +4462,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action2 of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID9(), input.serviceId, input.id, input.ownerUserId, action2, input.now, input.now);
+        for (const action2 of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID10(), input.serviceId, input.id, input.ownerUserId, action2, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -4513,7 +4618,7 @@ var ProbeStorage = class {
 };
 
 // src/host/identity.ts
-import { createHash as createHash9, randomBytes, randomUUID as randomUUID10, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
+import { createHash as createHash9, randomBytes, randomUUID as randomUUID11, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
 var DOMAINS = ["software_engineering", "system_architecture", "hardware_engineering", "ai_development"];
 var LEARNING_TRACKS = ["engineering_practice", "architecture_exam", "knowledge_accumulation"];
 var DEFAULT_TIMEZONE = "Asia/Shanghai";
@@ -4794,7 +4899,7 @@ var IdentityService = class {
     const token = makeToken();
     const createdAt = /* @__PURE__ */ new Date();
     const expiresAt = new Date(createdAt.getTime() + SESSION_TTL_MS).toISOString();
-    this.#store.createSession({ sessionId: randomUUID10(), userId: lookup.userId, tokenHash: tokenHash(token), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
+    this.#store.createSession({ sessionId: randomUUID11(), userId: lookup.userId, tokenHash: tokenHash(token), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
     const user = this.#store.getProfile(lookup.userId);
     if (user === void 0) throw new IdentityError("STORAGE_UNAVAILABLE", "user profile unavailable");
     return { user, token, expiresAt };
@@ -4822,7 +4927,7 @@ var IdentityService = class {
 };
 
 // src/host/identity-http.ts
-import { createHash as createHash10, randomUUID as randomUUID11 } from "node:crypto";
+import { createHash as createHash10, randomUUID as randomUUID12 } from "node:crypto";
 import { isIP } from "node:net";
 var HttpError = class extends Error {
   constructor(status, code, message, retryable = false, headers = {}) {
@@ -5029,7 +5134,7 @@ function createIdentityHandlers(options) {
     return actor2;
   };
   const dispatch = async (req, res, action2) => {
-    const requestId = randomUUID11();
+    const requestId = randomUUID12();
     try {
       assertAvailable();
       assertNoQuery(req);
@@ -5058,7 +5163,7 @@ function createIdentityHandlers(options) {
     requireMethod(req, "GET");
     assertTrust(req, false);
     const state = service.setupState;
-    sendJson2(res, 200, withMeta(randomUUID11(), { setup_required: !state.initialized, available: true }));
+    sendJson2(res, 200, withMeta(randomUUID12(), { setup_required: !state.initialized, available: true }));
   });
   const bootstrap = async (req, res, peer) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -5069,7 +5174,7 @@ function createIdentityHandlers(options) {
     const body = bodyObject(await readBody2(req));
     assertKeys(body, ["login_name", "password", "display_name", "timezone"]);
     const user = await service.bootstrap({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, source: requestSource(req), signal });
-    sendJson2(res, 201, withMeta(randomUUID11(), safeProfile(user)));
+    sendJson2(res, 201, withMeta(randomUUID12(), safeProfile(user)));
   });
   const register = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -5079,7 +5184,7 @@ function createIdentityHandlers(options) {
     const body = bodyObject(await readBody2(req));
     assertKeys(body, ["login_name", "password", "display_name", "timezone"]);
     const user = await service.register({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, source: requestSource(req), signal });
-    sendJson2(res, 201, withMeta(randomUUID11(), safeProfile(user)));
+    sendJson2(res, 201, withMeta(randomUUID12(), safeProfile(user)));
   });
   const login = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -5094,7 +5199,7 @@ function createIdentityHandlers(options) {
     const state = service.setupState;
     const name2 = businessCookieName(state.serviceId, origin);
     const maxAge = Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1e3);
-    sendJson2(res, 200, withMeta(randomUUID11(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin, options.protocol(), maxAge) });
+    sendJson2(res, 200, withMeta(randomUUID12(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin, options.protocol(), maxAge) });
   });
   const logout = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -5115,7 +5220,7 @@ function createIdentityHandlers(options) {
     const actor2 = requireActor(req);
     const profile = service.profile(actor2.userId);
     if (profile === void 0) throw new HttpError(401, "SESSION_EXPIRED", "business session is required");
-    sendJson2(res, 200, withMeta(randomUUID11(), safeProfile(profile)));
+    sendJson2(res, 200, withMeta(randomUUID12(), safeProfile(profile)));
   });
   const preferences = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "PATCH");
@@ -5132,14 +5237,14 @@ function createIdentityHandlers(options) {
     if (body.learning_tracks !== void 0) patch.learningTracks = validateLearningTracks(body.learning_tracks);
     if (body.goal_text !== void 0) patch.goalText = validateGoalText(body.goal_text);
     if (Object.keys(patch).length === 0) throw new HttpError(422, "INPUT_INVALID", "at least one preference is required");
-    sendJson2(res, 200, withMeta(randomUUID11(), safeProfile(service.preferences(actor2.userId, expectedRevision, patch))));
+    sendJson2(res, 200, withMeta(randomUUID12(), safeProfile(service.preferences(actor2.userId, expectedRevision, patch))));
   });
   const spaces = async (req, res) => dispatch(req, res, () => {
     requireMethod(req, "GET");
     assertTrust(req, false);
     const actor2 = requireActor(req);
     const data = service.spaces(actor2.userId).map((space) => ({ id: space.id, service_id: space.serviceId, kind: space.kind, owner_user_id: space.ownerUserId, status: space.status, revision: space.revision, created_at: space.createdAt, updated_at: space.updatedAt }));
-    sendJson2(res, 200, withMeta(randomUUID11(), data));
+    sendJson2(res, 200, withMeta(randomUUID12(), data));
   });
   return { status, bootstrap, register, login, logout, me, preferences, spaces };
 }
@@ -5156,7 +5261,7 @@ function buildSetupHtml() {
 }
 
 // src/host/objects-http.ts
-import { randomUUID as randomUUID12 } from "node:crypto";
+import { randomUUID as randomUUID13 } from "node:crypto";
 var ObjectHttpError = class extends Error {
   constructor(status, code, message) {
     super(message);
@@ -5219,7 +5324,7 @@ function actor(options, req) {
 }
 function createObjectHandlers(options) {
   return async (req, res) => {
-    const requestId = randomUUID12();
+    const requestId = randomUUID13();
     try {
       const path = pathOf(req);
       const segments = path.split("/").filter(Boolean);
@@ -5244,7 +5349,7 @@ function createObjectHandlers(options) {
       if (segments[2] === "projects" && segments.length === 3 && req.method === "POST") {
         const body = await readBody3(req);
         keys(body, ["name"]);
-        const project = options.storage.createProject({ id: randomUUID12(), serviceId: current.serviceId, ownerUserId: current.userId, name: text(body.name, "name", 200), now });
+        const project = options.storage.createProject({ id: randomUUID13(), serviceId: current.serviceId, ownerUserId: current.userId, name: text(body.name, "name", 200), now });
         json(res, 201, { data: project, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
         return;
       }
@@ -5274,7 +5379,7 @@ function createObjectHandlers(options) {
           if (scope === "project" && !options.storage.canCreateProjectObject(current, projectId, now)) throw new ObjectHttpError(404, "NOT_FOUND", "project not found");
           const title = text(body.title, "title", 200);
           const content = text(body.body, "body", 1e5);
-          const object = options.storage.createObject({ id: randomUUID12(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId, ownerUserId: current.userId, objectType: body.object_type === void 0 ? "note" : text(body.object_type, "object_type", 80), title, body: content, now });
+          const object = options.storage.createObject({ id: randomUUID13(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId, ownerUserId: current.userId, objectType: body.object_type === void 0 ? "note" : text(body.object_type, "object_type", 80), title, body: content, now });
           json(res, 201, { data: safeObject(object), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
           return;
         }
@@ -5315,7 +5420,7 @@ function createObjectHandlers(options) {
         const body = await readBody3(req);
         keys(body, ["object_id", "subject_type", "subject_id", "action", "valid_from", "expires_at"]);
         if (body.subject_type !== "user" && body.subject_type !== "project") throw new ObjectHttpError(422, "INPUT_INVALID", "subject_type is invalid");
-        const grant = options.storage.grantObject(current, { id: randomUUID12(), objectId: text(body.object_id, "object_id", 80), serviceId: current.serviceId, subjectType: body.subject_type, subjectId: text(body.subject_id, "subject_id", 80), action: action(body.action), validFrom: body.valid_from === void 0 ? now : text(body.valid_from, "valid_from", 40), expiresAt: body.expires_at === void 0 ? void 0 : text(body.expires_at, "expires_at", 40), now });
+        const grant = options.storage.grantObject(current, { id: randomUUID13(), objectId: text(body.object_id, "object_id", 80), serviceId: current.serviceId, subjectType: body.subject_type, subjectId: text(body.subject_id, "subject_id", 80), action: action(body.action), validFrom: body.valid_from === void 0 ? now : text(body.valid_from, "valid_from", 40), expiresAt: body.expires_at === void 0 ? void 0 : text(body.expires_at, "expires_at", 40), now });
         if (grant === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
         json(res, 201, { data: grant, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
         return;
@@ -5350,7 +5455,7 @@ function createObjectHandlers(options) {
 }
 
 // src/host/ai-service.ts
-import { randomUUID as randomUUID13 } from "node:crypto";
+import { randomUUID as randomUUID14 } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 // src/host/ai-tools.ts
@@ -5385,12 +5490,12 @@ function toolArguments(call) {
     throw new AiError(422, "MODEL_OUTPUT_INVALID");
   }
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new AiError(422, "MODEL_OUTPUT_INVALID");
-  const args = raw;
-  onlyKeys(args, call.name === TOOL_NAMES[0] ? ["object_id"] : ["object_id", "expected_revision", "title", "body"]);
-  const object_id = aiText(args.object_id, 80);
+  const args2 = raw;
+  onlyKeys(args2, call.name === TOOL_NAMES[0] ? ["object_id"] : ["object_id", "expected_revision", "title", "body"]);
+  const object_id = aiText(args2.object_id, 80);
   if (call.name === TOOL_NAMES[0]) return { object_id };
-  if (!Number.isSafeInteger(args.expected_revision) || Number(args.expected_revision) < 1 || args.title === void 0 && args.body === void 0) throw new AiError(422, "MODEL_OUTPUT_INVALID");
-  return { object_id, expected_revision: Number(args.expected_revision), ...args.title === void 0 ? {} : { title: aiText(args.title, 200) }, ...args.body === void 0 ? {} : { body: aiText(args.body, 2e3, true) } };
+  if (!Number.isSafeInteger(args2.expected_revision) || Number(args2.expected_revision) < 1 || args2.title === void 0 && args2.body === void 0) throw new AiError(422, "MODEL_OUTPUT_INVALID");
+  return { object_id, expected_revision: Number(args2.expected_revision), ...args2.title === void 0 ? {} : { title: aiText(args2.title, 200) }, ...args2.body === void 0 ? {} : { body: aiText(args2.body, 2e3, true) } };
 }
 function toolDigest(name2, input) {
   return createHash11("sha256").update(JSON.stringify([name2, input.object_id, input.expected_revision ?? null, input.title ?? null, input.body ?? null])).digest("hex");
@@ -5438,14 +5543,14 @@ var AiService = class {
     if (tools !== void 0) for (const schema of TOOL_SCHEMAS) this.#dispose.push(tools.register({
       ...schema,
       output: { schema: { type: "object" }, render: (_args, value) => [{ type: "text", text: JSON.stringify(value) }] },
-      execute: async (args, exec) => {
+      execute: async (args2, exec) => {
         const bound = this.#scope.getStore();
         if (!bound || bound.call.id !== exec.callId || bound.call.name !== exec.name) return { ok: false, status: 403, code: "TOOL_CONTEXT_REQUIRED" };
         try {
           if (exec.signal.aborted) throw new AiError(409, "CANCELLED");
           const current = bound.actorNow();
           if (!current || current.sessionId !== bound.actor.sessionId || current.userId !== bound.actor.userId || current.serviceId !== bound.actor.serviceId) throw new AiError(401, "AUTH_REQUIRED");
-          const call = { id: exec.callId, name: exec.name, arguments: JSON.stringify(args) };
+          const call = { id: exec.callId, name: exec.name, arguments: JSON.stringify(args2) };
           if (toolDigest(call.name, toolArguments(call)) !== toolDigest(bound.call.name, toolArguments(bound.call))) throw new AiError(403, "TOOL_CONTEXT_REQUIRED");
           const result = runBusinessTool(this.store, current, call, bound.key, (/* @__PURE__ */ new Date()).toISOString());
           bound.onResult(result);
@@ -5528,9 +5633,9 @@ var AiService = class {
       }
       if (controller.signal.aborted) throw controller.signal.reason;
       if (finish !== "tool-calls" || calls.length !== 1) throw new AiError(502, "MODEL_OUTPUT_INVALID");
-      const call = calls[0], args = toolArguments(call);
-      if (args.object_id !== objectId || call.name === TOOL_NAMES[1] && args.expected_revision !== raw.expected_revision) throw new AiError(422, "MODEL_TARGET_MISMATCH");
-      const prepared = { id: randomUUID13(), requestId, actor: actor2, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
+      const call = calls[0], args2 = toolArguments(call);
+      if (args2.object_id !== objectId || call.name === TOOL_NAMES[1] && args2.expected_revision !== raw.expected_revision) throw new AiError(422, "MODEL_TARGET_MISMATCH");
+      const prepared = { id: randomUUID14(), requestId, actor: actor2, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
       this.#prepared.set(prepared.id, prepared);
       return { ...this.#view(prepared), usage: usage ?? null };
     } catch (error) {
@@ -5632,10 +5737,10 @@ var AiService = class {
 };
 
 // src/host/ai-http.ts
-import { randomUUID as randomUUID14 } from "node:crypto";
+import { randomUUID as randomUUID15 } from "node:crypto";
 function createAiHandler(options) {
   return async (req, res) => {
-    const requestId = randomUUID14(), controller = new AbortController();
+    const requestId = randomUUID15(), controller = new AbortController();
     const disconnect = () => {
       if (!res.writableEnded) controller.abort();
     };
@@ -5719,7 +5824,7 @@ body{margin:0;background:#f4f8f8;color:#23333a;font:15px/1.65 "Segoe UI","Micros
 import { join as join3 } from "node:path";
 
 // src/host/pdf-originals.ts
-import { createHash as createHash12, randomUUID as randomUUID15 } from "node:crypto";
+import { createHash as createHash12, randomUUID as randomUUID16 } from "node:crypto";
 import { constants } from "node:fs";
 import fs from "node:fs/promises";
 import { dirname, join as join2, resolve } from "node:path";
@@ -5962,8 +6067,8 @@ var PdfOriginals = class {
   async #write(data, extension) {
     const sha256 = digest(data);
     await this.#directory(true);
-    const stage = join2(this.#root, `.${randomUUID15()}.pending`);
-    const key = `${randomUUID15()}.${extension}`, final = join2(this.#root, key);
+    const stage = join2(this.#root, `.${randomUUID16()}.pending`);
+    const key = `${randomUUID16()}.${extension}`, final = join2(this.#root, key);
     const file = await fs.open(stage, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | noFollow, 384);
     let id, staged = true, linked = false;
     try {
@@ -6042,7 +6147,7 @@ var PdfOriginals = class {
 };
 
 // src/host/library-http.ts
-import { randomUUID as randomUUID16 } from "node:crypto";
+import { randomUUID as randomUUID17 } from "node:crypto";
 
 // src/host/text-document.ts
 import { createHash as createHash13 } from "node:crypto";
@@ -6293,6 +6398,18 @@ var ReaderService = class {
   deleteBookmark(current, t, id, a) {
     return this.store.deleteBookmark(current(), t, id, a);
   }
+  listAnnotations(current, t) {
+    return this.store.listAnnotations(current(), t);
+  }
+  addAnnotation(current, t, draft, a) {
+    return this.store.addAnnotation(current(), t, draft, a);
+  }
+  updateAnnotation(current, t, id, r, body, a) {
+    return this.store.updateAnnotation(current(), t, id, r, body, a);
+  }
+  deleteAnnotation(current, t, id, r, a) {
+    return this.store.deleteAnnotation(current(), t, id, r, a);
+  }
   async outline(current, t, signal) {
     const { actor_id, source, items } = this.store.outline(current(), t);
     if (source.kind !== "pdf") return { actor_id, items };
@@ -6404,6 +6521,40 @@ var ReaderService = class {
   }
 };
 async function readerRoute(req, url, service, current, signal, body, reserve, send) {
+  const annotations = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/reader-annotations(?:\/([a-f0-9-]+))?$/.exec(url.pathname);
+  if (annotations && uuid3.test(annotations[1]) && uuid3.test(annotations[2]) && (!annotations[3] || uuid3.test(annotations[3]))) {
+    const p = url.searchParams, keys2 = [...p.keys()], n = p.get("unit") ?? "1", cv = p.get("conversion"), id = annotations[3], m = req.method;
+    if (keys2.some((k) => k !== "unit" && k !== "conversion") || new Set(keys2).size !== keys2.length || !/^\d{1,9}$/.test(n) || Number(n) < 1 || cv && !uuid3.test(cv) || cv === "") throw new AssetError(422, "INVALID_READER_UNIT");
+    const t = { asset_id: annotations[1], version_id: annotations[2], ordinal: Number(n), ...cv ? { conversion_id: cv } : {} };
+    if (m === "GET" && !id) {
+      send(200, service.listAnnotations(current, t));
+      return true;
+    }
+    if (m === "POST" && !id || id && (m === "PATCH" || m === "DELETE")) {
+      const a = req.headers["x-knowledgeos-reader-actor"];
+      if (typeof a !== "string" || !uuid3.test(a)) throw new AssetError(422, "INVALID_READER_ACTOR");
+      if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
+      reserve();
+      const b = await body(req, "INVALID_ANNOTATION", 26e3);
+      let v;
+      try {
+        v = JSON.parse(b.toString("utf8"));
+      } catch {
+        throw new AssetError(422, "INVALID_ANNOTATION");
+      }
+      const allowed = m === "POST" ? ["citation_id", "visibility", "body"] : m === "PATCH" ? ["body", "expected_revision"] : ["expected_revision"];
+      if (!v || typeof v !== "object" || Array.isArray(v) || Object.keys(v).some((k) => !allowed.includes(k)) || m !== "DELETE" && (typeof v.body !== "string" || !v.body.trim() || v.body.length > 4e3 || v.body.includes("\0"))) throw new AssetError(422, "INVALID_ANNOTATION");
+      if (m === "POST") {
+        if (typeof v.citation_id !== "string" || !uuid3.test(v.citation_id) || !["private", "project"].includes(v.visibility)) throw new AssetError(422, "INVALID_ANNOTATION");
+        send(201, service.addAnnotation(current, t, v, a));
+      } else if (id) {
+        const r = v.expected_revision;
+        if (!Number.isSafeInteger(r) || r < 1 || r >= Number.MAX_SAFE_INTEGER) throw new AssetError(422, "INVALID_ANNOTATION_REVISION");
+        send(200, m === "PATCH" ? service.updateAnnotation(current, t, id, r, v.body, a) : service.deleteAnnotation(current, t, id, r, a));
+      }
+      return true;
+    }
+  }
   const reading = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/reader-(state|outline|bookmarks)(?:\/([a-f0-9-]+))?$/.exec(url.pathname);
   if (reading && uuid3.test(reading[1]) && uuid3.test(reading[2]) && !url.search) {
     const t = { asset_id: reading[1], version_id: reading[2], ordinal: 1 }, kind = reading[3], id = reading[4], method = req.method;
@@ -6570,7 +6721,7 @@ function parse(bytes) {
   valid(b.readUInt16LE(end + 8) === count && central + b.readUInt32LE(end + 12) === end);
   limit(count <= ZIP_LIMITS.entries);
   let pos = central, expanded = 0;
-  const seen = /* @__PURE__ */ new Map(), records = [];
+  const seen = /* @__PURE__ */ new Map(), records2 = [];
   for (let ordinal = 0; ordinal < count; ++ordinal) {
     valid(pos + 46 <= end && b.readUInt32LE(pos) === 33639248);
     const flags = b.readUInt16LE(pos + 8), method = b.readUInt16LE(pos + 10), crc = b.readUInt32LE(pos + 16), compressedSize = b.readUInt32LE(pos + 20), size = b.readUInt32LE(pos + 24), n = b.readUInt16LE(pos + 28), x = b.readUInt16LE(pos + 30), extraEnd = pos + 46 + n + x, next = extraEnd + b.readUInt16LE(pos + 32), local = b.readUInt32LE(pos + 42);
@@ -6611,7 +6762,7 @@ function parse(bytes) {
       recordEnd += 12;
     }
     const ext = /\.([a-z]+)$/i.exec(path)?.[1]?.toLowerCase(), media = !directory && ext && mediaTypes.get(ext) || null;
-    records.push({
+    records2.push({
       entry: { ordinal, name: name2, path, size, compressedSize, media, reason: directory ? "ZIP_DIRECTORY" : media ? null : "ZIP_UNSUPPORTED_MEDIA" },
       local,
       start,
@@ -6623,19 +6774,19 @@ function parse(bytes) {
   }
   valid(pos === end);
   let tail = 0;
-  for (const r of [...records].sort((a, b2) => a.local - b2.local)) {
+  for (const r of [...records2].sort((a, b2) => a.local - b2.local)) {
     valid(r.local === tail);
     tail = r.end;
   }
   valid(tail === central);
-  return records;
+  return records2;
 }
 function inspectZip(bytes) {
   return parse(bytes).map((r) => r.entry);
 }
-function selectable(records, ordinal) {
-  if (!Number.isSafeInteger(ordinal) || ordinal < 0 || ordinal >= records.length) reject("ZIP_INVALID_SELECTION");
-  const r = records[ordinal];
+function selectable(records2, ordinal) {
+  if (!Number.isSafeInteger(ordinal) || ordinal < 0 || ordinal >= records2.length) reject("ZIP_INVALID_SELECTION");
+  const r = records2[ordinal];
   if (r.entry.reason) reject(r.entry.reason);
   return r;
 }
@@ -6696,9 +6847,9 @@ async function readZipMember(bytes, ordinal, signal) {
 }
 async function preflightZipSelection(bytes, ordinals, signal) {
   active(signal);
-  const records = parse(bytes);
-  if (!Array.isArray(ordinals) || !ordinals.length || ordinals.length > records.length || new Set(ordinals).size !== ordinals.length) reject("ZIP_INVALID_SELECTION");
-  const selected = Array.from(ordinals, (i) => selectable(records, i)), snapshot = Buffer.from(bytes);
+  const records2 = parse(bytes);
+  if (!Array.isArray(ordinals) || !ordinals.length || ordinals.length > records2.length || new Set(ordinals).size !== ordinals.length) reject("ZIP_INVALID_SELECTION");
+  const selected = Array.from(ordinals, (i) => selectable(records2, i)), snapshot = Buffer.from(bytes);
   for (const r of selected) await decode(snapshot.subarray(r.start, r.start + r.entry.compressedSize), r, signal);
 }
 
@@ -6782,7 +6933,7 @@ async function publishInput(store, originals, current, spec, bytes, media, encod
 function libraryHandler(store, originals, origin, actorFor, parses, office, officeAvailable = () => true, archives, reader) {
   let transfers = 0;
   return async (req, res) => {
-    const requestId = randomUUID16();
+    const requestId = randomUUID17();
     let transfer = false, handlerDone = false, responseDone = false;
     res.setHeader("cache-control", "no-store");
     res.setHeader("x-content-type-options", "nosniff");
@@ -6825,7 +6976,7 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
       };
       const url = new URL(req.url ?? "/", host);
       if (url.origin !== host) throw new AssetError(403, "CSRF_REJECTED");
-      if (reader && (/\/reader(?:-access|-state|-outline|-bookmarks(?:\/[a-f0-9-]+)?)?$/.test(url.pathname) || url.pathname.startsWith("/knowledge/v1/citations"))) {
+      if (reader && (/\/reader(?:-access|-state|-outline|-(?:bookmarks|annotations)(?:\/[a-f0-9-]+)?)?$/.test(url.pathname) || url.pathname.startsWith("/knowledge/v1/citations"))) {
         const ac = new AbortController(), stop = () => ac.abort();
         res.once("close", stop);
         if (res.destroyed) stop();
@@ -7262,7 +7413,7 @@ async function loadEngine() {
   };
   for (const { name: name2, module: ns } of WebAssembly.Module.imports(module)) {
     if (ns === "env" && /^invoke_[vi]+$/.test(name2))
-      env[name2] = (i, ...args) => api.__indirect_function_table.get(i)(...args);
+      env[name2] = (i, ...args2) => api.__indirect_function_table.get(i)(...args2);
   }
   for (const op of ["openat", "fcntl64", "ioctl", "fstat64", "stat64", "newfstatat", "lstat64", "getdents64", "unlinkat", "rmdir", "ftruncate64"])
     env["__syscall_" + op] = () => -44;
@@ -7580,12 +7731,12 @@ function startOfficeWorker(store, originals, kit, openPdf2, log) {
 }
 
 // src/host/legacy-word-source.ts
-import { randomUUID as randomUUID17 } from "node:crypto";
+import { randomUUID as randomUUID18 } from "node:crypto";
 import { open as open2, unlink } from "node:fs/promises";
 function legacyWordSource(kit, originals) {
   return async (source, check, signal) => {
     if (!kit.convertTo) throw new Error("Office structure conversion unavailable");
-    const result = await kit.convertTo({ extension: "doc", format: "docx", output: { owner: randomUUID17(), name: "structure.docx" }, source: {
+    const result = await kit.convertTo({ extension: "doc", format: "docx", output: { owner: randomUUID18(), name: "structure.docx" }, source: {
       key: `knowledgeos-word-structure:${source.sha256}`,
       version: source.sha256,
       bytes: source.byteLength,
@@ -8166,10 +8317,11 @@ function buildReaderHtml() {
   return String.raw`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>版本阅读 · KnowledgeOS</title><style>
 *{box-sizing:border-box}body{margin:0;background:#f7faf9;color:#243936;font:15px/1.6 "Segoe UI","Microsoft YaHei UI",sans-serif}header,main{padding:14px max(16px,calc((100% - 1050px)/2))}header,.tools,.modes,form{display:flex;align-items:center;gap:8px;flex-wrap:wrap}header{background:white;border-bottom:1px solid #cbd9d6;gap:20px}header strong{color:#18565a}a{color:#176166}h1{font-size:24px;margin:8px 0}h2{font-size:17px}button,input{font:inherit;border:1px solid #8ba4a0;border-radius:4px;background:white;padding:4px 10px;color:inherit}button{cursor:pointer}button:disabled{opacity:.55;cursor:default}button[aria-pressed=true],button[aria-current=true]{background:#235e5b;color:white}input{width:6em}.layout{display:grid;grid-template-columns:9em minmax(0,1fr);gap:18px;margin-top:18px}#rail{height:230px;overflow:auto;border-block:1px solid #cbd9d6}#window{position:relative}#window button{position:absolute;left:0;width:100%;height:36px;text-align:left;border:0;border-radius:0}article{min-width:0}#version,#status,pre,#anchor{overflow-wrap:anywhere}#version{color:#536866}#original{position:relative;width:100%;max-width:var(--page-width);line-height:0}#original img{width:100%;height:auto}.highlight{position:absolute;background:#ffc02b66;box-shadow:inset 0 0 0 1px #ad7900;pointer-events:none}pre{font:inherit;line-height:1.8;white-space:pre-wrap;margin:0}mark{background:#ffe491}#status{border-left:3px solid #94b6ac;padding-left:8px}[hidden]{display:none!important}:focus-visible{outline:3px solid #176d92;outline-offset:1px}@media(max-width:620px){.layout{grid-template-columns:minmax(0,1fr)}#rail{height:82px}}
 #continuity{margin-top:12px;border-block:1px solid #cbd9d6;padding:8px 0}#continuity details{margin:4px 0}#continuity summary{cursor:pointer;color:#18565a}#continuity ul{list-style:none;margin:6px 0;padding:0;max-height:20em;overflow:auto}#continuity li{display:flex;gap:6px;margin:4px 0}#continuity li button:first-child{overflow-wrap:anywhere;text-align:left}#bookmark-title{width:min(100%,20em)}#reading-status{margin:4px 0;min-height:1.6em;color:#536866}
+#annotations{border-block:1px solid #cbd9d6;margin-block:14px;padding-block:8px;overflow-wrap:anywhere}#annotation-form{display:grid;gap:8px}#annotation-body{max-width:100%;width:100%;min-height:6em;font:inherit;padding:6px;border:1px solid #8ba4a0;border-radius:4px}#annotation-items{list-style:none;padding:0;margin:0}#annotation-items li{border-top:1px solid #cbd9d6;padding:8px 0}#annotation-items p{white-space:pre-wrap;margin:4px 0}.annotation-buttons{display:flex;flex-wrap:wrap;gap:8px}
 </style></head><body><header><strong>KnowledgeOS</strong><a href="/knowledgeos/library">资料库</a><a href="/knowledgeos/account">账号与登录</a></header><main>
 <h1 id="title">版本阅读</h1><p id="version"></p><div class="tools"><button id="refresh">刷新</button><form id="jump"><button type="button" id="prev" aria-label="上一位置">←</button><input type="number" min="1" step="1" required id="number" aria-label="跳转位置"><button>跳转</button><button type="button" id="next" aria-label="下一位置">→</button></form><span id="count"></span></div><p id="status" role="status"></p>
 <section id="continuity" aria-label="阅读导航" hidden><details id="toc-details" open><summary>目录</summary><ul id="toc"></ul></details><details id="bookmarks-details" open><summary>我的书签</summary><ul id="bookmarks"></ul><form id="bookmark-form"><input id="bookmark-title" maxlength="120" required placeholder="书签名称" aria-label="书签名称"><button id="bookmark-add">添加书签</button></form></details><p id="reading-status" role="status"></p></section>
-<div class="layout"><nav id="rail" aria-label="页与文本块" hidden><div id="window"></div></nav><article><h2 id="anchor"></h2><div class="modes" id="modes" hidden><button id="paper">原页</button><button id="structured">结构文本</button><button id="cite" disabled>生成引用链接</button><a id="link" hidden>打开引用</a></div><div id="original" hidden></div><pre id="text" hidden></pre></article></div></main><script>
+<div class="layout"><nav id="rail" aria-label="页与文本块" hidden><div id="window"></div></nav><article><h2 id="anchor"></h2><div class="modes" id="modes" hidden><button id="paper">原页</button><button id="structured">结构文本</button><button id="cite" disabled>生成引用链接</button><button id="annotate" disabled>选区批注</button><button id="annotations-toggle" aria-controls="annotations" aria-expanded="false">本处批注</button><a id="link" hidden>打开引用</a></div><div id="original" hidden></div><pre id="text" hidden></pre><section id="annotations" aria-label="本处批注" hidden><p id="annotation-status" role="status"></p><ul id="annotation-items"></ul><form id="annotation-form" hidden><label for="annotation-body">批注正文</label><textarea id="annotation-body" maxlength="4000" required></textarea><label id="annotation-scope">可见范围 <select id="annotation-visibility"><option value="private">仅本人</option><option value="project">当前项目</option></select></label><div class="annotation-buttons"><button id="annotation-submit">保存批注</button><button type="button" id="annotation-rebase" hidden>读取最新版本并保留草稿</button><button type="button" id="annotation-cancel">取消</button></div></form></section></article></div></main><script>
 'use strict';
 const $=id=>document.getElementById(id), q=new URLSearchParams(location.search), asset=q.get('asset'), version=q.get('version'), cid=q.get('citation');
 const requestedUnit=q.get('unit')??'1', requestedConversion=q.get('conversion');
@@ -8180,6 +8332,7 @@ const sha=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256
 let gen=0, owner=null, ordinal=1, total=0, conversion=null, page=null, selection=null, pending=null, posting=false, mode=null, resolved=null, versionLabel='', followCitation=!!cid;
 const readerPath='assets/'+asset+'/versions/'+version+'/reader';
 let continuity=null, outlineLoaded=false, busy=false;
+let annotationPanel=false, annotationDraft=null, annotationBusy=false, annotationSequence=0;
 const readingStatus=s=>{$('reading-status').textContent=s};
 async function api(path,options){
   const r=await fetch('/knowledge/v1/'+path,{credentials:'same-origin',cache:'no-store',redirect:'error',...options});
@@ -8200,6 +8353,7 @@ function clearPage(){
   for(const id of ['text','original','anchor'])$(id).replaceChildren();
   for(const id of ['text','original','modes','link'])$(id).hidden=true;
   $('link').removeAttribute('href');$('cite').disabled=true;
+  clearAnnotations();
 }
 function lock(message){
   ++gen;owner=null;total=0;conversion=null;resolved=null;pending=null;ordinal=1;versionLabel='';mode=null;clearPage();
@@ -8376,22 +8530,23 @@ function draw(){
     if(s){const mark=document.createElement('mark');mark.textContent=d.text.slice(s.start,s.end);text.append(d.text.slice(0,s.start),mark,d.text.slice(s.end))}else text.textContent=d.text;
   }
   $('cite').disabled=!available||!s||posting;
+  $('annotate').disabled=!available||!s||posting||annotationBusy;$('annotations-toggle').disabled=!available;
   const states={failed:'本处解析失败。',empty:'此版本没有可阅读的文本块。',unconverted:'此版本尚无已完成的转换。',review:'本页解析结果待复核。'};
   status(states[d.state] || (!available?'本处尚未就绪。':showOriginal&&s&&!boxes.length?'原页缺少精确选区坐标，请查看结构文本中的高亮。':resolved?'已定位到固定版本引用。':'已打开固定版本。'));
 }
 function capture(){
   if(!page||!ready(page)||posting||$('text').hidden)return;
   const sel=getSelection();if(!sel.rangeCount||sel.isCollapsed)return;
-  const r=sel.getRangeAt(0),text=$('text');if(!text.contains(r.startContainer)||!text.contains(r.endContainer)){selection=null;pending=null;$('cite').disabled=true;return}
+  const r=sel.getRangeAt(0),text=$('text');if(!text.contains(r.startContainer)||!text.contains(r.endContainer)){selection=null;pending=null;$('cite').disabled=true;$('annotate').disabled=true;return}
   // Measure from the container, not indexOf(quote): repeated passages and split mark nodes are legal.
   const prefix=r.cloneRange();prefix.selectNodeContents(text);prefix.setEnd(r.startContainer,r.startOffset);
   const start=prefix.toString().length,end=start+r.toString().length;
   if(selection?.start!==start||selection?.end!==end){$('link').hidden=true;$('link').removeAttribute('href')}
-  selection=validRange(page.text,start,end)?{start,end}:null;$('cite').disabled=!selection;
+  selection=validRange(page.text,start,end)?{start,end}:null;$('cite').disabled=!selection;$('annotate').disabled=!selection||annotationBusy;
 }
-async function createCitation(){
-  if(!page||!selection||posting)return;
-  const g=gen, d=page, {start,end}=selection;posting=true;$('cite').disabled=true;
+async function createCitation(range=selection,announce=true){
+  if(!page||!range||posting)return;
+  const g=gen, d=page, {start,end}=range;posting=true;$('cite').disabled=true;
   try{
     const source_hash=await sha(d.text),quote=await sha(d.text.slice(start,end));if(g!==gen)return;
     const body={asset_id:asset,version_id:version,ordinal:d.ordinal,start,end,source_hash,...(d.conversion_id?{conversion_id:d.conversion_id}:{})};
@@ -8401,14 +8556,84 @@ async function createCitation(){
     const receipt=await api('citations',{method:'POST',headers:{'Content-Type':'application/json','X-KnowledgeOS-Request':'1','Idempotency-Key':key},body:JSON.stringify(body)});
     if(!await access(g))return;
     const c=locator(receipt);if(!uuid(c.id)||c.ordinal!==body.ordinal||c.start!==start||c.end!==end||c.source_hash!==source_hash||c.quote_hash!==quote||(c.conversion_id??null)!==(body.conversion_id??null))throw invalid();
-    const u=new URL('/knowledgeos/reader',location.origin);u.search=new URLSearchParams({asset,version,citation:c.id});
-    $('link').href=u.href;$('link').hidden=false;draw();status('引用链接已生成。');
+    if(announce){const u=new URL('/knowledgeos/reader',location.origin);u.search=new URLSearchParams({asset,version,citation:c.id});
+      $('link').href=u.href;$('link').hidden=false;draw();status('引用链接已生成。')}
+    return c;
   }catch(e){
     if(g!==gen)return;if([401,403,404,409].includes(e.http)){failure(e,g);return}
     if(e.code==='WORD_STRUCTURE_UNVERIFIED'){status('选区无法可靠定位到 Word 源段落，未生成引用。');return}
     // A lost response is not proof of a failed write. Preserve the request key for this exact range.
     status('未收到有效回执，可以重试本次引用。');
   }finally{if(g===gen){posting=false;$('cite').disabled=!selection}}
+}
+const annotationMessage=s=>{$('annotation-status').textContent=s};
+function resetAnnotationDraft(){annotationDraft=null;$('annotation-form').hidden=true;$('annotation-body').value='';$('annotation-visibility').value='private';$('annotation-rebase').hidden=true;$('annotation-submit').disabled=false}
+function clearAnnotations(){
+  annotationSequence++;annotationBusy=false;annotationPanel=false;resetAnnotationDraft();$('annotations').hidden=true;$('annotations-toggle').setAttribute('aria-expanded','false');$('annotation-items').replaceChildren();annotationMessage('');
+}
+const annotationUrl=(d,id)=>readerPath+'-annotations'+(id?'/'+id:'')+'?unit='+d.ordinal+(d.conversion_id?'&conversion='+d.conversion_id:'');
+async function refreshAnnotations(g){
+  const d=page,seq=++annotationSequence;if(!annotationPanel||!d)return;
+  try{
+    const data=await api(annotationUrl(d),{signal:AbortSignal.timeout(3000)});
+    if(g!==gen||seq!==annotationSequence||!await access(g)||seq!==annotationSequence)return;
+    if(data?.actor_id!==owner||typeof data.can_comment!=='boolean'||typeof data.can_share!=='boolean'||!Array.isArray(data.items))throw invalid();
+    if(annotationDraft&&(!data.can_comment||(annotationDraft.id&&!data.items.some(x=>x.id===annotationDraft.id&&x.can_edit))))resetAnnotationDraft();
+    $('annotation-visibility').options[1].disabled=!data.can_share;if(!data.can_share)$('annotation-visibility').value='private';
+    const items=data.items.filter(x=>uuid(x.id)&&uuid(x.citation_id)&&x.ordinal===d.ordinal&&(x.conversion_id??null)===(d.conversion_id??null)&&x.source_hash===d.anchor&&validRange(d.text,x.start,x.end)&&typeof x.body==='string'&&integer(x.revision)&&['private','project'].includes(x.visibility));
+    $('annotation-items').replaceChildren(...(items.length?items.map(renderAnnotation):[emptyRow('本处暂无批注')]));
+    return {...data,items};
+  }catch(e){
+    if(g!==gen||seq!==annotationSequence)return;
+    if(e.http===401||e.http===403||e.http===404){if(!await access(g))return}
+    if(g===gen&&seq===annotationSequence){clearAnnotations();$('annotations').hidden=false;annotationMessage('无法读取本处批注。')}
+  }
+}
+function renderAnnotation(m){
+  const row=document.createElement('li'),body=document.createElement('p'),bar=document.createElement('div');bar.className='annotation-buttons';
+  body.textContent=m.body;row.dataset.annotationId=m.id;
+  bar.append(m.visibility==='private'?'仅本人':'当前项目',control('定位',()=>{
+    if(!page||!validRange(page.text,m.start,m.end))return;
+    const g=gen;void (async()=>{if(await access(g)){selection={start:m.start,end:m.end};resolved=null;draw();document.querySelector('#original .highlight,#text mark')?.scrollIntoView({block:'nearest'})}})();
+  }));
+  if(m.can_edit)bar.append(control('编辑',()=>{
+    if(annotationBusy)return;resetAnnotationDraft();annotationDraft={id:m.id,revision:m.revision};$('annotation-scope').hidden=true;$('annotation-form').hidden=false;$('annotation-body').value=m.body;$('annotation-body').focus();annotationMessage('');
+  }),control('删除',()=>{if(!annotationBusy&&confirm('删除这条批注？'))void writeAnnotation('DELETE',m)}));
+  row.append(body,bar);return row;
+}
+async function openAnnotations(range){
+  if(!page||annotationBusy)return;
+  const g=gen;annotationPanel=true;$('annotations').hidden=false;$('annotations-toggle').setAttribute('aria-expanded','true');
+  const data=await refreshAnnotations(g);if(!range||!data||g!==gen)return;
+  if(!data.can_comment){annotationMessage('当前权限不可添加批注。');return}
+  resetAnnotationDraft();annotationDraft={range};$('annotation-scope').hidden=false;$('annotation-form').hidden=false;$('annotation-body').focus();annotationMessage('');
+}
+async function writeAnnotation(method,draft){
+  if(annotationBusy||!page||!draft)return;
+  const g=gen,d=page,body=$('annotation-body').value;
+  if(method!=='DELETE'&&!body.trim())return;
+  annotationBusy=true;$('annotation-submit').disabled=true;annotationMessage('');
+  try{
+    if(!await access(g))return;
+    let request;
+    if(method==='POST'){
+      const c=await createCitation(draft.range,false);if(!c||g!==gen){if(g===gen)annotationMessage('未确认批注选区，草稿未保存。');return}
+      request={body,citation_id:c.id,visibility:$('annotation-visibility').value};
+    }else request={expected_revision:draft.revision,...(method==='PATCH'?{body}:{})};
+    const r=await api(annotationUrl(d,draft.id),writeOptions(method,request));
+    if(!await access(g))return;
+    if(!uuid(r?.id)||(draft.id&&r.id!==draft.id)||method!=='DELETE'&&r.body!==body)throw invalid();
+    resetAnnotationDraft();await refreshAnnotations(g);if(g===gen&&annotationPanel)annotationMessage(method==='DELETE'?'批注已删除。':'批注已保存。');
+  }catch(e){
+    if(g!==gen)return;
+    if(e.http===401||e.http===403||e.http===404||e.code==='READER_ACTOR_CHANGED'){if(!await access(g))return;await refreshAnnotations(g)}
+    if(g!==gen)return;
+    if(e.code==='ANNOTATION_REVISION_CONFLICT'){
+      if(method==='PATCH'&&annotationDraft===draft){draft.conflict=true;$('annotation-rebase').hidden=false}
+      else await refreshAnnotations(g);
+      if(g===gen)annotationMessage(method==='PATCH'?'批注已被其他标签页修改，草稿已保留。':'批注已变化，请核对后重试。');
+    }else annotationMessage('未确认批注保存或删除。');
+  }finally{if(g===gen){annotationBusy=false;$('annotation-submit').disabled=Boolean(annotationDraft?.conflict)}}
 }
 let modeSequence=0,polling=false,resumeAt=null;
 async function switchMode(target){
@@ -8421,7 +8646,16 @@ async function recheck(){
   try{if(await access(g)&&page)$('version').textContent=versionLabel+' · '+version}finally{polling=false}
 }
 $('paper').onclick=()=>switchMode('paper');$('structured').onclick=()=>switchMode('text');
-$('cite').onpointerdown=e=>e.preventDefault();$('cite').onclick=createCitation;document.addEventListener('selectionchange',capture);
+$('cite').onpointerdown=e=>e.preventDefault();$('cite').onclick=()=>createCitation();document.addEventListener('selectionchange',capture);
+$('annotate').onpointerdown=e=>e.preventDefault();$('annotate').onclick=()=>{if(selection)void openAnnotations({...selection})};
+$('annotations-toggle').onclick=()=>{if(annotationPanel){if(!annotationBusy)clearAnnotations()}else void openAnnotations(null)};
+$('annotation-form').onsubmit=e=>{e.preventDefault();if(annotationDraft&&!annotationDraft.conflict)void writeAnnotation(annotationDraft.id?'PATCH':'POST',annotationDraft)};
+$('annotation-cancel').onclick=()=>{if(!annotationBusy)resetAnnotationDraft()};
+$('annotation-rebase').onclick=async()=>{
+  const g=gen,draft=annotationDraft;if(!draft?.id||annotationBusy)return;
+  const data=await refreshAnnotations(g),m=data?.items.find(x=>x.id===draft.id&&x.can_edit);
+  if(g===gen&&draft===annotationDraft&&m){draft.revision=m.revision;draft.conflict=false;$('annotation-submit').disabled=false;$('annotation-rebase').hidden=true;annotationMessage('已读取当前批注，草稿未提交。')}
+};
 $('bookmark-form').onsubmit=e=>{e.preventDefault();void changeBookmark(null)};
 $('jump').onsubmit=e=>{e.preventDefault();navigate(Number($('number').value))};$('prev').onclick=()=>navigate(ordinal-1);$('next').onclick=()=>navigate(ordinal+1);
 $('rail').onscroll=renderWindow;new ResizeObserver(renderWindow).observe($('rail'));
@@ -8500,7 +8734,7 @@ function apply(ctx, config = {}) {
       if (closing) throw new RecordsError("STORAGE_CLOSED", "storage is closing");
       if (storage === void 0) throw new RecordsError("STORAGE_UNAVAILABLE", "storage is not configured");
       return createProbeRecord(storage, {
-        newId: () => randomUUID18(),
+        newId: () => randomUUID19(),
         now: () => (/* @__PURE__ */ new Date()).toISOString()
       }, { idempotencyKey, content });
     },
@@ -8565,7 +8799,7 @@ function apply(ctx, config = {}) {
     res.statusCode = 503;
     res.setHeader("content-type", "application/json; charset=utf-8");
     res.setHeader("cache-control", "no-store");
-    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID18(), retryable: true, safe_details: {} }));
+    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID19(), retryable: true, safe_details: {} }));
   };
   const registerIdentityRoutes = (identityContext) => {
     const identityAvailable = () => {

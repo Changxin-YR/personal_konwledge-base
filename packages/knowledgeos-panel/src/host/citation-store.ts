@@ -7,6 +7,7 @@ import type {SessionActor} from './identity.ts'
 import type {ParseTx} from './parse-store.ts'
 import {WORD_MEDIA,type WordMedia} from './office-schema.ts'
 import {createBookmark,readNavigation,samePoint,savePosition,type ReadingPoint} from './reading-state.ts'
+import {insertAnnotation,listAnnotations,mutateAnnotation,type AnnotationAccess,type AnnotationDraft} from './annotation-store.ts'
 
 export const CITATION_SCHEMA=`CREATE TABLE citations (
   id TEXT PRIMARY KEY, created_by TEXT NOT NULL REFERENCES users(id), request_key TEXT NOT NULL,
@@ -32,7 +33,8 @@ function dto(row:Record<string,unknown>){const {conversion_id,...rest}=row;retur
 
 export class CitationStore {
   constructor(private tx:ParseTx,private current:(a:SessionActor,now:string)=>SessionActor|undefined,
-    private allowed:(a:SessionActor,id:string,now:string)=>boolean){}
+    private allowed:(a:SessionActor,id:string,now:string)=>boolean,
+    private annotationAccess?:(a:SessionActor,id:string,now:string)=>AnnotationAccess|undefined){}
   private actor(prior:SessionActor,now:string){const a=this.current(prior,now);if(!a)throw new AssetError(401,'AUTH_REQUIRED');return a}
   private read(db:DatabaseSync,a:SessionActor,t:ReaderTarget,now:string):ReaderSource {
     if(!this.allowed(a,t.asset_id,now))throw notFound()
@@ -102,6 +104,30 @@ export class CitationStore {
     const del=db.prepare('DELETE FROM reading_bookmarks WHERE id=? AND user_id=? AND version_id=?').run(id,a.userId,t.version_id)
     if(del.changes!==1)throw notFound()
     return {id}
+  })}
+  private annotatable(db:DatabaseSync,a:SessionActor,t:ReaderTarget,now:string,write=false){
+    const src=this.read(db,a,t,now),scope=this.annotationAccess?.(a,t.asset_id,now)
+    if(!scope||write&&!scope.canComment)throw notFound()
+    return {src,scope}
+  }
+  listAnnotations(prior:SessionActor,t:ReaderTarget){return this.tx('read',(db,now)=>{
+    const a=this.actor(prior,now),{src,scope}=this.annotatable(db,a,t,now)
+    return listAnnotations(db,src,a.userId,scope)
+  })}
+  addAnnotation(prior:SessionActor,t:ReaderTarget,draft:AnnotationDraft,expectedActor:string){return this.tx('write',(db,now)=>{
+    const a=this.writer(prior,expectedActor,now),{src,scope}=this.annotatable(db,a,t,now,true)
+    const row=db.prepare(`SELECT ${fields} FROM citations WHERE id=? AND created_by=? AND asset_id=? AND version_id=? AND ordinal=? AND conversion_id IS ?`).get(draft.citation_id,a.userId,src.asset_id,src.version_id,src.ordinal,src.conversion_id??null)
+    if(!row)throw notFound()
+    if((src.state!=='ready'&&src.state!=='review')||src.kind!=='office'&&row.source_hash!==sha(src.text))throw new AssetError(409,'CITATION_SOURCE_CHANGED')
+    return insertAnnotation(db,src,a.userId,scope,draft,dto(row))
+  })}
+  updateAnnotation(prior:SessionActor,t:ReaderTarget,id:string,revision:number,body:string,expectedActor:string){return this.tx('write',(db,now)=>{
+    const a=this.writer(prior,expectedActor,now),{src,scope}=this.annotatable(db,a,t,now,true)
+    return mutateAnnotation(db,src,a.userId,scope,id,revision,body)
+  })}
+  deleteAnnotation(prior:SessionActor,t:ReaderTarget,id:string,revision:number,expectedActor:string){return this.tx('write',(db,now)=>{
+    const a=this.writer(prior,expectedActor,now),{src,scope}=this.annotatable(db,a,t,now,true)
+    return mutateAnnotation(db,src,a.userId,scope,id,revision)
   })}
   access(prior:SessionActor,asset:string,version:string){return this.tx('read',(db,now)=>{
     const actor=this.actor(prior,now);if(!this.allowed(actor,asset,now))throw notFound()

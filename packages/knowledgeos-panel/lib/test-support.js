@@ -34,12 +34,12 @@ function toolArguments(call) {
     throw new AiError(422, "MODEL_OUTPUT_INVALID");
   }
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new AiError(422, "MODEL_OUTPUT_INVALID");
-  const args = raw;
-  onlyKeys(args, call.name === TOOL_NAMES[0] ? ["object_id"] : ["object_id", "expected_revision", "title", "body"]);
-  const object_id = aiText(args.object_id, 80);
+  const args2 = raw;
+  onlyKeys(args2, call.name === TOOL_NAMES[0] ? ["object_id"] : ["object_id", "expected_revision", "title", "body"]);
+  const object_id = aiText(args2.object_id, 80);
   if (call.name === TOOL_NAMES[0]) return { object_id };
-  if (!Number.isSafeInteger(args.expected_revision) || Number(args.expected_revision) < 1 || args.title === void 0 && args.body === void 0) throw new AiError(422, "MODEL_OUTPUT_INVALID");
-  return { object_id, expected_revision: Number(args.expected_revision), ...args.title === void 0 ? {} : { title: aiText(args.title, 200) }, ...args.body === void 0 ? {} : { body: aiText(args.body, 2e3, true) } };
+  if (!Number.isSafeInteger(args2.expected_revision) || Number(args2.expected_revision) < 1 || args2.title === void 0 && args2.body === void 0) throw new AiError(422, "MODEL_OUTPUT_INVALID");
+  return { object_id, expected_revision: Number(args2.expected_revision), ...args2.title === void 0 ? {} : { title: aiText(args2.title, 200) }, ...args2.body === void 0 ? {} : { body: aiText(args2.body, 2e3, true) } };
 }
 function toolDigest(name, input) {
   return createHash("sha256").update(JSON.stringify([name, input.object_id, input.expected_revision ?? null, input.title ?? null, input.body ?? null])).digest("hex");
@@ -117,14 +117,14 @@ var AiService = class {
     if (tools !== void 0) for (const schema of TOOL_SCHEMAS) this.#dispose.push(tools.register({
       ...schema,
       output: { schema: { type: "object" }, render: (_args, value) => [{ type: "text", text: JSON.stringify(value) }] },
-      execute: async (args, exec) => {
+      execute: async (args2, exec) => {
         const bound = this.#scope.getStore();
         if (!bound || bound.call.id !== exec.callId || bound.call.name !== exec.name) return { ok: false, status: 403, code: "TOOL_CONTEXT_REQUIRED" };
         try {
           if (exec.signal.aborted) throw new AiError(409, "CANCELLED");
           const current = bound.actorNow();
           if (!current || current.sessionId !== bound.actor.sessionId || current.userId !== bound.actor.userId || current.serviceId !== bound.actor.serviceId) throw new AiError(401, "AUTH_REQUIRED");
-          const call = { id: exec.callId, name: exec.name, arguments: JSON.stringify(args) };
+          const call = { id: exec.callId, name: exec.name, arguments: JSON.stringify(args2) };
           if (toolDigest(call.name, toolArguments(call)) !== toolDigest(bound.call.name, toolArguments(bound.call))) throw new AiError(403, "TOOL_CONTEXT_REQUIRED");
           const result = runBusinessTool(this.store, current, call, bound.key, (/* @__PURE__ */ new Date()).toISOString());
           bound.onResult(result);
@@ -207,8 +207,8 @@ var AiService = class {
       }
       if (controller.signal.aborted) throw controller.signal.reason;
       if (finish !== "tool-calls" || calls.length !== 1) throw new AiError(502, "MODEL_OUTPUT_INVALID");
-      const call = calls[0], args = toolArguments(call);
-      if (args.object_id !== objectId || call.name === TOOL_NAMES[1] && args.expected_revision !== raw.expected_revision) throw new AiError(422, "MODEL_TARGET_MISMATCH");
+      const call = calls[0], args2 = toolArguments(call);
+      if (args2.object_id !== objectId || call.name === TOOL_NAMES[1] && args2.expected_revision !== raw.expected_revision) throw new AiError(422, "MODEL_TARGET_MISMATCH");
       const prepared = { id: randomUUID(), requestId, actor, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
       this.#prepared.set(prepared.id, prepared);
       return { ...this.#view(prepared), usage: usage ?? null };
@@ -313,7 +313,7 @@ var AiService = class {
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash9, randomUUID as randomUUID9 } from "node:crypto";
+import { createHash as createHash9, randomUUID as randomUUID10 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -1048,7 +1048,7 @@ CREATE TABLE zip_selections (
 ) STRICT;`;
 
 // src/host/citation-store.ts
-import { createHash as createHash8, randomUUID as randomUUID8 } from "node:crypto";
+import { createHash as createHash8, randomUUID as randomUUID9 } from "node:crypto";
 
 // src/host/citation-anchor.ts
 import { createHash as createHash5 } from "node:crypto";
@@ -1127,6 +1127,60 @@ function createBookmark(db, user, version, p, title) {
   return { id, title, ordinal: p.ordinal, source_hash: p.source_hash, ...p.conversion_id ? { conversion_id: p.conversion_id } : {} };
 }
 
+// src/host/annotation-store.ts
+import { randomUUID as randomUUID8 } from "node:crypto";
+var ANNOTATION_SCHEMA = `CREATE TABLE reader_annotations (
+  id TEXT PRIMARY KEY, citation_id TEXT NOT NULL REFERENCES citations(id),
+  author_id TEXT NOT NULL REFERENCES users(id), project_id TEXT REFERENCES knowledge_projects(id),
+  body TEXT NOT NULL CHECK(length(body) BETWEEN 1 AND 4000), revision INTEGER NOT NULL CHECK(revision>=1)
+) STRICT;
+CREATE INDEX reader_annotations_citation ON reader_annotations(citation_id);`;
+var records = `SELECT a.id,a.citation_id,a.author_id,a.project_id,a.body,a.revision,c.ordinal,c.start,c.end,c.source_hash,c.conversion_id
+  FROM reader_annotations a JOIN citations c ON c.id=a.citation_id`;
+var inSource = "c.asset_id=? AND c.version_id=? AND c.ordinal=? AND c.conversion_id IS ?";
+var args = (t) => [t.asset_id, t.version_id, t.ordinal, t.conversion_id ?? null];
+var hidden = () => new AssetError(404, "ANNOTATION_NOT_FOUND");
+var visibleAnnotation = (r, user, scope) => r.project_id === null ? r.author_id === user : r.project_id === scope.project_id;
+function dto(r, user, scope) {
+  return {
+    id: String(r.id),
+    citation_id: String(r.citation_id),
+    ordinal: Number(r.ordinal),
+    start: Number(r.start),
+    end: Number(r.end),
+    source_hash: String(r.source_hash),
+    ...r.conversion_id ? { conversion_id: String(r.conversion_id) } : {},
+    visibility: r.project_id ? "project" : "private",
+    body: String(r.body),
+    revision: Number(r.revision),
+    can_edit: r.author_id === user && scope.canComment
+  };
+}
+function listAnnotations(db, t, user, scope) {
+  const rows = db.prepare(`${records} WHERE ${inSource} AND ((a.project_id IS NULL AND a.author_id=?) OR a.project_id=?) ORDER BY a.rowid`).all(...args(t), user, scope.project_id ?? null);
+  return { actor_id: user, can_comment: scope.canComment, can_share: scope.canComment && Boolean(scope.project_id), items: rows.map((r) => dto(r, user, scope)) };
+}
+function insertAnnotation(db, t, user, scope, draft, citation) {
+  const project = draft.visibility === "project" ? scope.project_id : null;
+  if (draft.visibility === "project" && !project) throw new AssetError(422, "ANNOTATION_SCOPE_UNAVAILABLE");
+  const count = db.prepare(`${records.replace(/^SELECT[\s\S]*?FROM/, "SELECT count(*) AS n FROM")} WHERE ${inSource} AND a.project_id IS ?${project ? "" : " AND a.author_id=?"}`).get(...args(t), project ?? null, ...project ? [] : [user]);
+  if (Number(count?.n) >= 200) throw new AssetError(409, "ANNOTATION_LIMIT");
+  const id = randomUUID8();
+  db.prepare("INSERT INTO reader_annotations VALUES(?,?,?,?,?,1)").run(id, draft.citation_id, user, project ?? null, draft.body);
+  return dto({ ...citation, id, citation_id: draft.citation_id, author_id: user, project_id: project ?? null, body: draft.body, revision: 1 }, user, scope);
+}
+function mutateAnnotation(db, t, user, scope, id, revision, body) {
+  const row = db.prepare(`${records} WHERE ${inSource} AND a.id=? AND a.author_id=?`).get(...args(t), id, user);
+  if (!row || !visibleAnnotation(row, user, scope)) throw hidden();
+  if (row.revision !== revision) throw new AssetError(409, "ANNOTATION_REVISION_CONFLICT");
+  if (body === void 0) {
+    db.prepare("DELETE FROM reader_annotations WHERE id=?").run(id);
+    return { id };
+  }
+  db.prepare("UPDATE reader_annotations SET body=?,revision=? WHERE id=?").run(body, revision + 1, id);
+  return dto({ ...row, body, revision: revision + 1 }, user, scope);
+}
+
 // src/host/citation-store.ts
 var CITATION_SCHEMA = `CREATE TABLE citations (
   id TEXT PRIMARY KEY, created_by TEXT NOT NULL REFERENCES users(id), request_key TEXT NOT NULL,
@@ -1141,15 +1195,16 @@ var invalid = () => new AssetError(422, "INVALID_READER_UNIT");
 var sha = (s) => createHash8("sha256").update(s, "utf8").digest("hex");
 var uuid2 = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 var fields = "id,asset_id,version_id,conversion_id,ordinal,start,end,source_hash,quote_hash";
-function dto(row) {
+function dto2(row) {
   const { conversion_id, ...rest } = row;
   return { ...rest, ...conversion_id ? { conversion_id } : {} };
 }
 var CitationStore = class {
-  constructor(tx, current, allowed) {
+  constructor(tx, current, allowed, annotationAccess) {
     this.tx = tx;
     this.current = current;
     this.allowed = allowed;
+    this.annotationAccess = annotationAccess;
   }
   actor(prior, now) {
     const a = this.current(prior, now);
@@ -1260,6 +1315,38 @@ var CitationStore = class {
       return { id };
     });
   }
+  annotatable(db, a, t, now, write = false) {
+    const src = this.read(db, a, t, now), scope = this.annotationAccess?.(a, t.asset_id, now);
+    if (!scope || write && !scope.canComment) throw notFound2();
+    return { src, scope };
+  }
+  listAnnotations(prior, t) {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(prior, now), { src, scope } = this.annotatable(db, a, t, now);
+      return listAnnotations(db, src, a.userId, scope);
+    });
+  }
+  addAnnotation(prior, t, draft, expectedActor) {
+    return this.tx("write", (db, now) => {
+      const a = this.writer(prior, expectedActor, now), { src, scope } = this.annotatable(db, a, t, now, true);
+      const row = db.prepare(`SELECT ${fields} FROM citations WHERE id=? AND created_by=? AND asset_id=? AND version_id=? AND ordinal=? AND conversion_id IS ?`).get(draft.citation_id, a.userId, src.asset_id, src.version_id, src.ordinal, src.conversion_id ?? null);
+      if (!row) throw notFound2();
+      if (src.state !== "ready" && src.state !== "review" || src.kind !== "office" && row.source_hash !== sha(src.text)) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
+      return insertAnnotation(db, src, a.userId, scope, draft, dto2(row));
+    });
+  }
+  updateAnnotation(prior, t, id, revision, body, expectedActor) {
+    return this.tx("write", (db, now) => {
+      const a = this.writer(prior, expectedActor, now), { src, scope } = this.annotatable(db, a, t, now, true);
+      return mutateAnnotation(db, src, a.userId, scope, id, revision, body);
+    });
+  }
+  deleteAnnotation(prior, t, id, revision, expectedActor) {
+    return this.tx("write", (db, now) => {
+      const a = this.writer(prior, expectedActor, now), { src, scope } = this.annotatable(db, a, t, now, true);
+      return mutateAnnotation(db, src, a.userId, scope, id, revision);
+    });
+  }
   access(prior, asset, version) {
     return this.tx("read", (db, now) => {
       const actor = this.actor(prior, now);
@@ -1285,7 +1372,7 @@ var CitationStore = class {
     if (!old) return;
     if (!this.allowed(a, String(old.asset_id), now)) throw notFound2();
     if (old.asset_id !== spec.asset_id || old.version_id !== spec.version_id || old.ordinal !== spec.ordinal || old.conversion_id !== (spec.conversion_id ?? null) || old.start !== range.start || old.end !== range.end || old.source_hash !== range.source_hash) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
-    return { data: { ...dto(old), locator: this.locator(db, String(old.id)) }, replayed: true };
+    return { data: { ...dto2(old), locator: this.locator(db, String(old.id)) }, replayed: true };
   }
   replay(prior, spec, key, w) {
     return this.tx("read", (db, now) => {
@@ -1310,7 +1397,7 @@ var CitationStore = class {
         return r ? String(r.anchor) : null;
       };
       const locator = makeLocator(src, text, spec.start, spec.end, { previous: neighbor(src.ordinal - 1), next: neighbor(src.ordinal + 1) }, w);
-      const id = randomUUID8();
+      const id = randomUUID9();
       db.prepare("INSERT INTO citations VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run(id, a.userId, key, spec.asset_id, spec.version_id, spec.conversion_id ?? null, spec.ordinal, range.start, range.end, range.source_hash, range.quote_hash, now);
       db.prepare("INSERT INTO citation_locators(citation_id,snapshot) VALUES(?,?)").run(id, JSON.stringify(locator));
       return { data: { ...spec, ...range, id, locator }, replayed: false };
@@ -1319,7 +1406,7 @@ var CitationStore = class {
   lookup(db, a, id, now) {
     const r = db.prepare(`SELECT ${fields} FROM citations WHERE id=?`).get(id);
     if (!r || !this.allowed(a, String(r.asset_id), now)) throw notFound2();
-    return dto(r);
+    return dto2(r);
   }
   target(prior, id) {
     return this.tx("read", (db, now) => this.lookup(db, this.actor(prior, now), id, now));
@@ -1340,7 +1427,8 @@ var CITATION_LOCATOR_SCHEMA = `CREATE TABLE citation_locators (
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 16;
+var SCHEMA_VERSION = 17;
+var MIGRATION_V17_CHECKSUM = createHash9("sha256").update(ANNOTATION_SCHEMA).digest("hex");
 var MIGRATION_V16_CHECKSUM = createHash9("sha256").update(READING_STATE_SCHEMA).digest("hex");
 var MIGRATION_V15_CHECKSUM = createHash9("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
 var MIGRATION_V13_CHECKSUM = createHash9("sha256").update(ZIP_SCHEMA).digest("hex");
@@ -1599,7 +1687,10 @@ var ProbeStorage = class {
   }
   assets = new AssetStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (actor, id, action, now) => Boolean(this.authorizeObject(actor, id, action, now)));
   archives = new ZipStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id, now) => Boolean(this.authorizeObject(a, id, "read", now)));
-  citations = new CitationStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id, now) => Boolean(this.authorizeObject(a, id, "read", now)));
+  citations = new CitationStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id, now) => Boolean(this.authorizeObject(a, id, "read", now)), (a, id, now) => {
+    const source = this.authorizeObject(a, id, "read", now);
+    return source && { ...source.projectId ? { project_id: source.projectId } : {}, canComment: Boolean(this.authorizeObject(a, id, "comment", now)) };
+  });
   office = new OfficeStore(this.#assetTx, (sessionId, userId, id, action, now) => {
     const actor = this.#currentActor({ sessionId, userId }, now);
     return !!actor && !!this.authorizeObject(actor, id, action, now);
@@ -1687,6 +1778,7 @@ var ProbeStorage = class {
       if (priorVersion < 14) this.#migrateV14(db);
       if (priorVersion < 15) this.#migrateV15(db);
       if (priorVersion < 16) this.#migrateV16(db);
+      if (priorVersion < 17) this.#migrateV17(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -1754,7 +1846,7 @@ var ProbeStorage = class {
       }
       return "v5";
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15 || facts.userVersion === 16) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15 || facts.userVersion === 16 || facts.userVersion === 17) {
       const db = new DatabaseSync(path, { readOnly: true });
       try {
         this.#verify(db, facts.userVersion);
@@ -1912,7 +2004,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID9());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID10());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -2110,9 +2202,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "reading state migration failed", false, { cause: e });
     }
   }
+  #migrateV17(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(ANNOTATION_SCHEMA);
+      this.#injectFailure("v17:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(17,?,?)").run(MIGRATION_V17_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=17; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "annotation migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash2, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash2)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -2127,6 +2231,7 @@ var ProbeStorage = class {
       if (version >= 14) reference.exec(CITATION_SCHEMA);
       if (version >= 15) reference.exec(CITATION_LOCATOR_SCHEMA);
       if (version >= 16) reference.exec(READING_STATE_SCHEMA);
+      if (version >= 17) reference.exec(ANNOTATION_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -2229,9 +2334,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID9();
-      const spaceId = randomUUID9();
-      const credentialId = randomUUID9();
+      const userId = randomUUID10();
+      const spaceId = randomUUID10();
+      const credentialId = randomUUID10();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -2265,9 +2370,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID9();
-      const spaceId = randomUUID9();
-      const credentialId = randomUUID9();
+      const userId = randomUUID10();
+      const spaceId = randomUUID10();
+      const credentialId = randomUUID10();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -2432,7 +2537,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID9(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
+        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID10(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -2588,7 +2693,7 @@ var ProbeStorage = class {
 };
 
 // src/host/identity.ts
-import { createHash as createHash10, randomBytes, randomUUID as randomUUID10, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
+import { createHash as createHash10, randomBytes, randomUUID as randomUUID11, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
 var DOMAINS = ["software_engineering", "system_architecture", "hardware_engineering", "ai_development"];
 var LEARNING_TRACKS = ["engineering_practice", "architecture_exam", "knowledge_accumulation"];
 var DEFAULT_TIMEZONE = "Asia/Shanghai";
@@ -2865,7 +2970,7 @@ var IdentityService = class {
     const token = makeToken();
     const createdAt = /* @__PURE__ */ new Date();
     const expiresAt = new Date(createdAt.getTime() + SESSION_TTL_MS).toISOString();
-    this.#store.createSession({ sessionId: randomUUID10(), userId: lookup.userId, tokenHash: tokenHash(token), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
+    this.#store.createSession({ sessionId: randomUUID11(), userId: lookup.userId, tokenHash: tokenHash(token), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
     const user = this.#store.getProfile(lookup.userId);
     if (user === void 0) throw new IdentityError("STORAGE_UNAVAILABLE", "user profile unavailable");
     return { user, token, expiresAt };
@@ -2893,7 +2998,7 @@ var IdentityService = class {
 };
 
 // src/host/identity-http.ts
-import { createHash as createHash11, randomUUID as randomUUID11 } from "node:crypto";
+import { createHash as createHash11, randomUUID as randomUUID12 } from "node:crypto";
 import { isIP } from "node:net";
 function isLoopbackAddress(value) {
   if (value === void 0) return false;
