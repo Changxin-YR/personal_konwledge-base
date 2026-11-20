@@ -4811,16 +4811,21 @@ function buildLibraryHtml() {
 #parse-picker{margin:8px 0;max-width:36rem}#parse-panel{overflow-wrap:anywhere}#parse-panel .links{gap:8px}#parse-pages{list-style:none;margin:8px 0;padding:0}#parse-pages li{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;border-top:1px solid #dde5e2;padding:6px 0}#parse-pages strong{min-width:5em}#parse-pages small{flex-basis:100%}#parse-note{color:#794019}
 #mode-picker,#block-picker{max-width:36rem;margin-top:8px}#encoding-picker{grid-column:1/-1;max-width:24rem}#blocks li{padding-block:6px;border-bottom:1px solid #dde5e2}#blocks pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:3px 0;font:inherit}#reader{overflow-wrap:anywhere}
 #office{overflow-wrap:anywhere}#office-version{max-width:36rem}#office-notes li{white-space:pre-wrap}#office-note-form{grid-template-columns:minmax(5rem,7rem) minmax(0,1fr) auto}#office-body{font:inherit;min-width:0;width:100%;resize:vertical;padding:6px;border:1px solid #889f9c;border-radius:5px}@media(max-width:640px){#office-note-form{grid-template-columns:minmax(0,1fr)}}
+#zip{overflow-wrap:anywhere}#zip-resume{max-width:36rem}#zip-entries{list-style:none;padding:0}#zip-entries li{border-bottom:1px solid #dde5e2;padding:8px 0}#zip-entries label{display:flex;align-items:center;gap:8px}#zip-entries input{width:18px;height:18px;flex:none}#zip-entries small{display:block}
 </style></head><body>
 <header><div><strong>KnowledgeOS</strong><nav aria-label="业务导航"><a href="/knowledgeos/account">账号与登录</a><a href="/knowledgeos/ai">AI 工具</a></nav></div></header>
 <main><div class="bar"><h1>PDF 资料库</h1><span id="who" class="muted"></span></div>
 <section aria-labelledby="import-heading"><h2 id="import-heading">导入原件</h2>
-<label id="mode-picker">导入格式<select id="mode" disabled><option value="pdf">PDF</option><option value="text">Markdown / 纯文本</option><option value="word">Word</option></select></label>
+<label id="mode-picker">导入格式<select id="mode" disabled><option value="pdf">PDF</option><option value="text">Markdown / 纯文本</option><option value="word">Word</option><option value="zip">ZIP 压缩包</option></select></label>
 <form id="import"><label id="encoding-picker" hidden>文本编码<select id="encoding" disabled><option value="">自动识别</option><option value="utf-8">UTF-8</option><option value="utf-16le">UTF-16 LE</option><option value="utf-16be">UTF-16 BE</option><option value="gb18030">GB18030</option></select></label>
 <label>导入到<select id="target" disabled><option value="">新建资料</option></select></label>
 <label><span id="file-label">PDF 文件</span><input id="file" type="file" accept=".pdf,application/pdf" disabled></label>
 <button id="submit" type="submit" disabled>导入 PDF</button></form>
 <p id="status" role="status" aria-live="polite" aria-atomic="true">正在核对登录…</p></section>
+<section id="zip" aria-labelledby="zip-heading" hidden><h2 id="zip-heading">压缩包清单</h2>
+<label>继续处理压缩包<select id="zip-resume"></select></label><div class="links"><button id="zip-refresh" type="button">刷新清单</button></div>
+<p id="zip-status" role="status"></p><div id="zip-panel" hidden><strong id="zip-title"></strong><p id="zip-meta" class="muted"></p>
+<ul id="zip-entries" aria-label="压缩包成员"></ul><div class="links"><button id="zip-commit" type="button">导入所选文件</button><span id="zip-count"></span></div></div></section>
 <section id="receipt" aria-labelledby="receipt-heading" hidden><h2 id="receipt-heading">导入回执</h2><div id="result"></div></section>
 <section id="office" aria-labelledby="office-heading" hidden><h2 id="office-heading">Word 转换与质量核对</h2>
 <label for="office-version">Word 版本</label><select id="office-version"></select>
@@ -4857,8 +4862,10 @@ const mode=$('mode'), encoding=$('encoding'), textTypes={md:'text/markdown',txt:
 const textMode=()=>mode.value==='text';
 const wordTypes={docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',doc:'application/msword'};
 const wordMode=()=>mode.value==='word';
+const zipMode=()=>mode.value==='zip';
 function fileType(blob){
   if(!blob)return null;
+  if(zipMode())return /\.zip$/i.test(blob.name)?'application/zip':null;
   const ext=/\.(pdf|md|txt|docx?)$/i.exec(blob.name)?.[1].toLowerCase();
   return textMode()?textTypes[ext] || null:wordMode()?wordTypes[ext] || null:ext==='pdf'?'application/pdf':null;
 }
@@ -4866,6 +4873,8 @@ function drawMode(){
   const text=textMode(), word=wordMode();$('file-label').textContent=text?'文本文件':word?'Word 文件':'PDF 文件';
   file.accept=text?'.md,.txt,text/markdown,text/plain':word?['.docx','.doc',...Object.values(wordTypes)].join(','):'.pdf,application/pdf';
   $('encoding-picker').hidden=!text;$('submit').textContent=text?'导入文本':word?'导入 Word':'导入 PDF';
+  target.parentElement.hidden=zipMode();$('zip').hidden=!zipMode();
+  if(zipMode()){$('file-label').textContent='ZIP 文件';file.accept='.zip,application/zip';$('submit').textContent='预览压缩包'}
 }
 let owner = null, generation = 0, busy = false, ready = false, key = null, conflict = false, rows = [];
 function status(text,error=false){ $('status').textContent=text; $('status').toggleAttribute('data-error',error) }
@@ -4875,10 +4884,11 @@ function controls(){
   $('office-version').disabled = $('block-version').disabled = $('parse-version').disabled = !ready || busy;
   $('submit').disabled = file.disabled || !key || conflict;
   $('refresh').disabled = busy;
+  if(zipMode()){target.disabled=true;zipControls()}
 }
 function clearDraft(){ file.value=''; encoding.value=''; key=null; conflict=false }
 function clearPrivate(){
-  clearOffice();clearParse();clearReader();mode.value='pdf';drawMode();
+  clearZip();clearOffice();clearParse();clearReader();mode.value='pdf';drawMode();
   owner=null; ready=false; rows=[]; clearDraft(); target.replaceChildren(new Option('新建资料',''));
   $('who').textContent=''; $('receipt').hidden=true; $('result').replaceChildren(); $('list').replaceChildren();
 }
@@ -4906,10 +4916,10 @@ function fail(e,gen,upload){
     ++generation; busy=false; clearPrivate(); controls(); status('资料不可访问。请核对账号和权限，再刷新资料。',true); return;
   }
   if(!upload){status('无法读取资料。请检查连接后刷新资料。',true);return}
-  const format=textMode()?'文本文件':wordMode()?'Word 文件':'PDF';
+  const format=zipMode()?'ZIP 压缩包':textMode()?'文本文件':wordMode()?'Word 文件':'PDF';
   const hint={400:'文件或导入信息无效，请重新选择'+format+'。',409:'资料或请求状态已变化，请刷新资料后核对版本再导入。',413:'文件过大，请重新选择较小的'+format+'。',415:'格式不受支持，请重新选择'+format+'。',422:textMode()?'无法导入此文本，请核对编码或重新选择文件。':'无法导入此文件，请重新选择有效的 PDF。',507:'存储空间不足，请联系管理员释放空间后重试。'};
   if(e.http===409)conflict=true;
-  status(wordMode() && e.http===422?'无法导入此 Word 文件，请核对原件后重新选择。':hint[e.http] || '未收到有效回执。请检查连接或服务状态，保留当前选择并重试。',true);
+  status(zipMode() && e.http===422?'压缩包无效或超出安全限制，未导入任何文件。':wordMode() && e.http===422?'无法导入此 Word 文件，请核对原件后重新选择。':hint[e.http] || '未收到有效回执。请检查连接或服务状态，保留当前选择并重试。',true);
 }
 const uuid=/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;
 function record(r){
@@ -4929,6 +4939,79 @@ function entry(r){
   node.append(el('strong',r.title),meta,links);return node;
 }
 function head(id){return rows.find(r=>r.id===id)}
+const archive=$('zip-resume'), zipStates={available:'可选择',selected:'待导入',imported:'已导入',failed:'导入失败'};
+let zipSeq=0, manifest=null, picked=new Set(), retrySelection=null;
+function clearManifest(){
+  manifest=null;picked.clear();retrySelection=null;$('zip-panel').hidden=true;
+  for(const id of ['zip-title','zip-meta','zip-status','zip-count','zip-entries'])$(id).replaceChildren();
+}
+function clearZip(){++zipSeq;clearManifest();archive.replaceChildren(new Option('选择压缩包',''))}
+function zipControls(){
+  archive.disabled=$('zip-refresh').disabled=busy || !ready;
+  $('zip-commit').disabled=busy || !ready || !manifest || !picked.size;
+  $('zip-commit').textContent=retrySelection?'重试上次提交':'导入所选文件';
+  $('zip-count').textContent='已勾选 '+picked.size+' 项';
+  for(const input of $('zip-entries').querySelectorAll('input'))input.disabled=busy || !ready || !!retrySelection || input.dataset.eligible!=='yes';
+}
+function zipHeader(d){
+  if(!d || !uuid.test(d.id) || typeof d.title!=='string' || !/^[a-f\d]{64}$/i.test(d.sha256))throw problem(502);
+  return d;
+}
+const zipSize=n=>Number.isSafeInteger(n)&&n>=0;
+function showManifest(d,expected,previous=new Set()){
+  zipHeader(d);if((expected && d.id!==expected) || typeof d.state!=='string' || !zipSize(d.byte_length) || !Array.isArray(d.entries))throw problem(502);
+  const seen=new Set(),counts={selected:0,imported:0,failed:0},next=new Set();
+  const nodes=d.entries.map(e=>{
+    if(!e || !uuid.test(e.id) || seen.has(e.id) || typeof e.path!=='string' || typeof e.name!=='string' ||
+      !zipSize(e.size) || !zipSize(e.compressed_size) || !Object.hasOwn(zipStates,e.state) ||
+      !(e.reason===null || typeof e.reason==='string') || !(e.media_type===null || typeof e.media_type==='string'))throw problem(502);
+    seen.add(e.id);if(Object.hasOwn(counts,e.state))counts[e.state]++;
+    const eligible=e.reason===null && e.state!=='imported',li=el('li'),label=el('label'),input=el('input');
+    input.type='checkbox';input.value=e.id;input.dataset.eligible=eligible?'yes':'no';
+    input.checked=eligible && (e.state==='selected' || previous.has(e.id));if(input.checked)next.add(e.id);
+    input.onchange=()=>{if(manifest!==d || !eligible || busy || retrySelection)return;if(input.checked)picked.add(e.id);else picked.delete(e.id);zipControls()};
+    label.append(input,el('span',e.path));li.append(label,el('small','原始名称：'+e.name+' · '+e.size+' 字节（压缩后 '+e.compressed_size+' 字节）'+(e.media_type?' · '+e.media_type:'')));
+    li.append(el('span',e.reason!==null?'不可导入：'+e.reason:zipStates[e.state]+(e.error?'：'+e.error:'')));
+    if(e.state==='imported' && e.receipt)li.append(entry(record(e.receipt)));
+    return li;
+  });
+  const opt=Array.from(archive.options).find(o=>o.value===d.id);if(opt)opt.textContent=d.title+' · '+d.state;else archive.add(new Option(d.title+' · '+d.state,d.id));archive.value=d.id;
+  manifest=d;picked=next;retrySelection=null;$('zip-title').textContent=d.title;$('zip-meta').textContent=d.byte_length+' 字节 · SHA-256 '+d.sha256;
+  $('zip-status').textContent='共 '+nodes.length+' 项 · 待导入 '+counts.selected+' · 已导入 '+counts.imported+' · 失败 '+counts.failed;
+  $('zip-entries').replaceChildren(...nodes);$('zip-panel').hidden=false;zipControls();
+}
+async function readZip(id=''){
+  if(!zipMode() || !ready || busy)return;
+  const seq=++zipSeq,current=()=>seq===zipSeq && zipMode();clearManifest();$('zip-status').textContent='正在读取清单…';
+  try{
+    if(!await checkOwnerWhile(current))return;
+    const data=await request(id?'imports/'+id+'/entries':'imports');if(!await checkOwnerWhile(current))return;
+    if(id)showManifest(data,id);
+    else{
+      if(!Array.isArray(data?.items))throw problem(502);
+      const opts=data.items.map(zipHeader).map(d=>new Option(d.title+(typeof d.state==='string'?' · '+d.state:''),d.id));
+      archive.replaceChildren(new Option('选择压缩包',''),...opts);$('zip-status').textContent=opts.length?'请选择要继续处理的压缩包。':'暂无压缩包。';
+    }
+  }catch(e){if(!current())return;if([401,403,404].includes(e.http))fail(e,generation,false);else $('zip-status').textContent='清单读取失败，请刷新重试。'}
+}
+archive.onchange=()=>void readZip(archive.value);$('zip-refresh').onclick=()=>void readZip(archive.value);
+$('zip-commit').onclick=async()=>{
+  if(!ready || busy || !zipMode() || !manifest || !picked.size)return;
+  const id=manifest.id,gen=++generation,seq=++zipSeq,current=()=>seq===zipSeq && gen===generation;
+  const attempt=retrySelection || {key:crypto.randomUUID(),ids:[...picked].sort()};retrySelection=attempt;
+  busy=true;controls();$('zip-status').textContent='正在导入 '+attempt.ids.length+' 项…';
+  try{
+    if(!await checkOwnerWhile(current))return;
+    const data=await request('imports/'+id+'/selection',{method:'POST',headers:{'x-knowledgeos-request':'1','content-type':'application/json','idempotency-key':attempt.key},body:JSON.stringify({entry_ids:attempt.ids})});
+    if(!await checkOwnerWhile(current))return;
+    showManifest(data,id,new Set(attempt.ids));
+    // Only published receipts enter the ordinary version pickers, never a preview row.
+    const added=data.entries.filter(e=>e.state==='imported' && e.receipt).map(e=>record(e.receipt));
+    if(added.length){const ids=new Set(added.map(r=>r.version_id));clearOffice();clearReader();clearParse();renderRows([...added,...rows.filter(r=>!ids.has(r.version_id))],target.value)}
+  }catch(e){if(!current())return;if([401,403,404].includes(e.http))fail(e,gen,false);
+    else $('zip-status').textContent='未确认导入结果。可重试上次提交，或刷新清单核对已导入项。';
+  }finally{if(current()){busy=false;controls()}}
+};
 const docStates={idle:'未开始',queued:'排队中',running:'解析中',complete:'解析完成',partial:'部分完成',failed:'解析失败',cancelled:'已取消'};
 const pageStates={pending:'未处理',ready:'可用',review:'待复核',failed:'失败'};
 const pageSize=25, parseVersion=$('parse-version'), writes=new Map();
@@ -5207,7 +5290,7 @@ function renderRows(items,selected){
   }
 }
 async function load(reset=false){
-  const gen=++generation;busy=true;clearOffice();clearReader();clearParse();if(reset)clearPrivate();controls();status('正在读取资料…');
+  const gen=++generation;busy=true;clearZip();clearOffice();clearReader();clearParse();if(reset)clearPrivate();controls();status('正在读取资料…');
   try{
     const m=await me();if(gen!==generation)return;
     if(m.id!==owner)clearPrivate();owner=m.id;$('who').textContent=m.display_name || m.login_name || m.id;
@@ -5218,20 +5301,20 @@ async function load(reset=false){
       clearDraft();status('资料版本已刷新，请核对导入目标并重新选择文件。');
     }else status('资料已刷新。');
   }catch(e){if(gen===generation){ready=false;$('list').replaceChildren();fail(e,gen,false)}}
-  finally{if(gen===generation){busy=false;controls()}}
+  finally{if(gen===generation){busy=false;controls();if(zipMode() && ready)void readZip()}}
 }
 function changed(){
   if(busy || !ready)return;
   ++generation;conflict=false;key=fileType(file.files[0])?crypto.randomUUID():null;controls();
-  status(key?'文件已选择。':textMode()?'请选择 .md 或 .txt 文本文件。':wordMode()?'请选择 .docx 或 .doc 文件。':'请选择 PDF 文件。',!!file.files[0] && !key);
+  status(key?'文件已选择。':zipMode()?'请选择 .zip 压缩包。':textMode()?'请选择 .md 或 .txt 文本文件。':wordMode()?'请选择 .docx 或 .doc 文件。':'请选择 PDF 文件。',!!file.files[0] && !key);
 }
-mode.onchange=()=>{clearDraft();drawMode();changed()};
+mode.onchange=()=>{clearZip();clearDraft();drawMode();changed();if(zipMode())void readZip()};
 for(const control of [file,target,encoding])control.addEventListener('change',changed);
 $('refresh').onclick=()=>load();
 $('import').onsubmit=async event=>{
   event.preventDefault();if(!ready || busy || conflict || !key || !file.files[0])return;
-  const gen=++generation, selected=target.value, dest=head(selected), blob=file.files[0], type=fileType(blob);
-  if(!type)return;busy=true;controls();status('正在导入…');
+  const gen=++generation, selected=zipMode()?'':target.value, dest=head(selected), blob=file.files[0], type=fileType(blob);
+  if(!type)return;if(zipMode()){++zipSeq;clearManifest();archive.value='';$('receipt').hidden=true}busy=true;controls();status(zipMode()?'正在上传并读取清单…':'正在导入…');
   try{
     if(!await confirmOwner(gen))return;
     const headers={'content-type':type,'x-knowledgeos-request':'1','x-knowledgeos-filename':encodeURIComponent(blob.name),'idempotency-key':key};
@@ -5239,6 +5322,7 @@ $('import').onsubmit=async event=>{
     if(selected){headers['x-knowledgeos-asset-id']=dest.id;headers['x-knowledgeos-expected-version']=String(dest.version)}
     const raw=await request('imports',{method:'POST',headers,body:blob});
     if(!await confirmOwner(gen))return;
+    if(zipMode()){showManifest(raw);clearDraft();status('清单已就绪，请核对后选择文件。');return}
     const r=record(raw);clearDraft();clearOffice();clearParse();clearReader();renderRows([r,...rows.filter(old=>old.version_id!==r.version_id)],selected);
     $('result').replaceChildren(entry(r));$('receipt').hidden=false;status('导入成功，已接收 v'+r.version+'。');
   }catch(e){fail(e,gen,true)}finally{if(gen===generation){busy=false;controls()}}
