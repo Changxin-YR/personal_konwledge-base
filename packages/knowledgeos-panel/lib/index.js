@@ -4940,6 +4940,8 @@ function entry(r){
 }
 function head(id){return rows.find(r=>r.id===id)}
 const archive=$('zip-resume'), zipStates={available:'可选择',selected:'待导入',imported:'已导入',failed:'导入失败'};
+const archiveStates={staged:'待选择',selected:'导入中',partial:'有失败项',imported:'已导入所选文件'};
+const zipReasons={ZIP_DIRECTORY:'目录',ZIP_UNSUPPORTED_MEDIA:'不支持此文件格式',ZIP_INTEGRITY:'内容校验失败，请重新打包',ZIP_NESTED_ARCHIVE:'不支持嵌套压缩包',INVALID_WORD:'Word 文件无效',INVALID_PDF:'PDF 文件无效',INVALID_FILENAME:'文件名过长',TEXT_TOO_LARGE:'文本超出大小限制',TEXT_BINARY:'包含非文本内容',TEXT_INVALID_ENCODING:'文本编码无效',TEXT_INVALID_INPUT:'文本内容无效'};
 let zipSeq=0, manifest=null, picked=new Set(), retrySelection=null;
 function clearManifest(){
   manifest=null;picked.clear();retrySelection=null;$('zip-panel').hidden=true;
@@ -4971,11 +4973,11 @@ function showManifest(d,expected,previous=new Set()){
     input.checked=eligible && (e.state==='selected' || previous.has(e.id));if(input.checked)next.add(e.id);
     input.onchange=()=>{if(manifest!==d || !eligible || busy || retrySelection)return;if(input.checked)picked.add(e.id);else picked.delete(e.id);zipControls()};
     label.append(input,el('span',e.path));li.append(label,el('small','原始名称：'+e.name+' · '+e.size+' 字节（压缩后 '+e.compressed_size+' 字节）'+(e.media_type?' · '+e.media_type:'')));
-    li.append(el('span',e.reason!==null?'不可导入：'+e.reason:zipStates[e.state]+(e.error?'：'+e.error:'')));
+    li.append(el('span',e.reason!==null?'不可导入：'+(zipReasons[e.reason]??e.reason):zipStates[e.state]+(e.error?'：'+(zipReasons[e.error]??e.error):'')));
     if(e.state==='imported' && e.receipt)li.append(entry(record(e.receipt)));
     return li;
   });
-  const opt=Array.from(archive.options).find(o=>o.value===d.id);if(opt)opt.textContent=d.title+' · '+d.state;else archive.add(new Option(d.title+' · '+d.state,d.id));archive.value=d.id;
+  const opt=Array.from(archive.options).find(o=>o.value===d.id),caption=d.title+' · '+(archiveStates[d.state]??d.state);if(opt)opt.textContent=caption;else archive.add(new Option(caption,d.id));archive.value=d.id;
   manifest=d;picked=next;retrySelection=null;$('zip-title').textContent=d.title;$('zip-meta').textContent=d.byte_length+' 字节 · SHA-256 '+d.sha256;
   $('zip-status').textContent='共 '+nodes.length+' 项 · 待导入 '+counts.selected+' · 已导入 '+counts.imported+' · 失败 '+counts.failed;
   $('zip-entries').replaceChildren(...nodes);$('zip-panel').hidden=false;zipControls();
@@ -4989,7 +4991,7 @@ async function readZip(id=''){
     if(id)showManifest(data,id);
     else{
       if(!Array.isArray(data?.items))throw problem(502);
-      const opts=data.items.map(zipHeader).map(d=>new Option(d.title+(typeof d.state==='string'?' · '+d.state:''),d.id));
+      const opts=data.items.map(zipHeader).map(d=>new Option(d.title+(typeof d.state==='string'?' · '+(archiveStates[d.state]??d.state):''),d.id));
       archive.replaceChildren(new Option('选择压缩包',''),...opts);$('zip-status').textContent=opts.length?'请选择要继续处理的压缩包。':'暂无压缩包。';
     }
   }catch(e){if(!current())return;if([401,403,404].includes(e.http))fail(e,generation,false);else $('zip-status').textContent='清单读取失败，请刷新重试。'}

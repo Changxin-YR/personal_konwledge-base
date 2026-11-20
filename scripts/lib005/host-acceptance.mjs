@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { hostSamples } from './host-samples.mjs'
+import { zip } from '../lib004/acceptance-samples.mjs'
 
 const usage='node --experimental-transform-types scripts/lib005/host-acceptance.mjs --self-test\nnode scripts/lib005/host-acceptance.mjs --run <full candidate SHA> <Host entry SHA256> [evidence directory]'
 const root=fileURLToPath(new URL('../../',import.meta.url)), sha=b=>createHash('sha256').update(b).digest('hex')
@@ -105,6 +106,10 @@ export async function runHostAcceptance({candidate,entryHash,evidenceParent=tmpd
     // A truncated ordinary upload, no unusual paths or expansion fixtures.
     const truncated=await send(alice,'/imports',422,{method:'POST',headers:{'content-type':'application/zip','x-knowledgeos-request':'1','idempotency-key':randomUUID(),'x-knowledgeos-filename':'incomplete.zip'},body:s.archive.bytes.subarray(0,-1)})
     assert.equal((await truncated.json()).code,'ZIP_MALFORMED');assert.equal(count('zip_imports'),0);assert.deepEqual(counts(),baseline)
+    for(const [code,status,bytes] of [['ZIP_UNSAFE_PATH',422,zip({'docs/../index.txt':'synthetic'})],['ZIP_LIMIT_EXCEEDED',413,zip(Object.fromEntries(Array.from({length:513},(_,i)=>['file'+i+'.txt','']))) ]]){
+      const r=await send(alice,'/imports',status,{method:'POST',headers:{'content-type':'application/zip','x-knowledgeos-request':'1','idempotency-key':randomUUID(),'x-knowledgeos-filename':'validation.zip'},body:bytes})
+      assert.equal((await r.json()).code,code);assert.equal(count('zip_imports'),0);assert.deepEqual(counts(),baseline);log('rejected-before-staging',{code,status,sha256:sha(bytes)})
+    }
     const stage=await upload(alice,s.archive,stageKey),id=stage.id;assert.match(id,uuid)
     const staged=manifest(await get(alice,entryPath(id)),id);assert.equal(staged.state,'staged');assert(staged.entries.every(e=>e.state==='available'&&!e.receipt))
     assert.equal((await upload(alice,s.archive,stageKey,200)).id,id);assert.deepEqual(counts(),baseline)

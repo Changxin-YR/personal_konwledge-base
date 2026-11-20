@@ -16,7 +16,7 @@ const member=(name,path,media_type,reason=null)=>({id:randomUUID(),name,path,med
 const manifest=()=>({id:randomUUID(),title,state:'staged',sha256:'a'.repeat(64),byte_length:uploadBytes.length,entries:[
   member('目录\\指南.pdf','目录/指南.pdf','application/pdf'),member('note.md','note.md','text/markdown'),
   member('letter.docx','letter.docx','application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
-  member('extra.bin','extra.bin',null,'UNSUPPORTED_TYPE'),member('<b>readme</b>.txt','nested/<b>readme</b>.txt','text/plain')]})
+  member('extra.bin','extra.bin',null,'ZIP_UNSUPPORTED_MEDIA'),member('<b>readme</b>.txt','nested/<b>readme</b>.txt','text/plain')]})
 function publish(e){e.state='imported';delete e.error;e.receipt={id:randomUUID(),version_id:randomUUID(),title:e.path,version:1,sha256:'b'.repeat(64),byte_length:e.size,media_type:e.media_type}}
 async function fixture(t){
   const ctx=await browser.newContext({serviceWorkers:'block'}),page=await ctx.newPage();page.setDefaultTimeout(5000)
@@ -58,11 +58,11 @@ test('ZIP preview never publishes; selective partial import, per-member receipts
   const {page,peer,button,box,upload,reload}=await fixture(t),d=peer.archive,[pdf,md,word,blocked,literal]=d.entries
   await upload();assert.equal(peer.uploads.length,1);assert.equal(peer.selections.length,0);assert.equal(await page.locator('#list .entry').count(),0)
   assert.equal(await page.getByLabel('导入到').isVisible(),false);assert.equal(await button('导入所选文件').isEnabled(),false)
-  assert.equal(await box(blocked).isEnabled(),false);await page.getByText('不可导入：UNSUPPORTED_TYPE').waitFor();await box(literal).waitFor();assert.equal(await page.locator('#zip-entries b').count(),0)
+  assert.equal(await box(blocked).isEnabled(),false);await page.getByText('不可导入：不支持此文件格式').waitFor();await box(literal).waitFor();assert.equal(await page.locator('#zip-entries b').count(),0)
   assert.match(await page.locator('#zip-entries').innerText(),/目录\\指南\.pdf · 42 字节（压缩后 21 字节）/)
   await box(pdf).check();await box(md).check();assert.equal(await box(word).isChecked(),false)
   peer.select=async(_,reply,ids)=>{assert.deepEqual(ids,[md.id,pdf.id].sort());publish(pdf);md.state='failed';md.error='TEXT_INVALID_ENCODING';d.state='partial';await reply(d)}
-  await button('导入所选文件').click();await page.getByText('导入失败：TEXT_INVALID_ENCODING').waitFor();assert.equal(await box(pdf).isEnabled(),false);assert.equal(await box(md).isChecked(),true)
+  await button('导入所选文件').click();await page.getByText('导入失败：文本编码无效').waitFor();assert.equal(await box(pdf).isEnabled(),false);assert.equal(await box(md).isChecked(),true)
   assert.equal(await page.locator('#list .entry').count(),1);const first=pdf.receipt.version_id
   await reload();assert.equal(await box(pdf).isEnabled(),false);await box(md).check()
   peer.select=async(_,reply,ids)=>{assert.deepEqual(ids,[md.id]);publish(md);d.state='imported';await reply(d)}
