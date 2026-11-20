@@ -9,12 +9,13 @@ import {fileURLToPath} from 'node:url'
 import {isolate,until} from '../lib002/a07-isolated-host.mjs'
 import {knownPdf,textFor} from '../lib002/a07-known-pdf.mjs'
 import {acceptanceSamples} from '../lib004/acceptance-samples.mjs'
+import {wordFixture,before,after,passage} from './word-fixture.mjs'
 import {api,dbPath,entryCookie,login,sql} from '../fnd004/harness.mjs'
 
 const [candidate,entry,parent=tmpdir()]=process.argv.slice(2),root=fileURLToPath(new URL('../../',import.meta.url)),sha=b=>createHash('sha256').update(b).digest('hex')
 assert.match(candidate,/^[a-f0-9]{40}$/);assert.match(entry,/^[a-f0-9]{64}$/)
 const git=(...args)=>execFileSync('git',['--no-optional-locks',...args],{cwd:root});assert.equal(git('rev-parse','HEAD').toString().trim(),candidate)
-const helpers={};for(const f of ['scripts/read001/host-page-citations.mjs','scripts/lib004/acceptance-samples.mjs']){helpers[f]=sha(readFileSync(join(root,f)));assert.equal(helpers[f],sha(git('show',candidate+':'+f)))}
+const helpers={};for(const f of ['scripts/read001/host-page-citations.mjs','scripts/read001/word-fixture.mjs','scripts/lib004/acceptance-samples.mjs']){helpers[f]=sha(readFileSync(join(root,f)));assert.equal(helpers[f],sha(git('show',candidate+':'+f)))}
 mkdirSync(resolve(parent),{recursive:true});const out=mkdtempSync(join(resolve(parent),'read001-pages-')),report={candidate_sha:candidate,entry_sha256:entry,helpers,status:'NOT_RUN',steps:[]}
 let h,user,phase='bind';const prefix='/knowledge/v1',password=randomUUID(),word='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 const send=async(path,status,body,headers={})=>{const r=await fetch(h.base+prefix+path,{method:body===undefined?'GET':'POST',redirect:'error',signal:AbortSignal.timeout(45000),headers:{cookie:user,'x-knowledgeos-request':'1',...headers},body});assert.equal(r.status,status);const j=await r.json();if(status>=400){assert(!('data' in j));return j.code}return j.data}
@@ -41,11 +42,25 @@ try{
   const db=dbPath(h.data);await until(()=>sql(db,'SELECT state FROM pdf_parse_runs WHERE version_id=?',[r.version_id])[0]?.state==='partial','page failure',45000)
   const failed=await page(r,4);assert.equal(failed.state,'failed');assert(!('image' in failed));const blank=await page(r,5);assert.equal(blank.state,'review');assert.equal(blank.text,'');assert.equal(blank.boxes.length,0)
   phase='historical Office conversion';const source=await upload('review.docx',word,acceptanceSamples()['a08-v1.docx']);const office=base(source)+'/office';const before=await page(source,1);assert.equal(before.state,'unconverted')
-  const convert=async()=>{const job=await post(office+'/start',202,{});await until(()=>{const c=sql(db,'SELECT state FROM office_conversions WHERE id=?',[job.id])[0];assert(c&&!['failed','cancelled','superseded'].includes(c.state));return c.state==='ready'},'conversion',180000);return job.id}
+  const convert=async(path=office)=>{const job=await post(path+'/start',202,{});await until(()=>{const c=sql(db,'SELECT state FROM office_conversions WHERE id=?',[job.id])[0];assert(c&&!['failed','cancelled','superseded'].includes(c.state));return c.state==='ready'},'conversion',180000);return job.id}
   const c1=await convert(),w=await page(source,1,c1);assert.equal(w.kind,'office');assert.equal(w.conversion_id,c1);const ws=image(w,'word-original','Quartz'),wc=await post('/citations',201,ws)
-  const context=wc.locator.context;assert(context.block_start<=ws.start&&ws.end<=context.block_end);assert.equal(context.block_id,sha(JSON.stringify([source.version_id,c1,1,context.block_start,context.block_end])));assert.equal(context.before_hash,sha(w.text.slice(Math.max(0,ws.start-64),ws.start)));assert.equal(context.after_hash,sha(w.text.slice(ws.end,ws.end+64)))
+  const context=wc.locator.context;assert(context.block_start<=ws.start&&ws.end<=context.block_end);assert.equal(context.before_hash,sha(w.text.slice(Math.max(0,ws.start-64),ws.start)));assert.equal(context.after_hash,sha(w.text.slice(ws.end,ws.end+64)))
   assert.deepEqual(JSON.parse(sql(db,'SELECT snapshot FROM citation_locators WHERE citation_id=?',[wc.id])[0].snapshot),wc.locator)
   const c2=await convert();assert.notEqual(c2,c1);assert.equal((await page(source,1)).conversion_id,c2);const old=await send('/citations/'+wc.id+'/resolve',200);assert.equal(old.conversion_id,c1);assert.equal(old.quote,'Quartz')
+  phase='source Word paragraphs across layout lines'
+  const wrap=await upload('word-wrap.docx',word,wordFixture()),cid=await convert(base(wrap)+'/office'),wp=await page(wrap,1,cid),a=image(wp,'word-wrap','STARTMARK'),b=image(wp,'word-wrap-end','ENDMARK')
+  assert(wp.text.slice(a.start,b.end).includes('\n'))
+  const selected=[];for(const s of [a,b,{...a,end:b.end}])selected.push(await post('/citations',201,s))
+  for(const [i,j] of selected.entries()){
+    const c=j.locator.context;assert.equal(c.block_id,selected[0].locator.context.block_id)
+    assert.deepEqual([c.block_start,c.block_end,c.previous,c.next],[a.start,b.end,sha(before),sha(after)])
+    const locator=j.locator.word;assert.equal(locator.source_sha256,wrap.sha256);assert.equal(locator.blocks.length,1)
+    const block=locator.blocks[0];assert.equal(block.ordinal,2);assert.equal(block.block_id,c.block_id)
+    assert.deepEqual([block.start,block.end],[[0,9],[passage.length-7,passage.length],[0,passage.length]][i]);assert(j.locator.geometry.boxes.length)
+  }
+  const cid2=await convert(base(wrap)+'/office'),wp2=await page(wrap,1,cid2),again=await post('/citations',201,image(wp2,'word-wrap-rerender','STARTMARK'))
+  assert.equal(again.locator.context.block_id,selected[0].locator.context.block_id)
+  step(phase,{source_sha256:wrap.sha256,rendered_lines:wp.text.split('\n').length,source_ordinal:2,selection_count:selected.length,stable_across_conversions:true})
   phase='restart and retry failed page';await h.stop();const second=await h.start();user=await authenticate();assert.notEqual(second.pid,first.pid)
   const restored=await send('/citations/'+pdfCitation.id+'/resolve',200);assert.equal(restored.quote,'reader');assert.deepEqual(restored.locator.geometry,saved);assert.deepEqual(await send('/citations/'+wc.id+'/resolve',200),old)
   await post('/assets/'+r.id+'/process',202,{version_id:r.version_id,page:4});await until(()=>sql(db,'SELECT state FROM pdf_pages WHERE version_id=? AND page=4',[r.version_id])[0]?.state==='ready','single page retry',45000)
