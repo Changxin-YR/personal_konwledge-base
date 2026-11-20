@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "date": "2026-11-16",
+  "date": "2026-11-20",
   "timezone": "Asia/Shanghai",
   "design_coverage": "44/44 requirements mapped; implementation not verified",
   "status_vocabulary": [
@@ -1658,7 +1658,7 @@
   ],
   "milestone_semantics": {
     "requirements.milestone": "primary_implementation_stage; not the date of full verification",
-    "acceptance_cases.final_milestone": "earliest stage where the complete scenario is expected; partial-stage probes cannot mark it PASS",
+    "acceptance_cases.final_milestone": "accountable implementation stage; full verification waits for every actual scenario prerequisite and the tested integration candidate; partial probes cannot mark it PASS",
     "verified_rule": "all linked required acceptance cases PASS with real evidence; blocked/not-run do not pass"
   }
 }

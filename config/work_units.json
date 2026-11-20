@@ -1,6 +1,6 @@
 {
   "schema_version": "2.0",
-  "updated_at": "2026-11-19",
+  "updated_at": "2026-11-20",
   "timezone": "Asia/Shanghai",
   "mode": "continuous_unit_gated",
   "current_executor": "codex",
@@ -4338,7 +4338,7 @@
       "scope": [
         "沿资料学习工程任务讨论完整闭环回归",
         "核对44需求66场景和所有单元状态",
-        "整理待用户激活的完整产品审查交接材料"
+        "完成既有范围内的全面产品审查、必要修复与验收交付记录"
       ],
       "not_in_scope": [
         "未激活的其他功能"
@@ -4352,7 +4352,7 @@
         {
           "id": "CHECK-004-T02",
           "scenario": "扫描全部单元和验收",
-          "expected": "无遗漏/伪PASS；存在BLOCKED或NOT_RUN则如实保留，不宣布全部基础完成；不自动激活后续完整产品审查阶段"
+          "expected": "无遗漏/伪PASS；存在BLOCKED或NOT_RUN则如实保留，不宣布全部开发完成；既有范围内的全面审查、修复和最终回归按已授权门禁持续完成，不自动扩大新需求或执行未经授权的公开发布"
         }
       ],
       "acceptance_ids": [
