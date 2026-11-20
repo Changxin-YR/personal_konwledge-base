@@ -412,9 +412,43 @@ CREATE TABLE text_blocks (version_id TEXT NOT NULL REFERENCES text_versions(vers
   kind TEXT NOT NULL, start INTEGER NOT NULL CHECK(start>=0), end INTEGER NOT NULL CHECK(end>=start), text TEXT NOT NULL, anchor TEXT NOT NULL,
   PRIMARY KEY(version_id,ordinal)) STRICT;`;
 
+// src/host/office-schema.ts
+var WORD_MEDIA = {
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  doc: "application/msword"
+};
+var OFFICE_SCHEMA = `CREATE TEMP TABLE kos_office_prior_blobs AS SELECT * FROM blobs;
+DROP TABLE blobs;
+CREATE TABLE blobs (
+  id TEXT PRIMARY KEY, storage_key TEXT UNIQUE NOT NULL, sha256 TEXT NOT NULL CHECK(length(sha256)=64),
+  byte_length INTEGER NOT NULL CHECK(byte_length>0), media_type TEXT NOT NULL CHECK(media_type IN ('application/pdf','text/plain','text/markdown','${WORD_MEDIA.docx}','${WORD_MEDIA.doc}'))
+) STRICT;
+INSERT INTO blobs SELECT id,storage_key,sha256,byte_length,media_type FROM kos_office_prior_blobs;
+DROP TABLE kos_office_prior_blobs;
+CREATE TABLE office_conversions (
+  id TEXT PRIMARY KEY, version_id TEXT NOT NULL REFERENCES asset_versions(id),
+  actor_id TEXT NOT NULL REFERENCES users(id), request_key TEXT NOT NULL,
+  state TEXT NOT NULL CHECK(state IN ('queued','running','ready','cancelled','failed','superseded')),
+  lease_token TEXT, lease_until TEXT, attempt INTEGER NOT NULL DEFAULT 0 CHECK(attempt>=0),
+  result_blob_id TEXT UNIQUE REFERENCES blobs(id), page_count INTEGER, missing_fonts TEXT, failure_code TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(actor_id,request_key),
+  CHECK((state='running')=(lease_token IS NOT NULL) AND (state='running')=(lease_until IS NOT NULL)),
+  CHECK((state='ready')=(result_blob_id IS NOT NULL)),
+  CHECK((state='ready' AND page_count IS NOT NULL AND page_count>0 AND missing_fonts IS NOT NULL)
+     OR (state!='ready' AND page_count IS NULL AND missing_fonts IS NULL))
+) STRICT;
+CREATE UNIQUE INDEX office_one_active ON office_conversions(version_id) WHERE state IN ('queued','running');
+CREATE TABLE office_quality_notes (
+  id TEXT PRIMARY KEY, conversion_id TEXT NOT NULL REFERENCES office_conversions(id),
+  author_id TEXT NOT NULL REFERENCES users(id), page INTEGER NOT NULL CHECK(page>=1),
+  body TEXT NOT NULL CHECK(length(body) BETWEEN 1 AND 2000), created_at TEXT NOT NULL,
+  request_key TEXT NOT NULL, UNIQUE(author_id,request_key)
+) STRICT;`;
+
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 9;
+var SCHEMA_VERSION = 10;
+var MIGRATION_V10_CHECKSUM = createHash3("sha256").update(OFFICE_SCHEMA).digest("hex");
 var MIGRATION_V9_CHECKSUM = createHash3("sha256").update(TEXT_SCHEMA).digest("hex");
 var MIGRATION_V8_CHECKSUM = createHash3("sha256").update(PARSE_SCHEMA).digest("hex");
 var MIGRATION_V7_SQL = ASSET_SCHEMA;
@@ -735,14 +769,15 @@ var ProbeStorage = class {
       } else if (existing === "v3") {
         this.#migrateV4(db);
       }
-      if (!["v6", "v7", "v8", "v9"].includes(existing)) {
+      if (!["v6", "v7", "v8", "v9", "v10"].includes(existing)) {
         if (existing !== "v5") this.#migrateV5(db);
         this.#migrateV6(db);
       }
-      if (!["v7", "v8", "v9"].includes(existing)) this.#migrateV7(db);
-      if (!["v8", "v9"].includes(existing)) this.#migrateV8(db);
-      if (existing !== "v9") this.#migrateV9(db);
-      this.#verify(db, 9);
+      if (!["v7", "v8", "v9", "v10"].includes(existing)) this.#migrateV7(db);
+      if (!["v8", "v9", "v10"].includes(existing)) this.#migrateV8(db);
+      if (!["v9", "v10"].includes(existing)) this.#migrateV9(db);
+      if (existing !== "v10") this.#migrateV10(db);
+      this.#verify(db, 10);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
       this.#db = db;
@@ -809,7 +844,7 @@ var ProbeStorage = class {
       }
       return "v5";
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10) {
       const db = new DatabaseSync(path, { readOnly: true });
       try {
         this.#verify(db, facts.userVersion);
@@ -1079,9 +1114,23 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "text migration failed", false, { cause: e });
     }
   }
+  #migrateV10(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec("PRAGMA defer_foreign_keys=ON");
+      db.exec(OFFICE_SCHEMA);
+      this.#injectFailure("v10:after-schema");
+      if (db.prepare("PRAGMA foreign_key_check").get()) throw Error("broken reference");
+      db.prepare("INSERT INTO schema_migrations VALUES(10,?,?)").run(MIGRATION_V10_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=10; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "office migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -1089,6 +1138,7 @@ var ProbeStorage = class {
       if (version >= 7) reference.exec(ASSET_SCHEMA);
       if (version >= 8) reference.exec(PARSE_SCHEMA);
       if (version >= 9) reference.exec(TEXT_SCHEMA);
+      if (version >= 10) reference.exec(OFFICE_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -1554,6 +1604,7 @@ export {
   DATABASE_FILENAME,
   IDENTITY_SUPPORTED_TABLES,
   MIGRATION_V1,
+  MIGRATION_V10_CHECKSUM,
   MIGRATION_V1_CHECKSUM,
   MIGRATION_V1_SQL,
   MIGRATION_V2,

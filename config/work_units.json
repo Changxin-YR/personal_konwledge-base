@@ -1458,8 +1458,11 @@
         "A08"
       ],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "planned",
-      "test_plan_status": "planning_baseline_expand_on_activation"
+      "status": "in_progress",
+      "test_plan_status": "detailed_active_unit",
+      "base_commit": "58cea367c81f6782f574f97d2579840a3e84ed94",
+      "test_result_status": "NOT_RUN",
+      "independent_review_status": "NOT_RUN"
     },
     {
       "id": "LIB-005",

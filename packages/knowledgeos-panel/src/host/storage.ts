@@ -28,11 +28,13 @@ import { RecordsError } from './records.ts'
 import {ASSET_SCHEMA, AssetStore, AssetError} from './asset-store.ts'
 import {PARSE_SCHEMA, ParseStore, type ParseTx} from './parse-store.ts'
 import {TEXT_SCHEMA} from './text-schema.ts'
+import {OFFICE_SCHEMA} from './office-schema.ts'
 
 /** Fixed application identity written to PRAGMA application_id (KOS1). */
 export const APPLICATION_ID = 0x4b4f5331
 /** Current application schema version. */
-export const SCHEMA_VERSION = 9
+export const SCHEMA_VERSION = 10
+export const MIGRATION_V10_CHECKSUM = createHash('sha256').update(OFFICE_SCHEMA).digest('hex')
 export const MIGRATION_V9_CHECKSUM = createHash('sha256').update(TEXT_SCHEMA).digest('hex')
 export const MIGRATION_V8_CHECKSUM = createHash('sha256').update(PARSE_SCHEMA).digest('hex')
 export const MIGRATION_V7_SQL = ASSET_SCHEMA
@@ -237,6 +239,7 @@ export interface ProbeStorageOptions {
     | 'v7:after-schema'
     | 'v8:after-schema'
     | 'v9:after-schema'
+    | 'v10:after-schema'
 }
 
 export interface DatabaseFacts {
@@ -415,14 +418,15 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       } else if (existing === 'v3') {
         this.#migrateV4(db)
       }
-      if (!['v6','v7','v8','v9'].includes(existing)) {
+      if (!['v6','v7','v8','v9','v10'].includes(existing)) {
         if (existing !== 'v5') this.#migrateV5(db)
         this.#migrateV6(db)
       }
-      if (!['v7','v8','v9'].includes(existing)) this.#migrateV7(db)
-      if (!['v8','v9'].includes(existing)) this.#migrateV8(db)
-      if (existing !== 'v9') this.#migrateV9(db)
-      this.#verify(db,9)
+      if (!['v7','v8','v9','v10'].includes(existing)) this.#migrateV7(db)
+      if (!['v8','v9','v10'].includes(existing)) this.#migrateV8(db)
+      if (!['v9','v10'].includes(existing)) this.#migrateV9(db)
+      if (existing !== 'v10') this.#migrateV10(db)
+      this.#verify(db,10)
       const facts = readDatabaseFacts(path)
       const pragmas = this.#readPragmas(db)
       this.#db = db
@@ -436,7 +440,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     }
   }
 
-  #precheck(path: string): 'blank' | 'v1' | 'v2' | 'v3' | 'v4' | 'v5' | 'v6' | 'v7' | 'v8' | 'v9' {
+  #precheck(path: string): 'blank' | 'v1' | 'v2' | 'v3' | 'v4' | 'v5' | 'v6' | 'v7' | 'v8' | 'v9' | 'v10' {
     const facts = readDatabaseFacts(path)
     if (facts.applicationId === 0 && facts.userVersion === 0 && facts.objects.length === 0) return 'blank'
     if (facts.applicationId !== APPLICATION_ID) throw new RecordsError('STORAGE_INCOMPATIBLE', 'database belongs to another application')
@@ -469,7 +473,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       try { this.#assertV2Definitions(db); this.#assertV4Definitions(db); this.#assertV5Definitions(db) } finally { db.close() }
       return 'v5'
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10) {
       const db = new DatabaseSync(path, { readOnly: true })
       try { this.#verify(db,facts.userVersion) } finally { db.close() }
       return `v${facts.userVersion}`
@@ -729,9 +733,19 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     }catch(e){if(!this.#rollback(db))throw this.#failure;throw new RecordsError('STORAGE_INCOMPATIBLE','text migration failed',false,{cause:e})}
   }
 
-  #verify(db: DatabaseSync, version:6|7|8|9): void {
+  #migrateV10(db:DatabaseSync):void {
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      db.exec('PRAGMA defer_foreign_keys=ON');db.exec(OFFICE_SCHEMA);this.#injectFailure('v10:after-schema')
+      if(db.prepare('PRAGMA foreign_key_check').get())throw Error('broken reference')
+      db.prepare('INSERT INTO schema_migrations VALUES(10,?,?)').run(MIGRATION_V10_CHECKSUM,new Date().toISOString())
+      db.exec('PRAGMA user_version=10; COMMIT')
+    }catch(e){if(!this.#rollback(db))throw this.#failure;throw new RecordsError('STORAGE_INCOMPATIBLE','office migration failed',false,{cause:e})}
+  }
+
+  #verify(db: DatabaseSync, version:6|7|8|9|10): void {
     const facts = readDatabaseFacts(this.databasePath)
-    const checks=[MIGRATION_V6_CHECKSUM,MIGRATION_V7_CHECKSUM,MIGRATION_V8_CHECKSUM,MIGRATION_V9_CHECKSUM].slice(0,version-5)
+    const checks=[MIGRATION_V6_CHECKSUM,MIGRATION_V7_CHECKSUM,MIGRATION_V8_CHECKSUM,MIGRATION_V9_CHECKSUM,MIGRATION_V10_CHECKSUM].slice(0,version-5)
     if(facts.applicationId!==APPLICATION_ID || facts.userVersion!==version || facts.ledger.length!==version || checks.some((hash,i)=>facts.ledger[i+5]?.version!==i+6||facts.ledger[i+5]?.checksum!==hash))throw new RecordsError('STORAGE_INCOMPATIBLE','database ownership/version verification failed')
     const reference = new DatabaseSync(':memory:')
     try {
@@ -739,6 +753,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       if(version>=7)reference.exec(ASSET_SCHEMA)
       if(version>=8)reference.exec(PARSE_SCHEMA)
       if(version>=9)reference.exec(TEXT_SCHEMA)
+      if(version>=10)reference.exec(OFFICE_SCHEMA)
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all()
       for (const {name,sql} of definitions) {
         if (db.prepare('SELECT sql FROM sqlite_master WHERE name=?').get(name!)?.sql!==sql) throw new RecordsError('STORAGE_INCOMPATIBLE','jobs schema definition mismatch')

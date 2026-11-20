@@ -9,8 +9,8 @@
     "path": "CODEX_START.md",
     "sha256": "da73b65a0004bfa875d1435a61a555ba6f02d45c280aeb8ed6d2e62ab4bd39d8"
   },
-  "active_unit": "LIB-003",
-  "unit_state": "passed",
+  "active_unit": "LIB-004",
+  "unit_state": "in_progress",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Candidate-bound DSH, Chrome and SQLite tests independently passed for text publication and version anchors.",
+  "state_reason": "Implement version-bound Word originals, durable conversion and quality review; real conversion and A08 outstanding.",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
