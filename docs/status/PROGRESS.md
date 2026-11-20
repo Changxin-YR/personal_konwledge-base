@@ -1,5 +1,7 @@
 # 实际进度
 
+2026-11-20：READ-002 候选 `08889f9` 的 [T01/T02](../evidence/READ-002/acceptance.json) 同一冻结构建主跑与独立复核均通过。两类原始目录、个人书签、重启恢复、旧版与 Word 转换隔离、撤权清屏、并发冲突和 v16 回滚均有实测；先前独立发现的 PDF 未解析跳转和多行标题缺陷已修复。P03、A09 仍为 NOT_RUN；下个就绪单元 READ-003。
+
 2026-11-20：READ-001 候选 `fdac3b0` 的 T01/T02 经[主运行](../evidence/READ-001/word-main-fdac3b0.md)和[独立复核](../evidence/READ-001/independent-fdac3b0.json)均通过。Word 引用按源段落定位，页内高亮继续绑定固定转换；翻页重试和真实撤权清屏已复验。P02/A09/A45 整场景不提前验收。下一单元 READ-002。
 
 2026-11-20：READ-001 仍在开发。[第二轮独立复核](../evidence/READ-001/independent-35f4545.md) 确认撤权清屏和 v15 迁移通过，但 Word 源段落定位及浏览器翻页重试未通过。后续 `653fd9b` 已修复翻页重试，10 项 Chrome 夹具测试和[真实 Host 复验](../evidence/READ-001/retry-run.json)通过。继续修复 Word 后再冻结候选和独立复核；本单元及 P02/A09/A45 不提前放行。详见[交接检查点](../evidence/READ-001/checkpoint.json)。

@@ -1,0 +1,14 @@
+{
+  "unit_id": "READ-002",
+  "candidate_sha": "08889f97a612b34ae205f0dfa3af6064c3585f19",
+  "entry_sha256": "bc3c3bddc8c4cac0df01bf04bb9a5b16cb0b380fbb6b9359ec5db59638451ee8",
+  "unit_acceptance": "PASS",
+  "passed_test_ids": ["READ-002-T01", "READ-002-T02"],
+  "main_record": "docs/evidence/READ-002/final-main/summary.json",
+  "main_record_sha256": "67797062850ede3e59a140a6fdc1a18ed4cbad2ae89cf3aa520f053b4dbf7a49",
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/READ-002/independent.json",
+  "affected_host_regression": "docs/evidence/READ-002/regression/final-read001-chrome.json",
+  "technical_results": {"typecheck":"PASS","build":"PASS","reader_regression_passed":25},
+  "scope_note": "READ-002 only. P03 and A09 remain NOT_RUN. The older candidate passed its scripted cases but failed independent review; review/review-probe.json preserves both findings."
+}

@@ -1,0 +1,168 @@
+{
+  "candidate_sha": "08889f97a612b34ae205f0dfa3af6064c3585f19",
+  "entry_sha256": "bc3c3bddc8c4cac0df01bf04bb9a5b16cb0b380fbb6b9359ec5db59638451ee8",
+  "runner_sha256": "a0c545decd4d0683a1d3f36b472c21f5d40c75932e8722da12803897da8a42f7",
+  "runner_committed": true,
+  "independent_acceptance": false,
+  "helpers": {
+    "scripts/lib002/pdf-fixtures.mjs": "cb02199e8c592fd01968e05c8390d435c78cde59e94bc975788c23961a0befa3",
+    "scripts/read001/word-fixture.mjs": "2a9d372da61a506b7202acbe92a746653c051b2d8891e6f61cf1a1d2196e2ff7"
+  },
+  "status": "PASS",
+  "cases": [
+    {
+      "id": "v15-to-v16-migration",
+      "source": "candidate SQLite adapter with isolated v15 fixture",
+      "status": "PASS",
+      "actual": {
+        "from": 15,
+        "to": 16,
+        "prior_commit": "fdac3b02fc5ac42eabef72374aee9b7050c942e3",
+        "prior_bundle_sha256": "653bc0c6dd64d4c0a1976780e31d5b3d33f124eea0280859de0000c09a78d0ef",
+        "rollback_unchanged": true
+      }
+    },
+    {
+      "id": "READ-002-T01",
+      "source": "real Host, Chrome and SQLite",
+      "status": "PASS",
+      "actual": {
+        "asset_versions": [
+          "a4f35ceb-b61c-4bfb-8735-c2d28a52fa71",
+          "a6199d0c-2d93-4139-8089-77b2d143bc40"
+        ],
+        "new_version": "e753d9bf-3252-4919-b74f-271c3347f1c7",
+        "bookmark_deletion_restarts": true
+      }
+    },
+    {
+      "id": "READ-002-T02",
+      "source": "real Host, Chrome and SQLite",
+      "status": "PASS",
+      "actual": {
+        "version": "e7dd5813-e83b-4fcf-8ad3-a8e22cf8d114",
+        "revoked_tab_cleared_ms": 137
+      }
+    },
+    {
+      "id": "same-version-Word-reconversion",
+      "source": "real Host, Office conversion, Chrome and SQLite",
+      "status": "PASS",
+      "actual": {
+        "version": "be3e198a-4a20-4277-8956-844912a044d2",
+        "old_conversion": "b5d86c1c-5851-4a85-b807-54570725b1cb",
+        "new_conversion": "7975167b-21ec-4dfb-b3ca-5f6589e29916"
+      }
+    },
+    {
+      "id": "revision-race-and-failed-save",
+      "source": "real Host and SQLite; two controlled Chrome network faults",
+      "status": "PASS",
+      "actual": {
+        "version": "3c4e437f-6f6d-4e32-aae6-e67b3f6c5116",
+        "stale_http": 409,
+        "failed_http": 503,
+        "last_committed_revision": 2
+      }
+    }
+  ],
+  "screens": [
+    {
+      "file": "outline-awaiting-processing.png",
+      "sha256": "b436db058fed4d04c9a0fd95c3a0735a6ca98b8266abc6c9751b5fb3a929073e"
+    },
+    {
+      "file": "pdf-toc-and-bookmark.png",
+      "sha256": "c177eebc5501a1535bf41647e6d140af46bfcdf19824cd8d371ba4c54170bfdd"
+    },
+    {
+      "file": "markdown-toc-and-bookmark.png",
+      "sha256": "e87667ae35d2cadbd745f69b7556b6917ad4e2aa8a2e46c65a2192952f217a06"
+    },
+    {
+      "file": "pdf-resumed.png",
+      "sha256": "cd791faa2f2d8c3d91fa05060ec8e304fc740d0c0fe29bbe0438dd6b0697e8c7"
+    },
+    {
+      "file": "markdown-resumed.png",
+      "sha256": "c1c387d7b536da3c17befddf95f2b280ea0958e3077ea526b1dedde0398231be"
+    },
+    {
+      "file": "before-revocation.png",
+      "sha256": "8b5bcb8d81b3bad4fc62d15f75fa80335bed0e6641690b598417f84cff101a9e"
+    },
+    {
+      "file": "revoked-reader-cleared.png",
+      "sha256": "371489b74bf4214e0261cdd2b45febea315a8676e10072bb5402b823c4c1c05c"
+    },
+    {
+      "file": "position-save-failure.png",
+      "sha256": "b220b55f1d21bc14db9430a279729840bda364e0e03fdd2897e68577959f3e8a"
+    }
+  ],
+  "fixtures": [
+    {
+      "name": "reader-outline.pdf",
+      "sha256": "611919e9453efd8f0998ce3096fe00830d6f6f5ed2797bcc418425e5dedf3656",
+      "version_id": "a4f35ceb-b61c-4bfb-8735-c2d28a52fa71"
+    },
+    {
+      "name": "reader-no-outline.pdf",
+      "sha256": "f1f52803381783298da7ffd5f9a0b6307ff1628a821d6f2b30ee49a083128ffe",
+      "version_id": "10a0276c-d91f-453e-aa21-28dfc9de9836"
+    },
+    {
+      "name": "reader-outline.md",
+      "sha256": "18d5569459289f9b3eed8f67c1613b9b821b30e03f9f2e4c4eab334392493fec",
+      "version_id": "a6199d0c-2d93-4139-8089-77b2d143bc40"
+    },
+    {
+      "name": "multiline.md",
+      "sha256": "7a6c4bbce113db176b952a192b06da314a01c5a3bc56cdfb966b6a33ac693958",
+      "version_id": "98d985da-0657-44d5-a688-dd6fd02b1c13"
+    },
+    {
+      "name": "reader-outline.md",
+      "sha256": "4928b182623d0b5a28c286816ec9fce128217e2a9c1db154054130ccfc7e13eb",
+      "version_id": "e753d9bf-3252-4919-b74f-271c3347f1c7"
+    },
+    {
+      "name": "reader-acl.pdf",
+      "sha256": "383c5f9343bd1f05d466ec5ecdb18473a2072f14ecf74c3bfeae8687afc6fb5d",
+      "version_id": "e7dd5813-e83b-4fcf-8ad3-a8e22cf8d114"
+    },
+    {
+      "name": "reader-rendition.docx",
+      "sha256": "ca44147e3067debb5d59a3d9761b237c8e55bc14a4e605ef83ada620573ec58f",
+      "version_id": "be3e198a-4a20-4277-8956-844912a044d2"
+    },
+    {
+      "name": "reader-race.md",
+      "sha256": "d515b9939c4369a1df00d66a33ae85ef6d26125bc305da02125bf500ec0f6707",
+      "version_id": "3c4e437f-6f6d-4e32-aae6-e67b3f6c5116"
+    }
+  ],
+  "boots": [
+    111316,
+    108832,
+    101772
+  ],
+  "binding": {
+    "candidate_sha": "08889f97a612b34ae205f0dfa3af6064c3585f19",
+    "tree": "250f99c65e31d3ef80525371954476ec4eebb6b4",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "bc3c3bddc8c4cac0df01bf04bb9a5b16cb0b380fbb6b9359ec5db59638451ee8",
+    "helpers": {
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "ea21c1a9fff1fcbf3e744a8bec236198f7fe38d2dff727030742cdf26b0ea686",
+      "a07-isolated-host": "867f5ba0c6a098b5b911dadb271b2f9c0c840f35615a0afb6a91fa7bdd1d2629"
+    },
+    "parser": {
+      "pdf-extractor.js": "55ba94ee1a8e65de01fde358798acb0caa1af3eef539783e502ddb99eaf73fac",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "chrome": "158.0.8127.36"
+}

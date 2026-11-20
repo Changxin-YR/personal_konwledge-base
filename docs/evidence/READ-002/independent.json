@@ -1,0 +1,18 @@
+{
+  "unit_id": "READ-002",
+  "candidate_sha": "08889f97a612b34ae205f0dfa3af6064c3585f19",
+  "entry_sha256": "bc3c3bddc8c4cac0df01bf04bb9a5b16cb0b380fbb6b9359ec5db59638451ee8",
+  "reviewer": "Beauvoir (independent Codex reviewer, neither runner nor implementation author)",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/read002/host-reader-state.mjs 08889f97a612b34ae205f0dfa3af6064c3585f19 bc3c3bddc8c4cac0df01bf04bb9a5b16cb0b380fbb6b9359ec5db59638451ee8 .cache/read002-independent",
+  "run": "docs/evidence/READ-002/final-independent/summary.json",
+  "run_sha256": "64e3f68a4cc4ceab795c65f703f805ea7449600b9b89ed0e175a23f485b6ceb0",
+  "results": [
+    {"id":"READ-002-T01","status":"PASS","actual":"Real outline and heading targets; incomplete PDF processing disables unavailable jumps with an explanation; multiline Setext headings retain their full titles. After restart, fresh Chrome resumes the last committed private position. Explicit unit and citation take precedence. Bookmark deletion survives restart."},
+    {"id":"READ-002-T02","status":"PASS","actual":"Distinct owner/reader positions survive and are private. Read-only grants permit personal bookmarks but cannot edit source or another actor's bookmarks. Live revocation clears controlled DOM and HTTP refuses further access."}
+  ],
+  "additional_passes": ["v15-to-v16 atomic migration", "same-version Word reconversion", "late-tab write and failed-save recovery"],
+  "screenshots_verified": 8,
+  "blocking_findings": []
+}

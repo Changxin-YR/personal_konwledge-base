@@ -10,7 +10,7 @@
     "sha256": "da73b65a0004bfa875d1435a61a555ba6f02d45c280aeb8ed6d2e62ab4bd39d8"
   },
   "active_unit": "READ-002",
-  "unit_state": "in_progress",
+  "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "READ-002 implementation and frozen-candidate verification; READ-001 remains the last accepted checkpoint",
+  "state_reason": "READ-002 repaired candidate independently accepted; P03 and A09 remain NOT_RUN",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,12 +127,13 @@
     }
   },
   "checkpoint": {
-    "unit_id": "READ-001",
-    "base_commit": "5ee23801afd70276e8e18e4b132b9bf54adf67ce",
-    "candidate_sha": "fdac3b02fc5ac42eabef72374aee9b7050c942e3",
+    "unit_id": "READ-002",
+    "base_commit": "828c95a8cb37fee83dd6c9dcf5f69af503fb88b4",
+    "candidate_sha": "08889f97a612b34ae205f0dfa3af6064c3585f19",
+    "entry_sha256": "bc3c3bddc8c4cac0df01bf04bb9a5b16cb0b380fbb6b9359ec5db59638451ee8",
     "completed": [
-      "Fixed-version original and structural reader, bounded page loading, durable source locators and exact glyph highlighting.",
-      "Word paragraph IDs and UTF-16 offsets independent of PDF wrapping; fixed-page retry and foreground ACL revocation."
+      "PDF outline and Markdown heading navigation, private fixed-source bookmarks and revision-checked reading positions.",
+      "Native Host, Chrome and SQLite tested across restart, ACL revocation, Word reconversion, late writes and v16 migration rollback."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
@@ -140,9 +141,9 @@
       "T01": "PASS",
       "T02": "PASS"
     },
-    "evidence": "docs/evidence/READ-001/acceptance.json",
+    "evidence": "docs/evidence/READ-002/acceptance.json",
     "defects": [],
-    "next_task": "READ-002",
+    "next_task": "READ-003",
     "blocked_dependencies": []
   }
 }
