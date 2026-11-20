@@ -16,7 +16,7 @@ import {acceptanceSamples} from './acceptance-samples.mjs'
 test('Word intake through HTTP: authenticated version download, media-bound replay and no cross-account access',async()=>{
   const dir=mkdtempSync(join(tmpdir(),'kos-word-http-')),storage=new ProbeStorage({dataDir:dir}),identity=new IdentityService(storage)
   const originals=new PdfOriginals(join(dir,'originals'))
-  let origin='';const handler=libraryHandler(storage.assets,originals,()=>origin,req=>identity.actor(req.headers.authorization??''),storage.parses,storage.office)
+  let origin='',available=false;const handler=libraryHandler(storage.assets,originals,()=>origin,req=>identity.actor(req.headers.authorization??''),storage.parses,storage.office,()=>available)
   const server=createServer(handler),password='Synthetic password 2026!'
   try{
     await identity.bootstrap({loginName:'owner',displayName:'Owner',password});await identity.register({loginName:'peer',displayName:'Peer',password})
@@ -34,8 +34,9 @@ test('Word intake through HTTP: authenticated version download, media-bound repl
     const base=origin+`/knowledge/v1/assets/${data.id}/versions/${data.version_id}/office`
     const post=(route,who=owner,body,key=randomUUID())=>fetch(base+route,{method:'POST',headers:{authorization:who,'x-knowledgeos-request':'1','idempotency-key':key,'content-type':'application/json'},body:JSON.stringify(body)})
     assert.equal((await post('/start',other)).status,404)
+    assert.equal((await post('/start')).status,503);available=true
     const startKey=randomUUID(),start=await post('/start',owner,undefined,startKey);assert.equal(start.status,202)
-    const cid=(await start.json()).data.id;assert.equal((await post('/start',owner,undefined,startKey)).status,200)
+    const cid=(await start.json()).data.id;available=false;assert.equal((await post('/start',owner,undefined,startKey)).status,200);available=true
     // Isolate the HTTP/ACL contract: this PDF is a fixture, not evidence of native conversion.
     const leased=storage.office.claim(),ref=await originals.put(files['a08-reference.pdf']);assert(storage.office.complete(leased.token,ref,1,['Sample font']));originals.retain(ref.key)
     const resultUrl=base+'/'+cid+'/pdf',read=(url,who)=>fetch(url,{headers:{authorization:who}})
@@ -44,6 +45,8 @@ test('Word intake through HTTP: authenticated version download, media-bound repl
     const note='/'+cid+'/notes',body={page:1,body:'Layout checked'};assert.equal((await post(note,other,body)).status,404)
     assert.equal((await post(note,owner,{...body,page:2})).status,422);assert.equal((await post(note,owner,body)).status,201)
     assert.equal((await (await read(base,owner)).json()).data.conversions[0].notes[0].body,body.body)
+    assert.equal((await (await read(base+'?conversion='+cid,owner)).json()).data.conversions[0].id,cid)
+    for(const query of ['?before=x','?foo=x','?before='+cid+'&before='+cid,'?notes_before='+cid])assert.equal((await read(base+query,owner)).status,422)
     const again=(await (await post('/start')).json()).data.id,cancel='/'+again+'/cancel';assert.equal((await post(cancel,other)).status,404);assert.equal((await post(cancel)).status,200)
     assert.equal((await read(resultUrl,owner)).status,200);assert.equal((await read(base,other)).status,404)
   }finally{if(server.listening)await new Promise(r=>server.close(r));await identity.close();storage.close()}

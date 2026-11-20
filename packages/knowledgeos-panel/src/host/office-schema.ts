@@ -4,6 +4,10 @@ export const WORD_MEDIA = {
 } as const
 export type WordMedia = typeof WORD_MEDIA[keyof typeof WORD_MEDIA]
 
+export const OFFICE_HISTORY_SCHEMA = `CREATE INDEX office_history_version ON office_conversions(version_id);
+CREATE INDEX office_history_ready ON office_conversions(version_id) WHERE state='ready';
+CREATE INDEX office_history_notes ON office_quality_notes(conversion_id);`
+
 export const OFFICE_AUTH_SCHEMA = `CREATE TABLE office_authorizations (
   conversion_id TEXT PRIMARY KEY REFERENCES office_conversions(id),
   session_id TEXT NOT NULL REFERENCES auth_sessions(id)

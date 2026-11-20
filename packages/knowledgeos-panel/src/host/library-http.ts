@@ -35,7 +35,7 @@ function specFor(req:IncomingMessage):ImportSpec {
   return {title,key,assetId,expectedVersion:Number(version)}
 }
 
-export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:()=>string|undefined,actorFor:(req:IncomingMessage)=>SessionActor|undefined, parses?:ParseStore, office?:OfficeStore){
+export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:()=>string|undefined,actorFor:(req:IncomingMessage)=>SessionActor|undefined, parses?:ParseStore, office?:OfficeStore,officeAvailable=()=>true){
   let transfers=0
   return async(req:IncomingMessage,res:ServerResponse)=>{
     const requestId=randomUUID();let transfer=false,handlerDone=false,responseDone=false
@@ -54,8 +54,8 @@ export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:
       if(office&&op&&uuid.test(op[1]!)&&uuid.test(op[2]!)&&(!op[4]||uuid.test(op[4]))){
         const id=op[1]!,v=op[2]!,cid=op[4]!,command=op[3]??op[5],key=req.headers['idempotency-key']
         const send=(status:number,data:unknown)=>json(status,{data,request_id:requestId})
-        if(req.method==='GET'&&!command&&!url.search){send(200,office.list(current(),id,v));return}
-        if(req.method==='POST'&&command==='start'&&!url.search){const r=office.start(current(),id,v,typeof key==='string'?key:'');send(r.replayed?200:202,r);return}
+        if(req.method==='GET'&&!command){const keys=[...url.searchParams.keys()];if(new Set(keys).size!==keys.length)throw new AssetError(422,'INVALID_HISTORY_CURSOR');send(200,office.list(current(),id,v,Object.fromEntries(url.searchParams)));return}
+        if(req.method==='POST'&&command==='start'&&!url.search){const r=office.start(current(),id,v,typeof key==='string'?key:'',officeAvailable());send(r.replayed?200:202,r);return}
         if(req.method==='POST'&&command==='cancel'&&!url.search){send(200,office.cancel(current(),id,v,cid));return}
         if(req.method==='POST'&&command==='notes'&&!url.search){
           if(req.headers['content-type']?.split(';')[0]!=='application/json')throw new AssetError(415,'JSON_REQUIRED')

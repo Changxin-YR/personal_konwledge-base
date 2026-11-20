@@ -717,6 +717,9 @@ var WORD_MEDIA = {
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   doc: "application/msword"
 };
+var OFFICE_HISTORY_SCHEMA = `CREATE INDEX office_history_version ON office_conversions(version_id);
+CREATE INDEX office_history_ready ON office_conversions(version_id) WHERE state='ready';
+CREATE INDEX office_history_notes ON office_quality_notes(conversion_id);`;
 var OFFICE_AUTH_SCHEMA = `CREATE TABLE office_authorizations (
   conversion_id TEXT PRIMARY KEY REFERENCES office_conversions(id),
   session_id TEXT NOT NULL REFERENCES auth_sessions(id)
@@ -751,6 +754,8 @@ CREATE TABLE office_quality_notes (
 
 // src/host/office-store.ts
 import { randomUUID as randomUUID5 } from "node:crypto";
+var historyLimit = 10;
+var conversionFields = "id,state,page_count,missing_fonts,failure_code";
 var missing = () => new AssetError(404, "ASSET_NOT_FOUND");
 var keyPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
 var checkKey = (key) => {
@@ -775,15 +780,49 @@ var OfficeStore = class {
     if (!row || row.asset_id !== id) throw missing();
     return row;
   }
-  list(a, id, v) {
+  list(a, id, v, options = {}) {
     return this.tx("read", (db, now) => {
       this.access(db, now, a, id, v, "read");
-      const rows = db.prepare("SELECT id,state,page_count,missing_fonts,failure_code FROM office_conversions WHERE version_id=? ORDER BY rowid DESC").all(v);
-      const notes = db.prepare("SELECT id,page,body FROM office_quality_notes WHERE conversion_id=? ORDER BY rowid");
-      return { version_id: v, conversions: rows.map((r) => ({ ...r, missing_fonts: r.missing_fonts ? JSON.parse(String(r.missing_fonts)) : [], notes: notes.all(r.id) })) };
+      const { before, conversion, notes_before } = options;
+      if (Object.keys(options).some((k) => !["before", "conversion", "notes_before"].includes(k)) || [before, conversion, notes_before].some((x) => x !== void 0 && (typeof x !== "string" || x.length !== 36 || !keyPattern.test(x))) || before && conversion || notes_before && !conversion) throw new AssetError(422, "INVALID_HISTORY_CURSOR");
+      const seek = (sql, cursor, parent) => {
+        const row = db.prepare(sql).get(cursor, parent);
+        if (!row) throw missing();
+        return row.rowid;
+      };
+      const notePos = notes_before ? seek("SELECT rowid FROM office_quality_notes WHERE id=? AND conversion_id=?", notes_before, conversion) : void 0;
+      const notes = db.prepare(`SELECT id,page,body FROM office_quality_notes WHERE conversion_id=? ${notePos === void 0 ? "" : "AND rowid<?"} ORDER BY rowid DESC LIMIT ?`);
+      const present = (r) => {
+        const page = notes.all(r.id, ...notePos === void 0 ? [] : [notePos], historyLimit + 1);
+        const more2 = page.length > historyLimit;
+        if (more2) page.pop();
+        return {
+          ...r,
+          missing_fonts: r.missing_fonts ? JSON.parse(String(r.missing_fonts)) : [],
+          ...more2 ? { notes_next_before: page.at(-1).id } : {},
+          notes: page.reverse()
+        };
+      };
+      const select = `SELECT ${conversionFields} FROM office_conversions WHERE version_id=?`;
+      if (conversion) {
+        const row = db.prepare(select + " AND id=?").get(v, conversion);
+        if (!row) throw missing();
+        return { version_id: v, conversions: [present(row)] };
+      }
+      const pos = before ? seek("SELECT rowid FROM office_conversions WHERE id=? AND version_id=?", before, v) : void 0;
+      const rows = db.prepare(select + (before ? " AND rowid<?" : "") + " ORDER BY rowid DESC LIMIT ?").all(v, ...pos === void 0 ? [] : [pos], historyLimit + 1);
+      const more = rows.length > historyLimit;
+      if (more) rows.pop();
+      const ready = db.prepare(select + " AND state='ready' ORDER BY rowid DESC LIMIT 1").get(v);
+      return {
+        version_id: v,
+        conversions: rows.map(present),
+        ...more ? { next_before: rows.at(-1).id } : {},
+        ...ready && !rows.some((r) => r.id === ready.id) ? { latest_ready: present(ready) } : {}
+      };
     });
   }
-  start(a, id, v, key) {
+  start(a, id, v, key, available = true) {
     return this.tx("write", (db, now) => {
       const row = this.access(db, now, a, id, v, "edit");
       checkKey(key);
@@ -794,6 +833,7 @@ var OfficeStore = class {
       }
       if (!row.head) throw new AssetError(409, "SOURCE_CHANGED");
       if (db.prepare("SELECT 1 FROM office_conversions WHERE version_id=? AND state IN ('queued','running')").get(v)) throw new AssetError(409, "CONVERSION_IN_PROGRESS");
+      if (!available) throw new AssetError(503, "OFFICE_UNAVAILABLE");
       const cid = randomUUID5();
       db.prepare("INSERT INTO office_conversions(id,version_id,actor_id,request_key,state,created_at,updated_at) VALUES(?,?,?,?,'queued',?,?)").run(cid, v, a.userId, key, now, now);
       db.prepare("INSERT INTO office_authorizations VALUES(?,?)").run(cid, a.sessionId);
@@ -888,7 +928,8 @@ var OfficeStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 11;
+var SCHEMA_VERSION = 12;
+var MIGRATION_V12_CHECKSUM = createHash4("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
 var MIGRATION_V11_CHECKSUM = createHash4("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
 var MIGRATION_V10_CHECKSUM = createHash4("sha256").update(OFFICE_SCHEMA).digest("hex");
 var MIGRATION_V9_CHECKSUM = createHash4("sha256").update(TEXT_SCHEMA).digest("hex");
@@ -1213,16 +1254,18 @@ var ProbeStorage = class {
       } else if (existing === "v3") {
         this.#migrateV4(db);
       }
-      if (!["v6", "v7", "v8", "v9", "v10", "v11"].includes(existing)) {
+      const priorVersion = existing === "blank" ? 0 : Number(existing.slice(1));
+      if (priorVersion < 6) {
         if (existing !== "v5") this.#migrateV5(db);
         this.#migrateV6(db);
       }
-      if (!["v7", "v8", "v9", "v10", "v11"].includes(existing)) this.#migrateV7(db);
-      if (!["v8", "v9", "v10", "v11"].includes(existing)) this.#migrateV8(db);
-      if (!["v9", "v10", "v11"].includes(existing)) this.#migrateV9(db);
-      if (!["v10", "v11"].includes(existing)) this.#migrateV10(db);
-      if (existing !== "v11") this.#migrateV11(db);
-      this.#verify(db, 11);
+      if (priorVersion < 7) this.#migrateV7(db);
+      if (priorVersion < 8) this.#migrateV8(db);
+      if (priorVersion < 9) this.#migrateV9(db);
+      if (priorVersion < 10) this.#migrateV10(db);
+      if (priorVersion < 11) this.#migrateV11(db);
+      if (priorVersion < 12) this.#migrateV12(db);
+      this.#verify(db, 12);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
       this.#db = db;
@@ -1289,7 +1332,7 @@ var ProbeStorage = class {
       }
       return "v5";
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12) {
       const db = new DatabaseSync(path, { readOnly: true });
       try {
         this.#verify(db, facts.userVersion);
@@ -1585,9 +1628,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "office authorization migration failed", false, { cause: e });
     }
   }
+  #migrateV12(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(OFFICE_HISTORY_SCHEMA);
+      this.#injectFailure("v12:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(12,?,?)").run(MIGRATION_V12_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=12; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "office history index migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -1597,6 +1652,7 @@ var ProbeStorage = class {
       if (version >= 9) reference.exec(TEXT_SCHEMA);
       if (version >= 10) reference.exec(OFFICE_SCHEMA);
       if (version >= 11) reference.exec(OFFICE_AUTH_SCHEMA);
+      if (version >= 12) reference.exec(OFFICE_HISTORY_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");

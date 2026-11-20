@@ -242,10 +242,13 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
         return pending
       }
     }
+    let officeMount:symbol|undefined
     if(storage?.available && dataDir){
       const office=storage.office,originals=new PdfOriginals(join(dataDir,'originals'))
       identityContext.inject(['officeKit'],scope=>{
-        scope.effect(()=>startOfficeWorker(office,originals,scope.officeKit,openPdf,log),'knowledgeos-office: versioned conversion worker')
+        scope.effect(()=>{const stop=startOfficeWorker(office,originals,scope.officeKit,openPdf,log),mount=Symbol();officeMount=mount
+          return async()=>{if(officeMount===mount)officeMount=undefined;await stop()}
+        },'knowledgeos-office: versioned conversion worker')
       })
     }
     identityContext.effect(() => {
@@ -253,7 +256,7 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
       disposers.push(identityContext.webServer.register({ kind: 'exact', path: ACCOUNT_PATH, auth: 'anonymous', handler: accountPage }))
       if(storage && dataDir){
         const originals=new PdfOriginals(join(dataDir,'originals'))
-        const handler=libraryHandler(storage.assets,originals,actualOrigin,req=>{const origin=actualOrigin();if(!origin||!identityAvailable())return undefined;return identity.actor(readCookie(req,businessCookieName(identity.setupState.serviceId,origin)))},storage.parses,storage.office)
+        const handler=libraryHandler(storage.assets,originals,actualOrigin,req=>{const origin=actualOrigin();if(!origin||!identityAvailable())return undefined;return identity.actor(readCookie(req,businessCookieName(identity.setupState.serviceId,origin)))},storage.parses,storage.office,()=>!!officeMount)
         if(storage.available)disposers.push(startParseWorker(storage.parses,originals,openPdf,log))
         disposers.push(identityContext.webServer.register({kind:'exact',path:'/knowledgeos/library',auth:'anonymous',handler:(req,res)=>{
           if(req.method!=='GET'){res.statusCode=405;res.end();return}res.setHeader('content-type','text/html; charset=utf-8');res.setHeader('cache-control','no-store');res.end(buildLibraryHtml())

@@ -713,6 +713,9 @@ var WORD_MEDIA = {
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   doc: "application/msword"
 };
+var OFFICE_HISTORY_SCHEMA = `CREATE INDEX office_history_version ON office_conversions(version_id);
+CREATE INDEX office_history_ready ON office_conversions(version_id) WHERE state='ready';
+CREATE INDEX office_history_notes ON office_quality_notes(conversion_id);`;
 var OFFICE_AUTH_SCHEMA = `CREATE TABLE office_authorizations (
   conversion_id TEXT PRIMARY KEY REFERENCES office_conversions(id),
   session_id TEXT NOT NULL REFERENCES auth_sessions(id)
@@ -747,6 +750,8 @@ CREATE TABLE office_quality_notes (
 
 // src/host/office-store.ts
 import { randomUUID as randomUUID5 } from "node:crypto";
+var historyLimit = 10;
+var conversionFields = "id,state,page_count,missing_fonts,failure_code";
 var missing = () => new AssetError(404, "ASSET_NOT_FOUND");
 var keyPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
 var checkKey = (key) => {
@@ -771,15 +776,49 @@ var OfficeStore = class {
     if (!row || row.asset_id !== id) throw missing();
     return row;
   }
-  list(a, id, v) {
+  list(a, id, v, options = {}) {
     return this.tx("read", (db, now) => {
       this.access(db, now, a, id, v, "read");
-      const rows = db.prepare("SELECT id,state,page_count,missing_fonts,failure_code FROM office_conversions WHERE version_id=? ORDER BY rowid DESC").all(v);
-      const notes = db.prepare("SELECT id,page,body FROM office_quality_notes WHERE conversion_id=? ORDER BY rowid");
-      return { version_id: v, conversions: rows.map((r) => ({ ...r, missing_fonts: r.missing_fonts ? JSON.parse(String(r.missing_fonts)) : [], notes: notes.all(r.id) })) };
+      const { before, conversion, notes_before } = options;
+      if (Object.keys(options).some((k) => !["before", "conversion", "notes_before"].includes(k)) || [before, conversion, notes_before].some((x) => x !== void 0 && (typeof x !== "string" || x.length !== 36 || !keyPattern.test(x))) || before && conversion || notes_before && !conversion) throw new AssetError(422, "INVALID_HISTORY_CURSOR");
+      const seek = (sql, cursor, parent) => {
+        const row = db.prepare(sql).get(cursor, parent);
+        if (!row) throw missing();
+        return row.rowid;
+      };
+      const notePos = notes_before ? seek("SELECT rowid FROM office_quality_notes WHERE id=? AND conversion_id=?", notes_before, conversion) : void 0;
+      const notes = db.prepare(`SELECT id,page,body FROM office_quality_notes WHERE conversion_id=? ${notePos === void 0 ? "" : "AND rowid<?"} ORDER BY rowid DESC LIMIT ?`);
+      const present = (r) => {
+        const page = notes.all(r.id, ...notePos === void 0 ? [] : [notePos], historyLimit + 1);
+        const more2 = page.length > historyLimit;
+        if (more2) page.pop();
+        return {
+          ...r,
+          missing_fonts: r.missing_fonts ? JSON.parse(String(r.missing_fonts)) : [],
+          ...more2 ? { notes_next_before: page.at(-1).id } : {},
+          notes: page.reverse()
+        };
+      };
+      const select = `SELECT ${conversionFields} FROM office_conversions WHERE version_id=?`;
+      if (conversion) {
+        const row = db.prepare(select + " AND id=?").get(v, conversion);
+        if (!row) throw missing();
+        return { version_id: v, conversions: [present(row)] };
+      }
+      const pos = before ? seek("SELECT rowid FROM office_conversions WHERE id=? AND version_id=?", before, v) : void 0;
+      const rows = db.prepare(select + (before ? " AND rowid<?" : "") + " ORDER BY rowid DESC LIMIT ?").all(v, ...pos === void 0 ? [] : [pos], historyLimit + 1);
+      const more = rows.length > historyLimit;
+      if (more) rows.pop();
+      const ready = db.prepare(select + " AND state='ready' ORDER BY rowid DESC LIMIT 1").get(v);
+      return {
+        version_id: v,
+        conversions: rows.map(present),
+        ...more ? { next_before: rows.at(-1).id } : {},
+        ...ready && !rows.some((r) => r.id === ready.id) ? { latest_ready: present(ready) } : {}
+      };
     });
   }
-  start(a, id, v, key) {
+  start(a, id, v, key, available = true) {
     return this.tx("write", (db, now) => {
       const row = this.access(db, now, a, id, v, "edit");
       checkKey(key);
@@ -790,6 +829,7 @@ var OfficeStore = class {
       }
       if (!row.head) throw new AssetError(409, "SOURCE_CHANGED");
       if (db.prepare("SELECT 1 FROM office_conversions WHERE version_id=? AND state IN ('queued','running')").get(v)) throw new AssetError(409, "CONVERSION_IN_PROGRESS");
+      if (!available) throw new AssetError(503, "OFFICE_UNAVAILABLE");
       const cid = randomUUID5();
       db.prepare("INSERT INTO office_conversions(id,version_id,actor_id,request_key,state,created_at,updated_at) VALUES(?,?,?,?,'queued',?,?)").run(cid, v, a.userId, key, now, now);
       db.prepare("INSERT INTO office_authorizations VALUES(?,?)").run(cid, a.sessionId);
@@ -884,7 +924,8 @@ var OfficeStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 11;
+var SCHEMA_VERSION = 12;
+var MIGRATION_V12_CHECKSUM = createHash3("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
 var MIGRATION_V11_CHECKSUM = createHash3("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
 var MIGRATION_V10_CHECKSUM = createHash3("sha256").update(OFFICE_SCHEMA).digest("hex");
 var MIGRATION_V9_CHECKSUM = createHash3("sha256").update(TEXT_SCHEMA).digest("hex");
@@ -1204,16 +1245,18 @@ var ProbeStorage = class {
       } else if (existing === "v3") {
         this.#migrateV4(db);
       }
-      if (!["v6", "v7", "v8", "v9", "v10", "v11"].includes(existing)) {
+      const priorVersion = existing === "blank" ? 0 : Number(existing.slice(1));
+      if (priorVersion < 6) {
         if (existing !== "v5") this.#migrateV5(db);
         this.#migrateV6(db);
       }
-      if (!["v7", "v8", "v9", "v10", "v11"].includes(existing)) this.#migrateV7(db);
-      if (!["v8", "v9", "v10", "v11"].includes(existing)) this.#migrateV8(db);
-      if (!["v9", "v10", "v11"].includes(existing)) this.#migrateV9(db);
-      if (!["v10", "v11"].includes(existing)) this.#migrateV10(db);
-      if (existing !== "v11") this.#migrateV11(db);
-      this.#verify(db, 11);
+      if (priorVersion < 7) this.#migrateV7(db);
+      if (priorVersion < 8) this.#migrateV8(db);
+      if (priorVersion < 9) this.#migrateV9(db);
+      if (priorVersion < 10) this.#migrateV10(db);
+      if (priorVersion < 11) this.#migrateV11(db);
+      if (priorVersion < 12) this.#migrateV12(db);
+      this.#verify(db, 12);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
       this.#db = db;
@@ -1280,7 +1323,7 @@ var ProbeStorage = class {
       }
       return "v5";
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12) {
       const db = new DatabaseSync(path, { readOnly: true });
       try {
         this.#verify(db, facts.userVersion);
@@ -1576,9 +1619,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "office authorization migration failed", false, { cause: e });
     }
   }
+  #migrateV12(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(OFFICE_HISTORY_SCHEMA);
+      this.#injectFailure("v12:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(12,?,?)").run(MIGRATION_V12_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=12; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "office history index migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -1588,6 +1643,7 @@ var ProbeStorage = class {
       if (version >= 9) reference.exec(TEXT_SCHEMA);
       if (version >= 10) reference.exec(OFFICE_SCHEMA);
       if (version >= 11) reference.exec(OFFICE_AUTH_SCHEMA);
+      if (version >= 12) reference.exec(OFFICE_HISTORY_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name: name2, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name2)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -3715,7 +3771,7 @@ function specFor(req) {
   if (typeof assetId !== "string" || !uuid.test(assetId) || typeof version !== "string" || !/^\d{1,9}$/.test(version) || Number(version) < 1) throw new AssetError(422, "INVALID_VERSION");
   return { title, key, assetId, expectedVersion: Number(version) };
 }
-function libraryHandler(store, originals, origin, actorFor, parses, office) {
+function libraryHandler(store, originals, origin, actorFor, parses, office, officeAvailable = () => true) {
   let transfers = 0;
   return async (req, res) => {
     const requestId = randomUUID13();
@@ -3769,12 +3825,14 @@ function libraryHandler(store, originals, origin, actorFor, parses, office) {
       if (office && op && uuid.test(op[1]) && uuid.test(op[2]) && (!op[4] || uuid.test(op[4]))) {
         const id = op[1], v = op[2], cid = op[4], command = op[3] ?? op[5], key = req.headers["idempotency-key"];
         const send = (status, data) => json2(status, { data, request_id: requestId });
-        if (req.method === "GET" && !command && !url.search) {
-          send(200, office.list(current(), id, v));
+        if (req.method === "GET" && !command) {
+          const keys2 = [...url.searchParams.keys()];
+          if (new Set(keys2).size !== keys2.length) throw new AssetError(422, "INVALID_HISTORY_CURSOR");
+          send(200, office.list(current(), id, v, Object.fromEntries(url.searchParams)));
           return;
         }
         if (req.method === "POST" && command === "start" && !url.search) {
-          const r = office.start(current(), id, v, typeof key === "string" ? key : "");
+          const r = office.start(current(), id, v, typeof key === "string" ? key : "", officeAvailable());
           send(r.replayed ? 200 : 202, r);
           return;
         }
@@ -4325,8 +4383,15 @@ function buildLibraryHtml() {
 <div id="office-result" hidden><h3>可用转换结果</h3><p id="office-quality"></p>
 <div class="links"><a id="office-preview" target="_blank" rel="noopener">预览转换 PDF</a><a id="office-download" download>下载转换 PDF</a></div>
 <h3>逐页质量记录</h3><ol id="office-notes" aria-label="逐页质量记录"></ol>
+<button id="office-older-notes" type="button" hidden>查看更早质量记录</button>
 <form id="office-note-form"><label>页码<input type="number" id="office-page" min="1" step="1" required></label>
-<label>质量问题<textarea id="office-body" rows="2" required></textarea></label><button type="submit" id="office-save">保存质量记录</button></form></div></div></section>
+<label>质量问题<textarea id="office-body" rows="2" required></textarea></label><button type="submit" id="office-save">保存质量记录</button></form></div>
+<section id="office-history" aria-label="转换历史" hidden><h3>转换历史</h3><ol id="office-attempts"></ol>
+<div class="links"><button id="office-older" type="button" hidden>更早转换</button><button id="office-newest" type="button" hidden>返回最近转换</button></div></section>
+<section id="office-detail" aria-label="历史质量记录" hidden><h3 id="office-detail-title" tabindex="-1">历史质量记录</h3>
+<a id="office-detail-pdf" target="_blank" rel="noopener">预览此记录的 PDF</a><ol id="office-detail-notes"></ol>
+<div class="links"><button id="office-detail-older" type="button" hidden>更早记录</button><button id="office-detail-newest" type="button" hidden>最新记录</button>
+<button id="office-detail-close" type="button">关闭历史记录</button></div></section><p id="office-nav-status" role="status"></p></div></section>
 <section id="reader" aria-labelledby="reader-heading" hidden><h2 id="reader-heading">文本回读</h2>
 <label id="block-picker">文本版本<select id="block-version"></select></label>
 <p id="block-summary" aria-live="polite"></p><ol id="blocks" aria-label="文本块"></ol>
@@ -4541,32 +4606,85 @@ const officeStates={queued:'排队中',running:'转换中',ready:'转换完成',
 let office=null;
 function resetOfficeResult(){
   $('office-result').hidden=true;$('office-quality').textContent='';$('office-notes').replaceChildren();
+  $('office-older-notes').hidden=true;
   $('office-preview').removeAttribute('href');$('office-download').removeAttribute('href');
   $('office-body').value='';$('office-page').value='1';
 }
 function resetOffice(){
-  clearTimeout(office?.timer);office=null;resetOfficeResult();$('office-panel').hidden=true;
+  clearTimeout(office?.timer);office=null;resetOfficeHistory();resetOfficeResult();$('office-panel').hidden=true;
   $('office-status').textContent='';$('office-action').hidden=true;$('office-refresh').disabled=false;
 }
 function clearOffice(){resetOffice();officeVersion.replaceChildren();$('office').hidden=true}
 function officeData(data,version){
-  if(data?.version_id!==version || !Array.isArray(data.conversions))throw problem(502);
+  if(data?.version_id!==version || !Array.isArray(data.conversions) || data.conversions.length>10 ||
+    (data.next_before!==undefined && (!uuid.test(data.next_before)||data.next_before!==data.conversions.at(-1)?.id)))throw problem(502);
   const ids=new Set();
-  for(const c of data.conversions){
+  if(data.latest_ready!==undefined && data.latest_ready?.state!=='ready')throw problem(502);
+  for(const c of [...data.conversions,...(data.latest_ready?[data.latest_ready]:[])]){
     if(!c || typeof c.id!=='string' || !/^[a-zA-Z0-9_-]+$/.test(c.id) || ids.has(c.id) || !Object.hasOwn(officeStates,c.state) ||
       (c.page_count!=null && (!Number.isSafeInteger(c.page_count) || c.page_count<0)) || (c.state==='ready' && !(c.page_count>0)) ||
       (c.failure_code!=null && typeof c.failure_code!=='string') || !Array.isArray(c.missing_fonts) || !c.missing_fonts.every(f=>typeof f==='string') ||
-      !Array.isArray(c.notes) || !c.notes.every(n=>n && Number.isSafeInteger(n.page) && n.page>=1 && n.page<=c.page_count && typeof n.body==='string'))throw problem(502);
+      !Array.isArray(c.notes) || c.notes.length>10 || !c.notes.every(n=>n && Number.isSafeInteger(n.page) && n.page>=1 && n.page<=c.page_count && typeof n.body==='string') ||
+      (c.notes_next_before!==undefined && (!uuid.test(c.notes_next_before)||c.notes_next_before!==c.notes[0]?.id)))throw problem(502);
     ids.add(c.id);
   }
-  return data.conversions;
+  return data;
+}
+function closeOfficeDetail(){
+  $('office-detail').hidden=true;$('office-detail-title').textContent='历史质量记录';
+  $('office-detail-notes').replaceChildren();$('office-detail-pdf').removeAttribute('href');
+}
+function resetOfficeHistory(){
+  closeOfficeDetail();$('office-history').hidden=true;$('office-attempts').replaceChildren();$('office-nav-status').textContent='';
+}
+function drawAttempts(s){
+  const page=s.history||s.head,history=$('office-history');
+  history.hidden=!s.history && page.conversions.length<2 && !page.next_before;
+  $('office-older').hidden=!page.next_before;$('office-newest').hidden=!s.history;
+  // Don't replace focused controls on every live status poll.
+  const key=JSON.stringify(page.conversions.map(c=>[c.id,c.state,c.failure_code]));if(key===s.historyKey)return;s.historyKey=key;
+  $('office-attempts').replaceChildren(...page.conversions.map(c=>{
+    const li=el('li',officeStates[c.state]+' · '+c.id+(c.failure_code?' · '+c.failure_code:''));
+    if(c.state==='ready'){
+      const b=el('button','查看质量记录');b.type='button';b.setAttribute('aria-label','查看质量记录：'+c.id);
+      b.onclick=()=>readOfficePage(s,{conversion:c.id});li.append(' ',b);
+    }
+    return li;
+  }));
+}
+const noteRows=c=>c.notes.map(n=>el('li','第 '+n.page+' 页：'+n.body));
+async function readOfficePage(s,query){
+  if(!s?.head)return;
+  const token=++s.nav,current=()=>office===s && token===s.nav;
+  $('office-nav-status').textContent='正在读取历史…';
+  try{
+    if(!await checkOwnerWhile(current))return;
+    const data=officeData(await request(s.path+'?'+new URLSearchParams(query)),s.version);
+    if(!await checkOwnerWhile(current))return;
+    if(query.conversion){
+      const c=data.conversions[0];if(data.conversions.length!==1 || c.id!==query.conversion || c.state!=='ready')throw problem(502);
+      s.detail=c;$('office-detail-title').textContent='历史质量记录 · '+c.id;
+      $('office-detail-pdf').href=api+s.path+'/'+c.id+'/pdf';$('office-detail-notes').replaceChildren(...noteRows(c));
+      $('office-detail-older').hidden=!c.notes_next_before;$('office-detail-newest').hidden=!query.notes_before;
+      $('office-detail').hidden=false;$('office-detail-title').focus();
+    }else{
+      s.history=data;s.detail=null;closeOfficeDetail();drawAttempts(s);
+      $('office-newest').focus();
+    }
+    $('office-nav-status').textContent=query.conversion?'质量记录已刷新。':'已显示更早转换。';
+  }catch(e){
+    if(!current())return;
+    if([401,403,404].includes(e.http)){fail(e,generation,false);return}
+    $('office-nav-status').textContent='历史记录读取失败，请重试。';
+  }
 }
 function officeControls(s){
   $('office-action').disabled=$('office-page').disabled=$('office-body').disabled=$('office-save').disabled=s.writing;
   $('office-refresh').disabled=s.writing;
 }
-function drawOffice(s,items){
-  const latest=items[0], result=items.find(c=>c.state==='ready');
+function drawOffice(s,data){
+  s.head=data;drawAttempts(s);
+  const items=data.conversions,latest=items[0],result=data.latest_ready||items.find(c=>c.state==='ready');
   const statusText=latest?'最近一次：'+officeStates[latest.state]+(latest.failure_code?' · '+latest.failure_code:''):'尚未转换。';
   if($('office-status').textContent!==statusText)$('office-status').textContent=statusText;
   s.active=items.find(c=>activeJob(c.state));
@@ -4580,8 +4698,14 @@ function drawOffice(s,items){
   $('office-result').hidden=false;$('office-page').max=String(result.page_count);
   $('office-quality').textContent=(result!==latest?'上一次可用结果':'当前可用结果')+' · '+result.page_count+' 页 · '+
     (result.missing_fonts.length?'缺失字体：'+result.missing_fonts.join('、'):'未报告缺失字体');
-  $('office-notes').replaceChildren(...result.notes.map(n=>el('li','第 '+n.page+' 页：'+n.body)));
+  $('office-notes').replaceChildren(...noteRows(result));$('office-older-notes').hidden=!result.notes_next_before;
 }
+$('office-older').onclick=()=>{const s=office;void readOfficePage(s,{before:(s.history||s.head).next_before})};
+$('office-newest').onclick=()=>{const s=office;++s.nav;s.history=s.detail=null;closeOfficeDetail();drawAttempts(s);void syncOffice(s);$('office-nav-status').textContent='已返回最近转换。'};
+$('office-older-notes').onclick=()=>{const c=office.result;void readOfficePage(office,{conversion:c.id,notes_before:c.notes_next_before})};
+$('office-detail-older').onclick=()=>{const c=office.detail;void readOfficePage(office,{conversion:c.id,notes_before:c.notes_next_before})};
+$('office-detail-newest').onclick=()=>void readOfficePage(office,{conversion:office.detail.id});
+$('office-detail-close').onclick=()=>{++office.nav;office.detail=null;closeOfficeDetail();$('office-nav-status').textContent='';$('office-refresh').focus()};
 async function syncOffice(s,action='',note=null){
   if(!s || s!==office || s.writing)return;
   clearTimeout(s.timer);const seq=++s.seq,current=()=>s===office && s.seq===seq;
@@ -4607,14 +4731,14 @@ async function syncOffice(s,action='',note=null){
   }catch(e){
     if(!current())return;
     if([401,403,404].includes(e.http)){fail(e,generation,false);return}
-    s.result=s.active=null;resetOfficeResult();$('office-action').hidden=true;
+    ++s.nav;s.head=s.history=s.historyKey=s.detail=null;resetOfficeHistory();s.result=s.active=null;resetOfficeResult();$('office-action').hidden=true;
     $('office-status').textContent='无法确认转换状态，请刷新转换状态后再操作。';
   }finally{if(current()){s.writing=false;officeControls(s)}}
 }
 officeVersion.onchange=()=>{
   resetOffice();const r=rows.find(row=>row.version_id===officeVersion.value);
   if(!r || !isWord(r) || !ready || busy)return;
-  office={version:r.version_id,path:'assets/'+r.id+'/versions/'+r.version_id+'/office',seq:0,writing:false};
+  office={version:r.version_id,path:'assets/'+r.id+'/versions/'+r.version_id+'/office',seq:0,nav:0,writing:false};
   $('office-panel').hidden=false;$('office-status').textContent='正在读取转换状态…';void syncOffice(office);
 };
 $('office-refresh').onclick=()=>void syncOffice(office);
@@ -4902,10 +5026,18 @@ function apply(ctx, config = {}) {
         return pending;
       };
     };
+    let officeMount;
     if (storage?.available && dataDir) {
       const office = storage.office, originals = new PdfOriginals(join3(dataDir, "originals"));
       identityContext.inject(["officeKit"], (scope) => {
-        scope.effect(() => startOfficeWorker(office, originals, scope.officeKit, openPdf, log), "knowledgeos-office: versioned conversion worker");
+        scope.effect(() => {
+          const stop = startOfficeWorker(office, originals, scope.officeKit, openPdf, log), mount = Symbol();
+          officeMount = mount;
+          return async () => {
+            if (officeMount === mount) officeMount = void 0;
+            await stop();
+          };
+        }, "knowledgeos-office: versioned conversion worker");
       });
     }
     identityContext.effect(() => {
@@ -4917,7 +5049,7 @@ function apply(ctx, config = {}) {
           const origin = actualOrigin();
           if (!origin || !identityAvailable()) return void 0;
           return identity.actor(readCookie(req, businessCookieName(identity.setupState.serviceId, origin)));
-        }, storage.parses, storage.office);
+        }, storage.parses, storage.office, () => !!officeMount);
         if (storage.available) disposers.push(startParseWorker(storage.parses, originals, openPdf, log));
         disposers.push(identityContext.webServer.register({ kind: "exact", path: "/knowledgeos/library", auth: "anonymous", handler: (req, res) => {
           if (req.method !== "GET") {

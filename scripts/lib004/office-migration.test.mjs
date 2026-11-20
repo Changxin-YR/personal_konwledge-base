@@ -29,9 +29,12 @@ test('populated v9 upgrades through v10 and v11; failures preserve each prior ve
     const intermediate=snapshot();assert.equal(intermediate.schema_migrations.pop().version,10);assert.deepEqual(intermediate,before)
     assert.equal(db.prepare('PRAGMA user_version').get().user_version,10)
     assert.equal(db.prepare("SELECT count(*) n FROM sqlite_master WHERE name='office_authorizations'").get().n,0)
+    const failed12=new ProbeStorage({dataDir:root,failureAt:'v12:after-schema'});assert.equal(failed12.available,false);failed12.close()
+    const eleven=snapshot();assert.deepEqual(eleven.schema_migrations.splice(before.schema_migrations.length).map(m=>m.version),[10,11]);assert.deepEqual(eleven,before)
+    assert.equal(db.prepare('PRAGMA user_version').get().user_version,11);assert.equal(db.prepare("SELECT count(*) n FROM sqlite_master WHERE name LIKE 'office_history_%'").get().n,0)
     for(let i=0;i<2;i++){
       const upgraded=new ProbeStorage({dataDir:root});try{
-        assert(upgraded.available,upgraded.failure?.message);const after=snapshot();assert.deepEqual(after.schema_migrations.splice(before.schema_migrations.length).map(m=>m.version),[10,11]);assert.deepEqual(after,before)
+        assert(upgraded.available,upgraded.failure?.message);const after=snapshot();assert.deepEqual(after.schema_migrations.splice(before.schema_migrations.length).map(m=>m.version),[10,11,12]);assert.deepEqual(after,before)
         assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);assert.deepEqual(upgraded.assets.publish(actor,spec,blob,text),{receipt,replayed:true})
         assert.deepEqual(upgraded.assets.blocks(actor,receipt.id,receipt.version_id,1,10).blocks.map(b=>b.anchor),text.blocks.map(b=>b.anchor))
       }finally{upgraded.close()}
