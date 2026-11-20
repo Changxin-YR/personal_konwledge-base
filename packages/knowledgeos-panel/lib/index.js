@@ -477,7 +477,11 @@ var AssetError = class extends Error {
     this.code = code;
   }
 };
-var receiptSQL = `SELECT v.asset_id AS id,v.original_name AS title,v.id AS version_id,v.version,b.sha256,b.byte_length FROM asset_versions v JOIN blobs b ON b.id=v.blob_id `;
+var receiptSQL = `SELECT v.asset_id AS id,v.original_name AS title,v.id AS version_id,v.version,b.sha256,b.byte_length,b.media_type FROM asset_versions v JOIN blobs b ON b.id=v.blob_id `;
+function receipt(row) {
+  const { media_type, ...rest } = row;
+  return media_type === "application/pdf" ? rest : { ...rest, media_type };
+}
 var AssetStore = class {
   constructor(tx, current, allowed) {
     this.tx = tx;
@@ -492,15 +496,15 @@ var AssetStore = class {
   check(actor2, id, action2, now) {
     if (!this.allowed(actor2, id, action2, now)) throw new AssetError(404, "ASSET_NOT_FOUND");
   }
-  publish(prior, spec, blob) {
+  publish(prior, spec, blob, text2) {
     return this.tx("write", (db, now) => {
-      const actor2 = this.actor(prior, now), digest2 = createHash2("sha256").update(JSON.stringify([spec.title, spec.assetId ?? null, spec.expectedVersion ?? null, blob.sha256, blob.byteLength])).digest("hex");
+      const actor2 = this.actor(prior, now), digest2 = createHash2("sha256").update(JSON.stringify([spec.title, spec.assetId ?? null, spec.expectedVersion ?? null, blob.sha256, blob.byteLength, ...text2 ? [text2.media, text2.encoding] : []])).digest("hex");
       const prev = db.prepare("SELECT id,asset_id,request_digest FROM asset_versions WHERE created_by=? AND idempotency_key=?").get(actor2.userId, spec.key);
       if (prev) {
         this.check(actor2, String(prev.asset_id), "read", now);
         this.check(actor2, String(prev.asset_id), "edit", now);
         if (prev.request_digest !== digest2) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
-        return { receipt: { ...db.prepare(receiptSQL + "WHERE v.id=?").get(prev.id) }, replayed: true };
+        return { receipt: receipt(db.prepare(receiptSQL + "WHERE v.id=?").get(prev.id)), replayed: true };
       }
       const id = spec.assetId ?? randomUUID3(), vid = randomUUID3(), bid = randomUUID3();
       let version = 1, parent = null;
@@ -517,9 +521,14 @@ var AssetStore = class {
         db.prepare(`INSERT INTO knowledge_objects (id,service_id,space_id,scope_kind,project_id,owner_user_id,object_type,title,body,status,revision,created_at,updated_at) VALUES (?,?,?,'personal',NULL,?,'asset',?,'','active',1,?,?)`).run(id, actor2.serviceId, actor2.personalSpaceId, actor2.userId, spec.title, now, now);
         db.prepare("INSERT INTO assets VALUES (?)").run(id);
       }
-      db.prepare("INSERT INTO blobs VALUES (?,?,?,?,'application/pdf')").run(bid, blob.key, blob.sha256, blob.byteLength);
+      db.prepare("INSERT INTO blobs VALUES (?,?,?,?,?)").run(bid, blob.key, blob.sha256, blob.byteLength, text2?.media ?? "application/pdf");
       db.prepare("INSERT INTO asset_versions VALUES (?,?,?,?,?,?,?,?,?,?)").run(vid, id, version, parent, bid, spec.title, actor2.userId, now, spec.key, digest2);
-      return { receipt: { id, title: spec.title, version_id: vid, version, sha256: blob.sha256, byte_length: blob.byteLength }, replayed: false };
+      if (text2) {
+        db.prepare("INSERT INTO text_versions VALUES(?,?,?)").run(vid, text2.encoding, text2.blocks.length);
+        const insert = db.prepare("INSERT INTO text_blocks VALUES(?,?,?,?,?,?,?)");
+        text2.blocks.forEach((b, i) => insert.run(vid, i + 1, b.kind, b.start, b.end, b.text, b.anchor));
+      }
+      return { receipt: { id, title: spec.title, version_id: vid, version, sha256: blob.sha256, byte_length: blob.byteLength, ...text2 ? { media_type: text2.media } : {} }, replayed: false };
     });
   }
   list(prior) {
@@ -527,7 +536,7 @@ var AssetStore = class {
       const actor2 = this.actor(prior, now);
       return db.prepare(receiptSQL + `JOIN knowledge_objects o ON o.id=v.asset_id
       WHERE o.owner_user_id=? AND o.service_id=? AND o.status='active'
-      ORDER BY v.created_at DESC,v.version DESC,v.id`).all(actor2.userId, actor2.serviceId).filter((v) => this.allowed(actor2, v.id, "read", now)).map((v) => ({ ...v }));
+      ORDER BY v.created_at DESC,v.version DESC,v.id`).all(actor2.userId, actor2.serviceId).filter((v) => this.allowed(actor2, String(v.id), "read", now)).map(receipt);
     });
   }
   original(prior, id, versionId, download) {
@@ -535,9 +544,19 @@ var AssetStore = class {
       const actor2 = this.actor(prior, now);
       this.check(actor2, id, "read", now);
       if (download) this.check(actor2, id, "export", now);
-      const r = db.prepare("SELECT b.storage_key,b.sha256,b.byte_length FROM asset_versions v JOIN blobs b ON b.id=v.blob_id WHERE v.asset_id=? AND v.id=?").get(id, versionId);
+      const r = db.prepare("SELECT b.storage_key,b.sha256,b.byte_length,b.media_type,t.encoding FROM asset_versions v JOIN blobs b ON b.id=v.blob_id LEFT JOIN text_versions t ON t.version_id=v.id WHERE v.asset_id=? AND v.id=?").get(id, versionId);
       if (!r) throw new AssetError(404, "ASSET_NOT_FOUND");
-      return { key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length) };
+      return { key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length), ...r.media_type === "application/pdf" ? {} : { media: String(r.media_type), encoding: String(r.encoding) } };
+    });
+  }
+  blocks(prior, id, v, from, limit) {
+    return this.tx("read", (db, now) => {
+      const actor2 = this.actor(prior, now);
+      this.check(actor2, id, "read", now);
+      if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit) || limit < 1 || limit > 10) throw new AssetError(422, "INVALID_BLOCK_RANGE");
+      const meta = db.prepare("SELECT encoding,block_count AS total FROM text_versions t JOIN asset_versions a ON a.id=t.version_id WHERE a.asset_id=? AND a.id=?").get(id, v);
+      if (!meta) throw new AssetError(404, "ASSET_NOT_FOUND");
+      return { version_id: v, ...meta, blocks: db.prepare("SELECT ordinal,kind,start,end,text,anchor FROM text_blocks WHERE version_id=? AND ordinal>=? ORDER BY ordinal LIMIT ?").all(v, from, limit) };
     });
   }
 };
@@ -573,7 +592,7 @@ var ParseStore = class {
   pages(actor2, id, v, from, limit) {
     if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit) || limit < 1 || limit > 10) throw new AssetError(422, "INVALID_PAGE_RANGE");
     return this.tx("read", (db, now) => {
-      if (!this.permit(actor2.sessionId, actor2.userId, id, false, now) || !db.prepare("SELECT 1 FROM asset_versions WHERE asset_id=? AND id=?").get(id, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
+      if (!this.permit(actor2.sessionId, actor2.userId, id, false, now) || !this.pdfVersion(db, id, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
       const rows = db.prepare(`SELECT page,state,chapter,error,CASE WHEN state IN ('ready','review') THEN text ELSE NULL END AS text
         FROM pdf_pages WHERE version_id=? AND page>=? ORDER BY page LIMIT ?`).all(v, from, limit);
       return { version_id: v, from, pages: rows };
@@ -581,7 +600,7 @@ var ParseStore = class {
   }
   control(actor2, id, v, op, page) {
     return this.tx(op === "status" ? "read" : "write", (db, now) => {
-      if (!this.permit(actor2.sessionId, actor2.userId, id, op !== "status", now) || !db.prepare("SELECT 1 FROM asset_versions WHERE asset_id=? AND id=?").get(id, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
+      if (!this.permit(actor2.sessionId, actor2.userId, id, op !== "status", now) || !this.pdfVersion(db, id, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
       const prev = db.prepare("SELECT state FROM pdf_parse_runs WHERE version_id=?").get(v);
       if (op === "start") {
         if (!prev) db.prepare("INSERT INTO pdf_parse_runs(version_id,session_id,user_id,state) VALUES(?,?,?,'queued')").run(v, actor2.sessionId, actor2.userId);
@@ -598,6 +617,9 @@ var ParseStore = class {
       const run = db.prepare("SELECT state,total,error FROM pdf_parse_runs WHERE version_id=?").get(v);
       return { state: run?.state ?? "idle", total: run?.total ?? 0, error: run?.error ?? null, pages: db.prepare("SELECT page,state,chapter,error FROM pdf_pages WHERE version_id=? ORDER BY page").all(v) };
     });
+  }
+  pdfVersion(db, id, v) {
+    return db.prepare("SELECT 1 FROM asset_versions a JOIN blobs b ON b.id=a.blob_id WHERE a.asset_id=? AND a.id=? AND b.media_type='application/pdf'").get(id, v);
   }
   claim() {
     if (!this.tx("read", (db, now) => db.prepare("SELECT 1 FROM pdf_parse_runs WHERE state='queued' OR (state='running' AND deadline<=?) LIMIT 1").get(Date.parse(now)))) return;
@@ -670,9 +692,24 @@ var ParseStore = class {
   }
 };
 
+// src/host/text-schema.ts
+var TEXT_SCHEMA = `CREATE TEMP TABLE kos_prior_blobs AS SELECT id,storage_key,sha256,byte_length,media_type FROM blobs;
+DROP TABLE blobs;
+CREATE TABLE blobs (
+  id TEXT PRIMARY KEY, storage_key TEXT UNIQUE NOT NULL, sha256 TEXT NOT NULL CHECK(length(sha256)=64),
+  byte_length INTEGER NOT NULL CHECK(byte_length>0), media_type TEXT NOT NULL CHECK(media_type IN ('application/pdf','text/plain','text/markdown'))
+) STRICT;
+INSERT INTO blobs SELECT id,storage_key,sha256,byte_length,media_type FROM kos_prior_blobs;
+DROP TABLE kos_prior_blobs;
+CREATE TABLE text_versions (version_id TEXT PRIMARY KEY REFERENCES asset_versions(id), encoding TEXT NOT NULL, block_count INTEGER NOT NULL CHECK(block_count>=0)) STRICT;
+CREATE TABLE text_blocks (version_id TEXT NOT NULL REFERENCES text_versions(version_id), ordinal INTEGER NOT NULL CHECK(ordinal>=1),
+  kind TEXT NOT NULL, start INTEGER NOT NULL CHECK(start>=0), end INTEGER NOT NULL CHECK(end>=start), text TEXT NOT NULL, anchor TEXT NOT NULL,
+  PRIMARY KEY(version_id,ordinal)) STRICT;`;
+
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 8;
+var SCHEMA_VERSION = 9;
+var MIGRATION_V9_CHECKSUM = createHash3("sha256").update(TEXT_SCHEMA).digest("hex");
 var MIGRATION_V8_CHECKSUM = createHash3("sha256").update(PARSE_SCHEMA).digest("hex");
 var MIGRATION_V7_CHECKSUM = createHash3("sha256").update(ASSET_SCHEMA).digest("hex");
 var MIGRATION_V6_CHECKSUM = createHash3("sha256").update(JOB_SCHEMA).digest("hex");
@@ -985,13 +1022,14 @@ var ProbeStorage = class {
       } else if (existing === "v3") {
         this.#migrateV4(db);
       }
-      if (existing !== "v6" && existing !== "v7" && existing !== "v8") {
+      if (!["v6", "v7", "v8", "v9"].includes(existing)) {
         if (existing !== "v5") this.#migrateV5(db);
         this.#migrateV6(db);
       }
-      if (existing !== "v7" && existing !== "v8") this.#migrateV7(db);
-      if (existing !== "v8") this.#migrateV8(db);
-      this.#verify(db, 8);
+      if (!["v7", "v8", "v9"].includes(existing)) this.#migrateV7(db);
+      if (!["v8", "v9"].includes(existing)) this.#migrateV8(db);
+      if (existing !== "v9") this.#migrateV9(db);
+      this.#verify(db, 9);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
       this.#db = db;
@@ -1058,14 +1096,14 @@ var ProbeStorage = class {
       }
       return "v5";
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9) {
       const db = new DatabaseSync(path, { readOnly: true });
       try {
         this.#verify(db, facts.userVersion);
       } finally {
         db.close();
       }
-      return facts.userVersion === 6 ? "v6" : facts.userVersion === 7 ? "v7" : "v8";
+      return `v${facts.userVersion}`;
     }
     throw new RecordsError("STORAGE_INCOMPATIBLE", "database schema version is not supported");
   }
@@ -1314,14 +1352,30 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "parse migration failed", false, { cause: e });
     }
   }
+  #migrateV9(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec("PRAGMA defer_foreign_keys=ON");
+      db.exec(TEXT_SCHEMA);
+      this.#injectFailure("v9:after-schema");
+      if (db.prepare("PRAGMA foreign_key_check").get()) throw Error("broken reference");
+      db.prepare("INSERT INTO schema_migrations VALUES(9,?,?)").run(MIGRATION_V9_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=9; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "text migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || facts.ledger[5]?.version !== 6 || facts.ledger[5].checksum !== MIGRATION_V6_CHECKSUM || version >= 7 && (facts.ledger[6]?.version !== 7 || facts.ledger[6].checksum !== MIGRATION_V7_CHECKSUM) || version === 8 && (facts.ledger[7]?.version !== 8 || facts.ledger[7].checksum !== MIGRATION_V8_CHECKSUM)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM].slice(0, version - 5);
+    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
       reference.exec(JOB_SCHEMA);
       if (version >= 7) reference.exec(ASSET_SCHEMA);
       if (version >= 8) reference.exec(PARSE_SCHEMA);
+      if (version >= 9) reference.exec(TEXT_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name: name2, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name2)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -1672,8 +1726,8 @@ var ProbeStorage = class {
       if (session === void 0) return finish({ kind: "session_expired" });
       const current = this.authorizeObject(actor2, input.objectId, "edit", now);
       if (current === void 0 || this.authorizeObject(actor2, input.objectId, "read", now) === void 0) return finish({ kind: "not_found" });
-      const receipt = db.prepare("SELECT request_digest, result_json FROM ai_tool_mutations WHERE service_id = ? AND user_id = ? AND idempotency_key = ?").get(actor2.serviceId, actor2.userId, input.key);
-      if (receipt !== void 0) return finish(receipt.request_digest === input.digest ? { kind: "replayed", object: JSON.parse(receipt.result_json) } : { kind: "idempotency_conflict" });
+      const receipt2 = db.prepare("SELECT request_digest, result_json FROM ai_tool_mutations WHERE service_id = ? AND user_id = ? AND idempotency_key = ?").get(actor2.serviceId, actor2.userId, input.key);
+      if (receipt2 !== void 0) return finish(receipt2.request_digest === input.digest ? { kind: "replayed", object: JSON.parse(receipt2.result_json) } : { kind: "idempotency_conflict" });
       if (current.revision !== input.expectedRevision) return finish({ kind: "conflict" });
       const changed = db.prepare("UPDATE knowledge_objects SET title = ?, body = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ? AND status = 'active'").run(input.title ?? current.title, input.body ?? current.body, now, input.objectId, input.expectedRevision);
       if (Number(changed.changes) !== 1) return finish({ kind: "conflict" });
@@ -2994,7 +3048,7 @@ import { constants } from "node:fs";
 import fs from "node:fs/promises";
 import { dirname, join as join2, resolve } from "node:path";
 var MAX = 64 * 1024 * 1024;
-var KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.pdf$/;
+var KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:pdf|txt)$/;
 var digest = (b) => createHash7("sha256").update(b).digest("hex");
 var PdfInputError = class extends Error {
   code = "PDF_INVALID_INPUT";
@@ -3116,16 +3170,24 @@ var PdfOriginals = class {
     const data = Buffer.from(bytes);
     checkEnvelope(data);
     try {
-      return await this.#write(data);
+      return await this.#write(data, "pdf");
     } catch {
       throw unavailable();
     }
   }
-  async #write(data) {
+  async putText(bytes) {
+    if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX) throw unavailable();
+    try {
+      return await this.#write(Buffer.from(bytes), "txt");
+    } catch {
+      throw unavailable();
+    }
+  }
+  async #write(data, extension) {
     const sha256 = digest(data);
     await this.#directory(true);
     const stage = join2(this.#root, `.${randomUUID11()}.pending`);
-    const key = `${randomUUID11()}.pdf`, final = join2(this.#root, key);
+    const key = `${randomUUID11()}.${extension}`, final = join2(this.#root, key);
     const file = await fs.open(stage, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | noFollow, 384);
     let id, staged = true, linked = false;
     try {
@@ -3174,7 +3236,7 @@ var PdfOriginals = class {
         await this.#directory();
         const after = await this.#file(path);
         if (!same(stat, after) || after.size !== stat.size || after.nlink !== 1n || digest(data) !== expectedSha) throw unavailable();
-        checkEnvelope(data);
+        if (key.endsWith(".pdf")) checkEnvelope(data);
         return data;
       } finally {
         await file.close();
@@ -3205,6 +3267,111 @@ var PdfOriginals = class {
 
 // src/host/library-http.ts
 import { randomUUID as randomUUID12 } from "node:crypto";
+
+// src/host/text-document.ts
+import { createHash as createHash8 } from "node:crypto";
+var MAX_BYTES = 8 * 1024 * 1024;
+var MAX_BLOCKS = 16384;
+var messages = {
+  TEXT_INVALID_INPUT: "Expected text bytes and a supported text media type",
+  TEXT_TOO_LARGE: "Text exceeds the byte or structural block limit",
+  TEXT_UNSUPPORTED_ENCODING: "Unsupported text encoding",
+  TEXT_INVALID_ENCODING: "Invalid text bytes or conflicting byte order mark",
+  TEXT_BINARY: "Unexpected binary control character in text"
+};
+var TextInputError = class extends Error {
+  code;
+  constructor(code) {
+    super(messages[code]);
+    this.name = "TextInputError";
+    this.code = code;
+  }
+};
+function bomEncoding(bytes) {
+  const [a, b, c, d] = bytes;
+  if (a === 255 && b === 254 && c === 0 && d === 0 || a === 0 && b === 0 && c === 254 && d === 255) throw new TextInputError("TEXT_UNSUPPORTED_ENCODING");
+  if (a === 255 && b === 254) return "utf-16le";
+  if (a === 254 && b === 255) return "utf-16be";
+  if (a === 239 && b === 187 && c === 191) return "utf-8";
+}
+function selectEncoding(bom, requested) {
+  if (requested === void 0) return bom ?? "utf-8";
+  if (typeof requested !== "string" || requested.length > 64) throw new TextInputError("TEXT_UNSUPPORTED_ENCODING");
+  const label = requested.trim().toLowerCase();
+  const enc = label === "utf8" ? "utf-8" : label;
+  if (enc !== "utf-8" && enc !== "utf-16le" && enc !== "utf-16be" && enc !== "gb18030")
+    throw new TextInputError("TEXT_UNSUPPORTED_ENCODING");
+  if (bom && bom !== enc) throw new TextInputError("TEXT_INVALID_ENCODING");
+  return enc;
+}
+function indexBlocks(source, markdown) {
+  const blocks = [];
+  let start = 0, pending, fence = "";
+  function flush(end) {
+    if (!pending) return;
+    if (blocks.length >= MAX_BLOCKS) throw new TextInputError("TEXT_TOO_LARGE");
+    const text2 = source.slice(start, end);
+    const anchor = createHash8("sha256").update(text2, "utf8").digest("hex");
+    blocks.push({ kind: pending, start, end, text: text2, anchor });
+    start = end;
+    pending = void 0;
+  }
+  for (let pos = 0; pos < source.length; ) {
+    let eol = pos;
+    while (eol < source.length && source.charCodeAt(eol) !== 10 && source.charCodeAt(eol) !== 13) eol++;
+    let end = eol;
+    if (source[end] === "\r") end++;
+    if (source[end] === "\n") end++;
+    const line = source.slice(pos, eol);
+    const marker = markdown ? /^ {0,3}(`{3,}|~{3,})/.exec(line) : null;
+    if (fence) {
+      if (marker && marker[1][0] === fence[0] && marker[1].length >= fence.length && /^[ \t]*$/.test(line.slice(marker[0].length))) {
+        flush(end);
+        fence = "";
+      }
+    } else if (marker && (marker[1][0] === "~" || !line.includes("`", marker[0].length))) {
+      flush(pos);
+      pending = "code";
+      fence = marker[1];
+    } else if (markdown && /^ {0,3}#{1,6}(?:[ \t]|$)/.test(line)) {
+      flush(pos);
+      pending = "heading";
+      flush(end);
+    } else if (markdown && pending === "paragraph" && /^ {0,3}(?:=+|-+)[ \t]*$/.test(line)) {
+      pending = "heading";
+      flush(end);
+    } else {
+      const kind = /^[ \t]*$/.test(line) ? "blank" : "paragraph";
+      if (pending !== kind) flush(pos);
+      pending = kind;
+    }
+    pos = end;
+  }
+  flush(source.length);
+  return blocks;
+}
+function decodeText(bytes, media, requestedEncoding) {
+  if (!(bytes instanceof Uint8Array) || media !== "text/plain" && media !== "text/markdown")
+    throw new TextInputError("TEXT_INVALID_INPUT");
+  if (bytes.byteLength > MAX_BYTES) throw new TextInputError("TEXT_TOO_LARGE");
+  const encoding = selectEncoding(bomEncoding(bytes), requestedEncoding);
+  let decoder;
+  try {
+    decoder = new TextDecoder(encoding, { fatal: true, ignoreBOM: false });
+  } catch {
+    throw new TextInputError("TEXT_UNSUPPORTED_ENCODING");
+  }
+  let text2;
+  try {
+    text2 = decoder.decode(bytes);
+  } catch {
+    throw new TextInputError("TEXT_INVALID_ENCODING");
+  }
+  if (/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/.test(text2)) throw new TextInputError("TEXT_BINARY");
+  return { encoding, blocks: indexBlocks(text2, media === "text/markdown") };
+}
+
+// src/host/library-http.ts
 var uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 var max = 64 * 1024 * 1024;
 async function processInput(req) {
@@ -3226,18 +3393,18 @@ async function processInput(req) {
   if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((k) => !["version_id", "page"].includes(k)) || typeof value.version_id !== "string" || !uuid.test(value.version_id) || "page" in value && (!Number.isSafeInteger(value.page) || value.page < 1 || value.page > 1e4)) throw new AssetError(422, "INVALID_PROCESS");
   return value;
 }
-async function receive(req) {
+async function receive(req, emptyCode, limit) {
   const declared = req.headers["content-length"];
-  if (declared !== void 0 && (!/^\d+$/.test(declared) || Number(declared) > max)) throw new AssetError(413, "FILE_TOO_LARGE");
+  if (declared !== void 0 && (!/^\d+$/.test(declared) || Number(declared) > limit)) throw new AssetError(413, "FILE_TOO_LARGE");
   const chunks = [];
   let count = 0;
   for await (const chunk of req) {
     const b = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     count += b.length;
-    if (count > max) throw new AssetError(413, "FILE_TOO_LARGE");
+    if (count > limit) throw new AssetError(413, "FILE_TOO_LARGE");
     chunks.push(b);
   }
-  if (!count) throw new AssetError(422, "INVALID_PDF");
+  if (!count) throw new AssetError(422, emptyCode);
   return Buffer.concat(chunks, count);
 }
 function specFor(req) {
@@ -3290,12 +3457,16 @@ function libraryHandler(store, originals, origin, actorFor, parses) {
         return;
       }
       if (req.method === "POST" && url.pathname === "/knowledge/v1/imports" && !url.search) {
-        if (req.headers["content-type"]?.split(";")[0]?.trim() !== "application/pdf") throw new AssetError(415, "PDF_REQUIRED");
+        const media = req.headers["content-type"]?.split(";")[0]?.trim().toLowerCase();
+        if (media !== "application/pdf" && media !== "text/plain" && media !== "text/markdown") throw new AssetError(415, "UNSUPPORTED_MEDIA_TYPE");
+        const encoding = req.headers["x-knowledgeos-encoding"];
+        if (encoding !== void 0 && (typeof encoding !== "string" || media === "application/pdf")) throw new AssetError(422, "TEXT_UNSUPPORTED_ENCODING");
         const spec = specFor(req);
         reserve();
-        const bytes = await receive(req);
+        const bytes = await receive(req, media === "application/pdf" ? "INVALID_PDF" : "TEXT_INVALID_INPUT", media === "application/pdf" ? max : MAX_BYTES);
         current();
-        const blob = await originals.put(bytes);
+        const text2 = media === "application/pdf" ? void 0 : { media, ...decodeText(bytes, media, encoding) };
+        const blob = text2 ? await originals.putText(bytes) : await originals.put(bytes);
         let verified;
         try {
           verified = current();
@@ -3305,7 +3476,7 @@ function libraryHandler(store, originals, origin, actorFor, parses) {
         }
         let result;
         try {
-          result = store.publish(verified, spec, blob);
+          result = store.publish(verified, spec, blob, text2);
         } catch (e) {
           if (e instanceof AssetError) await originals.discard(blob.key);
           else originals.retain(blob.key);
@@ -3324,6 +3495,13 @@ function libraryHandler(store, originals, origin, actorFor, parses) {
       const processPath = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/process$/.exec(url.pathname);
       const pagesPath = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/pages$/.exec(url.pathname);
       const operation = /^\/knowledge\/v1\/operations\/([a-f0-9-]+)$/.exec(url.pathname);
+      const blockPath = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/blocks$/.exec(url.pathname);
+      if (blockPath && req.method === "GET" && uuid.test(blockPath[1]) && uuid.test(blockPath[2])) {
+        const keys2 = [...url.searchParams.keys()];
+        if (keys2.some((k) => !["from", "limit"].includes(k)) || new Set(keys2).size !== keys2.length) throw new AssetError(422, "INVALID_BLOCK_RANGE");
+        json2(200, { data: store.blocks(current(), blockPath[1], blockPath[2], Number(url.searchParams.get("from") ?? 1), Number(url.searchParams.get("limit") ?? 5)), request_id: requestId });
+        return;
+      }
       const respond = (v, data, asyncRequest) => {
         const active2 = ["queued", "running"].includes(String(data.state)), location = "/knowledge/v1/operations/" + v;
         if (asyncRequest && active2) res.setHeader("location", location);
@@ -3356,17 +3534,18 @@ function libraryHandler(store, originals, origin, actorFor, parses) {
         const download = Boolean(url.search), original = () => store.original(current(), path[1], path[2], download), r = original();
         const bytes = await originals.read(r.key, r.sha256, r.byteLength);
         original();
+        const ext = r.media === "text/plain" ? "txt" : r.media === "text/markdown" ? "md" : "pdf";
         res.statusCode = 200;
-        res.setHeader("content-type", "application/pdf");
+        res.setHeader("content-type", r.media ? `${download ? r.media : "text/plain"}; charset=${r.encoding}` : "application/pdf");
         res.setHeader("content-security-policy", "sandbox; default-src 'none'");
-        res.setHeader("content-disposition", `${download ? "attachment" : "inline"}; filename="document.pdf"`);
+        res.setHeader("content-disposition", `${download ? "attachment" : "inline"}; filename="document.${ext}"`);
         res.setHeader("content-length", bytes.length);
         res.end(bytes);
         return;
       }
       throw new AssetError(404, "NOT_FOUND");
     } catch (e) {
-      const error = e instanceof AssetError ? e : e instanceof PdfInputError ? new AssetError(422, "INVALID_PDF") : new AssetError(503, "ORIGINAL_UNAVAILABLE");
+      const error = e instanceof AssetError ? e : e instanceof TextInputError ? new AssetError(e.code === "TEXT_TOO_LARGE" ? 413 : 422, e.code) : e instanceof PdfInputError ? new AssetError(422, "INVALID_PDF") : new AssetError(503, "ORIGINAL_UNAVAILABLE");
       json2(error.status, { code: error.code, message: error.code, request_id: requestId });
     } finally {
       if (transfer) transfers--;
@@ -3442,7 +3621,7 @@ function startParseWorker(store, originals, open, log) {
 import { readFile } from "node:fs/promises";
 import { Worker, parentPort, workerData } from "node:worker_threads";
 var MiB = 1024 * 1024;
-var MAX_BYTES = 64 * MiB;
+var MAX_BYTES2 = 64 * MiB;
 var MAX_MEMORY = 256 * MiB;
 var MAX_PAGES = 1e4;
 var MAX_CHARS = 32e3;
@@ -3456,7 +3635,7 @@ function pdfError(code, message) {
   return Object.assign(new Error(message), { code });
 }
 async function openPdf(bytes) {
-  if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX_BYTES)
+  if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX_BYTES2)
     throw pdfError("PDF_OPEN_FAILED", "Invalid PDF input size or type");
   if (active >= MAX_WORKERS) throw pdfError("PDF_BUSY", "PDF extractor busy");
   const copy = new Uint8Array(bytes);
@@ -3660,15 +3839,23 @@ function buildLibraryHtml() {
 <title>PDF 资料库 · KnowledgeOS</title><style>
 *{box-sizing:border-box}body{margin:0;color:#223638;background:#f8faf9;font:15px/1.55 "Segoe UI","Microsoft YaHei UI",sans-serif}header{background:#fff;border-bottom:1px solid #d2ddda}header>div,main{max-width:900px;margin:auto;padding:0 22px}header>div,nav,.bar,.links{display:flex;align-items:center;gap:18px;flex-wrap:wrap}header>div{justify-content:space-between;min-height:54px;padding-block:8px}header strong{color:#18565a;font-size:19px}a{color:#176166;text-underline-offset:3px}main{padding-block:24px}h1,h2,p,dl{margin:0}h1{font-size:26px}h2{font-size:18px}section{margin-top:20px;border-top:1px solid #cbd9d6;padding-top:16px}.bar{justify-content:space-between;gap:8px}.muted,dt,small{color:#536866}#who{overflow-wrap:anywhere}form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) auto;align-items:end;gap:12px;margin-top:12px}label{display:grid;gap:5px;font-weight:600}input,select,button{font:inherit}input,select{width:100%;min-width:0;color:inherit;background:white;border:1px solid #889f9c;border-radius:5px;padding:7px;height:42px}input::file-selector-button{border:0;border-right:1px solid #ccd8d5;background:white;color:#18565a;margin-right:8px;padding:2px 8px 2px 0}button{border:1px solid #698c88;border-radius:5px;padding:6px 12px;background:white;color:#215c5c;cursor:pointer}button[type=submit]{background:#226461;color:white;height:42px}button:disabled,input:disabled,select:disabled{opacity:.6;cursor:default}:focus-visible{outline:3px solid #176d92;outline-offset:3px}#status{margin-top:12px;border-left:3px solid #9ebcb4;padding-left:9px;color:#354d48}#status[data-error]{border-color:#ae622e;color:#794019}#receipt{border-color:#669d90}.entry{padding:12px 0;overflow-wrap:anywhere}.entry+.entry{border-top:1px solid #dde5e2}.entry strong{display:block}.entry dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:3px 12px;margin:5px 0}.entry dd{margin:0}.hash{font:13px/1.7 Consolas,monospace}.links{gap:15px;margin-top:6px}#list>p{padding-block:12px}[hidden]{display:none!important}@media(max-width:640px){header>div,main{padding-inline:14px}main{padding-top:18px}form{grid-template-columns:minmax(0,1fr)}form button{justify-self:start}nav{gap:12px}}
 #parse-picker{margin:8px 0;max-width:36rem}#parse-panel{overflow-wrap:anywhere}#parse-panel .links{gap:8px}#parse-pages{list-style:none;margin:8px 0;padding:0}#parse-pages li{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;border-top:1px solid #dde5e2;padding:6px 0}#parse-pages strong{min-width:5em}#parse-pages small{flex-basis:100%}#parse-note{color:#794019}
+#mode-picker,#block-picker{max-width:36rem;margin-top:8px}#encoding-picker{grid-column:1/-1;max-width:24rem}#blocks li{padding-block:6px;border-bottom:1px solid #dde5e2}#blocks pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:3px 0;font:inherit}#reader{overflow-wrap:anywhere}
 </style></head><body>
 <header><div><strong>KnowledgeOS</strong><nav aria-label="业务导航"><a href="/knowledgeos/account">账号与登录</a><a href="/knowledgeos/ai">AI 工具</a></nav></div></header>
 <main><div class="bar"><h1>PDF 资料库</h1><span id="who" class="muted"></span></div>
 <section aria-labelledby="import-heading"><h2 id="import-heading">导入原件</h2>
-<form id="import"><label>导入到<select id="target" disabled><option value="">新建资料</option></select></label>
-<label>PDF 文件<input id="file" type="file" accept=".pdf,application/pdf" disabled></label>
+<label id="mode-picker">导入格式<select id="mode" disabled><option value="pdf">PDF</option><option value="text">Markdown / 纯文本</option></select></label>
+<form id="import"><label id="encoding-picker" hidden>文本编码<select id="encoding" disabled><option value="">自动识别</option><option value="utf-8">UTF-8</option><option value="utf-16le">UTF-16 LE</option><option value="utf-16be">UTF-16 BE</option><option value="gb18030">GB18030</option></select></label>
+<label>导入到<select id="target" disabled><option value="">新建资料</option></select></label>
+<label><span id="file-label">PDF 文件</span><input id="file" type="file" accept=".pdf,application/pdf" disabled></label>
 <button id="submit" type="submit" disabled>导入 PDF</button></form>
 <p id="status" role="status" aria-live="polite" aria-atomic="true">正在核对登录…</p></section>
 <section id="receipt" aria-labelledby="receipt-heading" hidden><h2 id="receipt-heading">导入回执</h2><div id="result"></div></section>
+<section id="reader" aria-labelledby="reader-heading" hidden><h2 id="reader-heading">文本回读</h2>
+<label id="block-picker">文本版本<select id="block-version"></select></label>
+<p id="block-summary" aria-live="polite"></p><ol id="blocks" aria-label="文本块"></ol>
+<div id="block-nav" class="links" hidden><button id="block-prev" type="button">上一页</button><button id="block-next" type="button">下一页</button></div>
+<button id="block-retry" type="button" hidden>重试读取</button></section>
 <section id="parse" aria-labelledby="parse-heading" hidden><h2 id="parse-heading">解析进度</h2>
 <label id="parse-picker">资料版本<select id="parse-version"></select></label>
 <div id="parse-panel" hidden><p id="parse-summary" aria-live="polite"></p><p id="parse-note" aria-live="polite"></p>
@@ -3679,17 +3866,30 @@ function buildLibraryHtml() {
 'use strict';
 const $ = id => document.getElementById(id);
 const api = '/knowledge/v1/', file = $('file'), target = $('target');
+const mode=$('mode'), encoding=$('encoding'), textTypes={md:'text/markdown',txt:'text/plain'};
+const textMode=()=>mode.value==='text';
+function fileType(blob){
+  if(!blob)return null;
+  const ext=/\.(pdf|md|txt)$/i.exec(blob.name)?.[1].toLowerCase();
+  return textMode()?textTypes[ext] || null:ext==='pdf'?'application/pdf':null;
+}
+function drawMode(){
+  const text=textMode();$('file-label').textContent=text?'文本文件':'PDF 文件';
+  file.accept=text?'.md,.txt,text/markdown,text/plain':'.pdf,application/pdf';
+  $('encoding-picker').hidden=!text;$('submit').textContent=text?'导入文本':'导入 PDF';
+}
 let owner = null, generation = 0, busy = false, ready = false, key = null, conflict = false, rows = [];
 function status(text,error=false){ $('status').textContent=text; $('status').toggleAttribute('data-error',error) }
 function controls(){
-  file.disabled = target.disabled = !ready || busy;
-  $('parse-version').disabled = !ready || busy;
+  mode.disabled = file.disabled = target.disabled = !ready || busy;
+  encoding.disabled = file.disabled || !textMode();
+  $('block-version').disabled = $('parse-version').disabled = !ready || busy;
   $('submit').disabled = file.disabled || !key || conflict;
   $('refresh').disabled = busy;
 }
-function clearDraft(){ file.value=''; key=null; conflict=false }
+function clearDraft(){ file.value=''; encoding.value=''; key=null; conflict=false }
 function clearPrivate(){
-  clearParse();
+  clearParse();clearReader();mode.value='pdf';drawMode();
   owner=null; ready=false; rows=[]; clearDraft(); target.replaceChildren(new Option('新建资料',''));
   $('who').textContent=''; $('receipt').hidden=true; $('result').replaceChildren(); $('list').replaceChildren();
 }
@@ -3703,8 +3903,11 @@ async function request(path,options){
 async function me(){ const m=await request('me'); if(!m || typeof m.id!=='string' || !m.id)throw problem(502); return m }
 // Every asynchronous commit belongs to both an operation and the same session principal.
 async function confirmOwner(gen){
-  if(gen!==generation)return false;
-  const m=await me(); if(gen!==generation)return false;
+  return checkOwnerWhile(()=>gen===generation);
+}
+async function checkOwnerWhile(current){
+  if(!current())return false;
+  const m=await me(); if(!current())return false;
   if(m.id!==owner){ void load(true); return false } return true;
 }
 function fail(e,gen,upload){
@@ -3714,23 +3917,26 @@ function fail(e,gen,upload){
     ++generation; busy=false; clearPrivate(); controls(); status('资料不可访问。请核对账号和权限，再刷新资料。',true); return;
   }
   if(!upload){status('无法读取资料。请检查连接后刷新资料。',true);return}
-  const hint={400:'文件或导入信息无效，请重新选择 PDF。',409:'资料或请求状态已变化，请刷新资料后核对版本再导入。',413:'文件过大，请重新选择较小的 PDF。',415:'格式不受支持，请重新选择 PDF。',422:'无法导入此文件，请重新选择有效的 PDF。',507:'存储空间不足，请联系管理员释放空间后重试。'};
+  const format=textMode()?'文本文件':'PDF';
+  const hint={400:'文件或导入信息无效，请重新选择'+format+'。',409:'资料或请求状态已变化，请刷新资料后核对版本再导入。',413:'文件过大，请重新选择较小的'+format+'。',415:'格式不受支持，请重新选择'+format+'。',422:textMode()?'无法导入此文本，请核对编码或重新选择文件。':'无法导入此文件，请重新选择有效的 PDF。',507:'存储空间不足，请联系管理员释放空间后重试。'};
   if(e.http===409)conflict=true;
   status(hint[e.http] || '未收到有效回执。请检查连接或服务状态，保留当前选择并重试。',true);
 }
 const uuid=/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;
 function record(r){
   if(!r || !uuid.test(r.id) || !uuid.test(r.version_id) || typeof r.title!=='string' || !Number.isSafeInteger(r.version) || r.version<1 || !Number.isSafeInteger(r.byte_length) || r.byte_length<0 || !/^[a-f\d]{64}$/i.test(r.sha256))throw problem(502);
-  return r;
+  return {...r,media_type:r.media_type===undefined?'application/pdf':r.media_type};
 }
+const isPdf=r=>r.media_type==='application/pdf', isText=r=>Object.values(textTypes).includes(r.media_type);
 function el(tag,text,cls){const n=document.createElement(tag);if(text!=null)n.textContent=text;if(cls)n.className=cls;return n}
 function entry(r){
   const node=el('div',null,'entry'), meta=el('dl'), links=el('div',null,'links');
   for(const [label,value] of [['版本','v'+r.version],['大小',r.byte_length+' 字节'],['SHA-256',r.sha256]])
     meta.append(el('dt',label),el('dd',value,label==='SHA-256'?'hash':''));
   const path=api+'assets/'+r.id+'/versions/'+r.version_id+'/original';
-  const view=el('a','查看原件'), save=el('a','导出 PDF'); view.href=path;view.target='_blank';view.rel='noopener';save.href=path+'?download=1';save.download='';
-  links.append(view,save);node.append(el('strong',r.title),meta,links);return node;
+  if(isPdf(r)){const view=el('a','查看原件');view.href=path;view.target='_blank';view.rel='noopener';links.append(view)}
+  const save=el('a',isPdf(r)?'导出 PDF':'导出原件');save.href=path+'?download=1';save.download='';links.append(save);
+  node.append(el('strong',r.title),meta,links);return node;
 }
 function head(id){return rows.find(r=>r.id===id)}
 const docStates={idle:'未开始',queued:'排队中',running:'解析中',complete:'解析完成',partial:'部分完成',failed:'解析失败',cancelled:'已取消'};
@@ -3782,21 +3988,16 @@ function drawProgress(s){
 async function requestProgress(s,action=''){
   if(selection!==s || s.writing)return;
   clearTimeout(pollTimer);const seq=++s.seq, current=()=>selection===s && s.seq===seq;
-  async function sameOwner(){
-    if(!current())return false;
-    const m=await me();if(!current())return false;
-    if(m.id!==owner){void load(true);return false}return true;
-  }
   s.writing=!!action;$('parse-refresh').disabled=true;
   if(s.writing){drawProgress(s);$('parse-note').textContent='正在提交…'}
   try{
     // Returning to a version while its previous POST is in flight must read after that write.
     if(writes.has(s.path))await writes.get(s.path);
-    if(!await sameOwner())return;
+    if(!await checkOwnerWhile(current))return;
     const req=request(s.path+action,action?{method:'POST',headers:{'x-knowledgeos-request':'1'}}:undefined);
     if(action)writes.set(s.path,req.catch(()=>{}));
     let data;try{data=await req}finally{if(action)writes.delete(s.path)}
-    if(!await sameOwner())return;
+    if(!await checkOwnerWhile(current))return;
     s.data=progress(data);s.writing=false;drawProgress(s);
     if(activeJob(s.data.state))pollTimer=setTimeout(()=>requestProgress(s),2000);
   }catch(e){
@@ -3808,22 +4009,67 @@ async function requestProgress(s,action=''){
 }
 parseVersion.onchange=()=>{
   clearTimeout(pollTimer);selection=null;resetPanel();const r=rows.find(row=>row.version_id===parseVersion.value);
-  if(!r || !ready || busy)return;
+  if(!r || !isPdf(r) || !ready || busy)return;
   selection={path:'assets/'+r.id+'/versions/'+r.version_id+'/parse',seq:0,group:0,writing:false,data:null};
   $('parse-panel').hidden=false;$('parse-summary').textContent='正在读取解析进度…';void requestProgress(selection);
 };
 $('parse-refresh').onclick=()=>{if(selection)void requestProgress(selection)};
 for(const [id,delta] of [['parse-prev',-1],['parse-next',1]])$(id).onclick=()=>{if(selection?.data){selection.group+=delta;drawPages(selection)}};
+const blockVersion=$('block-version'), blockLimit=5;
+let blockRequest=null;
+function resetBlocks(){
+  blockRequest=null;$('block-summary').textContent='';$('blocks').replaceChildren();$('block-nav').hidden=$('block-retry').hidden=true;
+}
+function clearReader(){resetBlocks();blockVersion.replaceChildren();$('reader').hidden=true}
+function validateBlocks(data,r,from){
+  if(!data || data.version_id!==r.version_id || typeof data.encoding!=='string' || !Number.isSafeInteger(data.total) || data.total<0 ||
+    from>Math.max(1,data.total) || !Array.isArray(data.blocks) || data.blocks.length!==Math.min(blockLimit,data.total-from+1))throw problem(502);
+  for(const [i,b] of data.blocks.entries()){
+    if(!b || b.ordinal!==from+i || typeof b.kind!=='string' || typeof b.text!=='string' ||
+      !Number.isSafeInteger(b.start) || !Number.isSafeInteger(b.end) || b.start<0 || b.end<b.start)throw problem(502);
+  }
+}
+async function readBlocks(r,from){
+  resetBlocks();const req={r,from};blockRequest=req;const current=()=>blockRequest===req;
+  $('block-summary').textContent='正在读取文本块…';
+  try{
+    if(!await checkOwnerWhile(current))return;
+    const data=await request('assets/'+r.id+'/versions/'+r.version_id+'/blocks?from='+from+'&limit='+blockLimit);
+    if(!await checkOwnerWhile(current))return;
+    validateBlocks(data,r,from);
+    const end=from+data.blocks.length-1;
+    $('block-summary').textContent=data.encoding+' · '+(data.total?'第 '+from+'–'+end+' 块，共 '+data.total+' 块':'暂无文本块');
+    $('blocks').start=from;$('blocks').replaceChildren(...data.blocks.map(b=>{
+      const li=el('li');li.append(el('small',b.kind+' · 字符偏移 ['+b.start+', '+b.end+')'),el('pre',b.text));
+      if(typeof b.anchor==='string' && b.anchor)li.append(el('small','锚点：'+b.anchor));return li;
+    }));
+    $('block-prev').disabled=from===1;$('block-next').disabled=end>=data.total;$('block-nav').hidden=data.total<=blockLimit;
+  }catch(e){
+    if(!current())return;
+    if([401,403,404].includes(e.http)){fail(e,generation,false);return}
+    $('block-summary').textContent='无法读取文本块。';$('block-retry').hidden=false;
+  }
+}
+blockVersion.onchange=()=>{
+  const r=rows.find(row=>row.version_id===blockVersion.value);
+  if(r && isText(r) && ready && !busy)void readBlocks(r,1);else resetBlocks();
+};
+for(const [id,delta] of [['block-prev',-blockLimit],['block-next',blockLimit],['block-retry',0]]){
+  $(id).onclick=()=>{if(blockRequest)void readBlocks(blockRequest.r,blockRequest.from+delta)};
+}
 function renderRows(items,selected){
   rows=items.slice().sort((a,b)=>b.version-a.version);
   const seen=new Set();target.replaceChildren(new Option('新建资料',''));
   for(const r of rows)if(!seen.has(r.id)){seen.add(r.id);target.add(new Option(r.title+' · v'+r.version,r.id))}
   target.value=seen.has(selected)?selected:'';
   $('list').replaceChildren(...(rows.length?rows.map(entry):[el('p','暂无资料','muted')]));
-  parseVersion.replaceChildren(new Option('选择资料版本',''),...rows.map(r=>new Option(r.title+' · v'+r.version,r.version_id)));$('parse').hidden=!rows.length;
+  for(const [select,section,predicate,prompt] of [[parseVersion,'parse',isPdf,'选择资料版本'],[blockVersion,'reader',isText,'选择文本版本']]){
+    const versions=rows.filter(predicate);select.replaceChildren(new Option(prompt,''),...versions.map(r=>new Option(r.title+' · v'+r.version,r.version_id)));
+    $(section).hidden=!versions.length;
+  }
 }
 async function load(reset=false){
-  const gen=++generation;busy=true;clearParse();if(reset)clearPrivate();controls();status('正在读取资料…');
+  const gen=++generation;busy=true;clearReader();clearParse();if(reset)clearPrivate();controls();status('正在读取资料…');
   try{
     const m=await me();if(gen!==generation)return;
     if(m.id!==owner)clearPrivate();owner=m.id;$('who').textContent=m.display_name || m.login_name || m.id;
@@ -3831,27 +4077,31 @@ async function load(reset=false){
     if(!await confirmOwner(gen))return;
     renderRows(data.items.map(record),selected);ready=true;
     if(conflict || (selected && head(selected)?.version!==previous?.version)){
-      clearDraft();status('资料版本已刷新，请核对导入目标并重新选择 PDF。');
+      clearDraft();status('资料版本已刷新，请核对导入目标并重新选择文件。');
     }else status('资料已刷新。');
   }catch(e){if(gen===generation){ready=false;$('list').replaceChildren();fail(e,gen,false)}}
   finally{if(gen===generation){busy=false;controls()}}
 }
 function changed(){
   if(busy || !ready)return;
-  ++generation;conflict=false;key=file.files[0]?crypto.randomUUID():null;controls();status(key?'文件已选择。':'请选择 PDF 文件。');
+  ++generation;conflict=false;key=fileType(file.files[0])?crypto.randomUUID():null;controls();
+  status(key?'文件已选择。':textMode()?'请选择 .md 或 .txt 文本文件。':'请选择 PDF 文件。',!!file.files[0] && !key);
 }
-file.addEventListener('change',changed);target.addEventListener('change',changed);
+mode.onchange=()=>{clearDraft();drawMode();changed()};
+for(const control of [file,target,encoding])control.addEventListener('change',changed);
 $('refresh').onclick=()=>load();
 $('import').onsubmit=async event=>{
   event.preventDefault();if(!ready || busy || conflict || !key || !file.files[0])return;
-  const gen=++generation, selected=target.value, dest=head(selected), blob=file.files[0];busy=true;controls();status('正在导入…');
+  const gen=++generation, selected=target.value, dest=head(selected), blob=file.files[0], type=fileType(blob);
+  if(!type)return;busy=true;controls();status('正在导入…');
   try{
     if(!await confirmOwner(gen))return;
-    const headers={'content-type':'application/pdf','x-knowledgeos-request':'1','x-knowledgeos-filename':encodeURIComponent(blob.name),'idempotency-key':key};
+    const headers={'content-type':type,'x-knowledgeos-request':'1','x-knowledgeos-filename':encodeURIComponent(blob.name),'idempotency-key':key};
+    if(textMode() && encoding.value)headers['x-knowledgeos-encoding']=encoding.value;
     if(selected){headers['x-knowledgeos-asset-id']=dest.id;headers['x-knowledgeos-expected-version']=String(dest.version)}
     const raw=await request('imports',{method:'POST',headers,body:blob});
     if(!await confirmOwner(gen))return;
-    const r=record(raw);clearDraft();clearParse();renderRows([r,...rows.filter(old=>old.version_id!==r.version_id)],selected);
+    const r=record(raw);clearDraft();clearParse();clearReader();renderRows([r,...rows.filter(old=>old.version_id!==r.version_id)],selected);
     $('result').replaceChildren(entry(r));$('receipt').hidden=false;status('导入成功，已接收 v'+r.version+'。');
   }catch(e){fail(e,gen,true)}finally{if(gen===generation){busy=false;controls()}}
 };

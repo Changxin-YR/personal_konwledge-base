@@ -4,7 +4,7 @@ import fs from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 
 const MAX = 64 * 1024 * 1024
-const KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.pdf$/
+const KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:pdf|txt)$/
 const digest = (b: Buffer) => createHash('sha256').update(b).digest('hex')
 export class PdfInputError extends Error {
   readonly code = 'PDF_INVALID_INPUT'
@@ -137,14 +137,19 @@ export class PdfOriginals {
     if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX) throw invalid()
     const data = Buffer.from(bytes) // Snapshot before the first await, including subarray bounds.
     checkEnvelope(data)
-    try { return await this.#write(data) } catch { throw unavailable() }
+    try { return await this.#write(data,'pdf') } catch { throw unavailable() }
   }
 
-  async #write(data: Buffer) {
+  async putText(bytes:Uint8Array) {
+    if(!(bytes instanceof Uint8Array)||!bytes.byteLength||bytes.byteLength>MAX)throw unavailable()
+    try{return await this.#write(Buffer.from(bytes),'txt')}catch{throw unavailable()}
+  }
+
+  async #write(data: Buffer, extension:'txt'|'pdf') {
     const sha256 = digest(data)
     await this.#directory(true)
     const stage = join(this.#root, `.${randomUUID()}.pending`)
-    const key = `${randomUUID()}.pdf`, final = join(this.#root, key)
+    const key = `${randomUUID()}.${extension}`, final = join(this.#root, key)
     const file = await fs.open(stage, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | noFollow, 0o600)
     let id: BigIntStats | undefined, staged = true, linked = false
     try {
@@ -196,7 +201,7 @@ export class PdfOriginals {
         await this.#directory()
         const after = await this.#file(path)
         if (!same(stat, after) || after.size !== stat.size || after.nlink !== 1n || digest(data) !== expectedSha) throw unavailable()
-        checkEnvelope(data)
+        if(key.endsWith('.pdf'))checkEnvelope(data)
         return data
       } finally { await file.close() }
     } catch { throw unavailable() } // No path, existence or integrity oracle in errors.

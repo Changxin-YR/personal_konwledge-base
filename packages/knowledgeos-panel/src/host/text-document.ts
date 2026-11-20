@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 
-const MAX_BYTES = 8 * 1024 * 1024, MAX_BLOCKS = 16_384
+export const MAX_BYTES = 8 * 1024 * 1024
+const MAX_BLOCKS = 16_384
 type Media = 'text/plain' | 'text/markdown'
 type Kind = 'paragraph' | 'blank' | 'heading' | 'code'
 type Block = { kind: Kind; start: number; end: number; text: string; anchor: string }

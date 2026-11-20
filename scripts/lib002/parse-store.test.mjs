@@ -7,7 +7,7 @@ import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {pathToFileURL} from 'node:url'
 import {DatabaseSync} from 'node:sqlite'
-import {ProbeStorage} from '../../packages/knowledgeos-panel/lib/storage.js'
+import {ProbeStorage,MIGRATION_V8_CHECKSUM,MIGRATION_V9_CHECKSUM} from '../../packages/knowledgeos-panel/lib/storage.js'
 import {seed} from '../fnd006/independent/common.mjs'
 
 async function fixture(){
@@ -27,7 +27,7 @@ test('populated v7 upgrade is atomic and reopens without mutating older records 
     let s=new ProbeStorage({dataDir:dir,failureAt:'v8:after-schema'});assert(!s.available);s.close();assert.deepEqual(snap(),before)
     assert.equal(db.prepare("SELECT count(*) n FROM sqlite_master WHERE name LIKE 'pdf_%'").get().n,0)
     s=new ProbeStorage({dataDir:dir});assert(s.available,s.failure?.message);s.close()
-    const after=snap();assert.equal(after.schema_migrations.pop().version,8);assert.deepEqual(after,before)
+    const after=snap();assert.deepEqual(after.schema_migrations.splice(7).map(r=>[r.version,r.checksum]),[[8,MIGRATION_V8_CHECKSUM],[9,MIGRATION_V9_CHECKSUM]]);assert.deepEqual(after,before)
     s=new ProbeStorage({dataDir:dir});try{assert(s.available);assert.deepEqual(s.assets.original(actor,r.id,r.version_id,false),blob);assert(s.assets.publish(actor,spec,blob).replayed)}finally{s.close()}
   }finally{db.close()}
 })

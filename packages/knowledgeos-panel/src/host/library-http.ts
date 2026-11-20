@@ -1,9 +1,10 @@
 import {randomUUID} from 'node:crypto'
 import type {IncomingMessage,ServerResponse} from 'node:http'
-import {AssetError,type AssetStore,type ImportSpec} from './asset-store.ts'
+import {AssetError,type AssetStore,type ImportSpec,type IndexedText} from './asset-store.ts'
 import {PdfInputError,type PdfOriginals} from './pdf-originals.ts'
 import type {SessionActor} from './identity.ts'
 import type {ParseStore} from './parse-store.ts'
+import {decodeText,TextInputError,MAX_BYTES as textLimit} from './text-document.ts'
 
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/
 const max=64*1024*1024
@@ -15,11 +16,11 @@ async function processInput(req:IncomingMessage){
   if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>!['version_id','page'].includes(k))||typeof value.version_id!=='string'||!uuid.test(value.version_id)||('page' in value&&(!Number.isSafeInteger(value.page)||value.page<1||value.page>10000)))throw new AssetError(422,'INVALID_PROCESS')
   return value as {version_id:string,page?:number}
 }
-async function receive(req:IncomingMessage){
-  const declared=req.headers['content-length'];if(declared!==undefined&&(!/^\d+$/.test(declared)||Number(declared)>max))throw new AssetError(413,'FILE_TOO_LARGE')
+async function receive(req:IncomingMessage,emptyCode:string,limit:number){
+  const declared=req.headers['content-length'];if(declared!==undefined&&(!/^\d+$/.test(declared)||Number(declared)>limit))throw new AssetError(413,'FILE_TOO_LARGE')
   const chunks:Buffer[]=[];let count=0
-  for await(const chunk of req){const b=Buffer.isBuffer(chunk)?chunk:Buffer.from(chunk as Uint8Array);count+=b.length;if(count>max)throw new AssetError(413,'FILE_TOO_LARGE');chunks.push(b)}
-  if(!count)throw new AssetError(422,'INVALID_PDF');return Buffer.concat(chunks,count)
+  for await(const chunk of req){const b=Buffer.isBuffer(chunk)?chunk:Buffer.from(chunk as Uint8Array);count+=b.length;if(count>limit)throw new AssetError(413,'FILE_TOO_LARGE');chunks.push(b)}
+  if(!count)throw new AssetError(422,emptyCode);return Buffer.concat(chunks,count)
 }
 function specFor(req:IncomingMessage):ImportSpec {
   const key=req.headers['idempotency-key'], name=req.headers['x-knowledgeos-filename'],assetId=req.headers['x-knowledgeos-asset-id'],version=req.headers['x-knowledgeos-expected-version']
@@ -45,15 +46,19 @@ export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:
       const url=new URL(req.url??'/',host);if(url.origin!==host)throw new AssetError(403,'CSRF_REJECTED')
       if(req.method==='GET'&&url.pathname==='/knowledge/v1/assets'&&!url.search){json(200,{data:{items:store.list(actor)},request_id:requestId});return}
       if(req.method==='POST'&&url.pathname==='/knowledge/v1/imports'&&!url.search){
-        if(req.headers['content-type']?.split(';')[0]?.trim()!=='application/pdf')throw new AssetError(415,'PDF_REQUIRED')
-        const spec=specFor(req);reserve();const bytes=await receive(req);current()
-        const blob=await originals.put(bytes)
+        const media=req.headers['content-type']?.split(';')[0]?.trim().toLowerCase()
+        if(media!=='application/pdf'&&media!=='text/plain'&&media!=='text/markdown')throw new AssetError(415,'UNSUPPORTED_MEDIA_TYPE')
+        const encoding=req.headers['x-knowledgeos-encoding']
+        if(encoding!==undefined&&(typeof encoding!=='string'||media==='application/pdf'))throw new AssetError(422,'TEXT_UNSUPPORTED_ENCODING')
+        const spec=specFor(req);reserve();const bytes=await receive(req,media==='application/pdf'?'INVALID_PDF':'TEXT_INVALID_INPUT',media==='application/pdf'?max:textLimit);current()
+        const text:IndexedText|undefined=media==='application/pdf'?undefined:{media,...decodeText(bytes,media,encoding)}
+        const blob=text?await originals.putText(bytes):await originals.put(bytes)
         // An uncertain COMMIT must never delete an original that might be referenced.
         // Unreferenced objects from a failed transaction remain private for safe reconciliation.
         let verified:SessionActor
         try {verified=current()}catch(e){await originals.discard(blob.key);throw e}
         let result:ReturnType<AssetStore['publish']>
-        try {result=store.publish(verified,spec,blob)}catch(e){
+        try {result=store.publish(verified,spec,blob,text)}catch(e){
           if(e instanceof AssetError)await originals.discard(blob.key);else originals.retain(blob.key)
           throw e
         }
@@ -70,6 +75,11 @@ export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:
       const processPath=/^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/process$/.exec(url.pathname)
       const pagesPath=/^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/pages$/.exec(url.pathname)
       const operation=/^\/knowledge\/v1\/operations\/([a-f0-9-]+)$/.exec(url.pathname)
+      const blockPath=/^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/blocks$/.exec(url.pathname)
+      if(blockPath&&req.method==='GET'&&uuid.test(blockPath[1]!)&&uuid.test(blockPath[2]!)){
+        const keys=[...url.searchParams.keys()];if(keys.some(k=>!['from','limit'].includes(k))||new Set(keys).size!==keys.length)throw new AssetError(422,'INVALID_BLOCK_RANGE')
+        json(200,{data:store.blocks(current(),blockPath[1]!,blockPath[2]!,Number(url.searchParams.get('from')??1),Number(url.searchParams.get('limit')??5)),request_id:requestId});return
+      }
       const respond=(v:string,data:ReturnType<ParseStore['control']>,asyncRequest:boolean)=>{
         const active=['queued','running'].includes(String(data.state)),location='/knowledge/v1/operations/'+v
         if(asyncRequest&&active)res.setHeader('location',location)
@@ -92,10 +102,11 @@ export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:
       if(req.method==='GET'&&path&&uuid.test(path[1]!)&&uuid.test(path[2]!)&&(!url.search||url.search==='?download=1')){
         reserve();const download=Boolean(url.search),original=()=>store.original(current(),path[1]!,path[2]!,download),r=original()
         const bytes=await originals.read(r.key,r.sha256,r.byteLength);original()
-        res.statusCode=200;res.setHeader('content-type','application/pdf');res.setHeader('content-security-policy',"sandbox; default-src 'none'");res.setHeader('content-disposition',`${download?'attachment':'inline'}; filename="document.pdf"`);res.setHeader('content-length',bytes.length);res.end(bytes);return
+        const ext=r.media==='text/plain'?'txt':r.media==='text/markdown'?'md':'pdf'
+        res.statusCode=200;res.setHeader('content-type',r.media?`${download?r.media:'text/plain'}; charset=${r.encoding}`:'application/pdf');res.setHeader('content-security-policy',"sandbox; default-src 'none'");res.setHeader('content-disposition',`${download?'attachment':'inline'}; filename="document.${ext}"`);res.setHeader('content-length',bytes.length);res.end(bytes);return
       }
       throw new AssetError(404,'NOT_FOUND')
-    }catch(e){const error=e instanceof AssetError?e:e instanceof PdfInputError?new AssetError(422,'INVALID_PDF'):new AssetError(503,'ORIGINAL_UNAVAILABLE');json(error.status,{code:error.code,message:error.code,request_id:requestId})}
+    }catch(e){const error=e instanceof AssetError?e:e instanceof TextInputError?new AssetError(e.code==='TEXT_TOO_LARGE'?413:422,e.code):e instanceof PdfInputError?new AssetError(422,'INVALID_PDF'):new AssetError(503,'ORIGINAL_UNAVAILABLE');json(error.status,{code:error.code,message:error.code,request_id:requestId})}
     finally{if(transfer)transfers--}
   }
 }

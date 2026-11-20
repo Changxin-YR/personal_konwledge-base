@@ -36,7 +36,7 @@ export class ParseStore {
   pages(actor:SessionActor,id:string,v:string,from:number,limit:number) {
     if(!Number.isSafeInteger(from)||from<1||!Number.isSafeInteger(limit)||limit<1||limit>10)throw new AssetError(422,'INVALID_PAGE_RANGE')
     return this.tx('read',(db,now)=>{
-      if(!this.permit(actor.sessionId,actor.userId,id,false,now)||!db.prepare('SELECT 1 FROM asset_versions WHERE asset_id=? AND id=?').get(id,v))throw new AssetError(404,'ASSET_NOT_FOUND')
+      if(!this.permit(actor.sessionId,actor.userId,id,false,now)||!this.pdfVersion(db,id,v))throw new AssetError(404,'ASSET_NOT_FOUND')
       const rows=db.prepare(`SELECT page,state,chapter,error,CASE WHEN state IN ('ready','review') THEN text ELSE NULL END AS text
         FROM pdf_pages WHERE version_id=? AND page>=? ORDER BY page LIMIT ?`).all(v,from,limit)
       return {version_id:v,from,pages:rows}
@@ -46,7 +46,7 @@ export class ParseStore {
   control(actor:SessionActor,id:string,v:string,op:'status'|'start'|'cancel'|'retry',page?:number) {
     return this.tx(op==='status'?'read':'write',(db,now)=>{
       if(!this.permit(actor.sessionId,actor.userId,id,op!=='status',now) ||
-        !db.prepare('SELECT 1 FROM asset_versions WHERE asset_id=? AND id=?').get(id,v)) throw new AssetError(404,'ASSET_NOT_FOUND')
+        !this.pdfVersion(db,id,v)) throw new AssetError(404,'ASSET_NOT_FOUND')
       const prev=db.prepare('SELECT state FROM pdf_parse_runs WHERE version_id=?').get(v)
       if(op==='start') {
         if(!prev) db.prepare("INSERT INTO pdf_parse_runs(version_id,session_id,user_id,state) VALUES(?,?,?,'queued')").run(v,actor.sessionId,actor.userId)
@@ -64,6 +64,8 @@ export class ParseStore {
       return {state:run?.state??'idle',total:run?.total??0,error:run?.error??null,pages:db.prepare('SELECT page,state,chapter,error FROM pdf_pages WHERE version_id=? ORDER BY page').all(v)}
     })
   }
+
+  private pdfVersion(db:DatabaseSync,id:string,v:string){return db.prepare("SELECT 1 FROM asset_versions a JOIN blobs b ON b.id=a.blob_id WHERE a.asset_id=? AND a.id=? AND b.media_type='application/pdf'").get(id,v)}
 
   claim() {
     // An idle worker must not take SQLite's writer reservation just to poll.

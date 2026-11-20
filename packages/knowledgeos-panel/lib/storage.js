@@ -183,7 +183,11 @@ var AssetError = class extends Error {
     this.code = code;
   }
 };
-var receiptSQL = `SELECT v.asset_id AS id,v.original_name AS title,v.id AS version_id,v.version,b.sha256,b.byte_length FROM asset_versions v JOIN blobs b ON b.id=v.blob_id `;
+var receiptSQL = `SELECT v.asset_id AS id,v.original_name AS title,v.id AS version_id,v.version,b.sha256,b.byte_length,b.media_type FROM asset_versions v JOIN blobs b ON b.id=v.blob_id `;
+function receipt(row) {
+  const { media_type, ...rest } = row;
+  return media_type === "application/pdf" ? rest : { ...rest, media_type };
+}
 var AssetStore = class {
   constructor(tx, current, allowed) {
     this.tx = tx;
@@ -198,15 +202,15 @@ var AssetStore = class {
   check(actor, id, action, now) {
     if (!this.allowed(actor, id, action, now)) throw new AssetError(404, "ASSET_NOT_FOUND");
   }
-  publish(prior, spec, blob) {
+  publish(prior, spec, blob, text) {
     return this.tx("write", (db, now) => {
-      const actor = this.actor(prior, now), digest = createHash2("sha256").update(JSON.stringify([spec.title, spec.assetId ?? null, spec.expectedVersion ?? null, blob.sha256, blob.byteLength])).digest("hex");
+      const actor = this.actor(prior, now), digest = createHash2("sha256").update(JSON.stringify([spec.title, spec.assetId ?? null, spec.expectedVersion ?? null, blob.sha256, blob.byteLength, ...text ? [text.media, text.encoding] : []])).digest("hex");
       const prev = db.prepare("SELECT id,asset_id,request_digest FROM asset_versions WHERE created_by=? AND idempotency_key=?").get(actor.userId, spec.key);
       if (prev) {
         this.check(actor, String(prev.asset_id), "read", now);
         this.check(actor, String(prev.asset_id), "edit", now);
         if (prev.request_digest !== digest) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
-        return { receipt: { ...db.prepare(receiptSQL + "WHERE v.id=?").get(prev.id) }, replayed: true };
+        return { receipt: receipt(db.prepare(receiptSQL + "WHERE v.id=?").get(prev.id)), replayed: true };
       }
       const id = spec.assetId ?? randomUUID2(), vid = randomUUID2(), bid = randomUUID2();
       let version = 1, parent = null;
@@ -223,9 +227,14 @@ var AssetStore = class {
         db.prepare(`INSERT INTO knowledge_objects (id,service_id,space_id,scope_kind,project_id,owner_user_id,object_type,title,body,status,revision,created_at,updated_at) VALUES (?,?,?,'personal',NULL,?,'asset',?,'','active',1,?,?)`).run(id, actor.serviceId, actor.personalSpaceId, actor.userId, spec.title, now, now);
         db.prepare("INSERT INTO assets VALUES (?)").run(id);
       }
-      db.prepare("INSERT INTO blobs VALUES (?,?,?,?,'application/pdf')").run(bid, blob.key, blob.sha256, blob.byteLength);
+      db.prepare("INSERT INTO blobs VALUES (?,?,?,?,?)").run(bid, blob.key, blob.sha256, blob.byteLength, text?.media ?? "application/pdf");
       db.prepare("INSERT INTO asset_versions VALUES (?,?,?,?,?,?,?,?,?,?)").run(vid, id, version, parent, bid, spec.title, actor.userId, now, spec.key, digest);
-      return { receipt: { id, title: spec.title, version_id: vid, version, sha256: blob.sha256, byte_length: blob.byteLength }, replayed: false };
+      if (text) {
+        db.prepare("INSERT INTO text_versions VALUES(?,?,?)").run(vid, text.encoding, text.blocks.length);
+        const insert = db.prepare("INSERT INTO text_blocks VALUES(?,?,?,?,?,?,?)");
+        text.blocks.forEach((b, i) => insert.run(vid, i + 1, b.kind, b.start, b.end, b.text, b.anchor));
+      }
+      return { receipt: { id, title: spec.title, version_id: vid, version, sha256: blob.sha256, byte_length: blob.byteLength, ...text ? { media_type: text.media } : {} }, replayed: false };
     });
   }
   list(prior) {
@@ -233,7 +242,7 @@ var AssetStore = class {
       const actor = this.actor(prior, now);
       return db.prepare(receiptSQL + `JOIN knowledge_objects o ON o.id=v.asset_id
       WHERE o.owner_user_id=? AND o.service_id=? AND o.status='active'
-      ORDER BY v.created_at DESC,v.version DESC,v.id`).all(actor.userId, actor.serviceId).filter((v) => this.allowed(actor, v.id, "read", now)).map((v) => ({ ...v }));
+      ORDER BY v.created_at DESC,v.version DESC,v.id`).all(actor.userId, actor.serviceId).filter((v) => this.allowed(actor, String(v.id), "read", now)).map(receipt);
     });
   }
   original(prior, id, versionId, download) {
@@ -241,9 +250,19 @@ var AssetStore = class {
       const actor = this.actor(prior, now);
       this.check(actor, id, "read", now);
       if (download) this.check(actor, id, "export", now);
-      const r = db.prepare("SELECT b.storage_key,b.sha256,b.byte_length FROM asset_versions v JOIN blobs b ON b.id=v.blob_id WHERE v.asset_id=? AND v.id=?").get(id, versionId);
+      const r = db.prepare("SELECT b.storage_key,b.sha256,b.byte_length,b.media_type,t.encoding FROM asset_versions v JOIN blobs b ON b.id=v.blob_id LEFT JOIN text_versions t ON t.version_id=v.id WHERE v.asset_id=? AND v.id=?").get(id, versionId);
       if (!r) throw new AssetError(404, "ASSET_NOT_FOUND");
-      return { key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length) };
+      return { key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length), ...r.media_type === "application/pdf" ? {} : { media: String(r.media_type), encoding: String(r.encoding) } };
+    });
+  }
+  blocks(prior, id, v, from, limit) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(prior, now);
+      this.check(actor, id, "read", now);
+      if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit) || limit < 1 || limit > 10) throw new AssetError(422, "INVALID_BLOCK_RANGE");
+      const meta = db.prepare("SELECT encoding,block_count AS total FROM text_versions t JOIN asset_versions a ON a.id=t.version_id WHERE a.asset_id=? AND a.id=?").get(id, v);
+      if (!meta) throw new AssetError(404, "ASSET_NOT_FOUND");
+      return { version_id: v, ...meta, blocks: db.prepare("SELECT ordinal,kind,start,end,text,anchor FROM text_blocks WHERE version_id=? AND ordinal>=? ORDER BY ordinal LIMIT ?").all(v, from, limit) };
     });
   }
 };
@@ -279,7 +298,7 @@ var ParseStore = class {
   pages(actor, id, v, from, limit) {
     if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit) || limit < 1 || limit > 10) throw new AssetError(422, "INVALID_PAGE_RANGE");
     return this.tx("read", (db, now) => {
-      if (!this.permit(actor.sessionId, actor.userId, id, false, now) || !db.prepare("SELECT 1 FROM asset_versions WHERE asset_id=? AND id=?").get(id, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
+      if (!this.permit(actor.sessionId, actor.userId, id, false, now) || !this.pdfVersion(db, id, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
       const rows = db.prepare(`SELECT page,state,chapter,error,CASE WHEN state IN ('ready','review') THEN text ELSE NULL END AS text
         FROM pdf_pages WHERE version_id=? AND page>=? ORDER BY page LIMIT ?`).all(v, from, limit);
       return { version_id: v, from, pages: rows };
@@ -287,7 +306,7 @@ var ParseStore = class {
   }
   control(actor, id, v, op, page) {
     return this.tx(op === "status" ? "read" : "write", (db, now) => {
-      if (!this.permit(actor.sessionId, actor.userId, id, op !== "status", now) || !db.prepare("SELECT 1 FROM asset_versions WHERE asset_id=? AND id=?").get(id, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
+      if (!this.permit(actor.sessionId, actor.userId, id, op !== "status", now) || !this.pdfVersion(db, id, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
       const prev = db.prepare("SELECT state FROM pdf_parse_runs WHERE version_id=?").get(v);
       if (op === "start") {
         if (!prev) db.prepare("INSERT INTO pdf_parse_runs(version_id,session_id,user_id,state) VALUES(?,?,?,'queued')").run(v, actor.sessionId, actor.userId);
@@ -304,6 +323,9 @@ var ParseStore = class {
       const run = db.prepare("SELECT state,total,error FROM pdf_parse_runs WHERE version_id=?").get(v);
       return { state: run?.state ?? "idle", total: run?.total ?? 0, error: run?.error ?? null, pages: db.prepare("SELECT page,state,chapter,error FROM pdf_pages WHERE version_id=? ORDER BY page").all(v) };
     });
+  }
+  pdfVersion(db, id, v) {
+    return db.prepare("SELECT 1 FROM asset_versions a JOIN blobs b ON b.id=a.blob_id WHERE a.asset_id=? AND a.id=? AND b.media_type='application/pdf'").get(id, v);
   }
   claim() {
     if (!this.tx("read", (db, now) => db.prepare("SELECT 1 FROM pdf_parse_runs WHERE state='queued' OR (state='running' AND deadline<=?) LIMIT 1").get(Date.parse(now)))) return;
@@ -376,9 +398,24 @@ var ParseStore = class {
   }
 };
 
+// src/host/text-schema.ts
+var TEXT_SCHEMA = `CREATE TEMP TABLE kos_prior_blobs AS SELECT id,storage_key,sha256,byte_length,media_type FROM blobs;
+DROP TABLE blobs;
+CREATE TABLE blobs (
+  id TEXT PRIMARY KEY, storage_key TEXT UNIQUE NOT NULL, sha256 TEXT NOT NULL CHECK(length(sha256)=64),
+  byte_length INTEGER NOT NULL CHECK(byte_length>0), media_type TEXT NOT NULL CHECK(media_type IN ('application/pdf','text/plain','text/markdown'))
+) STRICT;
+INSERT INTO blobs SELECT id,storage_key,sha256,byte_length,media_type FROM kos_prior_blobs;
+DROP TABLE kos_prior_blobs;
+CREATE TABLE text_versions (version_id TEXT PRIMARY KEY REFERENCES asset_versions(id), encoding TEXT NOT NULL, block_count INTEGER NOT NULL CHECK(block_count>=0)) STRICT;
+CREATE TABLE text_blocks (version_id TEXT NOT NULL REFERENCES text_versions(version_id), ordinal INTEGER NOT NULL CHECK(ordinal>=1),
+  kind TEXT NOT NULL, start INTEGER NOT NULL CHECK(start>=0), end INTEGER NOT NULL CHECK(end>=start), text TEXT NOT NULL, anchor TEXT NOT NULL,
+  PRIMARY KEY(version_id,ordinal)) STRICT;`;
+
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 8;
+var SCHEMA_VERSION = 9;
+var MIGRATION_V9_CHECKSUM = createHash3("sha256").update(TEXT_SCHEMA).digest("hex");
 var MIGRATION_V8_CHECKSUM = createHash3("sha256").update(PARSE_SCHEMA).digest("hex");
 var MIGRATION_V7_SQL = ASSET_SCHEMA;
 var MIGRATION_V7_CHECKSUM = createHash3("sha256").update(ASSET_SCHEMA).digest("hex");
@@ -698,13 +735,14 @@ var ProbeStorage = class {
       } else if (existing === "v3") {
         this.#migrateV4(db);
       }
-      if (existing !== "v6" && existing !== "v7" && existing !== "v8") {
+      if (!["v6", "v7", "v8", "v9"].includes(existing)) {
         if (existing !== "v5") this.#migrateV5(db);
         this.#migrateV6(db);
       }
-      if (existing !== "v7" && existing !== "v8") this.#migrateV7(db);
-      if (existing !== "v8") this.#migrateV8(db);
-      this.#verify(db, 8);
+      if (!["v7", "v8", "v9"].includes(existing)) this.#migrateV7(db);
+      if (!["v8", "v9"].includes(existing)) this.#migrateV8(db);
+      if (existing !== "v9") this.#migrateV9(db);
+      this.#verify(db, 9);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
       this.#db = db;
@@ -771,14 +809,14 @@ var ProbeStorage = class {
       }
       return "v5";
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9) {
       const db = new DatabaseSync(path, { readOnly: true });
       try {
         this.#verify(db, facts.userVersion);
       } finally {
         db.close();
       }
-      return facts.userVersion === 6 ? "v6" : facts.userVersion === 7 ? "v7" : "v8";
+      return `v${facts.userVersion}`;
     }
     throw new RecordsError("STORAGE_INCOMPATIBLE", "database schema version is not supported");
   }
@@ -1027,14 +1065,30 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "parse migration failed", false, { cause: e });
     }
   }
+  #migrateV9(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec("PRAGMA defer_foreign_keys=ON");
+      db.exec(TEXT_SCHEMA);
+      this.#injectFailure("v9:after-schema");
+      if (db.prepare("PRAGMA foreign_key_check").get()) throw Error("broken reference");
+      db.prepare("INSERT INTO schema_migrations VALUES(9,?,?)").run(MIGRATION_V9_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=9; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "text migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || facts.ledger[5]?.version !== 6 || facts.ledger[5].checksum !== MIGRATION_V6_CHECKSUM || version >= 7 && (facts.ledger[6]?.version !== 7 || facts.ledger[6].checksum !== MIGRATION_V7_CHECKSUM) || version === 8 && (facts.ledger[7]?.version !== 8 || facts.ledger[7].checksum !== MIGRATION_V8_CHECKSUM)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM].slice(0, version - 5);
+    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
       reference.exec(JOB_SCHEMA);
       if (version >= 7) reference.exec(ASSET_SCHEMA);
       if (version >= 8) reference.exec(PARSE_SCHEMA);
+      if (version >= 9) reference.exec(TEXT_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -1385,8 +1439,8 @@ var ProbeStorage = class {
       if (session === void 0) return finish({ kind: "session_expired" });
       const current = this.authorizeObject(actor, input.objectId, "edit", now);
       if (current === void 0 || this.authorizeObject(actor, input.objectId, "read", now) === void 0) return finish({ kind: "not_found" });
-      const receipt = db.prepare("SELECT request_digest, result_json FROM ai_tool_mutations WHERE service_id = ? AND user_id = ? AND idempotency_key = ?").get(actor.serviceId, actor.userId, input.key);
-      if (receipt !== void 0) return finish(receipt.request_digest === input.digest ? { kind: "replayed", object: JSON.parse(receipt.result_json) } : { kind: "idempotency_conflict" });
+      const receipt2 = db.prepare("SELECT request_digest, result_json FROM ai_tool_mutations WHERE service_id = ? AND user_id = ? AND idempotency_key = ?").get(actor.serviceId, actor.userId, input.key);
+      if (receipt2 !== void 0) return finish(receipt2.request_digest === input.digest ? { kind: "replayed", object: JSON.parse(receipt2.result_json) } : { kind: "idempotency_conflict" });
       if (current.revision !== input.expectedRevision) return finish({ kind: "conflict" });
       const changed = db.prepare("UPDATE knowledge_objects SET title = ?, body = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ? AND status = 'active'").run(input.title ?? current.title, input.body ?? current.body, now, input.objectId, input.expectedRevision);
       if (Number(changed.changes) !== 1) return finish({ kind: "conflict" });
@@ -1519,6 +1573,7 @@ export {
   MIGRATION_V7_CHECKSUM,
   MIGRATION_V7_SQL,
   MIGRATION_V8_CHECKSUM,
+  MIGRATION_V9_CHECKSUM,
   PROBE_SCHEMA_VERSION,
   PROBE_SUPPORTED_TABLES,
   ProbeStorage,
