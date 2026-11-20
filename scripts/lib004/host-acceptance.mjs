@@ -88,9 +88,12 @@ if (args[0] === '--self-test') {
     if(prev)await page.getByLabel('导入到').selectOption(prev.id)
     await page.getByLabel(word?'Word 文件':'PDF 文件',{exact:true}).setInputFiles(source || {name,mimeType:'application/octet-stream',buffer:files[name]})
     const [rsp]=await Promise.all([page.waitForResponse(r=>r.url()===host.base+prefix+'/imports' && r.request().method()==='POST'),page.getByRole('button',{name:word?'导入 Word':'导入 PDF',exact:true}).click()])
-    const r=await data(rsp,201);assert.equal(r.title,name);assert.equal(r.sha256,sha(files[name]));assert.equal(r.version,(prev?.version??0)+1)
+    assert.equal(rsp.status(),201);const receipt=page.getByRole('region',{name:'导入回执'});const digest=sha(files[name]);await receipt.getByText(digest,{exact:true}).waitFor()
+    const key=rsp.request().headers()['idempotency-key'];assert.match(key,/^[a-f0-9-]{36}$/)
+    // Chrome can evict response bodies. Replay the exact authenticated upload, which must return the existing receipt (200, never 201).
+    const h=rsp.request().headers(),headers=Object.fromEntries(Object.entries(h).filter(([k])=>['content-type','idempotency-key','x-knowledgeos-request','x-knowledgeos-filename','x-knowledgeos-asset-id','x-knowledgeos-expected-version'].includes(k)))
+    const replay=await owner.request.post(host.base+prefix+'/imports',{headers,data:files[name],maxRedirects:0});const r=await data(replay,200);assert.equal(r.title,name);assert.equal(r.sha256,digest);assert.equal(r.version,(prev?.version??0)+1)
     if(prev){assert.equal(r.id,prev.id);assert.notEqual(r.version_id,prev.version_id)}
-    const receipt=page.getByRole('region',{name:'导入回执'});await receipt.getByText(r.sha256,{exact:true}).waitFor()
     assert.equal(await receipt.getByRole('link').count(),word?1:2)
     if(!word)await clickPreview(receipt.getByRole('link',{name:'查看原件'}),vpath(r)+'/original')
     log('import',{name,asset:r.id,version:r.version_id,sha256:r.sha256});return r
@@ -101,7 +104,8 @@ if (args[0] === '--self-test') {
   const choose=r=>page.getByLabel('Word 版本',{exact:true}).selectOption(r.version_id)
   async function convert(r,rev){
     await original(r);await choose(r);const path=office(r)
-    const [start]=await Promise.all([page.waitForResponse(res=>res.url()===host.base+path+'/start'),page.getByRole('button',{name:'开始转换',exact:true}).click()]);const job=await data(start,202)
+    const [start]=await Promise.all([page.waitForResponse(res=>res.url()===host.base+path+'/start'),page.getByRole('button',{name:'开始转换',exact:true}).click()]);assert.equal(start.status(),202)
+    const replay=await owner.request.post(host.base+path+'/start',{headers:{'x-knowledgeos-request':'1','idempotency-key':start.request().headers()['idempotency-key']},maxRedirects:0});const job=await data(replay,200);assert.equal(job.replayed,true)
     const ready=await until(async()=>{const c=(await conversions(owner,r)).find(c=>c.id===job.id);assert(c && ['queued','running','ready'].includes(c.state));return c.state==='ready'&&c},'Office publication',180000)
     assert.equal(ready.page_count,1);assert.deepEqual(ready.notes,[]);const pdf=path+'/'+ready.id+'/pdf'
     await page.getByRole('link',{name:'预览转换 PDF'}).waitFor();await clickPreview(page.locator('#office-preview'),pdf)
