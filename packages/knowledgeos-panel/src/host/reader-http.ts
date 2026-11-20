@@ -19,7 +19,7 @@ export class ReaderService {
     const check=()=>{if(signal.aborted)throw new AssetError(409,'READ_CANCELLED');const r=this.store.source(current(),s)
       if(r.state!==s.state||r.text!==s.text||r.ref?.sha256!==s.ref?.sha256||r.conversion_id!==s.conversion_id)throw new AssetError(409,'CITATION_SOURCE_CHANGED')}
     check();let rendered:Rendered
-    try{rendered=await this.render(bytes,s.ordinal,signal)}catch(e){check();throw e instanceof AssetError?e:new AssetError(503,'PAGE_RENDER_UNAVAILABLE')}
+    try{rendered=await this.render(bytes,s.ordinal,signal)}catch(e){check();if((e as {code?:string})?.code==='PDF_BUSY')throw new AssetError(429,'PAGE_RENDER_BUSY');throw e instanceof AssetError?e:new AssetError(503,'PAGE_RENDER_UNAVAILABLE')}
     check();if(s.kind==='pdf'&&rendered.text!==s.text)throw new AssetError(409,'CITATION_SOURCE_CHANGED')
     return rendered
   }

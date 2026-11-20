@@ -134,14 +134,14 @@ async function readBody(req, limit2) {
       req.resume();
       reject2(error);
     };
-    req.on("data", (chunk) => {
+    req.on("data", (chunk2) => {
       if (settled) return;
-      total += chunk.length;
+      total += chunk2.length;
       if (total > limit2) {
         fail(new ApiError(413, "PAYLOAD_TOO_LARGE", "request body exceeds the limit"));
         return;
       }
-      chunks.push(chunk);
+      chunks.push(chunk2);
     });
     req.on("end", () => {
       if (settled) return;
@@ -2801,15 +2801,15 @@ async function readBody2(req) {
       req.resume();
       reject2(error);
     };
-    req.on("data", (chunk) => {
+    req.on("data", (chunk2) => {
       if (settled) return;
-      total += chunk.length;
+      total += chunk2.length;
       if (total > MAX_REQUEST_BODY_BYTES2) {
         fail(new HttpError(413, "PAYLOAD_TOO_LARGE", "request body exceeds the limit"));
         return;
       }
       ;
-      chunks.push(chunk);
+      chunks.push(chunk2);
     });
     req.on("end", () => {
       if (settled) return;
@@ -3048,12 +3048,12 @@ var safeObject = (object, includeBody = true) => ({ id: object.id, service_id: o
 var readBody3 = async (req) => await new Promise((resolve2, reject2) => {
   const chunks = [];
   let size = 0;
-  req.on("data", (chunk) => {
-    size += chunk.length;
+  req.on("data", (chunk2) => {
+    size += chunk2.length;
     if (size > 16 * 1024) {
       reject2(new ObjectHttpError(413, "PAYLOAD_TOO_LARGE", "request body exceeds the limit"));
       req.resume();
-    } else chunks.push(chunk);
+    } else chunks.push(chunk2);
   });
   req.on("end", () => {
     try {
@@ -3379,19 +3379,19 @@ var AiService = class {
         while (true) {
           const next = await this.#abortable(stream.next(), controller.signal);
           if (next.done) break;
-          const chunk = next.value;
-          outputBytes += Buffer.byteLength(JSON.stringify(chunk), "utf8");
+          const chunk2 = next.value;
+          outputBytes += Buffer.byteLength(JSON.stringify(chunk2), "utf8");
           if (outputBytes > 96e3 || finish !== void 0) throw new AiError(502, "MODEL_OUTPUT_INVALID");
-          if (chunk.type === "block-end" && chunk.block?.type === "tool-call") {
-            const b = chunk.block;
+          if (chunk2.type === "block-end" && chunk2.block?.type === "tool-call") {
+            const b = chunk2.block;
             if (!b.id || !b.name || typeof b.arguments !== "string") throw new AiError(502, "MODEL_OUTPUT_INVALID");
             calls.push({ id: b.id, name: b.name, arguments: b.arguments });
           }
-          if (chunk.type === "usage") usage = chunk.usage;
-          if (chunk.type === "finish") {
-            finish = chunk.reason?.kind;
+          if (chunk2.type === "usage") usage = chunk2.usage;
+          if (chunk2.type === "finish") {
+            finish = chunk2.reason?.kind;
             if (controller.signal.aborted) throw controller.signal.reason;
-            if (finish === "error" || finish === "aborted") throw modelFailure(chunk.reason?.failure);
+            if (finish === "error" || finish === "aborted") throw modelFailure(chunk2.reason?.failure);
           }
         }
       } finally {
@@ -3539,10 +3539,10 @@ function createAiHandler(options) {
       const chunks = [];
       let bytes = 0;
       for await (const raw of req) {
-        const chunk = Buffer.from(raw);
-        bytes += chunk.length;
+        const chunk2 = Buffer.from(raw);
+        bytes += chunk2.length;
         if (bytes > 16384) throw new AiError(413, "PAYLOAD_TOO_LARGE");
-        chunks.push(chunk);
+        chunks.push(chunk2);
       }
       let body;
       try {
@@ -3651,11 +3651,11 @@ async function verifyWordBytes(b, media) {
     let actual = 0, crc = 0;
     try {
       decoder.end(packed);
-      for await (const chunk of decoder) {
-        actual += chunk.length;
-        remaining -= chunk.length;
+      for await (const chunk2 of decoder) {
+        actual += chunk2.length;
+        remaining -= chunk2.length;
         if (actual > m.size || remaining < 0) invalid2();
-        crc = crc32(chunk, crc);
+        crc = crc32(chunk2, crc);
       }
       if (actual !== m.size || crc !== m.crc || decoder.bytesWritten !== m.packed) invalid2();
     } catch {
@@ -4014,10 +4014,10 @@ import { createHash as createHash12 } from "node:crypto";
 var uuid3 = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 var hash = (s) => createHash12("sha256").update(s, "utf8").digest("hex");
 var ReaderService = class {
-  constructor(store, originals, render) {
+  constructor(store, originals, render2) {
     this.store = store;
     this.originals = originals;
-    this.render = render;
+    this.render = render2;
   }
   async rendered(current, s, signal) {
     if (!this.render || !s.ref) throw new AssetError(503, "PAGE_RENDER_UNAVAILABLE");
@@ -4033,6 +4033,7 @@ var ReaderService = class {
       rendered = await this.render(bytes, s.ordinal, signal);
     } catch (e) {
       check();
+      if (e?.code === "PDF_BUSY") throw new AssetError(429, "PAGE_RENDER_BUSY");
       throw e instanceof AssetError ? e : new AssetError(503, "PAGE_RENDER_UNAVAILABLE");
     }
     check();
@@ -4279,12 +4280,12 @@ async function decode(packed, r, signal) {
     try {
       stream.end(packed);
       let written = 0, crc = 0;
-      for await (const chunk of stream) {
+      for await (const chunk2 of stream) {
         active(signal);
-        if (chunk.length > size - written) reject("ZIP_INTEGRITY");
-        chunk.copy(output, written);
-        written += chunk.length;
-        crc = crc322(chunk, crc);
+        if (chunk2.length > size - written) reject("ZIP_INTEGRITY");
+        chunk2.copy(output, written);
+        written += chunk2.length;
+        crc = crc322(chunk2, crc);
       }
       active(signal);
       if (written !== size || stream.bytesWritten !== packed.length || crc !== r.crc) reject("ZIP_INTEGRITY");
@@ -4319,8 +4320,8 @@ async function processInput(req) {
   if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
   let count = 0;
   const parts = [];
-  for await (const chunk of req) {
-    const b = Buffer.from(chunk);
+  for await (const chunk2 of req) {
+    const b = Buffer.from(chunk2);
     count += b.length;
     if (count > 1024) throw new AssetError(413, "BODY_TOO_LARGE");
     parts.push(b);
@@ -4339,8 +4340,8 @@ async function receive(req, emptyCode, limit2) {
   if (declared !== void 0 && (!/^\d+$/.test(declared) || Number(declared) > limit2)) throw new AssetError(413, "FILE_TOO_LARGE");
   const chunks = [];
   let count = 0;
-  for await (const chunk of req) {
-    const b = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+  for await (const chunk2 of req) {
+    const b = Buffer.isBuffer(chunk2) ? chunk2 : Buffer.from(chunk2);
     count += b.length;
     if (count > limit2) throw new AssetError(413, "FILE_TOO_LARGE");
     chunks.push(b);
@@ -4651,8 +4652,363 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
   };
 }
 
+// src/host/pdf-extractor.ts
+import { readFile } from "node:fs/promises";
+import { Worker, parentPort, workerData } from "node:worker_threads";
+
+// src/host/reader-render-page.ts
+import { crc32 as crc323, deflateSync } from "node:zlib";
+function normalizeText(raw) {
+  return raw.toWellFormed().replace(/\r\n?/g, "\n").trim();
+}
+function normalizeBoxes(raw, source, text2) {
+  const boxes = [];
+  const trimStart = raw.length - raw.trimStart().length;
+  let out = 0;
+  for (let i = trimStart; i < raw.length && out < text2.length; ) {
+    const cp = raw.codePointAt(i);
+    const units = cp > 65535 ? 2 : 1;
+    const crlf = cp === 13 && raw.charCodeAt(i + 1) === 10;
+    if (cp !== 13 && cp !== 10) {
+      let rect = source[i];
+      const tail = units === 2 ? source[i + 1] : void 0;
+      if (tail && rect) {
+        const x = Math.min(rect.x, tail.x), y = Math.min(rect.y, tail.y);
+        rect = {
+          x,
+          y,
+          width: Math.max(rect.x + rect.width, tail.x + tail.width) - x,
+          height: Math.max(rect.y + rect.height, tail.y + tail.height) - y
+        };
+      } else rect ??= tail;
+      if (rect) boxes.push({ start: out, end: out + units, ...rect });
+    }
+    i += crlf ? 2 : units;
+    out += units;
+  }
+  return boxes;
+}
+function viewport(api, page) {
+  const w = api.FPDF_GetPageWidthF(page), h = api.FPDF_GetPageHeightF(page);
+  if (![w, h].every((n) => Number.isFinite(n) && n > 0)) throw Error("Invalid PDF page dimensions");
+  const scale = Math.min(2, 1536 / Math.max(w, h));
+  return { width: Math.max(1, Math.round(w * scale)), height: Math.max(1, Math.round(h * scale)) };
+}
+function glyphRect(api, page, tp, index, width, height, ptr) {
+  if (api.FPDFText_IsGenerated(tp, index) !== 0 || !api.FPDFText_GetCharBox(tp, index, ptr, ptr + 8, ptr + 16, ptr + 24)) return;
+  const [left, right, bottom, top] = new Float64Array(api.memory.buffer, ptr, 4);
+  if (![left, right, bottom, top].every(Number.isFinite)) return;
+  const point = (x2, y2) => {
+    if (!api.FPDF_PageToDevice(page, 0, 0, width, height, 0, x2, y2, ptr, ptr + 4)) return;
+    return Array.from(new Int32Array(api.memory.buffer, ptr, 2));
+  };
+  const a = point(left, bottom), b = point(right, top);
+  if (!a || !b) return;
+  const x = Math.max(0, Math.min(a[0], b[0])), y = Math.max(0, Math.min(a[1], b[1]));
+  const w = Math.min(width, Math.max(a[0], b[0])) - x, h = Math.min(height, Math.max(a[1], b[1])) - y;
+  if (w > 0 && h > 0) return { x, y, width: w, height: h };
+}
+function chunk(name2, data) {
+  const buf = Buffer.allocUnsafe(data.length + 12);
+  buf.writeUInt32BE(data.length);
+  buf.write(name2, 4, 4, "ascii");
+  data.copy(buf, 8);
+  buf.writeUInt32BE(crc323(buf.subarray(4, -4)), buf.length - 4);
+  return buf;
+}
+function imagePng(api, page, width, height) {
+  const bitmap = api.FPDFBitmap_Create(width, height, 0);
+  if (!bitmap) throw Error("PDF bitmap unavailable");
+  try {
+    if (!api.FPDFBitmap_FillRect(bitmap, 0, 0, width, height, 4294967295)) throw Error("PDF bitmap unavailable");
+    api.FPDF_RenderPageBitmap(bitmap, page, 0, 0, width, height, 0, 1);
+    const ptr = api.FPDFBitmap_GetBuffer(bitmap), stride = api.FPDFBitmap_GetStride(bitmap);
+    if (!ptr || stride < width * 4) throw Error("Invalid PDF bitmap");
+    const bgr = new Uint8Array(api.memory.buffer, ptr, stride * height);
+    const rows = Buffer.allocUnsafe((1 + 3 * width) * height);
+    let dst = 0;
+    for (let y = 0; y < height; y++) {
+      rows[dst++] = 0;
+      for (let x = 0, src = y * stride; x < width; x++, src += 4) {
+        rows[dst++] = bgr[src + 2];
+        rows[dst++] = bgr[src + 1];
+        rows[dst++] = bgr[src];
+      }
+    }
+    const header = Buffer.alloc(13);
+    header.writeUInt32BE(width);
+    header.writeUInt32BE(height, 4);
+    header[8] = 8;
+    header[9] = 2;
+    const png = Buffer.concat([Buffer.from("89504e470d0a1a0a", "hex"), chunk("IHDR", header), chunk("IDAT", deflateSync(rows, { level: 1 })), chunk("IEND", Buffer.alloc(0))]);
+    return "data:image/png;base64," + png.toString("base64");
+  } finally {
+    api.FPDFBitmap_Destroy(bitmap);
+  }
+}
+
+// src/host/pdf-extractor.ts
+var MiB2 = 1024 * 1024;
+var MAX_BYTES2 = 64 * MiB2;
+var MAX_MEMORY = 256 * MiB2;
+var MAX_PAGES = 1e4;
+var MAX_CHARS = 32e3;
+var MAX_BOOKMARKS = 2048;
+var MAX_TITLE_BYTES = 512;
+var DEADLINE_MS = 15e3;
+var MAX_WORKERS = 2;
+var role = "knowledgeos:pdf-extractor:v1";
+var readerRole = "knowledgeos:pdf-reader:v1";
+var active2 = { extract: 0, reader: 0 };
+function pdfError(code, message) {
+  return Object.assign(new Error(message), { code });
+}
+function openPdf(bytes) {
+  return open(bytes, "extract");
+}
+function openReaderPdf(bytes, signal) {
+  return open(bytes, "reader", signal);
+}
+async function open(bytes, pool, signal) {
+  if (signal?.aborted) throw pdfError("PDF_HANDLE_CLOSED", "PDF closed");
+  if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX_BYTES2)
+    throw pdfError("PDF_OPEN_FAILED", "Invalid PDF input size or type");
+  if (active2[pool] >= MAX_WORKERS) throw pdfError("PDF_BUSY", "PDF extractor busy");
+  const copy = new Uint8Array(bytes);
+  const worker = new Worker(new URL("./pdf-extractor.js", import.meta.url), {
+    workerData: pool === "reader" ? readerRole : role,
+    env: {},
+    execArgv: [],
+    resourceLimits: { maxOldGenerationSizeMb: 48, maxYoungGenerationSizeMb: 8 }
+  });
+  active2[pool]++;
+  let pending;
+  let closing;
+  const close = () => {
+    if (!closing) {
+      signal?.removeEventListener("abort", abort);
+      closing = worker.terminate().then(() => {
+      }).finally(() => {
+        active2[pool]--;
+      });
+      pending?.({ error: "PDF closed", fatal: true });
+    }
+    return closing;
+  };
+  function fail(error) {
+    pending?.({ error, fatal: true });
+    void close();
+  }
+  function abort() {
+    void close();
+  }
+  signal?.addEventListener("abort", abort, { once: true });
+  worker.on("message", (msg) => {
+    pending?.(msg);
+    if ("error" in msg && msg.fatal) void close();
+  });
+  worker.on("error", () => fail("PDF worker failed"));
+  worker.on("exit", () => fail("PDF worker exited"));
+  function request(input) {
+    if (closing) return Promise.reject(pdfError("PDF_HANDLE_CLOSED", "PDF closed"));
+    if (pending) return Promise.reject(pdfError("PDF_BUSY", "PDF extractor busy"));
+    return new Promise((resolve2, reject2) => {
+      const timer = setTimeout(() => fail("PDF parser deadline exceeded"), DEADLINE_MS);
+      pending = (msg) => {
+        clearTimeout(timer);
+        pending = void 0;
+        if ("error" in msg) {
+          const code = input instanceof Uint8Array ? "PDF_OPEN_FAILED" : msg.fatal ? "PDF_HANDLE_CLOSED" : "PDF_PAGE_FAILED";
+          reject2(pdfError(code, msg.error));
+        } else resolve2(msg.value);
+      };
+      try {
+        worker.postMessage(input, input instanceof Uint8Array ? [input.buffer] : []);
+      } catch {
+        fail("PDF worker unavailable");
+      }
+    });
+  }
+  try {
+    const numPages = await request(copy);
+    return { numPages, close, async page(n) {
+      if (!Number.isInteger(n) || n < 1 || n > numPages) throw new RangeError("Invalid PDF page number");
+      return await request(n);
+    }, async renderPage(n) {
+      if (!Number.isInteger(n) || n < 1 || n > numPages) throw new RangeError("Invalid PDF page number");
+      return await request({ render: n });
+    } };
+  } catch (error) {
+    await close();
+    throw error;
+  }
+}
+async function loadEngine() {
+  const binary = await readFile(new URL("./pdfium.wasm", import.meta.url));
+  const module = await WebAssembly.compile(binary);
+  let api;
+  const abort = () => {
+    throw new Error("PDF parser stopped");
+  };
+  const env = {
+    _abort_js: abort,
+    __assert_fail: abort,
+    _emscripten_throw_longjmp: abort,
+    emscripten_date_now: () => 0,
+    _tzset_js: abort,
+    _localtime_js: abort,
+    _gmtime_js: abort,
+    _emscripten_memcpy_js: (to, from, len) => {
+      new Uint8Array(api.memory.buffer).copyWithin(to, from, from + len);
+    },
+    emscripten_resize_heap: (size) => {
+      const old = api.memory.buffer.byteLength;
+      if (size >>> 0 > MAX_MEMORY) throw new Error("PDF parser memory limit");
+      const target = Math.min(MAX_MEMORY, Math.max(size >>> 0, old + 8 * MiB2));
+      api.memory.grow(Math.ceil((target - old) / 65536));
+      return 1;
+    }
+  };
+  for (const { name: name2, module: ns } of WebAssembly.Module.imports(module)) {
+    if (ns === "env" && /^invoke_[vi]+$/.test(name2))
+      env[name2] = (i, ...args) => api.__indirect_function_table.get(i)(...args);
+  }
+  for (const op of ["openat", "fcntl64", "ioctl", "fstat64", "stat64", "newfstatat", "lstat64", "getdents64", "unlinkat", "rmdir", "ftruncate64"])
+    env["__syscall_" + op] = () => -44;
+  const wasi = {};
+  for (const op of ["fd_close", "fd_write", "fd_read", "fd_sync", "fd_seek", "environ_get", "environ_sizes_get"])
+    wasi[op] = () => 76;
+  const instance = await WebAssembly.instantiate(module, { env, wasi_snapshot_preview1: wasi });
+  api = instance.exports;
+  api.emscripten_stack_init();
+  api.__wasm_call_ctors();
+  api.FPDF_InitLibrary();
+  return api;
+}
+function allocate(api, n) {
+  const ptr = api.malloc(n);
+  if (!ptr) throw new Error("PDF parser allocation failed");
+  return ptr;
+}
+function chapters(api, doc, pages) {
+  const titles = /* @__PURE__ */ new Map(), seen = /* @__PURE__ */ new Set();
+  const buf = allocate(api, MAX_TITLE_BYTES);
+  try {
+    for (let bm = api.FPDFBookmark_GetFirstChild(doc, 0); bm; bm = api.FPDFBookmark_GetNextSibling(doc, bm)) {
+      if (seen.has(bm) || seen.size >= MAX_BOOKMARKS) return /* @__PURE__ */ new Map();
+      seen.add(bm);
+      let dest = api.FPDFBookmark_GetDest(doc, bm);
+      if (!dest) {
+        const action2 = api.FPDFBookmark_GetAction(bm);
+        if (action2 && api.FPDFAction_GetType(action2) === 1) dest = api.FPDFAction_GetDest(doc, action2);
+      }
+      if (!dest) continue;
+      const n = api.FPDFDest_GetDestPageIndex(doc, dest) + 1;
+      if (n < 1 || n > pages || titles.has(n)) continue;
+      const len = api.FPDFBookmark_GetTitle(bm, buf, MAX_TITLE_BYTES);
+      if (len < 4 || len > MAX_TITLE_BYTES || len % 2) continue;
+      const title = new TextDecoder("utf-16le").decode(new Uint8Array(api.memory.buffer, buf, len - 2)).replace(/[\p{Cc}\p{Cf}]/gu, " ").trim();
+      if (title) titles.set(n, title);
+    }
+    return titles;
+  } finally {
+    api.free(buf);
+  }
+}
+var PageFailure = class extends Error {
+};
+async function parse2(bytes) {
+  const api = await loadEngine(), ptr = allocate(api, bytes.length);
+  new Uint8Array(api.memory.buffer, ptr, bytes.length).set(bytes);
+  const doc = api.FPDF_LoadMemDocument(ptr, bytes.length, 0);
+  if (!doc) throw new Error("Invalid or password-protected PDF");
+  if (api.FPDF_GetSecurityHandlerRevision(doc) >= 0) throw new Error("Encrypted PDF is not supported");
+  const numPages = api.FPDF_GetPageCount(doc);
+  if (numPages < 1 || numPages > MAX_PAGES) throw new Error("Invalid or excessive PDF page count");
+  const labels = [""];
+  if (workerData !== readerRole) {
+    const titles = chapters(api, doc, numPages);
+    for (let i = 1; i <= numPages; i++) labels.push(titles.get(i) ?? labels[i - 1]);
+  }
+  function page(n, render2 = false) {
+    const p = api.FPDF_LoadPage(doc, n - 1);
+    if (!p) throw new PageFailure("Failed to load PDF page");
+    try {
+      const tp = api.FPDFText_LoadPage(p);
+      if (!tp) throw new PageFailure("Failed to load PDF page text");
+      try {
+        const count = api.FPDFText_CountChars(tp);
+        if (count < 0 || count > MAX_CHARS) throw new PageFailure("Invalid or excessive PDF page text length");
+        const objects = render2 ? 0 : api.FPDFPage_CountObjects(p);
+        let text2 = "", needsReview = objects < 0 || objects > 4096;
+        for (let i = 0; i < objects && !needsReview; i++) {
+          const type = api.FPDFPageObj_GetType(api.FPDFPage_GetObject(p, i));
+          needsReview = type === 0 || type === 3 || type === 5;
+        }
+        const view = render2 ? viewport(api, p) : void 0;
+        const source = [];
+        const scratch = view ? allocate(api, 32) : 0;
+        try {
+          for (let i = 0; i < count; i++) {
+            const ch = api.FPDFText_GetUnicode(tp, i);
+            if (!view && (api.FPDFText_HasUnicodeMapError(tp, i) !== 0 || !ch || ch > 1114111)) needsReview = true;
+            if (view) source[text2.length] = glyphRect(api, p, tp, i, view.width, view.height, scratch);
+            text2 += ch && ch <= 1114111 ? String.fromCodePoint(ch) : "\uFFFD";
+          }
+        } finally {
+          if (scratch) api.free(scratch);
+        }
+        const raw = text2;
+        text2 = normalizeText(raw);
+        if (view) return { text: text2, ...view, boxes: normalizeBoxes(raw, source, text2), image: imagePng(api, p, view.width, view.height) };
+        needsReview ||= !text2 || /[\ufffd\p{Co}\x00-\x08\x0b\x0c\x0e-\x1f]/u.test(text2);
+        return { text: text2, needsReview, chapter: labels[n] };
+      } finally {
+        api.FPDFText_ClosePage(tp);
+      }
+    } finally {
+      api.FPDF_ClosePage(p);
+    }
+  }
+  return { numPages, page };
+}
+if (parentPort && (workerData === role || workerData === readerRole)) {
+  const port = parentPort;
+  let document;
+  port.on("message", async (input) => {
+    try {
+      if (input instanceof Uint8Array) {
+        document = await parse2(input);
+        port.postMessage({ value: document.numPages });
+      } else if (typeof input === "number") port.postMessage({ value: document.page(input) });
+      else port.postMessage({ value: document.page(input.render, true) });
+    } catch (err) {
+      const error = err instanceof Error ? err.message : "PDF parser failed";
+      port.postMessage({ error, fatal: !(err instanceof PageFailure) });
+    }
+  });
+}
+
+// src/host/reader-render.ts
+async function render(bytes, ordinal, signal) {
+  if (!Number.isInteger(ordinal) || ordinal < 1 || ordinal > 1e4) throw new RangeError("Invalid PDF page number");
+  if (signal?.aborted) throw new DOMException("PDF render cancelled", "AbortError");
+  let doc;
+  try {
+    doc = await openReaderPdf(bytes, signal);
+    return await doc.renderPage(ordinal);
+  } catch (err) {
+    if (signal?.aborted) throw new DOMException("PDF render cancelled", "AbortError");
+    if (err instanceof RangeError) throw new RangeError("Invalid PDF page number");
+    const busy = err?.code === "PDF_BUSY";
+    throw Object.assign(new Error(busy ? "PDF renderer busy" : "PDF page unavailable"), { code: busy ? "PDF_BUSY" : "PDF_RENDER_FAILED" });
+  } finally {
+    await doc?.close();
+  }
+}
+
 // src/host/parse-worker.ts
-function startParseWorker(store, originals, open, log) {
+function startParseWorker(store, originals, open2, log) {
   let stopped = false, pending;
   async function tick() {
     const job = store.claim();
@@ -4668,7 +5024,7 @@ function startParseWorker(store, originals, open, log) {
     try {
       const bytes = await originals.read(job.key, job.sha256, job.byteLength);
       if (stopped || !active3 || !store.renew(job.token)) return;
-      doc = await open(bytes);
+      doc = await open2(bytes);
       if (stopped || !active3 || !store.initialize(job.token, doc.numPages)) return;
       let consecutiveFailures = 0;
       while (!stopped && active3) {
@@ -4679,7 +5035,7 @@ function startParseWorker(store, originals, open, log) {
             store.fail(job.token);
             break;
           }
-          doc = await open(bytes);
+          doc = await open2(bytes);
           if (!store.initialize(job.token, doc.numPages)) break;
         }
         let result;
@@ -4825,221 +5181,6 @@ function startOfficeWorker(store, originals, kit, openPdf2, log) {
   };
 }
 
-// src/host/pdf-extractor.ts
-import { readFile } from "node:fs/promises";
-import { Worker, parentPort, workerData } from "node:worker_threads";
-var MiB2 = 1024 * 1024;
-var MAX_BYTES2 = 64 * MiB2;
-var MAX_MEMORY = 256 * MiB2;
-var MAX_PAGES = 1e4;
-var MAX_CHARS = 32e3;
-var MAX_BOOKMARKS = 2048;
-var MAX_TITLE_BYTES = 512;
-var DEADLINE_MS = 15e3;
-var MAX_WORKERS = 2;
-var role = "knowledgeos:pdf-extractor:v1";
-var active2 = 0;
-function pdfError(code, message) {
-  return Object.assign(new Error(message), { code });
-}
-async function openPdf(bytes) {
-  if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX_BYTES2)
-    throw pdfError("PDF_OPEN_FAILED", "Invalid PDF input size or type");
-  if (active2 >= MAX_WORKERS) throw pdfError("PDF_BUSY", "PDF extractor busy");
-  const copy = new Uint8Array(bytes);
-  const worker = new Worker(new URL("./pdf-extractor.js", import.meta.url), {
-    workerData: role,
-    env: {},
-    execArgv: [],
-    resourceLimits: { maxOldGenerationSizeMb: 48, maxYoungGenerationSizeMb: 8 }
-  });
-  active2++;
-  let pending;
-  let closing;
-  const close = () => {
-    if (!closing) {
-      closing = worker.terminate().then(() => {
-      }).finally(() => {
-        active2--;
-      });
-      pending?.({ error: "PDF closed", fatal: true });
-    }
-    return closing;
-  };
-  function fail(error) {
-    pending?.({ error, fatal: true });
-    void close();
-  }
-  worker.on("message", (msg) => {
-    pending?.(msg);
-    if ("error" in msg && msg.fatal) void close();
-  });
-  worker.on("error", () => fail("PDF worker failed"));
-  worker.on("exit", () => fail("PDF worker exited"));
-  function request(input) {
-    if (closing) return Promise.reject(pdfError("PDF_HANDLE_CLOSED", "PDF closed"));
-    if (pending) return Promise.reject(pdfError("PDF_BUSY", "PDF extractor busy"));
-    return new Promise((resolve2, reject2) => {
-      const timer = setTimeout(() => fail("PDF parser deadline exceeded"), DEADLINE_MS);
-      pending = (msg) => {
-        clearTimeout(timer);
-        pending = void 0;
-        if ("error" in msg) {
-          const code = typeof input !== "number" ? "PDF_OPEN_FAILED" : msg.fatal ? "PDF_HANDLE_CLOSED" : "PDF_PAGE_FAILED";
-          reject2(pdfError(code, msg.error));
-        } else resolve2(msg.value);
-      };
-      try {
-        worker.postMessage(input, typeof input === "number" ? [] : [input.buffer]);
-      } catch {
-        fail("PDF worker unavailable");
-      }
-    });
-  }
-  try {
-    const numPages = await request(copy);
-    return { numPages, close, async page(n) {
-      if (!Number.isInteger(n) || n < 1 || n > numPages) throw new RangeError("Invalid PDF page number");
-      return await request(n);
-    } };
-  } catch (error) {
-    await close();
-    throw error;
-  }
-}
-async function loadEngine() {
-  const binary = await readFile(new URL("./pdfium.wasm", import.meta.url));
-  const module = await WebAssembly.compile(binary);
-  let api;
-  const abort = () => {
-    throw new Error("PDF parser stopped");
-  };
-  const env = {
-    _abort_js: abort,
-    __assert_fail: abort,
-    _emscripten_throw_longjmp: abort,
-    emscripten_date_now: () => 0,
-    _tzset_js: abort,
-    _localtime_js: abort,
-    _gmtime_js: abort,
-    _emscripten_memcpy_js: (to, from, len) => {
-      new Uint8Array(api.memory.buffer).copyWithin(to, from, from + len);
-    },
-    emscripten_resize_heap: (size) => {
-      const old = api.memory.buffer.byteLength;
-      if (size >>> 0 > MAX_MEMORY) throw new Error("PDF parser memory limit");
-      const target = Math.min(MAX_MEMORY, Math.max(size >>> 0, old + 8 * MiB2));
-      api.memory.grow(Math.ceil((target - old) / 65536));
-      return 1;
-    }
-  };
-  for (const { name: name2, module: ns } of WebAssembly.Module.imports(module)) {
-    if (ns === "env" && /^invoke_[vi]+$/.test(name2))
-      env[name2] = (i, ...args) => api.__indirect_function_table.get(i)(...args);
-  }
-  for (const op of ["openat", "fcntl64", "ioctl", "fstat64", "stat64", "newfstatat", "lstat64", "getdents64", "unlinkat", "rmdir", "ftruncate64"])
-    env["__syscall_" + op] = () => -44;
-  const wasi = {};
-  for (const op of ["fd_close", "fd_write", "fd_read", "fd_sync", "fd_seek", "environ_get", "environ_sizes_get"])
-    wasi[op] = () => 76;
-  const instance = await WebAssembly.instantiate(module, { env, wasi_snapshot_preview1: wasi });
-  api = instance.exports;
-  api.emscripten_stack_init();
-  api.__wasm_call_ctors();
-  api.FPDF_InitLibrary();
-  return api;
-}
-function allocate(api, n) {
-  const ptr = api.malloc(n);
-  if (!ptr) throw new Error("PDF parser allocation failed");
-  return ptr;
-}
-function chapters(api, doc, pages) {
-  const titles = /* @__PURE__ */ new Map(), seen = /* @__PURE__ */ new Set();
-  const buf = allocate(api, MAX_TITLE_BYTES);
-  try {
-    for (let bm = api.FPDFBookmark_GetFirstChild(doc, 0); bm; bm = api.FPDFBookmark_GetNextSibling(doc, bm)) {
-      if (seen.has(bm) || seen.size >= MAX_BOOKMARKS) return /* @__PURE__ */ new Map();
-      seen.add(bm);
-      let dest = api.FPDFBookmark_GetDest(doc, bm);
-      if (!dest) {
-        const action2 = api.FPDFBookmark_GetAction(bm);
-        if (action2 && api.FPDFAction_GetType(action2) === 1) dest = api.FPDFAction_GetDest(doc, action2);
-      }
-      if (!dest) continue;
-      const n = api.FPDFDest_GetDestPageIndex(doc, dest) + 1;
-      if (n < 1 || n > pages || titles.has(n)) continue;
-      const len = api.FPDFBookmark_GetTitle(bm, buf, MAX_TITLE_BYTES);
-      if (len < 4 || len > MAX_TITLE_BYTES || len % 2) continue;
-      const title = new TextDecoder("utf-16le").decode(new Uint8Array(api.memory.buffer, buf, len - 2)).replace(/[\p{Cc}\p{Cf}]/gu, " ").trim();
-      if (title) titles.set(n, title);
-    }
-    return titles;
-  } finally {
-    api.free(buf);
-  }
-}
-var PageFailure = class extends Error {
-};
-async function parse2(bytes) {
-  const api = await loadEngine(), ptr = allocate(api, bytes.length);
-  new Uint8Array(api.memory.buffer, ptr, bytes.length).set(bytes);
-  const doc = api.FPDF_LoadMemDocument(ptr, bytes.length, 0);
-  if (!doc) throw new Error("Invalid or password-protected PDF");
-  if (api.FPDF_GetSecurityHandlerRevision(doc) >= 0) throw new Error("Encrypted PDF is not supported");
-  const numPages = api.FPDF_GetPageCount(doc);
-  if (numPages < 1 || numPages > MAX_PAGES) throw new Error("Invalid or excessive PDF page count");
-  const titles = chapters(api, doc, numPages);
-  const labels = [""];
-  for (let i = 1; i <= numPages; i++) labels.push(titles.get(i) ?? labels[i - 1]);
-  function page(n) {
-    const p = api.FPDF_LoadPage(doc, n - 1);
-    if (!p) throw new PageFailure("Failed to load PDF page");
-    try {
-      const tp = api.FPDFText_LoadPage(p);
-      if (!tp) throw new PageFailure("Failed to load PDF page text");
-      try {
-        const count = api.FPDFText_CountChars(tp);
-        if (count < 0 || count > MAX_CHARS) throw new PageFailure("Invalid or excessive PDF page text length");
-        const objects = api.FPDFPage_CountObjects(p);
-        let text2 = "", needsReview = objects < 0 || objects > 4096;
-        for (let i = 0; i < objects && !needsReview; i++) {
-          const type = api.FPDFPageObj_GetType(api.FPDFPage_GetObject(p, i));
-          needsReview = type === 0 || type === 3 || type === 5;
-        }
-        for (let i = 0; i < count; i++) {
-          const ch = api.FPDFText_GetUnicode(tp, i);
-          if (api.FPDFText_HasUnicodeMapError(tp, i) !== 0 || !ch || ch > 1114111) needsReview = true;
-          text2 += ch && ch <= 1114111 ? String.fromCodePoint(ch) : "\uFFFD";
-        }
-        text2 = text2.toWellFormed().replace(/\r\n?/g, "\n").trim();
-        needsReview ||= !text2 || /[\ufffd\p{Co}\x00-\x08\x0b\x0c\x0e-\x1f]/u.test(text2);
-        return { text: text2, needsReview, chapter: labels[n] };
-      } finally {
-        api.FPDFText_ClosePage(tp);
-      }
-    } finally {
-      api.FPDF_ClosePage(p);
-    }
-  }
-  return { numPages, page };
-}
-if (parentPort && workerData === role) {
-  const port = parentPort;
-  let document;
-  port.on("message", async (input) => {
-    try {
-      if (typeof input !== "number") {
-        document = await parse2(input);
-        port.postMessage({ value: document.numPages });
-      } else port.postMessage({ value: document.page(input) });
-    } catch (err) {
-      const error = err instanceof Error ? err.message : "PDF parser failed";
-      port.postMessage({ error, fatal: !(err instanceof PageFailure) });
-    }
-  });
-}
-
 // src/host/library-page.ts
 function buildLibraryHtml() {
   return String.raw`<!doctype html>
@@ -5167,11 +5308,13 @@ function record(r){
 const isPdf=r=>r.media_type==='application/pdf', isText=r=>Object.values(textTypes).includes(r.media_type);
 const isWord=r=>Object.values(wordTypes).includes(r.media_type);
 function el(tag,text,cls){const n=document.createElement(tag);if(text!=null)n.textContent=text;if(cls)n.className=cls;return n}
-function entry(r){
+function readLink(r,label,params={}){const a=el('a',label);a.href='/knowledgeos/reader?'+new URLSearchParams({asset:r.id,version:r.version_id,...params});return a}
+function entry(r,withReader=false){
   const node=el('div',null,'entry'), meta=el('dl'), links=el('div',null,'links');
   for(const [label,value] of [['版本','v'+r.version],['大小',r.byte_length+' 字节'],['SHA-256',r.sha256]])
     meta.append(el('dt',label),el('dd',value,label==='SHA-256'?'hash':''));
   const path=api+'assets/'+r.id+'/versions/'+r.version_id+'/original';
+  if(withReader)links.append(readLink(r,'打开阅读'));
   if(isPdf(r)){const view=el('a','查看原件');view.href=path;view.target='_blank';view.rel='noopener';links.append(view)}
   const save=el('a',isPdf(r)?'导出 PDF':'导出原件');save.href=path+'?download=1';save.download='';links.append(save);
   node.append(el('strong',r.title),meta,links);return node;
@@ -5279,6 +5422,7 @@ function drawPages(s){
   s.group=Math.min(last,Math.max(0,s.group));const from=s.group*pageSize, end=Math.min(from+pageSize,pages.length);
   const items=pages.slice(from,end).map(p=>{
     const li=el('li');li.append(el('strong','第 '+p.page+' 页'),el('span',pageStates[p.state]),el('span',p.chapter));
+    if(p.state==='ready'||p.state==='review')li.append(readLink(s.row,'阅读第 '+p.page+' 页',{unit:p.page}));
     if(state==='partial' && (p.state==='failed' || p.state==='review')){
       const retry=el('button','重试第 '+p.page+' 页');retry.type='button';retry.disabled=s.writing;
       retry.onclick=()=>requestProgress(s,'/retry/'+p.page);li.append(retry);
@@ -5323,7 +5467,7 @@ async function requestProgress(s,action=''){
 parseVersion.onchange=()=>{
   clearTimeout(pollTimer);selection=null;resetPanel();const r=rows.find(row=>row.version_id===parseVersion.value);
   if(!r || !isPdf(r) || !ready || busy)return;
-  selection={path:'assets/'+r.id+'/versions/'+r.version_id+'/parse',seq:0,group:0,writing:false,data:null};
+  selection={row:r,path:'assets/'+r.id+'/versions/'+r.version_id+'/parse',seq:0,group:0,writing:false,data:null};
   $('parse-panel').hidden=false;$('parse-summary').textContent='正在读取解析进度…';void requestProgress(selection);
 };
 $('parse-refresh').onclick=()=>{if(selection)void requestProgress(selection)};
@@ -5417,6 +5561,7 @@ function drawAttempts(s){
     if(c.state==='ready'){
       const b=el('button','查看质量记录');b.type='button';b.setAttribute('aria-label','查看质量记录：'+c.id);
       b.onclick=()=>readOfficePage(s,{conversion:c.id});li.append(' ',b);
+      li.append(' ',readLink(s.row,'阅读此转换',{conversion:c.id}));
     }
     return li;
   }));
@@ -5507,7 +5652,7 @@ async function syncOffice(s,action='',note=null){
 officeVersion.onchange=()=>{
   resetOffice();const r=rows.find(row=>row.version_id===officeVersion.value);
   if(!r || !isWord(r) || !ready || busy)return;
-  office={version:r.version_id,path:'assets/'+r.id+'/versions/'+r.version_id+'/office',seq:0,nav:0,writing:false};
+  office={row:r,version:r.version_id,path:'assets/'+r.id+'/versions/'+r.version_id+'/office',seq:0,nav:0,writing:false};
   $('office-panel').hidden=false;$('office-status').textContent='正在读取转换状态…';void syncOffice(office);
 };
 $('office-refresh').onclick=()=>void syncOffice(office);
@@ -5523,7 +5668,7 @@ function renderRows(items,selected){
   const seen=new Set();target.replaceChildren(new Option('新建资料',''));
   for(const r of rows)if(!seen.has(r.id)){seen.add(r.id);target.add(new Option(r.title+' · v'+r.version,r.id))}
   target.value=seen.has(selected)?selected:'';
-  $('list').replaceChildren(...(rows.length?rows.map(entry):[el('p','暂无资料','muted')]));
+  $('list').replaceChildren(...(rows.length?rows.map(r=>entry(r,true)):[el('p','暂无资料','muted')]));
   for(const [select,section,predicate,prompt] of [[parseVersion,'parse',isPdf,'选择资料版本'],[blockVersion,'reader',isText,'选择文本版本'],[officeVersion,'office',isWord,'选择 Word 版本']]){
     const versions=rows.filter(predicate);select.replaceChildren(new Option(prompt,''),...versions.map(r=>new Option(r.title+' · v'+r.version,r.version_id)));
     $(section).hidden=!versions.length;
@@ -5576,6 +5721,185 @@ window.addEventListener('focus',checkSession);document.addEventListener('visibil
 window.addEventListener('pageshow',e=>{if(e.persisted)void load(true)});
 void load();
 })()</script></body></html>`;
+}
+
+// src/host/reader-page.ts
+function buildReaderHtml() {
+  return String.raw`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>版本阅读 · KnowledgeOS</title><style>
+*{box-sizing:border-box}body{margin:0;background:#f7faf9;color:#243936;font:15px/1.6 "Segoe UI","Microsoft YaHei UI",sans-serif}header,main{padding:14px max(16px,calc((100% - 1050px)/2))}header,.tools,.modes,form{display:flex;align-items:center;gap:8px;flex-wrap:wrap}header{background:white;border-bottom:1px solid #cbd9d6;gap:20px}header strong{color:#18565a}a{color:#176166}h1{font-size:24px;margin:8px 0}h2{font-size:17px}button,input{font:inherit;border:1px solid #8ba4a0;border-radius:4px;background:white;padding:4px 10px;color:inherit}button{cursor:pointer}button:disabled{opacity:.55;cursor:default}button[aria-pressed=true],button[aria-current=true]{background:#235e5b;color:white}input{width:6em}.layout{display:grid;grid-template-columns:9em minmax(0,1fr);gap:18px;margin-top:18px}#rail{height:230px;overflow:auto;border-block:1px solid #cbd9d6}#window{position:relative}#window button{position:absolute;left:0;width:100%;height:36px;text-align:left;border:0;border-radius:0}article{min-width:0}#version,#status,pre,#anchor{overflow-wrap:anywhere}#version{color:#536866}#original{position:relative;width:100%;max-width:var(--page-width);line-height:0}#original img{width:100%;height:auto}.highlight{position:absolute;background:#ffc02b66;box-shadow:inset 0 0 0 1px #ad7900;pointer-events:none}pre{font:inherit;line-height:1.8;white-space:pre-wrap;margin:0}mark{background:#ffe491}#status{border-left:3px solid #94b6ac;padding-left:8px}[hidden]{display:none!important}:focus-visible{outline:3px solid #176d92;outline-offset:1px}@media(max-width:620px){.layout{grid-template-columns:minmax(0,1fr)}#rail{height:82px}}
+</style></head><body><header><strong>KnowledgeOS</strong><a href="/knowledgeos/library">资料库</a><a href="/knowledgeos/account">账号与登录</a></header><main>
+<h1 id="title">版本阅读</h1><p id="version"></p><div class="tools"><button id="refresh">刷新</button><form id="jump"><button type="button" id="prev" aria-label="上一位置">←</button><input type="number" min="1" step="1" required id="number" aria-label="跳转位置"><button>跳转</button><button type="button" id="next" aria-label="下一位置">→</button></form><span id="count"></span></div><p id="status" role="status"></p>
+<div class="layout"><nav id="rail" aria-label="页与文本块" hidden><div id="window"></div></nav><article><h2 id="anchor"></h2><div class="modes" id="modes" hidden><button id="paper">原页</button><button id="structured">结构文本</button><button id="cite" disabled>生成引用链接</button><a id="link" hidden>打开引用</a></div><div id="original" hidden></div><pre id="text" hidden></pre></article></div></main><script>
+'use strict';
+const $=id=>document.getElementById(id), q=new URLSearchParams(location.search), asset=q.get('asset'), version=q.get('version'), cid=q.get('citation');
+const requestedUnit=q.get('unit')??'1', requestedConversion=q.get('conversion');
+const uuid=s=>typeof s==='string' && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(s), digest=s=>typeof s==='string' && /^[a-f0-9]{64}$/.test(s);
+const integer=Number.isSafeInteger, ready=d=>d.state==='ready'||d.state==='review';
+const status=s=>{$('status').textContent=s}, invalid=()=>new Error('invalid'), problem=http=>Object.assign(new Error(),{http});
+const sha=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s))),n=>n.toString(16).padStart(2,'0')).join('');
+let gen=0, owner=null, ordinal=1, total=0, conversion=null, page=null, selection=null, pending=null, posting=false, mode=null, resolved=null, versionLabel='';
+async function api(path,options){
+  const r=await fetch('/knowledge/v1/'+path,{credentials:'same-origin',cache:'no-store',redirect:'error',...options});
+  if(!r.ok)throw problem(r.status);return (await r.json()).data;
+}
+async function principal(g){
+  const m=await api('me');if(g!==gen)return false;
+  if(!m||typeof m.id!=='string'||!m.id)throw invalid();
+  if(owner!==null && owner!==m.id){lock('账号已切换，请刷新以重新检查资料权限。');return false}
+  owner=m.id;return true;
+}
+function clearPage(){
+  page=null;selection=null;posting=false;getSelection().removeAllRanges();
+  for(const id of ['text','original','anchor'])$(id).replaceChildren();
+  for(const id of ['text','original','modes','link'])$(id).hidden=true;
+  $('link').removeAttribute('href');$('cite').disabled=true;
+}
+function lock(message){
+  ++gen;owner=null;total=0;conversion=null;resolved=null;pending=null;ordinal=1;versionLabel='';mode=null;clearPage();
+  $('title').textContent='版本阅读';$('version').textContent='';navigation();status(message);
+}
+function failure(e,g){
+  if(g!==gen)return;
+  if(e.http===401)lock('请先登录，然后刷新阅读页。');
+  else if(e.http===403||e.http===404)lock('资料不可访问，请核对账号与当前权限。');
+  else if(e.http===409)lock('引用或来源已变化，与固定版本不匹配。');
+  else lock('读取失败，无法确认来源或账号。请刷新重试。');
+}
+// Only visible ordinal buttons (plus overscan) exist. Only the displayed unit holds source bytes.
+function renderWindow(){
+  const rail=$('rail'), list=$('window');list.style.height=(total*36)+'px';
+  const start=Math.max(1,Math.floor(rail.scrollTop/36)-2), end=Math.min(total,start+Math.ceil(rail.clientHeight/36)+5), nodes=[];
+  for(let n=start;n<=end;n++){
+    const b=document.createElement('button');b.type='button';b.style.top=((n-1)*36)+'px';b.textContent='位置 '+n;b.setAttribute('aria-current',String(n===ordinal));b.onclick=()=>navigate(n);nodes.push(b);
+  }
+  list.replaceChildren(...nodes);
+}
+function navigation(){
+  $('prev').disabled=!total||ordinal<=1;$('next').disabled=!total||ordinal>=total;
+  $('number').value=total?ordinal:'';$('number').max=String(total);for(const el of $('jump').querySelectorAll('input,button:not([type=button])'))el.disabled=!total;
+  $('count').textContent=total?'第 '+ordinal+' / '+total+' 处':'';$('rail').hidden=!total;
+  const rail=$('rail');renderWindow();if(total && ((ordinal-1)*36<rail.scrollTop || ordinal*36>rail.scrollTop+rail.clientHeight)){rail.scrollTop=(ordinal-1)*36;renderWindow()}
+}
+function locator(c,id){
+  if(!c || (id && c.id!==undefined && c.id!==id) || c.asset_id!==asset || c.version_id!==version || !integer(c.ordinal)||c.ordinal<1 || !integer(c.start)||c.start<0||!integer(c.end)||c.end<=c.start||!digest(c.source_hash)||!digest(c.quote_hash)||(c.conversion_id!=null&&!uuid(c.conversion_id)))throw invalid();
+  return c;
+}
+function validRange(s,start,end){
+  const split=i=>i>0 && i<s.length && /[\uD800-\uDBFF]/.test(s[i-1]) && /[\uDC00-\uDFFF]/.test(s[i]);
+  return integer(start)&&integer(end)&&start>=0&&start<end&&end<=s.length&&!split(start)&&!split(end);
+}
+function validate(d,n,cv){
+  if(!d||d.asset_id!==asset||d.version_id!==version||d.ordinal!==n||!integer(d.total)||d.total<0||(d.total?d.total<n:n!==1)||!['text','pdf','office'].includes(d.kind)||typeof d.state!=='string'||typeof d.text!=='string')throw invalid();
+  if(cv && d.conversion_id!==cv || (d.conversion_id!=null && (d.kind!=='office'||!uuid(d.conversion_id))) || (d.kind==='office' && ready(d) && !uuid(d.conversion_id)))throw invalid();
+  if(d.image!=null && (typeof d.image!=='string'||!/^data:image\/png;base64,[A-Za-z\d+/]+=*$/.test(d.image)||!(d.width>0&&Number.isFinite(d.width)&&d.height>0&&Number.isFinite(d.height))))throw invalid();
+  return d;
+}
+async function metadata(){
+  const data=await api('assets');if(!Array.isArray(data?.items))throw invalid();
+  const rows=data.items.filter(r=>r.id===asset), row=rows.find(r=>r.version_id===version);
+  return row && integer(row.version)?(rows.some(r=>r.version>row.version)?'旧版本':'固定版本')+' v'+row.version:'固定版本（无法确认是否最新）';
+}
+async function load(n,{fresh=false,openCitation=false}={}){
+  const g=++gen;clearPage();ordinal=n;navigation();status('正在读取…');
+  try{
+    if(!uuid(asset)||!uuid(version)||(cid!==null&&!uuid(cid))||!/^\d{1,9}$/.test(requestedUnit)||Number(requestedUnit)<1||(requestedConversion!==null&&!uuid(requestedConversion)))throw invalid();
+    if(!await principal(g))return;
+    const label=fresh?await metadata():versionLabel;
+    if(g!==gen)return;
+    const c=openCitation && cid?locator(await api('citations/'+cid+'/resolve'),cid):null;
+    if(g!==gen)return;
+    if(c && ((q.has('unit')&&Number(requestedUnit)!==c.ordinal)||(requestedConversion && requestedConversion!==c.conversion_id)))throw problem(409);
+    const at=c?c.ordinal:n, cv=c?c.conversion_id:(conversion??requestedConversion);
+    const d=validate(await api('assets/'+asset+'/versions/'+version+'/reader?unit='+at+(cv?'&conversion='+cv:'')),at,cv);
+    if(g!==gen)return;
+    if(!digest(d.anchor)||await sha(d.text)!==d.anchor)throw problem(409);
+    if(c && (c.conversion_id??null)!==(d.conversion_id??null))throw invalid();
+    if(c && ready(d) && (!validRange(d.text,c.start,c.end)||await sha(d.text)!==c.source_hash||await sha(d.text.slice(c.start,c.end))!==c.quote_hash))throw problem(409);
+    if(!await principal(g))return;
+    resolved=c;versionLabel=label;ordinal=at;total=d.total;conversion=d.conversion_id??null;page=d;navigation();
+    $('version').textContent=label+' · '+version;$('title').textContent=d.title||'版本阅读';$('anchor').textContent=d.chapter||((d.kind==='text'?'文本块 ':'第 ')+at+(d.kind==='text'?'':' 页'));
+    if(c && ready(d))selection={start:c.start,end:c.end};
+    draw();if(c)document.querySelector('#original .highlight,#text mark')?.scrollIntoView({block:'nearest'});
+  }catch(e){
+    if(g!==gen)return;
+    if(total && !fresh && (e.http===503||e.http===502||e.http===500)){
+      try{if(await principal(g))status('本处加载失败，请刷新重试或选择其他位置。')}catch(err){failure(err,g)}
+    }else failure(e,g);
+  }
+}
+function navigate(n){if(!integer(n)||n<1||n>total)return;void load(n)}
+// A partial glyph/run has no known pixel boundary. Never interpolate a rectangle.
+function exactBoxes(d,s){
+  if(!s||!Array.isArray(d.boxes))return [];
+  const boxes=d.boxes.filter(b=>b && b.end>s.start && b.start<s.end).sort((a,b)=>a.start-b.start);
+  let at=s.start;
+  for(const b of boxes){
+    if(!validRange(d.text,b.start,b.end)||b.start<at||b.end>s.end||d.text.slice(at,b.start).trim()||![b.x,b.y,b.width,b.height].every(Number.isFinite)||b.x<0||b.y<0||b.width<=0||b.height<=0||b.x+b.width>d.width||b.y+b.height>d.height)return [];
+    at=b.end;
+  }
+  return d.text.slice(at,s.end).trim()?[]:boxes;
+}
+function draw(){
+  const d=page;if(!d)return;
+  const showOriginal=!!d.image && mode!=='text', surface=$('original'), text=$('text');
+  const available=ready(d), s=available?selection:null, boxes=exactBoxes(d,s);
+  $('modes').hidden=!d.image&&!available;$('paper').disabled=!d.image;$('structured').disabled=!available;
+  $('paper').setAttribute('aria-pressed',String(showOriginal));$('structured').setAttribute('aria-pressed',String(!showOriginal&&available));
+  surface.hidden=!showOriginal;text.hidden=showOriginal||!available;surface.replaceChildren();text.replaceChildren();
+  if(showOriginal){
+    const img=document.createElement('img');img.alt='第 '+ordinal+' 页原页';img.onerror=()=>{if(page===d && surface.contains(img))status('原页图像加载失败，请刷新重试。')};img.src=d.image;
+    surface.style.setProperty('--page-width',d.width+'px');surface.append(img);
+    for(const b of boxes){const h=document.createElement('span');h.className='highlight';Object.assign(h.style,{left:100*b.x/d.width+'%',top:100*b.y/d.height+'%',width:100*b.width/d.width+'%',height:100*b.height/d.height+'%'});surface.append(h)}
+  }else if(available){
+    if(s){const mark=document.createElement('mark');mark.textContent=d.text.slice(s.start,s.end);text.append(d.text.slice(0,s.start),mark,d.text.slice(s.end))}else text.textContent=d.text;
+  }
+  $('cite').disabled=!available||!s||posting;
+  const states={failed:'本处解析失败。',empty:'此版本没有可阅读的文本块。',unconverted:'此版本尚无已完成的转换。',review:'本页解析结果待复核。'};
+  status(states[d.state] || (!available?'本处尚未就绪。':showOriginal&&s&&!boxes.length?'原页缺少精确选区坐标，请查看结构文本中的高亮。':resolved?'已定位到固定版本引用。':'已打开固定版本。'));
+}
+function capture(){
+  if(!page||!ready(page)||posting||$('text').hidden)return;
+  const sel=getSelection();if(!sel.rangeCount||sel.isCollapsed)return;
+  const r=sel.getRangeAt(0),text=$('text');if(!text.contains(r.startContainer)||!text.contains(r.endContainer)){selection=null;pending=null;$('cite').disabled=true;return}
+  // Measure from the container, not indexOf(quote): repeated passages and split mark nodes are legal.
+  const prefix=r.cloneRange();prefix.selectNodeContents(text);prefix.setEnd(r.startContainer,r.startOffset);
+  const start=prefix.toString().length,end=start+r.toString().length;
+  if(selection?.start!==start||selection?.end!==end){$('link').hidden=true;$('link').removeAttribute('href')}
+  selection=validRange(page.text,start,end)?{start,end}:null;$('cite').disabled=!selection;
+}
+async function createCitation(){
+  if(!page||!selection||posting)return;
+  const g=gen, d=page, {start,end}=selection;posting=true;$('cite').disabled=true;
+  try{
+    const source_hash=await sha(d.text),quote=await sha(d.text.slice(start,end));if(g!==gen)return;
+    const body={asset_id:asset,version_id:version,ordinal:d.ordinal,start,end,source_hash,...(d.conversion_id?{conversion_id:d.conversion_id}:{})};
+    const signature=JSON.stringify([owner,body]);
+    const key=pending?.signature===signature?pending.key:crypto.randomUUID();pending={signature,key};
+    if(!await principal(g))return;
+    const receipt=await api('citations',{method:'POST',headers:{'Content-Type':'application/json','X-KnowledgeOS-Request':'1','Idempotency-Key':key},body:JSON.stringify(body)});
+    if(!await principal(g))return;
+    const c=locator(receipt);if(!uuid(c.id)||c.ordinal!==body.ordinal||c.start!==start||c.end!==end||c.source_hash!==source_hash||c.quote_hash!==quote||(c.conversion_id??null)!==(body.conversion_id??null))throw invalid();
+    const u=new URL('/knowledgeos/reader',location.origin);u.search=new URLSearchParams({asset,version,citation:c.id});
+    $('link').href=u.href;$('link').hidden=false;draw();status('引用链接已生成。');
+  }catch(e){
+    if(g!==gen)return;if([401,403,404,409].includes(e.http)){failure(e,g);return}
+    // A lost response is not proof of a failed write. Preserve the request key for this exact range.
+    status('未收到有效回执，可以重试本次引用。');
+  }finally{if(g===gen){posting=false;$('cite').disabled=!selection}}
+}
+$('paper').onclick=()=>{mode='paper';draw()};$('structured').onclick=()=>{mode='text';draw()};
+$('cite').onpointerdown=e=>e.preventDefault();$('cite').onclick=createCitation;document.addEventListener('selectionchange',capture);
+$('jump').onsubmit=e=>{e.preventDefault();navigate(Number($('number').value))};$('prev').onclick=()=>navigate(ordinal-1);$('next').onclick=()=>navigate(ordinal+1);
+$('rail').onscroll=renderWindow;new ResizeObserver(renderWindow).observe($('rail'));
+function refresh(){void load(total?ordinal:Number(requestedUnit),{fresh:true,openCitation:!!cid && (!page || !!resolved)})}
+$('refresh').onclick=refresh;
+// Recheck source ACL as well as account on return; never restore private pixels from bfcache.
+window.addEventListener('pagehide',()=>lock('阅读页已关闭。'));
+window.addEventListener('pageshow',e=>{if(e.persisted)refresh()});
+window.addEventListener('focus',()=>{if(owner && !document.hidden)refresh()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
+void load(Number(requestedUnit),{fresh:true,openCitation:true});
+</script></body></html>`;
 }
 
 // src/host/index.ts
@@ -5815,7 +6139,7 @@ function apply(ctx, config = {}) {
       disposers.push(identityContext.webServer.register({ kind: "exact", path: ACCOUNT_PATH, auth: "anonymous", handler: accountPage }));
       if (storage && dataDir) {
         const originals = new PdfOriginals(join3(dataDir, "originals"));
-        const reader = new ReaderService(storage.citations, originals);
+        const reader = new ReaderService(storage.citations, originals, render);
         const handler = libraryHandler(storage.assets, originals, actualOrigin, (req) => {
           const origin = actualOrigin();
           if (!origin || !identityAvailable()) return void 0;
@@ -5831,6 +6155,17 @@ function apply(ctx, config = {}) {
           res.setHeader("content-type", "text/html; charset=utf-8");
           res.setHeader("cache-control", "no-store");
           res.end(buildLibraryHtml());
+        } }));
+        disposers.push(identityContext.webServer.register({ kind: "exact", path: "/knowledgeos/reader", auth: "anonymous", handler: (req, res) => {
+          if (req.method !== "GET") {
+            res.statusCode = 405;
+            res.end();
+            return;
+          }
+          res.setHeader("content-type", "text/html; charset=utf-8");
+          res.setHeader("cache-control", "no-store");
+          res.setHeader("referrer-policy", "no-referrer");
+          res.end(buildReaderHtml());
         } }));
         disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/imports", auth: "anonymous", handler: withPeer(handler) }));
         disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/assets", auth: "anonymous", handler: withPeer(handler) }));

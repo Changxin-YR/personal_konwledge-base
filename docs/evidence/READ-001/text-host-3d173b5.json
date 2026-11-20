@@ -1,0 +1,32 @@
+{
+  "candidate_sha": "3d173b5d6216c14b3ea79a5b7a38eafe4bfbed39",
+  "entry_sha256": "9baedefa502809e0b77a281214cbd4987905bb9688ddc79358e6ff459038be80",
+  "runner_sha256": "86c299040919d8f1549a24f5e44e4d66d9195831bbae506a23720699e919ad72",
+  "status": "PASS",
+  "steps": [
+    {
+      "name": "fixed text citation",
+      "version": "00d06b74-a879-4292-8d6d-3ed9b0c9d4b5",
+      "new_version": "c2fc28c1-5822-4a01-bef1-419483d610f2",
+      "source_hash": "8b2def6739d0d38a42e06b0e69feaaaed33dc4133d51046eff20eb622f6e025f",
+      "quote_hash": "b80583371c31ee2a8c2deab7b86764ba8051012e18828e48a4cf6c97262ca17e",
+      "utf16": [
+        5,
+        9
+      ]
+    },
+    {
+      "name": "restart",
+      "pids": [
+        97964,
+        68872
+      ]
+    },
+    {
+      "name": "current project read grant",
+      "before": 200,
+      "revoked": 404,
+      "replayed_after_revocation": 404
+    }
+  ]
+}

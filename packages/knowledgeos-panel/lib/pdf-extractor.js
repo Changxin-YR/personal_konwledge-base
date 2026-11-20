@@ -1,6 +1,99 @@
 // src/host/pdf-extractor.ts
 import { readFile } from "node:fs/promises";
 import { Worker, parentPort, workerData } from "node:worker_threads";
+
+// src/host/reader-render-page.ts
+import { crc32, deflateSync } from "node:zlib";
+function normalizeText(raw) {
+  return raw.toWellFormed().replace(/\r\n?/g, "\n").trim();
+}
+function normalizeBoxes(raw, source, text) {
+  const boxes = [];
+  const trimStart = raw.length - raw.trimStart().length;
+  let out = 0;
+  for (let i = trimStart; i < raw.length && out < text.length; ) {
+    const cp = raw.codePointAt(i);
+    const units = cp > 65535 ? 2 : 1;
+    const crlf = cp === 13 && raw.charCodeAt(i + 1) === 10;
+    if (cp !== 13 && cp !== 10) {
+      let rect = source[i];
+      const tail = units === 2 ? source[i + 1] : void 0;
+      if (tail && rect) {
+        const x = Math.min(rect.x, tail.x), y = Math.min(rect.y, tail.y);
+        rect = {
+          x,
+          y,
+          width: Math.max(rect.x + rect.width, tail.x + tail.width) - x,
+          height: Math.max(rect.y + rect.height, tail.y + tail.height) - y
+        };
+      } else rect ??= tail;
+      if (rect) boxes.push({ start: out, end: out + units, ...rect });
+    }
+    i += crlf ? 2 : units;
+    out += units;
+  }
+  return boxes;
+}
+function viewport(api, page) {
+  const w = api.FPDF_GetPageWidthF(page), h = api.FPDF_GetPageHeightF(page);
+  if (![w, h].every((n) => Number.isFinite(n) && n > 0)) throw Error("Invalid PDF page dimensions");
+  const scale = Math.min(2, 1536 / Math.max(w, h));
+  return { width: Math.max(1, Math.round(w * scale)), height: Math.max(1, Math.round(h * scale)) };
+}
+function glyphRect(api, page, tp, index, width, height, ptr) {
+  if (api.FPDFText_IsGenerated(tp, index) !== 0 || !api.FPDFText_GetCharBox(tp, index, ptr, ptr + 8, ptr + 16, ptr + 24)) return;
+  const [left, right, bottom, top] = new Float64Array(api.memory.buffer, ptr, 4);
+  if (![left, right, bottom, top].every(Number.isFinite)) return;
+  const point = (x2, y2) => {
+    if (!api.FPDF_PageToDevice(page, 0, 0, width, height, 0, x2, y2, ptr, ptr + 4)) return;
+    return Array.from(new Int32Array(api.memory.buffer, ptr, 2));
+  };
+  const a = point(left, bottom), b = point(right, top);
+  if (!a || !b) return;
+  const x = Math.max(0, Math.min(a[0], b[0])), y = Math.max(0, Math.min(a[1], b[1]));
+  const w = Math.min(width, Math.max(a[0], b[0])) - x, h = Math.min(height, Math.max(a[1], b[1])) - y;
+  if (w > 0 && h > 0) return { x, y, width: w, height: h };
+}
+function chunk(name, data) {
+  const buf = Buffer.allocUnsafe(data.length + 12);
+  buf.writeUInt32BE(data.length);
+  buf.write(name, 4, 4, "ascii");
+  data.copy(buf, 8);
+  buf.writeUInt32BE(crc32(buf.subarray(4, -4)), buf.length - 4);
+  return buf;
+}
+function imagePng(api, page, width, height) {
+  const bitmap = api.FPDFBitmap_Create(width, height, 0);
+  if (!bitmap) throw Error("PDF bitmap unavailable");
+  try {
+    if (!api.FPDFBitmap_FillRect(bitmap, 0, 0, width, height, 4294967295)) throw Error("PDF bitmap unavailable");
+    api.FPDF_RenderPageBitmap(bitmap, page, 0, 0, width, height, 0, 1);
+    const ptr = api.FPDFBitmap_GetBuffer(bitmap), stride = api.FPDFBitmap_GetStride(bitmap);
+    if (!ptr || stride < width * 4) throw Error("Invalid PDF bitmap");
+    const bgr = new Uint8Array(api.memory.buffer, ptr, stride * height);
+    const rows = Buffer.allocUnsafe((1 + 3 * width) * height);
+    let dst = 0;
+    for (let y = 0; y < height; y++) {
+      rows[dst++] = 0;
+      for (let x = 0, src = y * stride; x < width; x++, src += 4) {
+        rows[dst++] = bgr[src + 2];
+        rows[dst++] = bgr[src + 1];
+        rows[dst++] = bgr[src];
+      }
+    }
+    const header = Buffer.alloc(13);
+    header.writeUInt32BE(width);
+    header.writeUInt32BE(height, 4);
+    header[8] = 8;
+    header[9] = 2;
+    const png = Buffer.concat([Buffer.from("89504e470d0a1a0a", "hex"), chunk("IHDR", header), chunk("IDAT", deflateSync(rows, { level: 1 })), chunk("IEND", Buffer.alloc(0))]);
+    return "data:image/png;base64," + png.toString("base64");
+  } finally {
+    api.FPDFBitmap_Destroy(bitmap);
+  }
+}
+
+// src/host/pdf-extractor.ts
 var MiB = 1024 * 1024;
 var MAX_BYTES = 64 * MiB;
 var MAX_MEMORY = 256 * MiB;
@@ -11,29 +104,38 @@ var MAX_TITLE_BYTES = 512;
 var DEADLINE_MS = 15e3;
 var MAX_WORKERS = 2;
 var role = "knowledgeos:pdf-extractor:v1";
-var active = 0;
+var readerRole = "knowledgeos:pdf-reader:v1";
+var active = { extract: 0, reader: 0 };
 function pdfError(code, message) {
   return Object.assign(new Error(message), { code });
 }
-async function openPdf(bytes) {
+function openPdf(bytes) {
+  return open(bytes, "extract");
+}
+function openReaderPdf(bytes, signal) {
+  return open(bytes, "reader", signal);
+}
+async function open(bytes, pool, signal) {
+  if (signal?.aborted) throw pdfError("PDF_HANDLE_CLOSED", "PDF closed");
   if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX_BYTES)
     throw pdfError("PDF_OPEN_FAILED", "Invalid PDF input size or type");
-  if (active >= MAX_WORKERS) throw pdfError("PDF_BUSY", "PDF extractor busy");
+  if (active[pool] >= MAX_WORKERS) throw pdfError("PDF_BUSY", "PDF extractor busy");
   const copy = new Uint8Array(bytes);
   const worker = new Worker(new URL("./pdf-extractor.js", import.meta.url), {
-    workerData: role,
+    workerData: pool === "reader" ? readerRole : role,
     env: {},
     execArgv: [],
     resourceLimits: { maxOldGenerationSizeMb: 48, maxYoungGenerationSizeMb: 8 }
   });
-  active++;
+  active[pool]++;
   let pending;
   let closing;
   const close = () => {
     if (!closing) {
+      signal?.removeEventListener("abort", abort);
       closing = worker.terminate().then(() => {
       }).finally(() => {
-        active--;
+        active[pool]--;
       });
       pending?.({ error: "PDF closed", fatal: true });
     }
@@ -43,6 +145,10 @@ async function openPdf(bytes) {
     pending?.({ error, fatal: true });
     void close();
   }
+  function abort() {
+    void close();
+  }
+  signal?.addEventListener("abort", abort, { once: true });
   worker.on("message", (msg) => {
     pending?.(msg);
     if ("error" in msg && msg.fatal) void close();
@@ -58,12 +164,12 @@ async function openPdf(bytes) {
         clearTimeout(timer);
         pending = void 0;
         if ("error" in msg) {
-          const code = typeof input !== "number" ? "PDF_OPEN_FAILED" : msg.fatal ? "PDF_HANDLE_CLOSED" : "PDF_PAGE_FAILED";
+          const code = input instanceof Uint8Array ? "PDF_OPEN_FAILED" : msg.fatal ? "PDF_HANDLE_CLOSED" : "PDF_PAGE_FAILED";
           reject(pdfError(code, msg.error));
         } else resolve(msg.value);
       };
       try {
-        worker.postMessage(input, typeof input === "number" ? [] : [input.buffer]);
+        worker.postMessage(input, input instanceof Uint8Array ? [input.buffer] : []);
       } catch {
         fail("PDF worker unavailable");
       }
@@ -74,6 +180,9 @@ async function openPdf(bytes) {
     return { numPages, close, async page(n) {
       if (!Number.isInteger(n) || n < 1 || n > numPages) throw new RangeError("Invalid PDF page number");
       return await request(n);
+    }, async renderPage(n) {
+      if (!Number.isInteger(n) || n < 1 || n > numPages) throw new RangeError("Invalid PDF page number");
+      return await request({ render: n });
     } };
   } catch (error) {
     await close();
@@ -162,10 +271,12 @@ async function parse(bytes) {
   if (api.FPDF_GetSecurityHandlerRevision(doc) >= 0) throw new Error("Encrypted PDF is not supported");
   const numPages = api.FPDF_GetPageCount(doc);
   if (numPages < 1 || numPages > MAX_PAGES) throw new Error("Invalid or excessive PDF page count");
-  const titles = chapters(api, doc, numPages);
   const labels = [""];
-  for (let i = 1; i <= numPages; i++) labels.push(titles.get(i) ?? labels[i - 1]);
-  function page(n) {
+  if (workerData !== readerRole) {
+    const titles = chapters(api, doc, numPages);
+    for (let i = 1; i <= numPages; i++) labels.push(titles.get(i) ?? labels[i - 1]);
+  }
+  function page(n, render = false) {
     const p = api.FPDF_LoadPage(doc, n - 1);
     if (!p) throw new PageFailure("Failed to load PDF page");
     try {
@@ -174,18 +285,28 @@ async function parse(bytes) {
       try {
         const count = api.FPDFText_CountChars(tp);
         if (count < 0 || count > MAX_CHARS) throw new PageFailure("Invalid or excessive PDF page text length");
-        const objects = api.FPDFPage_CountObjects(p);
+        const objects = render ? 0 : api.FPDFPage_CountObjects(p);
         let text = "", needsReview = objects < 0 || objects > 4096;
         for (let i = 0; i < objects && !needsReview; i++) {
           const type = api.FPDFPageObj_GetType(api.FPDFPage_GetObject(p, i));
           needsReview = type === 0 || type === 3 || type === 5;
         }
-        for (let i = 0; i < count; i++) {
-          const ch = api.FPDFText_GetUnicode(tp, i);
-          if (api.FPDFText_HasUnicodeMapError(tp, i) !== 0 || !ch || ch > 1114111) needsReview = true;
-          text += ch && ch <= 1114111 ? String.fromCodePoint(ch) : "\uFFFD";
+        const view = render ? viewport(api, p) : void 0;
+        const source = [];
+        const scratch = view ? allocate(api, 32) : 0;
+        try {
+          for (let i = 0; i < count; i++) {
+            const ch = api.FPDFText_GetUnicode(tp, i);
+            if (!view && (api.FPDFText_HasUnicodeMapError(tp, i) !== 0 || !ch || ch > 1114111)) needsReview = true;
+            if (view) source[text.length] = glyphRect(api, p, tp, i, view.width, view.height, scratch);
+            text += ch && ch <= 1114111 ? String.fromCodePoint(ch) : "\uFFFD";
+          }
+        } finally {
+          if (scratch) api.free(scratch);
         }
-        text = text.toWellFormed().replace(/\r\n?/g, "\n").trim();
+        const raw = text;
+        text = normalizeText(raw);
+        if (view) return { text, ...view, boxes: normalizeBoxes(raw, source, text), image: imagePng(api, p, view.width, view.height) };
         needsReview ||= !text || /[\ufffd\p{Co}\x00-\x08\x0b\x0c\x0e-\x1f]/u.test(text);
         return { text, needsReview, chapter: labels[n] };
       } finally {
@@ -197,15 +318,16 @@ async function parse(bytes) {
   }
   return { numPages, page };
 }
-if (parentPort && workerData === role) {
+if (parentPort && (workerData === role || workerData === readerRole)) {
   const port = parentPort;
   let document;
   port.on("message", async (input) => {
     try {
-      if (typeof input !== "number") {
+      if (input instanceof Uint8Array) {
         document = await parse(input);
         port.postMessage({ value: document.numPages });
-      } else port.postMessage({ value: document.page(input) });
+      } else if (typeof input === "number") port.postMessage({ value: document.page(input) });
+      else port.postMessage({ value: document.page(input.render, true) });
     } catch (err) {
       const error = err instanceof Error ? err.message : "PDF parser failed";
       port.postMessage({ error, fatal: !(err instanceof PageFailure) });
@@ -213,5 +335,6 @@ if (parentPort && workerData === role) {
   });
 }
 export {
-  openPdf
+  openPdf,
+  openReaderPdf
 };
