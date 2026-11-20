@@ -1609,8 +1609,11 @@
       ],
       "final_acceptance_ids": [],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "planned",
-      "test_plan_status": "planning_baseline_expand_on_activation"
+      "status": "in_progress",
+      "test_plan_status": "detailed_active_unit",
+      "base_commit": "5ee23801afd70276e8e18e4b132b9bf54adf67ce",
+      "test_result_status": "NOT_RUN",
+      "independent_review_status": "NOT_RUN"
     },
     {
       "id": "READ-002",
