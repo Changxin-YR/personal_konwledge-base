@@ -200,7 +200,7 @@ M0 按 FND 单元逐步完成真实 DSH 挂载、身份链及真实调用；FND-
 
 ### A05｜导入格式和压缩包边界
 
-- 需求：F05；验证层级：`integration`；状态：`NOT_RUN`。
+- 需求：F05；验证层级：`integration`；状态：`PASS`（[主验收](../evidence/LIB-005/A05.json)、[独立复核](../evidence/LIB-005/independent.json)）。
 - 前置：PDF、docx、Markdown、UTF-8文本、含多文件ZIP与损坏/路径异常样本。
 - 操作：逐种导入；在ZIP选择部分内容；尝试越界路径与超限内容。
 - 预期：支持范围内内容可处理；只导入所选文件；失败具体且可恢复；异常包不覆盖工作目录或其他用户文件。

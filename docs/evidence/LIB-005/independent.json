@@ -1,0 +1,67 @@
+{
+  "unit_id": "LIB-005",
+  "candidate_sha": "4675aa7ed8ad1ac2501cdd2a63de769707ceaf5f",
+  "entry_sha256": "463c464bc06ee56ced7291482403ca6b5e7fcadb509672e9b823169511d90b46",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/lib005/host-acceptance.mjs --run 4675aa7ed8ad1ac2501cdd2a63de769707ceaf5f 463c464bc06ee56ced7291482403ca6b5e7fcadb509672e9b823169511d90b46",
+  "commands": [
+    "node scripts/lib005/host-browser.mjs 4675aa7ed8ad1ac2501cdd2a63de769707ceaf5f 463c464bc06ee56ced7291482403ca6b5e7fcadb509672e9b823169511d90b46",
+    "node scripts/lib005/host-acceptance.mjs --run 4675aa7ed8ad1ac2501cdd2a63de769707ceaf5f 463c464bc06ee56ced7291482403ca6b5e7fcadb509672e9b823169511d90b46",
+    "node --experimental-transform-types --test scripts/lib005/*.test.mjs",
+    "node <evidence>/t02-independent.mjs <candidate-worktree> <private-output-directory>"
+  ],
+  "results": [
+    {
+      "id": "LIB-005-T01",
+      "status": "PASS"
+    },
+    {
+      "id": "LIB-005-T02",
+      "status": "PASS"
+    }
+  ],
+  "A05": "PASS",
+  "original_report_hashes": [
+    {
+      "file": "independent-browser.json",
+      "sha256": "b0a0a922f061a4da95f2d480fb4c2e35280be1d68260b03a197477adf56b8d1b"
+    },
+    {
+      "file": "independent-host.json",
+      "sha256": "cad19a1daead9597d60fb9520d581b5c2ba23a2478d3078737d49c4bc9d634e9"
+    },
+    {
+      "file": "local regression.log",
+      "sha256": "371be964aced33ab63a9bf602166f9b8fd3798ec7cadfa3b9af3708c9c3685cf"
+    },
+    {
+      "file": "t02-independent.mjs",
+      "sha256": "c9b18feb4e40c0fc7ff6894a853fe0b54d28f0a17f8e5572bb484eb49ab84405"
+    },
+    {
+      "file": "t02-run.json",
+      "sha256": "c7f56076e17b057d52f3ed9817a0b7ecc04cff03d627e2c23000ef1f789a0848"
+    }
+  ],
+  "host_observations": [
+    {
+      "pid": 101672,
+      "flat_uuid_named_files": 3
+    },
+    {
+      "pid": 104744,
+      "flat_uuid_named_files": 9
+    }
+  ],
+  "assessment": {
+    "T01": "PASS",
+    "T02": "PASS (HTTP path/count; reader metadata size, nesting and no filesystem unpack)",
+    "A05": "PASS (independent combined evidence, not a field written by host-acceptance)",
+    "regression": "19 passed; 0 failed; 0 skipped",
+    "limits": [
+      "Reader cancellation tested; HTTP selection does not propagate disconnect as an abort signal.",
+      "Per-archive expansion budget is not an account-wide staged-archive storage quota. No exhaustion or large-expansion test performed."
+    ]
+  }
+}

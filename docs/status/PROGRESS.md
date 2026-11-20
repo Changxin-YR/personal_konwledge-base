@@ -1,5 +1,7 @@
 # 实际进度
 
+2026-11-20：LIB-005 与完整场景 [A05](../evidence/LIB-005/A05.json) 在 `4675aa7` 通过主运行与[独立复核](../evidence/LIB-005/independent.json)。真实 Host、Chrome、SQLite 验证选择导入、原件回读、隔离及重试。F05 还依赖 P02，不标为 verified。下个依赖就绪单元是 READ-001。
+
 2026-11-20：LIB-004 与完整场景 [A08](../evidence/LIB-004/A08.json) 在 `9196b1495ec040f6a00ec818c915424a0c1971ae` 通过主运行和[独立复核](../evidence/LIB-004/independent.json)。两组真实 Host 测试与 41 项专项测试均通过。原件、转换 PDF 和逐页反馈在原 Session 释放和 Host 重启后均可读；失败、取消、换版不会覆盖已有结果。F08 已验证，F05 尚待 ZIP 等验收，不把参考版式与转换版式视为完全相同。下一单元 LIB-005。
 
 2026-11-20：LIB-004 进行中，起点 `58cea367`；`7cbed4c3cc1cd9ead3cc3361fca6e57c03ac4ad7` 为中间检查点，不是验收候选。v10/v11 迁移、授权 Word 原件、转换任务与租约、版本绑定 PDF、逐页反馈和 Word 界面已合入。42 项相关回归通过，含真实 SQLite 回滚和晚到回调、HTTP 权限与 Chrome 合成 API 界面测试。原生 Office 引擎已在隔离 DSH Host 单独验证；此提交还没有把引擎 worker 接入产品。恢复时先核对工作分支，整合 worker，构建并冻结候选，再执行真实 Host T02 竞态、T01/A08 Session 释放及独立复验；这三项仍为 NOT_RUN。测试预期见 [LIB-004 验收计划](../../scripts/lib004/acceptance-plan.md)。

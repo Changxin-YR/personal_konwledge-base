@@ -10,7 +10,7 @@
     "sha256": "da73b65a0004bfa875d1435a61a555ba6f02d45c280aeb8ed6d2e62ab4bd39d8"
   },
   "active_unit": "LIB-005",
-  "unit_state": "in_progress",
+  "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Implement an owner-scoped ZIP manifest, selective child publication and recoverable per-entry receipts.",
+  "state_reason": "LIB-005 candidate passed independent selection, archive bounds, authorization and restart checks.",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,22 +127,22 @@
     }
   },
   "checkpoint": {
-    "unit_id": "LIB-004",
-    "base_commit": "58cea367c81f6782f574f97d2579840a3e84ed94",
-    "candidate_sha": "9196b1495ec040f6a00ec818c915424a0c1971ae",
+    "unit_id": "LIB-005",
+    "base_commit": "f4d3421f507654c6c82f6994f5dbd4012263685e",
+    "candidate_sha": "4675aa7ed8ad1ac2501cdd2a63de769707ceaf5f",
     "completed": [
-      "Versioned Word originals, native DSH Office conversion, authorized durable results and paginated quality review."
+      "Private archive preview and version-bound idempotent publication of the selected members."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
       "independent": "PASS",
       "T01": "PASS",
       "T02": "PASS",
-      "A08": "PASS"
+      "A05": "PASS"
     },
-    "evidence": "docs/evidence/LIB-004/acceptance.json",
+    "evidence": "docs/evidence/LIB-005/acceptance.json",
     "defects": [],
-    "next_task": "LIB-005",
+    "next_task": "READ-001",
     "blocked_dependencies": []
   }
 }

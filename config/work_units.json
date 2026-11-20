@@ -1532,11 +1532,41 @@
         "A05"
       ],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "in_progress",
+      "status": "passed",
       "test_plan_status": "detailed_active_unit",
       "base_commit": "f4d3421f507654c6c82f6994f5dbd4012263685e",
-      "test_result_status": "NOT_RUN",
-      "independent_review_status": "NOT_RUN"
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "candidate_commit": "4675aa7ed8ad1ac2501cdd2a63de769707ceaf5f",
+      "completed_at": "2026-11-20T04:58:10.587Z",
+      "completed_test_ids": [
+        "LIB-005-T01",
+        "LIB-005-T02"
+      ],
+      "retest_status": "PASS",
+      "open_review_items": [],
+      "closed_review_items": [
+        "ZIP_EXPANDED_LIMIT",
+        "ZIP_PRIVATE_ORIGINALS",
+        "ZIP_RESTART",
+        "ZIP_UI_ERRORS"
+      ],
+      "acceptance_record": "docs/evidence/LIB-005/acceptance.json",
+      "evidence_paths": [
+        "docs/evidence/LIB-005/A05.json",
+        "docs/evidence/LIB-005/acceptance.json",
+        "docs/evidence/LIB-005/browser-run.json",
+        "docs/evidence/LIB-005/host-run.json",
+        "docs/evidence/LIB-005/independent-browser.json",
+        "docs/evidence/LIB-005/independent-host.json",
+        "docs/evidence/LIB-005/independent.json",
+        "docs/evidence/LIB-005/preview.png",
+        "docs/evidence/LIB-005/resumed-mobile.png",
+        "docs/evidence/LIB-005/run-history.md",
+        "docs/evidence/LIB-005/selected.png",
+        "docs/evidence/LIB-005/t02-independent.mjs",
+        "docs/evidence/LIB-005/t02-run.json"
+      ]
     },
     {
       "id": "READ-001",

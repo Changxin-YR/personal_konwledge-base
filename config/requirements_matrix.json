@@ -88,7 +88,8 @@
       "evidence_paths": [
         "docs/evidence/LIB-001/acceptance.json",
         "docs/evidence/LIB-003/acceptance.json",
-        "docs/evidence/LIB-004/acceptance.json"
+        "docs/evidence/LIB-004/acceptance.json",
+        "docs/evidence/LIB-005/acceptance.json"
       ]
     },
     {
@@ -930,8 +931,12 @@
       "expected": "支持范围内内容可处理；只导入所选文件；失败具体且可恢复；异常包不覆盖工作目录或其他用户文件。",
       "level": "integration",
       "evidence_required": "样本清单与哈希、导入结果、失败原因",
-      "status": "NOT_RUN",
-      "final_milestone": "M1"
+      "status": "PASS",
+      "final_milestone": "M1",
+      "evidence_paths": [
+        "docs/evidence/LIB-005/A05.json",
+        "docs/evidence/LIB-005/independent.json"
+      ]
     },
     {
       "id": "A06",

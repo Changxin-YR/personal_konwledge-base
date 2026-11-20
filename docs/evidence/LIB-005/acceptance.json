@@ -1,0 +1,18 @@
+{
+  "unit_id": "LIB-005",
+  "candidate_sha": "4675aa7ed8ad1ac2501cdd2a63de769707ceaf5f",
+  "entry_sha256": "463c464bc06ee56ced7291482403ca6b5e7fcadb509672e9b823169511d90b46",
+  "unit_acceptance": "PASS",
+  "exit": 0,
+  "command": "node scripts/lib005/host-acceptance.mjs --run 4675aa7ed8ad1ac2501cdd2a63de769707ceaf5f 463c464bc06ee56ced7291482403ca6b5e7fcadb509672e9b823169511d90b46",
+  "browser_command": "node scripts/lib005/host-browser.mjs 4675aa7ed8ad1ac2501cdd2a63de769707ceaf5f 463c464bc06ee56ced7291482403ca6b5e7fcadb509672e9b823169511d90b46",
+  "passed_test_ids": [
+    "LIB-005-T01",
+    "LIB-005-T02"
+  ],
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/LIB-005/independent.json",
+  "final_case": "docs/evidence/LIB-005/A05.json",
+  "suite_passed": 42,
+  "independent_suite_passed": 19
+}

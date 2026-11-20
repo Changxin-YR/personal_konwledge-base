@@ -1,0 +1,101 @@
+{
+  "status": "PASS",
+  "node": "v24.22.0",
+  "candidate": "4675aa7ed8ad1ac2501cdd2a63de769707ceaf5f",
+  "entry_sha256": "463c464bc06ee56ced7291482403ca6b5e7fcadb509672e9b823169511d90b46",
+  "script_sha256": "c9b18feb4e40c0fc7ff6894a853fe0b54d28f0a17f8e5572bb484eb49ab84405",
+  "reader_sha256": "2ff7d7723254dd73f7d03663ddb48cea5a0a3b8a9795e122d7d9c438269b065a",
+  "child_fs_write_permission": false,
+  "cases": [
+    {
+      "label": "member at limit",
+      "declared": [
+        67108864
+      ],
+      "total": 67108864,
+      "input_bytes": 116,
+      "packed_payload_bytes": 0,
+      "sha256": "59578b22ef6ac439b2c4fc1f414263b81c8404392fdd47fd99cda67b68843b0f",
+      "observed": "metadata admitted"
+    },
+    {
+      "label": "member over limit",
+      "declared": [
+        67108865
+      ],
+      "total": 67108865,
+      "input_bytes": 116,
+      "packed_payload_bytes": 0,
+      "sha256": "ed5557af831e6b04775c9cfed33be7a925c1367137dddcb31e3a99101a7c1d2e",
+      "observed": "ZIP_LIMIT_EXCEEDED"
+    },
+    {
+      "label": "aggregate at limit",
+      "declared": [
+        67108864,
+        67108864
+      ],
+      "total": 134217728,
+      "input_bytes": 210,
+      "packed_payload_bytes": 0,
+      "sha256": "30c37b82d49c6303aaab8a6a8099d23e2745cbee1b5b63858c03229b46275ec2",
+      "observed": "metadata admitted"
+    },
+    {
+      "label": "aggregate over limit",
+      "declared": [
+        67108864,
+        67108864,
+        1
+      ],
+      "total": 134217729,
+      "input_bytes": 304,
+      "packed_payload_bytes": 0,
+      "sha256": "358ce1326b374ff5f2b495e0c7a4bf2f2e77811e823af0f10f80a7c1e7f7fe0d",
+      "observed": "ZIP_LIMIT_EXCEEDED"
+    },
+    {
+      "label": "ordinary nested empty ZIP",
+      "inner_bytes": 22,
+      "input_bytes": 152,
+      "sha256": "c6e1f3ef1c46cae168c7949fbad910f5623bcd3cb4e2317b610c13db9339a891",
+      "observed": "ZIP_NESTED_ARCHIVE"
+    },
+    {
+      "label": "normal selection after rejection without filesystem writes",
+      "path": "folder/note.txt",
+      "sha256": "20a48413f0bc0139d5436f0d69db281541e3e41eb9a3cb7e4fddb9d8a4a41f1f",
+      "observed": "manifest, preflight and byte comparison passed"
+    }
+  ],
+  "workdir_before": [
+    [
+      "folder",
+      [
+        [
+          "note.txt",
+          "045fb44cee04078207fa90c147ef82b3dc5c406113a527b52c2b3828fbaefed8"
+        ]
+      ]
+    ]
+  ],
+  "workdir_after": [
+    [
+      "folder",
+      [
+        [
+          "note.txt",
+          "045fb44cee04078207fa90c147ef82b3dc5c406113a527b52c2b3828fbaefed8"
+        ]
+      ]
+    ]
+  ],
+  "actual_child_args": [
+    "--permission",
+    "--allow-fs-read=*",
+    "--experimental-transform-types",
+    "<local>/t02-independent.mjs",
+    "<local>/wt",
+    "--child"
+  ]
+}

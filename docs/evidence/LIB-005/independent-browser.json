@@ -1,0 +1,41 @@
+{
+  "candidate": "4675aa7ed8ad1ac2501cdd2a63de769707ceaf5f",
+  "entry_sha256": "463c464bc06ee56ced7291482403ca6b5e7fcadb509672e9b823169511d90b46",
+  "helpers": {
+    "scripts/lib005/host-browser.mjs": "996c33fee59d3081b30d3f1c547c99604bec5eea85aeea50064d885c21e15b74",
+    "scripts/lib004/acceptance-samples.mjs": "8d2fda1bcd1ba58be163dfe2793106d89cb81f7f4c37bebf53d20e31e7c12cb5"
+  },
+  "status": "PASS",
+  "screenshots": [
+    {
+      "file": "preview.png",
+      "sha256": "30c251c0b4097e2a691fd8f69204e9b303479c1338998eb2d8eb5b1f92baab12"
+    },
+    {
+      "file": "selected.png",
+      "sha256": "e1affa87af15548460b48f6ceb00b114a131828c4c9f9bd99303155d4c0c1e43"
+    },
+    {
+      "file": "resumed-mobile.png",
+      "sha256": "1b157870a665d6d8d4b53826471b798a3e3d8b29e7ec2684e13553d26aab3b17"
+    }
+  ],
+  "host_pid": 101672,
+  "chrome": "158.0.8127.36",
+  "manifest": {
+    "sha256": "c5f24c9c37780d662ea8c25cb53067c880e491d50caa25de0988fc3fd73e0232",
+    "entries": 4,
+    "published": [
+      {
+        "title": "review.pdf",
+        "sha256": "42c626e56de19748ea353c72a35b0ff63dd670eeaa9d4cda24e572fc673ee503",
+        "version_id": "1614a625-e0b5-4ffb-9328-7a56d31bb43c"
+      },
+      {
+        "title": "notes.md",
+        "sha256": "d921dfdae421296ac4f4a61d26c6c4547553aef5f2752929b5f3eae4a0352bc2",
+        "version_id": "15c5b408-87b4-462d-853b-a1ca5409df2a"
+      }
+    ]
+  }
+}
