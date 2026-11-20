@@ -33,11 +33,13 @@ import {OFFICE_SCHEMA,OFFICE_AUTH_SCHEMA,OFFICE_HISTORY_SCHEMA} from './office-s
 import {OfficeStore} from './office-store.ts'
 import {ZIP_SCHEMA} from './zip-schema.ts'
 import {CITATION_SCHEMA,CitationStore} from './citation-store.ts'
+import {CITATION_LOCATOR_SCHEMA} from './citation-locator-schema.ts'
 
 /** Fixed application identity written to PRAGMA application_id (KOS1). */
 export const APPLICATION_ID = 0x4b4f5331
 /** Current application schema version. */
-export const SCHEMA_VERSION = 14
+export const SCHEMA_VERSION = 15
+export const MIGRATION_V15_CHECKSUM = createHash('sha256').update(CITATION_LOCATOR_SCHEMA).digest('hex')
 export const MIGRATION_V13_CHECKSUM = createHash('sha256').update(ZIP_SCHEMA).digest('hex')
 export const MIGRATION_V14_CHECKSUM = createHash('sha256').update(CITATION_SCHEMA).digest('hex')
 export const MIGRATION_V12_CHECKSUM = createHash('sha256').update(OFFICE_HISTORY_SCHEMA).digest('hex')
@@ -252,6 +254,7 @@ export interface ProbeStorageOptions {
     | 'v12:after-schema'
     | 'v13:after-schema'
     | 'v14:after-schema'
+    | 'v15:after-schema'
 }
 
 export interface DatabaseFacts {
@@ -449,7 +452,8 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       if (priorVersion<12) this.#migrateV12(db)
       if (priorVersion<13) this.#migrateV13(db)
       if (priorVersion<14) this.#migrateV14(db)
-      this.#verify(db,14)
+      if (priorVersion<15) this.#migrateV15(db)
+      this.#verify(db,SCHEMA_VERSION)
       const facts = readDatabaseFacts(path)
       const pragmas = this.#readPragmas(db)
       this.#db = db
@@ -463,7 +467,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     }
   }
 
-  #precheck(path: string): 'blank' | 'v1' | 'v2' | 'v3' | 'v4' | 'v5' | 'v6' | 'v7' | 'v8' | 'v9' | 'v10' | 'v11' | 'v12' | 'v13' | 'v14' {
+  #precheck(path: string): 'blank' | 'v1' | 'v2' | 'v3' | 'v4' | 'v5' | 'v6' | 'v7' | 'v8' | 'v9' | 'v10' | 'v11' | 'v12' | 'v13' | 'v14' | 'v15' {
     const facts = readDatabaseFacts(path)
     if (facts.applicationId === 0 && facts.userVersion === 0 && facts.objects.length === 0) return 'blank'
     if (facts.applicationId !== APPLICATION_ID) throw new RecordsError('STORAGE_INCOMPATIBLE', 'database belongs to another application')
@@ -496,7 +500,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       try { this.#assertV2Definitions(db); this.#assertV4Definitions(db); this.#assertV5Definitions(db) } finally { db.close() }
       return 'v5'
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15) {
       const db = new DatabaseSync(path, { readOnly: true })
       try { this.#verify(db,facts.userVersion) } finally { db.close() }
       return `v${facts.userVersion}`
@@ -802,9 +806,19 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     }catch(e){if(!this.#rollback(db))throw this.#failure;throw new RecordsError('STORAGE_INCOMPATIBLE','citation migration failed',false,{cause:e})}
   }
 
-  #verify(db: DatabaseSync, version:6|7|8|9|10|11|12|13|14): void {
+  #migrateV15(db:DatabaseSync):void {
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      db.exec(CITATION_LOCATOR_SCHEMA)
+      this.#injectFailure('v15:after-schema')
+      db.prepare('INSERT INTO schema_migrations VALUES(15,?,?)').run(MIGRATION_V15_CHECKSUM,new Date().toISOString())
+      db.exec('PRAGMA user_version=15; COMMIT')
+    }catch(e){if(!this.#rollback(db))throw this.#failure;throw new RecordsError('STORAGE_INCOMPATIBLE','citation locator migration failed',false,{cause:e})}
+  }
+
+  #verify(db: DatabaseSync, version:6|7|8|9|10|11|12|13|14|15): void {
     const facts = readDatabaseFacts(this.databasePath)
-    const checks=[MIGRATION_V6_CHECKSUM,MIGRATION_V7_CHECKSUM,MIGRATION_V8_CHECKSUM,MIGRATION_V9_CHECKSUM,MIGRATION_V10_CHECKSUM,MIGRATION_V11_CHECKSUM,MIGRATION_V12_CHECKSUM,MIGRATION_V13_CHECKSUM,MIGRATION_V14_CHECKSUM].slice(0,version-5)
+    const checks=[MIGRATION_V6_CHECKSUM,MIGRATION_V7_CHECKSUM,MIGRATION_V8_CHECKSUM,MIGRATION_V9_CHECKSUM,MIGRATION_V10_CHECKSUM,MIGRATION_V11_CHECKSUM,MIGRATION_V12_CHECKSUM,MIGRATION_V13_CHECKSUM,MIGRATION_V14_CHECKSUM,MIGRATION_V15_CHECKSUM].slice(0,version-5)
     if(facts.applicationId!==APPLICATION_ID || facts.userVersion!==version || facts.ledger.length!==version || checks.some((hash,i)=>facts.ledger[i+5]?.version!==i+6||facts.ledger[i+5]?.checksum!==hash))throw new RecordsError('STORAGE_INCOMPATIBLE','database ownership/version verification failed')
     const reference = new DatabaseSync(':memory:')
     try {
@@ -817,6 +831,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       if(version>=12)reference.exec(OFFICE_HISTORY_SCHEMA)
       if(version>=13)reference.exec(ZIP_SCHEMA)
       if(version>=14)reference.exec(CITATION_SCHEMA)
+      if(version>=15)reference.exec(CITATION_LOCATOR_SCHEMA)
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all()
       for (const {name,sql} of definitions) {
         if (db.prepare('SELECT sql FROM sqlite_master WHERE name=?').get(name!)?.sql!==sql) throw new RecordsError('STORAGE_INCOMPATIBLE','jobs schema definition mismatch')

@@ -25,7 +25,7 @@ test('upgrade populated v13; failure preserves ZIP members, published text, iden
     const before=snapshot(),broken=new lib.ProbeStorage({dataDir:dir,failureAt:'v14:after-schema'});assert.equal(broken.available,false);broken.close()
     assert.deepEqual(snapshot(),before);assert.equal(db.prepare('PRAGMA user_version').get().user_version,13);assert.equal(db.prepare("SELECT count(*) n FROM sqlite_master WHERE name='citations'").get().n,0)
     for(let i=0;i<2;i++){const next=new lib.ProbeStorage({dataDir:dir});try{
-      assert(next.available,next.failure?.message);const after=snapshot();assert.equal(after.schema_migrations.pop().version,14);assert.deepEqual(after,before);assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[])
+      assert(next.available,next.failure?.message);const after=snapshot();assert.deepEqual(after.schema_migrations.splice(before.schema_migrations.length).map(m=>m.version),[14,15]);assert.deepEqual(after,before);assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[])
       assert.deepEqual(next.archives.manifest(actor,id),manifest);assert.equal(next.citations.source(actor,{asset_id:r.id,version_id:r.version_id,ordinal:1}).text,'Chapter one')
     }finally{next.close()}}
   }finally{db.close()}
