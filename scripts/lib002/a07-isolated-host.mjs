@@ -14,12 +14,15 @@ export async function until(fn,label,ms=15000){
   throw Error('timeout: '+label)
 }
 const git=(...args)=>execFileSync('git',['--no-optional-locks',...args],{cwd:root})
-export async function isolate(commit,entryHash){
+export async function isolate(commit,entryHash,{officeBarrier=false}={}){
   const bound=binding(commit,resolve(process.env.KO_TEST_CACHE??join(root,'.cache')))
   assert.equal(bound.facts.entry_sha256,entryHash)
   const scopes=['scripts/lib002','scripts/fnd003','scripts/fnd004']
   assert.equal(git('status','--porcelain','--untracked-files=all','--',...scopes).toString().trim(),'')
   const helpers={}
+  if(officeBarrier){
+    const path='scripts/lib004/office-barrier-preload.mjs';helpers['office-barrier']=sha(readFileSync(join(root,path)));assert.equal(helpers['office-barrier'],sha(git('show',commit+':'+path)))
+  }
   for(const name of ['host-acceptance','a07-known-pdf','a07-extractor-preload','a07-isolated-host']){
     const path=`scripts/lib002/${name}.mjs`;helpers[name]=sha(readFileSync(join(root,path)))
     assert.equal(helpers[name],sha(git('show',commit+':'+path)))
@@ -48,7 +51,9 @@ export async function isolate(commit,entryHash){
     const env={};for(const [k,v] of Object.entries(process.env))if(/^(systemroot|windir|comspec|path|pathext|programfiles.*|processor_.*|number_of_processors)$/i.test(k))env[k]=v
     for(const k of ['HOME','USERPROFILE','LOCALAPPDATA','APPDATA','TEMP','TMP']){env[k]=join(dir,'env-'+k);mkdirSync(env[k],{recursive:true})}
     Object.assign(env,{DSH_HOME:home,DSH_CLIENT_COMMIT_HASH:bound.facts.upstream,TSX_DISABLE_CACHE:'1',KO_ENTRY:stagedEntry,KO_HASH:entryHash,KO_RUN:trace})
-    const child=spawn(process.execPath,['--import',new URL('../fnd005/candidate-live-trace.mjs',import.meta.url).href,'--import',new URL('a07-extractor-preload.mjs',import.meta.url).href,'--import','tsx/esm','apps/cli/src/bin.ts','--profile',profile,'--host','127.0.0.1','--port',String(port),'--no-open'],{cwd:bound.runtime,env,stdio:['ignore','pipe','pipe'],windowsHide:true})
+    if(officeBarrier)env.KO_OFFICE_ORIGINALS=join(data,'originals')
+    const extra=officeBarrier?['--import',new URL('../lib004/office-barrier-preload.mjs',import.meta.url).href]:[]
+    const child=spawn(process.execPath,['--import',new URL('../fnd005/candidate-live-trace.mjs',import.meta.url).href,'--import',new URL('a07-extractor-preload.mjs',import.meta.url).href,...extra,'--import','tsx/esm','apps/cli/src/bin.ts','--profile',profile,'--host','127.0.0.1','--port',String(port),'--no-open'],{cwd:bound.runtime,env,stdio:['ignore','pipe','pipe'],windowsHide:true})
     let ended=false,tail='';const done=new Promise(ok=>{child.once('close',(code,signal)=>{ended=true;ok({code,signal})});child.once('error',()=>{ended=true;ok({spawnError:true})})});host={child,done}
     for(const s of [child.stdout,child.stderr])s.on('data',chunk=>{tail=(tail+chunk).slice(-32000)})
     const entry=await until(()=>{assert(!ended,'Host exited before readiness');return existsSync(join(trace,'loaded.json'))&&/dsh web:\s*(http:\/\/[^\s]+)\s/.exec(tail)?.[1]},'bound Host boot',90000)
@@ -61,6 +66,7 @@ export async function isolate(commit,entryHash){
     if(child.exitCode===null&&!child.signalCode)assert(child.kill(hard?'SIGKILL':'SIGTERM'))
     let timer;try{const exit=await Promise.race([done,new Promise((_,no)=>{timer=setTimeout(()=>no(Error('Host did not exit')),15000)})]);host=undefined;return {pid:child.pid,hard,...exit}}finally{clearTimeout(timer)}
   }
-  return {base,port,data,start,stop,events,release:()=>writeFileSync(join(trace,'release3'),'',{flag:'wx'}),
+  const officeFlag=name=>{assert(officeBarrier&&['hold-cancel','release-cancel','hold-stale','release-stale','fail-result'].includes(name));writeFileSync(join(trace,name),'',{flag:'wx'})}
+  return {base,port,data,start,stop,events,officeFlag,release:()=>writeFileSync(join(trace,'release3'),'',{flag:'wx'}),
     facts:{...bound.facts,helpers,parser},playwright:bound.playwright}
 }
