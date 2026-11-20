@@ -1,5 +1,7 @@
 # 实际进度
 
+2026-11-20：LIB-003 在 `0e9f37e` 通过 [T01、T02](../evidence/LIB-003/acceptance.json) 和[独立复核](../evidence/LIB-003/independent.json)。两次隔离运行均验证编码错误不发布、原件字节、版本定位、权限拒绝和重启回读；12 项专项测试通过。旧候选测试器失败已保留。F05、F07 仍在实现，A05 未作整体验收。下一单元 LIB-004。
+
 2026-11-19：LIB-002 和完整场景 [A07](../evidence/LIB-002/A07.json) 在 `971f6bd14f6d12e4ab508091180b4eba0473a7e7` 上通过主运行与[独立复核](../evidence/LIB-002/independent.json)。真实 DSH 与 Chrome 在第 3 页处理中断，租约过期后从第 3 页接管；单页故障持久化，解除后只重试第 4 页，保留其余页状态。17 项配套回归分别通过，另外两个场景 P02/A06 没有运行；F06/F07/F42 不作整体通过声明。下一单元 LIB-003。
 
 2026-11-19：LIB-001 在 `5d9dc58866d518c496677b3e85ba60c217323291` 通过 T01～T06。主运行和独立复核分别实测 Host、Chrome 与 SQLite，并各通过 24 项配套测试。详见[单元验收](../evidence/LIB-001/acceptance.json)和[独立复核](../evidence/LIB-001/independent.json)。A05、A45 不变。下一单元 LIB-002。FND-005 仍缺隔离 Host 上的授权 DeepSeek 路由，本轮实际推理为零。CHECK-004 未运行。

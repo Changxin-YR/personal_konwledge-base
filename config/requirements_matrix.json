@@ -86,7 +86,8 @@
       ],
       "implementation_status": "in_progress",
       "evidence_paths": [
-        "docs/evidence/LIB-001/acceptance.json"
+        "docs/evidence/LIB-001/acceptance.json",
+        "docs/evidence/LIB-003/acceptance.json"
       ]
     },
     {
@@ -118,7 +119,8 @@
       "implementation_status": "in_progress",
       "evidence_paths": [
         "docs/evidence/LIB-001/acceptance.json",
-        "docs/evidence/LIB-002/acceptance.json"
+        "docs/evidence/LIB-002/acceptance.json",
+        "docs/evidence/LIB-003/acceptance.json"
       ]
     },
     {

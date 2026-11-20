@@ -1,0 +1,22 @@
+{
+  "unit_id": "LIB-003",
+  "candidate_sha": "0e9f37e9966950c6c5645abafff772654c547bd7",
+  "entry_sha256": "59c8991fe6e990b2bb5473e7fbbb2ac07726aaeffd58c8a074b809b70b956452",
+  "unit_acceptance": "PASS",
+  "exit": 0,
+  "command": "node scripts/lib003/host-acceptance.mjs 0e9f37e9966950c6c5645abafff772654c547bd7 59c8991fe6e990b2bb5473e7fbbb2ac07726aaeffd58c8a074b809b70b956452",
+  "suite_command": "node --test scripts/lib003/text-document.test.mjs scripts/lib003/text-store.test.mjs scripts/lib003/library-text-ui.test.mjs",
+  "suite_passed": 12,
+  "passed_test_ids": ["LIB-003-T01", "LIB-003-T02"],
+  "final_acceptance_ids": [],
+  "host_record": "docs/evidence/LIB-003/host-run.json",
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/LIB-003/independent.json",
+  "previous_candidate": {
+    "sha": "8d26f31c1115d7991bf3852d6d7c8cff0450e104",
+    "exit": 1,
+    "scope": {"T01": "FAIL", "T02": "NOT_RUN"},
+    "cause": "Browser returned 422 but runner stalled reading the rejected POST body via DevTools. Independently reproduced.",
+    "repair": "Check the browser status and visible error, then verify the error code and non-publication using an authenticated HTTP peer. Product entry unchanged."
+  }
+}

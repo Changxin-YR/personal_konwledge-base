@@ -1,0 +1,344 @@
+{
+  "candidate": "0e9f37e9966950c6c5645abafff772654c547bd7",
+  "entry_sha256": "59c8991fe6e990b2bb5473e7fbbb2ac07726aaeffd58c8a074b809b70b956452",
+  "node": "v24.22.0",
+  "status": "PASS",
+  "scope": {
+    "T01": "PASS",
+    "T02": "PASS"
+  },
+  "events": [
+    {
+      "event": "step",
+      "at": "2026-11-20T01:35:35.312Z",
+      "name": "boot and create fresh accounts"
+    },
+    {
+      "event": "loaded-host",
+      "at": "2026-11-20T01:35:43.407Z",
+      "pid": 90188,
+      "entry_sha256": "59c8991fe6e990b2bb5473e7fbbb2ac07726aaeffd58c8a074b809b70b956452"
+    },
+    {
+      "event": "chrome",
+      "at": "2026-11-20T01:35:45.471Z",
+      "version": "158.0.8127.36"
+    },
+    {
+      "event": "step",
+      "at": "2026-11-20T01:35:46.815Z",
+      "test": "T01",
+      "name": "Markdown, UTF-16 BOM and explicit GB18030"
+    },
+    {
+      "event": "chrome-import",
+      "at": "2026-11-20T01:35:46.928Z",
+      "receipt": {
+        "id": "44952285-f2f5-4d17-9c81-903223290ed6",
+        "title": "合成笔记.md",
+        "version_id": "34fe1ac1-d4e1-4b60-8d27-b55264116741",
+        "version": 1,
+        "sha256": "302b7c741d7aad9b34d81bf0ae40d884c607f305bb4290f6227cf0767526c7fd",
+        "byte_length": 19321,
+        "media_type": "text/markdown"
+      }
+    },
+    {
+      "event": "version-read",
+      "at": "2026-11-20T01:35:46.953Z",
+      "version_id": "34fe1ac1-d4e1-4b60-8d27-b55264116741",
+      "raw_sha256": "302b7c741d7aad9b34d81bf0ae40d884c607f305bb4290f6227cf0767526c7fd",
+      "text_sha256": "77b13d02ff0ee0afd8589934efd81beeec3fbe8ddea2f7c06743db0c25f36c33",
+      "encoding": "utf-8",
+      "blocks": 8,
+      "offsets_and_anchors_sha256": "59ad0352beb5a59dec673bc5a934153d5c4dae523f61cd469e8f76f8113cdf03"
+    },
+    {
+      "event": "chrome-import",
+      "at": "2026-11-20T01:35:47.037Z",
+      "receipt": {
+        "id": "133dc785-154a-4b8d-866c-18adb4ebe0e6",
+        "title": "合成文本.txt",
+        "version_id": "5af8db6f-8778-47d2-a9dd-707cbc63f0bc",
+        "version": 1,
+        "sha256": "5b23d5077ded4ba9f8f87bfac5bf7e969e252ce592ffec33bff32093f8baab03",
+        "byte_length": 64,
+        "media_type": "text/plain"
+      }
+    },
+    {
+      "event": "version-read",
+      "at": "2026-11-20T01:35:47.054Z",
+      "version_id": "5af8db6f-8778-47d2-a9dd-707cbc63f0bc",
+      "raw_sha256": "5b23d5077ded4ba9f8f87bfac5bf7e969e252ce592ffec33bff32093f8baab03",
+      "text_sha256": "abd916b010594c4c10d906202e15c6d460bbe05050711115133546952f250e57",
+      "encoding": "utf-16le",
+      "blocks": 1,
+      "offsets_and_anchors_sha256": "b9ace9141c045c78c06074b8f1412fec838c6b56e983183affd34904a1c77659"
+    },
+    {
+      "event": "chrome-import",
+      "at": "2026-11-20T01:35:47.142Z",
+      "receipt": {
+        "id": "6cd15a70-4751-401b-81ad-acc258f9a1d7",
+        "title": "旧编码.txt",
+        "version_id": "f3fe64e7-2f89-4f21-84d0-48f633b5837d",
+        "version": 1,
+        "sha256": "35156addcf1652302041f679f850a7fcc534f345828edd2849b662fe17a74b6e",
+        "byte_length": 12,
+        "media_type": "text/plain"
+      }
+    },
+    {
+      "event": "version-read",
+      "at": "2026-11-20T01:35:47.159Z",
+      "version_id": "f3fe64e7-2f89-4f21-84d0-48f633b5837d",
+      "raw_sha256": "35156addcf1652302041f679f850a7fcc534f345828edd2849b662fe17a74b6e",
+      "text_sha256": "2ace6d078cbe2b66995c9d5395b08fe899ca2fd8a3640b9ab9e54c8ee32595b5",
+      "encoding": "gb18030",
+      "blocks": 1,
+      "offsets_and_anchors_sha256": "ae49c756412f1327c1f781d8e70756451464e5423319f728a191d84d8edb5d8b"
+    },
+    {
+      "event": "screenshot",
+      "at": "2026-11-20T01:35:47.304Z",
+      "file": "v1-reader.png",
+      "sha256": "87e379110eaab51741380ca019f6721a1f6ea873c20ab9965ecbb9e29cb70d96"
+    },
+    {
+      "event": "step",
+      "at": "2026-11-20T01:35:47.400Z",
+      "test": "T01",
+      "name": "invalid encoding cannot publish a new asset or a version"
+    },
+    {
+      "event": "screenshot",
+      "at": "2026-11-20T01:35:47.518Z",
+      "file": "bad-encoding-new.png",
+      "sha256": "ef1cb15a94ead7295e6fa28b11af4d01282a60534afd1af0b4ecd5bd616947fb"
+    },
+    {
+      "event": "rejected",
+      "at": "2026-11-20T01:35:47.518Z",
+      "code": "TEXT_INVALID_ENCODING",
+      "sha256": "eddf68639913a3cb8331cdfe7f87559e0beccf2c289c0d90ac4d89b3204004f8"
+    },
+    {
+      "event": "screenshot",
+      "at": "2026-11-20T01:35:47.640Z",
+      "file": "bad-encoding-append.png",
+      "sha256": "ef1cb15a94ead7295e6fa28b11af4d01282a60534afd1af0b4ecd5bd616947fb"
+    },
+    {
+      "event": "rejected",
+      "at": "2026-11-20T01:35:47.641Z",
+      "code": "TEXT_INVALID_ENCODING",
+      "sha256": "eddf68639913a3cb8331cdfe7f87559e0beccf2c289c0d90ac4d89b3204004f8"
+    },
+    {
+      "event": "version-read",
+      "at": "2026-11-20T01:35:47.671Z",
+      "version_id": "34fe1ac1-d4e1-4b60-8d27-b55264116741",
+      "raw_sha256": "302b7c741d7aad9b34d81bf0ae40d884c607f305bb4290f6227cf0767526c7fd",
+      "text_sha256": "77b13d02ff0ee0afd8589934efd81beeec3fbe8ddea2f7c06743db0c25f36c33",
+      "encoding": "utf-8",
+      "blocks": 8,
+      "offsets_and_anchors_sha256": "59ad0352beb5a59dec673bc5a934153d5c4dae523f61cd469e8f76f8113cdf03"
+    },
+    {
+      "event": "step",
+      "at": "2026-11-20T01:35:47.672Z",
+      "test": "T02",
+      "name": "append same filename and replay both requests"
+    },
+    {
+      "event": "chrome-import",
+      "at": "2026-11-20T01:35:47.785Z",
+      "receipt": {
+        "id": "44952285-f2f5-4d17-9c81-903223290ed6",
+        "title": "合成笔记.md",
+        "version_id": "a49ce661-7c99-4e57-aa91-f870a994a9dc",
+        "version": 2,
+        "sha256": "f074c351987b69d4e5ff508d5dab29afaa3e083b39918068115807f9c13f67b3",
+        "byte_length": 19321,
+        "media_type": "text/markdown"
+      }
+    },
+    {
+      "event": "version-read",
+      "at": "2026-11-20T01:35:47.810Z",
+      "version_id": "a49ce661-7c99-4e57-aa91-f870a994a9dc",
+      "raw_sha256": "f074c351987b69d4e5ff508d5dab29afaa3e083b39918068115807f9c13f67b3",
+      "text_sha256": "e2cb41a75f70e0dd353e54abd34a2cd82e34bc1bff51c99f721a8a1a9f3ab733",
+      "encoding": "utf-8",
+      "blocks": 8,
+      "offsets_and_anchors_sha256": "a980088446283fd88e4e475ed5ee53951c706d28b81773c30b3f259bb0b76c39"
+    },
+    {
+      "event": "version-read",
+      "at": "2026-11-20T01:35:47.832Z",
+      "version_id": "34fe1ac1-d4e1-4b60-8d27-b55264116741",
+      "raw_sha256": "302b7c741d7aad9b34d81bf0ae40d884c607f305bb4290f6227cf0767526c7fd",
+      "text_sha256": "77b13d02ff0ee0afd8589934efd81beeec3fbe8ddea2f7c06743db0c25f36c33",
+      "encoding": "utf-8",
+      "blocks": 8,
+      "offsets_and_anchors_sha256": "59ad0352beb5a59dec673bc5a934153d5c4dae523f61cd469e8f76f8113cdf03"
+    },
+    {
+      "event": "chrome-import",
+      "at": "2026-11-20T01:35:47.929Z",
+      "receipt": {
+        "id": "133dc785-154a-4b8d-866c-18adb4ebe0e6",
+        "title": "合成文本.txt",
+        "version_id": "f439b937-7e79-4db8-bd18-0dd655e14966",
+        "version": 2,
+        "sha256": "5b23d5077ded4ba9f8f87bfac5bf7e969e252ce592ffec33bff32093f8baab03",
+        "byte_length": 64,
+        "media_type": "text/plain"
+      }
+    },
+    {
+      "event": "version-read",
+      "at": "2026-11-20T01:35:47.944Z",
+      "version_id": "f439b937-7e79-4db8-bd18-0dd655e14966",
+      "raw_sha256": "5b23d5077ded4ba9f8f87bfac5bf7e969e252ce592ffec33bff32093f8baab03",
+      "text_sha256": "abd916b010594c4c10d906202e15c6d460bbe05050711115133546952f250e57",
+      "encoding": "utf-16le",
+      "blocks": 1,
+      "offsets_and_anchors_sha256": "b9ace9141c045c78c06074b8f1412fec838c6b56e983183affd34904a1c77659"
+    },
+    {
+      "event": "replay-and-conflicts",
+      "at": "2026-11-20T01:35:48.014Z",
+      "replay_http": 200,
+      "changed_bytes_http": 409,
+      "stale_version_http": 409,
+      "versions": 6
+    },
+    {
+      "event": "step",
+      "at": "2026-11-20T01:35:48.014Z",
+      "test": "T02",
+      "name": "cross-user and anonymous reads and appends"
+    },
+    {
+      "event": "access-denied",
+      "at": "2026-11-20T01:35:48.121Z",
+      "actor": "other-user",
+      "status": 404,
+      "version_reads": 15,
+      "append_denied": true
+    },
+    {
+      "event": "access-denied",
+      "at": "2026-11-20T01:35:48.146Z",
+      "actor": "anonymous",
+      "status": 401,
+      "version_reads": 15,
+      "append_denied": true
+    },
+    {
+      "event": "step",
+      "at": "2026-11-20T01:35:48.148Z",
+      "test": "T02",
+      "name": "restart and reopen old and current versions"
+    },
+    {
+      "event": "reloaded-host",
+      "at": "2026-11-20T01:35:55.552Z",
+      "pid": 91600,
+      "entry_sha256": "59c8991fe6e990b2bb5473e7fbbb2ac07726aaeffd58c8a074b809b70b956452"
+    },
+    {
+      "event": "version-read",
+      "at": "2026-11-20T01:35:56.345Z",
+      "version_id": "34fe1ac1-d4e1-4b60-8d27-b55264116741",
+      "raw_sha256": "302b7c741d7aad9b34d81bf0ae40d884c607f305bb4290f6227cf0767526c7fd",
+      "text_sha256": "77b13d02ff0ee0afd8589934efd81beeec3fbe8ddea2f7c06743db0c25f36c33",
+      "encoding": "utf-8",
+      "blocks": 8,
+      "offsets_and_anchors_sha256": "59ad0352beb5a59dec673bc5a934153d5c4dae523f61cd469e8f76f8113cdf03"
+    },
+    {
+      "event": "version-read",
+      "at": "2026-11-20T01:35:56.358Z",
+      "version_id": "5af8db6f-8778-47d2-a9dd-707cbc63f0bc",
+      "raw_sha256": "5b23d5077ded4ba9f8f87bfac5bf7e969e252ce592ffec33bff32093f8baab03",
+      "text_sha256": "abd916b010594c4c10d906202e15c6d460bbe05050711115133546952f250e57",
+      "encoding": "utf-16le",
+      "blocks": 1,
+      "offsets_and_anchors_sha256": "b9ace9141c045c78c06074b8f1412fec838c6b56e983183affd34904a1c77659"
+    },
+    {
+      "event": "version-read",
+      "at": "2026-11-20T01:35:56.371Z",
+      "version_id": "f3fe64e7-2f89-4f21-84d0-48f633b5837d",
+      "raw_sha256": "35156addcf1652302041f679f850a7fcc534f345828edd2849b662fe17a74b6e",
+      "text_sha256": "2ace6d078cbe2b66995c9d5395b08fe899ca2fd8a3640b9ab9e54c8ee32595b5",
+      "encoding": "gb18030",
+      "blocks": 1,
+      "offsets_and_anchors_sha256": "ae49c756412f1327c1f781d8e70756451464e5423319f728a191d84d8edb5d8b"
+    },
+    {
+      "event": "version-read",
+      "at": "2026-11-20T01:35:56.389Z",
+      "version_id": "a49ce661-7c99-4e57-aa91-f870a994a9dc",
+      "raw_sha256": "f074c351987b69d4e5ff508d5dab29afaa3e083b39918068115807f9c13f67b3",
+      "text_sha256": "e2cb41a75f70e0dd353e54abd34a2cd82e34bc1bff51c99f721a8a1a9f3ab733",
+      "encoding": "utf-8",
+      "blocks": 8,
+      "offsets_and_anchors_sha256": "a980088446283fd88e4e475ed5ee53951c706d28b81773c30b3f259bb0b76c39"
+    },
+    {
+      "event": "version-read",
+      "at": "2026-11-20T01:35:56.403Z",
+      "version_id": "f439b937-7e79-4db8-bd18-0dd655e14966",
+      "raw_sha256": "5b23d5077ded4ba9f8f87bfac5bf7e969e252ce592ffec33bff32093f8baab03",
+      "text_sha256": "abd916b010594c4c10d906202e15c6d460bbe05050711115133546952f250e57",
+      "encoding": "utf-16le",
+      "blocks": 1,
+      "offsets_and_anchors_sha256": "b9ace9141c045c78c06074b8f1412fec838c6b56e983183affd34904a1c77659"
+    },
+    {
+      "event": "screenshot",
+      "at": "2026-11-20T01:35:56.527Z",
+      "file": "old-version-after-restart.png",
+      "sha256": "87e379110eaab51741380ca019f6721a1f6ea873c20ab9965ecbb9e29cb70d96"
+    },
+    {
+      "event": "screenshot",
+      "at": "2026-11-20T01:35:56.740Z",
+      "file": "new-version-after-restart.png",
+      "sha256": "7c2ad6555731b218db93b6eda3ed9b8495984fb2a9895ac2ccfbf2fec326893e"
+    }
+  ],
+  "helpers": {
+    "scripts/lib003/host-acceptance.mjs": "9b58164aeaa249d73a7ce15e7c72aeed4c8a70f21b9392418186057169398d5d",
+    "scripts/lib003/acceptance-samples.mjs": "c94e2595916f7f179b0deed6c49218175eabdd2c838af1ad2417056a4f1c8fb3",
+    "scripts/lib002/a07-isolated-host.mjs": "f515f06b7c4727c7592d872b76c1e15f180a4bced419fa87de5b6b7bda9351db",
+    "scripts/lib002/a07-extractor-preload.mjs": "ea21c1a9fff1fcbf3e744a8bec236198f7fe38d2dff727030742cdf26b0ea686",
+    "scripts/lib002/a07-known-pdf.mjs": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+    "scripts/fnd003/harness.mjs": "19dec0129d2ad31cbfe15050c78b351632daf3291a47b5de88ec8efdf909dbd6",
+    "scripts/fnd004/harness.mjs": "856136698eb2db4457e63e96477dd9df2da4e22f22283de064cc85a3d5f0557d",
+    "scripts/fnd005/candidate-live-binding.mjs": "701d8619ee1b80ab0d90ac6831fdf4e9f341207d02d0cbd4bae8cefe57bf291d",
+    "scripts/fnd005/candidate-live-guards.mjs": "fa246f0058d61ff23af3bba1da33a8b8b578f3ea121e4953d1f8be7faf5e2ad9",
+    "scripts/fnd005/candidate-live-trace.mjs": "b4a49fa20f056e8d0969b409fee51b56caac35a803636029b072ee576c8b6de1"
+  },
+  "binding": {
+    "candidate_sha": "0e9f37e9966950c6c5645abafff772654c547bd7",
+    "tree": "a9f30877302ae18c760016a7b8f6326d6e798dc4",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "59c8991fe6e990b2bb5473e7fbbb2ac07726aaeffd58c8a074b809b70b956452",
+    "helpers": {
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "ea21c1a9fff1fcbf3e744a8bec236198f7fe38d2dff727030742cdf26b0ea686",
+      "a07-isolated-host": "f515f06b7c4727c7592d872b76c1e15f180a4bced419fa87de5b6b7bda9351db"
+    },
+    "parser": {
+      "pdf-extractor.js": "7108161642a6ffa39ea003210438762f0566be91e83b82f25333d6e8d4cf430a",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  }
+}

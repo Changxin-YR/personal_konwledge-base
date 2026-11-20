@@ -1,7 +1,7 @@
 {
   "schema_version": "2.0",
   "instruction_revision": "4.0.0",
-  "updated_at": "2026-11-19",
+  "updated_at": "2026-11-20",
   "timezone": "Asia/Shanghai",
   "execution_phase": "codex_continuous",
   "executor": "codex",
@@ -10,7 +10,7 @@
     "sha256": "da73b65a0004bfa875d1435a61a555ba6f02d45c280aeb8ed6d2e62ab4bd39d8"
   },
   "active_unit": "LIB-003",
-  "unit_state": "in_progress",
+  "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Implement Markdown and text original publication, exact structural offsets and versioned readback.",
+  "state_reason": "Candidate-bound DSH, Chrome and SQLite tests independently passed for text publication and version anchors.",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,22 +127,21 @@
     }
   },
   "checkpoint": {
-    "unit_id": "LIB-002",
-    "base_commit": "9d1df534bed4a0f980d0a8a78daf5d914b1983a3",
-    "candidate_sha": "971f6bd14f6d12e4ab508091180b4eba0473a7e7",
+    "unit_id": "LIB-003",
+    "base_commit": "56af4f39ddd85f3c61af85b0a2fe9ce5558e5108",
+    "candidate_sha": "0e9f37e9966950c6c5645abafff772654c547bd7",
     "completed": [
-      "Version-scoped page checkpoints, bounded offline PDFium, restart, cancellation, retry, and authenticated progress UI."
+      "Published Markdown and text originals, version-bound structural blocks and stable character offsets."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
       "independent": "PASS",
-      "A07": "PASS",
-      "P02": "NOT_RUN",
-      "A06": "NOT_RUN"
+      "T01": "PASS",
+      "T02": "PASS"
     },
-    "evidence": "docs/evidence/LIB-002/acceptance.json",
+    "evidence": "docs/evidence/LIB-003/acceptance.json",
     "defects": [],
-    "next_task": "LIB-003",
+    "next_task": "LIB-004",
     "blocked_dependencies": []
   }
 }

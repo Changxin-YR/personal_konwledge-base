@@ -1,0 +1,113 @@
+{
+  "entry_sha256": "59c8991fe6e990b2bb5473e7fbbb2ac07726aaeffd58c8a074b809b70b956452",
+  "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+  "status": "PASS",
+  "scope": {
+    "T01": "PASS",
+    "T02": "PASS"
+  },
+  "exit": 0,
+  "focused_tests": {
+    "failed": 0,
+    "skipped": 0,
+    "passed": 12
+  },
+  "events": [
+    {
+      "event": "step",
+      "at": "2026-11-20T01:36:19.69Z",
+      "name": "boot and create fresh accounts"
+    },
+    {
+      "event": "chrome",
+      "at": "2026-11-20T01:36:28.578Z",
+      "version": "158.0.8127.36"
+    },
+    {
+      "event": "step",
+      "at": "2026-11-20T01:36:30.437Z",
+      "test": "T01",
+      "name": "Markdown, UTF-16 BOM and explicit GB18030"
+    },
+    {
+      "event": "screenshot",
+      "at": "2026-11-20T01:36:30.902Z",
+      "file": "v1-reader.png",
+      "sha256": "87e379110eaab51741380ca019f6721a1f6ea873c20ab9965ecbb9e29cb70d96"
+    },
+    {
+      "event": "step",
+      "at": "2026-11-20T01:36:30.989Z",
+      "test": "T01",
+      "name": "invalid encoding cannot publish a new asset or a version"
+    },
+    {
+      "event": "screenshot",
+      "at": "2026-11-20T01:36:31.093Z",
+      "file": "bad-encoding-new.png",
+      "sha256": "ef1cb15a94ead7295e6fa28b11af4d01282a60534afd1af0b4ecd5bd616947fb"
+    },
+    {
+      "event": "rejected",
+      "at": "2026-11-20T01:36:31.093Z",
+      "code": "TEXT_INVALID_ENCODING",
+      "sha256": "eddf68639913a3cb8331cdfe7f87559e0beccf2c289c0d90ac4d89b3204004f8"
+    },
+    {
+      "event": "screenshot",
+      "at": "2026-11-20T01:36:31.192Z",
+      "file": "bad-encoding-append.png",
+      "sha256": "ef1cb15a94ead7295e6fa28b11af4d01282a60534afd1af0b4ecd5bd616947fb"
+    },
+    {
+      "event": "rejected",
+      "at": "2026-11-20T01:36:31.193Z",
+      "code": "TEXT_INVALID_ENCODING",
+      "sha256": "eddf68639913a3cb8331cdfe7f87559e0beccf2c289c0d90ac4d89b3204004f8"
+    },
+    {
+      "event": "step",
+      "at": "2026-11-20T01:36:31.215Z",
+      "test": "T02",
+      "name": "append same filename and replay both requests"
+    },
+    {
+      "event": "step",
+      "at": "2026-11-20T01:36:31.479Z",
+      "test": "T02",
+      "name": "cross-user and anonymous reads and appends"
+    },
+    {
+      "event": "step",
+      "at": "2026-11-20T01:36:31.58Z",
+      "test": "T02",
+      "name": "restart and reopen old and current versions"
+    },
+    {
+      "event": "screenshot",
+      "at": "2026-11-20T01:36:38.667Z",
+      "file": "old-version-after-restart.png",
+      "sha256": "87e379110eaab51741380ca019f6721a1f6ea873c20ab9965ecbb9e29cb70d96"
+    },
+    {
+      "event": "screenshot",
+      "at": "2026-11-20T01:36:38.883Z",
+      "file": "new-version-after-restart.png",
+      "sha256": "7c2ad6555731b218db93b6eda3ed9b8495984fb2a9895ac2ccfbf2fec326893e"
+    }
+  ],
+  "raw_summary_sha256": "a6cdb4e498d91be90039f34142e44d76936c054c4c136f8ce5c3bddc634de005",
+  "unit_id": "LIB-003",
+  "candidate_sha": "0e9f37e9966950c6c5645abafff772654c547bd7",
+  "command": "node scripts/lib003/host-acceptance.mjs 0e9f37e9966950c6c5645abafff772654c547bd7 59c8991fe6e990b2bb5473e7fbbb2ac07726aaeffd58c8a074b809b70b956452 <isolated-evidence-parent>",
+  "results": [
+    {
+      "id": "LIB-003-T01",
+      "status": "PASS"
+    },
+    {
+      "id": "LIB-003-T02",
+      "status": "PASS"
+    }
+  ]
+}
