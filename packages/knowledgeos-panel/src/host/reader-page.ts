@@ -2,8 +2,10 @@
 export function buildReaderHtml(): string {
   return String.raw`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>版本阅读 · KnowledgeOS</title><style>
 *{box-sizing:border-box}body{margin:0;background:#f7faf9;color:#243936;font:15px/1.6 "Segoe UI","Microsoft YaHei UI",sans-serif}header,main{padding:14px max(16px,calc((100% - 1050px)/2))}header,.tools,.modes,form{display:flex;align-items:center;gap:8px;flex-wrap:wrap}header{background:white;border-bottom:1px solid #cbd9d6;gap:20px}header strong{color:#18565a}a{color:#176166}h1{font-size:24px;margin:8px 0}h2{font-size:17px}button,input{font:inherit;border:1px solid #8ba4a0;border-radius:4px;background:white;padding:4px 10px;color:inherit}button{cursor:pointer}button:disabled{opacity:.55;cursor:default}button[aria-pressed=true],button[aria-current=true]{background:#235e5b;color:white}input{width:6em}.layout{display:grid;grid-template-columns:9em minmax(0,1fr);gap:18px;margin-top:18px}#rail{height:230px;overflow:auto;border-block:1px solid #cbd9d6}#window{position:relative}#window button{position:absolute;left:0;width:100%;height:36px;text-align:left;border:0;border-radius:0}article{min-width:0}#version,#status,pre,#anchor{overflow-wrap:anywhere}#version{color:#536866}#original{position:relative;width:100%;max-width:var(--page-width);line-height:0}#original img{width:100%;height:auto}.highlight{position:absolute;background:#ffc02b66;box-shadow:inset 0 0 0 1px #ad7900;pointer-events:none}pre{font:inherit;line-height:1.8;white-space:pre-wrap;margin:0}mark{background:#ffe491}#status{border-left:3px solid #94b6ac;padding-left:8px}[hidden]{display:none!important}:focus-visible{outline:3px solid #176d92;outline-offset:1px}@media(max-width:620px){.layout{grid-template-columns:minmax(0,1fr)}#rail{height:82px}}
+#continuity{margin-top:12px;border-block:1px solid #cbd9d6;padding:8px 0}#continuity details{margin:4px 0}#continuity summary{cursor:pointer;color:#18565a}#continuity ul{list-style:none;margin:6px 0;padding:0;max-height:20em;overflow:auto}#continuity li{display:flex;gap:6px;margin:4px 0}#continuity li button:first-child{overflow-wrap:anywhere;text-align:left}#bookmark-title{width:min(100%,20em)}#reading-status{margin:4px 0;min-height:1.6em;color:#536866}
 </style></head><body><header><strong>KnowledgeOS</strong><a href="/knowledgeos/library">资料库</a><a href="/knowledgeos/account">账号与登录</a></header><main>
 <h1 id="title">版本阅读</h1><p id="version"></p><div class="tools"><button id="refresh">刷新</button><form id="jump"><button type="button" id="prev" aria-label="上一位置">←</button><input type="number" min="1" step="1" required id="number" aria-label="跳转位置"><button>跳转</button><button type="button" id="next" aria-label="下一位置">→</button></form><span id="count"></span></div><p id="status" role="status"></p>
+<section id="continuity" aria-label="阅读导航" hidden><details id="toc-details" open><summary>目录</summary><ul id="toc"></ul></details><details id="bookmarks-details" open><summary>我的书签</summary><ul id="bookmarks"></ul><form id="bookmark-form"><input id="bookmark-title" maxlength="120" required placeholder="书签名称" aria-label="书签名称"><button id="bookmark-add">添加书签</button></form></details><p id="reading-status" role="status"></p></section>
 <div class="layout"><nav id="rail" aria-label="页与文本块" hidden><div id="window"></div></nav><article><h2 id="anchor"></h2><div class="modes" id="modes" hidden><button id="paper">原页</button><button id="structured">结构文本</button><button id="cite" disabled>生成引用链接</button><a id="link" hidden>打开引用</a></div><div id="original" hidden></div><pre id="text" hidden></pre></article></div></main><script>
 'use strict';
 const $=id=>document.getElementById(id), q=new URLSearchParams(location.search), asset=q.get('asset'), version=q.get('version'), cid=q.get('citation');
@@ -13,9 +15,12 @@ const integer=Number.isSafeInteger, ready=d=>d.state==='ready'||d.state==='revie
 const status=s=>{$('status').textContent=s}, invalid=()=>new Error('invalid'), problem=http=>Object.assign(new Error(),{http});
 const sha=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s))),n=>n.toString(16).padStart(2,'0')).join('');
 let gen=0, owner=null, ordinal=1, total=0, conversion=null, page=null, selection=null, pending=null, posting=false, mode=null, resolved=null, versionLabel='', followCitation=!!cid;
+const readerPath='assets/'+asset+'/versions/'+version+'/reader';
+let continuity=null, outlineLoaded=false, busy=false;
+const readingStatus=s=>{$('reading-status').textContent=s};
 async function api(path,options){
   const r=await fetch('/knowledge/v1/'+path,{credentials:'same-origin',cache:'no-store',redirect:'error',...options});
-  if(!r.ok){const e=problem(r.status);if(r.status===422)e.code=(await r.json().catch(()=>null))?.code;throw e}return (await r.json()).data;
+  if(!r.ok){const e=problem(r.status);if(r.status===422||r.status===409)e.code=(await r.json().catch(()=>null))?.code;throw e}return (await r.json()).data;
 }
 async function access(g){
   if(g!==gen||document.hidden)return false;
@@ -36,6 +41,7 @@ function clearPage(){
 function lock(message){
   ++gen;owner=null;total=0;conversion=null;resolved=null;pending=null;ordinal=1;versionLabel='';mode=null;clearPage();
   followCitation=!!cid;
+  continuity=null;outlineLoaded=false;busy=false;$('continuity').hidden=true;$('toc').replaceChildren();$('bookmarks').replaceChildren();$('bookmark-title').value='';readingStatus('');
   $('title').textContent='版本阅读';$('version').textContent='';navigation();status(message);
 }
 function failure(e,g){
@@ -74,17 +80,86 @@ function validate(d,n,cv){
   if(d.image!=null && (typeof d.image!=='string'||!/^data:image\/png;base64,[A-Za-z\d+/]+=*$/.test(d.image)||!(d.width>0&&Number.isFinite(d.width)&&d.height>0&&Number.isFinite(d.height))))throw invalid();
   return d;
 }
-async function load(n,{openCitation=false}={}){
+const usable=p=>p&&integer(p.ordinal)&&p.ordinal>0&&digest(p.source_hash)&&(p.conversion_id==null||uuid(p.conversion_id));
+const point=d=>({ordinal:d.ordinal,source_hash:d.position_hash,...(d.conversion_id?{conversion_id:d.conversion_id}:{})});
+async function readState(g){
+  const state=await api(readerPath+'-state');
+  if(g!==gen)return;
+  if(state?.actor_id!==owner||!integer(state.revision)||state.revision<0||(state.position!==null&&!usable(state.position))||!Array.isArray(state.bookmarks)||state.bookmarks.some(m=>!usable(m)||!uuid(m.id)||typeof m.title!=='string'))throw invalid();
+  continuity=state;
+}
+function emptyRow(label){const li=document.createElement('li');li.textContent=label;return li}
+function control(label,click){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=click;return b}
+function renderBookmarks(){
+  const nodes=(continuity?.bookmarks??[]).map(m=>{
+    const li=document.createElement('li'),del=control('删除',()=>changeBookmark(m));del.setAttribute('aria-label','删除书签：'+m.title);
+    li.append(control(m.title,()=>navigate(m.ordinal,m)),del);return li;
+  });
+  $('bookmarks').replaceChildren(...(nodes.length?nodes:[emptyRow('暂无书签')]));
+  $('bookmark-add').disabled=!continuity||!page||!digest(page.position_hash)||busy;
+}
+async function showOutline(g){
+  if(outlineLoaded)return;
+  try{
+    const o=await api(readerPath+'-outline');
+    if(g!==gen||!await access(g))return;
+    if(o?.actor_id!==owner||!Array.isArray(o.items)||o.items.some(x=>!integer(x.ordinal)||x.ordinal<1||typeof x.title!=='string'))throw invalid();
+    const nodes=o.items.map(x=>{
+      const row=document.createElement('li');row.style.paddingInlineStart=Math.min(8,x.depth??0)*10+'px';
+      row.append(control(x.title,()=>navigate(x.ordinal)));return row;
+    });
+    $('toc').replaceChildren(...(nodes.length?nodes:[emptyRow('没有可用的原始目录')]));outlineLoaded=true;
+  }catch(e){if(g===gen&&await access(g))$('toc').replaceChildren(emptyRow('目录暂不可用'))}
+}
+function writeOptions(method,b){return {method,headers:{'Content-Type':'application/json','X-KnowledgeOS-Request':'1','X-KnowledgeOS-Reader-Actor':owner},...(b?{body:JSON.stringify(b)}:{})}}
+async function writeFailure(e,g,label){
+  if(g!==gen)return;
+  if(e.code==='READER_ACTOR_CHANGED'||e.http===401||e.http===403||e.http===404){if(!await access(g))return}
+  if(g!==gen)return;
+  readingStatus(e.code==='READING_REVISION_CONFLICT'?'未保存：另一标签页已更新位置，请刷新后重试。':label);
+}
+async function remember(g,d){
+  if(!continuity||!digest(d.position_hash))return;
+  const revision=continuity.revision,p=point(d);
+  try{
+    if(!await access(g))return;
+    const r=await api(readerPath+'-state',writeOptions('PUT',{...p,expected_revision:revision}));
+    if(!await access(g))return;
+    if(r?.revision!==revision+1||!usable(r.position)||r.position.ordinal!==p.ordinal||r.position.source_hash!==p.source_hash||r.position.conversion_id!==p.conversion_id)throw invalid();
+    continuity.revision=r.revision;readingStatus('阅读位置已保存。');
+  }catch(e){await writeFailure(e,g,'未确认保存阅读位置。')}
+}
+async function changeBookmark(m){
+  if(busy||!continuity||(!m&&(!page||!digest(page.position_hash))))return;
+  const g=gen,title=$('bookmark-title').value.trim();if(!m&&!title)return;
+  busy=true;renderBookmarks();readingStatus('');
+  try{
+    if(!await access(g))return;
+    const r=m?await api(readerPath+'-bookmarks/'+m.id,writeOptions('DELETE')):await api(readerPath+'-bookmarks',writeOptions('POST',{...point(page),title}));
+    if(!await access(g))return;
+    if(m){if(r?.id!==m.id)throw invalid();continuity.bookmarks=continuity.bookmarks.filter(x=>x.id!==m.id)}
+    else{if(!usable(r)||!uuid(r.id)||r.title!==title)throw invalid();continuity.bookmarks.push(r);$('bookmark-title').value=''}
+    readingStatus(m?'书签已删除。':'书签已添加。');
+  }catch(e){await writeFailure(e,g,m?'未确认删除书签。':'未确认添加书签。')}
+  finally{if(g===gen){busy=false;renderBookmarks()}}
+}
+async function load(n,{openCitation=false,restore=false,save=false,bookmark=null}={}){
   if(document.hidden)return;
   const g=++gen;clearPage();resolved=null;followCitation=!!cid&&openCitation;ordinal=n;navigation();status('正在读取…');
   try{
     if(!uuid(asset)||!uuid(version)||(cid!==null&&!uuid(cid))||!/^\d{1,9}$/.test(requestedUnit)||Number(requestedUnit)<1||(requestedConversion!==null&&!uuid(requestedConversion)))throw invalid();
     if(!await access(g))return;
+    if(!continuity){try{await readState(g)}catch{if(!await access(g))return;readingStatus('个人阅读状态暂不可用。')}}
     const c=openCitation && cid?locator(await api('citations/'+cid+'/resolve'),cid):null;
     if(g!==gen)return;
     if(c && ((q.has('unit')&&Number(requestedUnit)!==c.ordinal)||(requestedConversion && requestedConversion!==c.conversion_id)))throw problem(409);
-    const at=c?c.ordinal:n, cv=c?c.conversion_id:(conversion??requestedConversion);
-    const d=validate(await api('assets/'+asset+'/versions/'+version+'/reader?unit='+at+(cv?'&conversion='+cv:'')),at,cv);
+    const saved=restore?continuity?.position:null;
+    let at=c?.ordinal??saved?.ordinal??n, cv=c?.conversion_id??bookmark?.conversion_id??conversion??requestedConversion;
+    const get=async()=>validate(await api(readerPath+'?unit='+at+(cv?'&conversion='+cv:'')),at,cv);
+    let d;
+    try{d=await get()}catch(e){if(!saved||e.http!==422)throw e}
+    if(saved&&(!d||d.position_hash!==saved.source_hash||d.conversion_id!==saved.conversion_id)){at=1;cv=null;d=await get()}
+    if(bookmark&&d.position_hash!==bookmark.source_hash)throw problem(409);
     if(g!==gen)return;
     if(!digest(d.anchor)||await sha(d.text)!==d.anchor)throw problem(409);
     if(c && (c.conversion_id??null)!==(d.conversion_id??null))throw invalid();
@@ -94,14 +169,17 @@ async function load(n,{openCitation=false}={}){
     $('version').textContent=versionLabel+' · '+version;$('title').textContent=d.title||'版本阅读';$('anchor').textContent=d.chapter||((d.kind==='text'?'文本块 ':'第 ')+at+(d.kind==='text'?'':' 页'));
     if(c && ready(d))selection={start:c.start,end:c.end};
     draw();if(c)document.querySelector('#original .highlight,#text mark')?.scrollIntoView({block:'nearest'});
+    $('continuity').hidden=false;renderBookmarks();
+    if(save){busy=true;await remember(g,d)}
+    void showOutline(g);
   }catch(e){
     if(g!==gen)return;
     if(total && (e.http===503||e.http===502||e.http===500)){
       try{if(await access(g))status('本处加载失败，请刷新重试或选择其他位置。')}catch(err){failure(err,g)}
     }else failure(e,g);
-  }
+  }finally{if(g===gen){busy=false;renderBookmarks()}}
 }
-function navigate(n){if(!integer(n)||n<1||n>total)return;void load(n)}
+function navigate(n,bookmark=null){if(busy||!integer(n)||n<1||(!bookmark&&n>total))return;readingStatus('');void load(n,{save:!bookmark,bookmark})}
 // A partial glyph/run has no known pixel boundary. Never interpolate a rectangle.
 function exactBoxes(d,s){
   if(resolved && s?.start===resolved.start && s?.end===resolved.end && resolved.locator?.geometry){
@@ -179,9 +257,10 @@ async function recheck(){
 }
 $('paper').onclick=()=>switchMode('paper');$('structured').onclick=()=>switchMode('text');
 $('cite').onpointerdown=e=>e.preventDefault();$('cite').onclick=createCitation;document.addEventListener('selectionchange',capture);
+$('bookmark-form').onsubmit=e=>{e.preventDefault();void changeBookmark(null)};
 $('jump').onsubmit=e=>{e.preventDefault();navigate(Number($('number').value))};$('prev').onclick=()=>navigate(ordinal-1);$('next').onclick=()=>navigate(ordinal+1);
 $('rail').onscroll=renderWindow;new ResizeObserver(renderWindow).observe($('rail'));
-function refresh(){void load(total?ordinal:Number(requestedUnit),{openCitation:followCitation})}
+function refresh(){if(busy)return;continuity=null;outlineLoaded=false;readingStatus('');void load(total?ordinal:Number(requestedUnit),{openCitation:followCitation,restore:!total&&!cid&&!q.has('unit')&&!requestedConversion})}
 $('refresh').onclick=refresh;
 // Preserve the fixed position, never the page body, while hidden or in bfcache.
 function suspend(){resumeAt??={n:total?ordinal:Number(requestedUnit),cv:conversion,cite:followCitation};lock('返回后将重新检查阅读权限。')}
@@ -191,6 +270,6 @@ window.addEventListener('pageshow',e=>{if(e.persisted)resume()});
 window.addEventListener('focus',recheck);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)suspend();else if(resumeAt)resume();else refresh()});
 setInterval(recheck,2000);
-void load(Number(requestedUnit),{openCitation:true});
+void load(Number(requestedUnit),{openCitation:true,restore:!cid&&!q.has('unit')&&!requestedConversion});
 </script></body></html>`
 }

@@ -35,6 +35,8 @@ async function fixture(t) {
       const data={actor_id:peer.user,asset_id:asset,version_id:version,version:1,is_latest:false}
       if(peer.access)await peer.access();return reply(data)
     }
+    if(p===base+'/reader-state'&&r.request().method()==='GET')return reply({actor_id:peer.user,revision:0,position:null,bookmarks:[]})
+    if(p===base+'/reader-outline')return reply({actor_id:peer.user,items:[]})
     if(p==='/knowledge/v1/citations/'+cid+'/resolve') return reply(peer.citation)
     if(p==='/knowledge/v1/citations') {
       peer.writes.push({body:r.request().postDataJSON(),headers:r.request().headers()}); if(peer.drop){peer.drop=false;return r.abort('failed')} return reply(peer.citation)

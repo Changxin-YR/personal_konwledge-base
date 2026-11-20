@@ -77,7 +77,7 @@ export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:
       const actor=actorFor(req);if(!actor)throw new AssetError(401,'AUTH_REQUIRED')
       const current=()=>{const a=actorFor(req);if(!a||a.sessionId!==actor.sessionId)throw new AssetError(401,'AUTH_REQUIRED');return a}
       const url=new URL(req.url??'/',host);if(url.origin!==host)throw new AssetError(403,'CSRF_REJECTED')
-      if(reader&&(url.pathname.endsWith('/reader')||url.pathname.endsWith('/reader-access')||url.pathname.startsWith('/knowledge/v1/citations'))){
+      if(reader&&(/\/reader(?:-access|-state|-outline|-bookmarks(?:\/[a-f0-9-]+)?)?$/.test(url.pathname)||url.pathname.startsWith('/knowledge/v1/citations'))){
         const ac=new AbortController(),stop=()=>ac.abort();res.once('close',stop);if(res.destroyed)stop()
         try{if(await readerRoute(req,url,reader,current,ac.signal,receive,reserve,(code,data)=>json(code,{data,request_id:requestId})))return}finally{res.off('close',stop)}
       }

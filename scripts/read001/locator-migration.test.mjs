@@ -7,7 +7,6 @@ import {join} from 'node:path'
 import {DatabaseSync} from 'node:sqlite'
 import test from 'node:test'
 import {pathToFileURL} from 'node:url'
-import {ProbeStorage} from '../../packages/knowledgeos-panel/lib/storage.js'
 import {decodeText} from '../../packages/knowledgeos-panel/src/host/text-document.ts'
 import {seed} from '../fnd006/independent/common.mjs'
 
@@ -42,6 +41,9 @@ test('v15 rolls back fully and upgrades a published v14 citation without inventi
   const prior = join(dir, 'v14.mjs')
   writeFileSync(prior, execFileSync('git', ['show', `${v14}:packages/knowledgeos-panel/lib/test-support.js`]))
   const old = await import(pathToFileURL(prior).href)
+  const target = join(dir,'v15.mjs')
+  writeFileSync(target,execFileSync('git',['show','fdac3b02fc5ac42eabef72374aee9b7050c942e3:packages/knowledgeos-panel/lib/storage.js']))
+  const {ProbeStorage}=await import(pathToFileURL(target).href)
   const {actor} = await seed(old, dir)
   const store = new old.ProbeStorage({dataDir:dir})
   let resolved

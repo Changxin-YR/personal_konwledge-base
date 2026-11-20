@@ -10,9 +10,10 @@ const DEADLINE_MS = 15_000, MAX_WORKERS = 2
 const role = 'knowledgeos:pdf-extractor:v1'
 const readerRole = 'knowledgeos:pdf-reader:v1'
 type Page = { text: string; needsReview: boolean; chapter: string }
-type Doc = { numPages: number; page(n: number): Promise<Page>; renderPage(n: number): Promise<RenderedPage>; close(): Promise<void> }
-type Input = Uint8Array<ArrayBuffer> | number | {render: number}
-type Result = { value: number | Page | RenderedPage } | { error: string; fatal: boolean }
+type Outline = {ordinal:number;title:string;depth:number}[]
+type Doc = { numPages: number; page(n: number): Promise<Page>; outline():Promise<Outline>; renderPage(n: number): Promise<RenderedPage>; close(): Promise<void> }
+type Input = Uint8Array<ArrayBuffer> | number | {render: number} | 'outline'
+type Result = { value: number | Page | RenderedPage | Outline } | { error: string; fatal: boolean }
 const active = { extract: 0, reader: 0 }
 
 type ErrorCode = 'PDF_PAGE_FAILED' | 'PDF_HANDLE_CLOSED' | 'PDF_BUSY' | 'PDF_OPEN_FAILED'
@@ -57,7 +58,7 @@ async function open(bytes: Uint8Array, pool: keyof typeof active, signal?: Abort
   })
   worker.on('error', () => fail('PDF worker failed'))
   worker.on('exit', () => fail('PDF worker exited'))
-  function request(input: Input): Promise<number | Page | RenderedPage> {
+  function request(input: Input): Promise<number | Page | RenderedPage | Outline> {
     if (closing) return Promise.reject(pdfError('PDF_HANDLE_CLOSED', 'PDF closed'))
     if (pending) return Promise.reject(pdfError('PDF_BUSY', 'PDF extractor busy'))
     return new Promise((resolve, reject) => {
@@ -76,7 +77,7 @@ async function open(bytes: Uint8Array, pool: keyof typeof active, signal?: Abort
   }
   try {
     const numPages = await request(copy) as number
-    return { numPages, close, async page(n) {
+    return { numPages, close, async outline(){return await request('outline') as Outline}, async page(n) {
       if (!Number.isInteger(n) || n < 1 || n > numPages) throw new RangeError('Invalid PDF page number')
       return await request(n) as Page
     }, async renderPage(n) {
@@ -139,13 +140,18 @@ function allocate(api: Pdfium, n: number) {
 
 // Only root-level, local GoTo destinations. Ignore remote actions and never
 // infer structure from typography. Discard partial outlines on cycle/overflow.
-function chapters(api: Pdfium, doc: number, pages: number) {
-  const titles = new Map<number,string>(), seen = new Set<number>()
+function readOutline(api: Pdfium, doc: number, pages: number, nested:boolean):Outline {
+  const titles:Outline=[], seen = new Set<number>()
   const buf = allocate(api, MAX_TITLE_BYTES)
   try {
-    for (let bm = api.FPDFBookmark_GetFirstChild(doc, 0); bm; bm = api.FPDFBookmark_GetNextSibling(doc, bm)) {
-      if (seen.has(bm) || seen.size >= MAX_BOOKMARKS) return new Map<number,string>()
+    const stack=[{bm:api.FPDFBookmark_GetFirstChild(doc,0),depth:0}]
+    while(stack.length){
+      const {bm,depth}=stack.pop()!
+      if(!bm)continue
+      if (seen.has(bm) || seen.size >= MAX_BOOKMARKS) return []
       seen.add(bm)
+      stack.push({bm:api.FPDFBookmark_GetNextSibling(doc,bm),depth})
+      if(nested)stack.push({bm:api.FPDFBookmark_GetFirstChild(doc,bm),depth:depth+1})
       let dest = api.FPDFBookmark_GetDest(doc, bm)
       if (!dest) {
         const action = api.FPDFBookmark_GetAction(bm)
@@ -153,11 +159,11 @@ function chapters(api: Pdfium, doc: number, pages: number) {
       }
       if (!dest) continue
       const n = api.FPDFDest_GetDestPageIndex(doc, dest) + 1
-      if (n < 1 || n > pages || titles.has(n)) continue
+      if (n < 1 || n > pages) continue
       const len = api.FPDFBookmark_GetTitle(bm, buf, MAX_TITLE_BYTES)
       if (len < 4 || len > MAX_TITLE_BYTES || len % 2) continue
       const title = new TextDecoder('utf-16le').decode(new Uint8Array(api.memory.buffer, buf, len - 2)).replace(/[\p{Cc}\p{Cf}]/gu, ' ').trim()
-      if (title) titles.set(n, title)
+      if (title) titles.push({ordinal:n,title,depth})
     }
     return titles
   } finally { api.free(buf) }
@@ -176,7 +182,8 @@ async function parse(bytes: Uint8Array) {
   if (numPages < 1 || numPages > MAX_PAGES) throw new Error('Invalid or excessive PDF page count')
   const labels: string[] = ['']
   if (workerData !== readerRole) {
-    const titles = chapters(api, doc, numPages)
+    const titles = new Map<number,string>()
+    for(const entry of readOutline(api,doc,numPages,false))if(!titles.has(entry.ordinal))titles.set(entry.ordinal,entry.title)
     for (let i = 1; i <= numPages; i++) labels.push(titles.get(i) ?? labels[i-1])
   }
   function page(n: number, render = false): Page | RenderedPage {
@@ -215,7 +222,7 @@ async function parse(bytes: Uint8Array) {
       } finally { api.FPDFText_ClosePage(tp) }
     } finally { api.FPDF_ClosePage(p) }
   }
-  return { numPages, page }
+  return { numPages, page, outline:()=>readOutline(api,doc,numPages,true) }
 }
 
 if (parentPort && (workerData === role || workerData === readerRole)) {
@@ -224,6 +231,7 @@ if (parentPort && (workerData === role || workerData === readerRole)) {
   port.on('message', async (input: Input) => {
     try {
       if (input instanceof Uint8Array) { document = await parse(input); port.postMessage({value: document.numPages}) }
+      else if (input==='outline') port.postMessage({value:document.outline()})
       else if (typeof input === 'number') port.postMessage({value: document.page(input)})
       else port.postMessage({value: document.page(input.render, true)})
     } catch (err) {

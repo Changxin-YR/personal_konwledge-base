@@ -177,7 +177,9 @@ async function open(bytes, pool, signal) {
   }
   try {
     const numPages = await request(copy);
-    return { numPages, close, async page(n) {
+    return { numPages, close, async outline() {
+      return await request("outline");
+    }, async page(n) {
       if (!Number.isInteger(n) || n < 1 || n > numPages) throw new RangeError("Invalid PDF page number");
       return await request(n);
     }, async renderPage(n) {
@@ -236,13 +238,18 @@ function allocate(api, n) {
   if (!ptr) throw new Error("PDF parser allocation failed");
   return ptr;
 }
-function chapters(api, doc, pages) {
-  const titles = /* @__PURE__ */ new Map(), seen = /* @__PURE__ */ new Set();
+function readOutline(api, doc, pages, nested) {
+  const titles = [], seen = /* @__PURE__ */ new Set();
   const buf = allocate(api, MAX_TITLE_BYTES);
   try {
-    for (let bm = api.FPDFBookmark_GetFirstChild(doc, 0); bm; bm = api.FPDFBookmark_GetNextSibling(doc, bm)) {
-      if (seen.has(bm) || seen.size >= MAX_BOOKMARKS) return /* @__PURE__ */ new Map();
+    const stack = [{ bm: api.FPDFBookmark_GetFirstChild(doc, 0), depth: 0 }];
+    while (stack.length) {
+      const { bm, depth } = stack.pop();
+      if (!bm) continue;
+      if (seen.has(bm) || seen.size >= MAX_BOOKMARKS) return [];
       seen.add(bm);
+      stack.push({ bm: api.FPDFBookmark_GetNextSibling(doc, bm), depth });
+      if (nested) stack.push({ bm: api.FPDFBookmark_GetFirstChild(doc, bm), depth: depth + 1 });
       let dest = api.FPDFBookmark_GetDest(doc, bm);
       if (!dest) {
         const action = api.FPDFBookmark_GetAction(bm);
@@ -250,11 +257,11 @@ function chapters(api, doc, pages) {
       }
       if (!dest) continue;
       const n = api.FPDFDest_GetDestPageIndex(doc, dest) + 1;
-      if (n < 1 || n > pages || titles.has(n)) continue;
+      if (n < 1 || n > pages) continue;
       const len = api.FPDFBookmark_GetTitle(bm, buf, MAX_TITLE_BYTES);
       if (len < 4 || len > MAX_TITLE_BYTES || len % 2) continue;
       const title = new TextDecoder("utf-16le").decode(new Uint8Array(api.memory.buffer, buf, len - 2)).replace(/[\p{Cc}\p{Cf}]/gu, " ").trim();
-      if (title) titles.set(n, title);
+      if (title) titles.push({ ordinal: n, title, depth });
     }
     return titles;
   } finally {
@@ -273,7 +280,8 @@ async function parse(bytes) {
   if (numPages < 1 || numPages > MAX_PAGES) throw new Error("Invalid or excessive PDF page count");
   const labels = [""];
   if (workerData !== readerRole) {
-    const titles = chapters(api, doc, numPages);
+    const titles = /* @__PURE__ */ new Map();
+    for (const entry of readOutline(api, doc, numPages, false)) if (!titles.has(entry.ordinal)) titles.set(entry.ordinal, entry.title);
     for (let i = 1; i <= numPages; i++) labels.push(titles.get(i) ?? labels[i - 1]);
   }
   function page(n, render = false) {
@@ -316,7 +324,7 @@ async function parse(bytes) {
       api.FPDF_ClosePage(p);
     }
   }
-  return { numPages, page };
+  return { numPages, page, outline: () => readOutline(api, doc, numPages, true) };
 }
 if (parentPort && (workerData === role || workerData === readerRole)) {
   const port = parentPort;
@@ -326,7 +334,8 @@ if (parentPort && (workerData === role || workerData === readerRole)) {
       if (input instanceof Uint8Array) {
         document = await parse(input);
         port.postMessage({ value: document.numPages });
-      } else if (typeof input === "number") port.postMessage({ value: document.page(input) });
+      } else if (input === "outline") port.postMessage({ value: document.outline() });
+      else if (typeof input === "number") port.postMessage({ value: document.page(input) });
       else port.postMessage({ value: document.page(input.render, true) });
     } catch (err) {
       const error = err instanceof Error ? err.message : "PDF parser failed";

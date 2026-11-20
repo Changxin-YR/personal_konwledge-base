@@ -1,7 +1,7 @@
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash7, randomUUID as randomUUID7 } from "node:crypto";
+import { createHash as createHash8, randomUUID as randomUUID8 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -750,7 +750,7 @@ CREATE TABLE zip_selections (
 ) STRICT;`;
 
 // src/host/citation-store.ts
-import { createHash as createHash6, randomUUID as randomUUID6 } from "node:crypto";
+import { createHash as createHash7, randomUUID as randomUUID7 } from "node:crypto";
 
 // src/host/citation-anchor.ts
 import { createHash as createHash4 } from "node:crypto";
@@ -792,6 +792,43 @@ function makeLocator(s, text, start, end, neighbors, w) {
   return { context, geometry: { page: s.ordinal, width: w.width, height: w.height, source_sha256: w.sha256, boxes }, ...word ? { word } : {} };
 }
 
+// src/host/reading-state.ts
+import { createHash as createHash6, randomUUID as randomUUID6 } from "node:crypto";
+var pointColumns = `ordinal INTEGER NOT NULL CHECK(ordinal BETWEEN 1 AND 1000000),
+  conversion_id TEXT REFERENCES office_conversions(id), source_hash TEXT NOT NULL CHECK(length(source_hash)=64)`;
+var READING_STATE_SCHEMA = `CREATE TABLE reading_positions (
+  user_id TEXT NOT NULL REFERENCES users(id), version_id TEXT NOT NULL REFERENCES asset_versions(id),
+  ${pointColumns}, revision INTEGER NOT NULL CHECK(revision>0), PRIMARY KEY(user_id,version_id)
+) STRICT;
+CREATE TABLE reading_bookmarks (
+  id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), version_id TEXT NOT NULL REFERENCES asset_versions(id),
+  ${pointColumns}, title TEXT NOT NULL CHECK(length(title) BETWEEN 1 AND 120)
+) STRICT;
+CREATE INDEX reading_bookmarks_scope ON reading_bookmarks(user_id,version_id);`;
+var canRemember = (s) => s.state === "ready" || s.state === "review";
+var positionHash = (s) => s.kind === "office" ? s.ref.sha256 : createHash6("sha256").update(s.text).digest("hex");
+var samePoint = (s, p) => canRemember(s) && s.ordinal === p.ordinal && s.conversion_id === p.conversion_id && positionHash(s) === p.source_hash;
+var point = (r) => ({ ordinal: Number(r.ordinal), source_hash: String(r.source_hash), ...r.conversion_id ? { conversion_id: String(r.conversion_id) } : {} });
+var columns = "ordinal,conversion_id,source_hash";
+function readNavigation(db, user, version, valid) {
+  const r = db.prepare(`SELECT revision,${columns} FROM reading_positions WHERE user_id=? AND version_id=?`).get(user, version);
+  const p = r ? point(r) : null;
+  const bookmarks = db.prepare(`SELECT id,title,${columns} FROM reading_bookmarks WHERE user_id=? AND version_id=? ORDER BY rowid`).all(user, version);
+  return { actor_id: user, revision: Number(r?.revision ?? 0), position: p && valid(p) ? p : null, bookmarks: bookmarks.map((r2) => ({ id: String(r2.id), title: String(r2.title), ...point(r2) })) };
+}
+function savePosition(db, user, version, p, expected) {
+  const revision = expected + 1;
+  const change = expected === 0 ? db.prepare("INSERT INTO reading_positions(user_id,version_id,ordinal,conversion_id,source_hash,revision) VALUES(?,?,?,?,?,1) ON CONFLICT DO NOTHING").run(user, version, p.ordinal, p.conversion_id ?? null, p.source_hash) : db.prepare("UPDATE reading_positions SET ordinal=?,conversion_id=?,source_hash=?,revision=? WHERE user_id=? AND version_id=? AND revision=?").run(p.ordinal, p.conversion_id ?? null, p.source_hash, revision, user, version, expected);
+  if (change.changes !== 1) throw new AssetError(409, "READING_REVISION_CONFLICT");
+  return { revision, position: { ordinal: p.ordinal, source_hash: p.source_hash, ...p.conversion_id ? { conversion_id: p.conversion_id } : {} } };
+}
+function createBookmark(db, user, version, p, title) {
+  if (Number(db.prepare("SELECT count(*) AS n FROM reading_bookmarks WHERE user_id=? AND version_id=?").get(user, version)?.n) >= 200) throw new AssetError(409, "BOOKMARK_LIMIT");
+  const id = randomUUID6();
+  db.prepare("INSERT INTO reading_bookmarks(id,user_id,version_id,ordinal,conversion_id,source_hash,title) VALUES(?,?,?,?,?,?,?)").run(id, user, version, p.ordinal, p.conversion_id ?? null, p.source_hash, title);
+  return { id, title, ordinal: p.ordinal, source_hash: p.source_hash, ...p.conversion_id ? { conversion_id: p.conversion_id } : {} };
+}
+
 // src/host/citation-store.ts
 var CITATION_SCHEMA = `CREATE TABLE citations (
   id TEXT PRIMARY KEY, created_by TEXT NOT NULL REFERENCES users(id), request_key TEXT NOT NULL,
@@ -803,7 +840,7 @@ var CITATION_SCHEMA = `CREATE TABLE citations (
 ) STRICT;`;
 var notFound2 = () => new AssetError(404, "SOURCE_NOT_FOUND");
 var invalid = () => new AssetError(422, "INVALID_READER_UNIT");
-var sha = (s) => createHash6("sha256").update(s, "utf8").digest("hex");
+var sha = (s) => createHash7("sha256").update(s, "utf8").digest("hex");
 var uuid2 = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 var fields = "id,asset_id,version_id,conversion_id,ordinal,start,end,source_hash,quote_hash";
 function dto(row) {
@@ -869,6 +906,60 @@ var CitationStore = class {
   source(prior, t) {
     return this.tx("read", (db, now) => this.read(db, this.actor(prior, now), t, now));
   }
+  navigation(prior, t) {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(prior, now), src = this.read(db, a, { ...t, ordinal: 1 }, now);
+      return readNavigation(db, a.userId, t.version_id, (p) => {
+        if (src.conversion_id !== p.conversion_id || p.ordinal > src.total) return false;
+        try {
+          return samePoint(this.read(db, a, { ...t, ...p }, now), p);
+        } catch (e) {
+          if (e instanceof AssetError && e.code === "INVALID_READER_UNIT") return false;
+          throw e;
+        }
+      });
+    });
+  }
+  outline(prior, t) {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(prior, now), source = this.read(db, a, t, now);
+      const items = source.kind === "text" ? db.prepare("SELECT ordinal,text FROM text_blocks WHERE version_id=? AND kind='heading' ORDER BY ordinal LIMIT 2048").all(t.version_id).flatMap((row) => {
+        const first = String(row.text).split(/\r\n|\r|\n/, 1)[0];
+        const title = first.replace(/^ {0,3}#{1,6}(?:[ \t]+|$)/, "").replace(/[ \t]+#+[ \t]*$/, "").trim().slice(0, 250);
+        return title ? [{ ordinal: Number(row.ordinal), title }] : [];
+      }) : [];
+      return { actor_id: a.userId, source, items };
+    });
+  }
+  writer(prior, expectedActor, now) {
+    const a = this.actor(prior, now);
+    if (a.userId !== expectedActor) throw new AssetError(409, "READER_ACTOR_CHANGED");
+    return a;
+  }
+  savePosition(prior, t, revision, expectedActor) {
+    return this.tx("write", (db, now) => {
+      const a = this.writer(prior, expectedActor, now);
+      const src = this.read(db, a, { asset_id: t.asset_id, version_id: t.version_id, ordinal: t.ordinal }, now);
+      if (!samePoint(src, t)) throw new AssetError(409, "READING_SOURCE_CHANGED");
+      return savePosition(db, a.userId, t.version_id, t, revision);
+    });
+  }
+  addBookmark(prior, t, title, expectedActor) {
+    return this.tx("write", (db, now) => {
+      const a = this.writer(prior, expectedActor, now), src = this.read(db, a, t, now);
+      if (!samePoint(src, t)) throw new AssetError(409, "READING_SOURCE_CHANGED");
+      return createBookmark(db, a.userId, t.version_id, t, title);
+    });
+  }
+  deleteBookmark(prior, t, id, expectedActor) {
+    return this.tx("write", (db, now) => {
+      const a = this.writer(prior, expectedActor, now);
+      this.read(db, a, t, now);
+      const del = db.prepare("DELETE FROM reading_bookmarks WHERE id=? AND user_id=? AND version_id=?").run(id, a.userId, t.version_id);
+      if (del.changes !== 1) throw notFound2();
+      return { id };
+    });
+  }
   access(prior, asset, version) {
     return this.tx("read", (db, now) => {
       const actor = this.actor(prior, now);
@@ -919,7 +1010,7 @@ var CitationStore = class {
         return r ? String(r.anchor) : null;
       };
       const locator = makeLocator(src, text, spec.start, spec.end, { previous: neighbor(src.ordinal - 1), next: neighbor(src.ordinal + 1) }, w);
-      const id = randomUUID6();
+      const id = randomUUID7();
       db.prepare("INSERT INTO citations VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run(id, a.userId, key, spec.asset_id, spec.version_id, spec.conversion_id ?? null, spec.ordinal, range.start, range.end, range.source_hash, range.quote_hash, now);
       db.prepare("INSERT INTO citation_locators(citation_id,snapshot) VALUES(?,?)").run(id, JSON.stringify(locator));
       return { data: { ...spec, ...range, id, locator }, replayed: false };
@@ -949,19 +1040,20 @@ var CITATION_LOCATOR_SCHEMA = `CREATE TABLE citation_locators (
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 15;
-var MIGRATION_V15_CHECKSUM = createHash7("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
-var MIGRATION_V13_CHECKSUM = createHash7("sha256").update(ZIP_SCHEMA).digest("hex");
-var MIGRATION_V14_CHECKSUM = createHash7("sha256").update(CITATION_SCHEMA).digest("hex");
-var MIGRATION_V12_CHECKSUM = createHash7("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
-var MIGRATION_V11_CHECKSUM = createHash7("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
-var MIGRATION_V10_CHECKSUM = createHash7("sha256").update(OFFICE_SCHEMA).digest("hex");
-var MIGRATION_V9_CHECKSUM = createHash7("sha256").update(TEXT_SCHEMA).digest("hex");
-var MIGRATION_V8_CHECKSUM = createHash7("sha256").update(PARSE_SCHEMA).digest("hex");
+var SCHEMA_VERSION = 16;
+var MIGRATION_V16_CHECKSUM = createHash8("sha256").update(READING_STATE_SCHEMA).digest("hex");
+var MIGRATION_V15_CHECKSUM = createHash8("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
+var MIGRATION_V13_CHECKSUM = createHash8("sha256").update(ZIP_SCHEMA).digest("hex");
+var MIGRATION_V14_CHECKSUM = createHash8("sha256").update(CITATION_SCHEMA).digest("hex");
+var MIGRATION_V12_CHECKSUM = createHash8("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
+var MIGRATION_V11_CHECKSUM = createHash8("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
+var MIGRATION_V10_CHECKSUM = createHash8("sha256").update(OFFICE_SCHEMA).digest("hex");
+var MIGRATION_V9_CHECKSUM = createHash8("sha256").update(TEXT_SCHEMA).digest("hex");
+var MIGRATION_V8_CHECKSUM = createHash8("sha256").update(PARSE_SCHEMA).digest("hex");
 var MIGRATION_V7_SQL = ASSET_SCHEMA;
-var MIGRATION_V7_CHECKSUM = createHash7("sha256").update(ASSET_SCHEMA).digest("hex");
+var MIGRATION_V7_CHECKSUM = createHash8("sha256").update(ASSET_SCHEMA).digest("hex");
 var MIGRATION_V6_SQL = JOB_SCHEMA;
-var MIGRATION_V6_CHECKSUM = createHash7("sha256").update(JOB_SCHEMA).digest("hex");
+var MIGRATION_V6_CHECKSUM = createHash8("sha256").update(JOB_SCHEMA).digest("hex");
 var PROBE_SCHEMA_VERSION = 1;
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
@@ -978,7 +1070,7 @@ CREATE TABLE storage_probe_records (
   created_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V1_CHECKSUM = createHash7("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
+var MIGRATION_V1_CHECKSUM = createHash8("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
 var MIGRATION_V2_SQL = `CREATE TABLE password_credentials (
   id TEXT PRIMARY KEY,
   algorithm TEXT NOT NULL,
@@ -1032,7 +1124,7 @@ CREATE TABLE spaces (
   updated_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V2_CHECKSUM = createHash7("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
+var MIGRATION_V2_CHECKSUM = createHash8("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
 var MIGRATION_V3_SQL = `CREATE TABLE knowledge_projects (
   id TEXT PRIMARY KEY,
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
@@ -1082,7 +1174,7 @@ CREATE TABLE resource_grants (
   UNIQUE (resource_id, subject_type, subject_id, action)
 ) STRICT;
 `;
-var MIGRATION_V3_CHECKSUM = createHash7("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
+var MIGRATION_V3_CHECKSUM = createHash8("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
 var MIGRATION_V4_SQL = `ALTER TABLE resource_grants RENAME TO resource_grants_v3;
 CREATE TABLE resource_grants (
   id TEXT PRIMARY KEY,
@@ -1104,7 +1196,7 @@ CREATE UNIQUE INDEX resource_grants_active_subject_action_uq
   WHERE revoked_at IS NULL;
 DROP TABLE resource_grants_v3;
 `;
-var MIGRATION_V4_CHECKSUM = createHash7("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
+var MIGRATION_V4_CHECKSUM = createHash8("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
 var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -1116,7 +1208,7 @@ var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   PRIMARY KEY (service_id, user_id, idempotency_key)
 ) STRICT;
 `;
-var MIGRATION_V5_CHECKSUM = createHash7("sha256").update(MIGRATION_V5_SQL).digest("hex");
+var MIGRATION_V5_CHECKSUM = createHash8("sha256").update(MIGRATION_V5_SQL).digest("hex");
 var PROBE_SUPPORTED_TABLES = ["schema_migrations", "storage_probe_records"];
 var IDENTITY_SUPPORTED_TABLES = [
   "auth_sessions",
@@ -1238,7 +1330,7 @@ var ProbeStorage = class {
     const ref = this.#ensureReady().prepare("SELECT token_hash FROM auth_sessions WHERE id=? AND user_id=?").get(session, user);
     const actor = ref && this.findActor(String(ref.token_hash), now);
     return actor && this.authorizeObject(actor, object, "read", now)?.revision;
-  }, (point) => this.#injectFailure(point));
+  }, (point2) => this.#injectFailure(point2));
   constructor(options) {
     this.#dataDir = options.dataDir;
     this.#log = options.log ?? (() => {
@@ -1247,8 +1339,8 @@ var ProbeStorage = class {
     this.#failureAt = options.failureAt;
     this.#open();
   }
-  #injectFailure(point) {
-    if (this.#failureAt === point) throw new Error(`controlled storage failure at ${point}`);
+  #injectFailure(point2) {
+    if (this.#failureAt === point2) throw new Error(`controlled storage failure at ${point2}`);
   }
   get available() {
     return this.#state === "ready";
@@ -1296,6 +1388,7 @@ var ProbeStorage = class {
       if (priorVersion < 13) this.#migrateV13(db);
       if (priorVersion < 14) this.#migrateV14(db);
       if (priorVersion < 15) this.#migrateV15(db);
+      if (priorVersion < 16) this.#migrateV16(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -1363,7 +1456,7 @@ var ProbeStorage = class {
       }
       return "v5";
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15 || facts.userVersion === 16) {
       const db = new DatabaseSync(path, { readOnly: true });
       try {
         this.#verify(db, facts.userVersion);
@@ -1430,7 +1523,7 @@ var ProbeStorage = class {
       expected.exec(MIGRATION_V2_SQL);
       const normalize = (value) => String(value ?? "").replace(/\s+/g, " ").trim().toLowerCase();
       const signature = (source, table) => {
-        const columns = source.prepare(`PRAGMA table_info(${table})`).all().map((row) => ({ cid: Number(row.cid), name: String(row.name), type: String(row.type), notnull: Number(row.notnull), pk: Number(row.pk) }));
+        const columns2 = source.prepare(`PRAGMA table_info(${table})`).all().map((row) => ({ cid: Number(row.cid), name: String(row.name), type: String(row.type), notnull: Number(row.notnull), pk: Number(row.pk) }));
         const indexes = source.prepare(`PRAGMA index_list(${table})`).all().map((index) => ({
           unique: Number(index.unique),
           origin: String(index.origin),
@@ -1438,7 +1531,7 @@ var ProbeStorage = class {
         })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
         const foreignKeys = source.prepare(`PRAGMA foreign_key_list(${table})`).all().map((row) => ({ id: Number(row.id), seq: Number(row.seq), table: String(row.table), from: String(row.from), to: String(row.to), on_update: String(row.on_update), on_delete: String(row.on_delete), match: String(row.match) })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
         const sql = source.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name = ?").get(table)?.sql ?? "";
-        return { columns, indexes, foreignKeys, sql: normalize(sql) };
+        return { columns: columns2, indexes, foreignKeys, sql: normalize(sql) };
       };
       for (const table of ["password_credentials", "users", "service_identity", "auth_sessions", "spaces"]) {
         const actual = signature(db, table);
@@ -1521,7 +1614,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID7());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID8());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -1707,9 +1800,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "citation locator migration failed", false, { cause: e });
     }
   }
+  #migrateV16(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(READING_STATE_SCHEMA);
+      this.#injectFailure("v16:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(16,?,?)").run(MIGRATION_V16_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=16; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "reading state migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash2, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash2)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -1723,6 +1828,7 @@ var ProbeStorage = class {
       if (version >= 13) reference.exec(ZIP_SCHEMA);
       if (version >= 14) reference.exec(CITATION_SCHEMA);
       if (version >= 15) reference.exec(CITATION_LOCATOR_SCHEMA);
+      if (version >= 16) reference.exec(READING_STATE_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -1825,9 +1931,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID7();
-      const spaceId = randomUUID7();
-      const credentialId = randomUUID7();
+      const userId = randomUUID8();
+      const spaceId = randomUUID8();
+      const credentialId = randomUUID8();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -1861,9 +1967,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID7();
-      const spaceId = randomUUID7();
-      const credentialId = randomUUID7();
+      const userId = randomUUID8();
+      const spaceId = randomUUID8();
+      const credentialId = randomUUID8();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -2028,7 +2134,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID7(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
+        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID8(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -2125,8 +2231,8 @@ var ProbeStorage = class {
     let primaryCode;
     let failed = false;
     try {
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash7("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash7("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash8("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash8("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
     } catch (error) {
       failed = true;
       primaryCode = primarySqliteCode(error);
@@ -2194,6 +2300,7 @@ export {
   MIGRATION_V13_CHECKSUM,
   MIGRATION_V14_CHECKSUM,
   MIGRATION_V15_CHECKSUM,
+  MIGRATION_V16_CHECKSUM,
   MIGRATION_V1_CHECKSUM,
   MIGRATION_V1_SQL,
   MIGRATION_V2,

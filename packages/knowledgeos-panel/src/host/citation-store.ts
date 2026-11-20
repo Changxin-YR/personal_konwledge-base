@@ -6,6 +6,7 @@ import {makeLocator,type RenderWitness} from './citation-locator.ts'
 import type {SessionActor} from './identity.ts'
 import type {ParseTx} from './parse-store.ts'
 import {WORD_MEDIA,type WordMedia} from './office-schema.ts'
+import {createBookmark,readNavigation,samePoint,savePosition,type ReadingPoint} from './reading-state.ts'
 
 export const CITATION_SCHEMA=`CREATE TABLE citations (
   id TEXT PRIMARY KEY, created_by TEXT NOT NULL REFERENCES users(id), request_key TEXT NOT NULL,
@@ -63,6 +64,43 @@ export class CitationStore {
       wordOriginal:{key:String(r.storage_key),byteLength:Number(r.byte_length),sha256:String(r.sha256),media:r.media_type}}
   }
   source(prior:SessionActor,t:ReaderTarget){return this.tx('read',(db,now)=>this.read(db,this.actor(prior,now),t,now))}
+  navigation(prior:SessionActor,t:ReaderTarget){return this.tx('read',(db,now)=>{
+    const a=this.actor(prior,now),src=this.read(db,a,{...t,ordinal:1},now)
+    return readNavigation(db,a.userId,t.version_id,p=>{
+      if(src.conversion_id!==p.conversion_id||p.ordinal>src.total)return false
+      try{return samePoint(this.read(db,a,{...t,...p},now),p)}
+      catch(e){if(e instanceof AssetError&&e.code==='INVALID_READER_UNIT')return false;throw e}
+    })
+  })}
+  outline(prior:SessionActor,t:ReaderTarget){return this.tx('read',(db,now)=>{
+    const a=this.actor(prior,now),source=this.read(db,a,t,now)
+    const items=source.kind==='text'?db.prepare("SELECT ordinal,text FROM text_blocks WHERE version_id=? AND kind='heading' ORDER BY ordinal LIMIT 2048").all(t.version_id).flatMap(row=>{
+      const first=String(row.text).split(/\r\n|\r|\n/,1)[0]!
+      const title=first.replace(/^ {0,3}#{1,6}(?:[ \t]+|$)/,'').replace(/[ \t]+#+[ \t]*$/,'').trim().slice(0,250)
+      return title?[{ordinal:Number(row.ordinal),title}]:[]
+    }):[]
+    return {actor_id:a.userId,source,items}
+  })}
+  private writer(prior:SessionActor,expectedActor:string,now:string){
+    const a=this.actor(prior,now);if(a.userId!==expectedActor)throw new AssetError(409,'READER_ACTOR_CHANGED');return a
+  }
+  savePosition(prior:SessionActor,t:ReaderTarget&ReadingPoint,revision:number,expectedActor:string){return this.tx('write',(db,now)=>{
+    const a=this.writer(prior,expectedActor,now)
+    const src=this.read(db,a,{asset_id:t.asset_id,version_id:t.version_id,ordinal:t.ordinal},now)
+    if(!samePoint(src,t))throw new AssetError(409,'READING_SOURCE_CHANGED')
+    return savePosition(db,a.userId,t.version_id,t,revision)
+  })}
+  addBookmark(prior:SessionActor,t:ReaderTarget&ReadingPoint,title:string,expectedActor:string){return this.tx('write',(db,now)=>{
+    const a=this.writer(prior,expectedActor,now),src=this.read(db,a,t,now)
+    if(!samePoint(src,t))throw new AssetError(409,'READING_SOURCE_CHANGED')
+    return createBookmark(db,a.userId,t.version_id,t,title)
+  })}
+  deleteBookmark(prior:SessionActor,t:ReaderTarget,id:string,expectedActor:string){return this.tx('write',(db,now)=>{
+    const a=this.writer(prior,expectedActor,now);this.read(db,a,t,now)
+    const del=db.prepare('DELETE FROM reading_bookmarks WHERE id=? AND user_id=? AND version_id=?').run(id,a.userId,t.version_id)
+    if(del.changes!==1)throw notFound()
+    return {id}
+  })}
   access(prior:SessionActor,asset:string,version:string){return this.tx('read',(db,now)=>{
     const actor=this.actor(prior,now);if(!this.allowed(actor,asset,now))throw notFound()
     const row=db.prepare(`SELECT v.version,NOT EXISTS(SELECT 1 FROM asset_versions n WHERE n.asset_id=v.asset_id AND n.version>v.version) AS latest

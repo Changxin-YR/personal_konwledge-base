@@ -24,9 +24,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// node_modules/xmlchars/xml/1.0/ed5.js
+// node_modules/.pnpm/xmlchars@2.2.0/node_modules/xmlchars/xml/1.0/ed5.js
 var require_ed5 = __commonJS({
-  "node_modules/xmlchars/xml/1.0/ed5.js"(exports) {
+  "node_modules/.pnpm/xmlchars@2.2.0/node_modules/xmlchars/xml/1.0/ed5.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.CHAR = "	\n\r -\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}";
@@ -63,9 +63,9 @@ var require_ed5 = __commonJS({
   }
 });
 
-// node_modules/xmlchars/xml/1.1/ed2.js
+// node_modules/.pnpm/xmlchars@2.2.0/node_modules/xmlchars/xml/1.1/ed2.js
 var require_ed2 = __commonJS({
-  "node_modules/xmlchars/xml/1.1/ed2.js"(exports) {
+  "node_modules/.pnpm/xmlchars@2.2.0/node_modules/xmlchars/xml/1.1/ed2.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.CHAR = "-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}";
@@ -112,9 +112,9 @@ var require_ed2 = __commonJS({
   }
 });
 
-// node_modules/xmlchars/xmlns/1.0/ed3.js
+// node_modules/.pnpm/xmlchars@2.2.0/node_modules/xmlchars/xmlns/1.0/ed3.js
 var require_ed3 = __commonJS({
-  "node_modules/xmlchars/xmlns/1.0/ed3.js"(exports) {
+  "node_modules/.pnpm/xmlchars@2.2.0/node_modules/xmlchars/xmlns/1.0/ed3.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.NC_NAME_START_CHAR = "A-Z_a-z\xC0-\xD6\xD8-\xF6\xF8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD\u{10000}-\u{EFFFF}";
@@ -133,9 +133,9 @@ var require_ed3 = __commonJS({
   }
 });
 
-// node_modules/saxes/saxes.js
+// node_modules/.pnpm/saxes@6.0.0/node_modules/saxes/saxes.js
 var require_saxes = __commonJS({
-  "node_modules/saxes/saxes.js"(exports) {
+  "node_modules/.pnpm/saxes@6.0.0/node_modules/saxes/saxes.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SaxesParser = exports.EVENTS = void 0;
@@ -1933,7 +1933,7 @@ var require_saxes = __commonJS({
 });
 
 // src/host/index.ts
-import { randomUUID as randomUUID17 } from "node:crypto";
+import { randomUUID as randomUUID18 } from "node:crypto";
 
 // src/host/status.ts
 var EXPECTED_UPSTREAM_COMMIT = "39163dd30f703a79079e2d2446545cff3c453738";
@@ -2221,7 +2221,7 @@ function createRecordsHandlers(service, basePath, log) {
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash7, randomUUID as randomUUID8 } from "node:crypto";
+import { createHash as createHash8, randomUUID as randomUUID9 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -2978,7 +2978,7 @@ CREATE TABLE zip_selections (
 ) STRICT;`;
 
 // src/host/citation-store.ts
-import { createHash as createHash6, randomUUID as randomUUID7 } from "node:crypto";
+import { createHash as createHash7, randomUUID as randomUUID8 } from "node:crypto";
 
 // src/host/citation-anchor.ts
 import { createHash as createHash4 } from "node:crypto";
@@ -3020,6 +3020,43 @@ function makeLocator(s, text2, start, end, neighbors, w) {
   return { context, geometry: { page: s.ordinal, width: w.width, height: w.height, source_sha256: w.sha256, boxes }, ...word ? { word } : {} };
 }
 
+// src/host/reading-state.ts
+import { createHash as createHash6, randomUUID as randomUUID7 } from "node:crypto";
+var pointColumns = `ordinal INTEGER NOT NULL CHECK(ordinal BETWEEN 1 AND 1000000),
+  conversion_id TEXT REFERENCES office_conversions(id), source_hash TEXT NOT NULL CHECK(length(source_hash)=64)`;
+var READING_STATE_SCHEMA = `CREATE TABLE reading_positions (
+  user_id TEXT NOT NULL REFERENCES users(id), version_id TEXT NOT NULL REFERENCES asset_versions(id),
+  ${pointColumns}, revision INTEGER NOT NULL CHECK(revision>0), PRIMARY KEY(user_id,version_id)
+) STRICT;
+CREATE TABLE reading_bookmarks (
+  id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), version_id TEXT NOT NULL REFERENCES asset_versions(id),
+  ${pointColumns}, title TEXT NOT NULL CHECK(length(title) BETWEEN 1 AND 120)
+) STRICT;
+CREATE INDEX reading_bookmarks_scope ON reading_bookmarks(user_id,version_id);`;
+var canRemember = (s) => s.state === "ready" || s.state === "review";
+var positionHash = (s) => s.kind === "office" ? s.ref.sha256 : createHash6("sha256").update(s.text).digest("hex");
+var samePoint = (s, p) => canRemember(s) && s.ordinal === p.ordinal && s.conversion_id === p.conversion_id && positionHash(s) === p.source_hash;
+var point = (r) => ({ ordinal: Number(r.ordinal), source_hash: String(r.source_hash), ...r.conversion_id ? { conversion_id: String(r.conversion_id) } : {} });
+var columns = "ordinal,conversion_id,source_hash";
+function readNavigation(db, user, version, valid2) {
+  const r = db.prepare(`SELECT revision,${columns} FROM reading_positions WHERE user_id=? AND version_id=?`).get(user, version);
+  const p = r ? point(r) : null;
+  const bookmarks = db.prepare(`SELECT id,title,${columns} FROM reading_bookmarks WHERE user_id=? AND version_id=? ORDER BY rowid`).all(user, version);
+  return { actor_id: user, revision: Number(r?.revision ?? 0), position: p && valid2(p) ? p : null, bookmarks: bookmarks.map((r2) => ({ id: String(r2.id), title: String(r2.title), ...point(r2) })) };
+}
+function savePosition(db, user, version, p, expected) {
+  const revision = expected + 1;
+  const change = expected === 0 ? db.prepare("INSERT INTO reading_positions(user_id,version_id,ordinal,conversion_id,source_hash,revision) VALUES(?,?,?,?,?,1) ON CONFLICT DO NOTHING").run(user, version, p.ordinal, p.conversion_id ?? null, p.source_hash) : db.prepare("UPDATE reading_positions SET ordinal=?,conversion_id=?,source_hash=?,revision=? WHERE user_id=? AND version_id=? AND revision=?").run(p.ordinal, p.conversion_id ?? null, p.source_hash, revision, user, version, expected);
+  if (change.changes !== 1) throw new AssetError(409, "READING_REVISION_CONFLICT");
+  return { revision, position: { ordinal: p.ordinal, source_hash: p.source_hash, ...p.conversion_id ? { conversion_id: p.conversion_id } : {} } };
+}
+function createBookmark(db, user, version, p, title) {
+  if (Number(db.prepare("SELECT count(*) AS n FROM reading_bookmarks WHERE user_id=? AND version_id=?").get(user, version)?.n) >= 200) throw new AssetError(409, "BOOKMARK_LIMIT");
+  const id = randomUUID7();
+  db.prepare("INSERT INTO reading_bookmarks(id,user_id,version_id,ordinal,conversion_id,source_hash,title) VALUES(?,?,?,?,?,?,?)").run(id, user, version, p.ordinal, p.conversion_id ?? null, p.source_hash, title);
+  return { id, title, ordinal: p.ordinal, source_hash: p.source_hash, ...p.conversion_id ? { conversion_id: p.conversion_id } : {} };
+}
+
 // src/host/citation-store.ts
 var CITATION_SCHEMA = `CREATE TABLE citations (
   id TEXT PRIMARY KEY, created_by TEXT NOT NULL REFERENCES users(id), request_key TEXT NOT NULL,
@@ -3031,7 +3068,7 @@ var CITATION_SCHEMA = `CREATE TABLE citations (
 ) STRICT;`;
 var notFound2 = () => new AssetError(404, "SOURCE_NOT_FOUND");
 var invalid = () => new AssetError(422, "INVALID_READER_UNIT");
-var sha = (s) => createHash6("sha256").update(s, "utf8").digest("hex");
+var sha = (s) => createHash7("sha256").update(s, "utf8").digest("hex");
 var uuid2 = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 var fields = "id,asset_id,version_id,conversion_id,ordinal,start,end,source_hash,quote_hash";
 function dto(row) {
@@ -3097,6 +3134,60 @@ var CitationStore = class {
   source(prior, t) {
     return this.tx("read", (db, now) => this.read(db, this.actor(prior, now), t, now));
   }
+  navigation(prior, t) {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(prior, now), src = this.read(db, a, { ...t, ordinal: 1 }, now);
+      return readNavigation(db, a.userId, t.version_id, (p) => {
+        if (src.conversion_id !== p.conversion_id || p.ordinal > src.total) return false;
+        try {
+          return samePoint(this.read(db, a, { ...t, ...p }, now), p);
+        } catch (e) {
+          if (e instanceof AssetError && e.code === "INVALID_READER_UNIT") return false;
+          throw e;
+        }
+      });
+    });
+  }
+  outline(prior, t) {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(prior, now), source = this.read(db, a, t, now);
+      const items = source.kind === "text" ? db.prepare("SELECT ordinal,text FROM text_blocks WHERE version_id=? AND kind='heading' ORDER BY ordinal LIMIT 2048").all(t.version_id).flatMap((row) => {
+        const first = String(row.text).split(/\r\n|\r|\n/, 1)[0];
+        const title = first.replace(/^ {0,3}#{1,6}(?:[ \t]+|$)/, "").replace(/[ \t]+#+[ \t]*$/, "").trim().slice(0, 250);
+        return title ? [{ ordinal: Number(row.ordinal), title }] : [];
+      }) : [];
+      return { actor_id: a.userId, source, items };
+    });
+  }
+  writer(prior, expectedActor, now) {
+    const a = this.actor(prior, now);
+    if (a.userId !== expectedActor) throw new AssetError(409, "READER_ACTOR_CHANGED");
+    return a;
+  }
+  savePosition(prior, t, revision, expectedActor) {
+    return this.tx("write", (db, now) => {
+      const a = this.writer(prior, expectedActor, now);
+      const src = this.read(db, a, { asset_id: t.asset_id, version_id: t.version_id, ordinal: t.ordinal }, now);
+      if (!samePoint(src, t)) throw new AssetError(409, "READING_SOURCE_CHANGED");
+      return savePosition(db, a.userId, t.version_id, t, revision);
+    });
+  }
+  addBookmark(prior, t, title, expectedActor) {
+    return this.tx("write", (db, now) => {
+      const a = this.writer(prior, expectedActor, now), src = this.read(db, a, t, now);
+      if (!samePoint(src, t)) throw new AssetError(409, "READING_SOURCE_CHANGED");
+      return createBookmark(db, a.userId, t.version_id, t, title);
+    });
+  }
+  deleteBookmark(prior, t, id, expectedActor) {
+    return this.tx("write", (db, now) => {
+      const a = this.writer(prior, expectedActor, now);
+      this.read(db, a, t, now);
+      const del = db.prepare("DELETE FROM reading_bookmarks WHERE id=? AND user_id=? AND version_id=?").run(id, a.userId, t.version_id);
+      if (del.changes !== 1) throw notFound2();
+      return { id };
+    });
+  }
   access(prior, asset, version) {
     return this.tx("read", (db, now) => {
       const actor2 = this.actor(prior, now);
@@ -3147,7 +3238,7 @@ var CitationStore = class {
         return r ? String(r.anchor) : null;
       };
       const locator = makeLocator(src, text2, spec.start, spec.end, { previous: neighbor(src.ordinal - 1), next: neighbor(src.ordinal + 1) }, w);
-      const id = randomUUID7();
+      const id = randomUUID8();
       db.prepare("INSERT INTO citations VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run(id, a.userId, key, spec.asset_id, spec.version_id, spec.conversion_id ?? null, spec.ordinal, range.start, range.end, range.source_hash, range.quote_hash, now);
       db.prepare("INSERT INTO citation_locators(citation_id,snapshot) VALUES(?,?)").run(id, JSON.stringify(locator));
       return { data: { ...spec, ...range, id, locator }, replayed: false };
@@ -3177,17 +3268,18 @@ var CITATION_LOCATOR_SCHEMA = `CREATE TABLE citation_locators (
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 15;
-var MIGRATION_V15_CHECKSUM = createHash7("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
-var MIGRATION_V13_CHECKSUM = createHash7("sha256").update(ZIP_SCHEMA).digest("hex");
-var MIGRATION_V14_CHECKSUM = createHash7("sha256").update(CITATION_SCHEMA).digest("hex");
-var MIGRATION_V12_CHECKSUM = createHash7("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
-var MIGRATION_V11_CHECKSUM = createHash7("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
-var MIGRATION_V10_CHECKSUM = createHash7("sha256").update(OFFICE_SCHEMA).digest("hex");
-var MIGRATION_V9_CHECKSUM = createHash7("sha256").update(TEXT_SCHEMA).digest("hex");
-var MIGRATION_V8_CHECKSUM = createHash7("sha256").update(PARSE_SCHEMA).digest("hex");
-var MIGRATION_V7_CHECKSUM = createHash7("sha256").update(ASSET_SCHEMA).digest("hex");
-var MIGRATION_V6_CHECKSUM = createHash7("sha256").update(JOB_SCHEMA).digest("hex");
+var SCHEMA_VERSION = 16;
+var MIGRATION_V16_CHECKSUM = createHash8("sha256").update(READING_STATE_SCHEMA).digest("hex");
+var MIGRATION_V15_CHECKSUM = createHash8("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
+var MIGRATION_V13_CHECKSUM = createHash8("sha256").update(ZIP_SCHEMA).digest("hex");
+var MIGRATION_V14_CHECKSUM = createHash8("sha256").update(CITATION_SCHEMA).digest("hex");
+var MIGRATION_V12_CHECKSUM = createHash8("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
+var MIGRATION_V11_CHECKSUM = createHash8("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
+var MIGRATION_V10_CHECKSUM = createHash8("sha256").update(OFFICE_SCHEMA).digest("hex");
+var MIGRATION_V9_CHECKSUM = createHash8("sha256").update(TEXT_SCHEMA).digest("hex");
+var MIGRATION_V8_CHECKSUM = createHash8("sha256").update(PARSE_SCHEMA).digest("hex");
+var MIGRATION_V7_CHECKSUM = createHash8("sha256").update(ASSET_SCHEMA).digest("hex");
+var MIGRATION_V6_CHECKSUM = createHash8("sha256").update(JOB_SCHEMA).digest("hex");
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
 var MIGRATION_V1_SQL = `CREATE TABLE schema_migrations (
@@ -3203,7 +3295,7 @@ CREATE TABLE storage_probe_records (
   created_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V1_CHECKSUM = createHash7("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
+var MIGRATION_V1_CHECKSUM = createHash8("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
 var MIGRATION_V2_SQL = `CREATE TABLE password_credentials (
   id TEXT PRIMARY KEY,
   algorithm TEXT NOT NULL,
@@ -3257,7 +3349,7 @@ CREATE TABLE spaces (
   updated_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V2_CHECKSUM = createHash7("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
+var MIGRATION_V2_CHECKSUM = createHash8("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
 var MIGRATION_V3_SQL = `CREATE TABLE knowledge_projects (
   id TEXT PRIMARY KEY,
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
@@ -3307,7 +3399,7 @@ CREATE TABLE resource_grants (
   UNIQUE (resource_id, subject_type, subject_id, action)
 ) STRICT;
 `;
-var MIGRATION_V3_CHECKSUM = createHash7("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
+var MIGRATION_V3_CHECKSUM = createHash8("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
 var MIGRATION_V4_SQL = `ALTER TABLE resource_grants RENAME TO resource_grants_v3;
 CREATE TABLE resource_grants (
   id TEXT PRIMARY KEY,
@@ -3329,7 +3421,7 @@ CREATE UNIQUE INDEX resource_grants_active_subject_action_uq
   WHERE revoked_at IS NULL;
 DROP TABLE resource_grants_v3;
 `;
-var MIGRATION_V4_CHECKSUM = createHash7("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
+var MIGRATION_V4_CHECKSUM = createHash8("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
 var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -3341,7 +3433,7 @@ var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   PRIMARY KEY (service_id, user_id, idempotency_key)
 ) STRICT;
 `;
-var MIGRATION_V5_CHECKSUM = createHash7("sha256").update(MIGRATION_V5_SQL).digest("hex");
+var MIGRATION_V5_CHECKSUM = createHash8("sha256").update(MIGRATION_V5_SQL).digest("hex");
 var PROBE_SUPPORTED_TABLES = ["schema_migrations", "storage_probe_records"];
 var IDENTITY_SUPPORTED_TABLES = [
   "auth_sessions",
@@ -3459,7 +3551,7 @@ var ProbeStorage = class {
     const ref = this.#ensureReady().prepare("SELECT token_hash FROM auth_sessions WHERE id=? AND user_id=?").get(session, user);
     const actor2 = ref && this.findActor(String(ref.token_hash), now);
     return actor2 && this.authorizeObject(actor2, object, "read", now)?.revision;
-  }, (point) => this.#injectFailure(point));
+  }, (point2) => this.#injectFailure(point2));
   constructor(options) {
     this.#dataDir = options.dataDir;
     this.#log = options.log ?? (() => {
@@ -3468,8 +3560,8 @@ var ProbeStorage = class {
     this.#failureAt = options.failureAt;
     this.#open();
   }
-  #injectFailure(point) {
-    if (this.#failureAt === point) throw new Error(`controlled storage failure at ${point}`);
+  #injectFailure(point2) {
+    if (this.#failureAt === point2) throw new Error(`controlled storage failure at ${point2}`);
   }
   get available() {
     return this.#state === "ready";
@@ -3517,6 +3609,7 @@ var ProbeStorage = class {
       if (priorVersion < 13) this.#migrateV13(db);
       if (priorVersion < 14) this.#migrateV14(db);
       if (priorVersion < 15) this.#migrateV15(db);
+      if (priorVersion < 16) this.#migrateV16(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -3584,7 +3677,7 @@ var ProbeStorage = class {
       }
       return "v5";
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15 || facts.userVersion === 16) {
       const db = new DatabaseSync(path, { readOnly: true });
       try {
         this.#verify(db, facts.userVersion);
@@ -3651,7 +3744,7 @@ var ProbeStorage = class {
       expected.exec(MIGRATION_V2_SQL);
       const normalize = (value) => String(value ?? "").replace(/\s+/g, " ").trim().toLowerCase();
       const signature = (source, table) => {
-        const columns = source.prepare(`PRAGMA table_info(${table})`).all().map((row) => ({ cid: Number(row.cid), name: String(row.name), type: String(row.type), notnull: Number(row.notnull), pk: Number(row.pk) }));
+        const columns2 = source.prepare(`PRAGMA table_info(${table})`).all().map((row) => ({ cid: Number(row.cid), name: String(row.name), type: String(row.type), notnull: Number(row.notnull), pk: Number(row.pk) }));
         const indexes = source.prepare(`PRAGMA index_list(${table})`).all().map((index) => ({
           unique: Number(index.unique),
           origin: String(index.origin),
@@ -3659,7 +3752,7 @@ var ProbeStorage = class {
         })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
         const foreignKeys = source.prepare(`PRAGMA foreign_key_list(${table})`).all().map((row) => ({ id: Number(row.id), seq: Number(row.seq), table: String(row.table), from: String(row.from), to: String(row.to), on_update: String(row.on_update), on_delete: String(row.on_delete), match: String(row.match) })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
         const sql = source.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name = ?").get(table)?.sql ?? "";
-        return { columns, indexes, foreignKeys, sql: normalize(sql) };
+        return { columns: columns2, indexes, foreignKeys, sql: normalize(sql) };
       };
       for (const table of ["password_credentials", "users", "service_identity", "auth_sessions", "spaces"]) {
         const actual = signature(db, table);
@@ -3742,7 +3835,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID8());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID9());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -3928,9 +4021,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "citation locator migration failed", false, { cause: e });
     }
   }
+  #migrateV16(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(READING_STATE_SCHEMA);
+      this.#injectFailure("v16:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(16,?,?)").run(MIGRATION_V16_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=16; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "reading state migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash3, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash3)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -3944,6 +4049,7 @@ var ProbeStorage = class {
       if (version >= 13) reference.exec(ZIP_SCHEMA);
       if (version >= 14) reference.exec(CITATION_SCHEMA);
       if (version >= 15) reference.exec(CITATION_LOCATOR_SCHEMA);
+      if (version >= 16) reference.exec(READING_STATE_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name: name2, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name2)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -4046,9 +4152,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID8();
-      const spaceId = randomUUID8();
-      const credentialId = randomUUID8();
+      const userId = randomUUID9();
+      const spaceId = randomUUID9();
+      const credentialId = randomUUID9();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -4082,9 +4188,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID8();
-      const spaceId = randomUUID8();
-      const credentialId = randomUUID8();
+      const userId = randomUUID9();
+      const spaceId = randomUUID9();
+      const credentialId = randomUUID9();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -4249,7 +4355,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action2 of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID8(), input.serviceId, input.id, input.ownerUserId, action2, input.now, input.now);
+        for (const action2 of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID9(), input.serviceId, input.id, input.ownerUserId, action2, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -4346,8 +4452,8 @@ var ProbeStorage = class {
     let primaryCode;
     let failed = false;
     try {
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash7("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash7("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash8("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash8("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
     } catch (error) {
       failed = true;
       primaryCode = primarySqliteCode(error);
@@ -4405,7 +4511,7 @@ var ProbeStorage = class {
 };
 
 // src/host/identity.ts
-import { createHash as createHash8, randomBytes, randomUUID as randomUUID9, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
+import { createHash as createHash9, randomBytes, randomUUID as randomUUID10, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
 var DOMAINS = ["software_engineering", "system_architecture", "hardware_engineering", "ai_development"];
 var LEARNING_TRACKS = ["engineering_practice", "architecture_exam", "knowledge_accumulation"];
 var DEFAULT_TIMEZONE = "Asia/Shanghai";
@@ -4481,7 +4587,7 @@ function validateExpectedRevision(value) {
   return Number(value);
 }
 function tokenHash(token) {
-  return createHash8("sha256").update(token, "utf8").digest("hex");
+  return createHash9("sha256").update(token, "utf8").digest("hex");
 }
 function makeToken() {
   return randomBytes(32).toString("base64url");
@@ -4686,7 +4792,7 @@ var IdentityService = class {
     const token = makeToken();
     const createdAt = /* @__PURE__ */ new Date();
     const expiresAt = new Date(createdAt.getTime() + SESSION_TTL_MS).toISOString();
-    this.#store.createSession({ sessionId: randomUUID9(), userId: lookup.userId, tokenHash: tokenHash(token), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
+    this.#store.createSession({ sessionId: randomUUID10(), userId: lookup.userId, tokenHash: tokenHash(token), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
     const user = this.#store.getProfile(lookup.userId);
     if (user === void 0) throw new IdentityError("STORAGE_UNAVAILABLE", "user profile unavailable");
     return { user, token, expiresAt };
@@ -4714,7 +4820,7 @@ var IdentityService = class {
 };
 
 // src/host/identity-http.ts
-import { createHash as createHash9, randomUUID as randomUUID10 } from "node:crypto";
+import { createHash as createHash10, randomUUID as randomUUID11 } from "node:crypto";
 import { isIP } from "node:net";
 var HttpError = class extends Error {
   constructor(status, code, message, retryable = false, headers = {}) {
@@ -4791,7 +4897,7 @@ function isIdentityRuntimeAvailable(facts) {
   }
 }
 function businessCookieName(serviceId, origin) {
-  return `kos_session_${createHash9("sha256").update(`${serviceId}|${origin}`).digest("hex").slice(0, 16)}`;
+  return `kos_session_${createHash10("sha256").update(`${serviceId}|${origin}`).digest("hex").slice(0, 16)}`;
 }
 function readCookie(req, name2) {
   const raw = req.headers.cookie;
@@ -4921,7 +5027,7 @@ function createIdentityHandlers(options) {
     return actor2;
   };
   const dispatch = async (req, res, action2) => {
-    const requestId = randomUUID10();
+    const requestId = randomUUID11();
     try {
       assertAvailable();
       assertNoQuery(req);
@@ -4950,7 +5056,7 @@ function createIdentityHandlers(options) {
     requireMethod(req, "GET");
     assertTrust(req, false);
     const state = service.setupState;
-    sendJson2(res, 200, withMeta(randomUUID10(), { setup_required: !state.initialized, available: true }));
+    sendJson2(res, 200, withMeta(randomUUID11(), { setup_required: !state.initialized, available: true }));
   });
   const bootstrap = async (req, res, peer) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -4961,7 +5067,7 @@ function createIdentityHandlers(options) {
     const body = bodyObject(await readBody2(req));
     assertKeys(body, ["login_name", "password", "display_name", "timezone"]);
     const user = await service.bootstrap({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, source: requestSource(req), signal });
-    sendJson2(res, 201, withMeta(randomUUID10(), safeProfile(user)));
+    sendJson2(res, 201, withMeta(randomUUID11(), safeProfile(user)));
   });
   const register = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -4971,7 +5077,7 @@ function createIdentityHandlers(options) {
     const body = bodyObject(await readBody2(req));
     assertKeys(body, ["login_name", "password", "display_name", "timezone"]);
     const user = await service.register({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, source: requestSource(req), signal });
-    sendJson2(res, 201, withMeta(randomUUID10(), safeProfile(user)));
+    sendJson2(res, 201, withMeta(randomUUID11(), safeProfile(user)));
   });
   const login = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -4986,7 +5092,7 @@ function createIdentityHandlers(options) {
     const state = service.setupState;
     const name2 = businessCookieName(state.serviceId, origin);
     const maxAge = Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1e3);
-    sendJson2(res, 200, withMeta(randomUUID10(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin, options.protocol(), maxAge) });
+    sendJson2(res, 200, withMeta(randomUUID11(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin, options.protocol(), maxAge) });
   });
   const logout = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -5007,7 +5113,7 @@ function createIdentityHandlers(options) {
     const actor2 = requireActor(req);
     const profile = service.profile(actor2.userId);
     if (profile === void 0) throw new HttpError(401, "SESSION_EXPIRED", "business session is required");
-    sendJson2(res, 200, withMeta(randomUUID10(), safeProfile(profile)));
+    sendJson2(res, 200, withMeta(randomUUID11(), safeProfile(profile)));
   });
   const preferences = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "PATCH");
@@ -5024,14 +5130,14 @@ function createIdentityHandlers(options) {
     if (body.learning_tracks !== void 0) patch.learningTracks = validateLearningTracks(body.learning_tracks);
     if (body.goal_text !== void 0) patch.goalText = validateGoalText(body.goal_text);
     if (Object.keys(patch).length === 0) throw new HttpError(422, "INPUT_INVALID", "at least one preference is required");
-    sendJson2(res, 200, withMeta(randomUUID10(), safeProfile(service.preferences(actor2.userId, expectedRevision, patch))));
+    sendJson2(res, 200, withMeta(randomUUID11(), safeProfile(service.preferences(actor2.userId, expectedRevision, patch))));
   });
   const spaces = async (req, res) => dispatch(req, res, () => {
     requireMethod(req, "GET");
     assertTrust(req, false);
     const actor2 = requireActor(req);
     const data = service.spaces(actor2.userId).map((space) => ({ id: space.id, service_id: space.serviceId, kind: space.kind, owner_user_id: space.ownerUserId, status: space.status, revision: space.revision, created_at: space.createdAt, updated_at: space.updatedAt }));
-    sendJson2(res, 200, withMeta(randomUUID10(), data));
+    sendJson2(res, 200, withMeta(randomUUID11(), data));
   });
   return { status, bootstrap, register, login, logout, me, preferences, spaces };
 }
@@ -5048,7 +5154,7 @@ function buildSetupHtml() {
 }
 
 // src/host/objects-http.ts
-import { randomUUID as randomUUID11 } from "node:crypto";
+import { randomUUID as randomUUID12 } from "node:crypto";
 var ObjectHttpError = class extends Error {
   constructor(status, code, message) {
     super(message);
@@ -5111,7 +5217,7 @@ function actor(options, req) {
 }
 function createObjectHandlers(options) {
   return async (req, res) => {
-    const requestId = randomUUID11();
+    const requestId = randomUUID12();
     try {
       const path = pathOf(req);
       const segments = path.split("/").filter(Boolean);
@@ -5136,7 +5242,7 @@ function createObjectHandlers(options) {
       if (segments[2] === "projects" && segments.length === 3 && req.method === "POST") {
         const body = await readBody3(req);
         keys(body, ["name"]);
-        const project = options.storage.createProject({ id: randomUUID11(), serviceId: current.serviceId, ownerUserId: current.userId, name: text(body.name, "name", 200), now });
+        const project = options.storage.createProject({ id: randomUUID12(), serviceId: current.serviceId, ownerUserId: current.userId, name: text(body.name, "name", 200), now });
         json(res, 201, { data: project, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
         return;
       }
@@ -5166,7 +5272,7 @@ function createObjectHandlers(options) {
           if (scope === "project" && !options.storage.canCreateProjectObject(current, projectId, now)) throw new ObjectHttpError(404, "NOT_FOUND", "project not found");
           const title = text(body.title, "title", 200);
           const content = text(body.body, "body", 1e5);
-          const object = options.storage.createObject({ id: randomUUID11(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId, ownerUserId: current.userId, objectType: body.object_type === void 0 ? "note" : text(body.object_type, "object_type", 80), title, body: content, now });
+          const object = options.storage.createObject({ id: randomUUID12(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId, ownerUserId: current.userId, objectType: body.object_type === void 0 ? "note" : text(body.object_type, "object_type", 80), title, body: content, now });
           json(res, 201, { data: safeObject(object), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
           return;
         }
@@ -5207,7 +5313,7 @@ function createObjectHandlers(options) {
         const body = await readBody3(req);
         keys(body, ["object_id", "subject_type", "subject_id", "action", "valid_from", "expires_at"]);
         if (body.subject_type !== "user" && body.subject_type !== "project") throw new ObjectHttpError(422, "INPUT_INVALID", "subject_type is invalid");
-        const grant = options.storage.grantObject(current, { id: randomUUID11(), objectId: text(body.object_id, "object_id", 80), serviceId: current.serviceId, subjectType: body.subject_type, subjectId: text(body.subject_id, "subject_id", 80), action: action(body.action), validFrom: body.valid_from === void 0 ? now : text(body.valid_from, "valid_from", 40), expiresAt: body.expires_at === void 0 ? void 0 : text(body.expires_at, "expires_at", 40), now });
+        const grant = options.storage.grantObject(current, { id: randomUUID12(), objectId: text(body.object_id, "object_id", 80), serviceId: current.serviceId, subjectType: body.subject_type, subjectId: text(body.subject_id, "subject_id", 80), action: action(body.action), validFrom: body.valid_from === void 0 ? now : text(body.valid_from, "valid_from", 40), expiresAt: body.expires_at === void 0 ? void 0 : text(body.expires_at, "expires_at", 40), now });
         if (grant === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
         json(res, 201, { data: grant, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
         return;
@@ -5242,11 +5348,11 @@ function createObjectHandlers(options) {
 }
 
 // src/host/ai-service.ts
-import { randomUUID as randomUUID12 } from "node:crypto";
+import { randomUUID as randomUUID13 } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 // src/host/ai-tools.ts
-import { createHash as createHash10 } from "node:crypto";
+import { createHash as createHash11 } from "node:crypto";
 var AiError = class extends Error {
   constructor(status, code) {
     super(code);
@@ -5285,7 +5391,7 @@ function toolArguments(call) {
   return { object_id, expected_revision: Number(args.expected_revision), ...args.title === void 0 ? {} : { title: aiText(args.title, 200) }, ...args.body === void 0 ? {} : { body: aiText(args.body, 2e3, true) } };
 }
 function toolDigest(name2, input) {
-  return createHash10("sha256").update(JSON.stringify([name2, input.object_id, input.expected_revision ?? null, input.title ?? null, input.body ?? null])).digest("hex");
+  return createHash11("sha256").update(JSON.stringify([name2, input.object_id, input.expected_revision ?? null, input.title ?? null, input.body ?? null])).digest("hex");
 }
 function runBusinessTool(store, actor2, call, key, now) {
   const input = toolArguments(call);
@@ -5422,7 +5528,7 @@ var AiService = class {
       if (finish !== "tool-calls" || calls.length !== 1) throw new AiError(502, "MODEL_OUTPUT_INVALID");
       const call = calls[0], args = toolArguments(call);
       if (args.object_id !== objectId || call.name === TOOL_NAMES[1] && args.expected_revision !== raw.expected_revision) throw new AiError(422, "MODEL_TARGET_MISMATCH");
-      const prepared = { id: randomUUID12(), requestId, actor: actor2, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
+      const prepared = { id: randomUUID13(), requestId, actor: actor2, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
       this.#prepared.set(prepared.id, prepared);
       return { ...this.#view(prepared), usage: usage ?? null };
     } catch (error) {
@@ -5524,10 +5630,10 @@ var AiService = class {
 };
 
 // src/host/ai-http.ts
-import { randomUUID as randomUUID13 } from "node:crypto";
+import { randomUUID as randomUUID14 } from "node:crypto";
 function createAiHandler(options) {
   return async (req, res) => {
-    const requestId = randomUUID13(), controller = new AbortController();
+    const requestId = randomUUID14(), controller = new AbortController();
     const disconnect = () => {
       if (!res.writableEnded) controller.abort();
     };
@@ -5611,7 +5717,7 @@ body{margin:0;background:#f4f8f8;color:#23333a;font:15px/1.65 "Segoe UI","Micros
 import { join as join3 } from "node:path";
 
 // src/host/pdf-originals.ts
-import { createHash as createHash11, randomUUID as randomUUID14 } from "node:crypto";
+import { createHash as createHash12, randomUUID as randomUUID15 } from "node:crypto";
 import { constants } from "node:fs";
 import fs from "node:fs/promises";
 import { dirname, join as join2, resolve } from "node:path";
@@ -5699,7 +5805,7 @@ async function verifyWordBytes(b, media) {
 // src/host/pdf-originals.ts
 var MAX = 64 * 1024 * 1024;
 var KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:pdf|txt|docx?|zip)$/;
-var digest = (b) => createHash11("sha256").update(b).digest("hex");
+var digest = (b) => createHash12("sha256").update(b).digest("hex");
 var PdfInputError = class extends Error {
   code = "PDF_INVALID_INPUT";
   constructor() {
@@ -5854,8 +5960,8 @@ var PdfOriginals = class {
   async #write(data, extension) {
     const sha256 = digest(data);
     await this.#directory(true);
-    const stage = join2(this.#root, `.${randomUUID14()}.pending`);
-    const key = `${randomUUID14()}.${extension}`, final = join2(this.#root, key);
+    const stage = join2(this.#root, `.${randomUUID15()}.pending`);
+    const key = `${randomUUID15()}.${extension}`, final = join2(this.#root, key);
     const file = await fs.open(stage, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | noFollow, 384);
     let id, staged = true, linked = false;
     try {
@@ -5934,10 +6040,10 @@ var PdfOriginals = class {
 };
 
 // src/host/library-http.ts
-import { randomUUID as randomUUID15 } from "node:crypto";
+import { randomUUID as randomUUID16 } from "node:crypto";
 
 // src/host/text-document.ts
-import { createHash as createHash12 } from "node:crypto";
+import { createHash as createHash13 } from "node:crypto";
 var MAX_BYTES = 8 * 1024 * 1024;
 var MAX_BLOCKS = 16384;
 var messages = {
@@ -5979,7 +6085,7 @@ function indexBlocks(source, markdown) {
     if (!pending) return;
     if (blocks.length >= MAX_BLOCKS) throw new TextInputError("TEXT_TOO_LARGE");
     const text2 = source.slice(start, end);
-    const anchor = createHash12("sha256").update(text2, "utf8").digest("hex");
+    const anchor = createHash13("sha256").update(text2, "utf8").digest("hex");
     blocks.push({ kind: pending, start, end, text: text2, anchor });
     start = end;
     pending = void 0;
@@ -6040,12 +6146,12 @@ function decodeText(bytes, media, requestedEncoding) {
 }
 
 // src/host/reader-http.ts
-import { createHash as createHash14 } from "node:crypto";
+import { createHash as createHash15 } from "node:crypto";
 
 // src/host/word-locator.ts
 var import_saxes = __toESM(require_saxes(), 1);
-import { createHash as createHash13 } from "node:crypto";
-var sha2 = (text2) => createHash13("sha256").update(text2, "utf8").digest("hex");
+import { createHash as createHash14 } from "node:crypto";
+var sha2 = (text2) => createHash14("sha256").update(text2, "utf8").digest("hex");
 var wordNs = /* @__PURE__ */ new Set(["http://schemas.openxmlformats.org/wordprocessingml/2006/main", "http://purl.oclc.org/ooxml/wordprocessingml/main"]);
 var bodyLimit = 1e6;
 var wordPageLimit = 512;
@@ -6161,7 +6267,7 @@ async function alignWordSelection(paragraphs, version, sourceSha, ordinal, text2
 
 // src/host/reader-http.ts
 var uuid3 = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
-var hash2 = (s) => createHash14("sha256").update(s, "utf8").digest("hex");
+var hash2 = (s) => createHash15("sha256").update(s, "utf8").digest("hex");
 var ReaderService = class {
   constructor(store, originals, render2, wordPages, legacyWord) {
     this.store = store;
@@ -6172,6 +6278,44 @@ var ReaderService = class {
   }
   access(current, asset, version) {
     return this.store.access(current(), asset, version);
+  }
+  navigation(current, t) {
+    return this.store.navigation(current(), t);
+  }
+  savePosition(current, t, r, a) {
+    return this.store.savePosition(current(), t, r, a);
+  }
+  addBookmark(current, t, title, a) {
+    return this.store.addBookmark(current(), t, title, a);
+  }
+  deleteBookmark(current, t, id, a) {
+    return this.store.deleteBookmark(current(), t, id, a);
+  }
+  async outline(current, t, signal) {
+    const { actor_id, source, items } = this.store.outline(current(), t);
+    if (source.kind !== "pdf") return { actor_id, items };
+    if (!this.wordPages || !source.ref) throw new AssetError(503, "OUTLINE_UNAVAILABLE");
+    const safe = () => {
+      if (signal.aborted) throw new AssetError(409, "READ_CANCELLED");
+      if (this.access(current, t.asset_id, t.version_id).actor_id !== actor_id) throw new AssetError(409, "READER_ACTOR_CHANGED");
+    };
+    try {
+      const bytes = await this.originals.read(source.ref.key, source.ref.sha256, source.ref.byteLength);
+      safe();
+      const pdf = await this.wordPages(bytes, signal);
+      let outline;
+      try {
+        if (!pdf.outline) throw Error("Outline unavailable");
+        outline = await pdf.outline();
+      } finally {
+        await pdf.close();
+      }
+      safe();
+      return { actor_id, items: outline };
+    } catch (e) {
+      safe();
+      throw e instanceof AssetError ? e : new AssetError(503, "OUTLINE_UNAVAILABLE");
+    }
   }
   async rendered(current, s, signal) {
     if (!this.render || !s.ref) throw new AssetError(503, "PAGE_RENDER_UNAVAILABLE");
@@ -6196,9 +6340,10 @@ var ReaderService = class {
   }
   async page(current, t, signal) {
     const s = this.store.source(current(), t), { ref: _private, wordOriginal: _word, ...publicFields } = s;
-    if (s.kind === "text" || !["ready", "review"].includes(s.state)) return { ...publicFields, anchor: hash2(s.text) };
+    const position = canRemember(s) ? { position_hash: positionHash(s) } : {};
+    if (s.kind === "text" || !canRemember(s)) return { ...publicFields, ...position, anchor: hash2(s.text) };
     const { text: text2, image, width, height, boxes } = await this.rendered(current, s, signal);
-    return { ...publicFields, text: text2, anchor: hash2(text2), image, width, height, boxes, original_sha256: s.ref.sha256 };
+    return { ...publicFields, ...position, text: text2, anchor: hash2(text2), image, width, height, boxes, original_sha256: s.ref.sha256 };
   }
   async witness(current, t, signal) {
     const s = this.store.source(current(), t);
@@ -6257,6 +6402,47 @@ var ReaderService = class {
   }
 };
 async function readerRoute(req, url, service, current, signal, body, reserve, send) {
+  const reading = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/reader-(state|outline|bookmarks)(?:\/([a-f0-9-]+))?$/.exec(url.pathname);
+  if (reading && uuid3.test(reading[1]) && uuid3.test(reading[2]) && !url.search) {
+    const t = { asset_id: reading[1], version_id: reading[2], ordinal: 1 }, kind = reading[3], id = reading[4], method = req.method;
+    if (method === "GET" && !id && kind === "state") {
+      send(200, service.navigation(current, t));
+      return true;
+    }
+    if (method === "GET" && !id && kind === "outline") {
+      reserve();
+      send(200, await service.outline(current, t, signal));
+      return true;
+    }
+    const save = kind === "state" && method === "PUT" && !id, add = kind === "bookmarks" && method === "POST" && !id, del = kind === "bookmarks" && method === "DELETE" && id && uuid3.test(id);
+    if (save || add || del) {
+      const a = req.headers["x-knowledgeos-reader-actor"];
+      if (typeof a !== "string" || !uuid3.test(a)) throw new AssetError(422, "INVALID_READER_ACTOR");
+      if (del && id) {
+        send(200, service.deleteBookmark(current, t, id, a));
+        return true;
+      }
+      if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
+      reserve();
+      const b = await body(req, "INVALID_READING_POINT", 2048);
+      let v;
+      try {
+        v = JSON.parse(b.toString("utf8"));
+      } catch {
+        throw new AssetError(422, "INVALID_READING_POINT");
+      }
+      if (!v || typeof v !== "object" || Array.isArray(v) || Object.keys(v).some((k) => !["ordinal", "source_hash", "conversion_id", save ? "expected_revision" : "title"].includes(k)) || !Number.isSafeInteger(v.ordinal) || v.ordinal < 1 || v.ordinal > 1e6 || typeof v.source_hash !== "string" || !/^[a-f0-9]{64}$/.test(v.source_hash) || "conversion_id" in v && (typeof v.conversion_id !== "string" || !uuid3.test(v.conversion_id))) throw new AssetError(422, "INVALID_READING_POINT");
+      const p = { ...t, ordinal: v.ordinal, source_hash: v.source_hash, ...v.conversion_id ? { conversion_id: v.conversion_id } : {} };
+      if (save) {
+        if (!Number.isSafeInteger(v.expected_revision) || v.expected_revision < 0 || v.expected_revision >= Number.MAX_SAFE_INTEGER) throw new AssetError(422, "INVALID_READER_REVISION");
+        send(200, service.savePosition(current, p, v.expected_revision, a));
+      } else {
+        if (typeof v.title !== "string" || !v.title.trim() || v.title.length > 120 || /[\p{Cc}\p{Cf}]/u.test(v.title)) throw new AssetError(422, "INVALID_BOOKMARK_TITLE");
+        send(201, service.addBookmark(current, p, v.title.trim(), a));
+      }
+      return true;
+    }
+  }
   const access = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/reader-access$/.exec(url.pathname);
   if (access && uuid3.test(access[1]) && uuid3.test(access[2]) && !url.search && req.method === "GET") {
     send(200, service.access(current, access[1], access[2]));
@@ -6594,7 +6780,7 @@ async function publishInput(store, originals, current, spec, bytes, media, encod
 function libraryHandler(store, originals, origin, actorFor, parses, office, officeAvailable = () => true, archives, reader) {
   let transfers = 0;
   return async (req, res) => {
-    const requestId = randomUUID15();
+    const requestId = randomUUID16();
     let transfer = false, handlerDone = false, responseDone = false;
     res.setHeader("cache-control", "no-store");
     res.setHeader("x-content-type-options", "nosniff");
@@ -6637,7 +6823,7 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
       };
       const url = new URL(req.url ?? "/", host);
       if (url.origin !== host) throw new AssetError(403, "CSRF_REJECTED");
-      if (reader && (url.pathname.endsWith("/reader") || url.pathname.endsWith("/reader-access") || url.pathname.startsWith("/knowledge/v1/citations"))) {
+      if (reader && (/\/reader(?:-access|-state|-outline|-bookmarks(?:\/[a-f0-9-]+)?)?$/.test(url.pathname) || url.pathname.startsWith("/knowledge/v1/citations"))) {
         const ac = new AbortController(), stop = () => ac.abort();
         res.once("close", stop);
         if (res.destroyed) stop();
@@ -6899,11 +7085,11 @@ function glyphRect(api, page, tp, index, width, height, ptr) {
   if (api.FPDFText_IsGenerated(tp, index) !== 0 || !api.FPDFText_GetCharBox(tp, index, ptr, ptr + 8, ptr + 16, ptr + 24)) return;
   const [left, right, bottom, top] = new Float64Array(api.memory.buffer, ptr, 4);
   if (![left, right, bottom, top].every(Number.isFinite)) return;
-  const point = (x2, y2) => {
+  const point2 = (x2, y2) => {
     if (!api.FPDF_PageToDevice(page, 0, 0, width, height, 0, x2, y2, ptr, ptr + 4)) return;
     return Array.from(new Int32Array(api.memory.buffer, ptr, 2));
   };
-  const a = point(left, bottom), b = point(right, top);
+  const a = point2(left, bottom), b = point2(right, top);
   if (!a || !b) return;
   const x = Math.max(0, Math.min(a[0], b[0])), y = Math.max(0, Math.min(a[1], b[1]));
   const w = Math.min(width, Math.max(a[0], b[0])) - x, h = Math.min(height, Math.max(a[1], b[1])) - y;
@@ -7032,7 +7218,9 @@ async function open(bytes, pool, signal) {
   }
   try {
     const numPages = await request(copy);
-    return { numPages, close, async page(n) {
+    return { numPages, close, async outline() {
+      return await request("outline");
+    }, async page(n) {
       if (!Number.isInteger(n) || n < 1 || n > numPages) throw new RangeError("Invalid PDF page number");
       return await request(n);
     }, async renderPage(n) {
@@ -7091,13 +7279,18 @@ function allocate(api, n) {
   if (!ptr) throw new Error("PDF parser allocation failed");
   return ptr;
 }
-function chapters(api, doc, pages) {
-  const titles = /* @__PURE__ */ new Map(), seen = /* @__PURE__ */ new Set();
+function readOutline(api, doc, pages, nested) {
+  const titles = [], seen = /* @__PURE__ */ new Set();
   const buf = allocate(api, MAX_TITLE_BYTES);
   try {
-    for (let bm = api.FPDFBookmark_GetFirstChild(doc, 0); bm; bm = api.FPDFBookmark_GetNextSibling(doc, bm)) {
-      if (seen.has(bm) || seen.size >= MAX_BOOKMARKS) return /* @__PURE__ */ new Map();
+    const stack = [{ bm: api.FPDFBookmark_GetFirstChild(doc, 0), depth: 0 }];
+    while (stack.length) {
+      const { bm, depth } = stack.pop();
+      if (!bm) continue;
+      if (seen.has(bm) || seen.size >= MAX_BOOKMARKS) return [];
       seen.add(bm);
+      stack.push({ bm: api.FPDFBookmark_GetNextSibling(doc, bm), depth });
+      if (nested) stack.push({ bm: api.FPDFBookmark_GetFirstChild(doc, bm), depth: depth + 1 });
       let dest = api.FPDFBookmark_GetDest(doc, bm);
       if (!dest) {
         const action2 = api.FPDFBookmark_GetAction(bm);
@@ -7105,11 +7298,11 @@ function chapters(api, doc, pages) {
       }
       if (!dest) continue;
       const n = api.FPDFDest_GetDestPageIndex(doc, dest) + 1;
-      if (n < 1 || n > pages || titles.has(n)) continue;
+      if (n < 1 || n > pages) continue;
       const len = api.FPDFBookmark_GetTitle(bm, buf, MAX_TITLE_BYTES);
       if (len < 4 || len > MAX_TITLE_BYTES || len % 2) continue;
       const title = new TextDecoder("utf-16le").decode(new Uint8Array(api.memory.buffer, buf, len - 2)).replace(/[\p{Cc}\p{Cf}]/gu, " ").trim();
-      if (title) titles.set(n, title);
+      if (title) titles.push({ ordinal: n, title, depth });
     }
     return titles;
   } finally {
@@ -7128,7 +7321,8 @@ async function parse2(bytes) {
   if (numPages < 1 || numPages > MAX_PAGES) throw new Error("Invalid or excessive PDF page count");
   const labels = [""];
   if (workerData !== readerRole) {
-    const titles = chapters(api, doc, numPages);
+    const titles = /* @__PURE__ */ new Map();
+    for (const entry of readOutline(api, doc, numPages, false)) if (!titles.has(entry.ordinal)) titles.set(entry.ordinal, entry.title);
     for (let i = 1; i <= numPages; i++) labels.push(titles.get(i) ?? labels[i - 1]);
   }
   function page(n, render2 = false) {
@@ -7171,7 +7365,7 @@ async function parse2(bytes) {
       api.FPDF_ClosePage(p);
     }
   }
-  return { numPages, page };
+  return { numPages, page, outline: () => readOutline(api, doc, numPages, true) };
 }
 if (parentPort && (workerData === role || workerData === readerRole)) {
   const port = parentPort;
@@ -7181,7 +7375,8 @@ if (parentPort && (workerData === role || workerData === readerRole)) {
       if (input instanceof Uint8Array) {
         document = await parse2(input);
         port.postMessage({ value: document.numPages });
-      } else if (typeof input === "number") port.postMessage({ value: document.page(input) });
+      } else if (input === "outline") port.postMessage({ value: document.outline() });
+      else if (typeof input === "number") port.postMessage({ value: document.page(input) });
       else port.postMessage({ value: document.page(input.render, true) });
     } catch (err) {
       const error = err instanceof Error ? err.message : "PDF parser failed";
@@ -7383,12 +7578,12 @@ function startOfficeWorker(store, originals, kit, openPdf2, log) {
 }
 
 // src/host/legacy-word-source.ts
-import { randomUUID as randomUUID16 } from "node:crypto";
+import { randomUUID as randomUUID17 } from "node:crypto";
 import { open as open2, unlink } from "node:fs/promises";
 function legacyWordSource(kit, originals) {
   return async (source, check, signal) => {
     if (!kit.convertTo) throw new Error("Office structure conversion unavailable");
-    const result = await kit.convertTo({ extension: "doc", format: "docx", output: { owner: randomUUID16(), name: "structure.docx" }, source: {
+    const result = await kit.convertTo({ extension: "doc", format: "docx", output: { owner: randomUUID17(), name: "structure.docx" }, source: {
       key: `knowledgeos-word-structure:${source.sha256}`,
       version: source.sha256,
       bytes: source.byteLength,
@@ -7968,8 +8163,10 @@ void load();
 function buildReaderHtml() {
   return String.raw`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>版本阅读 · KnowledgeOS</title><style>
 *{box-sizing:border-box}body{margin:0;background:#f7faf9;color:#243936;font:15px/1.6 "Segoe UI","Microsoft YaHei UI",sans-serif}header,main{padding:14px max(16px,calc((100% - 1050px)/2))}header,.tools,.modes,form{display:flex;align-items:center;gap:8px;flex-wrap:wrap}header{background:white;border-bottom:1px solid #cbd9d6;gap:20px}header strong{color:#18565a}a{color:#176166}h1{font-size:24px;margin:8px 0}h2{font-size:17px}button,input{font:inherit;border:1px solid #8ba4a0;border-radius:4px;background:white;padding:4px 10px;color:inherit}button{cursor:pointer}button:disabled{opacity:.55;cursor:default}button[aria-pressed=true],button[aria-current=true]{background:#235e5b;color:white}input{width:6em}.layout{display:grid;grid-template-columns:9em minmax(0,1fr);gap:18px;margin-top:18px}#rail{height:230px;overflow:auto;border-block:1px solid #cbd9d6}#window{position:relative}#window button{position:absolute;left:0;width:100%;height:36px;text-align:left;border:0;border-radius:0}article{min-width:0}#version,#status,pre,#anchor{overflow-wrap:anywhere}#version{color:#536866}#original{position:relative;width:100%;max-width:var(--page-width);line-height:0}#original img{width:100%;height:auto}.highlight{position:absolute;background:#ffc02b66;box-shadow:inset 0 0 0 1px #ad7900;pointer-events:none}pre{font:inherit;line-height:1.8;white-space:pre-wrap;margin:0}mark{background:#ffe491}#status{border-left:3px solid #94b6ac;padding-left:8px}[hidden]{display:none!important}:focus-visible{outline:3px solid #176d92;outline-offset:1px}@media(max-width:620px){.layout{grid-template-columns:minmax(0,1fr)}#rail{height:82px}}
+#continuity{margin-top:12px;border-block:1px solid #cbd9d6;padding:8px 0}#continuity details{margin:4px 0}#continuity summary{cursor:pointer;color:#18565a}#continuity ul{list-style:none;margin:6px 0;padding:0;max-height:20em;overflow:auto}#continuity li{display:flex;gap:6px;margin:4px 0}#continuity li button:first-child{overflow-wrap:anywhere;text-align:left}#bookmark-title{width:min(100%,20em)}#reading-status{margin:4px 0;min-height:1.6em;color:#536866}
 </style></head><body><header><strong>KnowledgeOS</strong><a href="/knowledgeos/library">资料库</a><a href="/knowledgeos/account">账号与登录</a></header><main>
 <h1 id="title">版本阅读</h1><p id="version"></p><div class="tools"><button id="refresh">刷新</button><form id="jump"><button type="button" id="prev" aria-label="上一位置">←</button><input type="number" min="1" step="1" required id="number" aria-label="跳转位置"><button>跳转</button><button type="button" id="next" aria-label="下一位置">→</button></form><span id="count"></span></div><p id="status" role="status"></p>
+<section id="continuity" aria-label="阅读导航" hidden><details id="toc-details" open><summary>目录</summary><ul id="toc"></ul></details><details id="bookmarks-details" open><summary>我的书签</summary><ul id="bookmarks"></ul><form id="bookmark-form"><input id="bookmark-title" maxlength="120" required placeholder="书签名称" aria-label="书签名称"><button id="bookmark-add">添加书签</button></form></details><p id="reading-status" role="status"></p></section>
 <div class="layout"><nav id="rail" aria-label="页与文本块" hidden><div id="window"></div></nav><article><h2 id="anchor"></h2><div class="modes" id="modes" hidden><button id="paper">原页</button><button id="structured">结构文本</button><button id="cite" disabled>生成引用链接</button><a id="link" hidden>打开引用</a></div><div id="original" hidden></div><pre id="text" hidden></pre></article></div></main><script>
 'use strict';
 const $=id=>document.getElementById(id), q=new URLSearchParams(location.search), asset=q.get('asset'), version=q.get('version'), cid=q.get('citation');
@@ -7979,9 +8176,12 @@ const integer=Number.isSafeInteger, ready=d=>d.state==='ready'||d.state==='revie
 const status=s=>{$('status').textContent=s}, invalid=()=>new Error('invalid'), problem=http=>Object.assign(new Error(),{http});
 const sha=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s))),n=>n.toString(16).padStart(2,'0')).join('');
 let gen=0, owner=null, ordinal=1, total=0, conversion=null, page=null, selection=null, pending=null, posting=false, mode=null, resolved=null, versionLabel='', followCitation=!!cid;
+const readerPath='assets/'+asset+'/versions/'+version+'/reader';
+let continuity=null, outlineLoaded=false, busy=false;
+const readingStatus=s=>{$('reading-status').textContent=s};
 async function api(path,options){
   const r=await fetch('/knowledge/v1/'+path,{credentials:'same-origin',cache:'no-store',redirect:'error',...options});
-  if(!r.ok){const e=problem(r.status);if(r.status===422)e.code=(await r.json().catch(()=>null))?.code;throw e}return (await r.json()).data;
+  if(!r.ok){const e=problem(r.status);if(r.status===422||r.status===409)e.code=(await r.json().catch(()=>null))?.code;throw e}return (await r.json()).data;
 }
 async function access(g){
   if(g!==gen||document.hidden)return false;
@@ -8002,6 +8202,7 @@ function clearPage(){
 function lock(message){
   ++gen;owner=null;total=0;conversion=null;resolved=null;pending=null;ordinal=1;versionLabel='';mode=null;clearPage();
   followCitation=!!cid;
+  continuity=null;outlineLoaded=false;busy=false;$('continuity').hidden=true;$('toc').replaceChildren();$('bookmarks').replaceChildren();$('bookmark-title').value='';readingStatus('');
   $('title').textContent='版本阅读';$('version').textContent='';navigation();status(message);
 }
 function failure(e,g){
@@ -8040,17 +8241,86 @@ function validate(d,n,cv){
   if(d.image!=null && (typeof d.image!=='string'||!/^data:image\/png;base64,[A-Za-z\d+/]+=*$/.test(d.image)||!(d.width>0&&Number.isFinite(d.width)&&d.height>0&&Number.isFinite(d.height))))throw invalid();
   return d;
 }
-async function load(n,{openCitation=false}={}){
+const usable=p=>p&&integer(p.ordinal)&&p.ordinal>0&&digest(p.source_hash)&&(p.conversion_id==null||uuid(p.conversion_id));
+const point=d=>({ordinal:d.ordinal,source_hash:d.position_hash,...(d.conversion_id?{conversion_id:d.conversion_id}:{})});
+async function readState(g){
+  const state=await api(readerPath+'-state');
+  if(g!==gen)return;
+  if(state?.actor_id!==owner||!integer(state.revision)||state.revision<0||(state.position!==null&&!usable(state.position))||!Array.isArray(state.bookmarks)||state.bookmarks.some(m=>!usable(m)||!uuid(m.id)||typeof m.title!=='string'))throw invalid();
+  continuity=state;
+}
+function emptyRow(label){const li=document.createElement('li');li.textContent=label;return li}
+function control(label,click){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=click;return b}
+function renderBookmarks(){
+  const nodes=(continuity?.bookmarks??[]).map(m=>{
+    const li=document.createElement('li'),del=control('删除',()=>changeBookmark(m));del.setAttribute('aria-label','删除书签：'+m.title);
+    li.append(control(m.title,()=>navigate(m.ordinal,m)),del);return li;
+  });
+  $('bookmarks').replaceChildren(...(nodes.length?nodes:[emptyRow('暂无书签')]));
+  $('bookmark-add').disabled=!continuity||!page||!digest(page.position_hash)||busy;
+}
+async function showOutline(g){
+  if(outlineLoaded)return;
+  try{
+    const o=await api(readerPath+'-outline');
+    if(g!==gen||!await access(g))return;
+    if(o?.actor_id!==owner||!Array.isArray(o.items)||o.items.some(x=>!integer(x.ordinal)||x.ordinal<1||typeof x.title!=='string'))throw invalid();
+    const nodes=o.items.map(x=>{
+      const row=document.createElement('li');row.style.paddingInlineStart=Math.min(8,x.depth??0)*10+'px';
+      row.append(control(x.title,()=>navigate(x.ordinal)));return row;
+    });
+    $('toc').replaceChildren(...(nodes.length?nodes:[emptyRow('没有可用的原始目录')]));outlineLoaded=true;
+  }catch(e){if(g===gen&&await access(g))$('toc').replaceChildren(emptyRow('目录暂不可用'))}
+}
+function writeOptions(method,b){return {method,headers:{'Content-Type':'application/json','X-KnowledgeOS-Request':'1','X-KnowledgeOS-Reader-Actor':owner},...(b?{body:JSON.stringify(b)}:{})}}
+async function writeFailure(e,g,label){
+  if(g!==gen)return;
+  if(e.code==='READER_ACTOR_CHANGED'||e.http===401||e.http===403||e.http===404){if(!await access(g))return}
+  if(g!==gen)return;
+  readingStatus(e.code==='READING_REVISION_CONFLICT'?'未保存：另一标签页已更新位置，请刷新后重试。':label);
+}
+async function remember(g,d){
+  if(!continuity||!digest(d.position_hash))return;
+  const revision=continuity.revision,p=point(d);
+  try{
+    if(!await access(g))return;
+    const r=await api(readerPath+'-state',writeOptions('PUT',{...p,expected_revision:revision}));
+    if(!await access(g))return;
+    if(r?.revision!==revision+1||!usable(r.position)||r.position.ordinal!==p.ordinal||r.position.source_hash!==p.source_hash||r.position.conversion_id!==p.conversion_id)throw invalid();
+    continuity.revision=r.revision;readingStatus('阅读位置已保存。');
+  }catch(e){await writeFailure(e,g,'未确认保存阅读位置。')}
+}
+async function changeBookmark(m){
+  if(busy||!continuity||(!m&&(!page||!digest(page.position_hash))))return;
+  const g=gen,title=$('bookmark-title').value.trim();if(!m&&!title)return;
+  busy=true;renderBookmarks();readingStatus('');
+  try{
+    if(!await access(g))return;
+    const r=m?await api(readerPath+'-bookmarks/'+m.id,writeOptions('DELETE')):await api(readerPath+'-bookmarks',writeOptions('POST',{...point(page),title}));
+    if(!await access(g))return;
+    if(m){if(r?.id!==m.id)throw invalid();continuity.bookmarks=continuity.bookmarks.filter(x=>x.id!==m.id)}
+    else{if(!usable(r)||!uuid(r.id)||r.title!==title)throw invalid();continuity.bookmarks.push(r);$('bookmark-title').value=''}
+    readingStatus(m?'书签已删除。':'书签已添加。');
+  }catch(e){await writeFailure(e,g,m?'未确认删除书签。':'未确认添加书签。')}
+  finally{if(g===gen){busy=false;renderBookmarks()}}
+}
+async function load(n,{openCitation=false,restore=false,save=false,bookmark=null}={}){
   if(document.hidden)return;
   const g=++gen;clearPage();resolved=null;followCitation=!!cid&&openCitation;ordinal=n;navigation();status('正在读取…');
   try{
     if(!uuid(asset)||!uuid(version)||(cid!==null&&!uuid(cid))||!/^\d{1,9}$/.test(requestedUnit)||Number(requestedUnit)<1||(requestedConversion!==null&&!uuid(requestedConversion)))throw invalid();
     if(!await access(g))return;
+    if(!continuity){try{await readState(g)}catch{if(!await access(g))return;readingStatus('个人阅读状态暂不可用。')}}
     const c=openCitation && cid?locator(await api('citations/'+cid+'/resolve'),cid):null;
     if(g!==gen)return;
     if(c && ((q.has('unit')&&Number(requestedUnit)!==c.ordinal)||(requestedConversion && requestedConversion!==c.conversion_id)))throw problem(409);
-    const at=c?c.ordinal:n, cv=c?c.conversion_id:(conversion??requestedConversion);
-    const d=validate(await api('assets/'+asset+'/versions/'+version+'/reader?unit='+at+(cv?'&conversion='+cv:'')),at,cv);
+    const saved=restore?continuity?.position:null;
+    let at=c?.ordinal??saved?.ordinal??n, cv=c?.conversion_id??bookmark?.conversion_id??conversion??requestedConversion;
+    const get=async()=>validate(await api(readerPath+'?unit='+at+(cv?'&conversion='+cv:'')),at,cv);
+    let d;
+    try{d=await get()}catch(e){if(!saved||e.http!==422)throw e}
+    if(saved&&(!d||d.position_hash!==saved.source_hash||d.conversion_id!==saved.conversion_id)){at=1;cv=null;d=await get()}
+    if(bookmark&&d.position_hash!==bookmark.source_hash)throw problem(409);
     if(g!==gen)return;
     if(!digest(d.anchor)||await sha(d.text)!==d.anchor)throw problem(409);
     if(c && (c.conversion_id??null)!==(d.conversion_id??null))throw invalid();
@@ -8060,14 +8330,17 @@ async function load(n,{openCitation=false}={}){
     $('version').textContent=versionLabel+' · '+version;$('title').textContent=d.title||'版本阅读';$('anchor').textContent=d.chapter||((d.kind==='text'?'文本块 ':'第 ')+at+(d.kind==='text'?'':' 页'));
     if(c && ready(d))selection={start:c.start,end:c.end};
     draw();if(c)document.querySelector('#original .highlight,#text mark')?.scrollIntoView({block:'nearest'});
+    $('continuity').hidden=false;renderBookmarks();
+    if(save){busy=true;await remember(g,d)}
+    void showOutline(g);
   }catch(e){
     if(g!==gen)return;
     if(total && (e.http===503||e.http===502||e.http===500)){
       try{if(await access(g))status('本处加载失败，请刷新重试或选择其他位置。')}catch(err){failure(err,g)}
     }else failure(e,g);
-  }
+  }finally{if(g===gen){busy=false;renderBookmarks()}}
 }
-function navigate(n){if(!integer(n)||n<1||n>total)return;void load(n)}
+function navigate(n,bookmark=null){if(busy||!integer(n)||n<1||(!bookmark&&n>total))return;readingStatus('');void load(n,{save:!bookmark,bookmark})}
 // A partial glyph/run has no known pixel boundary. Never interpolate a rectangle.
 function exactBoxes(d,s){
   if(resolved && s?.start===resolved.start && s?.end===resolved.end && resolved.locator?.geometry){
@@ -8145,9 +8418,10 @@ async function recheck(){
 }
 $('paper').onclick=()=>switchMode('paper');$('structured').onclick=()=>switchMode('text');
 $('cite').onpointerdown=e=>e.preventDefault();$('cite').onclick=createCitation;document.addEventListener('selectionchange',capture);
+$('bookmark-form').onsubmit=e=>{e.preventDefault();void changeBookmark(null)};
 $('jump').onsubmit=e=>{e.preventDefault();navigate(Number($('number').value))};$('prev').onclick=()=>navigate(ordinal-1);$('next').onclick=()=>navigate(ordinal+1);
 $('rail').onscroll=renderWindow;new ResizeObserver(renderWindow).observe($('rail'));
-function refresh(){void load(total?ordinal:Number(requestedUnit),{openCitation:followCitation})}
+function refresh(){if(busy)return;continuity=null;outlineLoaded=false;readingStatus('');void load(total?ordinal:Number(requestedUnit),{openCitation:followCitation,restore:!total&&!cid&&!q.has('unit')&&!requestedConversion})}
 $('refresh').onclick=refresh;
 // Preserve the fixed position, never the page body, while hidden or in bfcache.
 function suspend(){resumeAt??={n:total?ordinal:Number(requestedUnit),cv:conversion,cite:followCitation};lock('返回后将重新检查阅读权限。')}
@@ -8157,7 +8431,7 @@ window.addEventListener('pageshow',e=>{if(e.persisted)resume()});
 window.addEventListener('focus',recheck);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)suspend();else if(resumeAt)resume();else refresh()});
 setInterval(recheck,2000);
-void load(Number(requestedUnit),{openCitation:true});
+void load(Number(requestedUnit),{openCitation:true,restore:!cid&&!q.has('unit')&&!requestedConversion});
 </script></body></html>`;
 }
 
@@ -8222,7 +8496,7 @@ function apply(ctx, config = {}) {
       if (closing) throw new RecordsError("STORAGE_CLOSED", "storage is closing");
       if (storage === void 0) throw new RecordsError("STORAGE_UNAVAILABLE", "storage is not configured");
       return createProbeRecord(storage, {
-        newId: () => randomUUID17(),
+        newId: () => randomUUID18(),
         now: () => (/* @__PURE__ */ new Date()).toISOString()
       }, { idempotencyKey, content });
     },
@@ -8287,7 +8561,7 @@ function apply(ctx, config = {}) {
     res.statusCode = 503;
     res.setHeader("content-type", "application/json; charset=utf-8");
     res.setHeader("cache-control", "no-store");
-    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID17(), retryable: true, safe_details: {} }));
+    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID18(), retryable: true, safe_details: {} }));
   };
   const registerIdentityRoutes = (identityContext) => {
     const identityAvailable = () => {
