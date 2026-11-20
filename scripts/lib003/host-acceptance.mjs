@@ -78,7 +78,11 @@ async function upload(s, prev, reject = false) {
   const h = headers(s, key, prev)
   for (const k of [...Object.keys(h), 'x-knowledgeos-encoding', 'x-knowledgeos-asset-id', 'x-knowledgeos-expected-version']) assert.equal(actual[k], h[k], k)
   if (reject) {
-    const code = await denied(res, 422), error = page.getByRole('status').filter({ hasText: '编码' }); await error.waitFor()
+    // Chrome can withhold a rejected POST's body from DevTools. Observe the
+    // UI denial, then read the error code through an authenticated HTTP peer.
+    assert.equal(res.status(),422)
+    const error = page.getByRole('status').filter({ hasText: '编码' }); await error.waitFor()
+    const code=await denied(await post(owner,s.bytes,h),422);assert.equal(code,'TEXT_INVALID_ENCODING')
     await image(prev ? 'bad-encoding-append' : 'bad-encoding-new', error); log('rejected', { code, sha256: sha(s.bytes) }); return
   }
   const r = await data(res, 201); assert.match(r.id, uuid); assert.match(r.version_id, uuid)
