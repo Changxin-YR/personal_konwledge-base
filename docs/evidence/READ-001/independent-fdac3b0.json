@@ -25,5 +25,6 @@
     "script_sha256": "2d9e58ee8a3b24e9ec64c76657c2372210b74b80aa5bf2e49214437c04f1a0de",
     "retest_note": "Initial supplemental assertion used selection extent for the paragraph's full page span. Corrected that external test expectation and reran against the same frozen product; both runs retained in the isolated evidence."
   },
-  "isolated_manifest_sha256": "5a911438560e15f4a7567102bfe1d98d91a260b6f49207e5e2175edd7d4b6e8f"
+  "isolated_manifest_sha256": "5a911438560e15f4a7567102bfe1d98d91a260b6f49207e5e2175edd7d4b6e8f",
+  "not_run_independently": ["single mouse drag across pages", "complex binary DOC wrapping/pagination", "Word browser selection splitting a surrogate pair", "standalone migration suite", "complete P02/A09/A45 scenarios"]
 }
