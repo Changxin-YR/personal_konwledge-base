@@ -1,0 +1,58 @@
+{
+  "candidate_sha": "3fa7cea11b4dc2d0e33381d8919793664920e2ec",
+  "entry_sha256": "8673b6b3129c6bb2f8eda302124decdbee9daac160beb40e165080a4568c25be",
+  "chrome": "158.0.8127.36",
+  "pdf": {
+    "result": "DEFECT_CONFIRMED",
+    "fixture": "outline-before-processing.pdf",
+    "target_unit": 4,
+    "before_click": {
+      "enabled": true,
+      "reader_units": [
+        "1"
+      ],
+      "count": "",
+      "status": "本处尚未就绪。"
+    },
+    "after_click": {
+      "reader_units": [
+        "1"
+      ],
+      "count": "",
+      "status": "本处尚未就绪。"
+    },
+    "after_processing_control": {
+      "reader_units": [
+        "1",
+        "1",
+        "4"
+      ],
+      "count": "第 4 / 6 处"
+    }
+  },
+  "markdown": {
+    "result": "DEFECT_CONFIRMED",
+    "fixture": "North\nand South\n===============\n\nWest\nand East\n-------------\n\n# Control\n",
+    "expected": [
+      "North and South",
+      "West and East",
+      "Control"
+    ],
+    "outline_http": 200,
+    "actual": [
+      {
+        "ordinal": 1,
+        "title": "North"
+      },
+      {
+        "ordinal": 3,
+        "title": "West"
+      },
+      {
+        "ordinal": 5,
+        "title": "Control"
+      }
+    ],
+    "displayed_block": "West\nand East\n-------------\n"
+  }
+}

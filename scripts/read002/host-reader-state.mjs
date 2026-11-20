@@ -299,7 +299,7 @@ async function resumeCases() {
   const plain = await upload('reader-no-outline.pdf', 'application/pdf', pdfFixture({pages: ['Chapter 1', 'Chapter 2']}))
   const md = await upload('reader-outline.md', 'text/markdown', Buffer.from(
     '# Chapter Alpha\nAlpha passage\n```md\n# Not a chapter\n```\n## Chapter Beta\nBeta passage\n'))
-  await parse(pdf, 6)
+  const multiline = await upload('multiline.md', 'text/markdown', Buffer.from('North\nand South\n===============\n\nWest\nand East\n-------------\n\n# Control\n'))
   await parse(plain, 2)
   const specs = [
     {doc: pdf, items: [{ordinal: 1, title: 'First unit'}, {ordinal: 4, title: 'Second unit'}], saved: 6, explicit: 2, title: 'PDF chapter bookmark'},
@@ -307,6 +307,20 @@ async function resumeCases() {
   ]
   let ctx = await context(owner)
   try {
+    const pending = await ctx.newPage()
+    await pending.goto(`${host.base}/knowledgeos/reader?asset=${pdf.id}&version=${pdf.version_id}`)
+    const unavailable = pending.locator('#toc').getByRole('button', {name:'Second unit', exact:true})
+    await unavailable.waitFor()
+    assert(await unavailable.isDisabled(), 'an unprocessed PDF outline entry cannot offer a no-op jump')
+    assert.match(await pending.locator('#toc').innerText(), /解析/)
+    await snap(pending, 'outline-awaiting-processing')
+    await pending.close()
+    await parse(pdf, 6)
+    const multilineItems = [{ordinal:1,title:'North and South'},{ordinal:3,title:'West and East'},{ordinal:5,title:'Control'}]
+    await outline(owner, multiline, multilineItems)
+    const headingPage = await open(ctx, multiline, await reader(owner, multiline, 1))
+    await headingPage.p.locator('#toc').getByRole('button',{name:'West and East',exact:true}).waitFor()
+    await headingPage.p.close()
     await outline(owner, plain, [])
     const noOutline = await open(ctx, plain, await reader(owner, plain, 2), {unit: 2})
     await noOutline.p.locator('#toc li').first().waitFor()

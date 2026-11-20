@@ -1,0 +1,41 @@
+{
+  "candidate_sha": "3fa7cea11b4dc2d0e33381d8919793664920e2ec",
+  "entry_sha256": "8673b6b3129c6bb2f8eda302124decdbee9daac160beb40e165080a4568c25be",
+  "status": "PASS",
+  "screens": [
+    {
+      "file": "old-text-citation.png",
+      "sha256": "f963165fbd307a434dd8fbd9f48c6c367606547be17965881664f028a90ff808"
+    },
+    {
+      "file": "pdf-fixed-highlight.png",
+      "sha256": "30ef8738bf86c5c0a4baf88a5cc4f1f8215811323218b1413dd7834b647a895b"
+    },
+    {
+      "file": "pdf-mobile.png",
+      "sha256": "b93beb31ada371ab703ffb611efddbfe79a71ddbeb45605795d8c9b04416773c"
+    }
+  ],
+  "steps": [
+    {
+      "name": "bounded viewport",
+      "requested": [
+        95
+      ],
+      "visible_controls": 13
+    },
+    {
+      "name": "retry a fixed page after leaving a citation",
+      "source": "real-host-chrome, first target request intercepted",
+      "requested": [
+        3,
+        3
+      ],
+      "statuses": [
+        503,
+        200
+      ]
+    }
+  ],
+  "chrome": "158.0.8127.36"
+}

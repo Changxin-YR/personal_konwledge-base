@@ -106,8 +106,10 @@ async function showOutline(g){
     if(o?.actor_id!==owner||!Array.isArray(o.items)||o.items.some(x=>!integer(x.ordinal)||x.ordinal<1||typeof x.title!=='string'))throw invalid();
     const nodes=o.items.map(x=>{
       const row=document.createElement('li');row.style.paddingInlineStart=Math.min(8,x.depth??0)*10+'px';
-      row.append(control(x.title,()=>navigate(x.ordinal)));return row;
+      const jump=control(x.title,()=>navigate(x.ordinal));jump.disabled=x.ordinal>total;
+      row.append(jump);return row;
     });
+    if(o.items.some(x=>x.ordinal>total))nodes.unshift(emptyRow('部分目录位置尚未解析，暂不可跳转。'));
     $('toc').replaceChildren(...(nodes.length?nodes:[emptyRow('没有可用的原始目录')]));outlineLoaded=true;
   }catch(e){if(g===gen&&await access(g))$('toc').replaceChildren(emptyRow('目录暂不可用'))}
 }

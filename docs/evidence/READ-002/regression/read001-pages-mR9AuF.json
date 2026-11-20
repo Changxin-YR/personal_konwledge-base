@@ -1,0 +1,112 @@
+{
+  "candidate_sha": "3fa7cea11b4dc2d0e33381d8919793664920e2ec",
+  "entry_sha256": "8673b6b3129c6bb2f8eda302124decdbee9daac160beb40e165080a4568c25be",
+  "helpers": {
+    "scripts/read001/host-page-citations.mjs": "4396e330dd89055422aabfa7921eb0288ef2478080f31aea981f065d15728e21",
+    "scripts/read001/word-fixture.mjs": "2a9d372da61a506b7202acbe92a746653c051b2d8891e6f61cf1a1d2196e2ff7",
+    "scripts/lib004/acceptance-samples.mjs": "8d2fda1bcd1ba58be163dfe2793106d89cb81f7f4c37bebf53d20e31e7c12cb5"
+  },
+  "status": "PASS",
+  "steps": [
+    {
+      "name": "pdf-original",
+      "sha256": "3d37f31f2bb157dcc565bfc3422be08e961e0a455010d700a783ec4bac797914",
+      "width": 900,
+      "height": 600,
+      "selected_box_count": 6,
+      "start": 4,
+      "end": 10
+    },
+    {
+      "name": "word-original",
+      "sha256": "f44449419cbdb3a616e33386e9a659147c9560fee6de0344ade6dac5e16b0927",
+      "width": 1187,
+      "height": 1536,
+      "selected_box_count": 6,
+      "start": 25,
+      "end": 31
+    },
+    {
+      "name": "word-wrap",
+      "sha256": "1cf72b19dc34e2946bd2696403f76b047286eb44090e46d68bc75394222f5a14",
+      "width": 1187,
+      "height": 1536,
+      "selected_box_count": 9,
+      "start": 12,
+      "end": 21
+    },
+    {
+      "name": "word-wrap-end",
+      "sha256": "1cf72b19dc34e2946bd2696403f76b047286eb44090e46d68bc75394222f5a14",
+      "width": 1187,
+      "height": 1536,
+      "selected_box_count": 7,
+      "start": 586,
+      "end": 593
+    },
+    {
+      "name": "word-wrap-rerender",
+      "sha256": "1cf72b19dc34e2946bd2696403f76b047286eb44090e46d68bc75394222f5a14",
+      "width": 1187,
+      "height": 1536,
+      "selected_box_count": 9,
+      "start": 12,
+      "end": 21
+    },
+    {
+      "name": "source Word paragraphs across layout lines",
+      "source_sha256": "c6df6245344eaf453899904591e2b450f2377f22f2268552dc72ec5e831e7456",
+      "rendered_lines": 8,
+      "source_ordinal": 2,
+      "selection_count": 3,
+      "stable_across_conversions": true
+    },
+    {
+      "name": "word-first-page",
+      "sha256": "4c3d6458987dc99ea7f06dedbdf006af6896cd4f25d9bae0222ff7c989e41be3",
+      "width": 1187,
+      "height": 1536,
+      "selected_box_count": 9,
+      "start": 32,
+      "end": 41
+    },
+    {
+      "name": "word-final-page",
+      "sha256": "118a40621abaaa53b2bdcf106f23d0ec7425e186217947f98b210df91f84d998",
+      "width": 1187,
+      "height": 1536,
+      "selected_box_count": 7,
+      "start": 1890,
+      "end": 1897
+    },
+    {
+      "name": "Word repeated source blocks and page continuation",
+      "pages": 2,
+      "continued_source_ordinal": 4,
+      "distinct_repetitions": true
+    },
+    {
+      "name": "word97",
+      "sha256": "f2cba9f6382521a2321d7c9bb30531831949aa7c45a3cdce6ee0c607d1da9e38",
+      "width": 1086,
+      "height": 1536,
+      "selected_box_count": 13,
+      "start": 0,
+      "end": 14
+    },
+    {
+      "name": "binary Word source structure",
+      "source_sha256": "2483a8cafde92910a0ea857cce49c07e6fa6bf58ab4a4f0852dfd2f488dedba1",
+      "source_ordinal": 1
+    },
+    {
+      "name": "restart and retry failed page",
+      "before": "failed",
+      "after": "ready",
+      "pdf_version": "2d875ded-7598-4b0c-b373-b9cb7781999e",
+      "office_version": "c764a949-9dec-4258-a135-41fa25f5672f",
+      "original_conversion": "9d0b2340-0f94-47e9-b6af-78dceaddad40",
+      "new_conversion": "e77016dc-866b-4736-a219-26e1cbc7a81d"
+    }
+  ]
+}

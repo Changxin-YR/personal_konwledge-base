@@ -1,5 +1,7 @@
 # 当前收口问题
 
+2026-11-20，FND-005：锁定 DSH 的原生 CLI 已初始化隔离 Web profile，冻结插件确实加载，但仍未获得合规路由，真实模型调用为零。除确认已授权凭据引用外，原生 `deepseek-official` 与现有 `llm-pi-ai` 专用派送门禁的兼容性需要核对；保持 `BLOCKED`，不能据此判断 API 无效。详见[更新预检](../evidence/FND-005/continuous/isolated-profile-preflight-20261120.json)。
+
 2026-11-19：持续协议迁移起点：FND-001～004、006 历史 passed；FND-005 保持 blocked，等待新候选真实 DeepSeek 复验。 当前证据见 [FND-006](../evidence/FND-006/REPORT.md)。
 
 ## 历史记录

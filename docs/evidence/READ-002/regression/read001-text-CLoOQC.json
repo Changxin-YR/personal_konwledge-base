@@ -1,0 +1,38 @@
+{
+  "candidate_sha": "3fa7cea11b4dc2d0e33381d8919793664920e2ec",
+  "entry_sha256": "8673b6b3129c6bb2f8eda302124decdbee9daac160beb40e165080a4568c25be",
+  "runner_sha256": "8ed38781c68dff66b274c616ec7311a2488b5f02ae7e99c134b8a8713cb08177",
+  "status": "PASS",
+  "steps": [
+    {
+      "name": "fixed text citation",
+      "version": "c554dae0-4601-4101-bdc4-8f5998f9cf55",
+      "new_version": "874476a5-08e0-4fe6-b099-5ced1087f67d",
+      "source_hash": "8b2def6739d0d38a42e06b0e69feaaaed33dc4133d51046eff20eb622f6e025f",
+      "quote_hash": "b80583371c31ee2a8c2deab7b86764ba8051012e18828e48a4cf6c97262ca17e",
+      "utf16": [
+        5,
+        9
+      ]
+    },
+    {
+      "name": "Markdown structural neighbors",
+      "ordinal": 2,
+      "block_id": "ab46893f7394314969834528e897bc9910e656f3ffda58288a0e4e553e77a2e2",
+      "adjacent_blocks": 2
+    },
+    {
+      "name": "restart",
+      "pids": [
+        107624,
+        63744
+      ]
+    },
+    {
+      "name": "current project read grant",
+      "before": 200,
+      "revoked": 404,
+      "replayed_after_revocation": 404
+    }
+  ]
+}
