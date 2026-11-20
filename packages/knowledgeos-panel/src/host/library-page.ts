@@ -125,11 +125,13 @@ function record(r){
 const isPdf=r=>r.media_type==='application/pdf', isText=r=>Object.values(textTypes).includes(r.media_type);
 const isWord=r=>Object.values(wordTypes).includes(r.media_type);
 function el(tag,text,cls){const n=document.createElement(tag);if(text!=null)n.textContent=text;if(cls)n.className=cls;return n}
-function entry(r){
+function readLink(r,label,params={}){const a=el('a',label);a.href='/knowledgeos/reader?'+new URLSearchParams({asset:r.id,version:r.version_id,...params});return a}
+function entry(r,withReader=false){
   const node=el('div',null,'entry'), meta=el('dl'), links=el('div',null,'links');
   for(const [label,value] of [['版本','v'+r.version],['大小',r.byte_length+' 字节'],['SHA-256',r.sha256]])
     meta.append(el('dt',label),el('dd',value,label==='SHA-256'?'hash':''));
   const path=api+'assets/'+r.id+'/versions/'+r.version_id+'/original';
+  if(withReader)links.append(readLink(r,'打开阅读'));
   if(isPdf(r)){const view=el('a','查看原件');view.href=path;view.target='_blank';view.rel='noopener';links.append(view)}
   const save=el('a',isPdf(r)?'导出 PDF':'导出原件');save.href=path+'?download=1';save.download='';links.append(save);
   node.append(el('strong',r.title),meta,links);return node;
@@ -237,6 +239,7 @@ function drawPages(s){
   s.group=Math.min(last,Math.max(0,s.group));const from=s.group*pageSize, end=Math.min(from+pageSize,pages.length);
   const items=pages.slice(from,end).map(p=>{
     const li=el('li');li.append(el('strong','第 '+p.page+' 页'),el('span',pageStates[p.state]),el('span',p.chapter));
+    if(p.state==='ready'||p.state==='review')li.append(readLink(s.row,'阅读第 '+p.page+' 页',{unit:p.page}));
     if(state==='partial' && (p.state==='failed' || p.state==='review')){
       const retry=el('button','重试第 '+p.page+' 页');retry.type='button';retry.disabled=s.writing;
       retry.onclick=()=>requestProgress(s,'/retry/'+p.page);li.append(retry);
@@ -281,7 +284,7 @@ async function requestProgress(s,action=''){
 parseVersion.onchange=()=>{
   clearTimeout(pollTimer);selection=null;resetPanel();const r=rows.find(row=>row.version_id===parseVersion.value);
   if(!r || !isPdf(r) || !ready || busy)return;
-  selection={path:'assets/'+r.id+'/versions/'+r.version_id+'/parse',seq:0,group:0,writing:false,data:null};
+  selection={row:r,path:'assets/'+r.id+'/versions/'+r.version_id+'/parse',seq:0,group:0,writing:false,data:null};
   $('parse-panel').hidden=false;$('parse-summary').textContent='正在读取解析进度…';void requestProgress(selection);
 };
 $('parse-refresh').onclick=()=>{if(selection)void requestProgress(selection)};
@@ -375,6 +378,7 @@ function drawAttempts(s){
     if(c.state==='ready'){
       const b=el('button','查看质量记录');b.type='button';b.setAttribute('aria-label','查看质量记录：'+c.id);
       b.onclick=()=>readOfficePage(s,{conversion:c.id});li.append(' ',b);
+      li.append(' ',readLink(s.row,'阅读此转换',{conversion:c.id}));
     }
     return li;
   }));
@@ -465,7 +469,7 @@ async function syncOffice(s,action='',note=null){
 officeVersion.onchange=()=>{
   resetOffice();const r=rows.find(row=>row.version_id===officeVersion.value);
   if(!r || !isWord(r) || !ready || busy)return;
-  office={version:r.version_id,path:'assets/'+r.id+'/versions/'+r.version_id+'/office',seq:0,nav:0,writing:false};
+  office={row:r,version:r.version_id,path:'assets/'+r.id+'/versions/'+r.version_id+'/office',seq:0,nav:0,writing:false};
   $('office-panel').hidden=false;$('office-status').textContent='正在读取转换状态…';void syncOffice(office);
 };
 $('office-refresh').onclick=()=>void syncOffice(office);
@@ -481,7 +485,7 @@ function renderRows(items,selected){
   const seen=new Set();target.replaceChildren(new Option('新建资料',''));
   for(const r of rows)if(!seen.has(r.id)){seen.add(r.id);target.add(new Option(r.title+' · v'+r.version,r.id))}
   target.value=seen.has(selected)?selected:'';
-  $('list').replaceChildren(...(rows.length?rows.map(entry):[el('p','暂无资料','muted')]));
+  $('list').replaceChildren(...(rows.length?rows.map(r=>entry(r,true)):[el('p','暂无资料','muted')]));
   for(const [select,section,predicate,prompt] of [[parseVersion,'parse',isPdf,'选择资料版本'],[blockVersion,'reader',isText,'选择文本版本'],[officeVersion,'office',isWord,'选择 Word 版本']]){
     const versions=rows.filter(predicate);select.replaceChildren(new Option(prompt,''),...versions.map(r=>new Option(r.title+' · v'+r.version,r.version_id)));
     $(section).hidden=!versions.length;
