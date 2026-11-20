@@ -6,17 +6,27 @@ export function buildLibraryHtml(): string {
 *{box-sizing:border-box}body{margin:0;color:#223638;background:#f8faf9;font:15px/1.55 "Segoe UI","Microsoft YaHei UI",sans-serif}header{background:#fff;border-bottom:1px solid #d2ddda}header>div,main{max-width:900px;margin:auto;padding:0 22px}header>div,nav,.bar,.links{display:flex;align-items:center;gap:18px;flex-wrap:wrap}header>div{justify-content:space-between;min-height:54px;padding-block:8px}header strong{color:#18565a;font-size:19px}a{color:#176166;text-underline-offset:3px}main{padding-block:24px}h1,h2,p,dl{margin:0}h1{font-size:26px}h2{font-size:18px}section{margin-top:20px;border-top:1px solid #cbd9d6;padding-top:16px}.bar{justify-content:space-between;gap:8px}.muted,dt,small{color:#536866}#who{overflow-wrap:anywhere}form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) auto;align-items:end;gap:12px;margin-top:12px}label{display:grid;gap:5px;font-weight:600}input,select,button{font:inherit}input,select{width:100%;min-width:0;color:inherit;background:white;border:1px solid #889f9c;border-radius:5px;padding:7px;height:42px}input::file-selector-button{border:0;border-right:1px solid #ccd8d5;background:white;color:#18565a;margin-right:8px;padding:2px 8px 2px 0}button{border:1px solid #698c88;border-radius:5px;padding:6px 12px;background:white;color:#215c5c;cursor:pointer}button[type=submit]{background:#226461;color:white;height:42px}button:disabled,input:disabled,select:disabled{opacity:.6;cursor:default}:focus-visible{outline:3px solid #176d92;outline-offset:3px}#status{margin-top:12px;border-left:3px solid #9ebcb4;padding-left:9px;color:#354d48}#status[data-error]{border-color:#ae622e;color:#794019}#receipt{border-color:#669d90}.entry{padding:12px 0;overflow-wrap:anywhere}.entry+.entry{border-top:1px solid #dde5e2}.entry strong{display:block}.entry dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:3px 12px;margin:5px 0}.entry dd{margin:0}.hash{font:13px/1.7 Consolas,monospace}.links{gap:15px;margin-top:6px}#list>p{padding-block:12px}[hidden]{display:none!important}@media(max-width:640px){header>div,main{padding-inline:14px}main{padding-top:18px}form{grid-template-columns:minmax(0,1fr)}form button{justify-self:start}nav{gap:12px}}
 #parse-picker{margin:8px 0;max-width:36rem}#parse-panel{overflow-wrap:anywhere}#parse-panel .links{gap:8px}#parse-pages{list-style:none;margin:8px 0;padding:0}#parse-pages li{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;border-top:1px solid #dde5e2;padding:6px 0}#parse-pages strong{min-width:5em}#parse-pages small{flex-basis:100%}#parse-note{color:#794019}
 #mode-picker,#block-picker{max-width:36rem;margin-top:8px}#encoding-picker{grid-column:1/-1;max-width:24rem}#blocks li{padding-block:6px;border-bottom:1px solid #dde5e2}#blocks pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:3px 0;font:inherit}#reader{overflow-wrap:anywhere}
+#office{overflow-wrap:anywhere}#office-version{max-width:36rem}#office-notes li{white-space:pre-wrap}#office-note-form{grid-template-columns:minmax(5rem,7rem) minmax(0,1fr) auto}#office-body{font:inherit;min-width:0;width:100%;resize:vertical;padding:6px;border:1px solid #889f9c;border-radius:5px}@media(max-width:640px){#office-note-form{grid-template-columns:minmax(0,1fr)}}
 </style></head><body>
 <header><div><strong>KnowledgeOS</strong><nav aria-label="业务导航"><a href="/knowledgeos/account">账号与登录</a><a href="/knowledgeos/ai">AI 工具</a></nav></div></header>
 <main><div class="bar"><h1>PDF 资料库</h1><span id="who" class="muted"></span></div>
 <section aria-labelledby="import-heading"><h2 id="import-heading">导入原件</h2>
-<label id="mode-picker">导入格式<select id="mode" disabled><option value="pdf">PDF</option><option value="text">Markdown / 纯文本</option></select></label>
+<label id="mode-picker">导入格式<select id="mode" disabled><option value="pdf">PDF</option><option value="text">Markdown / 纯文本</option><option value="word">Word</option></select></label>
 <form id="import"><label id="encoding-picker" hidden>文本编码<select id="encoding" disabled><option value="">自动识别</option><option value="utf-8">UTF-8</option><option value="utf-16le">UTF-16 LE</option><option value="utf-16be">UTF-16 BE</option><option value="gb18030">GB18030</option></select></label>
 <label>导入到<select id="target" disabled><option value="">新建资料</option></select></label>
 <label><span id="file-label">PDF 文件</span><input id="file" type="file" accept=".pdf,application/pdf" disabled></label>
 <button id="submit" type="submit" disabled>导入 PDF</button></form>
 <p id="status" role="status" aria-live="polite" aria-atomic="true">正在核对登录…</p></section>
 <section id="receipt" aria-labelledby="receipt-heading" hidden><h2 id="receipt-heading">导入回执</h2><div id="result"></div></section>
+<section id="office" aria-labelledby="office-heading" hidden><h2 id="office-heading">Word 转换与质量核对</h2>
+<label for="office-version">Word 版本</label><select id="office-version"></select>
+<div id="office-panel" hidden><p id="office-status" aria-live="polite" aria-atomic="true"></p>
+<div class="links"><button id="office-action" type="button" hidden></button><button id="office-refresh" type="button">刷新转换状态</button></div>
+<div id="office-result" hidden><h3>可用转换结果</h3><p id="office-quality"></p>
+<div class="links"><a id="office-preview" target="_blank" rel="noopener">预览转换 PDF</a><a id="office-download" download>下载转换 PDF</a></div>
+<h3>逐页质量记录</h3><ol id="office-notes" aria-label="逐页质量记录"></ol>
+<form id="office-note-form"><label>页码<input type="number" id="office-page" min="1" step="1" required></label>
+<label>质量问题<textarea id="office-body" rows="2" required></textarea></label><button type="submit" id="office-save">保存质量记录</button></form></div></div></section>
 <section id="reader" aria-labelledby="reader-heading" hidden><h2 id="reader-heading">文本回读</h2>
 <label id="block-picker">文本版本<select id="block-version"></select></label>
 <p id="block-summary" aria-live="polite"></p><ol id="blocks" aria-label="文本块"></ol>
@@ -34,37 +44,39 @@ const $ = id => document.getElementById(id);
 const api = '/knowledge/v1/', file = $('file'), target = $('target');
 const mode=$('mode'), encoding=$('encoding'), textTypes={md:'text/markdown',txt:'text/plain'};
 const textMode=()=>mode.value==='text';
+const wordTypes={docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',doc:'application/msword'};
+const wordMode=()=>mode.value==='word';
 function fileType(blob){
   if(!blob)return null;
-  const ext=/\.(pdf|md|txt)$/i.exec(blob.name)?.[1].toLowerCase();
-  return textMode()?textTypes[ext] || null:ext==='pdf'?'application/pdf':null;
+  const ext=/\.(pdf|md|txt|docx?)$/i.exec(blob.name)?.[1].toLowerCase();
+  return textMode()?textTypes[ext] || null:wordMode()?wordTypes[ext] || null:ext==='pdf'?'application/pdf':null;
 }
 function drawMode(){
-  const text=textMode();$('file-label').textContent=text?'文本文件':'PDF 文件';
-  file.accept=text?'.md,.txt,text/markdown,text/plain':'.pdf,application/pdf';
-  $('encoding-picker').hidden=!text;$('submit').textContent=text?'导入文本':'导入 PDF';
+  const text=textMode(), word=wordMode();$('file-label').textContent=text?'文本文件':word?'Word 文件':'PDF 文件';
+  file.accept=text?'.md,.txt,text/markdown,text/plain':word?['.docx','.doc',...Object.values(wordTypes)].join(','):'.pdf,application/pdf';
+  $('encoding-picker').hidden=!text;$('submit').textContent=text?'导入文本':word?'导入 Word':'导入 PDF';
 }
 let owner = null, generation = 0, busy = false, ready = false, key = null, conflict = false, rows = [];
 function status(text,error=false){ $('status').textContent=text; $('status').toggleAttribute('data-error',error) }
 function controls(){
   mode.disabled = file.disabled = target.disabled = !ready || busy;
   encoding.disabled = file.disabled || !textMode();
-  $('block-version').disabled = $('parse-version').disabled = !ready || busy;
+  $('office-version').disabled = $('block-version').disabled = $('parse-version').disabled = !ready || busy;
   $('submit').disabled = file.disabled || !key || conflict;
   $('refresh').disabled = busy;
 }
 function clearDraft(){ file.value=''; encoding.value=''; key=null; conflict=false }
 function clearPrivate(){
-  clearParse();clearReader();mode.value='pdf';drawMode();
+  clearOffice();clearParse();clearReader();mode.value='pdf';drawMode();
   owner=null; ready=false; rows=[]; clearDraft(); target.replaceChildren(new Option('新建资料',''));
   $('who').textContent=''; $('receipt').hidden=true; $('result').replaceChildren(); $('list').replaceChildren();
 }
 function signedOut(){ ++generation; busy=false; clearPrivate(); controls(); status('请先登录：前往「账号与登录」，登录后刷新资料。',true) }
 function problem(http){ return Object.assign(new Error(),{http}) }
-async function request(path,options){
+async function request(path,options,readBody=true){
   const r=await fetch(api+path,{credentials:'same-origin',cache:'no-store',redirect:'error',...options});
   if(!r.ok) throw problem(r.status);
-  return (await r.json()).data;
+  if(readBody)return (await r.json()).data;
 }
 async function me(){ const m=await request('me'); if(!m || typeof m.id!=='string' || !m.id)throw problem(502); return m }
 // Every asynchronous commit belongs to both an operation and the same session principal.
@@ -83,10 +95,10 @@ function fail(e,gen,upload){
     ++generation; busy=false; clearPrivate(); controls(); status('资料不可访问。请核对账号和权限，再刷新资料。',true); return;
   }
   if(!upload){status('无法读取资料。请检查连接后刷新资料。',true);return}
-  const format=textMode()?'文本文件':'PDF';
+  const format=textMode()?'文本文件':wordMode()?'Word 文件':'PDF';
   const hint={400:'文件或导入信息无效，请重新选择'+format+'。',409:'资料或请求状态已变化，请刷新资料后核对版本再导入。',413:'文件过大，请重新选择较小的'+format+'。',415:'格式不受支持，请重新选择'+format+'。',422:textMode()?'无法导入此文本，请核对编码或重新选择文件。':'无法导入此文件，请重新选择有效的 PDF。',507:'存储空间不足，请联系管理员释放空间后重试。'};
   if(e.http===409)conflict=true;
-  status(hint[e.http] || '未收到有效回执。请检查连接或服务状态，保留当前选择并重试。',true);
+  status(wordMode() && e.http===422?'无法导入此 Word 文件，请核对原件后重新选择。':hint[e.http] || '未收到有效回执。请检查连接或服务状态，保留当前选择并重试。',true);
 }
 const uuid=/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;
 function record(r){
@@ -94,6 +106,7 @@ function record(r){
   return {...r,media_type:r.media_type===undefined?'application/pdf':r.media_type};
 }
 const isPdf=r=>r.media_type==='application/pdf', isText=r=>Object.values(textTypes).includes(r.media_type);
+const isWord=r=>Object.values(wordTypes).includes(r.media_type);
 function el(tag,text,cls){const n=document.createElement(tag);if(text!=null)n.textContent=text;if(cls)n.className=cls;return n}
 function entry(r){
   const node=el('div',null,'entry'), meta=el('dl'), links=el('div',null,'links');
@@ -223,19 +236,108 @@ blockVersion.onchange=()=>{
 for(const [id,delta] of [['block-prev',-blockLimit],['block-next',blockLimit],['block-retry',0]]){
   $(id).onclick=()=>{if(blockRequest)void readBlocks(blockRequest.r,blockRequest.from+delta)};
 }
+const officeVersion=$('office-version'), officeWrites=new Map();
+const officeStates={queued:'排队中',running:'转换中',ready:'转换完成',failed:'转换失败',cancelled:'已取消',stale:'源版本已变化'};
+let office=null;
+function resetOfficeResult(){
+  $('office-result').hidden=true;$('office-quality').textContent='';$('office-notes').replaceChildren();
+  $('office-preview').removeAttribute('href');$('office-download').removeAttribute('href');
+  $('office-body').value='';$('office-page').value='1';
+}
+function resetOffice(){
+  clearTimeout(office?.timer);office=null;resetOfficeResult();$('office-panel').hidden=true;
+  $('office-status').textContent='';$('office-action').hidden=true;$('office-refresh').disabled=false;
+}
+function clearOffice(){resetOffice();officeVersion.replaceChildren();$('office').hidden=true}
+function officeData(data,version){
+  if(data?.version_id!==version || !Array.isArray(data.conversions))throw problem(502);
+  const ids=new Set();
+  for(const c of data.conversions){
+    if(!c || typeof c.id!=='string' || !/^[a-zA-Z0-9_-]+$/.test(c.id) || ids.has(c.id) || !Object.hasOwn(officeStates,c.state) ||
+      (c.page_count!=null && (!Number.isSafeInteger(c.page_count) || c.page_count<0)) || (c.state==='ready' && !(c.page_count>0)) ||
+      (c.failure_code!=null && typeof c.failure_code!=='string') || !Array.isArray(c.missing_fonts) || !c.missing_fonts.every(f=>typeof f==='string') ||
+      !Array.isArray(c.notes) || !c.notes.every(n=>n && Number.isSafeInteger(n.page) && n.page>=1 && n.page<=c.page_count && typeof n.body==='string'))throw problem(502);
+    ids.add(c.id);
+  }
+  return data.conversions;
+}
+function officeControls(s){
+  $('office-action').disabled=$('office-page').disabled=$('office-body').disabled=$('office-save').disabled=s.writing;
+  $('office-refresh').disabled=s.writing;
+}
+function drawOffice(s,items){
+  const latest=items[0], result=items.find(c=>c.state==='ready');
+  const statusText=latest?'最近一次：'+officeStates[latest.state]+(latest.failure_code?' · '+latest.failure_code:''):'尚未转换。';
+  if($('office-status').textContent!==statusText)$('office-status').textContent=statusText;
+  s.active=items.find(c=>activeJob(c.state));
+  $('office-action').hidden=false;$('office-action').textContent=s.active?'取消转换':latest?'重新转换':'开始转换';
+  // Bind the draft to the actual reviewed PDF, never silently move it to a new result.
+  if(s.result?.id!==result?.id)resetOfficeResult();
+  s.result=result;
+  if(!result)return;
+  const path=api+s.path+'/'+result.id+'/pdf';
+  $('office-preview').href=path;$('office-download').href=path+'?download=1';
+  $('office-result').hidden=false;$('office-page').max=String(result.page_count);
+  $('office-quality').textContent=(result!==latest?'上一次可用结果':'当前可用结果')+' · '+result.page_count+' 页 · '+
+    (result.missing_fonts.length?'缺失字体：'+result.missing_fonts.join('、'):'未报告缺失字体');
+  $('office-notes').replaceChildren(...result.notes.map(n=>el('li','第 '+n.page+' 页：'+n.body)));
+}
+async function syncOffice(s,action='',note=null){
+  if(!s || s!==office || s.writing)return;
+  clearTimeout(s.timer);const seq=++s.seq,current=()=>s===office && s.seq===seq;
+  s.writing=!!action;officeControls(s);
+  try{
+    // A new selection of the same version must observe an already-dispatched write.
+    if(officeWrites.has(s.path))await officeWrites.get(s.path);
+    if(!await checkOwnerWhile(current))return;
+    if(action){
+      const headers={'x-knowledgeos-request':'1'};
+      if(note || action==='/start')headers['idempotency-key']=crypto.randomUUID();
+      if(note)headers['content-type']='application/json';
+      const write=request(s.path+action,{method:'POST',headers,body:note?JSON.stringify(note):undefined},false);
+      officeWrites.set(s.path,write.catch(()=>{}));
+      try{await write}finally{officeWrites.delete(s.path)}
+      if(!await checkOwnerWhile(current))return;
+      if(note)$('office-body').value='';
+    }
+    const data=await request(s.path);
+    if(!await checkOwnerWhile(current))return;
+    drawOffice(s,officeData(data,s.version));
+    if(s.active)s.timer=setTimeout(()=>syncOffice(s),2000);
+  }catch(e){
+    if(!current())return;
+    if([401,403,404].includes(e.http)){fail(e,generation,false);return}
+    s.result=s.active=null;resetOfficeResult();$('office-action').hidden=true;
+    $('office-status').textContent='无法确认转换状态，请刷新转换状态后再操作。';
+  }finally{if(current()){s.writing=false;officeControls(s)}}
+}
+officeVersion.onchange=()=>{
+  resetOffice();const r=rows.find(row=>row.version_id===officeVersion.value);
+  if(!r || !isWord(r) || !ready || busy)return;
+  office={version:r.version_id,path:'assets/'+r.id+'/versions/'+r.version_id+'/office',seq:0,writing:false};
+  $('office-panel').hidden=false;$('office-status').textContent='正在读取转换状态…';void syncOffice(office);
+};
+$('office-refresh').onclick=()=>void syncOffice(office);
+$('office-action').onclick=()=>{if(office)void syncOffice(office,office.active?'/'+office.active.id+'/cancel':'/start')};
+$('office-note-form').onsubmit=e=>{
+  e.preventDefault();const r=office?.result,page=$('office-page').valueAsNumber,body=$('office-body').value.trim();
+  if(!r || !Number.isSafeInteger(page) || page<1 || page>r.page_count)return;
+  if(!body){$('office-body').focus();$('office-status').textContent='请输入质量问题。';return}
+  void syncOffice(office,'/'+r.id+'/notes',{page,body});
+};
 function renderRows(items,selected){
   rows=items.slice().sort((a,b)=>b.version-a.version);
   const seen=new Set();target.replaceChildren(new Option('新建资料',''));
   for(const r of rows)if(!seen.has(r.id)){seen.add(r.id);target.add(new Option(r.title+' · v'+r.version,r.id))}
   target.value=seen.has(selected)?selected:'';
   $('list').replaceChildren(...(rows.length?rows.map(entry):[el('p','暂无资料','muted')]));
-  for(const [select,section,predicate,prompt] of [[parseVersion,'parse',isPdf,'选择资料版本'],[blockVersion,'reader',isText,'选择文本版本']]){
+  for(const [select,section,predicate,prompt] of [[parseVersion,'parse',isPdf,'选择资料版本'],[blockVersion,'reader',isText,'选择文本版本'],[officeVersion,'office',isWord,'选择 Word 版本']]){
     const versions=rows.filter(predicate);select.replaceChildren(new Option(prompt,''),...versions.map(r=>new Option(r.title+' · v'+r.version,r.version_id)));
     $(section).hidden=!versions.length;
   }
 }
 async function load(reset=false){
-  const gen=++generation;busy=true;clearReader();clearParse();if(reset)clearPrivate();controls();status('正在读取资料…');
+  const gen=++generation;busy=true;clearOffice();clearReader();clearParse();if(reset)clearPrivate();controls();status('正在读取资料…');
   try{
     const m=await me();if(gen!==generation)return;
     if(m.id!==owner)clearPrivate();owner=m.id;$('who').textContent=m.display_name || m.login_name || m.id;
@@ -251,7 +353,7 @@ async function load(reset=false){
 function changed(){
   if(busy || !ready)return;
   ++generation;conflict=false;key=fileType(file.files[0])?crypto.randomUUID():null;controls();
-  status(key?'文件已选择。':textMode()?'请选择 .md 或 .txt 文本文件。':'请选择 PDF 文件。',!!file.files[0] && !key);
+  status(key?'文件已选择。':textMode()?'请选择 .md 或 .txt 文本文件。':wordMode()?'请选择 .docx 或 .doc 文件。':'请选择 PDF 文件。',!!file.files[0] && !key);
 }
 mode.onchange=()=>{clearDraft();drawMode();changed()};
 for(const control of [file,target,encoding])control.addEventListener('change',changed);
@@ -267,7 +369,7 @@ $('import').onsubmit=async event=>{
     if(selected){headers['x-knowledgeos-asset-id']=dest.id;headers['x-knowledgeos-expected-version']=String(dest.version)}
     const raw=await request('imports',{method:'POST',headers,body:blob});
     if(!await confirmOwner(gen))return;
-    const r=record(raw);clearDraft();clearParse();clearReader();renderRows([r,...rows.filter(old=>old.version_id!==r.version_id)],selected);
+    const r=record(raw);clearDraft();clearOffice();clearParse();clearReader();renderRows([r,...rows.filter(old=>old.version_id!==r.version_id)],selected);
     $('result').replaceChildren(entry(r));$('receipt').hidden=false;status('导入成功，已接收 v'+r.version+'。');
   }catch(e){fail(e,gen,true)}finally{if(gen===generation){busy=false;controls()}}
 };
