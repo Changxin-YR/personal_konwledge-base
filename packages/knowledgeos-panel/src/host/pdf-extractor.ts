@@ -1,35 +1,46 @@
 import { readFile } from 'node:fs/promises'
 import { Worker, parentPort, workerData } from 'node:worker_threads'
 import type { Methods } from '@embedpdf/pdfium'
+import { glyphRect, imagePng, normalizeBoxes, normalizeText, viewport, type Rect, type RenderedPage } from './reader-render-page.ts'
 
 const MiB = 1024 * 1024
 const MAX_BYTES = 64 * MiB, MAX_MEMORY = 256 * MiB, MAX_PAGES = 10_000
 const MAX_CHARS = 32_000, MAX_BOOKMARKS = 2048, MAX_TITLE_BYTES = 512
 const DEADLINE_MS = 15_000, MAX_WORKERS = 2
 const role = 'knowledgeos:pdf-extractor:v1'
+const readerRole = 'knowledgeos:pdf-reader:v1'
 type Page = { text: string; needsReview: boolean; chapter: string }
-type Doc = { numPages: number; page(n: number): Promise<Page>; close(): Promise<void> }
-type Result = { value: number | Page } | { error: string; fatal: boolean }
-let active = 0
+type Doc = { numPages: number; page(n: number): Promise<Page>; renderPage(n: number): Promise<RenderedPage>; close(): Promise<void> }
+type Input = Uint8Array<ArrayBuffer> | number | {render: number}
+type Result = { value: number | Page | RenderedPage } | { error: string; fatal: boolean }
+const active = { extract: 0, reader: 0 }
 
 type ErrorCode = 'PDF_PAGE_FAILED' | 'PDF_HANDLE_CLOSED' | 'PDF_BUSY' | 'PDF_OPEN_FAILED'
 function pdfError(code: ErrorCode, message: string) { return Object.assign(new Error(message), {code}) }
 
 /** One-based physical pages. Callers own the handle and must close it in finally. */
-export async function openPdf(bytes: Uint8Array): Promise<Doc> {
+export function openPdf(bytes: Uint8Array): Promise<Omit<Doc, 'renderPage'>> { return open(bytes, 'extract') }
+export function openReaderPdf(bytes: Uint8Array, signal?: AbortSignal): Promise<Pick<Doc, 'close' | 'renderPage'>> {
+  return open(bytes, 'reader', signal)
+}
+
+async function open(bytes: Uint8Array, pool: keyof typeof active, signal?: AbortSignal): Promise<Doc> {
+  if (signal?.aborted) throw pdfError('PDF_HANDLE_CLOSED', 'PDF closed')
   if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX_BYTES)
     throw pdfError('PDF_OPEN_FAILED', 'Invalid PDF input size or type')
-  if (active >= MAX_WORKERS) throw pdfError('PDF_BUSY', 'PDF extractor busy')
+  // A reader burst must not make the parse worker mark an import job failed.
+  if (active[pool] >= MAX_WORKERS) throw pdfError('PDF_BUSY', 'PDF extractor busy')
   const copy = new Uint8Array(bytes) // never transfer/detach the caller's buffer or pooled slab
   const worker = new Worker(new URL('./pdf-extractor.js', import.meta.url), {
-    workerData: role, env: {}, execArgv: [], resourceLimits: { maxOldGenerationSizeMb: 48, maxYoungGenerationSizeMb: 8 },
+    workerData: pool === 'reader' ? readerRole : role, env: {}, execArgv: [], resourceLimits: { maxOldGenerationSizeMb: 48, maxYoungGenerationSizeMb: 8 },
   })
-  active++
+  active[pool]++
   let pending: ((msg: Result) => void) | undefined
   let closing: Promise<void> | undefined
   const close = (): Promise<void> => {
     if (!closing) {
-      closing = worker.terminate().then(() => {}).finally(() => { active-- })
+      signal?.removeEventListener('abort', abort)
+      closing = worker.terminate().then(() => {}).finally(() => { active[pool]-- })
       pending?.({error: 'PDF closed', fatal: true})
     }
     return closing
@@ -38,13 +49,15 @@ export async function openPdf(bytes: Uint8Array): Promise<Doc> {
     pending?.({error, fatal: true})
     void close()
   }
+  function abort() { void close() }
+  signal?.addEventListener('abort', abort, {once:true})
   worker.on('message', (msg: Result) => {
     pending?.(msg)
     if ('error' in msg && msg.fatal) void close()
   })
   worker.on('error', () => fail('PDF worker failed'))
   worker.on('exit', () => fail('PDF worker exited'))
-  function request(input: Uint8Array<ArrayBuffer> | number): Promise<number | Page> {
+  function request(input: Input): Promise<number | Page | RenderedPage> {
     if (closing) return Promise.reject(pdfError('PDF_HANDLE_CLOSED', 'PDF closed'))
     if (pending) return Promise.reject(pdfError('PDF_BUSY', 'PDF extractor busy'))
     return new Promise((resolve, reject) => {
@@ -53,11 +66,11 @@ export async function openPdf(bytes: Uint8Array): Promise<Doc> {
         clearTimeout(timer)
         pending = undefined
         if ('error' in msg) {
-          const code = typeof input !== 'number' ? 'PDF_OPEN_FAILED' : msg.fatal ? 'PDF_HANDLE_CLOSED' : 'PDF_PAGE_FAILED'
+          const code = input instanceof Uint8Array ? 'PDF_OPEN_FAILED' : msg.fatal ? 'PDF_HANDLE_CLOSED' : 'PDF_PAGE_FAILED'
           reject(pdfError(code, msg.error))
         } else resolve(msg.value)
       }
-      try { worker.postMessage(input, typeof input === 'number' ? [] : [input.buffer]) }
+      try { worker.postMessage(input, input instanceof Uint8Array ? [input.buffer] : []) }
       catch { fail('PDF worker unavailable') }
     })
   }
@@ -66,6 +79,9 @@ export async function openPdf(bytes: Uint8Array): Promise<Doc> {
     return { numPages, close, async page(n) {
       if (!Number.isInteger(n) || n < 1 || n > numPages) throw new RangeError('Invalid PDF page number')
       return await request(n) as Page
+    }, async renderPage(n) {
+      if (!Number.isInteger(n) || n < 1 || n > numPages) throw new RangeError('Invalid PDF page number')
+      return await request({render:n}) as RenderedPage
     } }
   } catch (error) { await close(); throw error }
 }
@@ -158,10 +174,12 @@ async function parse(bytes: Uint8Array) {
   if (api.FPDF_GetSecurityHandlerRevision(doc) >= 0) throw new Error('Encrypted PDF is not supported')
   const numPages = api.FPDF_GetPageCount(doc)
   if (numPages < 1 || numPages > MAX_PAGES) throw new Error('Invalid or excessive PDF page count')
-  const titles = chapters(api, doc, numPages)
   const labels: string[] = ['']
-  for (let i = 1; i <= numPages; i++) labels.push(titles.get(i) ?? labels[i-1])
-  function page(n: number): Page {
+  if (workerData !== readerRole) {
+    const titles = chapters(api, doc, numPages)
+    for (let i = 1; i <= numPages; i++) labels.push(titles.get(i) ?? labels[i-1])
+  }
+  function page(n: number, render = false): Page | RenderedPage {
     const p = api.FPDF_LoadPage(doc, n - 1)
     if (!p) throw new PageFailure('Failed to load PDF page')
     try {
@@ -172,18 +190,26 @@ async function parse(bytes: Uint8Array) {
         if (count < 0 || count > MAX_CHARS) throw new PageFailure('Invalid or excessive PDF page text length')
         // Captions on a scan must not turn an unextracted image into a clean
         // page. Forms can also contain images; conservatively flag them.
-        const objects = api.FPDFPage_CountObjects(p)
+        const objects = render ? 0 : api.FPDFPage_CountObjects(p)
         let text = '', needsReview = objects < 0 || objects > 4096
         for (let i = 0; i < objects && !needsReview; i++) {
           const type = api.FPDFPageObj_GetType(api.FPDFPage_GetObject(p, i))
           needsReview = type === 0 || type === 3 || type === 5 // unknown, image, form
         }
-        for (let i = 0; i < count; i++) {
-          const ch = api.FPDFText_GetUnicode(tp, i)
-          if (api.FPDFText_HasUnicodeMapError(tp, i) !== 0 || !ch || ch > 0x10ffff) needsReview = true
-          text += ch && ch <= 0x10ffff ? String.fromCodePoint(ch) : '\ufffd'
-        }
-        text = text.toWellFormed().replace(/\r\n?/g, '\n').trim()
+        const view = render ? viewport(api, p) : undefined
+        const source: (Rect | undefined)[] = []
+        const scratch = view ? allocate(api, 32) : 0
+        try {
+          for (let i = 0; i < count; i++) {
+            const ch = api.FPDFText_GetUnicode(tp, i)
+            if (!view && (api.FPDFText_HasUnicodeMapError(tp, i) !== 0 || !ch || ch > 0x10ffff)) needsReview = true
+            if (view) source[text.length] = glyphRect(api, p, tp, i, view.width, view.height, scratch)
+            text += ch && ch <= 0x10ffff ? String.fromCodePoint(ch) : '\ufffd'
+          }
+        } finally { if (scratch) api.free(scratch) }
+        const raw = text
+        text = normalizeText(raw)
+        if (view) return {text, ...view, boxes: normalizeBoxes(raw, source, text), image: imagePng(api, p, view.width, view.height)}
         needsReview ||= !text || /[\ufffd\p{Co}\x00-\x08\x0b\x0c\x0e-\x1f]/u.test(text)
         return {text, needsReview, chapter: labels[n]}
       } finally { api.FPDFText_ClosePage(tp) }
@@ -192,13 +218,14 @@ async function parse(bytes: Uint8Array) {
   return { numPages, page }
 }
 
-if (parentPort && workerData === role) {
+if (parentPort && (workerData === role || workerData === readerRole)) {
   const port = parentPort
   let document: Awaited<ReturnType<typeof parse>>
-  port.on('message', async (input: Uint8Array | number) => {
+  port.on('message', async (input: Input) => {
     try {
-      if (typeof input !== 'number') { document = await parse(input); port.postMessage({value: document.numPages}) }
-      else port.postMessage({value: document.page(input)})
+      if (input instanceof Uint8Array) { document = await parse(input); port.postMessage({value: document.numPages}) }
+      else if (typeof input === 'number') port.postMessage({value: document.page(input)})
+      else port.postMessage({value: document.page(input.render, true)})
     } catch (err) {
       const error = err instanceof Error ? err.message : 'PDF parser failed'
       port.postMessage({error, fatal: !(err instanceof PageFailure)})
