@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { constants, type BigIntStats } from 'node:fs'
 import fs from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
-import {checkWordEnvelope} from './word-original.ts'
+import {verifyWordBytes} from './word-original.ts'
 import {WORD_MEDIA,type WordMedia} from './office-schema.ts'
 
 const MAX = 64 * 1024 * 1024
@@ -149,7 +149,7 @@ export class PdfOriginals {
 
   async putWord(bytes:Uint8Array,media:WordMedia){
     if(!(bytes instanceof Uint8Array)||!bytes.byteLength||bytes.byteLength>MAX)throw unavailable()
-    const data=Buffer.from(bytes);checkWordEnvelope(data,media)
+    const data=Buffer.from(bytes);await verifyWordBytes(data,media)
     try{return await this.#write(data,media===WORD_MEDIA.doc?'doc':'docx')}catch{throw unavailable()}
   }
 

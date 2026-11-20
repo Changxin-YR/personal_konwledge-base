@@ -3261,6 +3261,7 @@ import fs from "node:fs/promises";
 import { dirname, join as join2, resolve } from "node:path";
 
 // src/host/word-original.ts
+import { crc32, createInflateRaw } from "node:zlib";
 var WordInputError = class extends Error {
   constructor() {
     super("INVALID_WORD");
@@ -3273,7 +3274,7 @@ var isWordMedia = (media) => media === WORD_MEDIA.docx || media === WORD_MEDIA.d
 function checkWordEnvelope(b, media) {
   if (media === WORD_MEDIA.doc) {
     if (b.length < 512 || b.subarray(0, 8).toString("hex") !== "d0cf11e0a1b11ae1" || b.readUInt16LE(28) !== 65534 || ![9, 12].includes(b.readUInt16LE(30))) invalid();
-    return;
+    return [];
   }
   if (b.length < 22 || b.readUInt32LE(0) !== 67324752) invalid();
   let e = b.length - 22;
@@ -3283,7 +3284,7 @@ function checkWordEnvelope(b, media) {
   const entries = b.readUInt16LE(e + 10), length = b.readUInt32LE(e + 12);
   let pos = b.readUInt32LE(e + 16), expanded = 0;
   if (!entries || entries > 8192 || entries !== b.readUInt16LE(e + 8) || pos + length !== e) invalid();
-  const central = pos, names = /* @__PURE__ */ new Set();
+  const central = pos, names = /* @__PURE__ */ new Set(), members = [];
   for (let i = 0; i < entries; i++) {
     if (pos + 46 > e || b.readUInt32LE(pos) !== 33639248) invalid();
     const n = b.readUInt16LE(pos + 28), next = pos + 46 + n + b.readUInt16LE(pos + 30) + b.readUInt16LE(pos + 32), local = b.readUInt32LE(pos + 42);
@@ -3293,10 +3294,40 @@ function checkWordEnvelope(b, media) {
     if (b.readUInt16LE(pos + 8) & 1 || b.readUInt16LE(local + 6) & 1 || ![0, 8].includes(b.readUInt16LE(pos + 10)) || b.readUInt16LE(local + 8) !== b.readUInt16LE(pos + 10)) invalid();
     expanded += b.readUInt32LE(pos + 24);
     if (expanded > 256 * 1024 * 1024) invalid();
+    members.push({ start, packed: b.readUInt32LE(pos + 20), size: b.readUInt32LE(pos + 24), method: b.readUInt16LE(pos + 10), crc: b.readUInt32LE(pos + 16) });
     names.add(key);
     pos = next;
   }
   if (pos !== e || !["[Content_Types].xml", "_rels/.rels", "word/document.xml"].every((k) => names.has(k))) invalid();
+  return members;
+}
+async function verifyWordBytes(b, media) {
+  const members = checkWordEnvelope(b, media);
+  let remaining = 256 * 1024 * 1024;
+  for (const m of members) {
+    const packed = b.subarray(m.start, m.start + m.packed);
+    if (!m.method) {
+      if (m.packed !== m.size || m.size > remaining || crc32(packed) !== m.crc) invalid();
+      remaining -= m.size;
+      continue;
+    }
+    const decoder = createInflateRaw({ chunkSize: 32768 });
+    let actual = 0, crc = 0;
+    try {
+      decoder.end(packed);
+      for await (const chunk of decoder) {
+        actual += chunk.length;
+        remaining -= chunk.length;
+        if (actual > m.size || remaining < 0) invalid();
+        crc = crc32(chunk, crc);
+      }
+      if (actual !== m.size || crc !== m.crc || decoder.bytesWritten !== m.packed) invalid();
+    } catch {
+      invalid();
+    } finally {
+      decoder.destroy();
+    }
+  }
 }
 
 // src/host/pdf-originals.ts
@@ -3439,7 +3470,7 @@ var PdfOriginals = class {
   async putWord(bytes, media) {
     if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX) throw unavailable();
     const data = Buffer.from(bytes);
-    checkWordEnvelope(data, media);
+    await verifyWordBytes(data, media);
     try {
       return await this.#write(data, media === WORD_MEDIA.doc ? "doc" : "docx");
     } catch {
@@ -3688,7 +3719,7 @@ function libraryHandler(store, originals, origin, actorFor, parses, office) {
   let transfers = 0;
   return async (req, res) => {
     const requestId = randomUUID13();
-    let transfer = false;
+    let transfer = false, handlerDone = false, responseDone = false;
     res.setHeader("cache-control", "no-store");
     res.setHeader("x-content-type-options", "nosniff");
     const json2 = (status, payload) => {
@@ -3698,10 +3729,25 @@ function libraryHandler(store, originals, origin, actorFor, parses, office) {
         res.end(JSON.stringify(payload));
       }
     };
+    const release = () => {
+      if (transfer && handlerDone && responseDone) {
+        transfers--;
+        transfer = false;
+      }
+    };
     const reserve = () => {
       if (transfers >= 2) throw new AssetError(429, "TRANSFER_BUSY");
       transfers++;
       transfer = true;
+      const sent = () => {
+        responseDone = true;
+        res.off("finish", sent);
+        res.off("close", sent);
+        release();
+      };
+      res.once("finish", sent);
+      res.once("close", sent);
+      if (res.destroyed || res.writableFinished) sent();
     };
     try {
       const host = origin();
@@ -3840,10 +3886,10 @@ function libraryHandler(store, originals, origin, actorFor, parses, office) {
       if (req.method === "GET" && path && uuid.test(path[1]) && uuid.test(path[2]) && (!url.search || url.search === "?download=1")) {
         reserve();
         const download = Boolean(url.search), original = () => store.original(current(), path[1], path[2], download), r = original();
-        const bytes = await originals.read(r.key, r.sha256, r.byteLength);
-        original();
         const word = isWordMedia(r.media), ext = word ? r.media === WORD_MEDIA.doc ? "doc" : "docx" : r.media === "text/plain" ? "txt" : r.media === "text/markdown" ? "md" : "pdf";
         if (word && !download) throw new AssetError(422, "WORD_DOWNLOAD_REQUIRED");
+        const bytes = await originals.read(r.key, r.sha256, r.byteLength);
+        original();
         res.statusCode = 200;
         res.setHeader("content-type", word ? r.media : r.media ? `${download ? r.media : "text/plain"}; charset=${r.encoding}` : "application/pdf");
         res.setHeader("content-security-policy", "sandbox; default-src 'none'");
@@ -3857,7 +3903,8 @@ function libraryHandler(store, originals, origin, actorFor, parses, office) {
       const error = e instanceof AssetError ? e : e instanceof TextInputError ? new AssetError(e.code === "TEXT_TOO_LARGE" ? 413 : 422, e.code) : e instanceof WordInputError ? new AssetError(422, "INVALID_WORD") : e instanceof PdfInputError ? new AssetError(422, "INVALID_PDF") : new AssetError(503, "ORIGINAL_UNAVAILABLE");
       json2(error.status, { code: error.code, message: error.code, request_id: requestId });
     } finally {
-      if (transfer) transfers--;
+      handlerDone = true;
+      release();
     }
   };
 }

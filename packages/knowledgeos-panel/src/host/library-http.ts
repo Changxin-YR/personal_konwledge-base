@@ -38,10 +38,12 @@ function specFor(req:IncomingMessage):ImportSpec {
 export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:()=>string|undefined,actorFor:(req:IncomingMessage)=>SessionActor|undefined, parses?:ParseStore, office?:OfficeStore){
   let transfers=0
   return async(req:IncomingMessage,res:ServerResponse)=>{
-    const requestId=randomUUID();let transfer=false
+    const requestId=randomUUID();let transfer=false,handlerDone=false,responseDone=false
     res.setHeader('cache-control','no-store');res.setHeader('x-content-type-options','nosniff')
     const json=(status:number,payload:unknown)=>{if(!res.destroyed){res.statusCode=status;res.setHeader('content-type','application/json; charset=utf-8');res.end(JSON.stringify(payload))}}
-    const reserve=()=>{if(transfers>=2)throw new AssetError(429,'TRANSFER_BUSY');transfers++;transfer=true}
+    const release=()=>{if(transfer&&handlerDone&&responseDone){transfers--;transfer=false}}
+    const reserve=()=>{if(transfers>=2)throw new AssetError(429,'TRANSFER_BUSY');transfers++;transfer=true
+      const sent=()=>{responseDone=true;res.off('finish',sent);res.off('close',sent);release()};res.once('finish',sent);res.once('close',sent);if(res.destroyed||res.writableFinished)sent()}
     try{
       const host=origin();if(!host||req.headers.host!==new URL(host).host||req.headers['sec-fetch-site']==='cross-site'||req.headers.origin!==undefined&&req.headers.origin!==host||req.method!=='GET'&&req.headers['x-knowledgeos-request']!=='1')throw new AssetError(403,'CSRF_REJECTED')
       const actor=actorFor(req);if(!actor)throw new AssetError(401,'AUTH_REQUIRED')
@@ -125,14 +127,14 @@ export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:
       const path=/^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/original$/.exec(url.pathname)
       if(req.method==='GET'&&path&&uuid.test(path[1]!)&&uuid.test(path[2]!)&&(!url.search||url.search==='?download=1')){
         reserve();const download=Boolean(url.search),original=()=>store.original(current(),path[1]!,path[2]!,download),r=original()
-        const bytes=await originals.read(r.key,r.sha256,r.byteLength);original()
         const word=isWordMedia(r.media),ext=word?(r.media===WORD_MEDIA.doc?'doc':'docx'):r.media==='text/plain'?'txt':r.media==='text/markdown'?'md':'pdf'
         // A raw Word file is an attachment, never an inline renderer. Its bytes require export permission.
         if(word&&!download)throw new AssetError(422,'WORD_DOWNLOAD_REQUIRED')
+        const bytes=await originals.read(r.key,r.sha256,r.byteLength);original()
         res.statusCode=200;res.setHeader('content-type',word?r.media!:r.media?`${download?r.media:'text/plain'}; charset=${r.encoding}`:'application/pdf');res.setHeader('content-security-policy',"sandbox; default-src 'none'");res.setHeader('content-disposition',`${download?'attachment':'inline'}; filename="document.${ext}"`);res.setHeader('content-length',bytes.length);res.end(bytes);return
       }
       throw new AssetError(404,'NOT_FOUND')
     }catch(e){const error=e instanceof AssetError?e:e instanceof TextInputError?new AssetError(e.code==='TEXT_TOO_LARGE'?413:422,e.code):e instanceof WordInputError?new AssetError(422,'INVALID_WORD'):e instanceof PdfInputError?new AssetError(422,'INVALID_PDF'):new AssetError(503,'ORIGINAL_UNAVAILABLE');json(error.status,{code:error.code,message:error.code,request_id:requestId})}
-    finally{if(transfer)transfers--}
+    finally{handlerDone=true;release()}
   }
 }
