@@ -1,7 +1,7 @@
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash3, randomUUID as randomUUID4 } from "node:crypto";
+import { createHash as createHash3, randomUUID as randomUUID5 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -419,6 +419,10 @@ var WORD_MEDIA = {
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   doc: "application/msword"
 };
+var OFFICE_AUTH_SCHEMA = `CREATE TABLE office_authorizations (
+  conversion_id TEXT PRIMARY KEY REFERENCES office_conversions(id),
+  session_id TEXT NOT NULL REFERENCES auth_sessions(id)
+) STRICT;`;
 var OFFICE_SCHEMA = `CREATE TEMP TABLE kos_office_prior_blobs AS SELECT * FROM blobs;
 DROP TABLE blobs;
 CREATE TABLE blobs (
@@ -447,9 +451,147 @@ CREATE TABLE office_quality_notes (
   request_key TEXT NOT NULL, UNIQUE(author_id,request_key)
 ) STRICT;`;
 
+// src/host/office-store.ts
+import { randomUUID as randomUUID4 } from "node:crypto";
+var missing = () => new AssetError(404, "ASSET_NOT_FOUND");
+var keyPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
+var checkKey = (key) => {
+  if (!keyPattern.test(key) || key.length !== 36) throw new AssetError(422, "INVALID_IDEMPOTENCY_KEY");
+};
+var deadline = (now) => new Date(Date.parse(now) + 15e3).toISOString();
+var due = "state='queued' OR (state='running' AND lease_until<=?)";
+var sourceSQL = `SELECT v.asset_id,v.id AS version_id,b.media_type,b.sha256,b.byte_length,b.storage_key,
+  NOT EXISTS(SELECT 1 FROM asset_versions n WHERE n.asset_id=v.asset_id AND n.version>v.version) AS head
+  FROM asset_versions v JOIN blobs b ON b.id=v.blob_id WHERE v.id=? AND b.media_type IN (?,?)`;
+var OfficeStore = class {
+  constructor(tx, permit) {
+    this.tx = tx;
+    this.permit = permit;
+  }
+  sourceRow(db, v) {
+    return db.prepare(sourceSQL).get(v, WORD_MEDIA.doc, WORD_MEDIA.docx);
+  }
+  access(db, now, a, id, v, action) {
+    if (!this.permit(a.sessionId, a.userId, id, "read", now) || action !== "read" && !this.permit(a.sessionId, a.userId, id, action, now)) throw missing();
+    const row = this.sourceRow(db, v);
+    if (!row || row.asset_id !== id) throw missing();
+    return row;
+  }
+  list(a, id, v) {
+    return this.tx("read", (db, now) => {
+      this.access(db, now, a, id, v, "read");
+      const rows = db.prepare("SELECT id,state,page_count,missing_fonts,failure_code FROM office_conversions WHERE version_id=? ORDER BY rowid DESC").all(v);
+      const notes = db.prepare("SELECT id,page,body FROM office_quality_notes WHERE conversion_id=? ORDER BY rowid");
+      return { version_id: v, conversions: rows.map((r) => ({ ...r, missing_fonts: r.missing_fonts ? JSON.parse(String(r.missing_fonts)) : [], notes: notes.all(r.id) })) };
+    });
+  }
+  start(a, id, v, key) {
+    return this.tx("write", (db, now) => {
+      const row = this.access(db, now, a, id, v, "edit");
+      checkKey(key);
+      const prev = db.prepare("SELECT id,version_id,state FROM office_conversions WHERE actor_id=? AND request_key=?").get(a.userId, key);
+      if (prev) {
+        if (prev.version_id !== v) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        return { id: String(prev.id), state: String(prev.state), replayed: true };
+      }
+      if (!row.head) throw new AssetError(409, "SOURCE_CHANGED");
+      if (db.prepare("SELECT 1 FROM office_conversions WHERE version_id=? AND state IN ('queued','running')").get(v)) throw new AssetError(409, "CONVERSION_IN_PROGRESS");
+      const cid = randomUUID4();
+      db.prepare("INSERT INTO office_conversions(id,version_id,actor_id,request_key,state,created_at,updated_at) VALUES(?,?,?,?,'queued',?,?)").run(cid, v, a.userId, key, now, now);
+      db.prepare("INSERT INTO office_authorizations VALUES(?,?)").run(cid, a.sessionId);
+      return { id: cid, state: "queued", replayed: false };
+    });
+  }
+  cancel(a, id, v, cid) {
+    return this.tx("write", (db, now) => {
+      this.access(db, now, a, id, v, "edit");
+      const row = db.prepare("SELECT state FROM office_conversions WHERE id=? AND version_id=?").get(cid, v);
+      if (!row) throw missing();
+      if (row.state !== "cancelled") {
+        if (row.state !== "running" && row.state !== "queued") throw new AssetError(409, "CONVERSION_NOT_ACTIVE");
+        db.prepare("UPDATE office_conversions SET state='cancelled',failure_code='CANCELLED',lease_token=NULL,lease_until=NULL,updated_at=? WHERE id=?").run(now, cid);
+      }
+      return { id: cid, state: "cancelled" };
+    });
+  }
+  result(a, id, v, cid, download) {
+    return this.tx("read", (db, now) => {
+      this.access(db, now, a, id, v, download ? "export" : "read");
+      const row = db.prepare("SELECT b.storage_key,b.byte_length,b.sha256 FROM office_conversions c JOIN blobs b ON b.id=c.result_blob_id WHERE c.id=? AND c.version_id=? AND c.state='ready' AND b.media_type='application/pdf'").get(cid, v);
+      if (!row) throw missing();
+      return { key: String(row.storage_key), byteLength: Number(row.byte_length), sha256: String(row.sha256) };
+    });
+  }
+  note(a, id, v, cid, key, page, body) {
+    return this.tx("write", (db, now) => {
+      this.access(db, now, a, id, v, "edit");
+      checkKey(key);
+      const row = db.prepare("SELECT page_count FROM office_conversions WHERE id=? AND version_id=? AND state='ready'").get(cid, v);
+      if (!row) throw missing();
+      if (!Number.isSafeInteger(page) || page < 1 || page > Number(row.page_count) || typeof body !== "string" || !body.trim() || body.length > 2e3 || body.includes("\0")) throw new AssetError(422, "INVALID_QUALITY_NOTE");
+      const prev = db.prepare("SELECT id,conversion_id,page,body FROM office_quality_notes WHERE author_id=? AND request_key=?").get(a.userId, key);
+      if (prev) {
+        if (prev.conversion_id !== cid || prev.page !== page || prev.body !== body) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        return { id: String(prev.id), replayed: true };
+      }
+      const note = randomUUID4();
+      db.prepare("INSERT INTO office_quality_notes VALUES(?,?,?,?,?,?,?)").run(note, cid, a.userId, page, body, now, key);
+      return { id: note, replayed: false };
+    });
+  }
+  claim() {
+    if (!this.tx("read", (db, now) => db.prepare(`SELECT 1 FROM office_conversions WHERE ${due} LIMIT 1`).get(now))) return;
+    return this.tx("write", (db, now) => {
+      const row = db.prepare(`SELECT id,attempt FROM office_conversions WHERE ${due} ORDER BY rowid LIMIT 1`).get(now);
+      if (!row) return;
+      if (Number(row.attempt) >= 3) {
+        db.prepare("UPDATE office_conversions SET state='failed',failure_code='LEASE_EXPIRED',lease_token=NULL,lease_until=NULL,updated_at=? WHERE id=?").run(now, row.id);
+        return;
+      }
+      const token = randomUUID4();
+      db.prepare("UPDATE office_conversions SET state='running',attempt=attempt+1,lease_token=?,lease_until=?,updated_at=? WHERE id=?").run(token, deadline(now), now, row.id);
+      return this.authority(db, now, token) ? { token } : void 0;
+    });
+  }
+  authority(db, now, token) {
+    const row = db.prepare(`SELECT c.id,c.actor_id,c.version_id,a.session_id FROM office_conversions c LEFT JOIN office_authorizations a ON a.conversion_id=c.id
+      WHERE c.state='running' AND c.lease_token=? AND c.lease_until>?`).get(token, now);
+    if (!row) return;
+    const source = this.sourceRow(db, String(row.version_id)), session = String(row.session_id), user = String(row.actor_id), asset = String(source?.asset_id);
+    if (!source?.head || !row.session_id || !this.permit(session, user, asset, "read", now) || !this.permit(session, user, asset, "edit", now)) {
+      db.prepare("UPDATE office_conversions SET state=?,failure_code=?,lease_token=NULL,lease_until=NULL,updated_at=? WHERE id=?").run(source?.head ? "failed" : "superseded", source?.head ? "AUTHORIZATION_LOST" : "SOURCE_CHANGED", now, row.id);
+      return;
+    }
+    return { assetId: asset, versionId: String(row.version_id), key: String(source.storage_key), sha256: String(source.sha256), byteLength: Number(source.byte_length), extension: source.media_type === WORD_MEDIA.doc ? "doc" : "docx" };
+  }
+  source(token) {
+    return this.tx("write", (db, now) => this.authority(db, now, token));
+  }
+  renew(token) {
+    return this.tx("write", (db, now) => !!this.authority(db, now, token) && !!db.prepare("UPDATE office_conversions SET lease_until=? WHERE lease_token=?").run(deadline(now), token).changes);
+  }
+  complete(token, blob, pageCount, fonts) {
+    return this.tx("write", (db, now) => {
+      if (!this.authority(db, now, token)) return false;
+      if (!Number.isSafeInteger(pageCount) || pageCount < 1 || pageCount > 1e4 || !Number.isSafeInteger(blob.byteLength) || blob.byteLength <= 0 || blob.byteLength > 64 * 1024 * 1024 || !Array.isArray(fonts) || fonts.length > 1024 || fonts.some((f) => typeof f !== "string" || f.length > 512)) throw new AssetError(422, "INVALID_OFFICE_RESULT");
+      const bid = randomUUID4();
+      db.prepare("INSERT INTO blobs VALUES(?,?,?,?,'application/pdf')").run(bid, blob.key, blob.sha256, blob.byteLength);
+      db.prepare("UPDATE office_conversions SET state='ready',result_blob_id=?,page_count=?,missing_fonts=?,failure_code=NULL,lease_token=NULL,lease_until=NULL,updated_at=? WHERE lease_token=?").run(bid, pageCount, JSON.stringify(fonts), now, token);
+      return true;
+    });
+  }
+  fail(token, code) {
+    this.tx("write", (db, now) => {
+      if (!this.authority(db, now, token)) return;
+      db.prepare("UPDATE office_conversions SET state='failed',failure_code=?,lease_token=NULL,lease_until=NULL,updated_at=? WHERE lease_token=?").run(/^[a-zA-Z0-9_-]{1,64}$/.test(code) ? code : "CONVERSION_FAILED", now, token);
+    });
+  }
+};
+
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 10;
+var SCHEMA_VERSION = 11;
+var MIGRATION_V11_CHECKSUM = createHash3("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
 var MIGRATION_V10_CHECKSUM = createHash3("sha256").update(OFFICE_SCHEMA).digest("hex");
 var MIGRATION_V9_CHECKSUM = createHash3("sha256").update(TEXT_SCHEMA).digest("hex");
 var MIGRATION_V8_CHECKSUM = createHash3("sha256").update(PARSE_SCHEMA).digest("hex");
@@ -703,6 +845,10 @@ var ProbeStorage = class {
     return ref ? this.findActor(String(ref.token_hash), now) : void 0;
   }
   assets = new AssetStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (actor, id, action, now) => Boolean(this.authorizeObject(actor, id, action, now)));
+  office = new OfficeStore(this.#assetTx, (sessionId, userId, id, action, now) => {
+    const actor = this.#currentActor({ sessionId, userId }, now);
+    return !!actor && !!this.authorizeObject(actor, id, action, now);
+  });
   parses = new ParseStore(this.#assetTx, (sessionId, userId, id, write, now) => {
     const a = this.#currentActor({ sessionId, userId }, now);
     return Boolean(a && this.authorizeObject(a, id, "read", now) && (!write || this.authorizeObject(a, id, "edit", now)));
@@ -771,15 +917,16 @@ var ProbeStorage = class {
       } else if (existing === "v3") {
         this.#migrateV4(db);
       }
-      if (!["v6", "v7", "v8", "v9", "v10"].includes(existing)) {
+      if (!["v6", "v7", "v8", "v9", "v10", "v11"].includes(existing)) {
         if (existing !== "v5") this.#migrateV5(db);
         this.#migrateV6(db);
       }
-      if (!["v7", "v8", "v9", "v10"].includes(existing)) this.#migrateV7(db);
-      if (!["v8", "v9", "v10"].includes(existing)) this.#migrateV8(db);
-      if (!["v9", "v10"].includes(existing)) this.#migrateV9(db);
-      if (existing !== "v10") this.#migrateV10(db);
-      this.#verify(db, 10);
+      if (!["v7", "v8", "v9", "v10", "v11"].includes(existing)) this.#migrateV7(db);
+      if (!["v8", "v9", "v10", "v11"].includes(existing)) this.#migrateV8(db);
+      if (!["v9", "v10", "v11"].includes(existing)) this.#migrateV9(db);
+      if (!["v10", "v11"].includes(existing)) this.#migrateV10(db);
+      if (existing !== "v11") this.#migrateV11(db);
+      this.#verify(db, 11);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
       this.#db = db;
@@ -846,7 +993,7 @@ var ProbeStorage = class {
       }
       return "v5";
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11) {
       const db = new DatabaseSync(path, { readOnly: true });
       try {
         this.#verify(db, facts.userVersion);
@@ -1004,7 +1151,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID4());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID5());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -1130,9 +1277,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "office migration failed", false, { cause: e });
     }
   }
+  #migrateV11(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(OFFICE_AUTH_SCHEMA);
+      this.#injectFailure("v11:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(11,?,?)").run(MIGRATION_V11_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=11; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "office authorization migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -1141,6 +1300,7 @@ var ProbeStorage = class {
       if (version >= 8) reference.exec(PARSE_SCHEMA);
       if (version >= 9) reference.exec(TEXT_SCHEMA);
       if (version >= 10) reference.exec(OFFICE_SCHEMA);
+      if (version >= 11) reference.exec(OFFICE_AUTH_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -1243,9 +1403,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID4();
-      const spaceId = randomUUID4();
-      const credentialId = randomUUID4();
+      const userId = randomUUID5();
+      const spaceId = randomUUID5();
+      const credentialId = randomUUID5();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -1279,9 +1439,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID4();
-      const spaceId = randomUUID4();
-      const credentialId = randomUUID4();
+      const userId = randomUUID5();
+      const spaceId = randomUUID5();
+      const credentialId = randomUUID5();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -1446,7 +1606,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID4(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
+        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID5(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -1607,6 +1767,7 @@ export {
   IDENTITY_SUPPORTED_TABLES,
   MIGRATION_V1,
   MIGRATION_V10_CHECKSUM,
+  MIGRATION_V11_CHECKSUM,
   MIGRATION_V1_CHECKSUM,
   MIGRATION_V1_SQL,
   MIGRATION_V2,

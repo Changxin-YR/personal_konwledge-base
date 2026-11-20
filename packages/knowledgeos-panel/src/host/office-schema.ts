@@ -4,6 +4,11 @@ export const WORD_MEDIA = {
 } as const
 export type WordMedia = typeof WORD_MEDIA[keyof typeof WORD_MEDIA]
 
+export const OFFICE_AUTH_SCHEMA = `CREATE TABLE office_authorizations (
+  conversion_id TEXT PRIMARY KEY REFERENCES office_conversions(id),
+  session_id TEXT NOT NULL REFERENCES auth_sessions(id)
+) STRICT;`
+
 // Preserve blob IDs referenced by every earlier asset version. Deferred keys
 // are verified before this DDL and its ledger entry are committed together.
 export const OFFICE_SCHEMA = `CREATE TEMP TABLE kos_office_prior_blobs AS SELECT * FROM blobs;

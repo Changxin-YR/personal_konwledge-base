@@ -7,6 +7,7 @@ import type {ParseStore} from './parse-store.ts'
 import {decodeText,TextInputError,MAX_BYTES as textLimit} from './text-document.ts'
 import {isWordMedia,WordInputError} from './word-original.ts'
 import {WORD_MEDIA} from './office-schema.ts'
+import type {OfficeStore} from './office-store.ts'
 
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/
 const max=64*1024*1024
@@ -34,7 +35,7 @@ function specFor(req:IncomingMessage):ImportSpec {
   return {title,key,assetId,expectedVersion:Number(version)}
 }
 
-export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:()=>string|undefined,actorFor:(req:IncomingMessage)=>SessionActor|undefined, parses?:ParseStore){
+export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:()=>string|undefined,actorFor:(req:IncomingMessage)=>SessionActor|undefined, parses?:ParseStore, office?:OfficeStore){
   let transfers=0
   return async(req:IncomingMessage,res:ServerResponse)=>{
     const requestId=randomUUID();let transfer=false
@@ -47,6 +48,26 @@ export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:
       const current=()=>{const a=actorFor(req);if(!a||a.sessionId!==actor.sessionId)throw new AssetError(401,'AUTH_REQUIRED');return a}
       const url=new URL(req.url??'/',host);if(url.origin!==host)throw new AssetError(403,'CSRF_REJECTED')
       if(req.method==='GET'&&url.pathname==='/knowledge/v1/assets'&&!url.search){json(200,{data:{items:store.list(actor)},request_id:requestId});return}
+      const op=/^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/office(?:\/(start)|\/([a-f0-9-]+)\/(cancel|notes|pdf))?$/.exec(url.pathname)
+      if(office&&op&&uuid.test(op[1]!)&&uuid.test(op[2]!)&&(!op[4]||uuid.test(op[4]))){
+        const id=op[1]!,v=op[2]!,cid=op[4]!,command=op[3]??op[5],key=req.headers['idempotency-key']
+        const send=(status:number,data:unknown)=>json(status,{data,request_id:requestId})
+        if(req.method==='GET'&&!command&&!url.search){send(200,office.list(current(),id,v));return}
+        if(req.method==='POST'&&command==='start'&&!url.search){const r=office.start(current(),id,v,typeof key==='string'?key:'');send(r.replayed?200:202,r);return}
+        if(req.method==='POST'&&command==='cancel'&&!url.search){send(200,office.cancel(current(),id,v,cid));return}
+        if(req.method==='POST'&&command==='notes'&&!url.search){
+          if(req.headers['content-type']?.split(';')[0]!=='application/json')throw new AssetError(415,'JSON_REQUIRED')
+          const bytes=await receive(req,'INVALID_QUALITY_NOTE',16384);let input
+          try{input=JSON.parse(bytes.toString('utf8'))}catch{throw new AssetError(422,'INVALID_QUALITY_NOTE')}
+          if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).some(k=>!['body','page'].includes(k)))throw new AssetError(422,'INVALID_QUALITY_NOTE')
+          const r=office.note(current(),id,v,cid,typeof key==='string'?key:'',input.page,input.body);send(r.replayed?200:201,r);return
+        }
+        if(req.method==='GET'&&command==='pdf'&&(!url.search||url.search==='?download=1')){
+          reserve();const download=!!url.search,result=()=>office.result(current(),id,v,cid,download),ref=result()
+          const bytes=await originals.read(ref.key,ref.sha256,ref.byteLength);result()
+          res.setHeader('content-type','application/pdf');res.setHeader('content-length',bytes.length);res.setHeader('content-security-policy',"sandbox; default-src 'none'");res.setHeader('content-disposition',`${download?'attachment':'inline'}; filename="preview.pdf"`);res.end(bytes);return
+        }
+      }
       if(req.method==='POST'&&url.pathname==='/knowledge/v1/imports'&&!url.search){
         const media=req.headers['content-type']?.split(';')[0]?.trim().toLowerCase()
         const word=isWordMedia(media),isText=media==='text/plain'||media==='text/markdown'
