@@ -12,7 +12,7 @@ const uuid=s=>typeof s==='string' && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{1
 const integer=Number.isSafeInteger, ready=d=>d.state==='ready'||d.state==='review';
 const status=s=>{$('status').textContent=s}, invalid=()=>new Error('invalid'), problem=http=>Object.assign(new Error(),{http});
 const sha=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s))),n=>n.toString(16).padStart(2,'0')).join('');
-let gen=0, owner=null, ordinal=1, total=0, conversion=null, page=null, selection=null, pending=null, posting=false, mode=null, resolved=null, versionLabel='';
+let gen=0, owner=null, ordinal=1, total=0, conversion=null, page=null, selection=null, pending=null, posting=false, mode=null, resolved=null, versionLabel='', followCitation=!!cid;
 async function api(path,options){
   const r=await fetch('/knowledge/v1/'+path,{credentials:'same-origin',cache:'no-store',redirect:'error',...options});
   if(!r.ok)throw problem(r.status);return (await r.json()).data;
@@ -35,6 +35,7 @@ function clearPage(){
 }
 function lock(message){
   ++gen;owner=null;total=0;conversion=null;resolved=null;pending=null;ordinal=1;versionLabel='';mode=null;clearPage();
+  followCitation=!!cid;
   $('title').textContent='版本阅读';$('version').textContent='';navigation();status(message);
 }
 function failure(e,g){
@@ -73,9 +74,9 @@ function validate(d,n,cv){
   if(d.image!=null && (typeof d.image!=='string'||!/^data:image\/png;base64,[A-Za-z\d+/]+=*$/.test(d.image)||!(d.width>0&&Number.isFinite(d.width)&&d.height>0&&Number.isFinite(d.height))))throw invalid();
   return d;
 }
-async function load(n,{fresh=false,openCitation=false}={}){
+async function load(n,{openCitation=false}={}){
   if(document.hidden)return;
-  const g=++gen;clearPage();ordinal=n;navigation();status('正在读取…');
+  const g=++gen;clearPage();resolved=null;followCitation=!!cid&&openCitation;ordinal=n;navigation();status('正在读取…');
   try{
     if(!uuid(asset)||!uuid(version)||(cid!==null&&!uuid(cid))||!/^\d{1,9}$/.test(requestedUnit)||Number(requestedUnit)<1||(requestedConversion!==null&&!uuid(requestedConversion)))throw invalid();
     if(!await access(g))return;
@@ -95,7 +96,7 @@ async function load(n,{fresh=false,openCitation=false}={}){
     draw();if(c)document.querySelector('#original .highlight,#text mark')?.scrollIntoView({block:'nearest'});
   }catch(e){
     if(g!==gen)return;
-    if(total && !fresh && (e.http===503||e.http===502||e.http===500)){
+    if(total && (e.http===503||e.http===502||e.http===500)){
       try{if(await access(g))status('本处加载失败，请刷新重试或选择其他位置。')}catch(err){failure(err,g)}
     }else failure(e,g);
   }
@@ -179,16 +180,16 @@ $('paper').onclick=()=>switchMode('paper');$('structured').onclick=()=>switchMod
 $('cite').onpointerdown=e=>e.preventDefault();$('cite').onclick=createCitation;document.addEventListener('selectionchange',capture);
 $('jump').onsubmit=e=>{e.preventDefault();navigate(Number($('number').value))};$('prev').onclick=()=>navigate(ordinal-1);$('next').onclick=()=>navigate(ordinal+1);
 $('rail').onscroll=renderWindow;new ResizeObserver(renderWindow).observe($('rail'));
-function refresh(){void load(total?ordinal:Number(requestedUnit),{fresh:true,openCitation:!!cid && (!page || !!resolved)})}
+function refresh(){void load(total?ordinal:Number(requestedUnit),{openCitation:followCitation})}
 $('refresh').onclick=refresh;
 // Preserve the fixed position, never the page body, while hidden or in bfcache.
-function suspend(){resumeAt??={n:total?ordinal:Number(requestedUnit),cv:conversion,cite:!!cid&&(!page||!!resolved)};lock('返回后将重新检查阅读权限。')}
-function resume(){if(document.hidden||!resumeAt)return;const prior=resumeAt;resumeAt=null;conversion=prior.cv;void load(prior.n,{fresh:true,openCitation:prior.cite})}
+function suspend(){resumeAt??={n:total?ordinal:Number(requestedUnit),cv:conversion,cite:followCitation};lock('返回后将重新检查阅读权限。')}
+function resume(){if(document.hidden||!resumeAt)return;const prior=resumeAt;resumeAt=null;conversion=prior.cv;void load(prior.n,{openCitation:prior.cite})}
 window.addEventListener('pagehide',suspend);
 window.addEventListener('pageshow',e=>{if(e.persisted)resume()});
 window.addEventListener('focus',recheck);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)suspend();else if(resumeAt)resume();else refresh()});
 setInterval(recheck,2000);
-void load(Number(requestedUnit),{fresh:true,openCitation:true});
+void load(Number(requestedUnit),{openCitation:true});
 </script></body></html>`
 }

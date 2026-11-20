@@ -40,7 +40,7 @@ async function fixture(t) {
       peer.writes.push({body:r.request().postDataJSON(),headers:r.request().headers()}); if(peer.drop){peer.drop=false;return r.abort('failed')} return reply(peer.citation)
     }
     if(p==='/knowledge/v1/assets/'+asset+'/versions/'+version+'/reader') {
-      peer.calls.push(Object.fromEntries(u.searchParams)); const d=await peer.reader(Number(u.searchParams.get('unit'))); return reply(d)
+      peer.calls.push(Object.fromEntries(u.searchParams)); const d=await peer.reader(Number(u.searchParams.get('unit'))); return typeof d==='number'?r.fulfill({status:d}):reply(d)
     }
     errors.push('Unexpected route: '+p); return r.abort()
   })
@@ -74,6 +74,16 @@ test('nonready and failed pages remain navigable; stale results and revoked ACL 
 test('different account opens shared link via resolve and protected source; hash mismatch never highlights',async t=>{
   const {page,peer,url,cid}=await fixture(t);peer.user='bob';peer.denied=true;await page.goto(url+'&citation='+cid);await page.getByText(/不可访问/).waitFor();assert.deepEqual(peer.calls,[])
   peer.denied=false;peer.citation.quote_hash=sha('different');await page.reload();await page.getByText(/引用.*不匹配/).waitFor();assert.equal(await page.locator('mark,.highlight').count(),0)
+})
+
+test('refresh after leaving a citation retries the intended fixed page, even after multiple transient failures',async t=>{
+  const {page,peer,url,cid,conversion}=await fixture(t),source=peer.reader;let failures=2
+  peer.reader=n=>n===1001&&failures-->0?503:source(n)
+  await page.goto(url+'&citation='+cid);await page.locator('#original .highlight').waitFor();await page.locator('#next').click()
+  for(let i=0;i<2;i++){
+    await page.getByText(/本处加载失败/).waitFor();assert.equal(await page.locator('#number').inputValue(),'1001');await page.locator('#refresh').click()
+  }
+  await page.getByText('章节 1001',{exact:true}).waitFor();assert.deepEqual(peer.calls,[{unit:'1000',conversion},...Array.from({length:3},()=>({unit:'1001',conversion}))]);assert.equal(await page.locator('.highlight').count(),0)
 })
 
 test('idle foreground reader clears cached content after revocation without reloading the page',async t=>{
