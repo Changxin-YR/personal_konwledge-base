@@ -1,0 +1,29 @@
+{
+  "unit_id": "READ-001",
+  "candidate_sha": "fdac3b02fc5ac42eabef72374aee9b7050c942e3",
+  "tree": "5d26229022c037bde14be992696f4aef3101a921",
+  "entry_sha256": "1dec38b8b02e79da9829afa27300cce61de9c8db203d6347ed59561d4df3df4b",
+  "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+  "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+  "environment": "Windows x64; Node 24.22.0; SQLite 3.53.4; Chrome 158.0.8127.36; clean detached worktree and isolated real DSH Host",
+  "status": "PASS",
+  "exit": 0,
+  "command": "For each runner, node scripts/read001/<runner>.mjs <candidate_sha> <entry_sha256> <isolated evidence parent>",
+  "runners": [
+    {"runner": "host-text-citations", "exit": 0, "summary_sha256": "986192d7d12fe2898fefcf4df65c41534562f92c825da01095f61b391be9b7c2"},
+    {"runner": "host-page-citations", "exit": 0, "summary_sha256": "173cbb8b8e2cf16b0350f1119e18dff75b807465d1686d763b6372956673bf5c"},
+    {"runner": "host-browser", "exit": 0, "summary_sha256": "d30ede58e9ab1a7467646ac054fe277f692efbe5a0602576b149381cecf3d39e"},
+    {"runner": "host-open-tab", "exit": 0, "summary_sha256": "1b5741f3c3818c2e62cb7501ed725fa39602681c5419bec03b0a87ddfc6aeea2"}
+  ],
+  "results": [
+    {"id": "READ-001-T01", "status": "PASS", "actual": "Real PDF and Word coordinates; DOCX starts, ends and whole wrapping range share a paragraph ID; multi-page continuation and real binary DOC verified. Chrome selects the second matching DOCX substring, reopens its old version and old conversion after reconversion and version update, and draws 9 glyph highlights; source range [30,39), page range [50,59). Binary DOC reopen draws 13 glyph highlights."},
+    {"id": "READ-001-T02", "status": "PASS", "actual": "Partial PDF, failure and retry, old fixed references and no unauthorized response body. Chrome retries unit 3 after controlled 503 without returning to citation page. Live revocation cleared original and structure views in 1796 ms and 1786 ms. Stale hash returned 409, and real Word source/rendition mismatch returned 422 with zero persisted citation rows."}
+  ],
+  "browser_supplement": {
+    "exit": 0,
+    "summary_sha256": "cee0fcbc14460e5ddd02b6807f3d2800b9657f9e91e2b9afb6a73ab71a4b0815",
+    "script_sha256": "2d9e58ee8a3b24e9ec64c76657c2372210b74b80aa5bf2e49214437c04f1a0de",
+    "retest_note": "Initial supplemental assertion used selection extent for the paragraph's full page span. Corrected that external test expectation and reran against the same frozen product; both runs retained in the isolated evidence."
+  },
+  "isolated_manifest_sha256": "5a911438560e15f4a7567102bfe1d98d91a260b6f49207e5e2175edd7d4b6e8f"
+}

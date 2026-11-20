@@ -1,0 +1,12 @@
+{
+  "unit_id": "READ-001",
+  "candidate_sha": "fdac3b02fc5ac42eabef72374aee9b7050c942e3",
+  "entry_sha256": "1dec38b8b02e79da9829afa27300cce61de9c8db203d6347ed59561d4df3df4b",
+  "unit_acceptance": "PASS",
+  "passed_test_ids": ["READ-001-T01", "READ-001-T02"],
+  "main_record": "docs/evidence/READ-001/word-main-fdac3b0.md",
+  "affected_regression_passed": 81,
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/READ-001/independent-fdac3b0.json",
+  "scope_note": "READ-001 only; not the complete P02, A09 or A45 scenarios."
+}

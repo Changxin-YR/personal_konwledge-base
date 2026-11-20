@@ -10,7 +10,7 @@
     "sha256": "da73b65a0004bfa875d1435a61a555ba6f02d45c280aeb8ed6d2e62ab4bd39d8"
   },
   "active_unit": "READ-001",
-  "unit_state": "in_progress",
+  "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Implement version-bound reader locators, viewport loading and accurate source highlighting. Anchor helper tested; unit acceptance outstanding.",
+  "state_reason": "READ-001 passed both catalog tests and independent real Host/Chrome acceptance; ready to select next dependency-ready unit.",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,22 +127,22 @@
     }
   },
   "checkpoint": {
-    "unit_id": "LIB-005",
-    "base_commit": "f4d3421f507654c6c82f6994f5dbd4012263685e",
-    "candidate_sha": "4675aa7ed8ad1ac2501cdd2a63de769707ceaf5f",
+    "unit_id": "READ-001",
+    "base_commit": "5ee23801afd70276e8e18e4b132b9bf54adf67ce",
+    "candidate_sha": "fdac3b02fc5ac42eabef72374aee9b7050c942e3",
     "completed": [
-      "Private archive preview and version-bound idempotent publication of the selected members."
+      "Fixed-version original and structural reader, bounded page loading, durable source locators and exact glyph highlighting.",
+      "Word paragraph IDs and UTF-16 offsets independent of PDF wrapping; fixed-page retry and foreground ACL revocation."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
       "independent": "PASS",
       "T01": "PASS",
-      "T02": "PASS",
-      "A05": "PASS"
+      "T02": "PASS"
     },
-    "evidence": "docs/evidence/LIB-005/acceptance.json",
+    "evidence": "docs/evidence/READ-001/acceptance.json",
     "defects": [],
-    "next_task": "READ-001",
+    "next_task": "READ-002",
     "blocked_dependencies": []
   }
 }
