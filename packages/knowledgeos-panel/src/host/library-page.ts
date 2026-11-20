@@ -237,7 +237,7 @@ for(const [id,delta] of [['block-prev',-blockLimit],['block-next',blockLimit],['
   $(id).onclick=()=>{if(blockRequest)void readBlocks(blockRequest.r,blockRequest.from+delta)};
 }
 const officeVersion=$('office-version'), officeWrites=new Map();
-const officeStates={queued:'排队中',running:'转换中',ready:'转换完成',failed:'转换失败',cancelled:'已取消',stale:'源版本已变化'};
+const officeStates={queued:'排队中',running:'转换中',ready:'转换完成',failed:'转换失败',cancelled:'已取消',superseded:'源版本已变化'};
 let office=null;
 function resetOfficeResult(){
   $('office-result').hidden=true;$('office-quality').textContent='';$('office-notes').replaceChildren();

@@ -26,6 +26,7 @@ import { join } from 'node:path'
 import { PdfOriginals } from './pdf-originals.ts'
 import { libraryHandler } from './library-http.ts'
 import { startParseWorker } from './parse-worker.ts'
+import { startOfficeWorker } from './office-worker.ts'
 import { openPdf } from './pdf-extractor.ts'
 import { buildLibraryHtml } from './library-page.ts'
 
@@ -240,6 +241,12 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
         void pending.finally(() => { inFlight.delete(pending) })
         return pending
       }
+    }
+    if(storage?.available && dataDir){
+      const office=storage.office,originals=new PdfOriginals(join(dataDir,'originals'))
+      identityContext.inject(['officeKit'],scope=>{
+        scope.effect(()=>startOfficeWorker(office,originals,scope.officeKit,openPdf,log),'knowledgeos-office: versioned conversion worker')
+      })
     }
     identityContext.effect(() => {
       const disposers: Array<() => void> = []

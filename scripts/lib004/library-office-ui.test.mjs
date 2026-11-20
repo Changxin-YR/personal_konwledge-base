@@ -106,6 +106,8 @@ test('polls active jobs; failed and cancelled retries keep the last ready PDF an
   await page.getByLabel('页码').fill('2'); await btn('保存质量记录').click(); await page.getByText('第 2 页：<i>代码缩进</i>').waitFor()
   advance = false; await btn('重新转换').click(); await btn('取消转换').click(); await page.getByText('最近一次：已取消').waitFor()
   assert.equal(await preview.getAttribute('href'), `${base(w1)}/${good.id}/pdf`); assert.equal(new Set(keys).size, 3)
+  history.unshift(conversion('superseded',{failure_code:'SOURCE_CHANGED'}));await btn('刷新转换状态').click()
+  await page.getByText(/最近一次：源版本已变化/).waitFor();assert.equal(await preview.getAttribute('href'), `${base(w1)}/${good.id}/pdf`)
   assert.equal(await page.locator('#office b,#office i').count(), 0)
   await page.setViewportSize({ width: 320, height: 720 }); assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
 })

@@ -3926,6 +3926,116 @@ function startParseWorker(store, originals, open, log) {
   };
 }
 
+// src/host/office-worker.ts
+var maxPdf = 64 * 1024 * 1024;
+var knownCodes = /* @__PURE__ */ new Set(["input-too-large", "output-too-large", "invalid-document", "unsupported-format", "invalid-output", "timeout", "unavailable", "failed", "busy", "source-changed", "invalid-request"]);
+var same2 = (a, b) => a.assetId === b.assetId && a.versionId === b.versionId && a.key === b.key && a.sha256 === b.sha256 && a.byteLength === b.byteLength && a.extension === b.extension;
+function startOfficeWorker(store, originals, kit, openPdf2, log) {
+  let stopped = false, pending, active2;
+  async function tick() {
+    const job = store.claim();
+    if (!job) return;
+    const { token } = job, controller = new AbortController();
+    active2 = controller;
+    const source = () => {
+      controller.signal.throwIfAborted();
+      const s = store.source(token);
+      if (!s) {
+        controller.abort();
+        controller.signal.throwIfAborted();
+        throw Error("source unavailable");
+      }
+      return s;
+    };
+    const heartbeat = setInterval(() => {
+      try {
+        if (!store.renew(token)) controller.abort();
+      } catch {
+        controller.abort();
+      }
+    }, 2e3);
+    heartbeat.unref();
+    let stage, doc, phase = "SOURCE_UNAVAILABLE";
+    try {
+      const initial = source(), checked = () => {
+        const s = source();
+        if (!same2(initial, s)) throw Error("source changed");
+        return s;
+      };
+      phase = "CONVERSION_FAILED";
+      const result = await kit.convert({ extension: initial.extension, priority: "background", source: {
+        key: `knowledgeos:${initial.assetId}:${initial.versionId}`,
+        version: initial.sha256,
+        bytes: initial.byteLength,
+        read: async (signal, maxBytes) => {
+          signal.throwIfAborted();
+          const s = checked();
+          if (!Number.isSafeInteger(maxBytes) || maxBytes < s.byteLength) throw Error("source exceeds reservation");
+          const bytes = await originals.read(s.key, s.sha256, s.byteLength);
+          signal.throwIfAborted();
+          const after = checked();
+          return { bytes, version: after.sha256 };
+        }
+      } }, controller.signal);
+      checked();
+      phase = "INVALID_OFFICE_RESULT";
+      if (!(result.pdf instanceof Uint8Array) || !result.pdf.byteLength || result.pdf.byteLength > maxPdf || !Array.isArray(result.missingFonts) || result.missingFonts.length > 1024 || result.missingFonts.some((f) => typeof f !== "string" || f.length > 512)) throw Error("invalid result");
+      doc = await openPdf2(result.pdf);
+      const pages = doc.numPages;
+      if (!Number.isSafeInteger(pages) || pages < 1 || pages > 1e4) throw Error("invalid page count");
+      for (let n = 1; n <= pages; n++) {
+        controller.signal.throwIfAborted();
+        await doc.page(n);
+      }
+      await doc.close();
+      doc = void 0;
+      checked();
+      phase = "RESULT_STORAGE_UNAVAILABLE";
+      stage = await originals.put(result.pdf);
+      checked();
+      let committed;
+      try {
+        committed = store.complete(token, stage, pages, result.missingFonts);
+      } catch (e) {
+        if (!(e instanceof AssetError)) {
+          originals.retain(stage.key);
+          stage = void 0;
+        }
+        throw e;
+      }
+      if (committed) {
+        originals.retain(stage.key);
+        stage = void 0;
+      }
+    } catch (e) {
+      if (!stopped && !controller.signal.aborted) {
+        const code = e?.code;
+        store.fail(token, typeof code === "string" && knownCodes.has(code) ? code : phase);
+      }
+    } finally {
+      clearInterval(heartbeat);
+      active2 = void 0;
+      try {
+        if (stage) await originals.discard(stage.key);
+      } finally {
+        await doc?.close();
+      }
+    }
+  }
+  const timer = setInterval(() => {
+    if (!stopped && !pending) pending = tick().catch(() => log("knowledgeos-office: worker temporarily unavailable")).finally(() => {
+      pending = void 0;
+    });
+  }, 300);
+  timer.unref();
+  return async () => {
+    stopped = true;
+    clearInterval(timer);
+    active2?.abort();
+    await pending;
+  };
+}
+
 // src/host/pdf-extractor.ts
 import { readFile } from "node:fs/promises";
 import { Worker, parentPort, workerData } from "node:worker_threads";
@@ -4380,7 +4490,7 @@ for(const [id,delta] of [['block-prev',-blockLimit],['block-next',blockLimit],['
   $(id).onclick=()=>{if(blockRequest)void readBlocks(blockRequest.r,blockRequest.from+delta)};
 }
 const officeVersion=$('office-version'), officeWrites=new Map();
-const officeStates={queued:'排队中',running:'转换中',ready:'转换完成',failed:'转换失败',cancelled:'已取消',stale:'源版本已变化'};
+const officeStates={queued:'排队中',running:'转换中',ready:'转换完成',failed:'转换失败',cancelled:'已取消',superseded:'源版本已变化'};
 let office=null;
 function resetOfficeResult(){
   $('office-result').hidden=true;$('office-quality').textContent='';$('office-notes').replaceChildren();
@@ -4745,6 +4855,12 @@ function apply(ctx, config = {}) {
         return pending;
       };
     };
+    if (storage?.available && dataDir) {
+      const office = storage.office, originals = new PdfOriginals(join3(dataDir, "originals"));
+      identityContext.inject(["officeKit"], (scope) => {
+        scope.effect(() => startOfficeWorker(office, originals, scope.officeKit, openPdf, log), "knowledgeos-office: versioned conversion worker");
+      });
+    }
     identityContext.effect(() => {
       const disposers = [];
       disposers.push(identityContext.webServer.register({ kind: "exact", path: ACCOUNT_PATH, auth: "anonymous", handler: accountPage }));

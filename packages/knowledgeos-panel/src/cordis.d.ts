@@ -56,6 +56,7 @@ declare module '@deepseek-ai/cordis' {
     get(name: 'agentDefaultModel'): { currentSelection(): {provider?: string; model?: string} } | undefined
     llm: import('./host/ai-service.ts').LlmPort
     tools: import('./host/ai-service.ts').ToolsPort
+    officeKit: Parameters<typeof import('./host/office-worker.ts').startOfficeWorker>[2]
     webServer: WebServer
     clientModules: ClientModules
     connection: HostConnection
