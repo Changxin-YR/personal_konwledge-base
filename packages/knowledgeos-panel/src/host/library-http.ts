@@ -9,6 +9,7 @@ import {isWordMedia,WordInputError} from './word-original.ts'
 import {WORD_MEDIA} from './office-schema.ts'
 import type {OfficeStore} from './office-store.ts'
 import type {ZipStore} from './zip-store.ts'
+import {readerRoute,type ReaderService} from './reader-http.ts'
 import {inspectZip,preflightZipSelection,readZipMember,ZipInputError} from './zip-reader.ts'
 
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/
@@ -62,7 +63,7 @@ async function publishInput(store:AssetStore,originals:PdfOriginals,current:()=>
   return result
 }
 
-export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:()=>string|undefined,actorFor:(req:IncomingMessage)=>SessionActor|undefined, parses?:ParseStore, office?:OfficeStore,officeAvailable=()=>true,archives?:ZipStore){
+export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:()=>string|undefined,actorFor:(req:IncomingMessage)=>SessionActor|undefined, parses?:ParseStore, office?:OfficeStore,officeAvailable=()=>true,archives?:ZipStore,reader?:ReaderService){
   let transfers=0
   return async(req:IncomingMessage,res:ServerResponse)=>{
     const requestId=randomUUID();let transfer=false,handlerDone=false,responseDone=false
@@ -76,6 +77,10 @@ export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:
       const actor=actorFor(req);if(!actor)throw new AssetError(401,'AUTH_REQUIRED')
       const current=()=>{const a=actorFor(req);if(!a||a.sessionId!==actor.sessionId)throw new AssetError(401,'AUTH_REQUIRED');return a}
       const url=new URL(req.url??'/',host);if(url.origin!==host)throw new AssetError(403,'CSRF_REJECTED')
+      if(reader&&(url.pathname.endsWith('/reader')||url.pathname.startsWith('/knowledge/v1/citations'))){
+        const ac=new AbortController(),stop=()=>ac.abort();res.once('close',stop);if(res.destroyed)stop()
+        try{if(await readerRoute(req,url,reader,current,ac.signal,receive,reserve,(code,data)=>json(code,{data,request_id:requestId})))return}finally{res.off('close',stop)}
+      }
       if(req.method==='GET'&&url.pathname==='/knowledge/v1/assets'&&!url.search){json(200,{data:{items:store.list(actor)},request_id:requestId});return}
       const op=/^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/office(?:\/(start)|\/([a-f0-9-]+)\/(cancel|notes|pdf))?$/.exec(url.pathname)
       if(office&&op&&uuid.test(op[1]!)&&uuid.test(op[2]!)&&(!op[4]||uuid.test(op[4]))){

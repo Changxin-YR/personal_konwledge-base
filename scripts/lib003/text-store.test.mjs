@@ -23,7 +23,7 @@ test('v8 populated PDF, checkpoints, foreign keys, and replay survive v9 failure
     const before=snapshot();let s=new ProbeStorage({dataDir:root,failureAt:'v9:after-schema'});assert.equal(s.available,false);s.close();assert.deepEqual(snapshot(),before)
     assert.equal(db.prepare('PRAGMA user_version').get().user_version,8);assert.equal(db.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE name LIKE 'text_%'").get().n,0)
     for(let i=0;i<2;i++){
-      s=new ProbeStorage({dataDir:root});try{assert(s.available,s.failure?.message);const after=snapshot();assert.deepEqual(after.schema_migrations.splice(before.schema_migrations.length).map(m=>m.version),[9,10,11,12,13]);assert.deepEqual(after,before);assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);assert.deepEqual(s.assets.publish(actor,spec,b),{receipt:r,replayed:true});assert.equal(s.parses.pages(actor,r.id,r.version_id,1,1).pages[0].text,'v8 page')}finally{s.close()}
+      s=new ProbeStorage({dataDir:root});try{assert(s.available,s.failure?.message);const after=snapshot();assert.deepEqual(after.schema_migrations.splice(before.schema_migrations.length).map(m=>m.version),[9,10,11,12,13,14]);assert.deepEqual(after,before);assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);assert.deepEqual(s.assets.publish(actor,spec,b),{receipt:r,replayed:true});assert.equal(s.parses.pages(actor,r.id,r.version_id,1,1).pages[0].text,'v8 page')}finally{s.close()}
     }
   }finally{db.close()}
 })

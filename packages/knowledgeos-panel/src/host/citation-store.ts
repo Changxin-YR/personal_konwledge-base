@@ -1,0 +1,86 @@
+import {createHash,randomUUID} from 'node:crypto'
+import type {DatabaseSync} from 'node:sqlite'
+import {AssetError,type BlobRef} from './asset-store.ts'
+import {citationAnchor,resolveCitationText} from './citation-anchor.ts'
+import type {SessionActor} from './identity.ts'
+import type {ParseTx} from './parse-store.ts'
+
+export const CITATION_SCHEMA=`CREATE TABLE citations (
+  id TEXT PRIMARY KEY, created_by TEXT NOT NULL REFERENCES users(id), request_key TEXT NOT NULL,
+  asset_id TEXT NOT NULL REFERENCES assets(id), version_id TEXT NOT NULL REFERENCES asset_versions(id),
+  conversion_id TEXT REFERENCES office_conversions(id), ordinal INTEGER NOT NULL CHECK(ordinal>=1),
+  start INTEGER NOT NULL CHECK(start>=0), end INTEGER NOT NULL CHECK(end>start),
+  source_hash TEXT NOT NULL CHECK(length(source_hash)=64), quote_hash TEXT NOT NULL CHECK(length(quote_hash)=64),
+  created_at TEXT NOT NULL, UNIQUE(created_by,request_key)
+) STRICT;`
+export interface ReaderTarget {asset_id:string;version_id:string;ordinal:number;conversion_id?:string}
+export interface CitationSpec extends ReaderTarget {start:number;end:number;source_hash:string}
+export interface ReaderSource extends ReaderTarget {
+  kind:'pdf'|'text'|'office';total:number;state:string;text:string;title:string;chapter:string;ref?:BlobRef
+}
+// Only the Host renderer may supply this witness. Never deserialize it from client input.
+export interface OfficePageWitness {conversion_id:string;sha256:string;ordinal:number;text:string}
+const notFound=()=>new AssetError(404,'SOURCE_NOT_FOUND')
+const invalid=()=>new AssetError(422,'INVALID_READER_UNIT')
+const sha=(s:string)=>createHash('sha256').update(s,'utf8').digest('hex')
+const uuid=/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/
+const fields='id,asset_id,version_id,conversion_id,ordinal,start,end,source_hash,quote_hash'
+function dto(row:Record<string,unknown>){const {conversion_id,...rest}=row;return {...rest,...(conversion_id?{conversion_id}:{})} as CitationSpec&{id:string;quote_hash:string}}
+
+export class CitationStore {
+  constructor(private tx:ParseTx,private current:(a:SessionActor,now:string)=>SessionActor|undefined,
+    private allowed:(a:SessionActor,id:string,now:string)=>boolean){}
+  private actor(prior:SessionActor,now:string){const a=this.current(prior,now);if(!a)throw new AssetError(401,'AUTH_REQUIRED');return a}
+  private read(db:DatabaseSync,a:SessionActor,t:ReaderTarget,now:string):ReaderSource {
+    if(!this.allowed(a,t.asset_id,now))throw notFound()
+    const r=db.prepare(`SELECT v.original_name,b.media_type,b.storage_key,b.sha256,b.byte_length FROM asset_versions v
+      JOIN blobs b ON b.id=v.blob_id WHERE v.asset_id=? AND v.id=?`).get(t.asset_id,t.version_id)
+    if(!r)throw notFound();if(!Number.isSafeInteger(t.ordinal)||t.ordinal<1)throw invalid()
+    const base={asset_id:t.asset_id,version_id:t.version_id,ordinal:t.ordinal,title:String(r.original_name),chapter:'',text:''}
+    if(r.media_type==='text/plain'||r.media_type==='text/markdown'){
+      if(t.conversion_id)throw notFound()
+      const v=db.prepare('SELECT block_count FROM text_versions WHERE version_id=?').get(t.version_id)
+      const total=Number(v?.block_count??0);if(!total&&t.ordinal===1)return {...base,kind:'text',total,state:'empty'}
+      const block=db.prepare('SELECT text,kind FROM text_blocks WHERE version_id=? AND ordinal=?').get(t.version_id,t.ordinal)
+      if(!block)throw invalid();return {...base,kind:'text',total,state:'ready',text:String(block.text),chapter:String(block.kind)}
+    }
+    if(r.media_type==='application/pdf'){
+      if(t.conversion_id)throw notFound()
+      const v=db.prepare('SELECT total,state FROM pdf_parse_runs WHERE version_id=?').get(t.version_id),total=Number(v?.total??0)
+      if(total&&t.ordinal>total)throw invalid()
+      const p=db.prepare('SELECT state,text,chapter FROM pdf_pages WHERE version_id=? AND page=?').get(t.version_id,t.ordinal)
+      const state=String(p?.state??v?.state??'idle');const withText=p&&(state==='ready'||state==='review')
+      return {...base,kind:'pdf',total,state,text:withText?String(p.text):'',chapter:String(p?.chapter??''),ref:{key:String(r.storage_key),byteLength:Number(r.byte_length),sha256:String(r.sha256)}}
+    }
+    const sql=`SELECT c.id,c.page_count,b.storage_key,b.byte_length,b.sha256 FROM office_conversions c JOIN blobs b ON b.id=c.result_blob_id
+      WHERE c.version_id=? AND c.state='ready' `
+    const c=t.conversion_id?db.prepare(sql+'AND c.id=?').get(t.version_id,t.conversion_id):db.prepare(sql+'ORDER BY c.rowid DESC LIMIT 1').get(t.version_id)
+    if(!c){if(t.conversion_id)throw notFound();return {...base,kind:'office',total:0,state:'unconverted'}}
+    const total=Number(c.page_count);if(t.ordinal>total)throw invalid();return {...base,conversion_id:String(c.id),kind:'office',total,state:'ready',ref:{key:String(c.storage_key),byteLength:Number(c.byte_length),sha256:String(c.sha256)}}
+  }
+  source(prior:SessionActor,t:ReaderTarget){return this.tx('read',(db,now)=>this.read(db,this.actor(prior,now),t,now))}
+  private text(s:ReaderSource,w?:OfficePageWitness){
+    if(s.state!=='ready'&&s.state!=='review')throw new AssetError(409,'SOURCE_NOT_READY')
+    if(s.kind!=='office')return s.text
+    if(!w||w.conversion_id!==s.conversion_id||w.sha256!==s.ref?.sha256||w.ordinal!==s.ordinal)throw new AssetError(409,'CITATION_SOURCE_CHANGED')
+    return w.text
+  }
+  create(prior:SessionActor,spec:CitationSpec,key:string,w?:OfficePageWitness){return this.tx('write',(db,now)=>{
+    const a=this.actor(prior,now),src=this.read(db,a,spec,now)
+    if(!uuid.test(key)||src.kind==='office'&&!spec.conversion_id)throw new AssetError(422,'INVALID_CITATION')
+    const text=this.text(src,w);if(sha(text)!==spec.source_hash)throw new AssetError(409,'CITATION_SOURCE_CHANGED')
+    const range=citationAnchor(text,spec.start,spec.end)
+    const old=db.prepare(`SELECT ${fields} FROM citations WHERE created_by=? AND request_key=?`).get(a.userId,key)
+    if(old){if(!this.allowed(a,String(old.asset_id),now))throw notFound();if(old.asset_id!==spec.asset_id||old.version_id!==spec.version_id||old.ordinal!==spec.ordinal||old.conversion_id!==(spec.conversion_id??null)||old.start!==range.start||old.end!==range.end||old.source_hash!==range.source_hash)throw new AssetError(409,'IDEMPOTENCY_CONFLICT');return {data:dto(old),replayed:true}}
+    const id=randomUUID();db.prepare('INSERT INTO citations VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').run(id,a.userId,key,spec.asset_id,spec.version_id,spec.conversion_id??null,spec.ordinal,range.start,range.end,range.source_hash,range.quote_hash,now)
+    return {data:{...spec,...range,id},replayed:false}
+  })}
+  private lookup(db:DatabaseSync,a:SessionActor,id:string,now:string){
+    const r=db.prepare(`SELECT ${fields} FROM citations WHERE id=?`).get(id);if(!r||!this.allowed(a,String(r.asset_id),now))throw notFound();return dto(r)
+  }
+  target(prior:SessionActor,id:string){return this.tx('read',(db,now)=>this.lookup(db,this.actor(prior,now),id,now))}
+  resolve(prior:SessionActor,id:string,w?:OfficePageWitness){return this.tx('read',(db,now)=>{
+    const a=this.actor(prior,now),r=this.lookup(db,a,id,now),source=this.read(db,a,r,now)
+    return {...r,quote:resolveCitationText(this.text(source,w),r)}
+  })}
+}

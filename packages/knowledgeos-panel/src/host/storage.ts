@@ -32,12 +32,14 @@ import {TEXT_SCHEMA} from './text-schema.ts'
 import {OFFICE_SCHEMA,OFFICE_AUTH_SCHEMA,OFFICE_HISTORY_SCHEMA} from './office-schema.ts'
 import {OfficeStore} from './office-store.ts'
 import {ZIP_SCHEMA} from './zip-schema.ts'
+import {CITATION_SCHEMA,CitationStore} from './citation-store.ts'
 
 /** Fixed application identity written to PRAGMA application_id (KOS1). */
 export const APPLICATION_ID = 0x4b4f5331
 /** Current application schema version. */
-export const SCHEMA_VERSION = 13
+export const SCHEMA_VERSION = 14
 export const MIGRATION_V13_CHECKSUM = createHash('sha256').update(ZIP_SCHEMA).digest('hex')
+export const MIGRATION_V14_CHECKSUM = createHash('sha256').update(CITATION_SCHEMA).digest('hex')
 export const MIGRATION_V12_CHECKSUM = createHash('sha256').update(OFFICE_HISTORY_SCHEMA).digest('hex')
 export const MIGRATION_V11_CHECKSUM = createHash('sha256').update(OFFICE_AUTH_SCHEMA).digest('hex')
 export const MIGRATION_V10_CHECKSUM = createHash('sha256').update(OFFICE_SCHEMA).digest('hex')
@@ -249,6 +251,7 @@ export interface ProbeStorageOptions {
     | 'v11:after-schema'
     | 'v12:after-schema'
     | 'v13:after-schema'
+    | 'v14:after-schema'
 }
 
 export interface DatabaseFacts {
@@ -366,6 +369,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
   }
   readonly assets = new AssetStore(this.#assetTx,(s,now)=>this.#currentActor(s,now), (actor,id,action,now)=>Boolean(this.authorizeObject(actor,id,action,now)))
   readonly archives = new ZipStore(this.#assetTx,(s,now)=>this.#currentActor(s,now),(a,id,now)=>Boolean(this.authorizeObject(a,id,'read',now)))
+  readonly citations = new CitationStore(this.#assetTx,(s,now)=>this.#currentActor(s,now),(a,id,now)=>Boolean(this.authorizeObject(a,id,'read',now)))
   readonly office = new OfficeStore(this.#assetTx,(sessionId,userId,id,action,now)=>{
     const actor=this.#currentActor({sessionId,userId},now)
     return !!actor && !!this.authorizeObject(actor,id,action,now)
@@ -444,7 +448,8 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       if (priorVersion<11) this.#migrateV11(db)
       if (priorVersion<12) this.#migrateV12(db)
       if (priorVersion<13) this.#migrateV13(db)
-      this.#verify(db,13)
+      if (priorVersion<14) this.#migrateV14(db)
+      this.#verify(db,14)
       const facts = readDatabaseFacts(path)
       const pragmas = this.#readPragmas(db)
       this.#db = db
@@ -458,7 +463,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     }
   }
 
-  #precheck(path: string): 'blank' | 'v1' | 'v2' | 'v3' | 'v4' | 'v5' | 'v6' | 'v7' | 'v8' | 'v9' | 'v10' | 'v11' | 'v12' | 'v13' {
+  #precheck(path: string): 'blank' | 'v1' | 'v2' | 'v3' | 'v4' | 'v5' | 'v6' | 'v7' | 'v8' | 'v9' | 'v10' | 'v11' | 'v12' | 'v13' | 'v14' {
     const facts = readDatabaseFacts(path)
     if (facts.applicationId === 0 && facts.userVersion === 0 && facts.objects.length === 0) return 'blank'
     if (facts.applicationId !== APPLICATION_ID) throw new RecordsError('STORAGE_INCOMPATIBLE', 'database belongs to another application')
@@ -491,7 +496,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       try { this.#assertV2Definitions(db); this.#assertV4Definitions(db); this.#assertV5Definitions(db) } finally { db.close() }
       return 'v5'
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14) {
       const db = new DatabaseSync(path, { readOnly: true })
       try { this.#verify(db,facts.userVersion) } finally { db.close() }
       return `v${facts.userVersion}`
@@ -788,9 +793,18 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     }catch(e){if(!this.#rollback(db))throw this.#failure;throw new RecordsError('STORAGE_INCOMPATIBLE','ZIP import migration failed',false,{cause:e})}
   }
 
-  #verify(db: DatabaseSync, version:6|7|8|9|10|11|12|13): void {
+  #migrateV14(db:DatabaseSync):void {
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      db.exec(CITATION_SCHEMA);this.#injectFailure('v14:after-schema')
+      db.prepare('INSERT INTO schema_migrations VALUES(14,?,?)').run(MIGRATION_V14_CHECKSUM,new Date().toISOString())
+      db.exec('PRAGMA user_version=14; COMMIT')
+    }catch(e){if(!this.#rollback(db))throw this.#failure;throw new RecordsError('STORAGE_INCOMPATIBLE','citation migration failed',false,{cause:e})}
+  }
+
+  #verify(db: DatabaseSync, version:6|7|8|9|10|11|12|13|14): void {
     const facts = readDatabaseFacts(this.databasePath)
-    const checks=[MIGRATION_V6_CHECKSUM,MIGRATION_V7_CHECKSUM,MIGRATION_V8_CHECKSUM,MIGRATION_V9_CHECKSUM,MIGRATION_V10_CHECKSUM,MIGRATION_V11_CHECKSUM,MIGRATION_V12_CHECKSUM,MIGRATION_V13_CHECKSUM].slice(0,version-5)
+    const checks=[MIGRATION_V6_CHECKSUM,MIGRATION_V7_CHECKSUM,MIGRATION_V8_CHECKSUM,MIGRATION_V9_CHECKSUM,MIGRATION_V10_CHECKSUM,MIGRATION_V11_CHECKSUM,MIGRATION_V12_CHECKSUM,MIGRATION_V13_CHECKSUM,MIGRATION_V14_CHECKSUM].slice(0,version-5)
     if(facts.applicationId!==APPLICATION_ID || facts.userVersion!==version || facts.ledger.length!==version || checks.some((hash,i)=>facts.ledger[i+5]?.version!==i+6||facts.ledger[i+5]?.checksum!==hash))throw new RecordsError('STORAGE_INCOMPATIBLE','database ownership/version verification failed')
     const reference = new DatabaseSync(':memory:')
     try {
@@ -802,6 +816,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       if(version>=11)reference.exec(OFFICE_AUTH_SCHEMA)
       if(version>=12)reference.exec(OFFICE_HISTORY_SCHEMA)
       if(version>=13)reference.exec(ZIP_SCHEMA)
+      if(version>=14)reference.exec(CITATION_SCHEMA)
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all()
       for (const {name,sql} of definitions) {
         if (db.prepare('SELECT sql FROM sqlite_master WHERE name=?').get(name!)?.sql!==sql) throw new RecordsError('STORAGE_INCOMPATIBLE','jobs schema definition mismatch')
