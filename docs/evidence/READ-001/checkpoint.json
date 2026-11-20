@@ -1,0 +1,23 @@
+{
+  "unit_id": "READ-001",
+  "base_commit": "5ee23801afd70276e8e18e4b132b9bf54adf67ce",
+  "candidate_sha": "653fd9b75701144b64895aec01208ae749d287e4",
+  "entry_sha256": "733e6c57e6d7180be702c6bf5d0417cb69dd4f3d5e271e7abdc767c435f1f1c3",
+  "completed": [
+    "Persisted PDF glyph and Markdown neighboring-block locator snapshots in v15; kept legacy citations intact.",
+    "Revalidated live reader authorization and cleared already-open foreground tabs after revocation.",
+    "Fixed transient page retries after navigating away from a citation; Chrome retried unit 3 on the same version after 503."
+  ],
+  "test_results": {
+    "retry_implementation": "PASS",
+    "retry_chrome_suite": "PASS",
+    "retry_real_host_browser": "PASS",
+    "current_candidate_independent_review": "NOT_RUN",
+    "prior_candidate_independent_review": "FAIL",
+    "unit_acceptance": "NOT_RUN"
+  },
+  "evidence": ["docs/evidence/READ-001/independent-3df8200.md", "docs/evidence/READ-001/independent-35f4545.md", "docs/evidence/READ-001/retry-run.json"],
+  "defects": ["Word locator currently identifies wrapped PDF lines rather than stable Word source structure; must fix and independently retest before passing READ-001."],
+  "next_task": "READ-001 Word source paragraphs, normalized alignment to fixed Office rendition, frozen candidate and independent acceptance; then READ-002 if the dependency gate passes.",
+  "blocked_dependencies": []
+}

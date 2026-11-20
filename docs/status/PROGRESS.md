@@ -1,5 +1,7 @@
 # 实际进度
 
+2026-11-20：READ-001 仍在开发。[第二轮独立复核](../evidence/READ-001/independent-35f4545.md) 确认撤权清屏和 v15 迁移通过，但 Word 源段落定位及浏览器翻页重试未通过。后续 `653fd9b` 已修复翻页重试，10 项 Chrome 夹具测试和[真实 Host 复验](../evidence/READ-001/retry-run.json)通过。继续修复 Word 后再冻结候选和独立复核；本单元及 P02/A09/A45 不提前放行。详见[交接检查点](../evidence/READ-001/checkpoint.json)。
+
 2026-11-20：LIB-005 与完整场景 [A05](../evidence/LIB-005/A05.json) 在 `4675aa7` 通过主运行与[独立复核](../evidence/LIB-005/independent.json)。真实 Host、Chrome、SQLite 验证选择导入、原件回读、隔离及重试。F05 还依赖 P02，不标为 verified。下个依赖就绪单元是 READ-001。
 
 2026-11-20：LIB-004 与完整场景 [A08](../evidence/LIB-004/A08.json) 在 `9196b1495ec040f6a00ec818c915424a0c1971ae` 通过主运行和[独立复核](../evidence/LIB-004/independent.json)。两组真实 Host 测试与 41 项专项测试均通过。原件、转换 PDF 和逐页反馈在原 Session 释放和 Host 重启后均可读；失败、取消、换版不会覆盖已有结果。F08 已验证，F05 尚待 ZIP 等验收，不把参考版式与转换版式视为完全相同。下一单元 LIB-005。

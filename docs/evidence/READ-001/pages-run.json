@@ -1,0 +1,38 @@
+{
+  "candidate_sha": "35f4545e5059f889d64c1a97befe704f7b07f1f2",
+  "entry_sha256": "d65849bff403e52e73a55898e4cfb62a48fd9366e4f8290ba8913b9febb145e9",
+  "helpers": {
+    "scripts/read001/host-page-citations.mjs": "26defcebcf1fb7de20172553ccecfbdd5f52ec567aedeff1a722bd26f9138335",
+    "scripts/lib004/acceptance-samples.mjs": "8d2fda1bcd1ba58be163dfe2793106d89cb81f7f4c37bebf53d20e31e7c12cb5"
+  },
+  "status": "PASS",
+  "steps": [
+    {
+      "name": "pdf-original",
+      "sha256": "3d37f31f2bb157dcc565bfc3422be08e961e0a455010d700a783ec4bac797914",
+      "width": 900,
+      "height": 600,
+      "selected_box_count": 6,
+      "start": 4,
+      "end": 10
+    },
+    {
+      "name": "word-original",
+      "sha256": "f44449419cbdb3a616e33386e9a659147c9560fee6de0344ade6dac5e16b0927",
+      "width": 1187,
+      "height": 1536,
+      "selected_box_count": 6,
+      "start": 25,
+      "end": 31
+    },
+    {
+      "name": "restart and retry failed page",
+      "before": "failed",
+      "after": "ready",
+      "pdf_version": "6e7da500-fc6e-4744-9ef3-5d4565fc1e2c",
+      "office_version": "e980464c-20ea-44da-af5f-a4b3c3ba6215",
+      "original_conversion": "48ee00b0-d702-44f8-b7b5-a8d7b5977762",
+      "new_conversion": "38e18996-cfb9-4ab9-9ace-a4775048f8a7"
+    }
+  ]
+}

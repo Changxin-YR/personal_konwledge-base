@@ -1,0 +1,34 @@
+{
+  "candidate_sha": "35f4545e5059f889d64c1a97befe704f7b07f1f2",
+  "entry_sha256": "d65849bff403e52e73a55898e4cfb62a48fd9366e4f8290ba8913b9febb145e9",
+  "runner_sha256": "8ed38781c68dff66b274c616ec7311a2488b5f02ae7e99c134b8a8713cb08177",
+  "status": "PASS",
+  "steps": [
+    {
+      "name": "fixed text citation",
+      "version": "1eec60a5-b6ce-4913-b69f-baa758d8ed64",
+      "new_version": "1a91afa0-e1af-4105-951c-7aa09db16ebe",
+      "source_hash": "8b2def6739d0d38a42e06b0e69feaaaed33dc4133d51046eff20eb622f6e025f",
+      "quote_hash": "b80583371c31ee2a8c2deab7b86764ba8051012e18828e48a4cf6c97262ca17e",
+      "utf16": [
+        5,
+        9
+      ]
+    },
+    {
+      "name": "Markdown structural neighbors",
+      "ordinal": 2,
+      "block_id": "9e0ab93d11e240a05cfd2d01549b1335c8f6efa47e44ab61736c5da378f74ffe",
+      "adjacent_blocks": 2
+    },
+    {
+      "name": "restart"
+    },
+    {
+      "name": "current project read grant",
+      "before": 200,
+      "revoked": 404,
+      "replayed_after_revocation": 404
+    }
+  ]
+}
