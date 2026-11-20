@@ -10,7 +10,7 @@
     "sha256": "da73b65a0004bfa875d1435a61a555ba6f02d45c280aeb8ed6d2e62ab4bd39d8"
   },
   "active_unit": "LIB-004",
-  "unit_state": "in_progress",
+  "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Implement version-bound Word originals, durable conversion and quality review; real conversion and A08 outstanding.",
+  "state_reason": "LIB-004 candidate passed independent Word conversion, durability, quality, authorization and race tests.",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,21 +127,22 @@
     }
   },
   "checkpoint": {
-    "unit_id": "LIB-003",
-    "base_commit": "56af4f39ddd85f3c61af85b0a2fe9ce5558e5108",
-    "candidate_sha": "0e9f37e9966950c6c5645abafff772654c547bd7",
+    "unit_id": "LIB-004",
+    "base_commit": "58cea367c81f6782f574f97d2579840a3e84ed94",
+    "candidate_sha": "9196b1495ec040f6a00ec818c915424a0c1971ae",
     "completed": [
-      "Published Markdown and text originals, version-bound structural blocks and stable character offsets."
+      "Versioned Word originals, native DSH Office conversion, authorized durable results and paginated quality review."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
       "independent": "PASS",
       "T01": "PASS",
-      "T02": "PASS"
+      "T02": "PASS",
+      "A08": "PASS"
     },
-    "evidence": "docs/evidence/LIB-003/acceptance.json",
+    "evidence": "docs/evidence/LIB-004/acceptance.json",
     "defects": [],
-    "next_task": "LIB-004",
+    "next_task": "LIB-005",
     "blocked_dependencies": []
   }
 }

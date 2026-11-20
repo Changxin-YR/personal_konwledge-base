@@ -1,0 +1,140 @@
+{
+  "unit_id": "LIB-004",
+  "candidate_sha": "9196b1495ec040f6a00ec818c915424a0c1971ae",
+  "entry_sha256": "bcba3df32a1a09800f095affae05b024ff435f1f6cfe0ac82621526749b062e5",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/lib004/host-acceptance.mjs 9196b1495ec040f6a00ec818c915424a0c1971ae bcba3df32a1a09800f095affae05b024ff435f1f6cfe0ac82621526749b062e5",
+  "results": [
+    {
+      "id": "LIB-004-T01",
+      "status": "PASS"
+    },
+    {
+      "id": "LIB-004-T02",
+      "status": "PASS"
+    }
+  ],
+  "A08": "PASS",
+  "commands": [
+    {
+      "command": "node scripts/lib004/host-acceptance.mjs 9196b1495ec040f6a00ec818c915424a0c1971ae bcba3df32a1a09800f095affae05b024ff435f1f6cfe0ac82621526749b062e5",
+      "exit": 0,
+      "sha256": "da43cf5be5e60619d43a590e3d1c4bd583227ee0018bdfd1ce2a77eda45b1166"
+    },
+    {
+      "command": "node scripts/lib004/host-races.mjs 9196b1495ec040f6a00ec818c915424a0c1971ae bcba3df32a1a09800f095affae05b024ff435f1f6cfe0ac82621526749b062e5",
+      "exit": 0,
+      "sha256": "9d778ca3e5db40f2cf0777c9740cd28c8c409cab9c17432525cf8a44d9385ab5"
+    }
+  ],
+  "suite": {
+    "pass": 41,
+    "fail": 0,
+    "skipped": 0
+  },
+  "independent_session": [
+    {
+      "step": "same-process-session-disposal",
+      "at": "2026-11-20T03:07:49.753Z",
+      "pid": 94188,
+      "source_session_sha256": "3d9893f69940a408708701e4b2e7243222a7868264e6c4bbd09d4acc299b177a",
+      "fresh_session_sha256": "869cb12d03906b2f09d912b4f33122d71a93a51320cc65d682bc53d0a2203a5c",
+      "office_witness_removed": true
+    },
+    {
+      "step": "distinct-host-restart",
+      "at": "2026-11-20T03:08:04.849Z",
+      "old_pid": 94188,
+      "new_pid": 98684
+    },
+    {
+      "step": "revoked-locator-denied-owner-still-readable",
+      "at": "2026-11-20T03:08:12.569Z"
+    }
+  ],
+  "races": [
+    {
+      "event": "boot",
+      "at": "2026-11-20T03:07:31.234Z",
+      "pid": 102532
+    },
+    {
+      "event": "baseline",
+      "at": "2026-11-20T03:07:36.223Z",
+      "asset": "c20065bc-2ec5-47ea-9df0-bb72214ab90f",
+      "version": "cc413d2c-b3cb-4afa-ac3d-eee62dcae6b5",
+      "conversion": "5c94b0fc-728f-4418-9995-1f1bbc234d85",
+      "original": "206ac9b634ed953c67424fdd00725eafdc44bf0ab3e06eefcc4cec0b466c74ef",
+      "pdf": "001126193eb4d5c402f5ee813674663ff489e2feca20240be6b8739c04cc60c4"
+    },
+    {
+      "event": "failed",
+      "at": "2026-11-20T03:07:36.625Z",
+      "code": "RESULT_STORAGE_UNAVAILABLE"
+    },
+    {
+      "event": "cancelled-after-drain",
+      "at": "2026-11-20T03:07:36.977Z"
+    },
+    {
+      "event": "superseded-after-drain",
+      "at": "2026-11-20T03:07:37.324Z"
+    },
+    {
+      "event": "screenshot",
+      "at": "2026-11-20T03:07:48.488Z",
+      "label": "reopened-v1",
+      "sha256": "c333c43511b8611aa3023a76596b06788d714563475986d23512f5b359d2e681"
+    },
+    {
+      "event": "reopened",
+      "at": "2026-11-20T03:07:48.497Z",
+      "pid": 97440,
+      "second_pdf": "a2205f63d004cc3ef1e05ee297bd2dd14d9bd9063a7af4ed801cf520626a2c3b",
+      "second_original": "9d686f6cb8a770c78d4866dc8c2f9e9bf41475e41491be2ead1eeccbcaa1c62b"
+    }
+  ],
+  "same_version_history": {
+    "candidate": "9196b1495ec040f6a00ec818c915424a0c1971ae",
+    "entry_sha256": "bcba3df32a1a09800f095affae05b024ff435f1f6cfe0ac82621526749b062e5",
+    "checks": [
+      {
+        "round": "before-restart",
+        "old_preview_200": true,
+        "current_preview_200": true,
+        "current_download_verified": true,
+        "distinct_notes": true,
+        "screenshot_sha256": "33e8006c7fe1d67e883e053db3e4455a22ca36c1ba77d117830d22f29afde23b"
+      },
+      {
+        "round": "after-restart",
+        "old_preview_200": true,
+        "current_preview_200": true,
+        "current_download_verified": true,
+        "distinct_notes": true,
+        "screenshot_sha256": "33e8006c7fe1d67e883e053db3e4455a22ca36c1ba77d117830d22f29afde23b"
+      }
+    ],
+    "pids": [
+      70808,
+      102128
+    ],
+    "chrome": "158.0.8127.36",
+    "version_id": "03f75326-28b9-42b6-a007-6af2db6c77cf",
+    "jobs": [
+      {
+        "id": "0872eb59-d7e4-4f4d-b15e-a031541e414c",
+        "label": "older conversion note",
+        "digest": "67e5ed32774c873d7ca4703327ecb7d746b642fe179a18b8273a9076d3294edf"
+      },
+      {
+        "id": "4df49b54-1c3a-49d0-a5a3-4e12b7cb6b1b",
+        "label": "current conversion note",
+        "digest": "67e5ed32774c873d7ca4703327ecb7d746b642fe179a18b8273a9076d3294edf"
+      }
+    ],
+    "status": "PASS"
+  },
+  "visual_review": "Ten PNGs inspected. V1/V2 table counts 17/29, consistent aligned columns and gold upper-right quadrant. Indent 25.50 pt vs 27.82 pt reference; tighter vertical spacing. Two conversions of the same version have distinct notes and links after restart."
+}

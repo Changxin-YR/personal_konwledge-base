@@ -1,0 +1,14 @@
+{
+  "unit_id": "LIB-004",
+  "candidate_sha": "9196b1495ec040f6a00ec818c915424a0c1971ae",
+  "entry_sha256": "bcba3df32a1a09800f095affae05b024ff435f1f6cfe0ac82621526749b062e5",
+  "case_id": "A08",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/lib004/host-acceptance.mjs 9196b1495ec040f6a00ec818c915424a0c1971ae bcba3df32a1a09800f095affae05b024ff435f1f6cfe0ac82621526749b062e5",
+  "input": "Two synthetic OOXML Word versions and a distinct visual reference PDF; aligned cells, embedded oriented color image, indented code.",
+  "observed": "Original bytes unchanged. Separate PDFs, feedback and prior versions survive source Session disposal and later Host restart. Read-only grant excludes download and mutation; revoked locator denied.",
+  "host_record": "docs/evidence/LIB-004/host-run.json",
+  "independent_record": "docs/evidence/LIB-004/independent.json",
+  "limitations": "Preservation of features does not imply lossless conversion. Fixture reference and converted page differ in spacing."
+}

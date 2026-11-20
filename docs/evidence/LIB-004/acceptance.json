@@ -1,0 +1,21 @@
+{
+  "unit_id": "LIB-004",
+  "candidate_sha": "9196b1495ec040f6a00ec818c915424a0c1971ae",
+  "entry_sha256": "bcba3df32a1a09800f095affae05b024ff435f1f6cfe0ac82621526749b062e5",
+  "unit_acceptance": "PASS",
+  "exit": 0,
+  "command": "node scripts/lib004/host-acceptance.mjs 9196b1495ec040f6a00ec818c915424a0c1971ae bcba3df32a1a09800f095affae05b024ff435f1f6cfe0ac82621526749b062e5",
+  "race_command": "node scripts/lib004/host-races.mjs 9196b1495ec040f6a00ec818c915424a0c1971ae bcba3df32a1a09800f095affae05b024ff435f1f6cfe0ac82621526749b062e5",
+  "suite_command": "node --experimental-transform-types --test scripts/lib004/*.test.mjs scripts/lib003/text-store.test.mjs",
+  "suite_passed": 41,
+  "passed_test_ids": [
+    "LIB-004-T01",
+    "LIB-004-T02"
+  ],
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/LIB-004/independent.json",
+  "host_record": "docs/evidence/LIB-004/host-run.json",
+  "race_record": "docs/evidence/LIB-004/race-run.json",
+  "final_case": "docs/evidence/LIB-004/A08.json",
+  "history": "docs/evidence/LIB-004/run-history.md"
+}

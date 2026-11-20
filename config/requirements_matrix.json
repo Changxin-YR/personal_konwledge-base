@@ -87,7 +87,8 @@
       "implementation_status": "in_progress",
       "evidence_paths": [
         "docs/evidence/LIB-001/acceptance.json",
-        "docs/evidence/LIB-003/acceptance.json"
+        "docs/evidence/LIB-003/acceptance.json",
+        "docs/evidence/LIB-004/acceptance.json"
       ]
     },
     {
@@ -131,8 +132,10 @@
       "acceptance_ids": [
         "A08"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "verified",
+      "evidence_paths": [
+        "docs/evidence/LIB-004/acceptance.json"
+      ]
     },
     {
       "id": "F09",
@@ -975,8 +978,12 @@
       "expected": "原件不变；转换结果独立；缺失内容或格式问题可核对；不声称转换完全无损。",
       "level": "real_fixture",
       "evidence_required": "测试记录、关键状态与操作证据",
-      "status": "NOT_RUN",
-      "final_milestone": "M1"
+      "status": "PASS",
+      "final_milestone": "M1",
+      "evidence_paths": [
+        "docs/evidence/LIB-004/A08.json",
+        "docs/evidence/LIB-004/independent.json"
+      ]
     },
     {
       "id": "A09",

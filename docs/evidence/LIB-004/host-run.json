@@ -1,0 +1,318 @@
+{
+  "candidate": "9196b1495ec040f6a00ec818c915424a0c1971ae",
+  "entry_sha256": "bcba3df32a1a09800f095affae05b024ff435f1f6cfe0ac82621526749b062e5",
+  "node": "v24.22.0",
+  "status": "PASS",
+  "scope": {
+    "T01": "PASS",
+    "A08": "PASS"
+  },
+  "events": [
+    {
+      "step": "isolated Host and real source Session",
+      "at": "2026-11-20T03:05:18.180Z"
+    },
+    {
+      "step": "session-source",
+      "at": "2026-11-20T03:05:27.343Z",
+      "pid": 102000,
+      "input_sha256": "206ac9b634ed953c67424fdd00725eafdc44bf0ab3e06eefcc4cec0b466c74ef",
+      "witness_sha256": "f08ef0383ea293dbee0d0c048cf0c90c0072ce07b19656e781c758320300c784"
+    },
+    {
+      "step": "fresh-accounts",
+      "at": "2026-11-20T03:05:30.576Z",
+      "chrome": "158.0.8127.36"
+    },
+    {
+      "step": "source Session upload and separate reference PDF",
+      "at": "2026-11-20T03:05:30.576Z"
+    },
+    {
+      "step": "import",
+      "at": "2026-11-20T03:05:30.703Z",
+      "name": "a08-v1.docx",
+      "asset": "54970e98-1273-44ef-baeb-83f080fe889a",
+      "version": "6655b98a-bc03-403b-bb9d-d86b60a0f0bf",
+      "sha256": "206ac9b634ed953c67424fdd00725eafdc44bf0ab3e06eefcc4cec0b466c74ef"
+    },
+    {
+      "step": "import",
+      "at": "2026-11-20T03:05:30.833Z",
+      "name": "a08-reference.pdf",
+      "asset": "5848785a-0ebd-4fda-8d33-6a1f55ed33f2",
+      "version": "f68ce2b5-390d-4343-8b88-427ee0e21f54",
+      "sha256": "42c626e56de19748ea353c72a35b0ff63dd670eeaa9d4cda24e572fc673ee503"
+    },
+    {
+      "step": "reference-preview",
+      "at": "2026-11-20T03:05:32.345Z",
+      "pdfium": "153.0.7999.0",
+      "pages": 1,
+      "cells_aligned": true,
+      "gold_upper_right": true,
+      "code_indent_pt": 27.82,
+      "png_sha256": "a4f84add36ad29f20cc24d2e2a6eabde57f6d20b2c5bf7ada28778595aefab3a",
+      "pdf_sha256": "42c626e56de19748ea353c72a35b0ff63dd670eeaa9d4cda24e572fc673ee503"
+    },
+    {
+      "step": "V1 conversion and quality annotation",
+      "at": "2026-11-20T03:05:32.345Z"
+    },
+    {
+      "step": "rendered-result",
+      "at": "2026-11-20T03:05:37.299Z",
+      "version": "6655b98a-bc03-403b-bb9d-d86b60a0f0bf",
+      "conversion": "ca8bee3c-2eac-4b1d-94aa-a28e86f87952",
+      "pdfium": "153.0.7999.0",
+      "pages": 1,
+      "cells_aligned": true,
+      "gold_upper_right": true,
+      "code_indent_pt": 25.5,
+      "png_sha256": "671b1d38dd5bee6ba79273d27e28f397b6283acc5d392b1ffe2ac06d557cb6ec",
+      "pdf_sha256": "5b8acfeda7f219e4c75bba1bcd58bea3eb06456c7e7b7b1c99959f9cb7295c68"
+    },
+    {
+      "step": "review-note",
+      "at": "2026-11-20T03:05:39.957Z",
+      "note_id": "58656659-d383-434e-b761-52e794c1d4a2",
+      "page": 1,
+      "png_sha256": "9fec60e7eeae29b76b82a2b9e2e0342dcb7494faef77ae7c961f9cd1c8f4d7d1"
+    },
+    {
+      "step": "durable-objects",
+      "at": "2026-11-20T03:05:40.053Z",
+      "version": "6655b98a-bc03-403b-bb9d-d86b60a0f0bf",
+      "source_blob": "cf7e64af-415c-4767-861e-719517beaec6",
+      "result_blob": "2b7ef26a-7d3a-4d56-90bf-3f94bff963e8",
+      "sha256": "5b8acfeda7f219e4c75bba1bcd58bea3eb06456c7e7b7b1c99959f9cb7295c68"
+    },
+    {
+      "step": "dispose original Session without restarting Host",
+      "at": "2026-11-20T03:05:40.053Z"
+    },
+    {
+      "step": "same-process-session-disposal",
+      "at": "2026-11-20T03:05:40.274Z",
+      "pid": 102000,
+      "source_session_sha256": "eb1dfd8fb31a12b1861a34efc89bf9d4b721c6188fa629de3bf54b5929b01e38",
+      "fresh_session_sha256": "00cfb84d18f60d8c24169de90075d6c2f6d199f556f61d0caa0aa5c2c7b36980",
+      "office_witness_removed": true
+    },
+    {
+      "step": "durable-objects",
+      "at": "2026-11-20T03:05:40.891Z",
+      "version": "6655b98a-bc03-403b-bb9d-d86b60a0f0bf",
+      "source_blob": "cf7e64af-415c-4767-861e-719517beaec6",
+      "result_blob": "2b7ef26a-7d3a-4d56-90bf-3f94bff963e8",
+      "sha256": "5b8acfeda7f219e4c75bba1bcd58bea3eb06456c7e7b7b1c99959f9cb7295c68"
+    },
+    {
+      "step": "fresh-client-read-after-disposal",
+      "at": "2026-11-20T03:05:40.898Z",
+      "pid": 102000
+    },
+    {
+      "step": "append V2 on the same material",
+      "at": "2026-11-20T03:05:40.900Z"
+    },
+    {
+      "step": "import",
+      "at": "2026-11-20T03:05:41.004Z",
+      "name": "a08-v2.docx",
+      "asset": "54970e98-1273-44ef-baeb-83f080fe889a",
+      "version": "1efede63-f362-4e94-a5f9-1f0314c5ea2d",
+      "sha256": "9d686f6cb8a770c78d4866dc8c2f9e9bf41475e41491be2ead1eeccbcaa1c62b"
+    },
+    {
+      "step": "rendered-result",
+      "at": "2026-11-20T03:05:44.507Z",
+      "version": "1efede63-f362-4e94-a5f9-1f0314c5ea2d",
+      "conversion": "df3dcf2b-3784-4bac-bf49-f53eac9615f7",
+      "pdfium": "153.0.7999.0",
+      "pages": 1,
+      "cells_aligned": true,
+      "gold_upper_right": true,
+      "code_indent_pt": 25.5,
+      "png_sha256": "d6e5d746d4df51902df82dc78271553eff6632a73255a06647e4efda771cd8c1",
+      "pdf_sha256": "10527a81980a32126d82565779a7db1628151988d3c126672ebf90135b0a53f5"
+    },
+    {
+      "step": "review-note",
+      "at": "2026-11-20T03:05:47.240Z",
+      "note_id": "c9f25825-080f-47df-8b34-e718accfeb30",
+      "page": 1,
+      "png_sha256": "3f4f8c765b2a8a6135ac808af62557e928004a45471394a6a1a2cbefb79513c0"
+    },
+    {
+      "step": "restart same durable profile",
+      "at": "2026-11-20T03:05:47.240Z"
+    },
+    {
+      "step": "distinct-host-restart",
+      "at": "2026-11-20T03:05:54.026Z",
+      "old_pid": 102000,
+      "new_pid": 93124
+    },
+    {
+      "step": "durable-objects",
+      "at": "2026-11-20T03:05:55.819Z",
+      "version": "6655b98a-bc03-403b-bb9d-d86b60a0f0bf",
+      "source_blob": "cf7e64af-415c-4767-861e-719517beaec6",
+      "result_blob": "2b7ef26a-7d3a-4d56-90bf-3f94bff963e8",
+      "sha256": "5b8acfeda7f219e4c75bba1bcd58bea3eb06456c7e7b7b1c99959f9cb7295c68"
+    },
+    {
+      "step": "durable-objects",
+      "at": "2026-11-20T03:05:55.906Z",
+      "version": "1efede63-f362-4e94-a5f9-1f0314c5ea2d",
+      "source_blob": "328adc7c-7f32-4e84-abae-b281e8457667",
+      "result_blob": "11605978-9d9a-467d-bbfa-556d7396a041",
+      "sha256": "10527a81980a32126d82565779a7db1628151988d3c126672ebf90135b0a53f5"
+    },
+    {
+      "step": "known private locators, grant and revocation",
+      "at": "2026-11-20T03:05:55.916Z"
+    },
+    {
+      "step": "acl-denial",
+      "at": "2026-11-20T03:05:55.930Z",
+      "role": "anonymous",
+      "status": 401,
+      "reads": 4,
+      "writes": 3
+    },
+    {
+      "step": "acl-denial",
+      "at": "2026-11-20T03:05:55.952Z",
+      "role": "ungranted",
+      "status": 404,
+      "reads": 4,
+      "writes": 3
+    },
+    {
+      "step": "acl-denial",
+      "at": "2026-11-20T03:05:55.968Z",
+      "role": "anonymous",
+      "status": 401,
+      "reads": 4,
+      "writes": 3
+    },
+    {
+      "step": "acl-denial",
+      "at": "2026-11-20T03:05:55.983Z",
+      "role": "ungranted",
+      "status": 404,
+      "reads": 4,
+      "writes": 3
+    },
+    {
+      "step": "import",
+      "at": "2026-11-20T03:05:56.103Z",
+      "name": "a08-v1.docx",
+      "asset": "c9d50462-bafc-4917-aa95-ab6659e8c4a9",
+      "version": "a4131d3c-8e96-4ab4-9781-4bcc118d615f",
+      "sha256": "206ac9b634ed953c67424fdd00725eafdc44bf0ab3e06eefcc4cec0b466c74ef"
+    },
+    {
+      "step": "test-fixture-project-association",
+      "at": "2026-11-20T03:05:56.112Z",
+      "asset": "845d173f-212e-42aa-a8e8-d0225cb400e1",
+      "version": "a4131d3c-8e96-4ab4-9781-4bcc118d615f",
+      "grants_seeded": 0
+    },
+    {
+      "step": "rendered-result",
+      "at": "2026-11-20T03:05:59.622Z",
+      "version": "a4131d3c-8e96-4ab4-9781-4bcc118d615f",
+      "conversion": "c270de3f-204f-453d-be32-96be6fb73eab",
+      "pdfium": "153.0.7999.0",
+      "pages": 1,
+      "cells_aligned": true,
+      "gold_upper_right": true,
+      "code_indent_pt": 25.5,
+      "png_sha256": "671b1d38dd5bee6ba79273d27e28f397b6283acc5d392b1ffe2ac06d557cb6ec",
+      "pdf_sha256": "9a23d175851924befcb8dd0f25478f6a8df59181d8a37110a2af47c9e5cfa344"
+    },
+    {
+      "step": "review-note",
+      "at": "2026-11-20T03:06:01.732Z",
+      "note_id": "1efee3b8-8a69-4d28-8fd9-d1d7c238532e",
+      "page": 1,
+      "png_sha256": "7e41fb52fe0a7481cd75e8cbc3d294e413eb1e89b3ea776c8aef635838df662a"
+    },
+    {
+      "step": "acl-denial",
+      "at": "2026-11-20T03:06:01.752Z",
+      "role": "ungranted",
+      "status": 404,
+      "reads": 4,
+      "writes": 3
+    },
+    {
+      "step": "acl-denial",
+      "at": "2026-11-20T03:06:01.770Z",
+      "role": "read-only",
+      "status": 404,
+      "reads": 2,
+      "writes": 3
+    },
+    {
+      "step": "read-grant-exercised",
+      "at": "2026-11-20T03:06:01.770Z",
+      "preview_sha256": "9a23d175851924befcb8dd0f25478f6a8df59181d8a37110a2af47c9e5cfa344"
+    },
+    {
+      "step": "acl-denial",
+      "at": "2026-11-20T03:06:01.788Z",
+      "role": "ungranted",
+      "status": 404,
+      "reads": 4,
+      "writes": 3
+    },
+    {
+      "step": "durable-objects",
+      "at": "2026-11-20T03:06:01.880Z",
+      "version": "a4131d3c-8e96-4ab4-9781-4bcc118d615f",
+      "source_blob": "7f8cb1b6-dacb-45a2-a9d3-93d91db85078",
+      "result_blob": "e6670610-b8a1-4133-8a7c-4fb4924afe8f",
+      "sha256": "9a23d175851924befcb8dd0f25478f6a8df59181d8a37110a2af47c9e5cfa344"
+    },
+    {
+      "step": "revoked-locator-denied-owner-still-readable",
+      "at": "2026-11-20T03:06:01.880Z"
+    },
+    {
+      "step": "durable-objects",
+      "at": "2026-11-20T03:06:01.992Z",
+      "version": "6655b98a-bc03-403b-bb9d-d86b60a0f0bf",
+      "source_blob": "cf7e64af-415c-4767-861e-719517beaec6",
+      "result_blob": "2b7ef26a-7d3a-4d56-90bf-3f94bff963e8",
+      "sha256": "5b8acfeda7f219e4c75bba1bcd58bea3eb06456c7e7b7b1c99959f9cb7295c68"
+    }
+  ],
+  "fixtures": {
+    "a08-v1.docx": "206ac9b634ed953c67424fdd00725eafdc44bf0ab3e06eefcc4cec0b466c74ef",
+    "a08-reference.pdf": "42c626e56de19748ea353c72a35b0ff63dd670eeaa9d4cda24e572fc673ee503",
+    "a08-v2.docx": "9d686f6cb8a770c78d4866dc8c2f9e9bf41475e41491be2ead1eeccbcaa1c62b"
+  },
+  "binding": {
+    "candidate_sha": "9196b1495ec040f6a00ec818c915424a0c1971ae",
+    "tree": "121d94566b2f92573f141d049ac8e2e1449ccbf6",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "bcba3df32a1a09800f095affae05b024ff435f1f6cfe0ac82621526749b062e5",
+    "helpers": {
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "ea21c1a9fff1fcbf3e744a8bec236198f7fe38d2dff727030742cdf26b0ea686",
+      "a07-isolated-host": "867f5ba0c6a098b5b911dadb271b2f9c0c840f35615a0afb6a91fa7bdd1d2629"
+    },
+    "parser": {
+      "pdf-extractor.js": "7108161642a6ffa39ea003210438762f0566be91e83b82f25333d6e8d4cf430a",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "exit": 0,
+  "raw_summary_sha256": "ab6d82a48a8899b686d7f960debb9858122cc8d01702e4b59e1f824adb8e4362"
+}
