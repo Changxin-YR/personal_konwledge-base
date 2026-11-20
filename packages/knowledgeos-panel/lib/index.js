@@ -496,9 +496,10 @@ var AssetStore = class {
   check(actor2, id, action2, now) {
     if (!this.allowed(actor2, id, action2, now)) throw new AssetError(404, "ASSET_NOT_FOUND");
   }
-  publish(prior, spec, blob, text2) {
+  publish(prior, spec, blob, format) {
+    const text2 = format && "blocks" in format ? format : void 0;
     return this.tx("write", (db, now) => {
-      const actor2 = this.actor(prior, now), digest2 = createHash2("sha256").update(JSON.stringify([spec.title, spec.assetId ?? null, spec.expectedVersion ?? null, blob.sha256, blob.byteLength, ...text2 ? [text2.media, text2.encoding] : []])).digest("hex");
+      const actor2 = this.actor(prior, now), digest2 = createHash2("sha256").update(JSON.stringify([spec.title, spec.assetId ?? null, spec.expectedVersion ?? null, blob.sha256, blob.byteLength, ...text2 ? [text2.media, text2.encoding] : format ? [format.media] : []])).digest("hex");
       const prev = db.prepare("SELECT id,asset_id,request_digest FROM asset_versions WHERE created_by=? AND idempotency_key=?").get(actor2.userId, spec.key);
       if (prev) {
         this.check(actor2, String(prev.asset_id), "read", now);
@@ -517,18 +518,19 @@ var AssetStore = class {
         version = Number(last.version) + 1;
         parent = String(last.id);
         db.prepare("UPDATE knowledge_objects SET revision=revision+1,updated_at=? WHERE id=?").run(now, id);
+        db.prepare("UPDATE office_conversions SET state='superseded',lease_token=NULL,lease_until=NULL,failure_code='SOURCE_CHANGED',updated_at=? WHERE version_id=? AND state IN ('queued','running')").run(now, parent);
       } else {
         db.prepare(`INSERT INTO knowledge_objects (id,service_id,space_id,scope_kind,project_id,owner_user_id,object_type,title,body,status,revision,created_at,updated_at) VALUES (?,?,?,'personal',NULL,?,'asset',?,'','active',1,?,?)`).run(id, actor2.serviceId, actor2.personalSpaceId, actor2.userId, spec.title, now, now);
         db.prepare("INSERT INTO assets VALUES (?)").run(id);
       }
-      db.prepare("INSERT INTO blobs VALUES (?,?,?,?,?)").run(bid, blob.key, blob.sha256, blob.byteLength, text2?.media ?? "application/pdf");
+      db.prepare("INSERT INTO blobs VALUES (?,?,?,?,?)").run(bid, blob.key, blob.sha256, blob.byteLength, format?.media ?? "application/pdf");
       db.prepare("INSERT INTO asset_versions VALUES (?,?,?,?,?,?,?,?,?,?)").run(vid, id, version, parent, bid, spec.title, actor2.userId, now, spec.key, digest2);
       if (text2) {
         db.prepare("INSERT INTO text_versions VALUES(?,?,?)").run(vid, text2.encoding, text2.blocks.length);
         const insert = db.prepare("INSERT INTO text_blocks VALUES(?,?,?,?,?,?,?)");
         text2.blocks.forEach((b, i) => insert.run(vid, i + 1, b.kind, b.start, b.end, b.text, b.anchor));
       }
-      return { receipt: { id, title: spec.title, version_id: vid, version, sha256: blob.sha256, byte_length: blob.byteLength, ...text2 ? { media_type: text2.media } : {} }, replayed: false };
+      return { receipt: { id, title: spec.title, version_id: vid, version, sha256: blob.sha256, byte_length: blob.byteLength, ...format ? { media_type: format.media } : {} }, replayed: false };
     });
   }
   list(prior) {
@@ -546,7 +548,7 @@ var AssetStore = class {
       if (download) this.check(actor2, id, "export", now);
       const r = db.prepare("SELECT b.storage_key,b.sha256,b.byte_length,b.media_type,t.encoding FROM asset_versions v JOIN blobs b ON b.id=v.blob_id LEFT JOIN text_versions t ON t.version_id=v.id WHERE v.asset_id=? AND v.id=?").get(id, versionId);
       if (!r) throw new AssetError(404, "ASSET_NOT_FOUND");
-      return { key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length), ...r.media_type === "application/pdf" ? {} : { media: String(r.media_type), encoding: String(r.encoding) } };
+      return { key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length), ...r.media_type === "application/pdf" ? {} : { media: String(r.media_type) }, ...typeof r.encoding === "string" ? { encoding: r.encoding } : {} };
     });
   }
   blocks(prior, id, v, from, limit) {
@@ -3097,8 +3099,49 @@ import { createHash as createHash7, randomUUID as randomUUID11 } from "node:cryp
 import { constants } from "node:fs";
 import fs from "node:fs/promises";
 import { dirname, join as join2, resolve } from "node:path";
+
+// src/host/word-original.ts
+var WordInputError = class extends Error {
+  constructor() {
+    super("INVALID_WORD");
+  }
+};
+var invalid = () => {
+  throw new WordInputError();
+};
+var isWordMedia = (media) => media === WORD_MEDIA.docx || media === WORD_MEDIA.doc;
+function checkWordEnvelope(b, media) {
+  if (media === WORD_MEDIA.doc) {
+    if (b.length < 512 || b.subarray(0, 8).toString("hex") !== "d0cf11e0a1b11ae1" || b.readUInt16LE(28) !== 65534 || ![9, 12].includes(b.readUInt16LE(30))) invalid();
+    return;
+  }
+  if (b.length < 22 || b.readUInt32LE(0) !== 67324752) invalid();
+  let e = b.length - 22;
+  const floor = Math.max(0, e - 65535);
+  while (e >= floor && (b.readUInt32LE(e) !== 101010256 || e + 22 + b.readUInt16LE(e + 20) !== b.length)) e--;
+  if (e < floor || b.readUInt32LE(e + 4) !== 0) invalid();
+  const entries = b.readUInt16LE(e + 10), length = b.readUInt32LE(e + 12);
+  let pos = b.readUInt32LE(e + 16), expanded = 0;
+  if (!entries || entries > 8192 || entries !== b.readUInt16LE(e + 8) || pos + length !== e) invalid();
+  const central = pos, names = /* @__PURE__ */ new Set();
+  for (let i = 0; i < entries; i++) {
+    if (pos + 46 > e || b.readUInt32LE(pos) !== 33639248) invalid();
+    const n = b.readUInt16LE(pos + 28), next = pos + 46 + n + b.readUInt16LE(pos + 30) + b.readUInt16LE(pos + 32), local = b.readUInt32LE(pos + 42);
+    if (!n || next > e || local + 30 > central || b.readUInt32LE(local) !== 67324752 || b.readUInt16LE(pos + 34) !== 0) invalid();
+    const name2 = b.subarray(pos + 46, pos + 46 + n), key = name2.toString("utf8"), start = local + 30 + b.readUInt16LE(local + 26) + b.readUInt16LE(local + 28);
+    if (b.readUInt16LE(local + 26) !== n || !name2.equals(b.subarray(local + 30, local + 30 + n)) || names.has(key) || start + b.readUInt32LE(pos + 20) > central) invalid();
+    if (b.readUInt16LE(pos + 8) & 1 || b.readUInt16LE(local + 6) & 1 || ![0, 8].includes(b.readUInt16LE(pos + 10)) || b.readUInt16LE(local + 8) !== b.readUInt16LE(pos + 10)) invalid();
+    expanded += b.readUInt32LE(pos + 24);
+    if (expanded > 256 * 1024 * 1024) invalid();
+    names.add(key);
+    pos = next;
+  }
+  if (pos !== e || !["[Content_Types].xml", "_rels/.rels", "word/document.xml"].every((k) => names.has(k))) invalid();
+}
+
+// src/host/pdf-originals.ts
 var MAX = 64 * 1024 * 1024;
-var KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:pdf|txt)$/;
+var KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:pdf|txt|docx?)$/;
 var digest = (b) => createHash7("sha256").update(b).digest("hex");
 var PdfInputError = class extends Error {
   code = "PDF_INVALID_INPUT";
@@ -3116,7 +3159,7 @@ var PdfStorageError = class extends Error {
     this.stack = `${this.name}: ${this.message}`;
   }
 };
-var invalid = () => new PdfInputError();
+var invalid2 = () => new PdfInputError();
 var unavailable = () => new PdfStorageError();
 function xrefStream(head) {
   const obj = /^[1-9]\d*[ \t\r\n]+\d+[ \t\r\n]+obj[ \t\r\n]*<</.exec(head);
@@ -3148,15 +3191,15 @@ function xrefStream(head) {
   return false;
 }
 function checkEnvelope(b) {
-  if (!/^%PDF-(?:1\.[0-7]|2\.0)[\r\n]/.test(b.toString("latin1", 0, 10))) throw invalid();
+  if (!/^%PDF-(?:1\.[0-7]|2\.0)[\r\n]/.test(b.toString("latin1", 0, 10))) throw invalid2();
   const tail = Math.max(0, b.length - 4096);
   const footer = /[\r\n]startxref[ \t]*[\r\n]+[ \t]*(\d{1,16})[ \t]*[\r\n]+%%EOF[\x00\t\n\f\r ]*$/.exec(b.toString("latin1", tail));
-  if (!footer) throw invalid();
+  if (!footer) throw invalid2();
   const offset = Number(footer[1]), end = tail + footer.index;
-  if (offset < 9 || offset >= end || !/[\x00\t\n\f\r ]/.test(String.fromCharCode(b[offset - 1]))) throw invalid();
+  if (offset < 9 || offset >= end || !/[\x00\t\n\f\r ]/.test(String.fromCharCode(b[offset - 1]))) throw invalid2();
   const head = b.toString("latin1", offset, Math.min(end, offset + 16384));
   if (/^xref[ \t\r\n]+\d+[ \t]+[1-9]\d*[ \t]*[\r\n]+\d{10} \d{5} [nf](?=[ \t\r\n])/.test(head)) return;
-  if (!xrefStream(head)) throw invalid();
+  if (!xrefStream(head)) throw invalid2();
 }
 var statOpts = { bigint: true };
 var same = (a, b) => a.ino !== 0n && a.ino === b.ino && a.dev === b.dev && a.birthtimeNs === b.birthtimeNs;
@@ -3216,7 +3259,7 @@ var PdfOriginals = class {
     if (stillOwned()) await fs.unlink(path);
   }
   async put(bytes) {
-    if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX) throw invalid();
+    if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX) throw invalid2();
     const data = Buffer.from(bytes);
     checkEnvelope(data);
     try {
@@ -3229,6 +3272,16 @@ var PdfOriginals = class {
     if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX) throw unavailable();
     try {
       return await this.#write(Buffer.from(bytes), "txt");
+    } catch {
+      throw unavailable();
+    }
+  }
+  async putWord(bytes, media) {
+    if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX) throw unavailable();
+    const data = Buffer.from(bytes);
+    checkWordEnvelope(data, media);
+    try {
+      return await this.#write(data, media === WORD_MEDIA.doc ? "doc" : "docx");
     } catch {
       throw unavailable();
     }
@@ -3269,7 +3322,7 @@ var PdfOriginals = class {
   }
   async read(key, expectedSha, expectedSize) {
     try {
-      if (typeof key !== "string" || key.length !== 40 || !KEY.test(key) || typeof expectedSha !== "string" || expectedSha.length !== 64 || !/^[0-9a-f]+$/.test(expectedSha) || !Number.isSafeInteger(expectedSize) || expectedSize <= 0 || expectedSize > MAX) throw unavailable();
+      if (typeof key !== "string" || key.length !== (key.endsWith(".docx") ? 41 : 40) || !KEY.test(key) || typeof expectedSha !== "string" || expectedSha.length !== 64 || !/^[0-9a-f]+$/.test(expectedSha) || !Number.isSafeInteger(expectedSize) || expectedSize <= 0 || expectedSize > MAX) throw unavailable();
       await this.#directory();
       const path = join2(this.#root, key), before = await this.#file(path);
       if (before.nlink !== 1n || before.size !== BigInt(expectedSize)) throw unavailable();
@@ -3508,15 +3561,16 @@ function libraryHandler(store, originals, origin, actorFor, parses) {
       }
       if (req.method === "POST" && url.pathname === "/knowledge/v1/imports" && !url.search) {
         const media = req.headers["content-type"]?.split(";")[0]?.trim().toLowerCase();
-        if (media !== "application/pdf" && media !== "text/plain" && media !== "text/markdown") throw new AssetError(415, "UNSUPPORTED_MEDIA_TYPE");
+        const word = isWordMedia(media), isText = media === "text/plain" || media === "text/markdown";
+        if (media !== "application/pdf" && !isText && !word) throw new AssetError(415, "UNSUPPORTED_MEDIA_TYPE");
         const encoding = req.headers["x-knowledgeos-encoding"];
-        if (encoding !== void 0 && (typeof encoding !== "string" || media === "application/pdf")) throw new AssetError(422, "TEXT_UNSUPPORTED_ENCODING");
+        if (encoding !== void 0 && (typeof encoding !== "string" || !isText)) throw new AssetError(422, "TEXT_UNSUPPORTED_ENCODING");
         const spec = specFor(req);
         reserve();
-        const bytes = await receive(req, media === "application/pdf" ? "INVALID_PDF" : "TEXT_INVALID_INPUT", media === "application/pdf" ? max : MAX_BYTES);
+        const bytes = await receive(req, isText ? "TEXT_INVALID_INPUT" : word ? "INVALID_WORD" : "INVALID_PDF", isText ? MAX_BYTES : max);
         current();
-        const text2 = media === "application/pdf" ? void 0 : { media, ...decodeText(bytes, media, encoding) };
-        const blob = text2 ? await originals.putText(bytes) : await originals.put(bytes);
+        const text2 = isText ? { media, ...decodeText(bytes, media, encoding) } : void 0;
+        const blob = text2 ? await originals.putText(bytes) : word ? await originals.putWord(bytes, media) : await originals.put(bytes);
         let verified;
         try {
           verified = current();
@@ -3526,7 +3580,7 @@ function libraryHandler(store, originals, origin, actorFor, parses) {
         }
         let result;
         try {
-          result = store.publish(verified, spec, blob, text2);
+          result = store.publish(verified, spec, blob, word ? { media } : text2);
         } catch (e) {
           if (e instanceof AssetError) await originals.discard(blob.key);
           else originals.retain(blob.key);
@@ -3584,9 +3638,10 @@ function libraryHandler(store, originals, origin, actorFor, parses) {
         const download = Boolean(url.search), original = () => store.original(current(), path[1], path[2], download), r = original();
         const bytes = await originals.read(r.key, r.sha256, r.byteLength);
         original();
-        const ext = r.media === "text/plain" ? "txt" : r.media === "text/markdown" ? "md" : "pdf";
+        const word = isWordMedia(r.media), ext = word ? r.media === WORD_MEDIA.doc ? "doc" : "docx" : r.media === "text/plain" ? "txt" : r.media === "text/markdown" ? "md" : "pdf";
+        if (word && !download) throw new AssetError(422, "WORD_DOWNLOAD_REQUIRED");
         res.statusCode = 200;
-        res.setHeader("content-type", r.media ? `${download ? r.media : "text/plain"}; charset=${r.encoding}` : "application/pdf");
+        res.setHeader("content-type", word ? r.media : r.media ? `${download ? r.media : "text/plain"}; charset=${r.encoding}` : "application/pdf");
         res.setHeader("content-security-policy", "sandbox; default-src 'none'");
         res.setHeader("content-disposition", `${download ? "attachment" : "inline"}; filename="document.${ext}"`);
         res.setHeader("content-length", bytes.length);
@@ -3595,7 +3650,7 @@ function libraryHandler(store, originals, origin, actorFor, parses) {
       }
       throw new AssetError(404, "NOT_FOUND");
     } catch (e) {
-      const error = e instanceof AssetError ? e : e instanceof TextInputError ? new AssetError(e.code === "TEXT_TOO_LARGE" ? 413 : 422, e.code) : e instanceof PdfInputError ? new AssetError(422, "INVALID_PDF") : new AssetError(503, "ORIGINAL_UNAVAILABLE");
+      const error = e instanceof AssetError ? e : e instanceof TextInputError ? new AssetError(e.code === "TEXT_TOO_LARGE" ? 413 : 422, e.code) : e instanceof WordInputError ? new AssetError(422, "INVALID_WORD") : e instanceof PdfInputError ? new AssetError(422, "INVALID_PDF") : new AssetError(503, "ORIGINAL_UNAVAILABLE");
       json2(error.status, { code: error.code, message: error.code, request_id: requestId });
     } finally {
       if (transfer) transfers--;

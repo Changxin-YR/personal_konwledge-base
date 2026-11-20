@@ -5,6 +5,8 @@ import {PdfInputError,type PdfOriginals} from './pdf-originals.ts'
 import type {SessionActor} from './identity.ts'
 import type {ParseStore} from './parse-store.ts'
 import {decodeText,TextInputError,MAX_BYTES as textLimit} from './text-document.ts'
+import {isWordMedia,WordInputError} from './word-original.ts'
+import {WORD_MEDIA} from './office-schema.ts'
 
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/
 const max=64*1024*1024
@@ -47,18 +49,19 @@ export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:
       if(req.method==='GET'&&url.pathname==='/knowledge/v1/assets'&&!url.search){json(200,{data:{items:store.list(actor)},request_id:requestId});return}
       if(req.method==='POST'&&url.pathname==='/knowledge/v1/imports'&&!url.search){
         const media=req.headers['content-type']?.split(';')[0]?.trim().toLowerCase()
-        if(media!=='application/pdf'&&media!=='text/plain'&&media!=='text/markdown')throw new AssetError(415,'UNSUPPORTED_MEDIA_TYPE')
+        const word=isWordMedia(media),isText=media==='text/plain'||media==='text/markdown'
+        if(media!=='application/pdf'&&!isText&&!word)throw new AssetError(415,'UNSUPPORTED_MEDIA_TYPE')
         const encoding=req.headers['x-knowledgeos-encoding']
-        if(encoding!==undefined&&(typeof encoding!=='string'||media==='application/pdf'))throw new AssetError(422,'TEXT_UNSUPPORTED_ENCODING')
-        const spec=specFor(req);reserve();const bytes=await receive(req,media==='application/pdf'?'INVALID_PDF':'TEXT_INVALID_INPUT',media==='application/pdf'?max:textLimit);current()
-        const text:IndexedText|undefined=media==='application/pdf'?undefined:{media,...decodeText(bytes,media,encoding)}
-        const blob=text?await originals.putText(bytes):await originals.put(bytes)
+        if(encoding!==undefined&&(typeof encoding!=='string'||!isText))throw new AssetError(422,'TEXT_UNSUPPORTED_ENCODING')
+        const spec=specFor(req);reserve();const bytes=await receive(req,isText?'TEXT_INVALID_INPUT':word?'INVALID_WORD':'INVALID_PDF',isText?textLimit:max);current()
+        const text:IndexedText|undefined=isText?{media,...decodeText(bytes,media,encoding)}:undefined
+        const blob=text?await originals.putText(bytes):word?await originals.putWord(bytes,media):await originals.put(bytes)
         // An uncertain COMMIT must never delete an original that might be referenced.
         // Unreferenced objects from a failed transaction remain private for safe reconciliation.
         let verified:SessionActor
         try {verified=current()}catch(e){await originals.discard(blob.key);throw e}
         let result:ReturnType<AssetStore['publish']>
-        try {result=store.publish(verified,spec,blob,text)}catch(e){
+        try {result=store.publish(verified,spec,blob,word?{media}:text)}catch(e){
           if(e instanceof AssetError)await originals.discard(blob.key);else originals.retain(blob.key)
           throw e
         }
@@ -102,11 +105,13 @@ export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:
       if(req.method==='GET'&&path&&uuid.test(path[1]!)&&uuid.test(path[2]!)&&(!url.search||url.search==='?download=1')){
         reserve();const download=Boolean(url.search),original=()=>store.original(current(),path[1]!,path[2]!,download),r=original()
         const bytes=await originals.read(r.key,r.sha256,r.byteLength);original()
-        const ext=r.media==='text/plain'?'txt':r.media==='text/markdown'?'md':'pdf'
-        res.statusCode=200;res.setHeader('content-type',r.media?`${download?r.media:'text/plain'}; charset=${r.encoding}`:'application/pdf');res.setHeader('content-security-policy',"sandbox; default-src 'none'");res.setHeader('content-disposition',`${download?'attachment':'inline'}; filename="document.${ext}"`);res.setHeader('content-length',bytes.length);res.end(bytes);return
+        const word=isWordMedia(r.media),ext=word?(r.media===WORD_MEDIA.doc?'doc':'docx'):r.media==='text/plain'?'txt':r.media==='text/markdown'?'md':'pdf'
+        // A raw Word file is an attachment, never an inline renderer. Its bytes require export permission.
+        if(word&&!download)throw new AssetError(422,'WORD_DOWNLOAD_REQUIRED')
+        res.statusCode=200;res.setHeader('content-type',word?r.media!:r.media?`${download?r.media:'text/plain'}; charset=${r.encoding}`:'application/pdf');res.setHeader('content-security-policy',"sandbox; default-src 'none'");res.setHeader('content-disposition',`${download?'attachment':'inline'}; filename="document.${ext}"`);res.setHeader('content-length',bytes.length);res.end(bytes);return
       }
       throw new AssetError(404,'NOT_FOUND')
-    }catch(e){const error=e instanceof AssetError?e:e instanceof TextInputError?new AssetError(e.code==='TEXT_TOO_LARGE'?413:422,e.code):e instanceof PdfInputError?new AssetError(422,'INVALID_PDF'):new AssetError(503,'ORIGINAL_UNAVAILABLE');json(error.status,{code:error.code,message:error.code,request_id:requestId})}
+    }catch(e){const error=e instanceof AssetError?e:e instanceof TextInputError?new AssetError(e.code==='TEXT_TOO_LARGE'?413:422,e.code):e instanceof WordInputError?new AssetError(422,'INVALID_WORD'):e instanceof PdfInputError?new AssetError(422,'INVALID_PDF'):new AssetError(503,'ORIGINAL_UNAVAILABLE');json(error.status,{code:error.code,message:error.code,request_id:requestId})}
     finally{if(transfer)transfers--}
   }
 }

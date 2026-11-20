@@ -500,9 +500,10 @@ var AssetStore = class {
   check(actor, id, action, now) {
     if (!this.allowed(actor, id, action, now)) throw new AssetError(404, "ASSET_NOT_FOUND");
   }
-  publish(prior, spec, blob, text) {
+  publish(prior, spec, blob, format) {
+    const text = format && "blocks" in format ? format : void 0;
     return this.tx("write", (db, now) => {
-      const actor = this.actor(prior, now), digest = createHash3("sha256").update(JSON.stringify([spec.title, spec.assetId ?? null, spec.expectedVersion ?? null, blob.sha256, blob.byteLength, ...text ? [text.media, text.encoding] : []])).digest("hex");
+      const actor = this.actor(prior, now), digest = createHash3("sha256").update(JSON.stringify([spec.title, spec.assetId ?? null, spec.expectedVersion ?? null, blob.sha256, blob.byteLength, ...text ? [text.media, text.encoding] : format ? [format.media] : []])).digest("hex");
       const prev = db.prepare("SELECT id,asset_id,request_digest FROM asset_versions WHERE created_by=? AND idempotency_key=?").get(actor.userId, spec.key);
       if (prev) {
         this.check(actor, String(prev.asset_id), "read", now);
@@ -521,18 +522,19 @@ var AssetStore = class {
         version = Number(last.version) + 1;
         parent = String(last.id);
         db.prepare("UPDATE knowledge_objects SET revision=revision+1,updated_at=? WHERE id=?").run(now, id);
+        db.prepare("UPDATE office_conversions SET state='superseded',lease_token=NULL,lease_until=NULL,failure_code='SOURCE_CHANGED',updated_at=? WHERE version_id=? AND state IN ('queued','running')").run(now, parent);
       } else {
         db.prepare(`INSERT INTO knowledge_objects (id,service_id,space_id,scope_kind,project_id,owner_user_id,object_type,title,body,status,revision,created_at,updated_at) VALUES (?,?,?,'personal',NULL,?,'asset',?,'','active',1,?,?)`).run(id, actor.serviceId, actor.personalSpaceId, actor.userId, spec.title, now, now);
         db.prepare("INSERT INTO assets VALUES (?)").run(id);
       }
-      db.prepare("INSERT INTO blobs VALUES (?,?,?,?,?)").run(bid, blob.key, blob.sha256, blob.byteLength, text?.media ?? "application/pdf");
+      db.prepare("INSERT INTO blobs VALUES (?,?,?,?,?)").run(bid, blob.key, blob.sha256, blob.byteLength, format?.media ?? "application/pdf");
       db.prepare("INSERT INTO asset_versions VALUES (?,?,?,?,?,?,?,?,?,?)").run(vid, id, version, parent, bid, spec.title, actor.userId, now, spec.key, digest);
       if (text) {
         db.prepare("INSERT INTO text_versions VALUES(?,?,?)").run(vid, text.encoding, text.blocks.length);
         const insert = db.prepare("INSERT INTO text_blocks VALUES(?,?,?,?,?,?,?)");
         text.blocks.forEach((b, i) => insert.run(vid, i + 1, b.kind, b.start, b.end, b.text, b.anchor));
       }
-      return { receipt: { id, title: spec.title, version_id: vid, version, sha256: blob.sha256, byte_length: blob.byteLength, ...text ? { media_type: text.media } : {} }, replayed: false };
+      return { receipt: { id, title: spec.title, version_id: vid, version, sha256: blob.sha256, byte_length: blob.byteLength, ...format ? { media_type: format.media } : {} }, replayed: false };
     });
   }
   list(prior) {
@@ -550,7 +552,7 @@ var AssetStore = class {
       if (download) this.check(actor, id, "export", now);
       const r = db.prepare("SELECT b.storage_key,b.sha256,b.byte_length,b.media_type,t.encoding FROM asset_versions v JOIN blobs b ON b.id=v.blob_id LEFT JOIN text_versions t ON t.version_id=v.id WHERE v.asset_id=? AND v.id=?").get(id, versionId);
       if (!r) throw new AssetError(404, "ASSET_NOT_FOUND");
-      return { key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length), ...r.media_type === "application/pdf" ? {} : { media: String(r.media_type), encoding: String(r.encoding) } };
+      return { key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length), ...r.media_type === "application/pdf" ? {} : { media: String(r.media_type) }, ...typeof r.encoding === "string" ? { encoding: r.encoding } : {} };
     });
   }
   blocks(prior, id, v, from, limit) {

@@ -2,6 +2,7 @@ import {createHash, randomUUID} from 'node:crypto'
 import type {DatabaseSync} from 'node:sqlite'
 import type {SessionActor} from './identity.ts'
 import type {AuthorizationAction} from './authorization.ts'
+import type {WordMedia} from './office-schema.ts'
 
 export const ASSET_SCHEMA = `CREATE TABLE blobs (
   id TEXT PRIMARY KEY, storage_key TEXT UNIQUE NOT NULL, sha256 TEXT NOT NULL CHECK(length(sha256)=64),
@@ -20,7 +21,7 @@ export interface ImportSpec {title:string; key:string; assetId?:string; expected
 export interface BlobRef {key:string; sha256:string; byteLength:number}
 export type TextMedia='text/plain'|'text/markdown'
 export interface IndexedText {media:TextMedia;encoding:string;blocks:{kind:string;start:number;end:number;text:string;anchor:string}[]}
-export interface AssetReceipt {id:string;title:string;version_id:string;version:number;sha256:string;byte_length:number;media_type?:TextMedia}
+export interface AssetReceipt {id:string;title:string;version_id:string;version:number;sha256:string;byte_length:number;media_type?:TextMedia|WordMedia}
 type Tx = <T>(mode:'read'|'write',op:(db:DatabaseSync, now:string)=>T)=>T
 const receiptSQL = `SELECT v.asset_id AS id,v.original_name AS title,v.id AS version_id,v.version,b.sha256,b.byte_length,b.media_type FROM asset_versions v JOIN blobs b ON b.id=v.blob_id `
 function receipt(row:Record<string,unknown>):AssetReceipt {
@@ -35,9 +36,10 @@ export class AssetStore {
   private actor(prior:SessionActor,now:string) {const actor=this.current(prior,now);if(!actor)throw new AssetError(401,'AUTH_REQUIRED');return actor}
   private check(actor:SessionActor,id:string,action:AuthorizationAction,now:string) {if(!this.allowed(actor,id,action,now))throw new AssetError(404,'ASSET_NOT_FOUND')}
 
-  publish(prior:SessionActor, spec:ImportSpec, blob:BlobRef,text?:IndexedText):{receipt:AssetReceipt;replayed:boolean} {
+  publish(prior:SessionActor, spec:ImportSpec, blob:BlobRef,format?:IndexedText|{media:WordMedia}):{receipt:AssetReceipt;replayed:boolean} {
+    const text=format && 'blocks' in format ? format : undefined
     return this.tx('write',(db,now)=>{
-      const actor=this.actor(prior,now), digest=createHash('sha256').update(JSON.stringify([spec.title,spec.assetId??null,spec.expectedVersion??null,blob.sha256,blob.byteLength,...(text?[text.media,text.encoding]:[])])).digest('hex')
+      const actor=this.actor(prior,now), digest=createHash('sha256').update(JSON.stringify([spec.title,spec.assetId??null,spec.expectedVersion??null,blob.sha256,blob.byteLength,...(text?[text.media,text.encoding]:format?[format.media]:[])])).digest('hex')
       const prev=db.prepare('SELECT id,asset_id,request_digest FROM asset_versions WHERE created_by=? AND idempotency_key=?').get(actor.userId,spec.key)
       if(prev){this.check(actor,String(prev.asset_id),'read',now);this.check(actor,String(prev.asset_id),'edit',now);if(prev.request_digest!==digest)throw new AssetError(409,'IDEMPOTENCY_CONFLICT');return {receipt:receipt(db.prepare(receiptSQL+'WHERE v.id=?').get(prev.id!)!),replayed:true}}
       const id=spec.assetId??randomUUID(), vid=randomUUID(), bid=randomUUID();let version=1,parent:string|null=null
@@ -46,18 +48,19 @@ export class AssetStore {
         const last=db.prepare('SELECT id,version FROM asset_versions WHERE asset_id=? ORDER BY version DESC LIMIT 1').get(id)
         if(!last)throw new AssetError(404,'ASSET_NOT_FOUND');if(last.version!==spec.expectedVersion)throw new AssetError(409,'VERSION_CONFLICT')
         version=Number(last.version)+1;parent=String(last.id);db.prepare('UPDATE knowledge_objects SET revision=revision+1,updated_at=? WHERE id=?').run(now,id)
+        db.prepare("UPDATE office_conversions SET state='superseded',lease_token=NULL,lease_until=NULL,failure_code='SOURCE_CHANGED',updated_at=? WHERE version_id=? AND state IN ('queued','running')").run(now,parent)
       }else{
         db.prepare(`INSERT INTO knowledge_objects (id,service_id,space_id,scope_kind,project_id,owner_user_id,object_type,title,body,status,revision,created_at,updated_at) VALUES (?,?,?,'personal',NULL,?,'asset',?,'','active',1,?,?)`).run(id,actor.serviceId,actor.personalSpaceId,actor.userId,spec.title,now,now)
         db.prepare('INSERT INTO assets VALUES (?)').run(id)
       }
-      db.prepare('INSERT INTO blobs VALUES (?,?,?,?,?)').run(bid,blob.key,blob.sha256,blob.byteLength,text?.media??'application/pdf')
+      db.prepare('INSERT INTO blobs VALUES (?,?,?,?,?)').run(bid,blob.key,blob.sha256,blob.byteLength,format?.media??'application/pdf')
       db.prepare('INSERT INTO asset_versions VALUES (?,?,?,?,?,?,?,?,?,?)').run(vid,id,version,parent,bid,spec.title,actor.userId,now,spec.key,digest)
       if(text){
         db.prepare('INSERT INTO text_versions VALUES(?,?,?)').run(vid,text.encoding,text.blocks.length)
         const insert=db.prepare('INSERT INTO text_blocks VALUES(?,?,?,?,?,?,?)')
         text.blocks.forEach((b,i)=>insert.run(vid,i+1,b.kind,b.start,b.end,b.text,b.anchor))
       }
-      return {receipt:{id,title:spec.title,version_id:vid,version,sha256:blob.sha256,byte_length:blob.byteLength,...(text?{media_type:text.media}:{})},replayed:false}
+      return {receipt:{id,title:spec.title,version_id:vid,version,sha256:blob.sha256,byte_length:blob.byteLength,...(format?{media_type:format.media}:{})},replayed:false}
     })
   }
 
@@ -70,7 +73,7 @@ export class AssetStore {
   original(prior:SessionActor,id:string,versionId:string,download:boolean) {return this.tx('read',(db,now)=>{
     const actor=this.actor(prior,now);this.check(actor,id,'read',now);if(download)this.check(actor,id,'export',now)
     const r=db.prepare('SELECT b.storage_key,b.sha256,b.byte_length,b.media_type,t.encoding FROM asset_versions v JOIN blobs b ON b.id=v.blob_id LEFT JOIN text_versions t ON t.version_id=v.id WHERE v.asset_id=? AND v.id=?').get(id,versionId)
-    if(!r)throw new AssetError(404,'ASSET_NOT_FOUND');return {key:String(r.storage_key),sha256:String(r.sha256),byteLength:Number(r.byte_length),...(r.media_type==='application/pdf'?{}:{media:String(r.media_type),encoding:String(r.encoding)})}
+    if(!r)throw new AssetError(404,'ASSET_NOT_FOUND');return {key:String(r.storage_key),sha256:String(r.sha256),byteLength:Number(r.byte_length),...(r.media_type==='application/pdf'?{}:{media:String(r.media_type)}),...(typeof r.encoding==='string'?{encoding:r.encoding}:{})}
   })}
 
   blocks(prior:SessionActor,id:string,v:string,from:number,limit:number){return this.tx('read',(db,now)=>{

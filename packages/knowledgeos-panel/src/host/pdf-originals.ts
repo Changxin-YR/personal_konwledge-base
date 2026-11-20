@@ -2,9 +2,11 @@ import { createHash, randomUUID } from 'node:crypto'
 import { constants, type BigIntStats } from 'node:fs'
 import fs from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
+import {checkWordEnvelope} from './word-original.ts'
+import {WORD_MEDIA,type WordMedia} from './office-schema.ts'
 
 const MAX = 64 * 1024 * 1024
-const KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:pdf|txt)$/
+const KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:pdf|txt|docx?)$/
 const digest = (b: Buffer) => createHash('sha256').update(b).digest('hex')
 export class PdfInputError extends Error {
   readonly code = 'PDF_INVALID_INPUT'
@@ -145,7 +147,13 @@ export class PdfOriginals {
     try{return await this.#write(Buffer.from(bytes),'txt')}catch{throw unavailable()}
   }
 
-  async #write(data: Buffer, extension:'txt'|'pdf') {
+  async putWord(bytes:Uint8Array,media:WordMedia){
+    if(!(bytes instanceof Uint8Array)||!bytes.byteLength||bytes.byteLength>MAX)throw unavailable()
+    const data=Buffer.from(bytes);checkWordEnvelope(data,media)
+    try{return await this.#write(data,media===WORD_MEDIA.doc?'doc':'docx')}catch{throw unavailable()}
+  }
+
+  async #write(data: Buffer, extension:'txt'|'pdf'|'doc'|'docx') {
     const sha256 = digest(data)
     await this.#directory(true)
     const stage = join(this.#root, `.${randomUUID()}.pending`)
@@ -182,7 +190,7 @@ export class PdfOriginals {
 
   async read(key: string, expectedSha: string, expectedSize: number): Promise<Buffer> {
     try {
-      if (typeof key !== 'string' || key.length !== 40 || !KEY.test(key) ||
+      if (typeof key !== 'string' || key.length !== (key.endsWith('.docx')?41:40) || !KEY.test(key) ||
           typeof expectedSha !== 'string' || expectedSha.length !== 64 || !/^[0-9a-f]+$/.test(expectedSha) ||
           !Number.isSafeInteger(expectedSize) || expectedSize <= 0 || expectedSize > MAX) throw unavailable()
       await this.#directory()
