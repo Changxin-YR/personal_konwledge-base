@@ -8332,7 +8332,7 @@ const sha=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256
 let gen=0, owner=null, ordinal=1, total=0, conversion=null, page=null, selection=null, pending=null, posting=false, mode=null, resolved=null, versionLabel='', followCitation=!!cid;
 const readerPath='assets/'+asset+'/versions/'+version+'/reader';
 let continuity=null, outlineLoaded=false, busy=false;
-let annotationPanel=false, annotationDraft=null, annotationBusy=false, annotationSequence=0;
+let annotationPanel=false, annotationDraft=null, annotationBusy=false, annotationSequence=0, suspendedDraft=null;
 const readingStatus=s=>{$('reading-status').textContent=s};
 async function api(path,options){
   const r=await fetch('/knowledge/v1/'+path,{credentials:'same-origin',cache:'no-store',redirect:'error',...options});
@@ -8355,7 +8355,8 @@ function clearPage(){
   $('link').removeAttribute('href');$('cite').disabled=true;
   clearAnnotations();
 }
-function lock(message){
+function lock(message,keepDraft=false){
+  if(!keepDraft)suspendedDraft=null;
   ++gen;owner=null;total=0;conversion=null;resolved=null;pending=null;ordinal=1;versionLabel='';mode=null;clearPage();
   followCitation=!!cid;
   continuity=null;outlineLoaded=false;busy=false;$('continuity').hidden=true;$('toc').replaceChildren();$('bookmarks').replaceChildren();$('bookmark-title').value='';readingStatus('');
@@ -8661,13 +8662,39 @@ $('jump').onsubmit=e=>{e.preventDefault();navigate(Number($('number').value))};$
 $('rail').onscroll=renderWindow;new ResizeObserver(renderWindow).observe($('rail'));
 function refresh(){if(busy)return;continuity=null;outlineLoaded=false;readingStatus('');void load(total?ordinal:Number(requestedUnit),{openCitation:followCitation,restore:!total&&!cid&&!q.has('unit')&&!requestedConversion})}
 $('refresh').onclick=refresh;
-// Preserve the fixed position, never the page body, while hidden or in bfcache.
-function suspend(){resumeAt??={n:total?ordinal:Number(requestedUnit),cv:conversion,cite:followCitation};lock('返回后将重新检查阅读权限。')}
-function resume(){if(document.hidden||!resumeAt)return;const prior=resumeAt;resumeAt=null;conversion=prior.cv;void load(prior.n,{openCitation:prior.cite})}
-window.addEventListener('pagehide',suspend);
+// Clear the DOM on hide. Only a same-document tab switch can retain an in-memory draft.
+function suspend(keepDraft=false){
+  if(keepDraft&&annotationDraft&&!annotationBusy&&owner&&page){
+    suspendedDraft={actor:owner,ordinal:page.ordinal,conversion,anchor:page.anchor,draft:annotationDraft,
+      body:$('annotation-body').value,visibility:$('annotation-visibility').value};
+  }
+  resumeAt??={n:total||suspendedDraft?ordinal:Number(requestedUnit),cv:conversion,cite:followCitation};
+  lock('返回后将重新检查阅读权限。',keepDraft);
+}
+async function resume(){
+  if(document.hidden||!resumeAt)return;
+  const prior=resumeAt,saved=suspendedDraft,g=gen+1;resumeAt=null;conversion=prior.cv;
+  await load(prior.n,{openCitation:prior.cite});
+  if(g!==gen||!saved||suspendedDraft!==saved)return;
+  const discard=()=>{if(suspendedDraft===saved)suspendedDraft=null};
+  if(!page||owner!==saved.actor||page.ordinal!==saved.ordinal||conversion!==saved.conversion||page.anchor!==saved.anchor||annotationPanel){discard();return}
+  annotationPanel=true;$('annotations').hidden=false;$('annotations-toggle').setAttribute('aria-expanded','true');
+  const data=await refreshAnnotations(g);
+  if(g!==gen||suspendedDraft!==saved)return;
+  discard();
+  if(!data?.can_comment||annotationDraft||!annotationPanel)return;
+  const draft=saved.draft;
+  if(draft.id?!data.items.some(x=>x.id===draft.id&&x.can_edit):
+    !validRange(page.text,draft.range.start,draft.range.end)||saved.visibility==='project'&&!data.can_share)return;
+  annotationDraft=draft;$('annotation-body').value=saved.body;$('annotation-visibility').value=saved.visibility;
+  $('annotation-scope').hidden=Boolean(draft.id);$('annotation-form').hidden=false;
+  $('annotation-rebase').hidden=!draft.conflict;$('annotation-submit').disabled=Boolean(draft.conflict);
+  annotationMessage(draft.conflict?'批注已被其他标签页修改，草稿已保留。':'已恢复本标签页的未提交草稿。');
+}
+window.addEventListener('pagehide',()=>suspend());
 window.addEventListener('pageshow',e=>{if(e.persisted)resume()});
 window.addEventListener('focus',recheck);
-document.addEventListener('visibilitychange',()=>{if(document.hidden)suspend();else if(resumeAt)resume();else refresh()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)suspend(true);else if(resumeAt)resume();else refresh()});
 setInterval(recheck,2000);
 void load(Number(requestedUnit),{openCitation:true,restore:!cid&&!q.has('unit')&&!requestedConversion});
 </script></body></html>`;
