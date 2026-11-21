@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { dirname, extname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertIntegratedCase, integrationCases } from './integrated-case-proof.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
@@ -425,7 +426,13 @@ for (const item of cases.values()) if (item.status === 'PASS') check(item.id + '
   const owner = units.get(finalOwners.get(item.id)[0]);
   assert.equal(owner?.status, 'passed', 'final owner has not passed');
   evidenceFiles(item.evidence_paths);
-  assert(item.evidence_paths.filter(p => extname(p) === '.json').map(record).some(run =>
+  const records = item.evidence_paths.filter(p => extname(p) === '.json').map(record);
+  const integrated = records.filter(run => run.schema === 'integrated-case-v1');
+  if (integrated.length || integrationCases.has(item.id)) {
+    assert.equal(integrated.length, 1, 'requires one integrated case proof');
+    return assertIntegratedCase({root,item,owner,units,proof:integrated[0],record,hashFile});
+  }
+  assert(records.some(run =>
     run.case_id === item.id && run.unit_id === owner.id && run.candidate_sha === owner.candidate_commit &&
     /^[a-f0-9]{40}$/.test(run.candidate_sha) && run.status === 'PASS' && run.exit === 0 && text(run.command)),
   'missing case execution proof for final owner and candidate');

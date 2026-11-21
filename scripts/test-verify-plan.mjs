@@ -5,8 +5,9 @@ import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { candidateFacts, integrationCases } from './integrated-case-proof.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const startedAt = new Date().toISOString();
@@ -51,11 +52,11 @@ const editRecord = (p, change) => {
 };
 
 // Synthetic records only in the disposable checkout; no runner, Host or model is invoked.
-function complete(ctx, id) {
+function complete(ctx, id, candidate = sha) {
   const u = unit(ctx, id), ids = u.test_obligations.map(t => t.id);
-  const p = records(id), binding = {unit_id: id, candidate_sha: sha};
+  const p = records(id), binding = {unit_id: id, candidate_sha: candidate};
   const proof = {...binding, passed_test_ids: ids, independent_status: 'PASS', independent_record: p.independent};
-  Object.assign(u, {status: 'passed', candidate_commit: sha, acceptance_record: p.acceptance, evidence_paths: [p.acceptance],
+  Object.assign(u, {status: 'passed', candidate_commit: candidate, acceptance_record: p.acceptance, evidence_paths: [p.acceptance],
     test_result_status: 'PASS', independent_review_status: 'PASS', retest_status: 'PASS', completed_test_ids: ids,
     open_review_items: [], closed_review_items: [...(u.required_review_item_ids ?? [])], completed_at: startedAt});
   if (ctx.state.active_unit === id) ctx.state.unit_state = 'passed';
@@ -68,7 +69,7 @@ function complete(ctx, id) {
     Object.assign(proof, {real_provider_record: p.provider, route_projection_record: p.provider + '.discovery.json',
       price_approval_record: p.provider + '.approval.json', reviewer_attestation_record: p.provider + '.review.json'});
     save(proof.route_projection_record, {...binding, source: 'candidate-live discover', observed_at: when(-3),
-      fingerprint: digest(JSON.stringify([sha, tree, upstream, runtime, entry])), endpoint_origin: 'https://api.deepseek.com', discovery: route});
+      fingerprint: digest(JSON.stringify([candidate, tree, upstream, runtime, entry])), endpoint_origin: 'https://api.deepseek.com', discovery: route});
     save(proof.price_approval_record, {...route, currency: 'USD_PER_MILLION_TOKENS', input: 1, output: 1,
       pricing_page_sha256: 'e'.repeat(64), reviewed_at: when(-2)});
     imageFixtures.forEach((bytes, i) => write(fixture + 'revision-' + (i + 1) + '.png', bytes));
@@ -91,6 +92,60 @@ function certifyCase(ctx, id) {
   const p = fixture + id + '.json';
   save(p, {case_id: id, unit_id: owner.id, candidate_sha: owner.candidate_commit, status: 'PASS', exit: 0, command: 'synthetic full case'});
   Object.assign(ctx.matrix.acceptance_cases.find(c => c.id === id), {status: 'PASS', evidence_paths: [p]});
+}
+const git = (...args) => execFileSync('git', args, {cwd: temporary, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']}).trim();
+const fixtureSource = 'packages/knowledgeos-panel/src/plan-gate-fixture.txt';
+let historical, laterParticipant, integrated, laterIntegration, outside;
+function fixtureCommit(label) {
+  write(fixtureSource, label);
+  git('add', '--', fixtureSource);
+  const tree = git('write-tree');
+  return git('-c', 'user.name=Plan Gate Fixture', '-c', 'user.email=synthetic@example.invalid',
+    'commit-tree', tree, '-p', git('rev-parse', 'HEAD'), '-m', label);
+}
+function initializeFixtureHistory() {
+  git('read-tree', 'HEAD');
+  const advance = label => {
+    const commit = fixtureCommit(label);
+    git('update-ref', 'HEAD', commit);
+    return commit;
+  };
+  historical = advance('accepted owner and early participants');
+  laterParticipant = advance('accepted late participant');
+  integrated = advance('frozen integrated candidate');
+  outside = fixtureCommit('candidate outside branch HEAD');
+  laterIntegration = advance('another integrated candidate');
+}
+const late = new Map([['A09','READ-003'],['P03','LEARN-003'],['P08','SCORE-001'],['A16','LIFE-001'],['A46','EXPORT-001']]);
+function certifyIntegrated(ctx, id, candidate = integrated) {
+  const policy = integrationCases.get(id);
+  const owner = ctx.catalog.units.find(u => u.final_acceptance_ids.includes(id));
+  const participants = policy.units.map(unit_id => ({unit_id, candidate_sha: unit(ctx, unit_id).candidate_commit}));
+  const {ancestor, ...fingerprint} = candidateFacts(temporary, candidate);
+  const binding = {case_id: id, unit_id: owner.id, candidate_sha: candidate, ...fingerprint, participants};
+  const proof = {schema: 'integrated-case-v1', ...binding};
+  for (const kind of ['main', 'independent', 'regression']) {
+    const path = fixture + `${id}-${kind}.json`;
+    const artifact = path + '.txt';
+    write(artifact, `Synthetic ${id} ${kind} artifact; not a product run.`);
+    save(path, {...binding, kind, run_id: id + '-' + kind, status: 'PASS', exit: 0, command: 'synthetic only', environment: 'fixture',
+      inputs: 'synthetic only', runner: kind, results: (kind === 'regression' ? ['affected-path'] : policy.checks)
+        .map(id => ({id, status: 'PASS', actual: 'synthetic only'})), artifacts: [{path: artifact, sha256: fileDigest(artifact)}]});
+    proof[kind] = {path, sha256: fileDigest(path)};
+  }
+  const path = fixture + id + '.json';
+  save(path, proof);
+  Object.assign(ctx.matrix.acceptance_cases.find(c => c.id === id), {status: 'PASS', evidence_paths: [path]});
+  return path;
+}
+function completeIntegratedUnits(ctx, id) {
+  const visit = unitId => {
+    const u = unit(ctx, unitId);
+    if (u.status === 'passed') return;
+    u.depends_on.forEach(visit);
+    complete(ctx, unitId, unitId === late.get(id) ? laterParticipant : historical);
+  };
+  integrationCases.get(id).units.forEach(visit);
 }
 function history(ctx, change) {
   const u = unit(ctx, 'FND-006'), proof = json(u.acceptance_record);
@@ -261,10 +316,89 @@ for (const [key, value] of [['case_id', 'A09'], ['unit_id', 'LIB-001'], ['candid
   test('incorrect full case ' + key, c => { acceptedCase(c); editRecord(fixture + 'A08.json', r => { r[key] = value; }); }, 'missing case execution proof');
 }
 test('requirement verified prematurely', c => { acceptedCase(c); c.matrix.acceptance_cases.find(x => x.id === 'A08').status = 'NOT_RUN'; }, 'verified requires every linked case PASS');
+for (const [id, unitId] of late) {
+  test(id + ' integrated proof preserves early owner SHA', c => {
+    completeIntegratedUnits(c, id);
+    certifyIntegrated(c, id);
+  });
+  test(id + ' requires actual participation by ' + unitId, c => {
+    completeIntegratedUnits(c, id);
+    editRecord(certifyIntegrated(c, id), p => { p.participants = p.participants.filter(x => x.unit_id !== unitId); });
+  }, 'required participant missing: ' + unitId);
+}
+const a09Proof = (c, candidate) => { completeIntegratedUnits(c, 'A09'); return certifyIntegrated(c, 'A09', candidate); };
+const changeRun = (path, kind, change) => editRecord(path, p => {
+  editRecord(p[kind].path, change);
+  p[kind].sha256 = fileDigest(p[kind].path);
+});
+test('old single-owner schema rejected for a cross-unit case', c => {
+  completeIntegratedUnits(c, 'A09');
+  certifyCase(c, 'A09');
+}, 'requires one integrated case proof');
+test('cannot integrate an unaccepted component', c => {
+  const id = 'P08';
+  completeIntegratedUnits(c, id);
+  certifyIntegrated(c, id);
+  unit(c, 'SCORE-001').status = 'planned';
+}, 'participant not passed: SCORE-001');
+test('integration candidate outside branch rejected', c => {
+  editRecord(a09Proof(c), p => { p.candidate_sha = outside; });
+}, 'integration candidate is not in branch history');
+test('owner candidate alone omits role accepted later', c => {
+  a09Proof(c, historical);
+}, 'integration candidate excludes accepted READ-003');
+test('changed historical participant candidate rejected', c => {
+  editRecord(a09Proof(c), p => { p.participants.find(u => u.unit_id === 'READ-003').candidate_sha = integrated; });
+}, 'changed historical participant candidate: READ-003');
+for (const key of ['tree','source_tree','entry_sha256','build_sha256']) {
+  test('wrong integration ' + key, c => {
+    editRecord(a09Proof(c), p => { p[key] = 'f'.repeat(p[key].length); });
+  }, 'integration ' + key + ' mismatch');
+}
+test('prior actual main run not reusable on new integrated commit', c => {
+  a09Proof(c);
+  const old = readFileSync(join(temporary, fixture + 'A09-main.json'));
+  const path = certifyIntegrated(c, 'A09', laterIntegration);
+  const priorPath = fixture + 'A09-old-main.json';
+  write(priorPath, old);
+  editRecord(path, p => { p.main = {path: priorPath, sha256: fileDigest(priorPath)}; });
+}, 'main candidate_sha mismatch');
+for (const [kind, field, value, error] of [
+  ['main', 'status', 'FAIL', 'main not passed'],
+  ['independent', 'status', 'NOT_RUN', 'independent not passed'],
+  ['regression', 'exit', 1, 'regression nonzero exit'],
+  ['independent', 'runner', 'main', 'independent runner equals main runner'],
+  ['independent', 'run_id', 'A09-main', 'independent requires a distinct run ID'],
+]) test(`integrated ${kind} rejects ${field} ${value}`, c => {
+  changeRun(a09Proof(c), kind, run => { run[field] = value; });
+}, error);
+test('integrated case cannot omit a negative path or treat NOT_RUN as PASS', c => {
+  changeRun(a09Proof(c), 'main', run => { run.results = run.results.filter(r => r.id !== 'VISIBLE_PARSED_ONLY'); });
+}, 'main missing assertion: VISIBLE_PARSED_ONLY');
+test('PASS overall cannot conceal a skipped assertion', c => {
+  changeRun(a09Proof(c), 'main', run => { run.results[0].status = 'NOT_RUN'; });
+}, 'main missing successful observations');
+test('changed execution record bytes rejected', c => {
+  a09Proof(c);
+  editRecord(fixture + 'A09-main.json', r => { r.inputs += ' changed'; });
+}, 'main evidence hash mismatch');
+test('changed screenshot or trace bytes rejected', c => {
+  a09Proof(c);
+  write(fixture + 'A09-main.json.txt', 'changed');
+}, 'main artifact digest mismatch');
+test('copied main artifact does not constitute independent evidence', c => {
+  const path = a09Proof(c);
+  const copy = fixture + 'A09-copy.txt';
+  write(copy, readFileSync(join(temporary, fixture + 'A09-main.json.txt')));
+  changeRun(path, 'independent', run => { run.artifacts = [{path: copy, sha256: fileDigest(copy)}]; });
+}, 'requires at least one run-specific artifact');
 function finalFixture(c) {
-  for (const u of c.catalog.units) if (u.status !== 'passed') complete(c, u.id);
+  for (const u of c.catalog.units) if (u.status !== 'passed') complete(c, u.id, historical);
   activate(c, 'CHECK-004', 'passed');
-  for (const item of c.matrix.acceptance_cases) certifyCase(c, item.id);
+  for (const item of c.matrix.acceptance_cases) {
+    if (integrationCases.has(item.id)) certifyIntegrated(c, item.id);
+    else certifyCase(c, item.id);
+  }
 }
 test('complete final structure', finalFixture);
 test('final acceptance with outstanding case', c => { finalFixture(c); c.matrix.acceptance_cases[0].status = 'BLOCKED'; }, 'CHECK-004 requires every complete case PASS');
@@ -280,6 +414,8 @@ test('final acceptance with unfinished unrelated unit', c => {
 
 const planPath = 'docs/plan/06_IMPLEMENTATION_PLAN.md';
 try {
+  // Preserve real history for the supplied-plan test; synthesize candidates only in this clone.
+  git('clone', '--shared', '--no-checkout', '--', root, '.');
   cpSync(root, temporary, {recursive: true, filter: p => !['.git', '.cache', 'node_modules', '.worktrees'].includes(basename(p))});
   for (const [i, {name, change, reason}] of tests.entries()) {
     const ctx = {state: json(statePath), catalog: json(catalogPath), matrix: json(matrixPath), prompt: baseline(promptPath)};
@@ -301,6 +437,7 @@ try {
     assert.equal(result.status, expected, name + ': ' + (result.stderr || result.stdout));
     if (reason) assert(result.stderr.includes(reason), name + ': unexpected rejection: ' + result.stderr);
     outcomes.push({name, status: 'PASS', expectedExitCode: expected, actualExitCode: result.status});
+    if (i === 0) initializeFixtureHistory();
   }
 } finally {
   rmSync(temporary, { recursive: true, force: true });
