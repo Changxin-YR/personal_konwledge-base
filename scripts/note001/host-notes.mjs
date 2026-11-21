@@ -1,9 +1,10 @@
-// Real isolated Host, Chrome, business cookies and SQLite. A smoke run is not independent acceptance.
+// Frozen NOTE-001 and A04 paths through isolated Host, Chrome and SQLite.
 import assert from 'node:assert/strict'
 import {execFileSync} from 'node:child_process'
 import {createHash,randomUUID} from 'node:crypto'
 import {mkdirSync,mkdtempSync,readFileSync,writeFileSync} from 'node:fs'
 import {join,resolve} from 'node:path'
+import {DatabaseSync} from 'node:sqlite'
 import {fileURLToPath,pathToFileURL} from 'node:url'
 import {entryCookie,api,dbPath,sql} from '../fnd004/harness.mjs'
 import {isolate} from '../lib002/a07-isolated-host.mjs'
@@ -11,18 +12,19 @@ import {isolate} from '../lib002/a07-isolated-host.mjs'
 const [candidate_sha,entry_sha256,parent='.cache/note001-host']=process.argv.slice(2)
 const cwd=fileURLToPath(new URL('../../',import.meta.url)), self='scripts/note001/host-notes.mjs'
 const sha=b=>createHash('sha256').update(b).digest('hex')
-assert.equal(sha(readFileSync(join(cwd,self))),sha(execFileSync('git',['show',candidate_sha+':'+self],{cwd})))
+const runner_sha256=sha(readFileSync(join(cwd,self)))
+assert.equal(runner_sha256,sha(execFileSync('git',['show',candidate_sha+':'+self],{cwd})))
 mkdirSync(resolve(parent),{recursive:true});const out=mkdtempSync(join(resolve(parent),'run-'))
 const password=randomUUID(),marker={'x-knowledgeos-request':'1'},prefix='/knowledge/v1'
 const docText='Fixed original selection, original version only.', draft='My independent source commentary.'
-const facts={candidate_sha,entry_sha256,status:'NOT_RUN',exit:null,checks:[],screens:[],boots:[]}
+const facts={candidate_sha,entry_sha256,runner_sha256,status:'NOT_RUN',exit:null,checks:[],screens:[],boots:[]}
 let browser,host,phase='boot'
 const pass=(id,details)=>facts.checks.push({id,status:'PASS',details})
 async function response(ctx,url,code,opts={}){
   const r=await ctx.request.fetch(host.base+prefix+url,{maxRedirects:0,...opts});assert.equal(r.status(),code,`${url} returned HTTP ${r.status()}`);return r
 }
 const read=async(ctx,url,status=200)=>(await(await response(ctx,url,status)).json()).data
-const post=async(ctx,url,data,status=201)=>(await(await response(ctx,url,status,{method:'POST',headers:marker,data})).json()).data
+const post=async(ctx,url,data,status=201,headers={})=>(await(await response(ctx,url,status,{method:'POST',headers:{...marker,...headers},data})).json()).data
 async function login(name,viewport={width:1280,height:900}){
   const ctx=await browser.newContext({viewport}),page=await ctx.newPage();await page.goto(host.base+'/knowledgeos/account')
   await page.locator('#login_name').fill(name);await page.locator('#login_password').fill(password);await page.locator('#login').click();await page.locator('#profile').waitFor();return {ctx,page}
@@ -32,6 +34,22 @@ const status=(page,s)=>page.locator('#status').filter({hasText:s}).waitFor()
 const load=(page,id)=>page.goto(host.base+'/knowledgeos/notes?note='+id)
 const asset=d=>`/assets/${d.id}/versions/${d.version_id}`
 const rows=(q,args=[])=>sql(dbPath(host.data),q,args)
+const importText=(ctx,text,prev)=>post(ctx,'/imports',Buffer.from(text),201,{
+  'content-type':'text/plain','idempotency-key':randomUUID(),'x-knowledgeos-filename':'notes-source.txt',
+  ...(prev?{'x-knowledgeos-asset-id':prev.id,'x-knowledgeos-expected-version':'1'}:{})
+})
+function projectAssetFixture(object,fixture){
+  // Publishing project assets is outside NOTE-001. ACL changes go through the Host.
+  const db=new DatabaseSync(dbPath(host.data));try{
+    db.exec('PRAGMA foreign_keys=ON; BEGIN IMMEDIATE');db.prepare('INSERT INTO assets VALUES(?)').run(object.id)
+    assert.equal(db.prepare('UPDATE asset_versions SET asset_id=? WHERE id=? AND asset_id=?').run(object.id,fixture.version_id,fixture.id).changes,1)
+    db.exec('COMMIT')
+  }finally{db.close()}
+}
+async function assertRedacted(r,terms){
+  const body=await r.text();for(const term of terms)assert(!body.includes(term),'unauthorized response contains protected data')
+  return JSON.parse(body)
+}
 try{
   host=await isolate(candidate_sha,entry_sha256);facts.binding=host.facts
   const boot1=await host.start(),entry=await entryCookie(boot1.entry);facts.boots.push(boot1.pid)
@@ -60,7 +78,9 @@ try{
   phase='project membership and privacy';await page.locator('#projects').selectOption(project.id);await page.locator('#link-project').click();await status(page,'项目引用已保存')
   await page.locator('#project-list').getByRole('button',{name:'Working note'}).waitFor()
   const link='/notes/projects/'+project.id;assert.equal((await post(ctx,link,{note_id:id,actor_id:me.id},200)).replayed,true)
-  assert.deepEqual((await read(peer.ctx,link)).items,[]);await response(peer.ctx,notePath,404);assert.equal((await read(ctx,link)).items[0].id,id)
+  assert.deepEqual((await read(peer.ctx,link)).items,[])
+  await assertRedacted(await response(peer.ctx,notePath,404),[draft,'Working note',citation])
+  await assertRedacted(await response(peer.ctx,'/citations/'+citation+'/resolve',404),[docText.slice(0,24),doc.version_id]);assert.equal((await read(ctx,link)).items[0].id,id)
   assert.equal(rows('SELECT count(*) n FROM project_note_refs WHERE note_id=?',[id])[0].n,1)
   pass('PROJECT_LINK_AND_PRIVATE_ACL',{same_note:true,replay_no_duplicates:true,peer_note:404,peer_project_items:0})
 
@@ -73,19 +93,74 @@ try{
   assert.equal((await read(ctx,notePath)).body,'My stale-tab draft.')
   pass('CONFLICT_DRAFT_PRESERVED',{draft_not_overwritten:true,explicit_retry:true})
 
+  phase='four note kinds and replacement source';const kinds=[{id,kind:'reading',body:'My stale-tab draft.',revision:3}]
+  for(const kind of ['plain','project','reflection']){
+    await page.locator('#new').click();await status(page,'新笔记');await page.locator('#kind').selectOption(kind)
+    await page.locator('#title').fill(kind+' notebook');await page.locator('#body').fill('Independent text for '+kind)
+    await page.locator('#save').click();await status(page,'笔记已保存')
+    await page.locator('#body').fill('Edited text for '+kind);await page.locator('#save').click();await page.locator('#revision').filter({hasText:'修订 2'}).waitFor()
+    kinds.push({id:new URL(page.url()).searchParams.get('note'),kind,body:'Edited text for '+kind,revision:2})
+  }
+  const replacement='Replacement source. Never retarget an older note.'
+  const newer=await importText(ctx,replacement,doc);assert.equal(newer.id,doc.id);assert.notEqual(newer.version_id,doc.version_id)
+  assert.equal((await read(ctx,asset(newer)+'/reader?unit=1')).text,replacement)
+
+  phase='shared asset and revocation';const sensitive='Revocable project source selection, not note content.'
+  const object=await post(ctx,'/objects',{scope:'project',project_id:project.id,object_type:'asset',title:'Revocable project source',body:'Synthetic fixture'})
+  const fixture=await importText(ctx,sensitive);projectAssetFixture(object,fixture)
+  const shared={id:object.id,version_id:fixture.version_id}, sharedReader=asset(shared)+'/reader?unit=1'
+  await response(peer.ctx,sharedReader,404)
+  const grant=await post(ctx,'/grants',{object_id:object.id,subject_type:'user',subject_id:viewer.id,action:'read'})
+  const sharedSpec={asset_id:object.id,version_id:fixture.version_id,ordinal:1,start:0,end:26,source_hash:sha(sensitive)}
+  const sharedCitation=await post(peer.ctx,'/citations',sharedSpec,201,{'idempotency-key':randomUUID()}),target='/citations/'+sharedCitation.id+'/resolve'
+  assert.equal((await read(peer.ctx,target)).quote,sensitive.slice(0,26))
+  const annotation='My private commentary about a project document.'
+  const sharedNote=await post(peer.ctx,'/notes',{actor_id:viewer.id,title:'Private source commentary',kind:'reading',body:annotation,add_citation:sharedCitation.id},201,{'idempotency-key':randomUUID()})
+  await load(peer.page,sharedNote.id);await status(peer.page,'已打开笔记');await peer.page.getByRole('link',{name:'原文引用 1'}).waitFor()
+  await response(ctx,'/grants/revoke',204,{method:'POST',headers:marker,data:{grant_id:grant.id}})
+  const secretTerms=[sensitive.slice(0,26),shared.id,shared.version_id,sharedCitation.id,'Revocable project source']
+  await assertRedacted(await response(peer.ctx,target,404),secretTerms);await assertRedacted(await response(peer.ctx,sharedReader,404),secretTerms)
+  const lost=await assertRedacted(await response(peer.ctx,'/notes/'+sharedNote.id,200),secretTerms)
+  assert.equal(lost.data.body,annotation);assert.deepEqual(lost.data.references,[{id:sharedNote.references[0].id,status:'unavailable'}])
+  await load(peer.page,sharedNote.id);await status(peer.page,'已打开笔记');await peer.page.getByText('来源不可用',{exact:true}).waitFor()
+  assert.equal(await peer.page.locator('#references a').count(),0);assert.equal(await peer.page.locator('#body').inputValue(),annotation)
+  const markup=await peer.page.locator('#workspace').innerHTML();for(const term of secretTerms)assert(!markup.includes(term))
+  await screen(peer.page,'revoked-source.png')
+  await peer.page.getByRole('button',{name:'移除引用'}).click();await status(peer.page,'笔记已保存')
+  const unlinked=await read(peer.ctx,'/notes/'+sharedNote.id);assert.deepEqual(unlinked.references,[]);assert.equal(unlinked.body,annotation)
+  assert.equal((await read(ctx,target)).quote,sensitive.slice(0,26));assert.equal(sha(await(await response(ctx,asset(shared)+'/original',200)).body()),sha(sensitive))
+  pass('REAL_GRANT_REVOKED_WITHOUT_NOTE_OR_SOURCE_LOSS',{fixture:'project asset binding only',before:200,after:404,redacted_payload:true,removed_in_browser:true,owner_source_unchanged:true})
+
   phase='restart, original and link removal';await owner.ctx.close();await peer.ctx.close();await other.ctx.close();await host.stop()
-  facts.boots.push((await host.start()).pid);const mobile=await login('owner',{width:390,height:844});await load(mobile.page,id);await status(mobile.page,'已打开笔记')
+  facts.boots.push((await host.start()).pid);assert.notEqual(facts.boots[0],facts.boots[1]);const mobile=await login('owner',{width:390,height:844})
+  for(const n of kinds){
+    await load(mobile.page,n.id);await status(mobile.page,'已打开笔记')
+    assert.equal(await mobile.page.locator('#body').inputValue(),n.body);assert.equal(await mobile.page.locator('#kind').inputValue(),n.kind)
+    assert.equal(await mobile.page.locator('#revision').innerText(),'修订 '+n.revision)
+  }
+  pass('FOUR_EDITED_NOTE_KINDS_RESTORED',{kinds:kinds.map(({kind,revision})=>({kind,revision})),restart:true})
+  await load(mobile.page,id);await status(mobile.page,'已打开笔记')
   assert.equal(await mobile.page.locator('#body').inputValue(),'My stale-tab draft.')
   assert.equal(await mobile.page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false)
   const original=mobile.page.getByRole('link',{name:'原文引用 1'});assert.equal(new URL(await original.getAttribute('href'),host.base).searchParams.get('version'),doc.version_id)
   await screen(mobile.page,'restored-mobile.png')
+  const [oldReader]=await Promise.all([mobile.page.waitForEvent('popup'),original.click()]);await oldReader.locator('#text').waitFor();assert.equal(await oldReader.locator('#text').innerText(),docText)
+  await oldReader.close();await mobile.page.bringToFront()
+  assert.equal((await read(mobile.ctx,'/citations/'+citation+'/resolve')).quote,docText.slice(0,24))
+  pass('FIXED_REFERENCE_AFTER_SOURCE_REPLACEMENT',{old_sha256:sha(docText),current_sha256:sha(replacement),browser_read_old:true})
+  await load(mobile.page,id);await status(mobile.page,'已打开笔记')
   await mobile.page.getByRole('button',{name:'移除引用'}).click();await status(mobile.page,'笔记已保存');assert.deepEqual((await read(mobile.ctx,notePath)).references,[])
+  await mobile.page.locator('#projects').selectOption(project.id);await mobile.page.locator('#project-list').getByRole('button',{name:'Working note'}).waitFor()
+  assert.deepEqual((await read(mobile.ctx,link)).items.map(n=>n.id),[id])
+  const library=await read(mobile.ctx,'/assets');assert(library.items.some(item=>item.id===doc.id&&item.version_id===newer.version_id))
+  assert(!library.items.some(item=>kinds.some(n=>n.id===item.id)))
   const bytes=await(await response(mobile.ctx,asset(doc)+'/original',200)).body();assert.equal(sha(bytes),sha(docText))
   assert.equal((await read(mobile.ctx,'/citations/'+citation+'/resolve')).version_id,doc.version_id)
   assert.equal(rows('SELECT count(*) n FROM notes WHERE id=?',[id])[0].n,1)
-  assert.equal(rows('SELECT count(*) n FROM knowledge_objects WHERE id=?',[id])[0].n,0)
+  for(const n of kinds)assert.equal(rows('SELECT count(*) n FROM knowledge_objects WHERE id=?',[n.id])[0].n,0)
   assert.equal(rows('SELECT count(*) n FROM project_note_refs WHERE note_id=?',[id])[0].n,1)
   assert.equal(rows('PRAGMA user_version')[0].user_version,21)
+  assert.deepEqual(rows('PRAGMA foreign_key_check'),[])
   pass('ORIGINAL_UNCHANGED_AFTER_RESTART_AND_UNLINK',{sha256:sha(bytes),schema:21,project_reference_retained:true,notes_in_library:0});facts.status='PASS'
-}catch(e){facts.status='FAIL';facts.failure={phase,message:(e.stack??String(e)).slice(0,2500)}}
+}catch(e){facts.status='FAIL';facts.failure={phase,type:e.name,line:String(e.stack).match(/host-notes\.mjs:\d+/)?.[0]}}
 finally{try{await browser?.close()}finally{await host?.stop()};facts.exit=facts.status==='PASS'?0:1;writeFileSync(join(out,'summary.json'),JSON.stringify(facts,null,2)+'\n');console.log(facts.status,out,facts.failure?.phase??'');process.exitCode=facts.exit}
