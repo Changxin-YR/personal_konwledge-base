@@ -37,7 +37,11 @@ async function request(url,method='GET',body,extra={}){
     ...(body?{body:JSON.stringify(body),headers:{'content-type':'application/json','x-knowledgeos-request':'1',...extra}}:{})});
   if(r.status===401||r.status===403){stop('会话不可用，请重新登录并刷新。');throw error('AUTH_REQUIRED')}
   const result=await r.json();if(!r.ok){if(result.code==='ACTOR_CHANGED')stop('账号已切换，请刷新笔记。');throw error(result.code)}
-  if(url.startsWith(path)&&result.data?.actor_id!==owner){stop('账号已切换，请刷新笔记。');throw error('ACTOR_CHANGED')}
+  if(url.startsWith(path)){
+    if(result.data?.actor_id!==owner){stop('账号已切换，请刷新笔记。');throw error('ACTOR_CHANGED')}
+    // The shared session cookie can change after this response was generated.
+    await checkAccount();
+  }
   if(locked)throw error('AUTH_REQUIRED');return result.data;
 }
 async function checkAccount(){const current=await request('/knowledge/v1/me');if(!uuid(current?.id)||owner&&owner!==current.id){stop('账号已切换，请刷新笔记。');throw error('ACTOR_CHANGED')}owner=current.id}
@@ -71,11 +75,13 @@ function renderRefs(){
   if(!$('references').children.length){const li=document.createElement('li');li.textContent='暂无引用';$('references').append(li)}
 }
 function clearConflict(){conflict=null;$('conflict').hidden=true;$('latest-title').textContent=$('latest-body').textContent=''}
+function showConflict(latest){conflict=latest.revision;$('latest-title').textContent=latest.title;$('latest-body').textContent=latest.body;$('conflict').hidden=false}
 function apply(n,newCitation=null){
   note=n;pending=newCitation;key=null;clearConflict();$('title').value=n?.title??'';$('kind').value=n?.kind??(newCitation?'reading':'plain');$('body').value=n?.body??'';
   $('revision').textContent=n?'修订 '+n.revision:'未保存';renderList();renderRefs();
 }
 function dirty(){const d=form();return note?(d.title!==note.title||d.kind!==note.kind||d.body!==note.body):(d.title!==''||d.body!=='')}
+function edits(d){return Object.fromEntries(Object.entries(d).filter(([key,value])=>value!==note[key]))}
 async function open(id){if(dirty()&&!confirm('离开未保存的草稿？'))return;const n=await request(path+'/'+id);apply(n);history.replaceState(null,'','?note='+id);status('已打开笔记。')}
 async function saveChanges(extra={},preserveDraft=false){
   if(conflict)return;
@@ -90,7 +96,7 @@ async function saveChanges(extra={},preserveDraft=false){
   }catch(e){
     if(e.code!=='REVISION_CONFLICT'||!note)throw e;
     status('笔记已在另一处更新，草稿未覆盖服务器版本。');
-    conflict=await request(path+'/'+note.id);$('latest-title').textContent=conflict.title;$('latest-body').textContent=conflict.body;$('conflict').hidden=false;
+    showConflict(await request(path+'/'+note.id));
   }
 }
 async function listMore(reset){const data=await request(path+(reset?'':'?after='+encodeURIComponent(next)));rows=reset?data.items:[...rows,...data.items.filter(i=>!rows.some(r=>r.id===i.id))];next=data.next;renderList()}
@@ -107,7 +113,14 @@ async function linkList(reset){
 $('new').onclick=()=>action(()=>{if(dirty()&&!confirm('离开未保存的草稿？'))return;apply(null);history.replaceState(null,'','/knowledgeos/notes');status('新笔记。')});
 $('more').onclick=()=>action(()=>listMore(false));$('more-projects').onclick=()=>action(()=>projectMore(false));$('more-links').onclick=()=>action(()=>linkList(false));
 $('editor').onsubmit=e=>{e.preventDefault();void action(saveChanges)};
-$('rebase').onclick=()=>action(()=>{if(!conflict)return;note=conflict;clearConflict();$('revision').textContent='修订 '+note.revision;renderRefs();status('已保留草稿，尚未保存。')});
+$('rebase').onclick=()=>action(async()=>{
+  if(!conflict||!note)return;
+  const changed=edits(form()),latest=await request(path+'/'+note.id);
+  note={...note,references:latest.references};renderRefs();
+  if(latest.revision!==conflict){showConflict(latest);status('服务器版本再次更新，草稿未覆盖。');return}
+  apply(latest);for(const [key,value] of Object.entries(changed))$(key).value=value;
+  status('已保留草稿，尚未保存。');
+});
 $('projects').onchange=()=>action(()=>linkList(true));
 $('link-project').onclick=()=>action(async()=>{const project=$('projects').value;if(!note||!project)return;await request(path+'/projects/'+project,'POST',{actor_id:owner,note_id:note.id});await linkList(true);status('项目引用已保存。')});
 async function checkVisible(){
