@@ -46,8 +46,11 @@ async function library(doc){
 const response=path=>tab.waitForResponse(r=>r.url()===host.base+prefix+path&&r.request().method()==='POST')
 async function upload(label){
   await library();await tab.locator('#file').setInputFiles(source)
-  const t=performance.now(),[r]=await Promise.all([response('/imports'),tab.locator('#submit').click()]);const d=await checked(r,201)
-  facts.timing_ms[label+'_upload']=elapsed(t);assert.equal(d.sha256,sourceHash);assert.equal(d.byte_length,size);return d
+  const t=performance.now(),[r]=await Promise.all([response('/imports'),tab.locator('#submit').click()]);assert.equal(r.status(),201)
+  await tab.locator('#status').getByText(/导入成功/).waitFor()
+  await tab.locator('#receipt').getByText(sourceHash,{exact:true}).waitFor()
+  const {items}=await checked(await get('/assets'),200);assert.equal(items.length,1)
+  const [d]=items;facts.timing_ms[label+'_upload']=elapsed(t);assert.equal(d.sha256,sourceHash);assert.equal(d.byte_length,size);return d
 }
 async function click(doc,tail,text,status){
   const [r]=await Promise.all([response(parse(doc)+tail),tab.getByRole('button',{name:text,exact:true}).click()]);return checked(r,status)
@@ -59,7 +62,7 @@ async function screenshot(file,element=tab){const png=await element.screenshot({
 async function original(d){const r=await get(ver(d)+'/original');assert.equal(r.status(),200);assert.equal(sha(await r.body()),sourceHash)}
 async function openPage(d,p){
   const t=performance.now(),res=await checked(await get(ver(d)+`/reader?unit=${p}`),200)
-  assert.equal(res.unit,p)
+  assert.equal(res.ordinal,p);assert.equal(res.version_id,d.version_id)
   return {res,http_ms:elapsed(t)}
 }
 async function search(subject,d,row,query){
@@ -83,7 +86,7 @@ try{
   assert(paused.slice(0,holdPage-1).every(p=>p.generation===1));assert(paused.slice(holdPage-1).every(p=>p.state==='pending'&&p.generation===0))
   const probe=paused.slice(0,holdPage-1).reverse().find(p=>p.state==='ready'&&/[A-Za-z]{8,}/.test(p.text))
   assert(probe,'must have searchable real text before cancellation')
-  const query=probe.text.match(/[A-Za-z]{8,}/)[0]
+  const query=[...probe.text.matchAll(/[A-Za-z]{8,}/g)].map(m=>m[0]).sort((a,b)=>b.length-a.length)[0]
   await tab.locator('#parse-refresh').click();await tab.locator('#parse-summary').getByText(/未处理 [1-9]/).waitFor()
   await screenshot('whole-in-progress.png',tab.locator('#parse-panel'))
   assert.equal((await openPage(whole,probe.page)).res.text,probe.text)
@@ -119,9 +122,11 @@ try{
   const first=selected.find(p=>p.state==='ready'||p.state==='review'),link=tab.locator('#parse-chapters').getByRole('link').first()
   assert.match(await link.getAttribute('href'),new RegExp('unit='+first.page+'$'));await link.click()
   await tab.locator('#original img').waitFor();assert.equal(await tab.locator('#number').inputValue(),String(first.page))
-  facts.compare=await Promise.all([...new Set(ranges.flat().concat([Math.floor((ranges[0][0]+ranges[0][1])/2)]))].map(async p=>{
-    const b=await openPage(split,p);assert.equal(b.res.text,wholeRows[p-1].text);return {page:p,text_sha256:sha(b.res.text),state:wholeRows[p-1].state,http_ms:b.http_ms}
-  }))
+  facts.compare=[]
+  for(const p of new Set(ranges.flat().concat([Math.floor((ranges[0][0]+ranges[0][1])/2)]))){
+    const b=await openPage(split,p);assert.equal(b.res.text,wholeRows[p-1].text)
+    facts.compare.push({page:p,text_sha256:sha(b.res.text),state:wholeRows[p-1].state,http_ms:b.http_ms})
+  }
   await original(split);memory()
   assert.equal(facts.whole.failed_pages.length,0,'unexpected real extraction failures')
   assert(facts.search.whole_terminal.matched,'completed textbook is not discoverable by the same verified query')
