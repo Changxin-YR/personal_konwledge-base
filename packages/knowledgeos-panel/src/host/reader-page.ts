@@ -162,7 +162,7 @@ async function load(n,{openCitation=false,openMatch=false,restore=false,save=fal
   try{
     if(!uuid(asset)||!uuid(version)||(cid!==null&&!uuid(cid))||!/^\d{1,9}$/.test(requestedUnit)||Number(requestedUnit)<1||(requestedConversion!==null&&!uuid(requestedConversion)))throw invalid();
     const needle=openMatch&&requestedMatch?.match(/^(\d{1,9}):(\d{1,9}):([a-f0-9]{64})$/);
-    if(openMatch&&(!needle||cid||requestedConversion||!q.has('unit')||n!==Number(requestedUnit)))throw invalid();
+    if(openMatch&&(!needle||cid||!q.has('unit')||n!==Number(requestedUnit)))throw invalid();
     if(!await access(g))return;
     if(!continuity){try{await readState(g)}catch{if(!await access(g))return;readingStatus('个人阅读状态暂不可用。')}}
     const c=openCitation && cid?locator(await api('citations/'+cid+'/resolve'),cid):null;

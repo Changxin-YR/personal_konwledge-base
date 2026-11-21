@@ -105,12 +105,15 @@ var DEADLINE_MS = 15e3;
 var MAX_WORKERS = 2;
 var role = "knowledgeos:pdf-extractor:v1";
 var readerRole = "knowledgeos:pdf-reader:v1";
-var active = { extract: 0, reader: 0 };
+var active = { extract: 0, reader: 0, index: 0 };
 function pdfError(code, message) {
   return Object.assign(new Error(message), { code });
 }
 function openPdf(bytes) {
   return open(bytes, "extract");
+}
+function openIndexPdf(bytes, signal) {
+  return open(bytes, "index", signal);
 }
 function openReaderPdf(bytes, signal) {
   return open(bytes, "reader", signal);
@@ -119,7 +122,7 @@ async function open(bytes, pool, signal) {
   if (signal?.aborted) throw pdfError("PDF_HANDLE_CLOSED", "PDF closed");
   if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX_BYTES)
     throw pdfError("PDF_OPEN_FAILED", "Invalid PDF input size or type");
-  if (active[pool] >= MAX_WORKERS) throw pdfError("PDF_BUSY", "PDF extractor busy");
+  if (active[pool] >= (pool === "index" ? 1 : MAX_WORKERS)) throw pdfError("PDF_BUSY", "PDF extractor busy");
   const copy = new Uint8Array(bytes);
   const worker = new Worker(new URL("./pdf-extractor.js", import.meta.url), {
     workerData: pool === "reader" ? readerRole : role,
@@ -344,6 +347,7 @@ if (parentPort && (workerData === role || workerData === readerRole)) {
   });
 }
 export {
+  openIndexPdf,
   openPdf,
   openReaderPdf
 };

@@ -1933,7 +1933,7 @@ var require_saxes = __commonJS({
 });
 
 // src/host/index.ts
-import { randomUUID as randomUUID20 } from "node:crypto";
+import { randomUUID as randomUUID21 } from "node:crypto";
 
 // src/host/status.ts
 var EXPECTED_UPSTREAM_COMMIT = "39163dd30f703a79079e2d2446545cff3c453738";
@@ -2221,7 +2221,7 @@ function createRecordsHandlers(service, basePath, log) {
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash9, randomUUID as randomUUID11 } from "node:crypto";
+import { createHash as createHash9, randomUUID as randomUUID12 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -2575,12 +2575,17 @@ var maxResults = 30;
 var maxCache = 256e3;
 var sha = (text2) => createHash3("sha256").update(text2, "utf8").digest("hex");
 var sourceSQL = `SELECT v.asset_id AS asset_id,v.id AS version_id,v.version,v.original_name AS title,
-    p.page AS ordinal,p.chapter AS chapter,'pdf' AS kind,p.state AS state,p.text AS text
+    p.page AS ordinal,p.chapter AS chapter,'pdf' AS kind,p.state AS state,p.text AS text,NULL AS conversion_id
   FROM asset_versions v JOIN pdf_pages p ON v.id=p.version_id WHERE v.asset_id IN (SELECT value FROM json_each(?))
     AND p.state IN ('ready','review') AND length(p.text)>0
   UNION ALL
-  SELECT v.asset_id,v.id,v.version,v.original_name,b.ordinal,b.kind,'text','ready',b.text
-  FROM asset_versions v JOIN text_blocks b ON v.id=b.version_id WHERE v.asset_id IN (SELECT value FROM json_each(?)) AND length(b.text)>0`;
+  SELECT v.asset_id,v.id,v.version,v.original_name,b.ordinal,b.kind,'text','ready',b.text,NULL
+  FROM asset_versions v JOIN text_blocks b ON v.id=b.version_id WHERE v.asset_id IN (SELECT value FROM json_each(?)) AND length(b.text)>0
+  UNION ALL
+  SELECT v.asset_id,v.id,v.version,v.original_name,p.page,'','office','ready',p.text,c.id
+  FROM asset_versions v JOIN office_conversions c ON c.version_id=v.id JOIN word_search_runs r
+    ON r.conversion_id=c.id AND r.result_blob_id=c.result_blob_id JOIN word_search_pages p ON p.conversion_id=c.id
+  WHERE v.asset_id IN (SELECT value FROM json_each(?)) AND c.state='ready' AND p.page<=c.page_count`;
 var SearchStore = class {
   constructor(tx, current, allowed) {
     this.tx = tx;
@@ -2624,17 +2629,17 @@ var SearchStore = class {
       const ids = db.prepare(`SELECT a.id FROM assets a JOIN knowledge_objects o ON a.id=o.id WHERE o.service_id=? AND o.status='active'`).all(a.serviceId).map((r) => String(r.id)).filter((id) => this.allowed(a, id, now));
       const bound = JSON.stringify(ids), results = [];
       let work = 0;
-      for (const row of db.prepare(sourceSQL).iterate(bound, bound)) {
-        const { text: text2, ...source } = row;
+      for (const row of db.prepare(sourceSQL).iterate(bound, bound, bound)) {
+        const { text: text2, conversion_id, ...source } = row;
         work += text2.length;
         if (work > maxWork) throw new AssetError(503, "SEARCH_WORK_LIMIT");
         const source_hash = sha(text2), match = matchSearchText(this.indexed(source_hash, text2), query);
         if (!match) continue;
         const from = Math.max(0, match.start - 70), to = Math.min(text2.length, match.end + 70);
         const snippet = text2.slice(from, to).replace(/^[\uDC00-\uDFFF]|[\uD800-\uDBFF]$/g, "");
-        results.push({ ...source, ...match, source_hash, quote: text2.slice(match.start, match.end), snippet });
+        results.push({ ...source, ...conversion_id ? { conversion_id } : {}, ...match, source_hash, quote: text2.slice(match.start, match.end), snippet });
       }
-      return results.sort((a2, b) => b.score - a2.score || a2.title.localeCompare(b.title, "zh-CN") || a2.asset_id.localeCompare(b.asset_id) || b.version - a2.version || a2.ordinal - b.ordinal);
+      return results.sort((a2, b) => b.score - a2.score || a2.title.localeCompare(b.title, "zh-CN") || a2.asset_id.localeCompare(b.asset_id) || b.version - a2.version || a2.ordinal - b.ordinal || (a2.conversion_id ?? "").localeCompare(b.conversion_id ?? ""));
     });
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now), decisions = /* @__PURE__ */ new Map();
@@ -2653,7 +2658,7 @@ var SearchStore = class {
         query.normalized,
         indexVersion,
         JSON.stringify([...new Set(items.map((i) => i.version_id))]),
-        JSON.stringify(items.map(({ asset_id, version_id, ordinal, source_hash, kind, state, start, end, score }) => ({ asset_id, version_id, ordinal, source_hash, kind, state, start, end, score }))),
+        JSON.stringify(items.map(({ asset_id, version_id, ordinal, source_hash, kind, state, start, end, score, conversion_id }) => ({ asset_id, version_id, ordinal, source_hash, kind, state, start, end, score, conversion_id }))),
         now
       );
       return { query_id, actor_id: a.userId, count: items.length, items };
@@ -2663,21 +2668,132 @@ var SearchStore = class {
     return this.tx("read", (db, now) => {
       const a = this.actor(prior, now), row = db.prepare("SELECT ranking_inputs FROM search_queries WHERE query_id=? AND actor_id=?").get(queryId, a.userId);
       if (!row) throw new AssetError(404, "SEARCH_UNAVAILABLE");
-      const sources = JSON.parse(String(row.ranking_inputs));
-      if (sources.some((s) => !this.allowed(a, s.asset_id, now) || !this.unchanged(db, s))) throw new AssetError(404, "SEARCH_UNAVAILABLE");
+      const sources2 = JSON.parse(String(row.ranking_inputs));
+      if (sources2.some((s) => !this.allowed(a, s.asset_id, now) || !this.unchanged(db, s))) throw new AssetError(404, "SEARCH_UNAVAILABLE");
       return { actor_id: a.userId, query_id: queryId };
     });
   }
   unchanged(db, item) {
-    const source = item.kind === "pdf" ? db.prepare(`SELECT p.text,p.state FROM pdf_pages p JOIN asset_versions v ON v.id=p.version_id
+    const source = item.kind === "office" ? db.prepare(`SELECT p.text,c.state FROM office_conversions c JOIN asset_versions v ON v.id=c.version_id
+      JOIN word_search_runs r ON r.conversion_id=c.id AND r.result_blob_id=c.result_blob_id JOIN word_search_pages p ON p.conversion_id=c.id
+      WHERE v.asset_id=? AND v.id=? AND p.page=? AND c.id=? AND p.page<=c.page_count`).get(item.asset_id, item.version_id, item.ordinal, item.conversion_id ?? null) : item.kind === "pdf" ? db.prepare(`SELECT p.text,p.state FROM pdf_pages p JOIN asset_versions v ON v.id=p.version_id
       WHERE v.asset_id=? AND v.id=? AND p.page=?`).get(item.asset_id, item.version_id, item.ordinal) : db.prepare(`SELECT b.text,'ready' AS state FROM text_blocks b JOIN asset_versions v ON v.id=b.version_id
       WHERE v.asset_id=? AND v.id=? AND b.ordinal=?`).get(item.asset_id, item.version_id, item.ordinal);
     return source?.state === item.state && typeof source.text === "string" && sha(source.text) === item.source_hash;
   }
 };
 
+// src/host/word-search-index.ts
+import { randomUUID as randomUUID5 } from "node:crypto";
+var WORD_SEARCH_SCHEMA = `CREATE TABLE word_search_runs (
+  conversion_id TEXT PRIMARY KEY REFERENCES office_conversions(id), result_blob_id TEXT NOT NULL REFERENCES blobs(id),
+  state TEXT NOT NULL CHECK(state IN ('running','complete','failed')), next_page INTEGER NOT NULL CHECK(next_page>=1),
+  attempts INTEGER NOT NULL CHECK(attempts>=0), token TEXT UNIQUE, lease_until TEXT,
+  CHECK((state='running' AND token IS NOT NULL AND lease_until IS NOT NULL) OR
+    (state!='running' AND token IS NULL AND lease_until IS NULL))
+) STRICT;
+CREATE TABLE word_search_pages (
+  conversion_id TEXT NOT NULL REFERENCES word_search_runs(conversion_id), page INTEGER NOT NULL CHECK(page>=1),
+  text TEXT NOT NULL CHECK(length(text)<=32000), PRIMARY KEY(conversion_id,page)
+) STRICT;`;
+var deadline = (now, ms = 2e4) => new Date(Date.parse(now) + ms).toISOString();
+var sources = `FROM office_conversions c JOIN asset_versions v ON v.id=c.version_id
+  JOIN knowledge_objects o ON o.id=v.asset_id JOIN blobs b ON b.id=c.result_blob_id`;
+var eligible = `c.state='ready' AND o.status='active' AND b.media_type='application/pdf'`;
+var due = `SELECT c.id,c.result_blob_id,c.page_count,b.storage_key,b.byte_length,b.sha256,r.next_page,r.attempts
+  ${sources} LEFT JOIN word_search_runs r ON r.conversion_id=c.id WHERE ${eligible}
+  AND (r.conversion_id IS NULL OR (r.result_blob_id=c.result_blob_id AND r.state='running' AND r.lease_until<=?))
+  ORDER BY c.rowid LIMIT 1`;
+var WordSearchIndex = class {
+  constructor(tx) {
+    this.tx = tx;
+  }
+  claim() {
+    if (!this.tx("read", (db, now) => db.prepare(due).get(now))) return;
+    return this.tx("write", (db, now) => {
+      const r = db.prepare(due).get(now);
+      if (!r) return;
+      const attempts = Number(r.attempts ?? 0);
+      if (attempts >= 3) {
+        db.prepare("UPDATE word_search_runs SET state='failed',token=NULL,lease_until=NULL WHERE conversion_id=?").run(r.id);
+        return;
+      }
+      const token2 = randomUUID5();
+      db.prepare(`INSERT INTO word_search_runs VALUES(?,?,'running',1,1,?,?) ON CONFLICT(conversion_id) DO UPDATE SET
+        attempts=attempts+1,token=excluded.token,lease_until=excluded.lease_until`).run(r.id, r.result_blob_id, token2, deadline(now));
+      return {
+        token: token2,
+        key: String(r.storage_key),
+        sha256: String(r.sha256),
+        byteLength: Number(r.byte_length),
+        total: Number(r.page_count),
+        next: Number(r.next_page ?? 1)
+      };
+    });
+  }
+  publish(token2, page, text2) {
+    return this.tx("write", (db, now) => {
+      const r = db.prepare(`SELECT c.id,c.page_count ${sources} JOIN word_search_runs r ON r.conversion_id=c.id
+      WHERE ${eligible} AND r.state='running' AND r.result_blob_id=c.result_blob_id AND r.token=? AND r.lease_until>? AND r.next_page=?`).get(token2, now, page);
+      if (!r || !Number.isSafeInteger(page) || page < 1 || page > Number(r.page_count) || text2 !== null && text2.length > 32e3) return false;
+      if (text2) db.prepare("INSERT INTO word_search_pages VALUES(?,?,?)").run(r.id, page, text2);
+      if (page === Number(r.page_count)) db.prepare("UPDATE word_search_runs SET state='complete',next_page=?,attempts=0,token=NULL,lease_until=NULL WHERE token=?").run(page + 1, token2);
+      else db.prepare("UPDATE word_search_runs SET next_page=?,attempts=0,lease_until=? WHERE token=?").run(page + 1, deadline(now), token2);
+      return true;
+    });
+  }
+  defer(token2, refund = false) {
+    this.tx("write", (db, now) => {
+      db.prepare(`UPDATE word_search_runs SET lease_until=?,attempts=max(0,attempts-?) WHERE token=?`).run(deadline(now, 1e3), refund ? 1 : 0, token2);
+    });
+  }
+};
+var errorCode = (e) => e?.code;
+function startWordSearchIndex(store, originals, open3, log) {
+  const lifecycle = new AbortController();
+  let pending;
+  async function tick() {
+    const job = store.claim();
+    if (!job) return;
+    const signal = lifecycle.signal;
+    let doc;
+    try {
+      const bytes = await originals.read(job.key, job.sha256, job.byteLength);
+      signal.throwIfAborted();
+      doc = await open3(bytes, signal);
+      if (doc.numPages !== job.total) throw Error("Conversion page count changed");
+      for (let i = job.next; i <= doc.numPages; i++) {
+        signal.throwIfAborted();
+        let text2;
+        try {
+          text2 = (await doc.page(i)).text;
+        } catch (e) {
+          if (errorCode(e) !== "PDF_PAGE_FAILED") throw e;
+          text2 = null;
+        }
+        if (signal.aborted || !store.publish(job.token, i, text2)) return;
+      }
+    } catch (e) {
+      if (!signal.aborted) store.defer(job.token, errorCode(e) === "PDF_BUSY");
+    } finally {
+      await doc?.close();
+    }
+  }
+  const timer = setInterval(() => {
+    if (!pending) pending = tick().catch(() => log("knowledgeos-word-search: worker temporarily unavailable")).finally(() => {
+      pending = void 0;
+    });
+  }, 700);
+  timer.unref();
+  return async () => {
+    clearInterval(timer);
+    lifecycle.abort();
+    await pending;
+  };
+}
+
 // src/host/zip-store.ts
-import { createHash as createHash4, randomUUID as randomUUID5 } from "node:crypto";
+import { createHash as createHash4, randomUUID as randomUUID6 } from "node:crypto";
 var notFound = () => new AssetError(404, "IMPORT_NOT_FOUND");
 var uuid = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 var ZipStore = class {
@@ -2703,10 +2819,10 @@ var ZipStore = class {
         if (old.sha256 !== blob.sha256 || old.byte_length !== blob.byteLength || old.title !== spec.title) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
         return { id: String(old.id), replayed: true };
       }
-      const id = randomUUID5();
+      const id = randomUUID6();
       db.prepare("INSERT INTO zip_imports VALUES(?,?,?,?,?,?,?,?)").run(id, a.userId, spec.key, spec.title, blob.key, blob.sha256, blob.byteLength, now);
       const insert = db.prepare(`INSERT INTO zip_entries(id,import_id,ordinal,name,path,byte_length,compressed_size,media_type,reason,state,publish_key) VALUES(?,?,?,?,?,?,?,?,?,'available',?)`);
-      for (const m of members) insert.run(randomUUID5(), id, m.ordinal, m.name, m.path, m.size, m.compressedSize, m.media, m.reason, randomUUID5());
+      for (const m of members) insert.run(randomUUID6(), id, m.ordinal, m.name, m.path, m.size, m.compressedSize, m.media, m.reason, randomUUID6());
       return { id, replayed: false };
     });
   }
@@ -2747,7 +2863,7 @@ var ZipStore = class {
         if (!r || r.reason !== null || !r.media_type) throw new AssetError(422, "INVALID_SELECTION");
         return { id: entry, ordinal: Number(r.ordinal), path: String(r.path), media: String(r.media_type), key: String(r.publish_key), imported: r.state === "imported" };
       });
-      if (!seen) db.prepare("INSERT INTO zip_selections VALUES(?,?,?,?,?,?,?)").run(randomUUID5(), id, a.userId, key, digest2, canonical, now);
+      if (!seen) db.prepare("INSERT INTO zip_selections VALUES(?,?,?,?,?,?,?)").run(randomUUID6(), id, a.userId, key, digest2, canonical, now);
       const mark = db.prepare("UPDATE zip_entries SET state='selected',error=NULL WHERE import_id=? AND id=? AND state IN ('available','failed')");
       for (const entry of ids) mark.run(id, entry);
       return members.sort((a2, b) => a2.ordinal - b.ordinal);
@@ -2771,7 +2887,7 @@ var ZipStore = class {
 };
 
 // src/host/parse-store.ts
-import { randomUUID as randomUUID6 } from "node:crypto";
+import { randomUUID as randomUUID7 } from "node:crypto";
 var PARSE_SCHEMA = `CREATE TABLE pdf_parse_runs (
   version_id TEXT PRIMARY KEY REFERENCES asset_versions(id), session_id TEXT NOT NULL REFERENCES auth_sessions(id),
   user_id TEXT NOT NULL REFERENCES users(id), state TEXT NOT NULL CHECK(state IN ('queued','running','complete','partial','failed','cancelled')),
@@ -2844,7 +2960,7 @@ var ParseStore = class {
         db.prepare("UPDATE pdf_parse_runs SET state='failed',error='AUTHORIZATION_LOST' WHERE version_id=?").run(version);
         return;
       }
-      const token2 = randomUUID6();
+      const token2 = randomUUID7();
       db.prepare("UPDATE pdf_parse_runs SET state='running',token=?,deadline=?,error=NULL WHERE version_id=?").run(token2, ms + leaseMs, version);
       return { version, token: token2, key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length) };
     });
@@ -2956,7 +3072,7 @@ CREATE TABLE office_quality_notes (
 ) STRICT;`;
 
 // src/host/office-store.ts
-import { randomUUID as randomUUID7 } from "node:crypto";
+import { randomUUID as randomUUID8 } from "node:crypto";
 var historyLimit = 10;
 var conversionFields = "id,state,page_count,missing_fonts,failure_code";
 var missing = () => new AssetError(404, "ASSET_NOT_FOUND");
@@ -2964,8 +3080,8 @@ var keyPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
 var checkKey = (key) => {
   if (!keyPattern.test(key) || key.length !== 36) throw new AssetError(422, "INVALID_IDEMPOTENCY_KEY");
 };
-var deadline = (now) => new Date(Date.parse(now) + 15e3).toISOString();
-var due = "state='queued' OR (state='running' AND lease_until<=?)";
+var deadline2 = (now) => new Date(Date.parse(now) + 15e3).toISOString();
+var due2 = "state='queued' OR (state='running' AND lease_until<=?)";
 var sourceSQL2 = `SELECT v.asset_id,v.id AS version_id,b.media_type,b.sha256,b.byte_length,b.storage_key,
   NOT EXISTS(SELECT 1 FROM asset_versions n WHERE n.asset_id=v.asset_id AND n.version>v.version) AS head
   FROM asset_versions v JOIN blobs b ON b.id=v.blob_id WHERE v.id=? AND b.media_type IN (?,?)`;
@@ -3037,7 +3153,7 @@ var OfficeStore = class {
       if (!row.head) throw new AssetError(409, "SOURCE_CHANGED");
       if (db.prepare("SELECT 1 FROM office_conversions WHERE version_id=? AND state IN ('queued','running')").get(v)) throw new AssetError(409, "CONVERSION_IN_PROGRESS");
       if (!available) throw new AssetError(503, "OFFICE_UNAVAILABLE");
-      const cid = randomUUID7();
+      const cid = randomUUID8();
       db.prepare("INSERT INTO office_conversions(id,version_id,actor_id,request_key,state,created_at,updated_at) VALUES(?,?,?,?,'queued',?,?)").run(cid, v, a.userId, key, now, now);
       db.prepare("INSERT INTO office_authorizations VALUES(?,?)").run(cid, a.sessionId);
       return { id: cid, state: "queued", replayed: false };
@@ -3075,22 +3191,22 @@ var OfficeStore = class {
         if (prev.conversion_id !== cid || prev.page !== page || prev.body !== body) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
         return { id: String(prev.id), replayed: true };
       }
-      const note = randomUUID7();
+      const note = randomUUID8();
       db.prepare("INSERT INTO office_quality_notes VALUES(?,?,?,?,?,?,?)").run(note, cid, a.userId, page, body, now, key);
       return { id: note, replayed: false };
     });
   }
   claim() {
-    if (!this.tx("read", (db, now) => db.prepare(`SELECT 1 FROM office_conversions WHERE ${due} LIMIT 1`).get(now))) return;
+    if (!this.tx("read", (db, now) => db.prepare(`SELECT 1 FROM office_conversions WHERE ${due2} LIMIT 1`).get(now))) return;
     return this.tx("write", (db, now) => {
-      const row = db.prepare(`SELECT id,attempt FROM office_conversions WHERE ${due} ORDER BY rowid LIMIT 1`).get(now);
+      const row = db.prepare(`SELECT id,attempt FROM office_conversions WHERE ${due2} ORDER BY rowid LIMIT 1`).get(now);
       if (!row) return;
       if (Number(row.attempt) >= 3) {
         db.prepare("UPDATE office_conversions SET state='failed',failure_code='LEASE_EXPIRED',lease_token=NULL,lease_until=NULL,updated_at=? WHERE id=?").run(now, row.id);
         return;
       }
-      const token2 = randomUUID7();
-      db.prepare("UPDATE office_conversions SET state='running',attempt=attempt+1,lease_token=?,lease_until=?,updated_at=? WHERE id=?").run(token2, deadline(now), now, row.id);
+      const token2 = randomUUID8();
+      db.prepare("UPDATE office_conversions SET state='running',attempt=attempt+1,lease_token=?,lease_until=?,updated_at=? WHERE id=?").run(token2, deadline2(now), now, row.id);
       return this.authority(db, now, token2) ? { token: token2 } : void 0;
     });
   }
@@ -3109,13 +3225,13 @@ var OfficeStore = class {
     return this.tx("write", (db, now) => this.authority(db, now, token2));
   }
   renew(token2) {
-    return this.tx("write", (db, now) => !!this.authority(db, now, token2) && !!db.prepare("UPDATE office_conversions SET lease_until=? WHERE lease_token=?").run(deadline(now), token2).changes);
+    return this.tx("write", (db, now) => !!this.authority(db, now, token2) && !!db.prepare("UPDATE office_conversions SET lease_until=? WHERE lease_token=?").run(deadline2(now), token2).changes);
   }
   complete(token2, blob, pageCount, fonts) {
     return this.tx("write", (db, now) => {
       if (!this.authority(db, now, token2)) return false;
       if (!Number.isSafeInteger(pageCount) || pageCount < 1 || pageCount > 1e4 || !Number.isSafeInteger(blob.byteLength) || blob.byteLength <= 0 || blob.byteLength > 64 * 1024 * 1024 || !Array.isArray(fonts) || fonts.length > 1024 || fonts.some((f) => typeof f !== "string" || f.length > 512)) throw new AssetError(422, "INVALID_OFFICE_RESULT");
-      const bid = randomUUID7();
+      const bid = randomUUID8();
       db.prepare("INSERT INTO blobs VALUES(?,?,?,?,'application/pdf')").run(bid, blob.key, blob.sha256, blob.byteLength);
       db.prepare("UPDATE office_conversions SET state='ready',result_blob_id=?,page_count=?,missing_fonts=?,failure_code=NULL,lease_token=NULL,lease_until=NULL,updated_at=? WHERE lease_token=?").run(bid, pageCount, JSON.stringify(fonts), now, token2);
       return true;
@@ -3153,7 +3269,7 @@ CREATE TABLE zip_selections (
 ) STRICT;`;
 
 // src/host/citation-store.ts
-import { createHash as createHash8, randomUUID as randomUUID10 } from "node:crypto";
+import { createHash as createHash8, randomUUID as randomUUID11 } from "node:crypto";
 
 // src/host/citation-anchor.ts
 import { createHash as createHash5 } from "node:crypto";
@@ -3196,7 +3312,7 @@ function makeLocator(s, text2, start, end, neighbors, w) {
 }
 
 // src/host/reading-state.ts
-import { createHash as createHash7, randomUUID as randomUUID8 } from "node:crypto";
+import { createHash as createHash7, randomUUID as randomUUID9 } from "node:crypto";
 var pointColumns = `ordinal INTEGER NOT NULL CHECK(ordinal BETWEEN 1 AND 1000000),
   conversion_id TEXT REFERENCES office_conversions(id), source_hash TEXT NOT NULL CHECK(length(source_hash)=64)`;
 var READING_STATE_SCHEMA = `CREATE TABLE reading_positions (
@@ -3227,13 +3343,13 @@ function savePosition(db, user, version, p, expected) {
 }
 function createBookmark(db, user, version, p, title) {
   if (Number(db.prepare("SELECT count(*) AS n FROM reading_bookmarks WHERE user_id=? AND version_id=?").get(user, version)?.n) >= 200) throw new AssetError(409, "BOOKMARK_LIMIT");
-  const id = randomUUID8();
+  const id = randomUUID9();
   db.prepare("INSERT INTO reading_bookmarks(id,user_id,version_id,ordinal,conversion_id,source_hash,title) VALUES(?,?,?,?,?,?,?)").run(id, user, version, p.ordinal, p.conversion_id ?? null, p.source_hash, title);
   return { id, title, ordinal: p.ordinal, source_hash: p.source_hash, ...p.conversion_id ? { conversion_id: p.conversion_id } : {} };
 }
 
 // src/host/annotation-store.ts
-import { randomUUID as randomUUID9 } from "node:crypto";
+import { randomUUID as randomUUID10 } from "node:crypto";
 var ANNOTATION_SCHEMA = `CREATE TABLE reader_annotations (
   id TEXT PRIMARY KEY, citation_id TEXT NOT NULL REFERENCES citations(id),
   author_id TEXT NOT NULL REFERENCES users(id), project_id TEXT REFERENCES knowledge_projects(id),
@@ -3270,7 +3386,7 @@ function insertAnnotation(db, t, user, scope, draft, citation) {
   if (draft.visibility === "project" && !project) throw new AssetError(422, "ANNOTATION_SCOPE_UNAVAILABLE");
   const count = db.prepare(`${records.replace(/^SELECT[\s\S]*?FROM/, "SELECT count(*) AS n FROM")} WHERE ${inSource} AND a.project_id IS ?${project ? "" : " AND a.author_id=?"}`).get(...args(t), project ?? null, ...project ? [] : [user]);
   if (Number(count?.n) >= 200) throw new AssetError(409, "ANNOTATION_LIMIT");
-  const id = randomUUID9();
+  const id = randomUUID10();
   db.prepare("INSERT INTO reader_annotations VALUES(?,?,?,?,?,1)").run(id, draft.citation_id, user, project ?? null, draft.body);
   return dto({ ...citation, id, citation_id: draft.citation_id, author_id: user, project_id: project ?? null, body: draft.body, revision: 1 }, user, scope);
 }
@@ -3502,7 +3618,7 @@ var CitationStore = class {
         return r ? String(r.anchor) : null;
       };
       const locator = makeLocator(src, text2, spec.start, spec.end, { previous: neighbor(src.ordinal - 1), next: neighbor(src.ordinal + 1) }, w);
-      const id = randomUUID10();
+      const id = randomUUID11();
       db.prepare("INSERT INTO citations VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run(id, a.userId, key, spec.asset_id, spec.version_id, spec.conversion_id ?? null, spec.ordinal, range.start, range.end, range.source_hash, range.quote_hash, now);
       db.prepare("INSERT INTO citation_locators(citation_id,snapshot) VALUES(?,?)").run(id, JSON.stringify(locator));
       return { data: { ...spec, ...range, id, locator }, replayed: false };
@@ -3532,7 +3648,8 @@ var CITATION_LOCATOR_SCHEMA = `CREATE TABLE citation_locators (
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 18;
+var SCHEMA_VERSION = 19;
+var MIGRATION_V19_CHECKSUM = createHash9("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
 var MIGRATION_V18_CHECKSUM = createHash9("sha256").update(SEARCH_SCHEMA).digest("hex");
 var MIGRATION_V17_CHECKSUM = createHash9("sha256").update(ANNOTATION_SCHEMA).digest("hex");
 var MIGRATION_V16_CHECKSUM = createHash9("sha256").update(READING_STATE_SCHEMA).digest("hex");
@@ -3788,6 +3905,7 @@ var ProbeStorage = class {
   }
   assets = new AssetStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (actor2, id, action2, now) => Boolean(this.authorizeObject(actor2, id, action2, now)));
   search = new SearchStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id, now) => Boolean(this.authorizeObject(a, id, "read", now)));
+  wordSearch = new WordSearchIndex(this.#assetTx);
   archives = new ZipStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id, now) => Boolean(this.authorizeObject(a, id, "read", now)));
   citations = new CitationStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id, now) => Boolean(this.authorizeObject(a, id, "read", now)), (a, id, now) => {
     const source = this.authorizeObject(a, id, "read", now);
@@ -3882,6 +4000,7 @@ var ProbeStorage = class {
       if (priorVersion < 16) this.#migrateV16(db);
       if (priorVersion < 17) this.#migrateV17(db);
       if (priorVersion < 18) this.#migrateV18(db);
+      if (priorVersion < 19) this.#migrateV19(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -3949,7 +4068,7 @@ var ProbeStorage = class {
       }
       return "v5";
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15 || facts.userVersion === 16 || facts.userVersion === 17 || facts.userVersion === 18) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15 || facts.userVersion === 16 || facts.userVersion === 17 || facts.userVersion === 18 || facts.userVersion === 19) {
       const db = new DatabaseSync(path, { readOnly: true });
       try {
         this.#verify(db, facts.userVersion);
@@ -4107,7 +4226,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID11());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID12());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -4329,9 +4448,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "search migration failed", false, { cause: e });
     }
   }
+  #migrateV19(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(WORD_SEARCH_SCHEMA);
+      this.#injectFailure("v19:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(19,?,?)").run(MIGRATION_V19_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=19; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "Word search migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash3, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash3)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -4348,6 +4479,7 @@ var ProbeStorage = class {
       if (version >= 16) reference.exec(READING_STATE_SCHEMA);
       if (version >= 17) reference.exec(ANNOTATION_SCHEMA);
       if (version >= 18) reference.exec(SEARCH_SCHEMA);
+      if (version >= 19) reference.exec(WORD_SEARCH_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name: name2, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name2)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -4450,9 +4582,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID11();
-      const spaceId = randomUUID11();
-      const credentialId = randomUUID11();
+      const userId = randomUUID12();
+      const spaceId = randomUUID12();
+      const credentialId = randomUUID12();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -4486,9 +4618,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID11();
-      const spaceId = randomUUID11();
-      const credentialId = randomUUID11();
+      const userId = randomUUID12();
+      const spaceId = randomUUID12();
+      const credentialId = randomUUID12();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -4653,7 +4785,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action2 of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID11(), input.serviceId, input.id, input.ownerUserId, action2, input.now, input.now);
+        for (const action2 of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID12(), input.serviceId, input.id, input.ownerUserId, action2, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -4809,7 +4941,7 @@ var ProbeStorage = class {
 };
 
 // src/host/identity.ts
-import { createHash as createHash10, randomBytes, randomUUID as randomUUID12, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
+import { createHash as createHash10, randomBytes, randomUUID as randomUUID13, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
 var DOMAINS = ["software_engineering", "system_architecture", "hardware_engineering", "ai_development"];
 var LEARNING_TRACKS = ["engineering_practice", "architecture_exam", "knowledge_accumulation"];
 var DEFAULT_TIMEZONE = "Asia/Shanghai";
@@ -5090,7 +5222,7 @@ var IdentityService = class {
     const token2 = makeToken();
     const createdAt = /* @__PURE__ */ new Date();
     const expiresAt = new Date(createdAt.getTime() + SESSION_TTL_MS).toISOString();
-    this.#store.createSession({ sessionId: randomUUID12(), userId: lookup.userId, tokenHash: tokenHash(token2), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
+    this.#store.createSession({ sessionId: randomUUID13(), userId: lookup.userId, tokenHash: tokenHash(token2), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
     const user = this.#store.getProfile(lookup.userId);
     if (user === void 0) throw new IdentityError("STORAGE_UNAVAILABLE", "user profile unavailable");
     return { user, token: token2, expiresAt };
@@ -5118,7 +5250,7 @@ var IdentityService = class {
 };
 
 // src/host/identity-http.ts
-import { createHash as createHash11, randomUUID as randomUUID13 } from "node:crypto";
+import { createHash as createHash11, randomUUID as randomUUID14 } from "node:crypto";
 import { isIP } from "node:net";
 var HttpError = class extends Error {
   constructor(status, code, message, retryable = false, headers = {}) {
@@ -5325,7 +5457,7 @@ function createIdentityHandlers(options) {
     return actor2;
   };
   const dispatch = async (req, res, action2) => {
-    const requestId = randomUUID13();
+    const requestId = randomUUID14();
     try {
       assertAvailable();
       assertNoQuery(req);
@@ -5354,7 +5486,7 @@ function createIdentityHandlers(options) {
     requireMethod(req, "GET");
     assertTrust(req, false);
     const state = service.setupState;
-    sendJson2(res, 200, withMeta(randomUUID13(), { setup_required: !state.initialized, available: true }));
+    sendJson2(res, 200, withMeta(randomUUID14(), { setup_required: !state.initialized, available: true }));
   });
   const bootstrap = async (req, res, peer) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -5365,7 +5497,7 @@ function createIdentityHandlers(options) {
     const body = bodyObject(await readBody2(req));
     assertKeys(body, ["login_name", "password", "display_name", "timezone"]);
     const user = await service.bootstrap({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, source: requestSource(req), signal });
-    sendJson2(res, 201, withMeta(randomUUID13(), safeProfile(user)));
+    sendJson2(res, 201, withMeta(randomUUID14(), safeProfile(user)));
   });
   const register = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -5375,7 +5507,7 @@ function createIdentityHandlers(options) {
     const body = bodyObject(await readBody2(req));
     assertKeys(body, ["login_name", "password", "display_name", "timezone"]);
     const user = await service.register({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, source: requestSource(req), signal });
-    sendJson2(res, 201, withMeta(randomUUID13(), safeProfile(user)));
+    sendJson2(res, 201, withMeta(randomUUID14(), safeProfile(user)));
   });
   const login = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -5390,7 +5522,7 @@ function createIdentityHandlers(options) {
     const state = service.setupState;
     const name2 = businessCookieName(state.serviceId, origin);
     const maxAge = Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1e3);
-    sendJson2(res, 200, withMeta(randomUUID13(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin, options.protocol(), maxAge) });
+    sendJson2(res, 200, withMeta(randomUUID14(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin, options.protocol(), maxAge) });
   });
   const logout = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -5411,7 +5543,7 @@ function createIdentityHandlers(options) {
     const actor2 = requireActor(req);
     const profile = service.profile(actor2.userId);
     if (profile === void 0) throw new HttpError(401, "SESSION_EXPIRED", "business session is required");
-    sendJson2(res, 200, withMeta(randomUUID13(), safeProfile(profile)));
+    sendJson2(res, 200, withMeta(randomUUID14(), safeProfile(profile)));
   });
   const preferences = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "PATCH");
@@ -5428,14 +5560,14 @@ function createIdentityHandlers(options) {
     if (body.learning_tracks !== void 0) patch.learningTracks = validateLearningTracks(body.learning_tracks);
     if (body.goal_text !== void 0) patch.goalText = validateGoalText(body.goal_text);
     if (Object.keys(patch).length === 0) throw new HttpError(422, "INPUT_INVALID", "at least one preference is required");
-    sendJson2(res, 200, withMeta(randomUUID13(), safeProfile(service.preferences(actor2.userId, expectedRevision, patch))));
+    sendJson2(res, 200, withMeta(randomUUID14(), safeProfile(service.preferences(actor2.userId, expectedRevision, patch))));
   });
   const spaces = async (req, res) => dispatch(req, res, () => {
     requireMethod(req, "GET");
     assertTrust(req, false);
     const actor2 = requireActor(req);
     const data = service.spaces(actor2.userId).map((space) => ({ id: space.id, service_id: space.serviceId, kind: space.kind, owner_user_id: space.ownerUserId, status: space.status, revision: space.revision, created_at: space.createdAt, updated_at: space.updatedAt }));
-    sendJson2(res, 200, withMeta(randomUUID13(), data));
+    sendJson2(res, 200, withMeta(randomUUID14(), data));
   });
   return { status, bootstrap, register, login, logout, me, preferences, spaces };
 }
@@ -5452,7 +5584,7 @@ function buildSetupHtml() {
 }
 
 // src/host/objects-http.ts
-import { randomUUID as randomUUID14 } from "node:crypto";
+import { randomUUID as randomUUID15 } from "node:crypto";
 var ObjectHttpError = class extends Error {
   constructor(status, code, message) {
     super(message);
@@ -5515,7 +5647,7 @@ function actor(options, req) {
 }
 function createObjectHandlers(options) {
   return async (req, res) => {
-    const requestId = randomUUID14();
+    const requestId = randomUUID15();
     try {
       const path = pathOf(req);
       const segments = path.split("/").filter(Boolean);
@@ -5540,7 +5672,7 @@ function createObjectHandlers(options) {
       if (segments[2] === "projects" && segments.length === 3 && req.method === "POST") {
         const body = await readBody3(req);
         keys(body, ["name"]);
-        const project = options.storage.createProject({ id: randomUUID14(), serviceId: current.serviceId, ownerUserId: current.userId, name: text(body.name, "name", 200), now });
+        const project = options.storage.createProject({ id: randomUUID15(), serviceId: current.serviceId, ownerUserId: current.userId, name: text(body.name, "name", 200), now });
         json(res, 201, { data: project, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
         return;
       }
@@ -5570,7 +5702,7 @@ function createObjectHandlers(options) {
           if (scope === "project" && !options.storage.canCreateProjectObject(current, projectId, now)) throw new ObjectHttpError(404, "NOT_FOUND", "project not found");
           const title = text(body.title, "title", 200);
           const content = text(body.body, "body", 1e5);
-          const object = options.storage.createObject({ id: randomUUID14(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId, ownerUserId: current.userId, objectType: body.object_type === void 0 ? "note" : text(body.object_type, "object_type", 80), title, body: content, now });
+          const object = options.storage.createObject({ id: randomUUID15(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId, ownerUserId: current.userId, objectType: body.object_type === void 0 ? "note" : text(body.object_type, "object_type", 80), title, body: content, now });
           json(res, 201, { data: safeObject(object), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
           return;
         }
@@ -5611,7 +5743,7 @@ function createObjectHandlers(options) {
         const body = await readBody3(req);
         keys(body, ["object_id", "subject_type", "subject_id", "action", "valid_from", "expires_at"]);
         if (body.subject_type !== "user" && body.subject_type !== "project") throw new ObjectHttpError(422, "INPUT_INVALID", "subject_type is invalid");
-        const grant = options.storage.grantObject(current, { id: randomUUID14(), objectId: text(body.object_id, "object_id", 80), serviceId: current.serviceId, subjectType: body.subject_type, subjectId: text(body.subject_id, "subject_id", 80), action: action(body.action), validFrom: body.valid_from === void 0 ? now : text(body.valid_from, "valid_from", 40), expiresAt: body.expires_at === void 0 ? void 0 : text(body.expires_at, "expires_at", 40), now });
+        const grant = options.storage.grantObject(current, { id: randomUUID15(), objectId: text(body.object_id, "object_id", 80), serviceId: current.serviceId, subjectType: body.subject_type, subjectId: text(body.subject_id, "subject_id", 80), action: action(body.action), validFrom: body.valid_from === void 0 ? now : text(body.valid_from, "valid_from", 40), expiresAt: body.expires_at === void 0 ? void 0 : text(body.expires_at, "expires_at", 40), now });
         if (grant === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
         json(res, 201, { data: grant, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
         return;
@@ -5646,7 +5778,7 @@ function createObjectHandlers(options) {
 }
 
 // src/host/ai-service.ts
-import { randomUUID as randomUUID15 } from "node:crypto";
+import { randomUUID as randomUUID16 } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 // src/host/ai-tools.ts
@@ -5826,7 +5958,7 @@ var AiService = class {
       if (finish !== "tool-calls" || calls.length !== 1) throw new AiError(502, "MODEL_OUTPUT_INVALID");
       const call = calls[0], args2 = toolArguments(call);
       if (args2.object_id !== objectId || call.name === TOOL_NAMES[1] && args2.expected_revision !== raw.expected_revision) throw new AiError(422, "MODEL_TARGET_MISMATCH");
-      const prepared = { id: randomUUID15(), requestId, actor: actor2, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
+      const prepared = { id: randomUUID16(), requestId, actor: actor2, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
       this.#prepared.set(prepared.id, prepared);
       return { ...this.#view(prepared), usage: usage ?? null };
     } catch (error) {
@@ -5928,10 +6060,10 @@ var AiService = class {
 };
 
 // src/host/ai-http.ts
-import { randomUUID as randomUUID16 } from "node:crypto";
+import { randomUUID as randomUUID17 } from "node:crypto";
 function createAiHandler(options) {
   return async (req, res) => {
-    const requestId = randomUUID16(), controller = new AbortController();
+    const requestId = randomUUID17(), controller = new AbortController();
     const disconnect = () => {
       if (!res.writableEnded) controller.abort();
     };
@@ -6015,7 +6147,7 @@ body{margin:0;background:#f4f8f8;color:#23333a;font:15px/1.65 "Segoe UI","Micros
 import { join as join3 } from "node:path";
 
 // src/host/pdf-originals.ts
-import { createHash as createHash13, randomUUID as randomUUID17 } from "node:crypto";
+import { createHash as createHash13, randomUUID as randomUUID18 } from "node:crypto";
 import { constants } from "node:fs";
 import fs from "node:fs/promises";
 import { dirname, join as join2, resolve } from "node:path";
@@ -6258,8 +6390,8 @@ var PdfOriginals = class {
   async #write(data, extension) {
     const sha256 = digest(data);
     await this.#directory(true);
-    const stage = join2(this.#root, `.${randomUUID17()}.pending`);
-    const key = `${randomUUID17()}.${extension}`, final = join2(this.#root, key);
+    const stage = join2(this.#root, `.${randomUUID18()}.pending`);
+    const key = `${randomUUID18()}.${extension}`, final = join2(this.#root, key);
     const file = await fs.open(stage, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | noFollow, 384);
     let id, staged = true, linked = false;
     try {
@@ -6338,7 +6470,7 @@ var PdfOriginals = class {
 };
 
 // src/host/library-http.ts
-import { randomUUID as randomUUID18 } from "node:crypto";
+import { randomUUID as randomUUID19 } from "node:crypto";
 
 // src/host/text-document.ts
 import { createHash as createHash14 } from "node:crypto";
@@ -6666,7 +6798,7 @@ var ReaderService = class {
   async wordSelection(current, s, spec, w, signal) {
     const original = s.wordOriginal, ref = s.ref;
     if (!original || !ref || !this.wordPages || s.total > wordPageLimit) return;
-    const deadline2 = AbortSignal.any([signal, AbortSignal.timeout(25e3)]);
+    const deadline3 = AbortSignal.any([signal, AbortSignal.timeout(25e3)]);
     const check = () => {
       if (signal.aborted) throw new AssetError(409, "READ_CANCELLED");
       const r = this.store.source(current(), s);
@@ -6674,17 +6806,17 @@ var ReaderService = class {
     };
     try {
       check();
-      const docx = original.media === WORD_MEDIA.docx ? await this.originals.read(original.key, original.sha256, original.byteLength) : await this.legacyWord?.(original, check, deadline2);
+      const docx = original.media === WORD_MEDIA.docx ? await this.originals.read(original.key, original.sha256, original.byteLength) : await this.legacyWord?.(original, check, deadline3);
       check();
       if (!docx) return;
       const paragraphs = await wordParagraphs(docx), pdf = await this.originals.read(ref.key, ref.sha256, ref.byteLength);
       check();
-      const doc = await this.wordPages(pdf, deadline2);
+      const doc = await this.wordPages(pdf, deadline3);
       try {
         if (doc.numPages !== s.total) return;
         return await alignWordSelection(paragraphs, s.version_id, original.sha256, s.ordinal, w.text, spec.start, spec.end, doc.numPages, async (n) => {
           check();
-          deadline2.throwIfAborted();
+          deadline3.throwIfAborted();
           return (await doc.page(n)).text;
         });
       } finally {
@@ -6693,7 +6825,7 @@ var ReaderService = class {
     } catch (e) {
       check();
       if (e?.code === "PDF_BUSY") throw new AssetError(429, "PAGE_RENDER_BUSY");
-      if (deadline2.aborted) throw new AssetError(503, "WORD_STRUCTURE_UNAVAILABLE");
+      if (deadline3.aborted) throw new AssetError(503, "WORD_STRUCTURE_UNAVAILABLE");
     }
   }
   async create(current, spec, key, signal) {
@@ -7124,7 +7256,7 @@ async function publishInput(store, originals, current, spec, bytes, media, encod
 function libraryHandler(store, originals, origin, actorFor, parses, office, officeAvailable = () => true, archives, reader, search) {
   let transfers = 0;
   return async (req, res) => {
-    const requestId = randomUUID18();
+    const requestId = randomUUID19();
     let transfer = false, handlerDone = false, responseDone = false;
     res.setHeader("cache-control", "no-store");
     res.setHeader("x-content-type-options", "nosniff");
@@ -7508,12 +7640,15 @@ var DEADLINE_MS = 15e3;
 var MAX_WORKERS = 2;
 var role = "knowledgeos:pdf-extractor:v1";
 var readerRole = "knowledgeos:pdf-reader:v1";
-var active2 = { extract: 0, reader: 0 };
+var active2 = { extract: 0, reader: 0, index: 0 };
 function pdfError(code, message) {
   return Object.assign(new Error(message), { code });
 }
 function openPdf(bytes) {
   return open(bytes, "extract");
+}
+function openIndexPdf(bytes, signal) {
+  return open(bytes, "index", signal);
 }
 function openReaderPdf(bytes, signal) {
   return open(bytes, "reader", signal);
@@ -7522,7 +7657,7 @@ async function open(bytes, pool, signal) {
   if (signal?.aborted) throw pdfError("PDF_HANDLE_CLOSED", "PDF closed");
   if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX_BYTES2)
     throw pdfError("PDF_OPEN_FAILED", "Invalid PDF input size or type");
-  if (active2[pool] >= MAX_WORKERS) throw pdfError("PDF_BUSY", "PDF extractor busy");
+  if (active2[pool] >= (pool === "index" ? 1 : MAX_WORKERS)) throw pdfError("PDF_BUSY", "PDF extractor busy");
   const copy = new Uint8Array(bytes);
   const worker = new Worker(new URL("./pdf-extractor.js", import.meta.url), {
     workerData: pool === "reader" ? readerRole : role,
@@ -7940,12 +8075,12 @@ function startOfficeWorker(store, originals, kit, openPdf2, log) {
 }
 
 // src/host/legacy-word-source.ts
-import { randomUUID as randomUUID19 } from "node:crypto";
+import { randomUUID as randomUUID20 } from "node:crypto";
 import { open as open2, unlink } from "node:fs/promises";
 function legacyWordSource(kit, originals) {
   return async (source, check, signal) => {
     if (!kit.convertTo) throw new Error("Office structure conversion unavailable");
-    const result = await kit.convertTo({ extension: "doc", format: "docx", output: { owner: randomUUID19(), name: "structure.docx" }, source: {
+    const result = await kit.convertTo({ extension: "doc", format: "docx", output: { owner: randomUUID20(), name: "structure.docx" }, source: {
       key: `knowledgeos-word-structure:${source.sha256}`,
       version: source.sha256,
       bytes: source.byteLength,
@@ -8112,10 +8247,12 @@ function clearSearch(message=''){
 function searchRecord(r){
   if(!r||!uuid.test(r.asset_id)||!uuid.test(r.version_id)||!Number.isSafeInteger(r.version)||r.version<1||
     !Number.isSafeInteger(r.ordinal)||r.ordinal<1||!Number.isSafeInteger(r.start)||!Number.isSafeInteger(r.end)||r.start<0||r.end<=r.start||
-    typeof r.title!=='string'||typeof r.snippet!=='string'||typeof r.quote!=='string'||!['pdf','text'].includes(r.kind)||!/^[a-f0-9]{64}$/.test(r.source_hash))throw problem(502);
+    typeof r.title!=='string'||typeof r.snippet!=='string'||typeof r.quote!=='string'||!['pdf','text','office'].includes(r.kind)||
+    (r.kind==='office'?!uuid.test(r.conversion_id):r.conversion_id!==undefined)||!/^[a-f0-9]{64}$/.test(r.source_hash))throw problem(502);
   const li=document.createElement('li'),a=document.createElement('a'),meta=document.createElement('small'),p=document.createElement('p');
-  a.href='/knowledgeos/reader?'+new URLSearchParams({asset:r.asset_id,version:r.version_id,unit:String(r.ordinal),match:r.start+':'+r.end+':'+r.source_hash});
-  a.textContent=r.title;meta.textContent='v'+r.version+' · '+(r.kind==='pdf'?'第 '+r.ordinal+' 页':'文本块 '+r.ordinal);
+  a.href='/knowledgeos/reader?'+new URLSearchParams({asset:r.asset_id,version:r.version_id,unit:String(r.ordinal),
+    ...(r.kind==='office'?{conversion:r.conversion_id}:{}),match:r.start+':'+r.end+':'+r.source_hash});
+  a.textContent=r.title;meta.textContent='v'+r.version+' · '+(r.kind==='text'?'文本块 '+r.ordinal:(r.kind==='office'?'转换件 · ':'')+'第 '+r.ordinal+' 页');
   p.textContent=r.snippet;li.append(a,meta,p);return li;
 }
 $('search-form').onsubmit=async e=>{
@@ -8730,7 +8867,7 @@ async function load(n,{openCitation=false,openMatch=false,restore=false,save=fal
   try{
     if(!uuid(asset)||!uuid(version)||(cid!==null&&!uuid(cid))||!/^\d{1,9}$/.test(requestedUnit)||Number(requestedUnit)<1||(requestedConversion!==null&&!uuid(requestedConversion)))throw invalid();
     const needle=openMatch&&requestedMatch?.match(/^(\d{1,9}):(\d{1,9}):([a-f0-9]{64})$/);
-    if(openMatch&&(!needle||cid||requestedConversion||!q.has('unit')||n!==Number(requestedUnit)))throw invalid();
+    if(openMatch&&(!needle||cid||!q.has('unit')||n!==Number(requestedUnit)))throw invalid();
     if(!await access(g))return;
     if(!continuity){try{await readState(g)}catch{if(!await access(g))return;readingStatus('个人阅读状态暂不可用。')}}
     const c=openCitation && cid?locator(await api('citations/'+cid+'/resolve'),cid):null;
@@ -9032,7 +9169,7 @@ function apply(ctx, config = {}) {
       if (closing) throw new RecordsError("STORAGE_CLOSED", "storage is closing");
       if (storage === void 0) throw new RecordsError("STORAGE_UNAVAILABLE", "storage is not configured");
       return createProbeRecord(storage, {
-        newId: () => randomUUID20(),
+        newId: () => randomUUID21(),
         now: () => (/* @__PURE__ */ new Date()).toISOString()
       }, { idempotencyKey, content });
     },
@@ -9097,7 +9234,7 @@ function apply(ctx, config = {}) {
     res.statusCode = 503;
     res.setHeader("content-type", "application/json; charset=utf-8");
     res.setHeader("cache-control", "no-store");
-    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID20(), retryable: true, safe_details: {} }));
+    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID21(), retryable: true, safe_details: {} }));
   };
   const registerIdentityRoutes = (identityContext) => {
     const identityAvailable = () => {
@@ -9221,7 +9358,7 @@ function apply(ctx, config = {}) {
           if (!origin || !identityAvailable()) return void 0;
           return identity.actor(readCookie(req, businessCookieName(identity.setupState.serviceId, origin)));
         }, storage.parses, storage.office, () => !!officeMount, storage.archives, reader, storage.search);
-        if (storage.available) disposers.push(startParseWorker(storage.parses, originals, openPdf, log));
+        if (storage.available) disposers.push(startParseWorker(storage.parses, originals, openPdf, log), startWordSearchIndex(storage.wordSearch, originals, openIndexPdf, log));
         disposers.push(identityContext.webServer.register({ kind: "exact", path: "/knowledgeos/library", auth: "anonymous", handler: (req, res) => {
           if (req.method !== "GET") {
             res.statusCode = 405;

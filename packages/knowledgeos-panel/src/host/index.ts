@@ -29,7 +29,8 @@ import { ReaderService } from './reader-http.ts'
 import { render as renderReaderPage } from './reader-render.ts'
 import { startParseWorker } from './parse-worker.ts'
 import { startOfficeWorker } from './office-worker.ts'
-import { openPdf,openReaderPdf } from './pdf-extractor.ts'
+import { openIndexPdf,openPdf,openReaderPdf } from './pdf-extractor.ts'
+import {startWordSearchIndex} from './word-search-index.ts'
 import { legacyWordSource } from './legacy-word-source.ts'
 import type { LegacyWordSource } from './reader-http.ts'
 import { buildLibraryHtml } from './library-page.ts'
@@ -267,7 +268,7 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
           return readLegacyWord(s,check,signal)
         })
         const handler=libraryHandler(storage.assets,originals,actualOrigin,req=>{const origin=actualOrigin();if(!origin||!identityAvailable())return undefined;return identity.actor(readCookie(req,businessCookieName(identity.setupState.serviceId,origin)))},storage.parses,storage.office,()=>!!officeMount,storage.archives,reader,storage.search)
-        if(storage.available)disposers.push(startParseWorker(storage.parses,originals,openPdf,log))
+        if(storage.available)disposers.push(startParseWorker(storage.parses,originals,openPdf,log),startWordSearchIndex(storage.wordSearch,originals,openIndexPdf,log))
         disposers.push(identityContext.webServer.register({kind:'exact',path:'/knowledgeos/library',auth:'anonymous',handler:(req,res)=>{
           if(req.method!=='GET'){res.statusCode=405;res.end();return}res.setHeader('content-type','text/html; charset=utf-8');res.setHeader('cache-control','no-store');res.end(buildLibraryHtml())
         }}))

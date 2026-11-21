@@ -9,12 +9,14 @@ import {DatabaseSync} from 'node:sqlite'
 import {api,dbPath,entryCookie,login,sql} from '../fnd004/harness.mjs'
 import {isolate,until} from '../lib002/a07-isolated-host.mjs'
 import {chinesePdf,mdBlocks,pdfPages,revised} from './corpus.mjs'
+import {wordFixture} from '../read001/word-fixture.mjs'
 
 const [candidate,entry,parent='.cache/search001-acceptance']=process.argv.slice(2)
 const root=fileURLToPath(new URL('../../',import.meta.url)), sha=bytes=>createHash('sha256').update(bytes).digest('hex')
 const git=(...args)=>execFileSync('git',['--no-optional-locks',...args],{cwd:root})
-const runners=Object.fromEntries(['host-acceptance','corpus'].map(name=>{
-  const path=`scripts/search001/${name}.mjs`, hash=sha(readFileSync(join(root,path)))
+const runners=Object.fromEntries(['scripts/search001/host-acceptance.mjs','scripts/search001/corpus.mjs',
+  'scripts/read001/word-fixture.mjs','scripts/lib004/acceptance-samples.mjs'].map(path=>{
+  const hash=sha(readFileSync(join(root,path)))
   assert.equal(hash,sha(git('show',`${candidate}:${path}`)));return [path,hash]
 }))
 mkdirSync(resolve(parent),{recursive:true});const out=mkdtempSync(join(resolve(parent),'run-'))
@@ -261,6 +263,47 @@ async function permissionChecks(){
   }finally{held?.release.resolve();await ctx.close()}
 }
 
+async function officeChecks(){
+  const q='OnlyWordNeedle', bytes=wordFixture(['Converted passage: '+q+'.']), doc=await upload('word-search.docx',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',bytes)
+  const path=version(doc)+'/office', docs=()=>req(owner,'GET',path,200), term=()=>search(owner,q)
+  assert.equal((await term()).count,0)
+  async function convert(){
+    const job=await req(owner,'POST',path+'/start',202,undefined,{'idempotency-key':randomUUID()})
+    await until(async()=>{
+      const row=(await docs()).conversions.find(r=>r.id===job.id)
+      assert(row&&['queued','running','ready'].includes(row.state),JSON.stringify(row));return row.state==='ready'
+    },'real Office conversion',180_000)
+    return job.id
+  }
+  const first=await convert()
+  const find=async id=>until(async()=>{const result=await term();return result.items.some(x=>x.conversion_id===id)&&result},'converted page published',30_000)
+  const firstHit=await find(first)
+  assert.deepEqual(firstHit.items.map(r=>[r.kind,r.conversion_id,r.ordinal,r.quote]),[['office',first,1,q]])
+  assert.equal((await search(outsider,q)).count,0);await access(outsider,firstHit,404)
+  const [ctx,page]=await context(owner)
+  try{
+    await library(page);await uiSearch(page,q)
+    const link=page.getByRole('link',{name:'word-search.docx',exact:true}), href=new URL(await link.getAttribute('href'),host.base)
+    assert.equal(href.searchParams.get('conversion'),first);assert.equal(href.searchParams.get('version'),doc.version_id)
+    const second=await convert(), both=await find(second);assert.notEqual(first,second)
+    assert.deepEqual(new Set(both.items.map(r=>r.conversion_id)),new Set([first,second]))
+    await access(owner,firstHit,200)
+    const readerPath=version(doc)+`/reader?unit=1&conversion=${first}`
+    const [readerReply]=await Promise.all([waitResponse(page,readerPath,'GET'),link.click()]);assert.equal(readerReply.status(),200)
+    const pageData=(await readerReply.json()).data;assert.equal(pageData.conversion_id,first)
+    assert.equal(pageData.text.slice(firstHit.items[0].start,firstHit.items[0].end),q)
+    assert.equal(pageData.anchor,firstHit.items[0].source_hash)
+    const mark=page.locator('#text mark');await mark.waitFor();assert.equal(await mark.textContent(),q)
+    const persisted=dbRead(`SELECT p.text,b.sha256 FROM word_search_pages p JOIN word_search_runs r USING (conversion_id)
+      JOIN blobs b ON b.id=r.result_blob_id WHERE p.conversion_id=? AND p.page=1`,[first])[0]
+    assert.equal(persisted.text,pageData.text);assert.equal(persisted.sha256,pageData.original_sha256)
+    await screenshot(page,'word-conversion-match.png')
+    report.word={source_sha256:doc.sha256,version:doc.version_id,first,second,ordinal:1,
+      fixed_converted_pdf_sha256:pageData.original_sha256,matched_quote:q,outsider_count:0}
+  }finally{await ctx.close()}
+}
+
 try{
   host=await isolate(candidate,entry,{searchBarrier:true});report.binding=host.facts;await boot(['hold3','fail4'])
   const {chromium}=await import(pathToFileURL(host.playwright).href)
@@ -268,7 +311,9 @@ try{
   phase='T01 fixed corpus';const fixtures=await lexical()
   phase='A09 reader chain';await browserChain(fixtures);report.T01='PASS'
   phase='T02 real grants and late responses';await permissionChecks();report.T02='PASS'
-  // Development run only: office and independent candidate review are still required.
+  phase='Word conversion search';await officeChecks()
+  assert.equal(dbRead('PRAGMA user_version')[0].user_version,19)
+  report.A09='PASS'
   report.status='PASS'
 }catch(e){report.status='FAIL';report.failure={phase,message:(e.stack??String(e)).slice(0,2400)}}
 finally{

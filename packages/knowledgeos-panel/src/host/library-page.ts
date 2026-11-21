@@ -131,10 +131,12 @@ function clearSearch(message=''){
 function searchRecord(r){
   if(!r||!uuid.test(r.asset_id)||!uuid.test(r.version_id)||!Number.isSafeInteger(r.version)||r.version<1||
     !Number.isSafeInteger(r.ordinal)||r.ordinal<1||!Number.isSafeInteger(r.start)||!Number.isSafeInteger(r.end)||r.start<0||r.end<=r.start||
-    typeof r.title!=='string'||typeof r.snippet!=='string'||typeof r.quote!=='string'||!['pdf','text'].includes(r.kind)||!/^[a-f0-9]{64}$/.test(r.source_hash))throw problem(502);
+    typeof r.title!=='string'||typeof r.snippet!=='string'||typeof r.quote!=='string'||!['pdf','text','office'].includes(r.kind)||
+    (r.kind==='office'?!uuid.test(r.conversion_id):r.conversion_id!==undefined)||!/^[a-f0-9]{64}$/.test(r.source_hash))throw problem(502);
   const li=document.createElement('li'),a=document.createElement('a'),meta=document.createElement('small'),p=document.createElement('p');
-  a.href='/knowledgeos/reader?'+new URLSearchParams({asset:r.asset_id,version:r.version_id,unit:String(r.ordinal),match:r.start+':'+r.end+':'+r.source_hash});
-  a.textContent=r.title;meta.textContent='v'+r.version+' · '+(r.kind==='pdf'?'第 '+r.ordinal+' 页':'文本块 '+r.ordinal);
+  a.href='/knowledgeos/reader?'+new URLSearchParams({asset:r.asset_id,version:r.version_id,unit:String(r.ordinal),
+    ...(r.kind==='office'?{conversion:r.conversion_id}:{}),match:r.start+':'+r.end+':'+r.source_hash});
+  a.textContent=r.title;meta.textContent='v'+r.version+' · '+(r.kind==='text'?'文本块 '+r.ordinal:(r.kind==='office'?'转换件 · ':'')+'第 '+r.ordinal+' 页');
   p.textContent=r.snippet;li.append(a,meta,p);return li;
 }
 $('search-form').onsubmit=async e=>{

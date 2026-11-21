@@ -14,13 +14,14 @@ type Outline = {ordinal:number;title:string;depth:number}[]
 type Doc = { numPages: number; page(n: number): Promise<Page>; outline():Promise<Outline>; renderPage(n: number): Promise<RenderedPage>; close(): Promise<void> }
 type Input = Uint8Array<ArrayBuffer> | number | {render: number} | 'outline'
 type Result = { value: number | Page | RenderedPage | Outline } | { error: string; fatal: boolean }
-const active = { extract: 0, reader: 0 }
+const active = { extract: 0, reader: 0, index: 0 }
 
 type ErrorCode = 'PDF_PAGE_FAILED' | 'PDF_HANDLE_CLOSED' | 'PDF_BUSY' | 'PDF_OPEN_FAILED'
 function pdfError(code: ErrorCode, message: string) { return Object.assign(new Error(message), {code}) }
 
 /** One-based physical pages. Callers own the handle and must close it in finally. */
 export function openPdf(bytes: Uint8Array): Promise<Omit<Doc, 'renderPage'>> { return open(bytes, 'extract') }
+export function openIndexPdf(bytes:Uint8Array,signal:AbortSignal):Promise<Omit<Doc,'renderPage'>> {return open(bytes,'index',signal)}
 export function openReaderPdf(bytes: Uint8Array, signal?: AbortSignal): Promise<Doc> {
   return open(bytes, 'reader', signal)
 }
@@ -30,7 +31,7 @@ async function open(bytes: Uint8Array, pool: keyof typeof active, signal?: Abort
   if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX_BYTES)
     throw pdfError('PDF_OPEN_FAILED', 'Invalid PDF input size or type')
   // A reader burst must not make the parse worker mark an import job failed.
-  if (active[pool] >= MAX_WORKERS) throw pdfError('PDF_BUSY', 'PDF extractor busy')
+  if (active[pool] >= (pool==='index'?1:MAX_WORKERS)) throw pdfError('PDF_BUSY', 'PDF extractor busy')
   const copy = new Uint8Array(bytes) // never transfer/detach the caller's buffer or pooled slab
   const worker = new Worker(new URL('./pdf-extractor.js', import.meta.url), {
     workerData: pool === 'reader' ? readerRole : role, env: {}, execArgv: [], resourceLimits: { maxOldGenerationSizeMb: 48, maxYoungGenerationSizeMb: 8 },

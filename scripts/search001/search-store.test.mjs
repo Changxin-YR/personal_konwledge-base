@@ -7,7 +7,7 @@ import {tmpdir} from 'node:os'
 import {DatabaseSync} from 'node:sqlite'
 import {pathToFileURL} from 'node:url'
 import test from 'node:test'
-import {ProbeStorage,MIGRATION_V18_CHECKSUM} from '../../packages/knowledgeos-panel/src/host/storage.ts'
+import {ProbeStorage,MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM} from '../../packages/knowledgeos-panel/src/host/storage.ts'
 import {IdentityService} from '../../packages/knowledgeos-panel/src/host/identity.ts'
 import {decodeText} from '../../packages/knowledgeos-panel/src/host/text-document.ts'
 import {seed} from '../fnd006/independent/common.mjs'
@@ -95,13 +95,48 @@ test('v18 rollback preserves v17 content and successful upgrade indexes it witho
     const failed=new ProbeStorage({dataDir:dir,failureAt:'v18:after-schema'});assert.equal(failed.available,false);failed.close()
     assert.deepEqual(facts(),expected)
     upgraded=new ProbeStorage({dataDir:dir});assert(upgraded.available,upgraded.failure?.message)
-    const actual=facts();assert.equal(actual.version,18);assert.deepEqual(actual.ledger.slice(0,17),expected.ledger)
-    assert.equal(actual.ledger.at(-1).checksum,MIGRATION_V18_CHECKSUM)
-    assert.deepEqual(actual.schema.filter(x=>x.tbl_name!=='search_queries'),expected.schema)
+    const actual=facts();assert.equal(actual.version,19);assert.deepEqual(actual.ledger.slice(0,17),expected.ledger)
+    assert.deepEqual(actual.ledger.slice(17).map(x=>x.checksum),[MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM])
+    assert.deepEqual(actual.schema.filter(x=>!['search_queries','word_search_runs','word_search_pages'].includes(x.tbl_name)),expected.schema)
     assert.deepEqual(actual.blocks,expected.blocks)
     assert.equal(upgraded.search.search(actor,'legacy').items[0].version_id,doc.version_id)
     assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[])
     upgraded.close();upgraded=new ProbeStorage({dataDir:dir});assert(upgraded.available,upgraded.failure?.message)
     assert.equal(upgraded.search.search(actor,'legacy').items[0].version_id,doc.version_id)
   }finally{upgraded?.close();db.close()}
+})
+
+test('v19 rollback preserves published v18 Word conversion; resumed indexing fences stale tokens and changed sources',async()=>{
+  const dir=mkdtempSync(join(tmpdir(),'kos-word-index-v19-')),prior=join(dir,'v18.mjs')
+  writeFileSync(prior,execFileSync('git',['show','c659bf2:packages/knowledgeos-panel/lib/test-support.js']))
+  const old=await import(pathToFileURL(prior).href),{actor}=await seed(old,dir),before=new old.ProbeStorage({dataDir:dir})
+  const media='application/vnd.openxmlformats-officedocument.wordprocessingml.document', bytes=Buffer.from('Word source fixture')
+  const doc=before.assets.publish(actor,{title:'previous.docx',key:randomUUID()},
+    {key:randomUUID(),sha256:digest(bytes),byteLength:bytes.length},{media}).receipt
+  const first=before.office.start(actor,doc.id,doc.version_id,randomUUID()), firstJob=before.office.claim()
+  const ref={key:randomUUID(),byteLength:200,sha256:digest('PDF conversion fixture')}
+  assert(before.office.complete(firstJob.token,ref,2,[]));before.close()
+  const db=dbAt(dir), snapshot=()=>({version:db.prepare('PRAGMA user_version').get().user_version,
+    ledger:db.prepare('SELECT * FROM schema_migrations ORDER BY version').all(),office:db.prepare('SELECT * FROM office_conversions').all(),
+    schema:db.prepare('SELECT name,sql FROM sqlite_schema ORDER BY name').all()})
+  let s
+  try{
+    const original=snapshot(),fail=new ProbeStorage({dataDir:dir,failureAt:'v19:after-schema'});assert.equal(original.version,18)
+    assert.equal(fail.available,false);assert.match(fail.failure.cause.message,/v19:after-schema/);fail.close();assert.deepEqual(snapshot(),original)
+    s=new ProbeStorage({dataDir:dir});assert(s.available,s.failure?.message)
+    assert.equal(snapshot().version,19);assert.deepEqual(snapshot().office,original.office)
+    assert.equal(s.search.search(actor,'needlestable').count,0)
+    const firstLease=s.wordSearch.claim();assert.deepEqual([firstLease.key,firstLease.total,firstLease.next],[ref.key,2,1])
+    assert.equal(s.wordSearch.claim(),undefined);assert.equal(s.wordSearch.publish(firstLease.token,2,'incorrect order'),false)
+    assert(s.wordSearch.publish(firstLease.token,1,'needlestable first page'))
+    const found=s.search.search(actor,'needlestable');assert.deepEqual(found.items.map(r=>[r.conversion_id,r.ordinal]),[[first.id,1]])
+    s.close();db.prepare('UPDATE word_search_runs SET lease_until=?').run('2000-01-01T00:00:00.000Z')
+    s=new ProbeStorage({dataDir:dir});const next=s.wordSearch.claim();assert.equal(next.next,2);assert.notEqual(next.token,firstLease.token)
+    assert.equal(s.wordSearch.publish(firstLease.token,2,'stale writer'),false);assert(s.wordSearch.publish(next.token,2,null))
+    assert.equal(s.wordSearch.claim(),undefined);assert.equal(s.search.search(actor,'stale').count,0)
+    assert.equal(s.search.revalidate(actor,found.query_id).query_id,found.query_id)
+    db.prepare("UPDATE office_conversions SET state='failed',result_blob_id=NULL,page_count=NULL,missing_fonts=NULL WHERE id=?").run(first.id)
+    assert.throws(()=>s.search.revalidate(actor,found.query_id),{status:404});assert.equal(s.search.search(actor,'needlestable').count,0)
+    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[])
+  }finally{s?.close();db.close()}
 })
