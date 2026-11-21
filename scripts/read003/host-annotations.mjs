@@ -195,6 +195,22 @@ async function snap(p, label) {
   report.screens.push({file, sha256: sha(await p.screenshot({path: join(out, file)}))})
 }
 
+// Drive the visibility handler deterministically: Playwright may keep multiple Windows tabs visible.
+async function visibility(p, hidden) {
+  await p.evaluate(hidden => {
+    if (hidden) Object.defineProperty(document, 'hidden', {configurable: true, value: true})
+    else Reflect.deleteProperty(document, 'hidden')
+    document.dispatchEvent(new Event('visibilitychange'))
+  }, hidden)
+  assert.equal(await p.evaluate(() => document.hidden), hidden)
+  if (hidden) {
+    assert.equal(await p.locator('#annotation-body').inputValue(), '')
+    assert.equal(await p.locator('#annotation-items').count(), 1)
+    assert.equal(await p.locator('#annotation-items > *').count(), 0)
+    assert.equal(await p.locator('#text').textContent(), '')
+  }
+}
+
 async function editDraft(p, item, body) {
   await control(row(p, item.id), edit).click()
   assert.equal(await p.locator('#annotation-body').inputValue(), item.body)
@@ -269,11 +285,14 @@ async function lifecycle() {
     await show(winner, doc)
     const latestBody = 'Other tab saved this first.', draftBody = 'My unsubmitted local draft.'
     await editDraft(stale, item, draftBody)
+    await visibility(stale, true)
     await editDraft(winner, item, latestBody)
     let latest = await patchFromBrowser(winner, doc, item, latestBody)
     await witness(owner, doc, latest)
-    assert(await stale.evaluate(() => !document.hidden), 'stale tab must remain visible')
+    await visibility(stale, false)
+    await stale.locator('#annotation-body').waitFor({state: 'visible', timeout: 5000})
     assert.equal(await stale.locator('#annotation-body').inputValue(), draftBody)
+    await snap(stale, 'annotation-draft-restored')
     await patchFromBrowser(stale, doc, item, draftBody, 409)
     await stale.locator('#annotation-rebase').waitFor()
     assert.match(await stale.locator('#annotation-status').textContent(), /\u8349\u7a3f\u5df2\u4fdd\u7559|conflict/i)
@@ -382,6 +401,11 @@ async function permissions() {
     await editDraft(live, shared, unsaved)
     assert(await live.evaluate(() => !document.hidden && document.hasFocus()))
     await snap(live, 'annotation-before-read-revocation')
+    const background = await tab(commenter)
+    await show(background, doc)
+    await editDraft(background, shared, 'Unsaved draft while backgrounded.')
+    await visibility(background, true)
+    await live.bringToFront()
     const at = performance.now()
     await req(owner, 'POST', '/grants/revoke', 204, {grant_id: commenterRead.id})
     await live.waitForFunction(() => {
@@ -391,6 +415,12 @@ async function permissions() {
     }, null, {timeout: 8000})
     const cleared = Math.round(performance.now() - at)
     await snap(live, 'annotation-after-read-revocation')
+    await background.bringToFront()
+    const denial = background.waitForResponse(r => r.url().endsWith('/reader-access') && [403, 404].includes(r.status()))
+    await visibility(background, false)
+    await denial
+    assert.equal(await background.locator('#annotation-body').inputValue(), '')
+    assert.equal(await background.locator('#text').textContent(), '')
     await req(commenter, 'GET', annotations(doc), deny, undefined, {}, secrets)
     await req(commenter, 'POST', annotations(doc), deny, post, {}, secrets)
     const path = annotations(doc, 1, shared.id), expected_revision = shared.revision
@@ -398,7 +428,7 @@ async function permissions() {
     await req(commenter, 'DELETE', path, deny, {expected_revision}, {}, secrets)
     assert.deepEqual(rows(doc), before)
     assert.deepEqual((await list(reader, doc)).items, readOnly.items)
-    return {version: doc.version_id, project, foreground_clear_ms: cleared}
+    return {version: doc.version_id, project, foreground_clear_ms: cleared, background_draft_not_restored_after_read_revocation: true}
   } finally { await Promise.all(contexts.map(ctx => ctx.close())) }
 }
 
