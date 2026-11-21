@@ -105,7 +105,7 @@ async function lexical(){
   ])await check('held',q,expected)
   host.release();await settled(p)
   assert.deepEqual(dbRead('SELECT page,state,text FROM pdf_pages WHERE version_id=? ORDER BY page',[p.version_id]).map(r=>[r.page,r.state,r.text]),
-    [[1,'ready',pdfPages[0]],[2,'ready',pdfPages[1]],[3,'ready',pdfPages[2]],[4,'failed',null],[5,'ready',pdfPages[4]],[6,'review','']])
+    [[1,'ready',pdfPages[0]],[2,'ready',pdfPages[1]],[3,'ready',pdfPages[2]],[4,'failed',''],[5,'ready',pdfPages[4]],[6,'review','']])
   // Inject only adverse metadata into isolated storage: these are the real extracted bytes, not substitute search results.
   isolatedWrite(db=>{
     db.prepare("UPDATE pdf_pages SET text=? WHERE version_id=? AND page=4 AND state='failed'").run(pdfPages[3],p.version_id)
@@ -135,7 +135,7 @@ async function browserChain({p,m,P,M,acl}){
     const mark=page.locator('#text mark');await mark.waitFor();assert.equal(await mark.textContent(),second.quote)
     assert.equal(await mark.evaluate(el=>el.previousSibling.textContent.length),second.start)
     await library(page);await uiSearch(page,acl+'(ACL)')
-    const anchor=page.locator('#search-results a').getByText('corpus.pdf',{exact:true});const old=await anchor.getAttribute('href')
+    const anchor=page.getByRole('link',{name:'corpus.pdf',exact:true});const old=await anchor.getAttribute('href')
     assert.equal(new URL(old,host.base).searchParams.get('unit'),'2');await screenshot(page,'chinese-query.png')
     const p2=await upload('corpus.pdf','application/pdf',chinesePdf([revised]),p);await start(p2);await settled(p2)
     report.sources.revised_pdf=p2.sha256
@@ -173,13 +173,93 @@ async function browserChain({p,m,P,M,acl}){
   }finally{await ctx.close()}
 }
 
+const deferred=()=>Promise.withResolvers()
+async function permissionChecks(){
+  const q='quartzneedle', secret='never return this source', project=await req(owner,'POST','/projects',201,{name:'Search gate fixture'})
+  const addMember=(who,expires_at)=>req(owner,'POST',`/projects/${project.id}/memberships`,204,{user_id:who.id,role:'member',...(expires_at?{expires_at}:{})})
+  const grant=(doc,who,expires_at)=>req(owner,'POST','/grants',201,{object_id:doc.id,subject_type:'user',subject_id:who.id,
+    action:'read',...(expires_at?{expires_at}:{})})
+  const revoke=g=>req(owner,'POST','/grants/revoke',204,{grant_id:g.id})
+  await addMember(reader)
+  const r=await markdown('baseline.md',`Intro: ${q} visible to its owner.`,reader)
+  const attached=async(name,text)=>{
+    const doc=await markdown(name,text)
+    const o=await req(owner,'POST','/objects',201,{scope:'project',project_id:project.id,object_type:'asset',title:name,body:'Synthetic source attachment'})
+    // No project import UI in this unit. Place only an already imported synthetic version into the real project object.
+    isolatedWrite(db=>{
+      db.prepare('INSERT INTO assets VALUES(?)').run(o.id)
+      assert.equal(db.prepare('UPDATE asset_versions SET asset_id=? WHERE id=? AND asset_id=?').run(o.id,doc.version_id,doc.id).changes,1)
+    });return {...doc,id:o.id}
+  }
+  const shared=await attached('z-project.md',`Project ${q}: ${secret}.`), timed=await attached('timed.md',`${q} expiringfixture`)
+  const otherGrant=await grant(shared,outsider)
+  const visible=await search(reader,q);assert.equal(visible.count,1);assert.equal(visible.items[0].version_id,r.version_id)
+  assert.equal((await search(outsider,q)).count,0,'a direct read grant is not project membership')
+  const permitted=await grant(shared,reader)
+  const baseline=await search(reader,q);assert.equal(baseline.count,2)
+  assert.deepEqual(new Set(baseline.items.map(x=>x.version_id)),new Set([r.version_id,shared.version_id]))
+  const ranking=id=>dbRead('SELECT normalized_query,index_version,result_source_versions,ranking_inputs FROM search_queries WHERE query_id=?',[id])[0]
+  for(let n=0;n<31;n++)await markdown(`aa-hidden-${String(n).padStart(2,'0')}.md`,`${q}\n\n${secret}`)
+  const withNoise=await search(reader,q);assert.deepEqual(withNoise.items,baseline.items);assert.equal(withNoise.count,baseline.count)
+  assert.deepEqual(ranking(withNoise.query_id),ranking(baseline.query_id))
+  const capped=await search(owner,q);assert.equal(capped.items.length,30);assert.equal(capped.count,30)
+  assert.equal(JSON.parse(ranking(capped.query_id).ranking_inputs).length,capped.count)
+  await access(outsider,baseline,404)
+  const expiry=Date.now()+2700
+  await grant(timed,reader,new Date(expiry).toISOString())
+  const before=await search(reader,'expiringfixture');assert.equal(before.count,1);await access(reader,before,200)
+  await until(()=>Date.now()>expiry,'grant expiry')
+  assert.equal((await search(reader,'expiringfixture')).count,0);await access(reader,before,404)
+  await req(reader,'GET',version(timed)+'/reader?unit=1',404,undefined,{},['expiringfixture'])
+  await revoke(otherGrant)
+
+  const [ctx,page]=await context(reader)
+  let held
+  const realQuery=host.base+prefix+'/search'
+  try{
+    await library(page);await uiSearch(page,q)
+    const link=await page.getByRole('link',{name:'z-project.md',exact:true}).getAttribute('href')
+    const delay=async(route,expected)=>{
+      if(route.request().method()!=='POST'||route.request().postDataJSON().query!==expected)return route.continue()
+      const h=held, response=await route.fetch({maxRedirects:0});assert.equal(response.status(),200)
+      h.arrived.resolve((await response.json()).data)
+      await h.release.promise;await route.fulfill({response});h.finished.resolve()
+    }
+    let gate=(route)=>delay(route,q)
+    await page.route(realQuery,gate)
+    held={arrived:deferred(),release:deferred(),finished:deferred()}
+    await typeSearch(page,q);const stale=await Promise.race([held.arrived.promise,new Promise((_,rej)=>setTimeout(()=>rej(Error('search delay not reached')),10_000).unref())])
+    assert.equal(stale.count,2);await revoke(permitted)
+    assert.equal((await search(reader,q)).count,1);await access(reader,stale,404)
+    const receipt=waitResponse(page,'/search/'+stale.query_id+'/access','GET');held.release.resolve()
+    assert.equal((await receipt).status(),404);await page.locator('#search-status').getByText('无法确认检索结果，请重试。').waitFor()
+    assert.equal(await page.locator('#search-results li').count(),0);await page.unroute(realQuery,gate)
+    await screenshot(page,'stale-search-rejected.png')
+    await page.goto(new URL(link,host.base).href);await page.getByText('资料不可访问，请核对账号与当前权限。',{exact:true}).waitFor()
+    assert.equal(await page.locator('#text').textContent(),'');assert.equal(await page.locator('#original img').count(),0)
+    await req(reader,'GET',version(shared)+'/reader?unit=1',404,undefined,{},[secret])
+    await library(page)
+    gate=route=>delay(route,q);await page.route(realQuery,gate)
+    held={arrived:deferred(),release:deferred(),finished:deferred()};await typeSearch(page,q)
+    await Promise.race([held.arrived.promise,new Promise((_,rej)=>setTimeout(()=>rej(Error('older search not held')),10_000).unref())])
+    await markdown('newest.md','latestfixture',reader);await uiSearch(page,'latestfixture')
+    held.release.resolve();await held.finished.promise
+    await page.getByRole('link',{name:'newest.md',exact:true}).waitFor()
+    assert.deepEqual(await page.locator('#search-results a').allTextContents(),['newest.md'])
+    report.permissions={member_without_read:0,read_without_membership:0,valid_matches:2,hidden_matches:31,
+      same_rank_inputs_and_snippets:true,expired_reader_denied:true,revoked_receipt:404,stale_browser_response_cleared:true,older_response_did_not_replace_newer:true}
+  }finally{held?.release.resolve();await ctx.close()}
+}
+
 try{
   host=await isolate(candidate,entry);report.binding=host.facts;await boot(['hold3','fail4'])
   const {chromium}=await import(pathToFileURL(host.playwright).href)
   browser=await chromium.launch({channel:'chrome',headless:true,args:['--disable-background-networking']});report.chrome=browser.version()
   phase='T01 fixed corpus';const fixtures=await lexical()
   phase='A09 reader chain';await browserChain(fixtures);report.T01='PASS'
-  // T02 and overall A09 remain NOT_RUN until the project and late-response checks join this runner.
+  phase='T02 real grants and late responses';await permissionChecks();report.T02='PASS'
+  // Development run only: office, server-final ACL and independent candidate review are still required.
+  report.status='PASS'
 }catch(e){report.status='FAIL';report.failure={phase,message:(e.stack??String(e)).slice(0,2400)}}
 finally{
   try{await browser?.close()}finally{await host?.stop()}

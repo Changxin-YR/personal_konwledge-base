@@ -69,18 +69,18 @@ export class SearchStore {
     return this.tx('write',(db,now)=>{
       const a=this.actor(prior,now),decisions=new Map<string,boolean>()
       const items:Candidate[]=[]
-      let count=0
       for(const item of candidates){
         if(!decisions.has(item.asset_id))decisions.set(item.asset_id,this.allowed(a,item.asset_id,now))
         if(!decisions.get(item.asset_id)||!this.unchanged(db,item))continue
-        count++
-        if(items.length<maxResults)items.push(item)
+        items.push(item)
+        if(items.length===maxResults)break
       }
       const query_id=randomUUID(),scope_filter='readable_parsed_assets'
       db.prepare('INSERT INTO search_queries VALUES(?,?,?,?,?,?,?,?)').run(query_id,a.userId,scope_filter,query.normalized,indexVersion,
         JSON.stringify([...new Set(items.map(i=>i.version_id))]),JSON.stringify(items.map(({asset_id,version_id,ordinal,source_hash,kind,state,start,end,score})=>
           ({asset_id,version_id,ordinal,source_hash,kind,state,start,end,score}))),now)
-      return {query_id,actor_id:a.userId,count,items}
+      // The receipt witnesses precisely the returned rows, including the count.
+      return {query_id,actor_id:a.userId,count:items.length,items}
     })
   }
 

@@ -411,12 +411,11 @@ var SearchStore = class {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now), decisions = /* @__PURE__ */ new Map();
       const items = [];
-      let count = 0;
       for (const item of candidates) {
         if (!decisions.has(item.asset_id)) decisions.set(item.asset_id, this.allowed(a, item.asset_id, now));
         if (!decisions.get(item.asset_id) || !this.unchanged(db, item)) continue;
-        count++;
-        if (items.length < maxResults) items.push(item);
+        items.push(item);
+        if (items.length === maxResults) break;
       }
       const query_id = randomUUID3(), scope_filter = "readable_parsed_assets";
       db.prepare("INSERT INTO search_queries VALUES(?,?,?,?,?,?,?,?)").run(
@@ -429,7 +428,7 @@ var SearchStore = class {
         JSON.stringify(items.map(({ asset_id, version_id, ordinal, source_hash, kind, state, start, end, score }) => ({ asset_id, version_id, ordinal, source_hash, kind, state, start, end, score }))),
         now
       );
-      return { query_id, actor_id: a.userId, count, items };
+      return { query_id, actor_id: a.userId, count: items.length, items };
     });
   }
   revalidate(prior, queryId) {

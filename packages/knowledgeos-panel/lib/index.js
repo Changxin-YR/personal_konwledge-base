@@ -2639,12 +2639,11 @@ var SearchStore = class {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now), decisions = /* @__PURE__ */ new Map();
       const items = [];
-      let count = 0;
       for (const item of candidates) {
         if (!decisions.has(item.asset_id)) decisions.set(item.asset_id, this.allowed(a, item.asset_id, now));
         if (!decisions.get(item.asset_id) || !this.unchanged(db, item)) continue;
-        count++;
-        if (items.length < maxResults) items.push(item);
+        items.push(item);
+        if (items.length === maxResults) break;
       }
       const query_id = randomUUID4(), scope_filter = "readable_parsed_assets";
       db.prepare("INSERT INTO search_queries VALUES(?,?,?,?,?,?,?,?)").run(
@@ -2657,7 +2656,7 @@ var SearchStore = class {
         JSON.stringify(items.map(({ asset_id, version_id, ordinal, source_hash, kind, state, start, end, score }) => ({ asset_id, version_id, ordinal, source_hash, kind, state, start, end, score }))),
         now
       );
-      return { query_id, actor_id: a.userId, count, items };
+      return { query_id, actor_id: a.userId, count: items.length, items };
     });
   }
   revalidate(prior, queryId) {
@@ -8586,6 +8585,7 @@ const integer=Number.isSafeInteger, ready=d=>d.state==='ready'||d.state==='revie
 const status=s=>{$('status').textContent=s}, invalid=()=>new Error('invalid'), problem=http=>Object.assign(new Error(),{http});
 const sha=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s))),n=>n.toString(16).padStart(2,'0')).join('');
 let gen=0, owner=null, ordinal=1, total=0, conversion=null, page=null, selection=null, pending=null, posting=false, mode=null, resolved=null, versionLabel='', followCitation=!!cid, followMatch=requestedMatch!==null;
+let pendingMatchSave=followMatch;
 const readerPath='assets/'+asset+'/versions/'+version+'/reader';
 let continuity=null, outlineLoaded=false, busy=false;
 let annotationPanel=false, annotationDraft=null, annotationBusy=false, annotationSequence=0, suspendedDraft=null;
@@ -8695,11 +8695,15 @@ async function writeFailure(e,g,label){
   if(g!==gen)return;
   readingStatus(e.code==='READING_REVISION_CONFLICT'?'未保存：另一标签页已更新位置，请刷新后重试。':label);
 }
-async function remember(g,d){
+async function remember(g,d,searchMatch=false){
   if(!continuity||!digest(d.position_hash))return;
   const revision=continuity.revision,p=point(d);
+  const saved=continuity.position;
+  if(searchMatch&&saved?.ordinal===p.ordinal&&saved.source_hash===p.source_hash&&saved.conversion_id===p.conversion_id){pendingMatchSave=false;return}
   try{
     if(!await access(g))return;
+    // A write already dispatched must not be replayed automatically after a tab switch.
+    if(searchMatch)pendingMatchSave=false;
     const r=await api(readerPath+'-state',writeOptions('PUT',{...p,expected_revision:revision}));
     if(!await access(g))return;
     if(r?.revision!==revision+1||!usable(r.position)||r.position.ordinal!==p.ordinal||r.position.source_hash!==p.source_hash||r.position.conversion_id!==p.conversion_id)throw invalid();
@@ -8751,7 +8755,7 @@ async function load(n,{openCitation=false,openMatch=false,restore=false,save=fal
     if(needle){selection={start:Number(needle[1]),end:Number(needle[2])};mode='text'}
     draw();if(c||needle)document.querySelector('#original .highlight,#text mark')?.scrollIntoView({block:'nearest'});
     $('continuity').hidden=false;renderBookmarks();
-    if(save){busy=true;await remember(g,d)}
+    if(save||needle&&pendingMatchSave){busy=true;await remember(g,d,Boolean(needle))}
     void showOutline(g);
   }catch(e){
     if(g!==gen)return;
@@ -8963,7 +8967,7 @@ window.addEventListener('pageshow',e=>{if(e.persisted)resume()});
 window.addEventListener('focus',recheck);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)suspend(true);else if(resumeAt)resume();else refresh()});
 setInterval(recheck,2000);
-void load(Number(requestedUnit),{openCitation:true,openMatch:followMatch,save:followMatch,restore:!cid&&!q.has('unit')&&!requestedConversion});
+void load(Number(requestedUnit),{openCitation:true,openMatch:followMatch,restore:!cid&&!q.has('unit')&&!requestedConversion});
 </script></body></html>`;
 }
 
