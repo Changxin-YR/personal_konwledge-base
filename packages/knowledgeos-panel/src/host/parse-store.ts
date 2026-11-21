@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { DatabaseSync } from 'node:sqlite'
 import { AssetError } from './asset-store.ts'
 import type { SessionActor } from './identity.ts'
+import {pdfChapters,type PdfChapter} from './pdf-chapters.ts'
 
 export const PARSE_SCHEMA = `CREATE TABLE pdf_parse_runs (
   version_id TEXT PRIMARY KEY REFERENCES asset_versions(id), session_id TEXT NOT NULL REFERENCES auth_sessions(id),
@@ -15,6 +16,16 @@ CREATE TABLE pdf_pages (
   text TEXT NOT NULL DEFAULT '', error TEXT, generation INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(version_id,page)
 ) STRICT;
 CREATE INDEX pdf_pending ON pdf_pages(version_id,state,page);`
+
+export const PDF_CHAPTER_SCHEMA=`CREATE TABLE pdf_chapter_ranges (
+  version_id TEXT NOT NULL REFERENCES pdf_parse_runs(version_id),
+  first_page INTEGER NOT NULL CHECK(first_page>=1), last_page INTEGER NOT NULL CHECK(last_page BETWEEN first_page AND 10000),
+  PRIMARY KEY(version_id,first_page)
+) STRICT;`
+
+// A version with no plan keeps the original whole-document processing contract.
+const targeted=`(NOT EXISTS(SELECT 1 FROM pdf_chapter_ranges c WHERE c.version_id=pdf_pages.version_id)
+  OR EXISTS(SELECT 1 FROM pdf_chapter_ranges c WHERE c.version_id=pdf_pages.version_id AND pdf_pages.page BETWEEN c.first_page AND c.last_page))`
 
 export type ParseTx = <T>(mode:'read'|'write', op:(db:DatabaseSync, now:string)=>T)=>T
 type Permit = (session:string,user:string,id:string,write:boolean,now:string)=>boolean
@@ -43,25 +54,43 @@ export class ParseStore {
     })
   }
 
-  control(actor:SessionActor,id:string,v:string,op:'status'|'start'|'cancel'|'retry',page?:number) {
+  control(actor:SessionActor,id:string,v:string,op:'status'|'start'|'cancel'|'retry'|'chapters',page?:number,requested?:unknown) {
     return this.tx(op==='status'?'read':'write',(db,now)=>{
       if(!this.permit(actor.sessionId,actor.userId,id,op!=='status',now) ||
         !this.pdfVersion(db,id,v)) throw new AssetError(404,'ASSET_NOT_FOUND')
-      const prev=db.prepare('SELECT state FROM pdf_parse_runs WHERE version_id=?').get(v)
-      if(op==='start') {
-        if(!prev) db.prepare("INSERT INTO pdf_parse_runs(version_id,session_id,user_id,state) VALUES(?,?,?,'queued')").run(v,actor.sessionId,actor.userId)
-        else if(['failed','cancelled'].includes(String(prev.state))) {
+      const prev=db.prepare('SELECT state,error,total FROM pdf_parse_runs WHERE version_id=?').get(v)
+      const loadChapters=()=>db.prepare('SELECT first_page,last_page FROM pdf_chapter_ranges WHERE version_id=? ORDER BY first_page').all(v)
+        .map(p=>[Number(p.first_page),Number(p.last_page)] as PdfChapter)
+      const plan=loadChapters()
+      if(op==='start'||op==='chapters') {
+        if(op==='chapters'){
+          let ranges;try{ranges=pdfChapters(requested,Number(prev?.total)||undefined)}catch{throw new AssetError(422,'INVALID_PDF_CHAPTERS')}
+          const repair=prev?.state==='failed'&&prev.error==='CHAPTER_RANGE_OUTSIDE_DOCUMENT'&&prev.total===0
+          if(prev&&!repair&&JSON.stringify(ranges)!==JSON.stringify(plan))throw new AssetError(409,'PDF_CHAPTER_PLAN_FROZEN')
+          if(!prev||repair){
+            if(!prev)db.prepare("INSERT INTO pdf_parse_runs(version_id,session_id,user_id,state) VALUES(?,?,?,'queued')").run(v,actor.sessionId,actor.userId)
+            else db.prepare('DELETE FROM pdf_chapter_ranges WHERE version_id=?').run(v)
+            const insert=db.prepare('INSERT INTO pdf_chapter_ranges VALUES(?,?,?)')
+            for(const [first,last] of ranges)insert.run(v,first,last)
+          }
+        }else if(prev?.state==='failed'&&prev.error==='CHAPTER_RANGE_OUTSIDE_DOCUMENT') throw new AssetError(409,'PDF_CHAPTER_PLAN_NEEDS_CORRECTION')
+        if(!prev&&op==='start') db.prepare("INSERT INTO pdf_parse_runs(version_id,session_id,user_id,state) VALUES(?,?,?,'queued')").run(v,actor.sessionId,actor.userId)
+        else if(prev&&['failed','cancelled'].includes(String(prev.state))) {
           db.prepare("UPDATE pdf_parse_runs SET session_id=?,user_id=?,state='queued',error=NULL,losses=0 WHERE version_id=?").run(actor.sessionId,actor.userId,v)
         }
       } else if(op==='cancel') {
         if(!prev || !['running','queued','cancelled'].includes(String(prev.state))) throw new AssetError(409,'PARSE_NOT_ACTIVE')
         db.prepare("UPDATE pdf_parse_runs SET state='cancelled',token=NULL,deadline=NULL,error='CANCELLED' WHERE version_id=?").run(v)
       } else if(op==='retry') {
-        if(!prev || prev.state!=='partial' || !page || !db.prepare("UPDATE pdf_pages SET state='pending',error=NULL WHERE version_id=? AND page=? AND state IN ('failed','review')").run(v,page).changes) throw new AssetError(409,'PAGE_NOT_RETRYABLE')
+        if(!prev || prev.state!=='partial' || !page || !db.prepare(`UPDATE pdf_pages SET state='pending',error=NULL
+          WHERE version_id=? AND page=? AND state IN ('failed','review') AND ${targeted}`).run(v,page).changes) throw new AssetError(409,'PAGE_NOT_RETRYABLE')
         db.prepare("UPDATE pdf_parse_runs SET state='queued',session_id=?,user_id=?,error=NULL,losses=0 WHERE version_id=?").run(actor.sessionId,actor.userId,v)
       }
       const run=db.prepare('SELECT state,total,error FROM pdf_parse_runs WHERE version_id=?').get(v)
-      return {state:run?.state??'idle',total:run?.total??0,error:run?.error??null,pages:db.prepare('SELECT page,state,chapter,error FROM pdf_pages WHERE version_id=? ORDER BY page').all(v)}
+      const chapters=op==='chapters'?loadChapters():plan
+      const selected=chapters.length?`,${targeted} AS selected`:''
+      return {state:run?.state??'idle',total:run?.total??0,error:run?.error??null,
+        ...(chapters.length?{chapters}:{}),pages:db.prepare(`SELECT page,state,chapter,error${selected} FROM pdf_pages WHERE version_id=? ORDER BY page`).all(v)}
     })
   }
 
@@ -105,6 +134,10 @@ export class ParseStore {
     return this.leased(token,(db,v)=>{
       const before=Number(db.prepare('SELECT total FROM pdf_parse_runs WHERE version_id=?').get(v)!.total)
       if(before && before!==total)throw Error('PAGE_COUNT_CHANGED')
+      if(db.prepare('SELECT 1 FROM pdf_chapter_ranges WHERE version_id=? AND last_page>? LIMIT 1').get(v,total)){
+        db.prepare("UPDATE pdf_parse_runs SET state='failed',token=NULL,deadline=NULL,error='CHAPTER_RANGE_OUTSIDE_DOCUMENT' WHERE version_id=?").run(v)
+        return false
+      }
       if(!before){db.prepare('UPDATE pdf_parse_runs SET total=? WHERE version_id=?').run(total,v)
         const insert=db.prepare("INSERT INTO pdf_pages(version_id,page,state) VALUES(?,?,'pending')")
         for(let p=1;p<=total;p++)insert.run(v,p)
@@ -113,9 +146,9 @@ export class ParseStore {
     })
   }
   next(token:string) {return this.leased(token,(db,v)=>{
-    const pending=db.prepare("SELECT page FROM pdf_pages WHERE version_id=? AND state='pending' ORDER BY page LIMIT 1").get(v)
+    const pending=db.prepare(`SELECT page FROM pdf_pages WHERE version_id=? AND state='pending' AND ${targeted} ORDER BY page LIMIT 1`).get(v)
     if(pending)return Number(pending.page)
-    db.prepare(`UPDATE pdf_parse_runs SET state=CASE WHEN EXISTS(SELECT 1 FROM pdf_pages WHERE version_id=? AND state IN ('failed','review'))
+    db.prepare(`UPDATE pdf_parse_runs SET state=CASE WHEN EXISTS(SELECT 1 FROM pdf_pages WHERE version_id=? AND state IN ('failed','review') AND ${targeted})
       THEN 'partial' ELSE 'complete' END,token=NULL,deadline=NULL,error=NULL WHERE version_id=?`).run(v,v)
     return null
   })}
@@ -123,7 +156,7 @@ export class ParseStore {
     if(result && (result.text.length>262144||result.chapter.length>512))throw Error('PAGE_OUTPUT_LIMIT')
     const state=result ? (result.needsReview||!result.text.trim()?'review':'ready'):'failed'
     const wrote=db.prepare(`UPDATE pdf_pages SET state=?,text=?,chapter=?,error=?,generation=generation+1
-      WHERE version_id=? AND page=? AND state='pending'`).run(state,result?.text??'',result?.chapter??'',result?null:'PAGE_EXTRACTION_FAILED',v,page)
+      WHERE version_id=? AND page=? AND state='pending' AND ${targeted}`).run(state,result?.text??'',result?.chapter??'',result?null:'PAGE_EXTRACTION_FAILED',v,page)
     if(wrote.changes)db.prepare('UPDATE pdf_parse_runs SET losses=0 WHERE version_id=?').run(v)
     return Boolean(wrote.changes)
   })}

@@ -162,7 +162,7 @@ export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:
         const result=await publishInput(store,originals,current,spec,bytes,media,encoding)
         json(result.replayed?200:201,{data:result.receipt,request_id:requestId});return
       }
-      const parse=/^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/parse(?:\/(start|cancel|retry\/([1-9]\d{0,4})))?$/.exec(url.pathname)
+      const parse=/^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/parse(?:\/(start|cancel|chapters|retry\/([1-9]\d{0,4})))?$/.exec(url.pathname)
       const processPath=/^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/process$/.exec(url.pathname)
       const pagesPath=/^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/pages$/.exec(url.pathname)
       const operation=/^\/knowledge\/v1\/operations\/([a-f0-9-]+)$/.exec(url.pathname)
@@ -186,6 +186,12 @@ export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:
         json(200,{data:parses.pages(current(),pagesPath[1]!,pagesPath[2]!,from,limit),request_id:requestId});return
       }
       if(parse && parses && !url.search && uuid.test(parse[1]!) && uuid.test(parse[2]!) && req.method===(parse[3]?'POST':'GET')) {
+        if(parse[3]==='chapters'){
+          if(req.headers['content-type']?.split(';')[0]!=='application/json')throw new AssetError(415,'JSON_REQUIRED')
+          const bytes=await receive(req,'INVALID_PDF_CHAPTERS',4096);let ranges:unknown
+          try{ranges=JSON.parse(bytes.toString('utf8'))}catch{throw new AssetError(422,'INVALID_PDF_CHAPTERS')}
+          respond(parse[2]!,parses.control(current(),parse[1]!,parse[2]!,'chapters',undefined,ranges),true);return
+        }
         const op=parse[4]?'retry':parse[3]==='start'?'start':parse[3]==='cancel'?'cancel':'status'
         respond(parse[2]!,parses.control(current(),parse[1]!,parse[2]!,op,parse[4]?Number(parse[4]):undefined),op==='start'||op==='retry');return
       }

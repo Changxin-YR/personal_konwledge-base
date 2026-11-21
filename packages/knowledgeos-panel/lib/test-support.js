@@ -915,6 +915,27 @@ var ZipStore = class {
 
 // src/host/parse-store.ts
 import { randomUUID as randomUUID7 } from "node:crypto";
+
+// src/host/pdf-chapters.ts
+var maxPdfPages = 1e4;
+var maxPdfChapters = 100;
+function pdfChapters(value, total = maxPdfPages) {
+  if (!Number.isSafeInteger(total) || total < 1 || total > maxPdfPages || !Array.isArray(value) || value.length < 1 || value.length > maxPdfChapters)
+    throw Error("INVALID_PDF_CHAPTERS");
+  const ranges = [];
+  let previous = 0;
+  for (const pair of value) {
+    if (!Array.isArray(pair) || pair.length !== 2) throw Error("INVALID_PDF_CHAPTERS");
+    const [first, last] = pair;
+    if (!Number.isSafeInteger(first) || !Number.isSafeInteger(last) || first <= previous || last < first || last > total)
+      throw Error("INVALID_PDF_CHAPTERS");
+    ranges.push([first, last]);
+    previous = last;
+  }
+  return ranges;
+}
+
+// src/host/parse-store.ts
 var PARSE_SCHEMA = `CREATE TABLE pdf_parse_runs (
   version_id TEXT PRIMARY KEY REFERENCES asset_versions(id), session_id TEXT NOT NULL REFERENCES auth_sessions(id),
   user_id TEXT NOT NULL REFERENCES users(id), state TEXT NOT NULL CHECK(state IN ('queued','running','complete','partial','failed','cancelled')),
@@ -927,6 +948,13 @@ CREATE TABLE pdf_pages (
   text TEXT NOT NULL DEFAULT '', error TEXT, generation INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(version_id,page)
 ) STRICT;
 CREATE INDEX pdf_pending ON pdf_pages(version_id,state,page);`;
+var PDF_CHAPTER_SCHEMA = `CREATE TABLE pdf_chapter_ranges (
+  version_id TEXT NOT NULL REFERENCES pdf_parse_runs(version_id),
+  first_page INTEGER NOT NULL CHECK(first_page>=1), last_page INTEGER NOT NULL CHECK(last_page BETWEEN first_page AND 10000),
+  PRIMARY KEY(version_id,first_page)
+) STRICT;`;
+var targeted = `(NOT EXISTS(SELECT 1 FROM pdf_chapter_ranges c WHERE c.version_id=pdf_pages.version_id)
+  OR EXISTS(SELECT 1 FROM pdf_chapter_ranges c WHERE c.version_id=pdf_pages.version_id AND pdf_pages.page BETWEEN c.first_page AND c.last_page))`;
 var leaseMs = 15e3;
 var ParseStore = class {
   constructor(tx, permit) {
@@ -950,24 +978,51 @@ var ParseStore = class {
       return { version_id: v, from, pages: rows };
     });
   }
-  control(actor, id, v, op, page) {
+  control(actor, id, v, op, page, requested) {
     return this.tx(op === "status" ? "read" : "write", (db, now) => {
       if (!this.permit(actor.sessionId, actor.userId, id, op !== "status", now) || !this.pdfVersion(db, id, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
-      const prev = db.prepare("SELECT state FROM pdf_parse_runs WHERE version_id=?").get(v);
-      if (op === "start") {
-        if (!prev) db.prepare("INSERT INTO pdf_parse_runs(version_id,session_id,user_id,state) VALUES(?,?,?,'queued')").run(v, actor.sessionId, actor.userId);
-        else if (["failed", "cancelled"].includes(String(prev.state))) {
+      const prev = db.prepare("SELECT state,error,total FROM pdf_parse_runs WHERE version_id=?").get(v);
+      const loadChapters = () => db.prepare("SELECT first_page,last_page FROM pdf_chapter_ranges WHERE version_id=? ORDER BY first_page").all(v).map((p) => [Number(p.first_page), Number(p.last_page)]);
+      const plan = loadChapters();
+      if (op === "start" || op === "chapters") {
+        if (op === "chapters") {
+          let ranges;
+          try {
+            ranges = pdfChapters(requested, Number(prev?.total) || void 0);
+          } catch {
+            throw new AssetError(422, "INVALID_PDF_CHAPTERS");
+          }
+          const repair = prev?.state === "failed" && prev.error === "CHAPTER_RANGE_OUTSIDE_DOCUMENT" && prev.total === 0;
+          if (prev && !repair && JSON.stringify(ranges) !== JSON.stringify(plan)) throw new AssetError(409, "PDF_CHAPTER_PLAN_FROZEN");
+          if (!prev || repair) {
+            if (!prev) db.prepare("INSERT INTO pdf_parse_runs(version_id,session_id,user_id,state) VALUES(?,?,?,'queued')").run(v, actor.sessionId, actor.userId);
+            else db.prepare("DELETE FROM pdf_chapter_ranges WHERE version_id=?").run(v);
+            const insert = db.prepare("INSERT INTO pdf_chapter_ranges VALUES(?,?,?)");
+            for (const [first, last] of ranges) insert.run(v, first, last);
+          }
+        } else if (prev?.state === "failed" && prev.error === "CHAPTER_RANGE_OUTSIDE_DOCUMENT") throw new AssetError(409, "PDF_CHAPTER_PLAN_NEEDS_CORRECTION");
+        if (!prev && op === "start") db.prepare("INSERT INTO pdf_parse_runs(version_id,session_id,user_id,state) VALUES(?,?,?,'queued')").run(v, actor.sessionId, actor.userId);
+        else if (prev && ["failed", "cancelled"].includes(String(prev.state))) {
           db.prepare("UPDATE pdf_parse_runs SET session_id=?,user_id=?,state='queued',error=NULL,losses=0 WHERE version_id=?").run(actor.sessionId, actor.userId, v);
         }
       } else if (op === "cancel") {
         if (!prev || !["running", "queued", "cancelled"].includes(String(prev.state))) throw new AssetError(409, "PARSE_NOT_ACTIVE");
         db.prepare("UPDATE pdf_parse_runs SET state='cancelled',token=NULL,deadline=NULL,error='CANCELLED' WHERE version_id=?").run(v);
       } else if (op === "retry") {
-        if (!prev || prev.state !== "partial" || !page || !db.prepare("UPDATE pdf_pages SET state='pending',error=NULL WHERE version_id=? AND page=? AND state IN ('failed','review')").run(v, page).changes) throw new AssetError(409, "PAGE_NOT_RETRYABLE");
+        if (!prev || prev.state !== "partial" || !page || !db.prepare(`UPDATE pdf_pages SET state='pending',error=NULL
+          WHERE version_id=? AND page=? AND state IN ('failed','review') AND ${targeted}`).run(v, page).changes) throw new AssetError(409, "PAGE_NOT_RETRYABLE");
         db.prepare("UPDATE pdf_parse_runs SET state='queued',session_id=?,user_id=?,error=NULL,losses=0 WHERE version_id=?").run(actor.sessionId, actor.userId, v);
       }
       const run = db.prepare("SELECT state,total,error FROM pdf_parse_runs WHERE version_id=?").get(v);
-      return { state: run?.state ?? "idle", total: run?.total ?? 0, error: run?.error ?? null, pages: db.prepare("SELECT page,state,chapter,error FROM pdf_pages WHERE version_id=? ORDER BY page").all(v) };
+      const chapters = op === "chapters" ? loadChapters() : plan;
+      const selected = chapters.length ? `,${targeted} AS selected` : "";
+      return {
+        state: run?.state ?? "idle",
+        total: run?.total ?? 0,
+        error: run?.error ?? null,
+        ...chapters.length ? { chapters } : {},
+        pages: db.prepare(`SELECT page,state,chapter,error${selected} FROM pdf_pages WHERE version_id=? ORDER BY page`).all(v)
+      };
     });
   }
   pdfVersion(db, id, v) {
@@ -1012,6 +1067,10 @@ var ParseStore = class {
     return this.leased(token2, (db, v) => {
       const before = Number(db.prepare("SELECT total FROM pdf_parse_runs WHERE version_id=?").get(v).total);
       if (before && before !== total) throw Error("PAGE_COUNT_CHANGED");
+      if (db.prepare("SELECT 1 FROM pdf_chapter_ranges WHERE version_id=? AND last_page>? LIMIT 1").get(v, total)) {
+        db.prepare("UPDATE pdf_parse_runs SET state='failed',token=NULL,deadline=NULL,error='CHAPTER_RANGE_OUTSIDE_DOCUMENT' WHERE version_id=?").run(v);
+        return false;
+      }
       if (!before) {
         db.prepare("UPDATE pdf_parse_runs SET total=? WHERE version_id=?").run(total, v);
         const insert = db.prepare("INSERT INTO pdf_pages(version_id,page,state) VALUES(?,?,'pending')");
@@ -1022,9 +1081,9 @@ var ParseStore = class {
   }
   next(token2) {
     return this.leased(token2, (db, v) => {
-      const pending = db.prepare("SELECT page FROM pdf_pages WHERE version_id=? AND state='pending' ORDER BY page LIMIT 1").get(v);
+      const pending = db.prepare(`SELECT page FROM pdf_pages WHERE version_id=? AND state='pending' AND ${targeted} ORDER BY page LIMIT 1`).get(v);
       if (pending) return Number(pending.page);
-      db.prepare(`UPDATE pdf_parse_runs SET state=CASE WHEN EXISTS(SELECT 1 FROM pdf_pages WHERE version_id=? AND state IN ('failed','review'))
+      db.prepare(`UPDATE pdf_parse_runs SET state=CASE WHEN EXISTS(SELECT 1 FROM pdf_pages WHERE version_id=? AND state IN ('failed','review') AND ${targeted})
       THEN 'partial' ELSE 'complete' END,token=NULL,deadline=NULL,error=NULL WHERE version_id=?`).run(v, v);
       return null;
     });
@@ -1034,7 +1093,7 @@ var ParseStore = class {
       if (result && (result.text.length > 262144 || result.chapter.length > 512)) throw Error("PAGE_OUTPUT_LIMIT");
       const state = result ? result.needsReview || !result.text.trim() ? "review" : "ready" : "failed";
       const wrote = db.prepare(`UPDATE pdf_pages SET state=?,text=?,chapter=?,error=?,generation=generation+1
-      WHERE version_id=? AND page=? AND state='pending'`).run(state, result?.text ?? "", result?.chapter ?? "", result ? null : "PAGE_EXTRACTION_FAILED", v, page);
+      WHERE version_id=? AND page=? AND state='pending' AND ${targeted}`).run(state, result?.text ?? "", result?.chapter ?? "", result ? null : "PAGE_EXTRACTION_FAILED", v, page);
       if (wrote.changes) db.prepare("UPDATE pdf_parse_runs SET losses=0 WHERE version_id=?").run(v);
       return Boolean(wrote.changes);
     });
@@ -1675,7 +1734,8 @@ var CITATION_LOCATOR_SCHEMA = `CREATE TABLE citation_locators (
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 19;
+var SCHEMA_VERSION = 20;
+var MIGRATION_V20_CHECKSUM = createHash10("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
 var MIGRATION_V19_CHECKSUM = createHash10("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
 var MIGRATION_V18_CHECKSUM = createHash10("sha256").update(SEARCH_SCHEMA).digest("hex");
 var MIGRATION_V17_CHECKSUM = createHash10("sha256").update(ANNOTATION_SCHEMA).digest("hex");
@@ -2033,6 +2093,7 @@ var ProbeStorage = class {
       if (priorVersion < 17) this.#migrateV17(db);
       if (priorVersion < 18) this.#migrateV18(db);
       if (priorVersion < 19) this.#migrateV19(db);
+      if (priorVersion < 20) this.#migrateV20(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -2100,7 +2161,7 @@ var ProbeStorage = class {
       }
       return "v5";
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15 || facts.userVersion === 16 || facts.userVersion === 17 || facts.userVersion === 18 || facts.userVersion === 19) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15 || facts.userVersion === 16 || facts.userVersion === 17 || facts.userVersion === 18 || facts.userVersion === 19 || facts.userVersion === 20) {
       const db = new DatabaseSync(path, { readOnly: true });
       try {
         this.#verify(db, facts.userVersion);
@@ -2492,9 +2553,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "Word search migration failed", false, { cause: e });
     }
   }
+  #migrateV20(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(PDF_CHAPTER_SCHEMA);
+      this.#injectFailure("v20:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(20,?,?)").run(MIGRATION_V20_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=20; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "PDF chapter migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash2, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash2)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -2512,6 +2585,7 @@ var ProbeStorage = class {
       if (version >= 17) reference.exec(ANNOTATION_SCHEMA);
       if (version >= 18) reference.exec(SEARCH_SCHEMA);
       if (version >= 19) reference.exec(WORD_SEARCH_SCHEMA);
+      if (version >= 20) reference.exec(PDF_CHAPTER_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");

@@ -5,6 +5,7 @@ export function buildLibraryHtml(): string {
 <title>PDF 资料库 · KnowledgeOS</title><style>
 *{box-sizing:border-box}body{margin:0;color:#223638;background:#f8faf9;font:15px/1.55 "Segoe UI","Microsoft YaHei UI",sans-serif}header{background:#fff;border-bottom:1px solid #d2ddda}header>div,main{max-width:900px;margin:auto;padding:0 22px}header>div,nav,.bar,.links{display:flex;align-items:center;gap:18px;flex-wrap:wrap}header>div{justify-content:space-between;min-height:54px;padding-block:8px}header strong{color:#18565a;font-size:19px}a{color:#176166;text-underline-offset:3px}main{padding-block:24px}h1,h2,p,dl{margin:0}h1{font-size:26px}h2{font-size:18px}section{margin-top:20px;border-top:1px solid #cbd9d6;padding-top:16px}.bar{justify-content:space-between;gap:8px}.muted,dt,small{color:#536866}#who{overflow-wrap:anywhere}form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) auto;align-items:end;gap:12px;margin-top:12px}label{display:grid;gap:5px;font-weight:600}input,select,button{font:inherit}input,select{width:100%;min-width:0;color:inherit;background:white;border:1px solid #889f9c;border-radius:5px;padding:7px;height:42px}input::file-selector-button{border:0;border-right:1px solid #ccd8d5;background:white;color:#18565a;margin-right:8px;padding:2px 8px 2px 0}button{border:1px solid #698c88;border-radius:5px;padding:6px 12px;background:white;color:#215c5c;cursor:pointer}button[type=submit]{background:#226461;color:white;height:42px}button:disabled,input:disabled,select:disabled{opacity:.6;cursor:default}:focus-visible{outline:3px solid #176d92;outline-offset:3px}#status{margin-top:12px;border-left:3px solid #9ebcb4;padding-left:9px;color:#354d48}#status[data-error]{border-color:#ae622e;color:#794019}#receipt{border-color:#669d90}.entry{padding:12px 0;overflow-wrap:anywhere}.entry+.entry{border-top:1px solid #dde5e2}.entry strong{display:block}.entry dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:3px 12px;margin:5px 0}.entry dd{margin:0}.hash{font:13px/1.7 Consolas,monospace}.links{gap:15px;margin-top:6px}#list>p{padding-block:12px}[hidden]{display:none!important}@media(max-width:640px){header>div,main{padding-inline:14px}main{padding-top:18px}form{grid-template-columns:minmax(0,1fr)}form button{justify-self:start}nav{gap:12px}}
 #parse-picker{margin:8px 0;max-width:36rem}#parse-panel{overflow-wrap:anywhere}#parse-panel .links{gap:8px}#parse-pages{list-style:none;margin:8px 0;padding:0}#parse-pages li{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;border-top:1px solid #dde5e2;padding:6px 0}#parse-pages strong{min-width:5em}#parse-pages small{flex-basis:100%}#parse-note{color:#794019}
+#parse-plan{display:flex;flex-wrap:wrap;align-items:end;gap:8px 14px;margin-block:8px}#parse-ranges-field{flex:1 1 16rem}#parse-ranges{width:100%}#parse-chapters{display:flex;gap:6px 14px;flex-wrap:wrap;max-height:10em;overflow:auto;margin:6px 0}
 #mode-picker,#block-picker{max-width:36rem;margin-top:8px}#encoding-picker{grid-column:1/-1;max-width:24rem}#blocks li{padding-block:6px;border-bottom:1px solid #dde5e2}#blocks pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:3px 0;font:inherit}#reader{overflow-wrap:anywhere}
 #office{overflow-wrap:anywhere}#office-version{max-width:36rem}#office-notes li{white-space:pre-wrap}#office-note-form{grid-template-columns:minmax(5rem,7rem) minmax(0,1fr) auto}#office-body{font:inherit;min-width:0;width:100%;resize:vertical;padding:6px;border:1px solid #889f9c;border-radius:5px}@media(max-width:640px){#office-note-form{grid-template-columns:minmax(0,1fr)}}
 #zip{overflow-wrap:anywhere}#zip-resume{max-width:36rem}#zip-entries{list-style:none;padding:0}#zip-entries li{border-bottom:1px solid #dde5e2;padding:8px 0}#zip-entries label{display:flex;align-items:center;gap:8px}#zip-entries input{width:18px;height:18px;flex:none}#zip-entries small{display:block}
@@ -51,6 +52,9 @@ export function buildLibraryHtml(): string {
 <section id="parse" aria-labelledby="parse-heading" hidden><h2 id="parse-heading">解析进度</h2>
 <label id="parse-picker">资料版本<select id="parse-version"></select></label>
 <div id="parse-panel" hidden><p id="parse-summary" aria-live="polite"></p><p id="parse-note" aria-live="polite"></p>
+<div id="parse-plan" hidden><label>解析范围<select id="parse-mode"><option value="whole">整本</option><option value="chapters">分章</option></select></label>
+<label id="parse-ranges-field" hidden>原书页段<input id="parse-ranges" maxlength="1400" placeholder="1-45, 46-98, 102"></label></div>
+<div id="parse-chapters" aria-label="章节页段" hidden></div>
 <div class="links"><button id="parse-action" type="button" hidden></button><button id="parse-refresh" type="button">刷新进度</button></div>
 <ul id="parse-pages" aria-label="分章节页状态"></ul><div class="links" id="parse-nav" hidden><button id="parse-prev" type="button">上一组</button><span id="parse-range"></span><button id="parse-next" type="button">下一组</button></div></div></section>
 <section aria-labelledby="list-heading"><div class="bar"><h2 id="list-heading">我的资料</h2><button id="refresh" type="button">刷新资料</button></div><div id="list"></div></section></main>
@@ -266,24 +270,28 @@ function clearParse(){
 }
 function resetPanel(){
   $('parse-panel').hidden=true;$('parse-action').hidden=true;$('parse-nav').hidden=true;
+  $('parse-plan').hidden=$('parse-chapters').hidden=true;$('parse-chapters').replaceChildren();
   $('parse-summary').textContent='';$('parse-note').textContent='';$('parse-pages').replaceChildren();$('parse-range').textContent='';
 }
 function progress(data){
   const nullableText=v=>v===null || typeof v==='string';
   if(!data || !Object.hasOwn(docStates,data.state) || !Number.isSafeInteger(data.total) || data.total<0 || !nullableText(data.error) || !Array.isArray(data.pages))throw problem(502);
-  const seen=new Set(), counts={pending:0,ready:0,review:0,failed:0};
+  const seen=new Set(), counts={pending:0,ready:0,review:0,failed:0};let outside=0;
+  const chapters=data.chapters===undefined?[]:data.chapters;
+  if(!Array.isArray(chapters)||chapters.length>100||chapters.some((r,i)=>!Array.isArray(r)||r.length!==2||!r.every(Number.isSafeInteger)||r[0]<1||r[1]<r[0]||r[1]>10000||i>0&&chapters[i-1][1]>=r[0]))throw problem(502);
   for(const p of data.pages){
     if(!p || !Number.isSafeInteger(p.page) || p.page<1 || p.page>data.total || seen.has(p.page) || !Object.hasOwn(pageStates,p.state) || typeof p.chapter!=='string' || !nullableText(p.error))throw problem(502);
-    seen.add(p.page);++counts[p.state];
+    if(chapters.length&&p.selected!==Number(chapters.some(([a,b])=>p.page>=a&&p.page<=b)))throw problem(502);
+    seen.add(p.page);if(p.selected===0)outside++;else ++counts[p.state];
   }
-  return {...data,counts,pages:data.pages.sort((a,b)=>a.page-b.page)};
+  return {...data,counts,outside,chapters,pages:data.pages.sort((a,b)=>a.page-b.page)};
 }
 function activeJob(state){return state==='queued' || state==='running'}
 function drawPages(s){
   const {pages,state}=s.data, last=Math.max(0,Math.ceil(pages.length/pageSize)-1);
   s.group=Math.min(last,Math.max(0,s.group));const from=s.group*pageSize, end=Math.min(from+pageSize,pages.length);
   const items=pages.slice(from,end).map(p=>{
-    const li=el('li');li.append(el('strong','第 '+p.page+' 页'),el('span',pageStates[p.state]),el('span',p.chapter));
+    const li=el('li');li.append(el('strong','第 '+p.page+' 页'),el('span',p.selected===0?'未选':pageStates[p.state]),el('span',p.chapter));
     if(p.state==='ready'||p.state==='review')li.append(readLink(s.row,'阅读第 '+p.page+' 页',{unit:p.page}));
     if(state==='partial' && (p.state==='failed' || p.state==='review')){
       const retry=el('button','重试第 '+p.page+' 页');retry.type='button';retry.disabled=s.writing;
@@ -296,15 +304,34 @@ function drawPages(s){
   $('parse-range').textContent=pages.length?'第 '+(from+1)+'–'+end+' 条，共 '+pages.length+' 条':'';
 }
 function drawProgress(s){
-  const {state,total,counts,error}=s.data, action=$('parse-action');
-  const summary=docStates[state]+' · 共 '+total+' 页'+Object.keys(pageStates).map(k=>' · '+pageStates[k]+' '+counts[k]).join('');
+  const {state,total,counts,error,outside,chapters,pages}=s.data, action=$('parse-action');
+  const editable=state==='idle'||error==='CHAPTER_RANGE_OUTSIDE_DOCUMENT';
+  const sectionMode=$('parse-mode');$('parse-plan').hidden=!editable;
+  sectionMode.disabled=s.writing||state!=='idle';if(state!=='idle'&&editable)sectionMode.value='chapters';
+  $('parse-ranges-field').hidden=sectionMode.value!=='chapters';$('parse-ranges').disabled=s.writing;
+  const chapterList=$('parse-chapters');chapterList.hidden=!chapters.length;
+  chapterList.replaceChildren(...chapters.map(([a,b],i)=>{
+    const label='分段 '+(i+1)+' · '+a+(a===b?'':'–'+b)+' 页';
+    const first=pages.find(p=>p.page>=a&&p.page<=b&&['ready','review'].includes(p.state));
+    return first?readLink(s.row,label,{unit:first.page}):el('span',label);
+  }));
+  const summary=docStates[state]+' · 共 '+total+' 页'+Object.keys(pageStates).map(k=>' · '+pageStates[k]+' '+counts[k]).join('')+(chapters.length?' · 未选 '+outside:'');
   if($('parse-summary').textContent!==summary)$('parse-summary').textContent=summary;
-  $('parse-note').textContent=error || '';
+  $('parse-note').textContent=error==='CHAPTER_RANGE_OUTSIDE_DOCUMENT'?'页段超出原件页数。':error || '';
   const labels={idle:'开始解析',queued:'取消解析',running:'取消解析',failed:'重新解析',cancelled:'继续解析'};
   action.hidden=!labels[state];action.textContent=labels[state] || '';action.disabled=action.hidden || s.writing;
-  action.onclick=action.hidden?null:()=>requestProgress(s,activeJob(state)?'/cancel':'/start');drawPages(s);
+  action.onclick=action.hidden?null:()=>{
+    if(editable&&sectionMode.value==='chapters'){
+      const pieces=$('parse-ranges').value.normalize('NFKC').trim().split(/\s*[,、]\s*/);
+      if(pieces.length>100||pieces.some(v=>!/^\d{1,5}(?:\s*[-–]\s*\d{1,5})?$/.test(v))){$('parse-note').textContent='原书页段格式无效。';return}
+      const ranges=pieces.map(v=>{const [a,b]=v.split(/[-–]/).map(Number);return [a,b??a]});
+      if(ranges.some(([a,b],i)=>a<1||b<a||b>10000||i>0&&ranges[i-1][1]>=a)){$('parse-note').textContent='页段须按原书顺序排列，且不能重叠。';return}
+      void requestProgress(s,'/chapters',ranges);return;
+    }
+    void requestProgress(s,activeJob(state)?'/cancel':'/start');
+  };drawPages(s);
 }
-async function requestProgress(s,action=''){
+async function requestProgress(s,action='',ranges){
   if(selection!==s || s.writing)return;
   clearTimeout(pollTimer);const seq=++s.seq, current=()=>selection===s && s.seq===seq;
   s.writing=!!action;$('parse-refresh').disabled=true;
@@ -313,7 +340,8 @@ async function requestProgress(s,action=''){
     // Returning to a version while its previous POST is in flight must read after that write.
     if(writes.has(s.path))await writes.get(s.path);
     if(!await checkOwnerWhile(current))return;
-    const req=request(s.path+action,action?{method:'POST',headers:{'x-knowledgeos-request':'1'}}:undefined);
+    const req=request(s.path+action,action?{method:'POST',headers:{'x-knowledgeos-request':'1',...(ranges?{'content-type':'application/json'}:{})},
+      ...(ranges?{body:JSON.stringify(ranges)}:{})}:undefined);
     if(action)writes.set(s.path,req.catch(()=>{}));
     let data;try{data=await req}finally{if(action)writes.delete(s.path)}
     if(!await checkOwnerWhile(current))return;
@@ -329,9 +357,11 @@ async function requestProgress(s,action=''){
 parseVersion.onchange=()=>{
   clearTimeout(pollTimer);selection=null;resetPanel();const r=rows.find(row=>row.version_id===parseVersion.value);
   if(!r || !isPdf(r) || !ready || busy)return;
+  $('parse-mode').value='whole';$('parse-ranges').value='';
   selection={row:r,path:'assets/'+r.id+'/versions/'+r.version_id+'/parse',seq:0,group:0,writing:false,data:null};
   $('parse-panel').hidden=false;$('parse-summary').textContent='正在读取解析进度…';void requestProgress(selection);
 };
+$('parse-mode').onchange=()=>{if(selection?.data)drawProgress(selection)};
 $('parse-refresh').onclick=()=>{if(selection)void requestProgress(selection)};
 for(const [id,delta] of [['parse-prev',-1],['parse-next',1]])$(id).onclick=()=>{if(selection?.data){selection.group+=delta;drawPages(selection)}};
 const blockVersion=$('block-version'), blockLimit=5;

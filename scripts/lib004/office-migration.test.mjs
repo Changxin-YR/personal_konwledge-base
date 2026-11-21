@@ -34,7 +34,7 @@ test('populated v9 upgrades through v10 and v11; failures preserve each prior ve
     assert.equal(db.prepare('PRAGMA user_version').get().user_version,11);assert.equal(db.prepare("SELECT count(*) n FROM sqlite_master WHERE name LIKE 'office_history_%'").get().n,0)
     for(let i=0;i<2;i++){
       const upgraded=new ProbeStorage({dataDir:root});try{
-        assert(upgraded.available,upgraded.failure?.message);const after=snapshot();assert.deepEqual(after.schema_migrations.splice(before.schema_migrations.length).map(m=>m.version),[10,11,12,13,14,15,16,17,18,19]);assert.deepEqual(after,before)
+        assert(upgraded.available,upgraded.failure?.message);const after=snapshot();assert.deepEqual(after.schema_migrations.splice(before.schema_migrations.length).map(m=>m.version),[10,11,12,13,14,15,16,17,18,19,20]);assert.deepEqual(after,before)
         assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);assert.deepEqual(upgraded.assets.publish(actor,spec,blob,text),{receipt,replayed:true})
         assert.deepEqual(upgraded.assets.blocks(actor,receipt.id,receipt.version_id,1,10).blocks.map(b=>b.anchor),text.blocks.map(b=>b.anchor))
       }finally{upgraded.close()}
