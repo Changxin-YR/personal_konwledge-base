@@ -58,9 +58,9 @@ test('v17 rollback preserves all v16 data and successful upgrade keeps source, b
     const v16=snapshot(),broken=new ProbeStorage({dataDir:dir,failureAt:'v17:after-schema'});assert.equal(v16.version,16)
     assert.equal(broken.available,false);assert.match(broken.failure.cause.message,/v17:after-schema/);broken.close();assert.deepEqual(snapshot(),v16)
     migrated=new ProbeStorage({dataDir:dir});assert(migrated.available,migrated.failure?.message)
-    const upgraded=snapshot(),{reader_annotations,search_queries,word_search_runs,word_search_pages,pdf_chapter_ranges,schema_migrations,...rows}=upgraded.rows
-    assert.equal(upgraded.version,20);assert.deepEqual([reader_annotations,search_queries,word_search_runs,word_search_pages,pdf_chapter_ranges],[[],[],[],[],[]])
-    assert.deepEqual(schema_migrations.slice(16).map(x=>x.version),[17,18,19,20]);assert.deepEqual(schema_migrations.slice(0,16),v16.rows.schema_migrations)
+    const upgraded=snapshot(),{reader_annotations,search_queries,word_search_runs,word_search_pages,pdf_chapter_ranges,notes,note_nodes,note_references,project_note_refs,schema_migrations,...rows}=upgraded.rows
+    assert.equal(upgraded.version,21);assert.deepEqual([reader_annotations,search_queries,word_search_runs,word_search_pages,pdf_chapter_ranges,notes,note_nodes,note_references,project_note_refs],[[],[],[],[],[],[],[],[],[]])
+    assert.deepEqual(schema_migrations.slice(16).map(x=>x.version),[17,18,19,20,21]);assert.deepEqual(schema_migrations.slice(0,16),v16.rows.schema_migrations)
     assert.deepEqual({...rows,schema_migrations:schema_migrations.slice(0,16)},v16.rows)
     assert.deepEqual(migrated.citations.navigation(actor,t),before.navigation);assert.deepEqual(migrated.citations.resolve(actor,c.id),before.citation)
     assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[])

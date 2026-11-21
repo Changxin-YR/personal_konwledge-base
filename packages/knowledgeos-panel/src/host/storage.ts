@@ -38,11 +38,13 @@ import {CITATION_SCHEMA,CitationStore} from './citation-store.ts'
 import {READING_STATE_SCHEMA} from './reading-state.ts'
 import {ANNOTATION_SCHEMA} from './annotation-store.ts'
 import {CITATION_LOCATOR_SCHEMA} from './citation-locator-schema.ts'
+import {NOTE_SCHEMA,NoteStore} from './note-store.ts'
 
 /** Fixed application identity written to PRAGMA application_id (KOS1). */
 export const APPLICATION_ID = 0x4b4f5331
 /** Current application schema version. */
-export const SCHEMA_VERSION = 20
+export const SCHEMA_VERSION = 21
+export const MIGRATION_V21_CHECKSUM = createHash('sha256').update(NOTE_SCHEMA).digest('hex')
 export const MIGRATION_V20_CHECKSUM = createHash('sha256').update(PDF_CHAPTER_SCHEMA).digest('hex')
 export const MIGRATION_V19_CHECKSUM = createHash('sha256').update(WORD_SEARCH_SCHEMA).digest('hex')
 export const MIGRATION_V18_CHECKSUM = createHash('sha256').update(SEARCH_SCHEMA).digest('hex')
@@ -269,6 +271,7 @@ export interface ProbeStorageOptions {
     | 'v18:after-schema'
     | 'v19:after-schema'
     | 'v20:after-schema'
+    | 'v21:after-schema'
 }
 
 export interface DatabaseFacts {
@@ -385,6 +388,8 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     return ref?this.findActor(String(ref.token_hash),now):undefined
   }
   readonly assets = new AssetStore(this.#assetTx,(s,now)=>this.#currentActor(s,now), (actor,id,action,now)=>Boolean(this.authorizeObject(actor,id,action,now)))
+  readonly notes = new NoteStore(this.#assetTx,(s,now)=>this.#currentActor(s,now),(a,id,now)=>Boolean(this.authorizeObject(a,id,'read',now)),
+    (a,p,now)=>this.canCreateProjectObject(a,p,now),(a,p)=>this.canManageProject(a,p))
   readonly search = new SearchStore(this.#assetTx,(s,now)=>this.#currentActor(s,now),(a,id,now)=>Boolean(this.authorizeObject(a,id,'read',now)))
   readonly wordSearch = new WordSearchIndex(this.#assetTx)
   readonly archives = new ZipStore(this.#assetTx,(s,now)=>this.#currentActor(s,now),(a,id,now)=>Boolean(this.authorizeObject(a,id,'read',now)))
@@ -477,6 +482,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       if (priorVersion<18) this.#migrateV18(db)
       if (priorVersion<19) this.#migrateV19(db)
       if (priorVersion<20) this.#migrateV20(db)
+      if (priorVersion<21) this.#migrateV21(db)
       this.#verify(db,SCHEMA_VERSION)
       const facts = readDatabaseFacts(path)
       const pragmas = this.#readPragmas(db)
@@ -491,7 +497,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     }
   }
 
-  #precheck(path: string): 'blank' | 'v1' | 'v2' | 'v3' | 'v4' | 'v5' | 'v6' | 'v7' | 'v8' | 'v9' | 'v10' | 'v11' | 'v12' | 'v13' | 'v14' | 'v15' | 'v16' | 'v17' | 'v18' | 'v19' | 'v20' {
+  #precheck(path: string): 'blank' | 'v1' | 'v2' | 'v3' | 'v4' | 'v5' | 'v6' | 'v7' | 'v8' | 'v9' | 'v10' | 'v11' | 'v12' | 'v13' | 'v14' | 'v15' | 'v16' | 'v17' | 'v18' | 'v19' | 'v20' | 'v21' {
     const facts = readDatabaseFacts(path)
     if (facts.applicationId === 0 && facts.userVersion === 0 && facts.objects.length === 0) return 'blank'
     if (facts.applicationId !== APPLICATION_ID) throw new RecordsError('STORAGE_INCOMPATIBLE', 'database belongs to another application')
@@ -524,7 +530,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       try { this.#assertV2Definitions(db); this.#assertV4Definitions(db); this.#assertV5Definitions(db) } finally { db.close() }
       return 'v5'
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15 || facts.userVersion === 16 || facts.userVersion === 17 || facts.userVersion === 18 || facts.userVersion === 19 || facts.userVersion === 20) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15 || facts.userVersion === 16 || facts.userVersion === 17 || facts.userVersion === 18 || facts.userVersion === 19 || facts.userVersion === 20 || facts.userVersion === 21) {
       const db = new DatabaseSync(path, { readOnly: true })
       try { this.#verify(db,facts.userVersion) } finally { db.close() }
       return `v${facts.userVersion}`
@@ -890,9 +896,19 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     }catch(e){if(!this.#rollback(db))throw this.#failure;throw new RecordsError('STORAGE_INCOMPATIBLE','PDF chapter migration failed',false,{cause:e})}
   }
 
-  #verify(db: DatabaseSync, version:6|7|8|9|10|11|12|13|14|15|16|17|18|19|20): void {
+  #migrateV21(db:DatabaseSync):void {
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      db.exec(NOTE_SCHEMA)
+      this.#injectFailure('v21:after-schema')
+      db.prepare('INSERT INTO schema_migrations VALUES(21,?,?)').run(MIGRATION_V21_CHECKSUM,new Date().toISOString())
+      db.exec('PRAGMA user_version=21; COMMIT')
+    }catch(e){if(!this.#rollback(db))throw this.#failure;throw new RecordsError('STORAGE_INCOMPATIBLE','independent note migration failed',false,{cause:e})}
+  }
+
+  #verify(db: DatabaseSync, version:6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21): void {
     const facts = readDatabaseFacts(this.databasePath)
-    const checks=[MIGRATION_V6_CHECKSUM,MIGRATION_V7_CHECKSUM,MIGRATION_V8_CHECKSUM,MIGRATION_V9_CHECKSUM,MIGRATION_V10_CHECKSUM,MIGRATION_V11_CHECKSUM,MIGRATION_V12_CHECKSUM,MIGRATION_V13_CHECKSUM,MIGRATION_V14_CHECKSUM,MIGRATION_V15_CHECKSUM,MIGRATION_V16_CHECKSUM,MIGRATION_V17_CHECKSUM,MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM,MIGRATION_V20_CHECKSUM].slice(0,version-5)
+    const checks=[MIGRATION_V6_CHECKSUM,MIGRATION_V7_CHECKSUM,MIGRATION_V8_CHECKSUM,MIGRATION_V9_CHECKSUM,MIGRATION_V10_CHECKSUM,MIGRATION_V11_CHECKSUM,MIGRATION_V12_CHECKSUM,MIGRATION_V13_CHECKSUM,MIGRATION_V14_CHECKSUM,MIGRATION_V15_CHECKSUM,MIGRATION_V16_CHECKSUM,MIGRATION_V17_CHECKSUM,MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM,MIGRATION_V20_CHECKSUM,MIGRATION_V21_CHECKSUM].slice(0,version-5)
     if(facts.applicationId!==APPLICATION_ID || facts.userVersion!==version || facts.ledger.length!==version || checks.some((hash,i)=>facts.ledger[i+5]?.version!==i+6||facts.ledger[i+5]?.checksum!==hash))throw new RecordsError('STORAGE_INCOMPATIBLE','database ownership/version verification failed')
     const reference = new DatabaseSync(':memory:')
     try {
@@ -911,6 +927,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       if(version>=18)reference.exec(SEARCH_SCHEMA)
       if(version>=19)reference.exec(WORD_SEARCH_SCHEMA)
       if(version>=20)reference.exec(PDF_CHAPTER_SCHEMA)
+      if(version>=21)reference.exec(NOTE_SCHEMA)
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all()
       for (const {name,sql} of definitions) {
         if (db.prepare('SELECT sql FROM sqlite_master WHERE name=?').get(name!)?.sql!==sql) throw new RecordsError('STORAGE_INCOMPATIBLE','jobs schema definition mismatch')

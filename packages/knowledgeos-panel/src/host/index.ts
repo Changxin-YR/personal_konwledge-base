@@ -25,6 +25,7 @@ import { buildAiHtml } from './ai-page.ts'
 import { join } from 'node:path'
 import { PdfOriginals } from './pdf-originals.ts'
 import { libraryHandler } from './library-http.ts'
+import { createNoteHandler } from './note-http.ts'
 import { ReaderService } from './reader-http.ts'
 import { render as renderReaderPage } from './reader-render.ts'
 import { startParseWorker } from './parse-worker.ts'
@@ -35,6 +36,7 @@ import { legacyWordSource } from './legacy-word-source.ts'
 import type { LegacyWordSource } from './reader-http.ts'
 import { buildLibraryHtml } from './library-page.ts'
 import { buildReaderHtml } from './reader-page.ts'
+import { buildNotesHtml } from './note-page.ts'
 
 export { Config }
 
@@ -267,7 +269,14 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
           if(!readLegacyWord)throw new Error('Office structure conversion unavailable')
           return readLegacyWord(s,check,signal)
         })
-        const handler=libraryHandler(storage.assets,originals,actualOrigin,req=>{const origin=actualOrigin();if(!origin||!identityAvailable())return undefined;return identity.actor(readCookie(req,businessCookieName(identity.setupState.serviceId,origin)))},storage.parses,storage.office,()=>!!officeMount,storage.archives,reader,storage.search)
+        const sessionFor=(req:import('node:http').IncomingMessage)=>{const origin=actualOrigin();if(!origin||!identityAvailable())return undefined;return identity.actor(readCookie(req,businessCookieName(identity.setupState.serviceId,origin)))}
+        const handler=libraryHandler(storage.assets,originals,actualOrigin,sessionFor,storage.parses,storage.office,()=>!!officeMount,storage.archives,reader,storage.search)
+        const notes=createNoteHandler(storage.notes,actualOrigin,sessionFor)
+        disposers.push(identityContext.webServer.register({kind:'prefix',path:'/knowledge/v1/notes',auth:'anonymous',handler:withPeer(notes)}))
+        disposers.push(identityContext.webServer.register({kind:'exact',path:'/knowledgeos/notes',auth:'anonymous',handler:(req,res)=>{
+          if(req.method!=='GET'){res.writeHead(405,{allow:'GET'});res.end();return}
+          res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer'});res.end(buildNotesHtml())
+        }}))
         if(storage.available)disposers.push(startParseWorker(storage.parses,originals,openPdf,log),startWordSearchIndex(storage.wordSearch,originals,openIndexPdf,log))
         disposers.push(identityContext.webServer.register({kind:'exact',path:'/knowledgeos/library',auth:'anonymous',handler:(req,res)=>{
           if(req.method!=='GET'){res.statusCode=405;res.end();return}res.setHeader('content-type','text/html; charset=utf-8');res.setHeader('cache-control','no-store');res.end(buildLibraryHtml())

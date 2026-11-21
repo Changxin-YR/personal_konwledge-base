@@ -1,7 +1,7 @@
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash9, randomUUID as randomUUID11 } from "node:crypto";
+import { createHash as createHash10, randomUUID as randomUUID12 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -1428,26 +1428,192 @@ var CITATION_LOCATOR_SCHEMA = `CREATE TABLE citation_locators (
   snapshot TEXT NOT NULL CHECK(json_valid(snapshot) AND json_type(snapshot)='object')
 ) STRICT;`;
 
+// src/host/note-store.ts
+import { createHash as createHash9, randomUUID as randomUUID11 } from "node:crypto";
+
+// src/host/note-input.ts
+var noteKinds = ["plain", "reading", "project", "reflection"];
+var noteLimits = { title: 200, body: 32e3, references: 64 };
+var noteId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
+function noteText(value, max) {
+  return typeof value === "string" && value.length <= max && value.isWellFormed() && !value.includes("\0");
+}
+
+// src/host/note-store.ts
+var NOTE_SCHEMA = `CREATE TABLE notes (
+  id TEXT PRIMARY KEY, service_id TEXT NOT NULL, space_id TEXT NOT NULL REFERENCES spaces(id),
+  owner_user_id TEXT NOT NULL REFERENCES users(id), title TEXT NOT NULL,
+  note_kind TEXT NOT NULL CHECK(note_kind IN ('plain','reading','project','reflection')),
+  revision INTEGER NOT NULL CHECK(revision>=1), created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  create_key TEXT NOT NULL, create_digest TEXT NOT NULL CHECK(length(create_digest)=64),
+  UNIQUE(service_id, owner_user_id, create_key)
+) STRICT;
+CREATE INDEX notes_owner_order ON notes(service_id, owner_user_id, id);
+CREATE TABLE note_nodes (
+  id TEXT PRIMARY KEY, note_id TEXT NOT NULL REFERENCES notes(id), parent_id TEXT,
+  order_key INTEGER NOT NULL, body TEXT NOT NULL, body_revision INTEGER NOT NULL CHECK(body_revision>=1),
+  UNIQUE(note_id,id), FOREIGN KEY(note_id,parent_id) REFERENCES note_nodes(note_id,id)
+) STRICT;
+CREATE UNIQUE INDEX note_single_root ON note_nodes(note_id) WHERE parent_id IS NULL;
+CREATE TABLE note_references (
+  id TEXT PRIMARY KEY, node_id TEXT NOT NULL REFERENCES note_nodes(id), citation_id TEXT NOT NULL REFERENCES citations(id),
+  UNIQUE(node_id,citation_id)
+) STRICT;
+CREATE TABLE project_note_refs (
+  project_id TEXT NOT NULL REFERENCES knowledge_projects(id), note_id TEXT NOT NULL REFERENCES notes(id),
+  created_at TEXT NOT NULL, PRIMARY KEY(project_id,note_id)
+) STRICT;`;
+var rowFields = "id,title,note_kind AS kind,revision,updated_at";
+var notFound3 = () => new AssetError(404, "NOTE_NOT_FOUND");
+var invalid2 = () => new AssetError(422, "INVALID_NOTE");
+var conflict = () => new AssetError(409, "REVISION_CONFLICT");
+function draftValid(d) {
+  if (!noteText(d.title, noteLimits.title) || !d.title.trim() || !noteText(d.body, noteLimits.body) || !noteKinds.includes(d.kind)) throw invalid2();
+}
+var NoteStore = class {
+  constructor(tx, current, canReadAsset, projectMember, projectManager) {
+    this.tx = tx;
+    this.current = current;
+    this.canReadAsset = canReadAsset;
+    this.projectMember = projectMember;
+    this.projectManager = projectManager;
+  }
+  actor(session, now, expected) {
+    const actor = this.current(session, now);
+    if (!actor) throw new AssetError(401, "AUTH_REQUIRED");
+    if (expected !== void 0 && actor.userId !== expected) throw new AssetError(409, "ACTOR_CHANGED");
+    return actor;
+  }
+  owned(db, a, id) {
+    const row = db.prepare(`SELECT ${rowFields} FROM notes WHERE id=? AND service_id=? AND owner_user_id=?`).get(id, a.serviceId, a.userId);
+    if (!row) throw notFound3();
+    return row;
+  }
+  detail(db, a, id, now) {
+    const meta = this.owned(db, a, id);
+    const root = db.prepare("SELECT id,body FROM note_nodes WHERE note_id=? AND parent_id IS NULL").get(id);
+    if (!root) throw Error("Note root is missing");
+    const refs = db.prepare(`SELECT r.id,r.citation_id,c.asset_id,c.version_id FROM note_references r JOIN citations c ON c.id=r.citation_id
+      WHERE r.node_id=? ORDER BY r.rowid`).all(root.id);
+    return { ...meta, body: String(root.body), references: refs.map((r) => this.canReadAsset(a, String(r.asset_id), now) ? { id: String(r.id), status: "linked", citation_id: String(r.citation_id), asset_id: String(r.asset_id), version_id: String(r.version_id) } : { id: String(r.id), status: "unavailable" }) };
+  }
+  assertCitation(db, a, id, now) {
+    if (!noteId.test(id)) throw invalid2();
+    const c = db.prepare("SELECT asset_id FROM citations WHERE id=?").get(id);
+    if (!c || !this.canReadAsset(a, String(c.asset_id), now)) throw new AssetError(404, "SOURCE_NOT_FOUND");
+  }
+  list(session, after = "") {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(session, now);
+      if (after && !noteId.test(after)) throw invalid2();
+      const rows = db.prepare(`SELECT ${rowFields} FROM notes WHERE service_id=? AND owner_user_id=? AND id>? ORDER BY id LIMIT 51`).all(a.serviceId, a.userId, after);
+      return { items: rows.slice(0, 50), next: rows.length > 50 ? rows[49].id : null };
+    });
+  }
+  get(session, id) {
+    return this.tx("read", (db, now) => this.detail(db, this.actor(session, now), id, now));
+  }
+  create(session, expected, key, d, citation) {
+    return this.tx("write", (db, now) => {
+      const a = this.actor(session, now, expected);
+      draftValid(d);
+      if (!noteId.test(key)) throw invalid2();
+      const digest = createHash9("sha256").update(JSON.stringify([d.title, d.body, d.kind, ...citation === void 0 ? [] : [citation]])).digest("hex");
+      const old = db.prepare("SELECT id,create_digest FROM notes WHERE service_id=? AND owner_user_id=? AND create_key=?").get(a.serviceId, a.userId, key);
+      if (old) {
+        if (old.create_digest !== digest) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        return { data: this.detail(db, a, String(old.id), now), replayed: true };
+      }
+      const id = randomUUID11();
+      if (citation !== void 0) this.assertCitation(db, a, citation, now);
+      db.prepare("INSERT INTO notes VALUES(?,?,?,?,?,?,1,?,?,?,?)").run(id, a.serviceId, a.personalSpaceId, a.userId, d.title, d.kind, now, now, key, digest);
+      db.prepare("INSERT INTO note_nodes VALUES(?,?,NULL,0,?,1)").run(id, id, d.body);
+      if (citation !== void 0) db.prepare("INSERT INTO note_references VALUES(?,?,?)").run(randomUUID11(), id, citation);
+      return { data: this.detail(db, a, id, now), replayed: false };
+    });
+  }
+  save(session, expected, id, revision, patch) {
+    return this.tx("write", (db, now) => {
+      const a = this.actor(session, now, expected), old = this.detail(db, a, id, now);
+      if (!Number.isSafeInteger(revision) || revision < 1 || !Object.keys(patch).length) throw invalid2();
+      if (revision !== old.revision) throw conflict();
+      const d = { title: patch.title ?? old.title, kind: patch.kind ?? old.kind, body: patch.body ?? old.body };
+      draftValid(d);
+      const { add_citation: add, remove_reference: remove } = patch;
+      if (add !== void 0 && remove !== void 0) throw invalid2();
+      let referenceChanged = false;
+      if (add !== void 0) {
+        this.assertCitation(db, a, add, now);
+        if (!old.references.some((r) => r.citation_id === add)) {
+          if (old.references.length >= noteLimits.references) throw new AssetError(409, "NOTE_REFERENCE_LIMIT");
+          db.prepare("INSERT INTO note_references VALUES(?,?,?)").run(randomUUID11(), id, add);
+          referenceChanged = true;
+        }
+      } else if (remove !== void 0) {
+        if (!noteId.test(remove)) throw invalid2();
+        referenceChanged = !!db.prepare("DELETE FROM note_references WHERE node_id=? AND id=?").run(id, remove).changes;
+        if (!referenceChanged) throw notFound3();
+      }
+      if (referenceChanged || d.title !== old.title || d.kind !== old.kind || d.body !== old.body) {
+        if (!db.prepare("UPDATE notes SET title=?,note_kind=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?").run(d.title, d.kind, now, id, revision).changes) throw conflict();
+        if (d.body !== old.body) db.prepare("UPDATE note_nodes SET body=?,body_revision=body_revision+1 WHERE id=?").run(d.body, id);
+      }
+      return this.detail(db, a, id, now);
+    });
+  }
+  linkProject(session, expected, project, id) {
+    return this.tx("write", (db, now) => {
+      const a = this.actor(session, now, expected);
+      this.owned(db, a, id);
+      if (!this.projectMember(a, project, now) || !this.projectManager(a, project)) throw new AssetError(404, "PROJECT_NOT_FOUND");
+      const made = db.prepare("INSERT INTO project_note_refs VALUES(?,?,?) ON CONFLICT(project_id,note_id) DO NOTHING").run(project, id, now);
+      return { project_id: project, note_id: id, replayed: !made.changes };
+    });
+  }
+  managedProjects(session, after = "") {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(session, now);
+      if (after && !noteId.test(after)) throw invalid2();
+      const items = db.prepare(`SELECT p.id,p.name FROM knowledge_projects p JOIN project_memberships m ON m.project_id=p.id AND m.user_id=?
+      WHERE p.owner_user_id=? AND p.service_id=? AND p.status='active' AND p.id>? AND m.revoked_at IS NULL
+      AND m.valid_from<=? AND (m.expires_at IS NULL OR m.expires_at>?) ORDER BY p.id LIMIT 51`).all(a.userId, a.userId, a.serviceId, after, now, now);
+      return { items: items.slice(0, 50), next: items.length > 50 ? String(items[49].id) : null };
+    });
+  }
+  projectRefs(session, project, after = "") {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(session, now);
+      if (after && !noteId.test(after)) throw invalid2();
+      if (!this.projectMember(a, project, now)) throw new AssetError(404, "PROJECT_NOT_FOUND");
+      const rows = db.prepare(`SELECT n.id,n.title,n.note_kind AS kind,n.revision,n.updated_at FROM project_note_refs r
+      JOIN notes n ON n.id=r.note_id WHERE r.project_id=? AND n.service_id=? AND n.owner_user_id=? AND n.id>?
+      ORDER BY n.id LIMIT 51`).all(project, a.serviceId, a.userId, after);
+      return { items: rows.slice(0, 50), next: rows.length > 50 ? rows[49].id : null };
+    });
+  }
+};
+
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 20;
-var MIGRATION_V20_CHECKSUM = createHash9("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
-var MIGRATION_V19_CHECKSUM = createHash9("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V18_CHECKSUM = createHash9("sha256").update(SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V17_CHECKSUM = createHash9("sha256").update(ANNOTATION_SCHEMA).digest("hex");
-var MIGRATION_V16_CHECKSUM = createHash9("sha256").update(READING_STATE_SCHEMA).digest("hex");
-var MIGRATION_V15_CHECKSUM = createHash9("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
-var MIGRATION_V13_CHECKSUM = createHash9("sha256").update(ZIP_SCHEMA).digest("hex");
-var MIGRATION_V14_CHECKSUM = createHash9("sha256").update(CITATION_SCHEMA).digest("hex");
-var MIGRATION_V12_CHECKSUM = createHash9("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
-var MIGRATION_V11_CHECKSUM = createHash9("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
-var MIGRATION_V10_CHECKSUM = createHash9("sha256").update(OFFICE_SCHEMA).digest("hex");
-var MIGRATION_V9_CHECKSUM = createHash9("sha256").update(TEXT_SCHEMA).digest("hex");
-var MIGRATION_V8_CHECKSUM = createHash9("sha256").update(PARSE_SCHEMA).digest("hex");
+var SCHEMA_VERSION = 21;
+var MIGRATION_V21_CHECKSUM = createHash10("sha256").update(NOTE_SCHEMA).digest("hex");
+var MIGRATION_V20_CHECKSUM = createHash10("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
+var MIGRATION_V19_CHECKSUM = createHash10("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V18_CHECKSUM = createHash10("sha256").update(SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V17_CHECKSUM = createHash10("sha256").update(ANNOTATION_SCHEMA).digest("hex");
+var MIGRATION_V16_CHECKSUM = createHash10("sha256").update(READING_STATE_SCHEMA).digest("hex");
+var MIGRATION_V15_CHECKSUM = createHash10("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
+var MIGRATION_V13_CHECKSUM = createHash10("sha256").update(ZIP_SCHEMA).digest("hex");
+var MIGRATION_V14_CHECKSUM = createHash10("sha256").update(CITATION_SCHEMA).digest("hex");
+var MIGRATION_V12_CHECKSUM = createHash10("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
+var MIGRATION_V11_CHECKSUM = createHash10("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
+var MIGRATION_V10_CHECKSUM = createHash10("sha256").update(OFFICE_SCHEMA).digest("hex");
+var MIGRATION_V9_CHECKSUM = createHash10("sha256").update(TEXT_SCHEMA).digest("hex");
+var MIGRATION_V8_CHECKSUM = createHash10("sha256").update(PARSE_SCHEMA).digest("hex");
 var MIGRATION_V7_SQL = ASSET_SCHEMA;
-var MIGRATION_V7_CHECKSUM = createHash9("sha256").update(ASSET_SCHEMA).digest("hex");
+var MIGRATION_V7_CHECKSUM = createHash10("sha256").update(ASSET_SCHEMA).digest("hex");
 var MIGRATION_V6_SQL = JOB_SCHEMA;
-var MIGRATION_V6_CHECKSUM = createHash9("sha256").update(JOB_SCHEMA).digest("hex");
+var MIGRATION_V6_CHECKSUM = createHash10("sha256").update(JOB_SCHEMA).digest("hex");
 var PROBE_SCHEMA_VERSION = 1;
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
@@ -1464,7 +1630,7 @@ CREATE TABLE storage_probe_records (
   created_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V1_CHECKSUM = createHash9("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
+var MIGRATION_V1_CHECKSUM = createHash10("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
 var MIGRATION_V2_SQL = `CREATE TABLE password_credentials (
   id TEXT PRIMARY KEY,
   algorithm TEXT NOT NULL,
@@ -1518,7 +1684,7 @@ CREATE TABLE spaces (
   updated_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V2_CHECKSUM = createHash9("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
+var MIGRATION_V2_CHECKSUM = createHash10("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
 var MIGRATION_V3_SQL = `CREATE TABLE knowledge_projects (
   id TEXT PRIMARY KEY,
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
@@ -1568,7 +1734,7 @@ CREATE TABLE resource_grants (
   UNIQUE (resource_id, subject_type, subject_id, action)
 ) STRICT;
 `;
-var MIGRATION_V3_CHECKSUM = createHash9("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
+var MIGRATION_V3_CHECKSUM = createHash10("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
 var MIGRATION_V4_SQL = `ALTER TABLE resource_grants RENAME TO resource_grants_v3;
 CREATE TABLE resource_grants (
   id TEXT PRIMARY KEY,
@@ -1590,7 +1756,7 @@ CREATE UNIQUE INDEX resource_grants_active_subject_action_uq
   WHERE revoked_at IS NULL;
 DROP TABLE resource_grants_v3;
 `;
-var MIGRATION_V4_CHECKSUM = createHash9("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
+var MIGRATION_V4_CHECKSUM = createHash10("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
 var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -1602,7 +1768,7 @@ var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   PRIMARY KEY (service_id, user_id, idempotency_key)
 ) STRICT;
 `;
-var MIGRATION_V5_CHECKSUM = createHash9("sha256").update(MIGRATION_V5_SQL).digest("hex");
+var MIGRATION_V5_CHECKSUM = createHash10("sha256").update(MIGRATION_V5_SQL).digest("hex");
 var PROBE_SUPPORTED_TABLES = ["schema_migrations", "storage_probe_records"];
 var IDENTITY_SUPPORTED_TABLES = [
   "auth_sessions",
@@ -1694,6 +1860,13 @@ var ProbeStorage = class {
     return ref ? this.findActor(String(ref.token_hash), now) : void 0;
   }
   assets = new AssetStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (actor, id, action, now) => Boolean(this.authorizeObject(actor, id, action, now)));
+  notes = new NoteStore(
+    this.#assetTx,
+    (s, now) => this.#currentActor(s, now),
+    (a, id, now) => Boolean(this.authorizeObject(a, id, "read", now)),
+    (a, p, now) => this.canCreateProjectObject(a, p, now),
+    (a, p) => this.canManageProject(a, p)
+  );
   search = new SearchStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id, now) => Boolean(this.authorizeObject(a, id, "read", now)));
   wordSearch = new WordSearchIndex(this.#assetTx);
   archives = new ZipStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id, now) => Boolean(this.authorizeObject(a, id, "read", now)));
@@ -1792,6 +1965,7 @@ var ProbeStorage = class {
       if (priorVersion < 18) this.#migrateV18(db);
       if (priorVersion < 19) this.#migrateV19(db);
       if (priorVersion < 20) this.#migrateV20(db);
+      if (priorVersion < 21) this.#migrateV21(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -1859,7 +2033,7 @@ var ProbeStorage = class {
       }
       return "v5";
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15 || facts.userVersion === 16 || facts.userVersion === 17 || facts.userVersion === 18 || facts.userVersion === 19 || facts.userVersion === 20) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15 || facts.userVersion === 16 || facts.userVersion === 17 || facts.userVersion === 18 || facts.userVersion === 19 || facts.userVersion === 20 || facts.userVersion === 21) {
       const db = new DatabaseSync(path, { readOnly: true });
       try {
         this.#verify(db, facts.userVersion);
@@ -2017,7 +2191,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID11());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID12());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -2263,9 +2437,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "PDF chapter migration failed", false, { cause: e });
     }
   }
+  #migrateV21(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(NOTE_SCHEMA);
+      this.#injectFailure("v21:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(21,?,?)").run(MIGRATION_V21_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=21; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "independent note migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash2, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash2)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -2284,6 +2470,7 @@ var ProbeStorage = class {
       if (version >= 18) reference.exec(SEARCH_SCHEMA);
       if (version >= 19) reference.exec(WORD_SEARCH_SCHEMA);
       if (version >= 20) reference.exec(PDF_CHAPTER_SCHEMA);
+      if (version >= 21) reference.exec(NOTE_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -2386,9 +2573,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID11();
-      const spaceId = randomUUID11();
-      const credentialId = randomUUID11();
+      const userId = randomUUID12();
+      const spaceId = randomUUID12();
+      const credentialId = randomUUID12();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -2422,9 +2609,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID11();
-      const spaceId = randomUUID11();
-      const credentialId = randomUUID11();
+      const userId = randomUUID12();
+      const spaceId = randomUUID12();
+      const credentialId = randomUUID12();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -2589,7 +2776,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID11(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
+        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID12(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -2686,8 +2873,8 @@ var ProbeStorage = class {
     let primaryCode;
     let failed = false;
     try {
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash9("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash9("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash10("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash10("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
     } catch (error) {
       failed = true;
       primaryCode = primarySqliteCode(error);
@@ -2763,6 +2950,7 @@ export {
   MIGRATION_V1_SQL,
   MIGRATION_V2,
   MIGRATION_V20_CHECKSUM,
+  MIGRATION_V21_CHECKSUM,
   MIGRATION_V2_CHECKSUM,
   MIGRATION_V2_SQL,
   MIGRATION_V3,

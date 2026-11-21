@@ -241,8 +241,8 @@ var require_saxes = __commonJS({
     var DTD_TERMINATOR = [...QUOTES, LESS, CLOSE_BRACKET];
     var XML_DECL_NAME_TERMINATOR = [EQUAL, QUESTION, ...S_LIST];
     var ATTRIB_VALUE_UNQUOTED_TERMINATOR = [...S_LIST, GREATER, AMP, LESS];
-    function nsPairCheck(parser, prefix, uri) {
-      switch (prefix) {
+    function nsPairCheck(parser, prefix2, uri) {
+      switch (prefix2) {
         case "xml":
           if (uri !== XML_NAMESPACE) {
             parser.fail(`xml prefix must be bound to ${XML_NAMESPACE}.`);
@@ -257,10 +257,10 @@ var require_saxes = __commonJS({
       }
       switch (uri) {
         case XMLNS_NAMESPACE:
-          parser.fail(prefix === "" ? `the default namespace may not be set to ${uri}.` : `may not assign a prefix (even "xmlns") to the URI ${XMLNS_NAMESPACE}.`);
+          parser.fail(prefix2 === "" ? `the default namespace may not be set to ${uri}.` : `may not assign a prefix (even "xmlns") to the URI ${XMLNS_NAMESPACE}.`);
           break;
         case XML_NAMESPACE:
-          switch (prefix) {
+          switch (prefix2) {
             case "xml":
               break;
             case "":
@@ -557,22 +557,22 @@ var require_saxes = __commonJS({
           chunk2 = `${this.carriedFromPrevious}${chunk2}`;
           this.carriedFromPrevious = void 0;
         }
-        let limit2 = chunk2.length;
-        const lastCode = chunk2.charCodeAt(limit2 - 1);
+        let limit3 = chunk2.length;
+        const lastCode = chunk2.charCodeAt(limit3 - 1);
         if (!end && // A trailing CR or surrogate must be carried over to the next
         // chunk.
         (lastCode === CR || lastCode >= 55296 && lastCode <= 56319)) {
-          this.carriedFromPrevious = chunk2[limit2 - 1];
-          limit2--;
-          chunk2 = chunk2.slice(0, limit2);
+          this.carriedFromPrevious = chunk2[limit3 - 1];
+          limit3--;
+          chunk2 = chunk2.slice(0, limit3);
         }
         const { stateTable } = this;
         this.chunk = chunk2;
         this.i = 0;
-        while (this.i < limit2) {
+        while (this.i < limit3) {
           stateTable[this.state].call(this);
         }
-        this.chunkPosition += limit2;
+        this.chunkPosition += limit3;
         return end ? this.end() : this;
       }
       /**
@@ -1675,11 +1675,11 @@ var require_saxes = __commonJS({
       }
       pushAttribNS(name2, value) {
         var _a;
-        const { prefix, local } = this.qname(name2);
-        const attr = { name: name2, prefix, local, value };
+        const { prefix: prefix2, local } = this.qname(name2);
+        const attr = { name: name2, prefix: prefix2, local, value };
         this.attribList.push(attr);
         (_a = this.attributeHandler) === null || _a === void 0 ? void 0 : _a.call(this, attr);
-        if (prefix === "xmlns") {
+        if (prefix2 === "xmlns") {
           const trimmed = value.trim();
           if (this.currentXMLVersion === "1.0" && trimmed === "") {
             this.fail("invalid attempt to undefine prefix in XML 1.0");
@@ -1734,24 +1734,24 @@ var require_saxes = __commonJS({
        *
        * @returns The namespace URI or ``undefined`` if the prefix is not defined.
        */
-      resolve(prefix) {
+      resolve(prefix2) {
         var _a, _b;
-        let uri = this.topNS[prefix];
+        let uri = this.topNS[prefix2];
         if (uri !== void 0) {
           return uri;
         }
         const { tags } = this;
         for (let index = tags.length - 1; index >= 0; index--) {
-          uri = tags[index].ns[prefix];
+          uri = tags[index].ns[prefix2];
           if (uri !== void 0) {
             return uri;
           }
         }
-        uri = this.ns[prefix];
+        uri = this.ns[prefix2];
         if (uri !== void 0) {
           return uri;
         }
-        return (_b = (_a = this.opt).resolvePrefix) === null || _b === void 0 ? void 0 : _b.call(_a, prefix);
+        return (_b = (_a = this.opt).resolvePrefix) === null || _b === void 0 ? void 0 : _b.call(_a, prefix2);
       }
       /**
        * Parse a qname into its prefix and local name parts.
@@ -1766,28 +1766,28 @@ var require_saxes = __commonJS({
           return { prefix: "", local: name2 };
         }
         const local = name2.slice(colon + 1);
-        const prefix = name2.slice(0, colon);
-        if (prefix === "" || local === "" || local.includes(":")) {
+        const prefix2 = name2.slice(0, colon);
+        if (prefix2 === "" || local === "" || local.includes(":")) {
           this.fail(`malformed name: ${name2}.`);
         }
-        return { prefix, local };
+        return { prefix: prefix2, local };
       }
       processAttribsNS() {
         var _a;
         const { attribList } = this;
         const tag = this.tag;
         {
-          const { prefix, local } = this.qname(tag.name);
-          tag.prefix = prefix;
+          const { prefix: prefix2, local } = this.qname(tag.name);
+          tag.prefix = prefix2;
           tag.local = local;
-          const uri = tag.uri = (_a = this.resolve(prefix)) !== null && _a !== void 0 ? _a : "";
-          if (prefix !== "") {
-            if (prefix === "xmlns") {
+          const uri = tag.uri = (_a = this.resolve(prefix2)) !== null && _a !== void 0 ? _a : "";
+          if (prefix2 !== "") {
+            if (prefix2 === "xmlns") {
               this.fail('tags may not have "xmlns" as prefix.');
             }
             if (uri === "") {
-              this.fail(`unbound namespace prefix: ${JSON.stringify(prefix)}.`);
-              tag.uri = prefix;
+              this.fail(`unbound namespace prefix: ${JSON.stringify(prefix2)}.`);
+              tag.uri = prefix2;
             }
           }
         }
@@ -1797,17 +1797,17 @@ var require_saxes = __commonJS({
         const { attributes } = tag;
         const seen = /* @__PURE__ */ new Set();
         for (const attr of attribList) {
-          const { name: name2, prefix, local } = attr;
+          const { name: name2, prefix: prefix2, local } = attr;
           let uri;
           let eqname;
-          if (prefix === "") {
+          if (prefix2 === "") {
             uri = name2 === "xmlns" ? XMLNS_NAMESPACE : "";
             eqname = name2;
           } else {
-            uri = this.resolve(prefix);
+            uri = this.resolve(prefix2);
             if (uri === void 0) {
-              this.fail(`unbound namespace prefix: ${JSON.stringify(prefix)}.`);
-              uri = prefix;
+              this.fail(`unbound namespace prefix: ${JSON.stringify(prefix2)}.`);
+              uri = prefix2;
             }
             eqname = `{${uri}}${local}`;
           }
@@ -1933,7 +1933,7 @@ var require_saxes = __commonJS({
 });
 
 // src/host/index.ts
-import { randomUUID as randomUUID21 } from "node:crypto";
+import { randomUUID as randomUUID22 } from "node:crypto";
 
 // src/host/status.ts
 var EXPECTED_UPSTREAM_COMMIT = "39163dd30f703a79079e2d2446545cff3c453738";
@@ -2003,8 +2003,8 @@ function createProbeRecord(port, deps, input) {
     createdAt: deps.now()
   });
 }
-function getProbeRecord(port, id) {
-  return port.getById(id);
+function getProbeRecord(port, id2) {
+  return port.getById(id2);
 }
 
 // src/host/http.ts
@@ -2057,7 +2057,7 @@ function recordsErrorToApi(error) {
       return new ApiError(500, "INTERNAL_ERROR", "internal error");
   }
 }
-async function readBody(req, limit2) {
+async function readBody(req, limit3) {
   return await new Promise((resolve2, reject2) => {
     let settled = false;
     let total = 0;
@@ -2071,7 +2071,7 @@ async function readBody(req, limit2) {
     req.on("data", (chunk2) => {
       if (settled) return;
       total += chunk2.length;
-      if (total > limit2) {
+      if (total > limit3) {
         fail(new ApiError(413, "PAYLOAD_TOO_LARGE", "request body exceeds the limit"));
         return;
       }
@@ -2127,8 +2127,8 @@ function parseContent(body) {
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
     throw new ApiError(422, "INPUT_INVALID", "body must be a JSON object");
   }
-  const keys2 = Object.keys(parsed);
-  if (keys2.length !== 1 || keys2[0] !== "content") {
+  const keys3 = Object.keys(parsed);
+  if (keys3.length !== 1 || keys3[0] !== "content") {
     throw new ApiError(422, "INPUT_INVALID", "body may contain only the content field");
   }
   const content = parsed.content;
@@ -2187,15 +2187,15 @@ function createRecordsHandlers(service, basePath, log) {
         throw new ApiError(405, "METHOD_NOT_ALLOWED", "method not allowed", false, { allow: "GET" });
       }
       const path = requestPath(req);
-      const prefix = `${basePath}/`;
-      if (!path.startsWith(prefix) || path.slice(prefix.length).includes("/")) {
+      const prefix2 = `${basePath}/`;
+      if (!path.startsWith(prefix2) || path.slice(prefix2.length).includes("/")) {
         throw new ApiError(404, "NOT_FOUND", "record not found");
       }
-      const id = path.slice(prefix.length);
-      if (!UUID_PATTERN.test(id)) {
+      const id2 = path.slice(prefix2.length);
+      if (!UUID_PATTERN.test(id2)) {
         throw new ApiError(422, "INPUT_INVALID", "record id must be a canonical lowercase UUID");
       }
-      const record = service.get(id);
+      const record = service.get(id2);
       if (record === void 0) throw new ApiError(404, "NOT_FOUND", "record not found");
       sendJson(res, 200, {
         data: record,
@@ -2221,7 +2221,7 @@ function createRecordsHandlers(service, basePath, log) {
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash9, randomUUID as randomUUID12 } from "node:crypto";
+import { createHash as createHash10, randomUUID as randomUUID13 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -2265,20 +2265,20 @@ var JobStore = class {
         return String(prior.id);
       }
       if (current !== revision) throw new JobError(409, "REVISION_CONFLICT");
-      const id = randomUUID2();
-      db.prepare("INSERT INTO jobs(id,user_id,session_id,object_id,expected_revision,idempotency_key,state,available_at) VALUES(?,?,?,?,?,?,'queued',?)").run(id, actor2.userId, actor2.sessionId, object, revision, key, now);
-      return id;
+      const id2 = randomUUID2();
+      db.prepare("INSERT INTO jobs(id,user_id,session_id,object_id,expected_revision,idempotency_key,state,available_at) VALUES(?,?,?,?,?,?,'queued',?)").run(id2, actor2.userId, actor2.sessionId, object, revision, key, now);
+      return id2;
     });
   }
-  inspect(actor2, id, cancel = false) {
+  inspect(actor2, id2, cancel = false) {
     return this.tx((db, now) => {
-      const row = db.prepare("SELECT * FROM jobs WHERE id=? AND user_id=?").get(id, actor2.userId);
+      const row = db.prepare("SELECT * FROM jobs WHERE id=? AND user_id=?").get(id2, actor2.userId);
       if (!row || this.revision(actor2.sessionId, actor2.userId, row.object_id, now) === void 0) throw new JobError(404, "NOT_FOUND");
       if (cancel && ["succeeded", "failed"].includes(row.state)) throw new JobError(409, "JOB_TERMINAL");
       if (cancel && row.state !== "cancelled") this.end(db, row, "cancelled", "CANCELLED", now);
-      const summary = db.prepare("SELECT id,state,attempts,checkpoint,last_error,expected_revision FROM jobs WHERE id=?").get(id);
-      const runs = db.prepare("SELECT attempt,start_checkpoint,started_at,ended_at,outcome FROM job_runs WHERE job_id=? ORDER BY attempt").all(id);
-      const delivery = db.prepare("SELECT delivered_at,failures,retry_at,last_error FROM outbox WHERE job_id=?").get(id);
+      const summary = db.prepare("SELECT id,state,attempts,checkpoint,last_error,expected_revision FROM jobs WHERE id=?").get(id2);
+      const runs = db.prepare("SELECT attempt,start_checkpoint,started_at,ended_at,outcome FROM job_runs WHERE job_id=? ORDER BY attempt").all(id2);
+      const delivery = db.prepare("SELECT delivered_at,failures,retry_at,last_error FROM outbox WHERE job_id=?").get(id2);
       return { ...summary, runs, delivery: delivery ?? null };
     });
   }
@@ -2427,8 +2427,8 @@ var AssetStore = class {
     if (!actor2) throw new AssetError(401, "AUTH_REQUIRED");
     return actor2;
   }
-  check(actor2, id, action2, now) {
-    if (!this.allowed(actor2, id, action2, now)) throw new AssetError(404, "ASSET_NOT_FOUND");
+  check(actor2, id2, action2, now) {
+    if (!this.allowed(actor2, id2, action2, now)) throw new AssetError(404, "ASSET_NOT_FOUND");
   }
   publish(prior, spec, blob, format, onPublish) {
     const text2 = format && "blocks" in format ? format : void 0;
@@ -2443,30 +2443,30 @@ var AssetStore = class {
         onPublish?.(db, actor2, r);
         return { receipt: r, replayed: true };
       }
-      const id = spec.assetId ?? randomUUID3(), vid = randomUUID3(), bid = randomUUID3();
+      const id2 = spec.assetId ?? randomUUID3(), vid = randomUUID3(), bid = randomUUID3();
       let version = 1, parent = null;
       if (spec.assetId) {
-        this.check(actor2, id, "read", now);
-        this.check(actor2, id, "edit", now);
-        const last = db.prepare("SELECT id,version FROM asset_versions WHERE asset_id=? ORDER BY version DESC LIMIT 1").get(id);
+        this.check(actor2, id2, "read", now);
+        this.check(actor2, id2, "edit", now);
+        const last = db.prepare("SELECT id,version FROM asset_versions WHERE asset_id=? ORDER BY version DESC LIMIT 1").get(id2);
         if (!last) throw new AssetError(404, "ASSET_NOT_FOUND");
         if (last.version !== spec.expectedVersion) throw new AssetError(409, "VERSION_CONFLICT");
         version = Number(last.version) + 1;
         parent = String(last.id);
-        db.prepare("UPDATE knowledge_objects SET revision=revision+1,updated_at=? WHERE id=?").run(now, id);
+        db.prepare("UPDATE knowledge_objects SET revision=revision+1,updated_at=? WHERE id=?").run(now, id2);
         db.prepare("UPDATE office_conversions SET state='superseded',lease_token=NULL,lease_until=NULL,failure_code='SOURCE_CHANGED',updated_at=? WHERE version_id=? AND state IN ('queued','running')").run(now, parent);
       } else {
-        db.prepare(`INSERT INTO knowledge_objects (id,service_id,space_id,scope_kind,project_id,owner_user_id,object_type,title,body,status,revision,created_at,updated_at) VALUES (?,?,?,'personal',NULL,?,'asset',?,'','active',1,?,?)`).run(id, actor2.serviceId, actor2.personalSpaceId, actor2.userId, spec.title, now, now);
-        db.prepare("INSERT INTO assets VALUES (?)").run(id);
+        db.prepare(`INSERT INTO knowledge_objects (id,service_id,space_id,scope_kind,project_id,owner_user_id,object_type,title,body,status,revision,created_at,updated_at) VALUES (?,?,?,'personal',NULL,?,'asset',?,'','active',1,?,?)`).run(id2, actor2.serviceId, actor2.personalSpaceId, actor2.userId, spec.title, now, now);
+        db.prepare("INSERT INTO assets VALUES (?)").run(id2);
       }
       db.prepare("INSERT INTO blobs VALUES (?,?,?,?,?)").run(bid, blob.key, blob.sha256, blob.byteLength, format?.media ?? "application/pdf");
-      db.prepare("INSERT INTO asset_versions VALUES (?,?,?,?,?,?,?,?,?,?)").run(vid, id, version, parent, bid, spec.title, actor2.userId, now, spec.key, digest2);
+      db.prepare("INSERT INTO asset_versions VALUES (?,?,?,?,?,?,?,?,?,?)").run(vid, id2, version, parent, bid, spec.title, actor2.userId, now, spec.key, digest2);
       if (text2) {
         db.prepare("INSERT INTO text_versions VALUES(?,?,?)").run(vid, text2.encoding, text2.blocks.length);
         const insert = db.prepare("INSERT INTO text_blocks VALUES(?,?,?,?,?,?,?)");
         text2.blocks.forEach((b, i) => insert.run(vid, i + 1, b.kind, b.start, b.end, b.text, b.anchor));
       }
-      const published = { id, title: spec.title, version_id: vid, version, sha256: blob.sha256, byte_length: blob.byteLength, ...format ? { media_type: format.media } : {} };
+      const published = { id: id2, title: spec.title, version_id: vid, version, sha256: blob.sha256, byte_length: blob.byteLength, ...format ? { media_type: format.media } : {} };
       onPublish?.(db, actor2, published);
       return { receipt: published, replayed: false };
     });
@@ -2479,24 +2479,24 @@ var AssetStore = class {
       ORDER BY v.created_at DESC,v.version DESC,v.id`).all(actor2.userId, actor2.serviceId).filter((v) => this.allowed(actor2, String(v.id), "read", now)).map(receipt);
     });
   }
-  original(prior, id, versionId, download) {
+  original(prior, id2, versionId, download) {
     return this.tx("read", (db, now) => {
       const actor2 = this.actor(prior, now);
-      this.check(actor2, id, "read", now);
-      if (download) this.check(actor2, id, "export", now);
-      const r = db.prepare("SELECT b.storage_key,b.sha256,b.byte_length,b.media_type,t.encoding FROM asset_versions v JOIN blobs b ON b.id=v.blob_id LEFT JOIN text_versions t ON t.version_id=v.id WHERE v.asset_id=? AND v.id=?").get(id, versionId);
+      this.check(actor2, id2, "read", now);
+      if (download) this.check(actor2, id2, "export", now);
+      const r = db.prepare("SELECT b.storage_key,b.sha256,b.byte_length,b.media_type,t.encoding FROM asset_versions v JOIN blobs b ON b.id=v.blob_id LEFT JOIN text_versions t ON t.version_id=v.id WHERE v.asset_id=? AND v.id=?").get(id2, versionId);
       if (!r) throw new AssetError(404, "ASSET_NOT_FOUND");
       return { key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length), ...r.media_type === "application/pdf" ? {} : { media: String(r.media_type) }, ...typeof r.encoding === "string" ? { encoding: r.encoding } : {} };
     });
   }
-  blocks(prior, id, v, from, limit2) {
+  blocks(prior, id2, v, from, limit3) {
     return this.tx("read", (db, now) => {
       const actor2 = this.actor(prior, now);
-      this.check(actor2, id, "read", now);
-      if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit2) || limit2 < 1 || limit2 > 10) throw new AssetError(422, "INVALID_BLOCK_RANGE");
-      const meta = db.prepare("SELECT encoding,block_count AS total FROM text_versions t JOIN asset_versions a ON a.id=t.version_id WHERE a.asset_id=? AND a.id=?").get(id, v);
+      this.check(actor2, id2, "read", now);
+      if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit3) || limit3 < 1 || limit3 > 10) throw new AssetError(422, "INVALID_BLOCK_RANGE");
+      const meta = db.prepare("SELECT encoding,block_count AS total FROM text_versions t JOIN asset_versions a ON a.id=t.version_id WHERE a.asset_id=? AND a.id=?").get(id2, v);
       if (!meta) throw new AssetError(404, "ASSET_NOT_FOUND");
-      return { version_id: v, ...meta, blocks: db.prepare("SELECT ordinal,kind,start,end,text,anchor FROM text_blocks WHERE version_id=? AND ordinal>=? ORDER BY ordinal LIMIT ?").all(v, from, limit2) };
+      return { version_id: v, ...meta, blocks: db.prepare("SELECT ordinal,kind,start,end,text,anchor FROM text_blocks WHERE version_id=? AND ordinal>=? ORDER BY ordinal LIMIT ?").all(v, from, limit3) };
     });
   }
 };
@@ -2618,7 +2618,7 @@ var SearchStore = class {
     }
     const candidates = this.tx("read", (db, now) => {
       const a = this.actor(prior, now);
-      const ids = db.prepare(`SELECT a.id FROM assets a JOIN knowledge_objects o ON a.id=o.id WHERE o.service_id=? AND o.status='active'`).all(a.serviceId).map((r) => String(r.id)).filter((id) => this.allowed(a, id, now));
+      const ids = db.prepare(`SELECT a.id FROM assets a JOIN knowledge_objects o ON a.id=o.id WHERE o.service_id=? AND o.status='active'`).all(a.serviceId).map((r) => String(r.id)).filter((id2) => this.allowed(a, id2, now));
       const bound = JSON.stringify(ids), results = [];
       let work = 0, sources2 = 0;
       for (const row of db.prepare(sourceSQL).iterate(bound, bound, bound)) {
@@ -2799,8 +2799,8 @@ var ZipStore = class {
     if (!a) throw new AssetError(401, "AUTH_REQUIRED");
     return a;
   }
-  owned(db, a, id) {
-    const row = db.prepare("SELECT id,title,storage_key,sha256,byte_length FROM zip_imports WHERE id=? AND owner_id=?").get(id, a.userId);
+  owned(db, a, id2) {
+    const row = db.prepare("SELECT id,title,storage_key,sha256,byte_length FROM zip_imports WHERE id=? AND owner_id=?").get(id2, a.userId);
     if (!row) throw notFound();
     return row;
   }
@@ -2811,68 +2811,68 @@ var ZipStore = class {
         if (old.sha256 !== blob.sha256 || old.byte_length !== blob.byteLength || old.title !== spec.title) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
         return { id: String(old.id), replayed: true };
       }
-      const id = randomUUID6();
-      db.prepare("INSERT INTO zip_imports VALUES(?,?,?,?,?,?,?,?)").run(id, a.userId, spec.key, spec.title, blob.key, blob.sha256, blob.byteLength, now);
+      const id2 = randomUUID6();
+      db.prepare("INSERT INTO zip_imports VALUES(?,?,?,?,?,?,?,?)").run(id2, a.userId, spec.key, spec.title, blob.key, blob.sha256, blob.byteLength, now);
       const insert = db.prepare(`INSERT INTO zip_entries(id,import_id,ordinal,name,path,byte_length,compressed_size,media_type,reason,state,publish_key) VALUES(?,?,?,?,?,?,?,?,?,'available',?)`);
-      for (const m of members) insert.run(randomUUID6(), id, m.ordinal, m.name, m.path, m.size, m.compressedSize, m.media, m.reason, randomUUID6());
-      return { id, replayed: false };
+      for (const m of members) insert.run(randomUUID6(), id2, m.ordinal, m.name, m.path, m.size, m.compressedSize, m.media, m.reason, randomUUID6());
+      return { id: id2, replayed: false };
     });
   }
   list(prior) {
     return this.tx("read", (db, now) => db.prepare("SELECT id,title,byte_length,sha256,created_at FROM zip_imports WHERE owner_id=? ORDER BY created_at DESC,id").all(this.actor(prior, now).userId));
   }
-  source(prior, id) {
+  source(prior, id2) {
     return this.tx("read", (db, now) => {
-      const r = this.owned(db, this.actor(prior, now), id);
+      const r = this.owned(db, this.actor(prior, now), id2);
       return { key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length) };
     });
   }
-  manifest(prior, id) {
+  manifest(prior, id2) {
     return this.tx("read", (db, now) => {
-      const a = this.actor(prior, now), r = this.owned(db, a, id);
+      const a = this.actor(prior, now), r = this.owned(db, a, id2);
       const rows = db.prepare(`SELECT e.id,e.name,e.path,e.byte_length AS size,e.compressed_size,e.media_type,e.reason,e.state,e.error,
       v.asset_id,v.id AS version_id,v.version,v.original_name,b.sha256,b.byte_length FROM zip_entries e
-      LEFT JOIN asset_versions v ON v.id=e.version_id LEFT JOIN blobs b ON b.id=v.blob_id WHERE e.import_id=? ORDER BY e.ordinal`).all(id);
+      LEFT JOIN asset_versions v ON v.id=e.version_id LEFT JOIN blobs b ON b.id=v.blob_id WHERE e.import_id=? ORDER BY e.ordinal`).all(id2);
       const entries = rows.map(({ asset_id, version_id, version, original_name, sha256, byte_length, ...e }) => {
         const receipt2 = asset_id && this.readable(a, String(asset_id), now) ? { id: asset_id, version_id, version, title: original_name, sha256, byte_length, media_type: e.media_type } : void 0;
         return { ...e, ...receipt2 ? { receipt: receipt2 } : {} };
       });
       const state = rows.some((x) => x.state === "selected") ? "selected" : rows.some((x) => x.state === "failed") ? "partial" : rows.some((x) => x.state === "imported") ? "imported" : "staged";
-      return { id, title: r.title, byte_length: r.byte_length, sha256: r.sha256, state, entries };
+      return { id: id2, title: r.title, byte_length: r.byte_length, sha256: r.sha256, state, entries };
     });
   }
-  select(prior, id, key, ids) {
+  select(prior, id2, key, ids) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now);
-      this.owned(db, a, id);
+      this.owned(db, a, id2);
       if (!uuid.test(key) || !Array.isArray(ids) || !ids.length || ids.length > 512 || ids.some((x) => typeof x !== "string" || !uuid.test(x)) || new Set(ids).size !== ids.length) throw new AssetError(422, "INVALID_SELECTION");
       const canonical = JSON.stringify([...ids].sort()), digest2 = createHash4("sha256").update(canonical).digest("hex");
       const seen = db.prepare("SELECT import_id,selection_digest FROM zip_selections WHERE owner_id=? AND request_key=?").get(a.userId, key);
-      if (seen && (seen.import_id !== id || seen.selection_digest !== digest2)) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+      if (seen && (seen.import_id !== id2 || seen.selection_digest !== digest2)) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
       const get = db.prepare("SELECT id,ordinal,path,media_type,reason,state,publish_key FROM zip_entries WHERE import_id=? AND id=?");
       const members = ids.map((entry) => {
-        const r = get.get(id, entry);
+        const r = get.get(id2, entry);
         if (!r || r.reason !== null || !r.media_type) throw new AssetError(422, "INVALID_SELECTION");
         return { id: entry, ordinal: Number(r.ordinal), path: String(r.path), media: String(r.media_type), key: String(r.publish_key), imported: r.state === "imported" };
       });
-      if (!seen) db.prepare("INSERT INTO zip_selections VALUES(?,?,?,?,?,?,?)").run(randomUUID6(), id, a.userId, key, digest2, canonical, now);
+      if (!seen) db.prepare("INSERT INTO zip_selections VALUES(?,?,?,?,?,?,?)").run(randomUUID6(), id2, a.userId, key, digest2, canonical, now);
       const mark = db.prepare("UPDATE zip_entries SET state='selected',error=NULL WHERE import_id=? AND id=? AND state IN ('available','failed')");
-      for (const entry of ids) mark.run(id, entry);
+      for (const entry of ids) mark.run(id2, entry);
       return members.sort((a2, b) => a2.ordinal - b.ordinal);
     });
   }
-  failure(prior, id, entry, code) {
+  failure(prior, id2, entry, code) {
     this.tx("write", (db, now) => {
-      this.owned(db, this.actor(prior, now), id);
-      db.prepare("UPDATE zip_entries SET state='failed',error=? WHERE import_id=? AND id=? AND state='selected'").run(code, id, entry);
+      this.owned(db, this.actor(prior, now), id2);
+      db.prepare("UPDATE zip_entries SET state='failed',error=? WHERE import_id=? AND id=? AND state='selected'").run(code, id2, entry);
     });
   }
   // Called inside AssetStore.publish's transaction; never open a nested transaction.
-  publication(id, entry, key) {
+  publication(id2, entry, key) {
     return (db, a, r) => {
-      this.owned(db, a, id);
+      this.owned(db, a, id2);
       const updated = db.prepare(`UPDATE zip_entries SET state='imported',version_id=?,error=NULL WHERE import_id=? AND id=? AND publish_key=?
-      AND (state='selected' OR (state='imported' AND version_id=?))`).run(r.version_id, id, entry, key, r.version_id);
+      AND (state='selected' OR (state='imported' AND version_id=?))`).run(r.version_id, id2, entry, key, r.version_id);
       if (updated.changes !== 1) throw new AssetError(409, "SELECTION_CHANGED");
     };
   }
@@ -2927,25 +2927,25 @@ var ParseStore = class {
     this.permit = permit;
   }
   operation(actor2, v) {
-    const id = this.tx("read", (db, now) => {
+    const id2 = this.tx("read", (db, now) => {
       const r = db.prepare("SELECT v.asset_id FROM pdf_parse_runs r JOIN asset_versions v ON v.id=r.version_id WHERE r.version_id=?").get(v);
       if (!r || !this.permit(actor2.sessionId, actor2.userId, String(r.asset_id), false, now)) throw new AssetError(404, "ASSET_NOT_FOUND");
       return String(r.asset_id);
     });
-    return this.control(actor2, id, v, "status");
+    return this.control(actor2, id2, v, "status");
   }
-  pages(actor2, id, v, from, limit2) {
-    if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit2) || limit2 < 1 || limit2 > 10) throw new AssetError(422, "INVALID_PAGE_RANGE");
+  pages(actor2, id2, v, from, limit3) {
+    if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit3) || limit3 < 1 || limit3 > 10) throw new AssetError(422, "INVALID_PAGE_RANGE");
     return this.tx("read", (db, now) => {
-      if (!this.permit(actor2.sessionId, actor2.userId, id, false, now) || !this.pdfVersion(db, id, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
+      if (!this.permit(actor2.sessionId, actor2.userId, id2, false, now) || !this.pdfVersion(db, id2, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
       const rows = db.prepare(`SELECT page,state,chapter,error,CASE WHEN state IN ('ready','review') THEN text ELSE NULL END AS text
-        FROM pdf_pages WHERE version_id=? AND page>=? ORDER BY page LIMIT ?`).all(v, from, limit2);
+        FROM pdf_pages WHERE version_id=? AND page>=? ORDER BY page LIMIT ?`).all(v, from, limit3);
       return { version_id: v, from, pages: rows };
     });
   }
-  control(actor2, id, v, op, page, requested) {
+  control(actor2, id2, v, op, page, requested) {
     return this.tx(op === "status" ? "read" : "write", (db, now) => {
-      if (!this.permit(actor2.sessionId, actor2.userId, id, op !== "status", now) || !this.pdfVersion(db, id, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
+      if (!this.permit(actor2.sessionId, actor2.userId, id2, op !== "status", now) || !this.pdfVersion(db, id2, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
       const prev = db.prepare("SELECT state,error,total FROM pdf_parse_runs WHERE version_id=?").get(v);
       const loadChapters = () => db.prepare("SELECT first_page,last_page FROM pdf_chapter_ranges WHERE version_id=? ORDER BY first_page").all(v).map((p) => [Number(p.first_page), Number(p.last_page)]);
       const plan = loadChapters();
@@ -2990,8 +2990,8 @@ var ParseStore = class {
       };
     });
   }
-  pdfVersion(db, id, v) {
-    return db.prepare("SELECT 1 FROM asset_versions a JOIN blobs b ON b.id=a.blob_id WHERE a.asset_id=? AND a.id=? AND b.media_type='application/pdf'").get(id, v);
+  pdfVersion(db, id2, v) {
+    return db.prepare("SELECT 1 FROM asset_versions a JOIN blobs b ON b.id=a.blob_id WHERE a.asset_id=? AND a.id=? AND b.media_type='application/pdf'").get(id2, v);
   }
   claim() {
     if (!this.tx("read", (db, now) => db.prepare("SELECT 1 FROM pdf_parse_runs WHERE state='queued' OR (state='running' AND deadline<=?) LIMIT 1").get(Date.parse(now)))) return;
@@ -3146,15 +3146,15 @@ var OfficeStore = class {
   sourceRow(db, v) {
     return db.prepare(sourceSQL2).get(v, WORD_MEDIA.doc, WORD_MEDIA.docx);
   }
-  access(db, now, a, id, v, action2) {
-    if (!this.permit(a.sessionId, a.userId, id, "read", now) || action2 !== "read" && !this.permit(a.sessionId, a.userId, id, action2, now)) throw missing();
+  access(db, now, a, id2, v, action2) {
+    if (!this.permit(a.sessionId, a.userId, id2, "read", now) || action2 !== "read" && !this.permit(a.sessionId, a.userId, id2, action2, now)) throw missing();
     const row = this.sourceRow(db, v);
-    if (!row || row.asset_id !== id) throw missing();
+    if (!row || row.asset_id !== id2) throw missing();
     return row;
   }
-  list(a, id, v, options = {}) {
+  list(a, id2, v, options = {}) {
     return this.tx("read", (db, now) => {
-      this.access(db, now, a, id, v, "read");
+      this.access(db, now, a, id2, v, "read");
       const { before, conversion, notes_before } = options;
       if (Object.keys(options).some((k) => !["before", "conversion", "notes_before"].includes(k)) || [before, conversion, notes_before].some((x) => x !== void 0 && (typeof x !== "string" || x.length !== 36 || !keyPattern.test(x))) || before && conversion || notes_before && !conversion) throw new AssetError(422, "INVALID_HISTORY_CURSOR");
       const seek = (sql, cursor, parent) => {
@@ -3194,9 +3194,9 @@ var OfficeStore = class {
       };
     });
   }
-  start(a, id, v, key, available = true) {
+  start(a, id2, v, key, available = true) {
     return this.tx("write", (db, now) => {
-      const row = this.access(db, now, a, id, v, "edit");
+      const row = this.access(db, now, a, id2, v, "edit");
       checkKey(key);
       const prev = db.prepare("SELECT id,version_id,state FROM office_conversions WHERE actor_id=? AND request_key=?").get(a.userId, key);
       if (prev) {
@@ -3212,9 +3212,9 @@ var OfficeStore = class {
       return { id: cid, state: "queued", replayed: false };
     });
   }
-  cancel(a, id, v, cid) {
+  cancel(a, id2, v, cid) {
     return this.tx("write", (db, now) => {
-      this.access(db, now, a, id, v, "edit");
+      this.access(db, now, a, id2, v, "edit");
       const row = db.prepare("SELECT state FROM office_conversions WHERE id=? AND version_id=?").get(cid, v);
       if (!row) throw missing();
       if (row.state !== "cancelled") {
@@ -3224,17 +3224,17 @@ var OfficeStore = class {
       return { id: cid, state: "cancelled" };
     });
   }
-  result(a, id, v, cid, download) {
+  result(a, id2, v, cid, download) {
     return this.tx("read", (db, now) => {
-      this.access(db, now, a, id, v, download ? "export" : "read");
+      this.access(db, now, a, id2, v, download ? "export" : "read");
       const row = db.prepare("SELECT b.storage_key,b.byte_length,b.sha256 FROM office_conversions c JOIN blobs b ON b.id=c.result_blob_id WHERE c.id=? AND c.version_id=? AND c.state='ready' AND b.media_type='application/pdf'").get(cid, v);
       if (!row) throw missing();
       return { key: String(row.storage_key), byteLength: Number(row.byte_length), sha256: String(row.sha256) };
     });
   }
-  note(a, id, v, cid, key, page, body) {
+  note(a, id2, v, cid, key, page, body) {
     return this.tx("write", (db, now) => {
-      this.access(db, now, a, id, v, "edit");
+      this.access(db, now, a, id2, v, "edit");
       checkKey(key);
       const row = db.prepare("SELECT page_count FROM office_conversions WHERE id=? AND version_id=? AND state='ready'").get(cid, v);
       if (!row) throw missing();
@@ -3396,9 +3396,9 @@ function savePosition(db, user, version, p, expected) {
 }
 function createBookmark(db, user, version, p, title) {
   if (Number(db.prepare("SELECT count(*) AS n FROM reading_bookmarks WHERE user_id=? AND version_id=?").get(user, version)?.n) >= 200) throw new AssetError(409, "BOOKMARK_LIMIT");
-  const id = randomUUID9();
-  db.prepare("INSERT INTO reading_bookmarks(id,user_id,version_id,ordinal,conversion_id,source_hash,title) VALUES(?,?,?,?,?,?,?)").run(id, user, version, p.ordinal, p.conversion_id ?? null, p.source_hash, title);
-  return { id, title, ordinal: p.ordinal, source_hash: p.source_hash, ...p.conversion_id ? { conversion_id: p.conversion_id } : {} };
+  const id2 = randomUUID9();
+  db.prepare("INSERT INTO reading_bookmarks(id,user_id,version_id,ordinal,conversion_id,source_hash,title) VALUES(?,?,?,?,?,?,?)").run(id2, user, version, p.ordinal, p.conversion_id ?? null, p.source_hash, title);
+  return { id: id2, title, ordinal: p.ordinal, source_hash: p.source_hash, ...p.conversion_id ? { conversion_id: p.conversion_id } : {} };
 }
 
 // src/host/annotation-store.ts
@@ -3439,19 +3439,19 @@ function insertAnnotation(db, t, user, scope, draft, citation) {
   if (draft.visibility === "project" && !project) throw new AssetError(422, "ANNOTATION_SCOPE_UNAVAILABLE");
   const count = db.prepare(`${records.replace(/^SELECT[\s\S]*?FROM/, "SELECT count(*) AS n FROM")} WHERE ${inSource} AND a.project_id IS ?${project ? "" : " AND a.author_id=?"}`).get(...args(t), project ?? null, ...project ? [] : [user]);
   if (Number(count?.n) >= 200) throw new AssetError(409, "ANNOTATION_LIMIT");
-  const id = randomUUID10();
-  db.prepare("INSERT INTO reader_annotations VALUES(?,?,?,?,?,1)").run(id, draft.citation_id, user, project ?? null, draft.body);
-  return dto({ ...citation, id, citation_id: draft.citation_id, author_id: user, project_id: project ?? null, body: draft.body, revision: 1 }, user, scope);
+  const id2 = randomUUID10();
+  db.prepare("INSERT INTO reader_annotations VALUES(?,?,?,?,?,1)").run(id2, draft.citation_id, user, project ?? null, draft.body);
+  return dto({ ...citation, id: id2, citation_id: draft.citation_id, author_id: user, project_id: project ?? null, body: draft.body, revision: 1 }, user, scope);
 }
-function mutateAnnotation(db, t, user, scope, id, revision, body) {
-  const row = db.prepare(`${records} WHERE ${inSource} AND a.id=? AND a.author_id=?`).get(...args(t), id, user);
+function mutateAnnotation(db, t, user, scope, id2, revision, body) {
+  const row = db.prepare(`${records} WHERE ${inSource} AND a.id=? AND a.author_id=?`).get(...args(t), id2, user);
   if (!row || !visibleAnnotation(row, user, scope)) throw hidden();
   if (row.revision !== revision) throw new AssetError(409, "ANNOTATION_REVISION_CONFLICT");
   if (body === void 0) {
-    db.prepare("DELETE FROM reader_annotations WHERE id=?").run(id);
-    return { id };
+    db.prepare("DELETE FROM reader_annotations WHERE id=?").run(id2);
+    return { id: id2 };
   }
-  db.prepare("UPDATE reader_annotations SET body=?,revision=? WHERE id=?").run(body, revision + 1, id);
+  db.prepare("UPDATE reader_annotations SET body=?,revision=? WHERE id=?").run(body, revision + 1, id2);
   return dto({ ...row, body, revision: revision + 1 }, user, scope);
 }
 
@@ -3580,13 +3580,13 @@ var CitationStore = class {
       return createBookmark(db, a.userId, t.version_id, t, title);
     });
   }
-  deleteBookmark(prior, t, id, expectedActor) {
+  deleteBookmark(prior, t, id2, expectedActor) {
     return this.tx("write", (db, now) => {
       const a = this.writer(prior, expectedActor, now);
       this.read(db, a, t, now);
-      const del = db.prepare("DELETE FROM reading_bookmarks WHERE id=? AND user_id=? AND version_id=?").run(id, a.userId, t.version_id);
+      const del = db.prepare("DELETE FROM reading_bookmarks WHERE id=? AND user_id=? AND version_id=?").run(id2, a.userId, t.version_id);
       if (del.changes !== 1) throw notFound2();
-      return { id };
+      return { id: id2 };
     });
   }
   annotatable(db, a, t, now, write = false) {
@@ -3609,16 +3609,16 @@ var CitationStore = class {
       return insertAnnotation(db, src, a.userId, scope, draft, dto2(row));
     });
   }
-  updateAnnotation(prior, t, id, revision, body, expectedActor) {
+  updateAnnotation(prior, t, id2, revision, body, expectedActor) {
     return this.tx("write", (db, now) => {
       const a = this.writer(prior, expectedActor, now), { src, scope } = this.annotatable(db, a, t, now, true);
-      return mutateAnnotation(db, src, a.userId, scope, id, revision, body);
+      return mutateAnnotation(db, src, a.userId, scope, id2, revision, body);
     });
   }
-  deleteAnnotation(prior, t, id, revision, expectedActor) {
+  deleteAnnotation(prior, t, id2, revision, expectedActor) {
     return this.tx("write", (db, now) => {
       const a = this.writer(prior, expectedActor, now), { src, scope } = this.annotatable(db, a, t, now, true);
-      return mutateAnnotation(db, src, a.userId, scope, id, revision);
+      return mutateAnnotation(db, src, a.userId, scope, id2, revision);
     });
   }
   access(prior, asset, version) {
@@ -3637,8 +3637,8 @@ var CitationStore = class {
     if (!w || w.conversion_id !== s.conversion_id || w.sha256 !== s.ref?.sha256 || w.ordinal !== s.ordinal) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
     return w.text;
   }
-  locator(db, id) {
-    const r = db.prepare("SELECT snapshot FROM citation_locators WHERE citation_id=?").get(id);
+  locator(db, id2) {
+    const r = db.prepare("SELECT snapshot FROM citation_locators WHERE citation_id=?").get(id2);
     return r ? JSON.parse(String(r.snapshot)) : null;
   }
   receipt(db, a, now, spec, key, range) {
@@ -3671,24 +3671,24 @@ var CitationStore = class {
         return r ? String(r.anchor) : null;
       };
       const locator = makeLocator(src, text2, spec.start, spec.end, { previous: neighbor(src.ordinal - 1), next: neighbor(src.ordinal + 1) }, w);
-      const id = randomUUID11();
-      db.prepare("INSERT INTO citations VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run(id, a.userId, key, spec.asset_id, spec.version_id, spec.conversion_id ?? null, spec.ordinal, range.start, range.end, range.source_hash, range.quote_hash, now);
-      db.prepare("INSERT INTO citation_locators(citation_id,snapshot) VALUES(?,?)").run(id, JSON.stringify(locator));
-      return { data: { ...spec, ...range, id, locator }, replayed: false };
+      const id2 = randomUUID11();
+      db.prepare("INSERT INTO citations VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run(id2, a.userId, key, spec.asset_id, spec.version_id, spec.conversion_id ?? null, spec.ordinal, range.start, range.end, range.source_hash, range.quote_hash, now);
+      db.prepare("INSERT INTO citation_locators(citation_id,snapshot) VALUES(?,?)").run(id2, JSON.stringify(locator));
+      return { data: { ...spec, ...range, id: id2, locator }, replayed: false };
     });
   }
-  lookup(db, a, id, now) {
-    const r = db.prepare(`SELECT ${fields} FROM citations WHERE id=?`).get(id);
+  lookup(db, a, id2, now) {
+    const r = db.prepare(`SELECT ${fields} FROM citations WHERE id=?`).get(id2);
     if (!r || !this.allowed(a, String(r.asset_id), now)) throw notFound2();
     return dto2(r);
   }
-  target(prior, id) {
-    return this.tx("read", (db, now) => this.lookup(db, this.actor(prior, now), id, now));
+  target(prior, id2) {
+    return this.tx("read", (db, now) => this.lookup(db, this.actor(prior, now), id2, now));
   }
-  resolve(prior, id, w) {
+  resolve(prior, id2, w) {
     return this.tx("read", (db, now) => {
-      const a = this.actor(prior, now), r = this.lookup(db, a, id, now), source = this.read(db, a, r, now);
-      return { ...r, quote: resolveCitationText(this.text(source, w), r), locator: this.locator(db, id) };
+      const a = this.actor(prior, now), r = this.lookup(db, a, id2, now), source = this.read(db, a, r, now);
+      return { ...r, quote: resolveCitationText(this.text(source, w), r), locator: this.locator(db, id2) };
     });
   }
 };
@@ -3699,24 +3699,190 @@ var CITATION_LOCATOR_SCHEMA = `CREATE TABLE citation_locators (
   snapshot TEXT NOT NULL CHECK(json_valid(snapshot) AND json_type(snapshot)='object')
 ) STRICT;`;
 
+// src/host/note-store.ts
+import { createHash as createHash9, randomUUID as randomUUID12 } from "node:crypto";
+
+// src/host/note-input.ts
+var noteKinds = ["plain", "reading", "project", "reflection"];
+var noteLimits = { title: 200, body: 32e3, references: 64 };
+var noteId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
+function noteText(value, max2) {
+  return typeof value === "string" && value.length <= max2 && value.isWellFormed() && !value.includes("\0");
+}
+
+// src/host/note-store.ts
+var NOTE_SCHEMA = `CREATE TABLE notes (
+  id TEXT PRIMARY KEY, service_id TEXT NOT NULL, space_id TEXT NOT NULL REFERENCES spaces(id),
+  owner_user_id TEXT NOT NULL REFERENCES users(id), title TEXT NOT NULL,
+  note_kind TEXT NOT NULL CHECK(note_kind IN ('plain','reading','project','reflection')),
+  revision INTEGER NOT NULL CHECK(revision>=1), created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  create_key TEXT NOT NULL, create_digest TEXT NOT NULL CHECK(length(create_digest)=64),
+  UNIQUE(service_id, owner_user_id, create_key)
+) STRICT;
+CREATE INDEX notes_owner_order ON notes(service_id, owner_user_id, id);
+CREATE TABLE note_nodes (
+  id TEXT PRIMARY KEY, note_id TEXT NOT NULL REFERENCES notes(id), parent_id TEXT,
+  order_key INTEGER NOT NULL, body TEXT NOT NULL, body_revision INTEGER NOT NULL CHECK(body_revision>=1),
+  UNIQUE(note_id,id), FOREIGN KEY(note_id,parent_id) REFERENCES note_nodes(note_id,id)
+) STRICT;
+CREATE UNIQUE INDEX note_single_root ON note_nodes(note_id) WHERE parent_id IS NULL;
+CREATE TABLE note_references (
+  id TEXT PRIMARY KEY, node_id TEXT NOT NULL REFERENCES note_nodes(id), citation_id TEXT NOT NULL REFERENCES citations(id),
+  UNIQUE(node_id,citation_id)
+) STRICT;
+CREATE TABLE project_note_refs (
+  project_id TEXT NOT NULL REFERENCES knowledge_projects(id), note_id TEXT NOT NULL REFERENCES notes(id),
+  created_at TEXT NOT NULL, PRIMARY KEY(project_id,note_id)
+) STRICT;`;
+var rowFields = "id,title,note_kind AS kind,revision,updated_at";
+var notFound3 = () => new AssetError(404, "NOTE_NOT_FOUND");
+var invalid2 = () => new AssetError(422, "INVALID_NOTE");
+var conflict = () => new AssetError(409, "REVISION_CONFLICT");
+function draftValid(d) {
+  if (!noteText(d.title, noteLimits.title) || !d.title.trim() || !noteText(d.body, noteLimits.body) || !noteKinds.includes(d.kind)) throw invalid2();
+}
+var NoteStore = class {
+  constructor(tx, current, canReadAsset, projectMember, projectManager) {
+    this.tx = tx;
+    this.current = current;
+    this.canReadAsset = canReadAsset;
+    this.projectMember = projectMember;
+    this.projectManager = projectManager;
+  }
+  actor(session, now, expected) {
+    const actor2 = this.current(session, now);
+    if (!actor2) throw new AssetError(401, "AUTH_REQUIRED");
+    if (expected !== void 0 && actor2.userId !== expected) throw new AssetError(409, "ACTOR_CHANGED");
+    return actor2;
+  }
+  owned(db, a, id2) {
+    const row = db.prepare(`SELECT ${rowFields} FROM notes WHERE id=? AND service_id=? AND owner_user_id=?`).get(id2, a.serviceId, a.userId);
+    if (!row) throw notFound3();
+    return row;
+  }
+  detail(db, a, id2, now) {
+    const meta = this.owned(db, a, id2);
+    const root = db.prepare("SELECT id,body FROM note_nodes WHERE note_id=? AND parent_id IS NULL").get(id2);
+    if (!root) throw Error("Note root is missing");
+    const refs = db.prepare(`SELECT r.id,r.citation_id,c.asset_id,c.version_id FROM note_references r JOIN citations c ON c.id=r.citation_id
+      WHERE r.node_id=? ORDER BY r.rowid`).all(root.id);
+    return { ...meta, body: String(root.body), references: refs.map((r) => this.canReadAsset(a, String(r.asset_id), now) ? { id: String(r.id), status: "linked", citation_id: String(r.citation_id), asset_id: String(r.asset_id), version_id: String(r.version_id) } : { id: String(r.id), status: "unavailable" }) };
+  }
+  assertCitation(db, a, id2, now) {
+    if (!noteId.test(id2)) throw invalid2();
+    const c = db.prepare("SELECT asset_id FROM citations WHERE id=?").get(id2);
+    if (!c || !this.canReadAsset(a, String(c.asset_id), now)) throw new AssetError(404, "SOURCE_NOT_FOUND");
+  }
+  list(session, after = "") {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(session, now);
+      if (after && !noteId.test(after)) throw invalid2();
+      const rows = db.prepare(`SELECT ${rowFields} FROM notes WHERE service_id=? AND owner_user_id=? AND id>? ORDER BY id LIMIT 51`).all(a.serviceId, a.userId, after);
+      return { items: rows.slice(0, 50), next: rows.length > 50 ? rows[49].id : null };
+    });
+  }
+  get(session, id2) {
+    return this.tx("read", (db, now) => this.detail(db, this.actor(session, now), id2, now));
+  }
+  create(session, expected, key, d, citation) {
+    return this.tx("write", (db, now) => {
+      const a = this.actor(session, now, expected);
+      draftValid(d);
+      if (!noteId.test(key)) throw invalid2();
+      const digest2 = createHash9("sha256").update(JSON.stringify([d.title, d.body, d.kind, ...citation === void 0 ? [] : [citation]])).digest("hex");
+      const old = db.prepare("SELECT id,create_digest FROM notes WHERE service_id=? AND owner_user_id=? AND create_key=?").get(a.serviceId, a.userId, key);
+      if (old) {
+        if (old.create_digest !== digest2) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        return { data: this.detail(db, a, String(old.id), now), replayed: true };
+      }
+      const id2 = randomUUID12();
+      if (citation !== void 0) this.assertCitation(db, a, citation, now);
+      db.prepare("INSERT INTO notes VALUES(?,?,?,?,?,?,1,?,?,?,?)").run(id2, a.serviceId, a.personalSpaceId, a.userId, d.title, d.kind, now, now, key, digest2);
+      db.prepare("INSERT INTO note_nodes VALUES(?,?,NULL,0,?,1)").run(id2, id2, d.body);
+      if (citation !== void 0) db.prepare("INSERT INTO note_references VALUES(?,?,?)").run(randomUUID12(), id2, citation);
+      return { data: this.detail(db, a, id2, now), replayed: false };
+    });
+  }
+  save(session, expected, id2, revision, patch) {
+    return this.tx("write", (db, now) => {
+      const a = this.actor(session, now, expected), old = this.detail(db, a, id2, now);
+      if (!Number.isSafeInteger(revision) || revision < 1 || !Object.keys(patch).length) throw invalid2();
+      if (revision !== old.revision) throw conflict();
+      const d = { title: patch.title ?? old.title, kind: patch.kind ?? old.kind, body: patch.body ?? old.body };
+      draftValid(d);
+      const { add_citation: add, remove_reference: remove } = patch;
+      if (add !== void 0 && remove !== void 0) throw invalid2();
+      let referenceChanged = false;
+      if (add !== void 0) {
+        this.assertCitation(db, a, add, now);
+        if (!old.references.some((r) => r.citation_id === add)) {
+          if (old.references.length >= noteLimits.references) throw new AssetError(409, "NOTE_REFERENCE_LIMIT");
+          db.prepare("INSERT INTO note_references VALUES(?,?,?)").run(randomUUID12(), id2, add);
+          referenceChanged = true;
+        }
+      } else if (remove !== void 0) {
+        if (!noteId.test(remove)) throw invalid2();
+        referenceChanged = !!db.prepare("DELETE FROM note_references WHERE node_id=? AND id=?").run(id2, remove).changes;
+        if (!referenceChanged) throw notFound3();
+      }
+      if (referenceChanged || d.title !== old.title || d.kind !== old.kind || d.body !== old.body) {
+        if (!db.prepare("UPDATE notes SET title=?,note_kind=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?").run(d.title, d.kind, now, id2, revision).changes) throw conflict();
+        if (d.body !== old.body) db.prepare("UPDATE note_nodes SET body=?,body_revision=body_revision+1 WHERE id=?").run(d.body, id2);
+      }
+      return this.detail(db, a, id2, now);
+    });
+  }
+  linkProject(session, expected, project, id2) {
+    return this.tx("write", (db, now) => {
+      const a = this.actor(session, now, expected);
+      this.owned(db, a, id2);
+      if (!this.projectMember(a, project, now) || !this.projectManager(a, project)) throw new AssetError(404, "PROJECT_NOT_FOUND");
+      const made = db.prepare("INSERT INTO project_note_refs VALUES(?,?,?) ON CONFLICT(project_id,note_id) DO NOTHING").run(project, id2, now);
+      return { project_id: project, note_id: id2, replayed: !made.changes };
+    });
+  }
+  managedProjects(session, after = "") {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(session, now);
+      if (after && !noteId.test(after)) throw invalid2();
+      const items = db.prepare(`SELECT p.id,p.name FROM knowledge_projects p JOIN project_memberships m ON m.project_id=p.id AND m.user_id=?
+      WHERE p.owner_user_id=? AND p.service_id=? AND p.status='active' AND p.id>? AND m.revoked_at IS NULL
+      AND m.valid_from<=? AND (m.expires_at IS NULL OR m.expires_at>?) ORDER BY p.id LIMIT 51`).all(a.userId, a.userId, a.serviceId, after, now, now);
+      return { items: items.slice(0, 50), next: items.length > 50 ? String(items[49].id) : null };
+    });
+  }
+  projectRefs(session, project, after = "") {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(session, now);
+      if (after && !noteId.test(after)) throw invalid2();
+      if (!this.projectMember(a, project, now)) throw new AssetError(404, "PROJECT_NOT_FOUND");
+      const rows = db.prepare(`SELECT n.id,n.title,n.note_kind AS kind,n.revision,n.updated_at FROM project_note_refs r
+      JOIN notes n ON n.id=r.note_id WHERE r.project_id=? AND n.service_id=? AND n.owner_user_id=? AND n.id>?
+      ORDER BY n.id LIMIT 51`).all(project, a.serviceId, a.userId, after);
+      return { items: rows.slice(0, 50), next: rows.length > 50 ? rows[49].id : null };
+    });
+  }
+};
+
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 20;
-var MIGRATION_V20_CHECKSUM = createHash9("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
-var MIGRATION_V19_CHECKSUM = createHash9("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V18_CHECKSUM = createHash9("sha256").update(SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V17_CHECKSUM = createHash9("sha256").update(ANNOTATION_SCHEMA).digest("hex");
-var MIGRATION_V16_CHECKSUM = createHash9("sha256").update(READING_STATE_SCHEMA).digest("hex");
-var MIGRATION_V15_CHECKSUM = createHash9("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
-var MIGRATION_V13_CHECKSUM = createHash9("sha256").update(ZIP_SCHEMA).digest("hex");
-var MIGRATION_V14_CHECKSUM = createHash9("sha256").update(CITATION_SCHEMA).digest("hex");
-var MIGRATION_V12_CHECKSUM = createHash9("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
-var MIGRATION_V11_CHECKSUM = createHash9("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
-var MIGRATION_V10_CHECKSUM = createHash9("sha256").update(OFFICE_SCHEMA).digest("hex");
-var MIGRATION_V9_CHECKSUM = createHash9("sha256").update(TEXT_SCHEMA).digest("hex");
-var MIGRATION_V8_CHECKSUM = createHash9("sha256").update(PARSE_SCHEMA).digest("hex");
-var MIGRATION_V7_CHECKSUM = createHash9("sha256").update(ASSET_SCHEMA).digest("hex");
-var MIGRATION_V6_CHECKSUM = createHash9("sha256").update(JOB_SCHEMA).digest("hex");
+var SCHEMA_VERSION = 21;
+var MIGRATION_V21_CHECKSUM = createHash10("sha256").update(NOTE_SCHEMA).digest("hex");
+var MIGRATION_V20_CHECKSUM = createHash10("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
+var MIGRATION_V19_CHECKSUM = createHash10("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V18_CHECKSUM = createHash10("sha256").update(SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V17_CHECKSUM = createHash10("sha256").update(ANNOTATION_SCHEMA).digest("hex");
+var MIGRATION_V16_CHECKSUM = createHash10("sha256").update(READING_STATE_SCHEMA).digest("hex");
+var MIGRATION_V15_CHECKSUM = createHash10("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
+var MIGRATION_V13_CHECKSUM = createHash10("sha256").update(ZIP_SCHEMA).digest("hex");
+var MIGRATION_V14_CHECKSUM = createHash10("sha256").update(CITATION_SCHEMA).digest("hex");
+var MIGRATION_V12_CHECKSUM = createHash10("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
+var MIGRATION_V11_CHECKSUM = createHash10("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
+var MIGRATION_V10_CHECKSUM = createHash10("sha256").update(OFFICE_SCHEMA).digest("hex");
+var MIGRATION_V9_CHECKSUM = createHash10("sha256").update(TEXT_SCHEMA).digest("hex");
+var MIGRATION_V8_CHECKSUM = createHash10("sha256").update(PARSE_SCHEMA).digest("hex");
+var MIGRATION_V7_CHECKSUM = createHash10("sha256").update(ASSET_SCHEMA).digest("hex");
+var MIGRATION_V6_CHECKSUM = createHash10("sha256").update(JOB_SCHEMA).digest("hex");
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
 var MIGRATION_V1_SQL = `CREATE TABLE schema_migrations (
@@ -3732,7 +3898,7 @@ CREATE TABLE storage_probe_records (
   created_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V1_CHECKSUM = createHash9("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
+var MIGRATION_V1_CHECKSUM = createHash10("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
 var MIGRATION_V2_SQL = `CREATE TABLE password_credentials (
   id TEXT PRIMARY KEY,
   algorithm TEXT NOT NULL,
@@ -3786,7 +3952,7 @@ CREATE TABLE spaces (
   updated_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V2_CHECKSUM = createHash9("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
+var MIGRATION_V2_CHECKSUM = createHash10("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
 var MIGRATION_V3_SQL = `CREATE TABLE knowledge_projects (
   id TEXT PRIMARY KEY,
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
@@ -3836,7 +4002,7 @@ CREATE TABLE resource_grants (
   UNIQUE (resource_id, subject_type, subject_id, action)
 ) STRICT;
 `;
-var MIGRATION_V3_CHECKSUM = createHash9("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
+var MIGRATION_V3_CHECKSUM = createHash10("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
 var MIGRATION_V4_SQL = `ALTER TABLE resource_grants RENAME TO resource_grants_v3;
 CREATE TABLE resource_grants (
   id TEXT PRIMARY KEY,
@@ -3858,7 +4024,7 @@ CREATE UNIQUE INDEX resource_grants_active_subject_action_uq
   WHERE revoked_at IS NULL;
 DROP TABLE resource_grants_v3;
 `;
-var MIGRATION_V4_CHECKSUM = createHash9("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
+var MIGRATION_V4_CHECKSUM = createHash10("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
 var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -3870,7 +4036,7 @@ var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   PRIMARY KEY (service_id, user_id, idempotency_key)
 ) STRICT;
 `;
-var MIGRATION_V5_CHECKSUM = createHash9("sha256").update(MIGRATION_V5_SQL).digest("hex");
+var MIGRATION_V5_CHECKSUM = createHash10("sha256").update(MIGRATION_V5_SQL).digest("hex");
 var PROBE_SUPPORTED_TABLES = ["schema_migrations", "storage_probe_records"];
 var IDENTITY_SUPPORTED_TABLES = [
   "auth_sessions",
@@ -3957,21 +4123,28 @@ var ProbeStorage = class {
     const ref = this.#ensureReady().prepare("SELECT token_hash FROM auth_sessions WHERE id=? AND user_id=?").get(session.sessionId, session.userId);
     return ref ? this.findActor(String(ref.token_hash), now) : void 0;
   }
-  assets = new AssetStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (actor2, id, action2, now) => Boolean(this.authorizeObject(actor2, id, action2, now)));
-  search = new SearchStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id, now) => Boolean(this.authorizeObject(a, id, "read", now)));
+  assets = new AssetStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (actor2, id2, action2, now) => Boolean(this.authorizeObject(actor2, id2, action2, now)));
+  notes = new NoteStore(
+    this.#assetTx,
+    (s, now) => this.#currentActor(s, now),
+    (a, id2, now) => Boolean(this.authorizeObject(a, id2, "read", now)),
+    (a, p, now) => this.canCreateProjectObject(a, p, now),
+    (a, p) => this.canManageProject(a, p)
+  );
+  search = new SearchStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id2, now) => Boolean(this.authorizeObject(a, id2, "read", now)));
   wordSearch = new WordSearchIndex(this.#assetTx);
-  archives = new ZipStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id, now) => Boolean(this.authorizeObject(a, id, "read", now)));
-  citations = new CitationStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id, now) => Boolean(this.authorizeObject(a, id, "read", now)), (a, id, now) => {
-    const source = this.authorizeObject(a, id, "read", now);
-    return source && { ...source.projectId ? { project_id: source.projectId } : {}, canComment: Boolean(this.authorizeObject(a, id, "comment", now)) };
+  archives = new ZipStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id2, now) => Boolean(this.authorizeObject(a, id2, "read", now)));
+  citations = new CitationStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id2, now) => Boolean(this.authorizeObject(a, id2, "read", now)), (a, id2, now) => {
+    const source = this.authorizeObject(a, id2, "read", now);
+    return source && { ...source.projectId ? { project_id: source.projectId } : {}, canComment: Boolean(this.authorizeObject(a, id2, "comment", now)) };
   });
-  office = new OfficeStore(this.#assetTx, (sessionId, userId, id, action2, now) => {
+  office = new OfficeStore(this.#assetTx, (sessionId, userId, id2, action2, now) => {
     const actor2 = this.#currentActor({ sessionId, userId }, now);
-    return !!actor2 && !!this.authorizeObject(actor2, id, action2, now);
+    return !!actor2 && !!this.authorizeObject(actor2, id2, action2, now);
   });
-  parses = new ParseStore(this.#assetTx, (sessionId, userId, id, write, now) => {
+  parses = new ParseStore(this.#assetTx, (sessionId, userId, id2, write, now) => {
     const a = this.#currentActor({ sessionId, userId }, now);
-    return Boolean(a && this.authorizeObject(a, id, "read", now) && (!write || this.authorizeObject(a, id, "edit", now)));
+    return Boolean(a && this.authorizeObject(a, id2, "read", now) && (!write || this.authorizeObject(a, id2, "edit", now)));
   });
   jobs = new JobStore((op) => {
     const db = this.#ensureReady();
@@ -4056,6 +4229,7 @@ var ProbeStorage = class {
       if (priorVersion < 18) this.#migrateV18(db);
       if (priorVersion < 19) this.#migrateV19(db);
       if (priorVersion < 20) this.#migrateV20(db);
+      if (priorVersion < 21) this.#migrateV21(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -4123,7 +4297,7 @@ var ProbeStorage = class {
       }
       return "v5";
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15 || facts.userVersion === 16 || facts.userVersion === 17 || facts.userVersion === 18 || facts.userVersion === 19 || facts.userVersion === 20) {
+    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15 || facts.userVersion === 16 || facts.userVersion === 17 || facts.userVersion === 18 || facts.userVersion === 19 || facts.userVersion === 20 || facts.userVersion === 21) {
       const db = new DatabaseSync(path, { readOnly: true });
       try {
         this.#verify(db, facts.userVersion);
@@ -4281,7 +4455,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID12());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID13());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -4527,9 +4701,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "PDF chapter migration failed", false, { cause: e });
     }
   }
+  #migrateV21(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(NOTE_SCHEMA);
+      this.#injectFailure("v21:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(21,?,?)").run(MIGRATION_V21_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=21; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "independent note migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash3, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash3)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -4548,6 +4734,7 @@ var ProbeStorage = class {
       if (version >= 18) reference.exec(SEARCH_SCHEMA);
       if (version >= 19) reference.exec(WORD_SEARCH_SCHEMA);
       if (version >= 20) reference.exec(PDF_CHAPTER_SCHEMA);
+      if (version >= 21) reference.exec(NOTE_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name: name2, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name2)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -4618,10 +4805,10 @@ var ProbeStorage = class {
       throw this.#mapError(error);
     }
   }
-  getById(id) {
+  getById(id2) {
     const db = this.#ensureReady();
     try {
-      const row = db.prepare("SELECT id, idempotency_key, request_digest, content, created_at FROM storage_probe_records WHERE id = ?").get(id);
+      const row = db.prepare("SELECT id, idempotency_key, request_digest, content, created_at FROM storage_probe_records WHERE id = ?").get(id2);
       return row === void 0 ? void 0 : toRecord(row);
     } catch (error) {
       throw this.#mapError(error);
@@ -4650,9 +4837,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID12();
-      const spaceId = randomUUID12();
-      const credentialId = randomUUID12();
+      const userId = randomUUID13();
+      const spaceId = randomUUID13();
+      const credentialId = randomUUID13();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -4686,9 +4873,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID12();
-      const spaceId = randomUUID12();
-      const credentialId = randomUUID12();
+      const userId = randomUUID13();
+      const spaceId = randomUUID13();
+      const credentialId = randomUUID13();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -4789,8 +4976,8 @@ var ProbeStorage = class {
   #memberships(db, projectId) {
     return db.prepare("SELECT project_id, user_id, role, valid_from, expires_at, revoked_at FROM project_memberships WHERE project_id = ?").all(projectId).map((row) => ({ projectId: String(row.project_id), userId: String(row.user_id), role: String(row.role), validFrom: String(row.valid_from), expiresAt: row.expires_at == null ? void 0 : String(row.expires_at), revokedAt: row.revoked_at == null ? void 0 : String(row.revoked_at) }));
   }
-  #loadObject(id) {
-    const row = this.#ensureReady().prepare("SELECT id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at FROM knowledge_objects WHERE id = ?").get(id);
+  #loadObject(id2) {
+    const row = this.#ensureReady().prepare("SELECT id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at FROM knowledge_objects WHERE id = ?").get(id2);
     return row === void 0 ? void 0 : this.#objectRow(row);
   }
   authorizeObject(actor2, objectId, action2, now) {
@@ -4853,7 +5040,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action2 of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID12(), input.serviceId, input.id, input.ownerUserId, action2, input.now, input.now);
+        for (const action2 of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID13(), input.serviceId, input.id, input.ownerUserId, action2, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -4950,8 +5137,8 @@ var ProbeStorage = class {
     let primaryCode;
     let failed = false;
     try {
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash9("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash9("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash10("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash10("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
     } catch (error) {
       failed = true;
       primaryCode = primarySqliteCode(error);
@@ -5009,7 +5196,7 @@ var ProbeStorage = class {
 };
 
 // src/host/identity.ts
-import { createHash as createHash10, randomBytes, randomUUID as randomUUID13, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
+import { createHash as createHash11, randomBytes, randomUUID as randomUUID14, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
 var DOMAINS = ["software_engineering", "system_architecture", "hardware_engineering", "ai_development"];
 var LEARNING_TRACKS = ["engineering_practice", "architecture_exam", "knowledge_accumulation"];
 var DEFAULT_TIMEZONE = "Asia/Shanghai";
@@ -5085,7 +5272,7 @@ function validateExpectedRevision(value) {
   return Number(value);
 }
 function tokenHash(token2) {
-  return createHash10("sha256").update(token2, "utf8").digest("hex");
+  return createHash11("sha256").update(token2, "utf8").digest("hex");
 }
 function makeToken() {
   return randomBytes(32).toString("base64url");
@@ -5290,7 +5477,7 @@ var IdentityService = class {
     const token2 = makeToken();
     const createdAt = /* @__PURE__ */ new Date();
     const expiresAt = new Date(createdAt.getTime() + SESSION_TTL_MS).toISOString();
-    this.#store.createSession({ sessionId: randomUUID13(), userId: lookup.userId, tokenHash: tokenHash(token2), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
+    this.#store.createSession({ sessionId: randomUUID14(), userId: lookup.userId, tokenHash: tokenHash(token2), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
     const user = this.#store.getProfile(lookup.userId);
     if (user === void 0) throw new IdentityError("STORAGE_UNAVAILABLE", "user profile unavailable");
     return { user, token: token2, expiresAt };
@@ -5318,7 +5505,7 @@ var IdentityService = class {
 };
 
 // src/host/identity-http.ts
-import { createHash as createHash11, randomUUID as randomUUID14 } from "node:crypto";
+import { createHash as createHash12, randomUUID as randomUUID15 } from "node:crypto";
 import { isIP } from "node:net";
 var HttpError = class extends Error {
   constructor(status, code, message, retryable = false, headers = {}) {
@@ -5395,7 +5582,7 @@ function isIdentityRuntimeAvailable(facts) {
   }
 }
 function businessCookieName(serviceId, origin) {
-  return `kos_session_${createHash11("sha256").update(`${serviceId}|${origin}`).digest("hex").slice(0, 16)}`;
+  return `kos_session_${createHash12("sha256").update(`${serviceId}|${origin}`).digest("hex").slice(0, 16)}`;
 }
 function readCookie(req, name2) {
   const raw = req.headers.cookie;
@@ -5525,7 +5712,7 @@ function createIdentityHandlers(options) {
     return actor2;
   };
   const dispatch = async (req, res, action2) => {
-    const requestId = randomUUID14();
+    const requestId = randomUUID15();
     try {
       assertAvailable();
       assertNoQuery(req);
@@ -5554,7 +5741,7 @@ function createIdentityHandlers(options) {
     requireMethod(req, "GET");
     assertTrust(req, false);
     const state = service.setupState;
-    sendJson2(res, 200, withMeta(randomUUID14(), { setup_required: !state.initialized, available: true }));
+    sendJson2(res, 200, withMeta(randomUUID15(), { setup_required: !state.initialized, available: true }));
   });
   const bootstrap = async (req, res, peer) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -5565,7 +5752,7 @@ function createIdentityHandlers(options) {
     const body = bodyObject(await readBody2(req));
     assertKeys(body, ["login_name", "password", "display_name", "timezone"]);
     const user = await service.bootstrap({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, source: requestSource(req), signal });
-    sendJson2(res, 201, withMeta(randomUUID14(), safeProfile(user)));
+    sendJson2(res, 201, withMeta(randomUUID15(), safeProfile(user)));
   });
   const register = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -5575,7 +5762,7 @@ function createIdentityHandlers(options) {
     const body = bodyObject(await readBody2(req));
     assertKeys(body, ["login_name", "password", "display_name", "timezone"]);
     const user = await service.register({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, source: requestSource(req), signal });
-    sendJson2(res, 201, withMeta(randomUUID14(), safeProfile(user)));
+    sendJson2(res, 201, withMeta(randomUUID15(), safeProfile(user)));
   });
   const login = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -5590,7 +5777,7 @@ function createIdentityHandlers(options) {
     const state = service.setupState;
     const name2 = businessCookieName(state.serviceId, origin);
     const maxAge = Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1e3);
-    sendJson2(res, 200, withMeta(randomUUID14(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin, options.protocol(), maxAge) });
+    sendJson2(res, 200, withMeta(randomUUID15(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin, options.protocol(), maxAge) });
   });
   const logout = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -5611,7 +5798,7 @@ function createIdentityHandlers(options) {
     const actor2 = requireActor(req);
     const profile = service.profile(actor2.userId);
     if (profile === void 0) throw new HttpError(401, "SESSION_EXPIRED", "business session is required");
-    sendJson2(res, 200, withMeta(randomUUID14(), safeProfile(profile)));
+    sendJson2(res, 200, withMeta(randomUUID15(), safeProfile(profile)));
   });
   const preferences = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "PATCH");
@@ -5628,14 +5815,14 @@ function createIdentityHandlers(options) {
     if (body.learning_tracks !== void 0) patch.learningTracks = validateLearningTracks(body.learning_tracks);
     if (body.goal_text !== void 0) patch.goalText = validateGoalText(body.goal_text);
     if (Object.keys(patch).length === 0) throw new HttpError(422, "INPUT_INVALID", "at least one preference is required");
-    sendJson2(res, 200, withMeta(randomUUID14(), safeProfile(service.preferences(actor2.userId, expectedRevision, patch))));
+    sendJson2(res, 200, withMeta(randomUUID15(), safeProfile(service.preferences(actor2.userId, expectedRevision, patch))));
   });
   const spaces = async (req, res) => dispatch(req, res, () => {
     requireMethod(req, "GET");
     assertTrust(req, false);
     const actor2 = requireActor(req);
     const data = service.spaces(actor2.userId).map((space) => ({ id: space.id, service_id: space.serviceId, kind: space.kind, owner_user_id: space.ownerUserId, status: space.status, revision: space.revision, created_at: space.createdAt, updated_at: space.updatedAt }));
-    sendJson2(res, 200, withMeta(randomUUID14(), data));
+    sendJson2(res, 200, withMeta(randomUUID15(), data));
   });
   return { status, bootstrap, register, login, logout, me, preferences, spaces };
 }
@@ -5652,7 +5839,7 @@ function buildSetupHtml() {
 }
 
 // src/host/objects-http.ts
-import { randomUUID as randomUUID15 } from "node:crypto";
+import { randomUUID as randomUUID16 } from "node:crypto";
 var ObjectHttpError = class extends Error {
   constructor(status, code, message) {
     super(message);
@@ -5715,7 +5902,7 @@ function actor(options, req) {
 }
 function createObjectHandlers(options) {
   return async (req, res) => {
-    const requestId = randomUUID15();
+    const requestId = randomUUID16();
     try {
       const path = pathOf(req);
       const segments = path.split("/").filter(Boolean);
@@ -5727,8 +5914,8 @@ function createObjectHandlers(options) {
           const body = await readBody3(req);
           keys(body, ["object_id", "expected_revision", "idempotency_key"]);
           if (!Number.isSafeInteger(body.expected_revision) || Number(body.expected_revision) < 1) throw new JobError(422, "INPUT_INVALID");
-          const id = options.storage.jobs.enqueue(current, text(body.object_id, "object_id", 80), Number(body.expected_revision), text(body.idempotency_key, "idempotency_key", 128));
-          json(res, 202, { data: { id } });
+          const id2 = options.storage.jobs.enqueue(current, text(body.object_id, "object_id", 80), Number(body.expected_revision), text(body.idempotency_key, "idempotency_key", 128));
+          json(res, 202, { data: { id: id2 } });
           return;
         }
         const cancel = segments.length === 5 && segments[4] === "cancel" && req.method === "POST";
@@ -5740,7 +5927,7 @@ function createObjectHandlers(options) {
       if (segments[2] === "projects" && segments.length === 3 && req.method === "POST") {
         const body = await readBody3(req);
         keys(body, ["name"]);
-        const project = options.storage.createProject({ id: randomUUID15(), serviceId: current.serviceId, ownerUserId: current.userId, name: text(body.name, "name", 200), now });
+        const project = options.storage.createProject({ id: randomUUID16(), serviceId: current.serviceId, ownerUserId: current.userId, name: text(body.name, "name", 200), now });
         json(res, 201, { data: project, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
         return;
       }
@@ -5770,7 +5957,7 @@ function createObjectHandlers(options) {
           if (scope === "project" && !options.storage.canCreateProjectObject(current, projectId, now)) throw new ObjectHttpError(404, "NOT_FOUND", "project not found");
           const title = text(body.title, "title", 200);
           const content = text(body.body, "body", 1e5);
-          const object = options.storage.createObject({ id: randomUUID15(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId, ownerUserId: current.userId, objectType: body.object_type === void 0 ? "note" : text(body.object_type, "object_type", 80), title, body: content, now });
+          const object = options.storage.createObject({ id: randomUUID16(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId, ownerUserId: current.userId, objectType: body.object_type === void 0 ? "note" : text(body.object_type, "object_type", 80), title, body: content, now });
           json(res, 201, { data: safeObject(object), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
           return;
         }
@@ -5811,7 +5998,7 @@ function createObjectHandlers(options) {
         const body = await readBody3(req);
         keys(body, ["object_id", "subject_type", "subject_id", "action", "valid_from", "expires_at"]);
         if (body.subject_type !== "user" && body.subject_type !== "project") throw new ObjectHttpError(422, "INPUT_INVALID", "subject_type is invalid");
-        const grant = options.storage.grantObject(current, { id: randomUUID15(), objectId: text(body.object_id, "object_id", 80), serviceId: current.serviceId, subjectType: body.subject_type, subjectId: text(body.subject_id, "subject_id", 80), action: action(body.action), validFrom: body.valid_from === void 0 ? now : text(body.valid_from, "valid_from", 40), expiresAt: body.expires_at === void 0 ? void 0 : text(body.expires_at, "expires_at", 40), now });
+        const grant = options.storage.grantObject(current, { id: randomUUID16(), objectId: text(body.object_id, "object_id", 80), serviceId: current.serviceId, subjectType: body.subject_type, subjectId: text(body.subject_id, "subject_id", 80), action: action(body.action), validFrom: body.valid_from === void 0 ? now : text(body.valid_from, "valid_from", 40), expiresAt: body.expires_at === void 0 ? void 0 : text(body.expires_at, "expires_at", 40), now });
         if (grant === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
         json(res, 201, { data: grant, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
         return;
@@ -5846,11 +6033,11 @@ function createObjectHandlers(options) {
 }
 
 // src/host/ai-service.ts
-import { randomUUID as randomUUID16 } from "node:crypto";
+import { randomUUID as randomUUID17 } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 // src/host/ai-tools.ts
-import { createHash as createHash12 } from "node:crypto";
+import { createHash as createHash13 } from "node:crypto";
 var AiError = class extends Error {
   constructor(status, code) {
     super(code);
@@ -5868,8 +6055,8 @@ function aiText(value, max2, empty = false) {
   if (typeof value !== "string" || !empty && value.length === 0 || value.length > max2 || !value.isWellFormed()) throw new AiError(422, "INPUT_INVALID");
   return value;
 }
-function onlyKeys(value, keys2) {
-  if (Object.keys(value).some((key) => !keys2.includes(key))) throw new AiError(422, "INPUT_INVALID");
+function onlyKeys(value, keys3) {
+  if (Object.keys(value).some((key) => !keys3.includes(key))) throw new AiError(422, "INPUT_INVALID");
 }
 function toolArguments(call) {
   if (!TOOL_NAMES.includes(call.name)) throw new AiError(422, "TOOL_NOT_ALLOWED");
@@ -5889,7 +6076,7 @@ function toolArguments(call) {
   return { object_id, expected_revision: Number(args2.expected_revision), ...args2.title === void 0 ? {} : { title: aiText(args2.title, 200) }, ...args2.body === void 0 ? {} : { body: aiText(args2.body, 2e3, true) } };
 }
 function toolDigest(name2, input) {
-  return createHash12("sha256").update(JSON.stringify([name2, input.object_id, input.expected_revision ?? null, input.title ?? null, input.body ?? null])).digest("hex");
+  return createHash13("sha256").update(JSON.stringify([name2, input.object_id, input.expected_revision ?? null, input.title ?? null, input.body ?? null])).digest("hex");
 }
 function runBusinessTool(store, actor2, call, key, now) {
   const input = toolArguments(call);
@@ -5970,7 +6157,7 @@ var AiService = class {
     return { provider: this.config.provider ?? null, model: this.config.model ?? null, configured: Boolean(this.routeAllowed && this.llm && this.tools), attempts: this.#calls, timeout_ms: this.config.timeoutMs ?? 3e4, budget_usd: this.config.budgetUsd ?? null, known_estimated_usd: this.#estimatedUsd, unknown_cost_calls: this.#unknownCostCalls, reported_input_tokens: this.#inputTokens, reported_output_tokens: this.#outputTokens, budget_warning: this.config.budgetUsd !== void 0 && this.#estimatedUsd > this.config.budgetUsd || this.config.maxCalls !== void 0 && this.#calls > this.config.maxCalls, state: this.#closed ? "stopped" : "ready" };
   }
   #sweep() {
-    for (const [id, item] of this.#prepared) if (Date.now() >= item.expiresAt && item.state !== "executing") this.#prepared.delete(id);
+    for (const [id2, item] of this.#prepared) if (Date.now() >= item.expiresAt && item.state !== "executing") this.#prepared.delete(id2);
   }
   async prepare(actor2, raw, signal) {
     onlyKeys(raw, ["request_id", "instruction", "object_id", "expected_revision", "idempotency_key"]);
@@ -6026,7 +6213,7 @@ var AiService = class {
       if (finish !== "tool-calls" || calls.length !== 1) throw new AiError(502, "MODEL_OUTPUT_INVALID");
       const call = calls[0], args2 = toolArguments(call);
       if (args2.object_id !== objectId || call.name === TOOL_NAMES[1] && args2.expected_revision !== raw.expected_revision) throw new AiError(422, "MODEL_TARGET_MISMATCH");
-      const prepared = { id: randomUUID16(), requestId, actor: actor2, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
+      const prepared = { id: randomUUID17(), requestId, actor: actor2, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
       this.#prepared.set(prepared.id, prepared);
       return { ...this.#view(prepared), usage: usage ?? null };
     } catch (error) {
@@ -6072,9 +6259,9 @@ var AiService = class {
       }
     }
   }
-  async execute(actor2, actorNow, id, signal) {
+  async execute(actor2, actorNow, id2, signal) {
     this.#sweep();
-    const item = this.#prepared.get(id);
+    const item = this.#prepared.get(id2);
     if (this.#closed || !item || item.actor.sessionId !== actor2.sessionId || item.actor.userId !== actor2.userId) throw new AiError(404, "PREPARED_NOT_FOUND");
     if (signal.aborted) throw new AiError(409, "CANCELLED");
     if (item.state === "executing") throw new AiError(409, "REQUEST_IN_PROGRESS");
@@ -6128,10 +6315,10 @@ var AiService = class {
 };
 
 // src/host/ai-http.ts
-import { randomUUID as randomUUID17 } from "node:crypto";
+import { randomUUID as randomUUID18 } from "node:crypto";
 function createAiHandler(options) {
   return async (req, res) => {
-    const requestId = randomUUID17(), controller = new AbortController();
+    const requestId = randomUUID18(), controller = new AbortController();
     const disconnect = () => {
       if (!res.writableEnded) controller.abort();
     };
@@ -6215,7 +6402,7 @@ body{margin:0;background:#f4f8f8;color:#23333a;font:15px/1.65 "Segoe UI","Micros
 import { join as join3 } from "node:path";
 
 // src/host/pdf-originals.ts
-import { createHash as createHash13, randomUUID as randomUUID18 } from "node:crypto";
+import { createHash as createHash14, randomUUID as randomUUID19 } from "node:crypto";
 import { constants } from "node:fs";
 import fs from "node:fs/promises";
 import { dirname, join as join2, resolve } from "node:path";
@@ -6228,47 +6415,47 @@ var WordInputError = class extends Error {
     super("INVALID_WORD");
   }
 };
-var invalid2 = () => {
+var invalid3 = () => {
   throw new WordInputError();
 };
 var isWordMedia = (media) => media === WORD_MEDIA.docx || media === WORD_MEDIA.doc;
 function checkWordEnvelope(b, media) {
   if (media === WORD_MEDIA.doc) {
-    if (b.length < 512 || b.subarray(0, 8).toString("hex") !== "d0cf11e0a1b11ae1" || b.readUInt16LE(28) !== 65534 || ![9, 12].includes(b.readUInt16LE(30))) invalid2();
+    if (b.length < 512 || b.subarray(0, 8).toString("hex") !== "d0cf11e0a1b11ae1" || b.readUInt16LE(28) !== 65534 || ![9, 12].includes(b.readUInt16LE(30))) invalid3();
     return [];
   }
-  if (b.length < 22 || b.readUInt32LE(0) !== 67324752) invalid2();
+  if (b.length < 22 || b.readUInt32LE(0) !== 67324752) invalid3();
   let e = b.length - 22;
   const floor = Math.max(0, e - 65535);
   while (e >= floor && (b.readUInt32LE(e) !== 101010256 || e + 22 + b.readUInt16LE(e + 20) !== b.length)) e--;
-  if (e < floor || b.readUInt32LE(e + 4) !== 0) invalid2();
+  if (e < floor || b.readUInt32LE(e + 4) !== 0) invalid3();
   const entries = b.readUInt16LE(e + 10), length = b.readUInt32LE(e + 12);
   let pos = b.readUInt32LE(e + 16), expanded = 0;
-  if (!entries || entries > 8192 || entries !== b.readUInt16LE(e + 8) || pos + length !== e) invalid2();
+  if (!entries || entries > 8192 || entries !== b.readUInt16LE(e + 8) || pos + length !== e) invalid3();
   const central = pos, names = /* @__PURE__ */ new Set(), members = [];
   for (let i = 0; i < entries; i++) {
-    if (pos + 46 > e || b.readUInt32LE(pos) !== 33639248) invalid2();
+    if (pos + 46 > e || b.readUInt32LE(pos) !== 33639248) invalid3();
     const n = b.readUInt16LE(pos + 28), next = pos + 46 + n + b.readUInt16LE(pos + 30) + b.readUInt16LE(pos + 32), local = b.readUInt32LE(pos + 42);
-    if (!n || next > e || local + 30 > central || b.readUInt32LE(local) !== 67324752 || b.readUInt16LE(pos + 34) !== 0) invalid2();
+    if (!n || next > e || local + 30 > central || b.readUInt32LE(local) !== 67324752 || b.readUInt16LE(pos + 34) !== 0) invalid3();
     const name2 = b.subarray(pos + 46, pos + 46 + n), key = name2.toString("utf8"), start = local + 30 + b.readUInt16LE(local + 26) + b.readUInt16LE(local + 28);
-    if (b.readUInt16LE(local + 26) !== n || !name2.equals(b.subarray(local + 30, local + 30 + n)) || names.has(key) || start + b.readUInt32LE(pos + 20) > central) invalid2();
-    if (b.readUInt16LE(pos + 8) & 1 || b.readUInt16LE(local + 6) & 1 || ![0, 8].includes(b.readUInt16LE(pos + 10)) || b.readUInt16LE(local + 8) !== b.readUInt16LE(pos + 10)) invalid2();
+    if (b.readUInt16LE(local + 26) !== n || !name2.equals(b.subarray(local + 30, local + 30 + n)) || names.has(key) || start + b.readUInt32LE(pos + 20) > central) invalid3();
+    if (b.readUInt16LE(pos + 8) & 1 || b.readUInt16LE(local + 6) & 1 || ![0, 8].includes(b.readUInt16LE(pos + 10)) || b.readUInt16LE(local + 8) !== b.readUInt16LE(pos + 10)) invalid3();
     expanded += b.readUInt32LE(pos + 24);
-    if (expanded > 256 * 1024 * 1024) invalid2();
+    if (expanded > 256 * 1024 * 1024) invalid3();
     members.push({ name: key, start, packed: b.readUInt32LE(pos + 20), size: b.readUInt32LE(pos + 24), method: b.readUInt16LE(pos + 10), crc: b.readUInt32LE(pos + 16) });
     names.add(key);
     pos = next;
   }
-  if (pos !== e || !["[Content_Types].xml", "_rels/.rels", "word/document.xml"].every((k) => names.has(k))) invalid2();
+  if (pos !== e || !["[Content_Types].xml", "_rels/.rels", "word/document.xml"].every((k) => names.has(k))) invalid3();
   return members;
 }
 var inflate = promisify(inflateRaw);
 async function wordBodyXml(bytes) {
   const m = checkWordEnvelope(bytes, WORD_MEDIA.docx).find((m2) => m2.name === "word/document.xml");
-  if (!m || m.size < 1 || m.size > 4 * 1024 * 1024) return invalid2();
+  if (!m || m.size < 1 || m.size > 4 * 1024 * 1024) return invalid3();
   const packed = bytes.subarray(m.start, m.start + m.packed);
   const body = m.method ? await inflate(packed, { maxOutputLength: m.size }) : packed;
-  if (body.length !== m.size || crc32(body) !== m.crc) return invalid2();
+  if (body.length !== m.size || crc32(body) !== m.crc) return invalid3();
   return new TextDecoder("utf-8", { fatal: true }).decode(body);
 }
 async function verifyWordBytes(b, media) {
@@ -6277,7 +6464,7 @@ async function verifyWordBytes(b, media) {
   for (const m of members) {
     const packed = b.subarray(m.start, m.start + m.packed);
     if (!m.method) {
-      if (m.packed !== m.size || m.size > remaining || crc32(packed) !== m.crc) invalid2();
+      if (m.packed !== m.size || m.size > remaining || crc32(packed) !== m.crc) invalid3();
       remaining -= m.size;
       continue;
     }
@@ -6288,12 +6475,12 @@ async function verifyWordBytes(b, media) {
       for await (const chunk2 of decoder) {
         actual += chunk2.length;
         remaining -= chunk2.length;
-        if (actual > m.size || remaining < 0) invalid2();
+        if (actual > m.size || remaining < 0) invalid3();
         crc = crc32(chunk2, crc);
       }
-      if (actual !== m.size || crc !== m.crc || decoder.bytesWritten !== m.packed) invalid2();
+      if (actual !== m.size || crc !== m.crc || decoder.bytesWritten !== m.packed) invalid3();
     } catch {
-      invalid2();
+      invalid3();
     } finally {
       decoder.destroy();
     }
@@ -6303,7 +6490,7 @@ async function verifyWordBytes(b, media) {
 // src/host/pdf-originals.ts
 var MAX = 64 * 1024 * 1024;
 var KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:pdf|txt|docx?|zip)$/;
-var digest = (b) => createHash13("sha256").update(b).digest("hex");
+var digest = (b) => createHash14("sha256").update(b).digest("hex");
 var PdfInputError = class extends Error {
   code = "PDF_INVALID_INPUT";
   constructor() {
@@ -6320,7 +6507,7 @@ var PdfStorageError = class extends Error {
     this.stack = `${this.name}: ${this.message}`;
   }
 };
-var invalid3 = () => new PdfInputError();
+var invalid4 = () => new PdfInputError();
 var unavailable = () => new PdfStorageError();
 function xrefStream(head) {
   const obj = /^[1-9]\d*[ \t\r\n]+\d+[ \t\r\n]+obj[ \t\r\n]*<</.exec(head);
@@ -6352,15 +6539,15 @@ function xrefStream(head) {
   return false;
 }
 function checkEnvelope(b) {
-  if (!/^%PDF-(?:1\.[0-7]|2\.0)[\r\n]/.test(b.toString("latin1", 0, 10))) throw invalid3();
+  if (!/^%PDF-(?:1\.[0-7]|2\.0)[\r\n]/.test(b.toString("latin1", 0, 10))) throw invalid4();
   const tail = Math.max(0, b.length - 4096);
   const footer = /[\r\n]startxref[ \t]*[\r\n]+[ \t]*(\d{1,16})[ \t]*[\r\n]+%%EOF[\x00\t\n\f\r ]*$/.exec(b.toString("latin1", tail));
-  if (!footer) throw invalid3();
+  if (!footer) throw invalid4();
   const offset = Number(footer[1]), end = tail + footer.index;
-  if (offset < 9 || offset >= end || !/[\x00\t\n\f\r ]/.test(String.fromCharCode(b[offset - 1]))) throw invalid3();
+  if (offset < 9 || offset >= end || !/[\x00\t\n\f\r ]/.test(String.fromCharCode(b[offset - 1]))) throw invalid4();
   const head = b.toString("latin1", offset, Math.min(end, offset + 16384));
   if (/^xref[ \t\r\n]+\d+[ \t]+[1-9]\d*[ \t]*[\r\n]+\d{10} \d{5} [nf](?=[ \t\r\n])/.test(head)) return;
-  if (!xrefStream(head)) throw invalid3();
+  if (!xrefStream(head)) throw invalid4();
 }
 var statOpts = { bigint: true };
 var same = (a, b) => a.ino !== 0n && a.ino === b.ino && a.dev === b.dev && a.birthtimeNs === b.birthtimeNs;
@@ -6413,14 +6600,14 @@ var PdfOriginals = class {
     if (!stat.isFile() || stat.ino === 0n || await fs.realpath(path) !== path) throw unavailable();
     return stat;
   }
-  async #unlinkOwned(path, id, stillOwned = () => true) {
+  async #unlinkOwned(path, id2, stillOwned = () => true) {
     await this.#directory();
     const stat = await this.#file(path);
-    if (!same(id, stat)) throw unavailable();
+    if (!same(id2, stat)) throw unavailable();
     if (stillOwned()) await fs.unlink(path);
   }
   async put(bytes) {
-    if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX) throw invalid3();
+    if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX) throw invalid4();
     const data = Buffer.from(bytes);
     checkEnvelope(data);
     try {
@@ -6458,34 +6645,34 @@ var PdfOriginals = class {
   async #write(data, extension) {
     const sha256 = digest(data);
     await this.#directory(true);
-    const stage = join2(this.#root, `.${randomUUID18()}.pending`);
-    const key = `${randomUUID18()}.${extension}`, final = join2(this.#root, key);
+    const stage = join2(this.#root, `.${randomUUID19()}.pending`);
+    const key = `${randomUUID19()}.${extension}`, final = join2(this.#root, key);
     const file = await fs.open(stage, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | noFollow, 384);
-    let id, staged = true, linked = false;
+    let id2, staged = true, linked = false;
     try {
       try {
-        id = await file.stat(statOpts);
+        id2 = await file.stat(statOpts);
         await file.writeFile(data);
         if ((await file.stat(statOpts)).size !== BigInt(data.length)) throw unavailable();
         await file.sync();
         await this.#directory();
-        if (!same(id, await this.#file(stage))) throw unavailable();
+        if (!same(id2, await this.#file(stage))) throw unavailable();
         await fs.link(stage, final);
         linked = true;
-        await this.#unlinkOwned(stage, id);
+        await this.#unlinkOwned(stage, id2);
         staged = false;
         await file.sync();
         const published = await this.#file(final);
-        if (!same(id, published) || published.nlink !== 1n || published.size !== BigInt(data.length)) throw unavailable();
+        if (!same(id2, published) || published.nlink !== 1n || published.size !== BigInt(data.length)) throw unavailable();
       } finally {
         await file.close();
       }
       await syncDirectory(this.#root);
-      this.#pending.set(key, { id, discarding: false });
+      this.#pending.set(key, { id: id2, discarding: false });
       return { key, sha256, byteLength: data.length };
     } catch (failure) {
-      if (id && linked) await this.#unlinkOwned(final, id);
-      if (id && staged) await this.#unlinkOwned(stage, id);
+      if (id2 && linked) await this.#unlinkOwned(final, id2);
+      if (id2 && staged) await this.#unlinkOwned(stage, id2);
       throw failure;
     }
   }
@@ -6538,10 +6725,10 @@ var PdfOriginals = class {
 };
 
 // src/host/library-http.ts
-import { randomUUID as randomUUID19 } from "node:crypto";
+import { randomUUID as randomUUID20 } from "node:crypto";
 
 // src/host/text-document.ts
-import { createHash as createHash14 } from "node:crypto";
+import { createHash as createHash15 } from "node:crypto";
 var MAX_BYTES = 8 * 1024 * 1024;
 var MAX_BLOCKS = 16384;
 var messages = {
@@ -6583,7 +6770,7 @@ function indexBlocks(source, markdown) {
     if (!pending) return;
     if (blocks.length >= MAX_BLOCKS) throw new TextInputError("TEXT_TOO_LARGE");
     const text2 = source.slice(start, end);
-    const anchor = createHash14("sha256").update(text2, "utf8").digest("hex");
+    const anchor = createHash15("sha256").update(text2, "utf8").digest("hex");
     blocks.push({ kind: pending, start, end, text: text2, anchor });
     start = end;
     pending = void 0;
@@ -6644,50 +6831,50 @@ function decodeText(bytes, media, requestedEncoding) {
 }
 
 // src/host/reader-http.ts
-import { createHash as createHash16 } from "node:crypto";
+import { createHash as createHash17 } from "node:crypto";
 
 // src/host/word-locator.ts
 var import_saxes = __toESM(require_saxes(), 1);
-import { createHash as createHash15 } from "node:crypto";
-var sha3 = (text2) => createHash15("sha256").update(text2, "utf8").digest("hex");
+import { createHash as createHash16 } from "node:crypto";
+var sha3 = (text2) => createHash16("sha256").update(text2, "utf8").digest("hex");
 var wordNs = /* @__PURE__ */ new Set(["http://schemas.openxmlformats.org/wordprocessingml/2006/main", "http://purl.oclc.org/ooxml/wordprocessingml/main"]);
 var bodyLimit = 1e6;
 var wordPageLimit = 512;
 async function wordParagraphs(bytes) {
   const xml = await wordBodyXml(bytes), p = new import_saxes.SaxesParser({ xmlns: true }), stack = [], paragraphs = [];
   let ns = "", body = 0, paragraph = 0, runText = 0, omitted = 0, text2 = "", count = 0;
-  const invalid4 = () => {
+  const invalid6 = () => {
     throw new Error("Unsupported Word structure");
   };
   const add = (s) => {
     count += s.length;
-    if (count > bodyLimit) invalid4();
+    if (count > bodyLimit) invalid6();
     text2 += s;
   };
-  p.on("doctype", invalid4);
+  p.on("doctype", invalid6);
   p.on("opentag", (tag) => {
     stack.push(tag.uri === ns ? tag.local : "");
     const depth = stack.length;
-    if (depth > 128) invalid4();
+    if (depth > 128) invalid6();
     if (depth === 1) {
-      if (!wordNs.has(tag.uri) || tag.local !== "document") invalid4();
+      if (!wordNs.has(tag.uri) || tag.local !== "document") invalid6();
       ns = tag.uri;
       return;
     }
     if (depth === 2 && tag.uri === ns && tag.local === "body") {
-      if (body || paragraphs.length) invalid4();
+      if (body || paragraphs.length) invalid6();
       body = depth;
       return;
     }
     if (!body || omitted) return;
-    if (tag.local === "AlternateContent" || tag.uri === ns && ["altChunk", "txbxContent", "headerReference", "footerReference"].includes(tag.local)) invalid4();
+    if (tag.local === "AlternateContent" || tag.uri === ns && ["altChunk", "txbxContent", "headerReference", "footerReference"].includes(tag.local)) invalid6();
     if (tag.uri !== ns) return;
     if (["del", "moveFrom"].includes(tag.local)) {
       omitted = depth;
       return;
     }
     if (tag.local === "p") {
-      if (paragraph || paragraphs.length >= 32768) invalid4();
+      if (paragraph || paragraphs.length >= 32768) invalid6();
       paragraph = depth;
       text2 = "";
       return;
@@ -6865,7 +7052,7 @@ function imagePng(api, page, width, height) {
 
 // src/host/reader-http.ts
 var uuid3 = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
-var hash2 = (s) => createHash16("sha256").update(s, "utf8").digest("hex");
+var hash2 = (s) => createHash17("sha256").update(s, "utf8").digest("hex");
 var ReaderService = class {
   constructor(store, originals, render2, wordPages, legacyWord) {
     this.store = store;
@@ -6886,8 +7073,8 @@ var ReaderService = class {
   addBookmark(current, t, title, a) {
     return this.store.addBookmark(current(), t, title, a);
   }
-  deleteBookmark(current, t, id, a) {
-    return this.store.deleteBookmark(current(), t, id, a);
+  deleteBookmark(current, t, id2, a) {
+    return this.store.deleteBookmark(current(), t, id2, a);
   }
   listAnnotations(current, t) {
     return this.store.listAnnotations(current(), t);
@@ -6895,11 +7082,11 @@ var ReaderService = class {
   addAnnotation(current, t, draft, a) {
     return this.store.addAnnotation(current(), t, draft, a);
   }
-  updateAnnotation(current, t, id, r, body, a) {
-    return this.store.updateAnnotation(current(), t, id, r, body, a);
+  updateAnnotation(current, t, id2, r, body, a) {
+    return this.store.updateAnnotation(current(), t, id2, r, body, a);
   }
-  deleteAnnotation(current, t, id, r, a) {
-    return this.store.deleteAnnotation(current(), t, id, r, a);
+  deleteAnnotation(current, t, id2, r, a) {
+    return this.store.deleteAnnotation(current(), t, id2, r, a);
   }
   async outline(current, t, signal) {
     const { actor_id, source, items } = this.store.outline(current(), t);
@@ -7010,22 +7197,22 @@ var ReaderService = class {
     }
     return this.store.create(current(), spec, key, w);
   }
-  async resolve(current, id, signal) {
-    const t = this.store.target(current(), id), w = t.conversion_id ? await this.witness(current, t, signal) : void 0;
-    return this.store.resolve(current(), id, w);
+  async resolve(current, id2, signal) {
+    const t = this.store.target(current(), id2), w = t.conversion_id ? await this.witness(current, t, signal) : void 0;
+    return this.store.resolve(current(), id2, w);
   }
 };
 async function readerRoute(req, url, service, current, signal, body, reserve, send) {
   const annotations = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/reader-annotations(?:\/([a-f0-9-]+))?$/.exec(url.pathname);
   if (annotations && uuid3.test(annotations[1]) && uuid3.test(annotations[2]) && (!annotations[3] || uuid3.test(annotations[3]))) {
-    const p = url.searchParams, keys2 = [...p.keys()], n = p.get("unit") ?? "1", cv = p.get("conversion"), id = annotations[3], m = req.method;
-    if (keys2.some((k) => k !== "unit" && k !== "conversion") || new Set(keys2).size !== keys2.length || !/^\d{1,9}$/.test(n) || Number(n) < 1 || cv && !uuid3.test(cv) || cv === "") throw new AssetError(422, "INVALID_READER_UNIT");
+    const p = url.searchParams, keys3 = [...p.keys()], n = p.get("unit") ?? "1", cv = p.get("conversion"), id2 = annotations[3], m = req.method;
+    if (keys3.some((k) => k !== "unit" && k !== "conversion") || new Set(keys3).size !== keys3.length || !/^\d{1,9}$/.test(n) || Number(n) < 1 || cv && !uuid3.test(cv) || cv === "") throw new AssetError(422, "INVALID_READER_UNIT");
     const t = { asset_id: annotations[1], version_id: annotations[2], ordinal: Number(n), ...cv ? { conversion_id: cv } : {} };
-    if (m === "GET" && !id) {
+    if (m === "GET" && !id2) {
       send(200, service.listAnnotations(current, t));
       return true;
     }
-    if (m === "POST" && !id || id && (m === "PATCH" || m === "DELETE")) {
+    if (m === "POST" && !id2 || id2 && (m === "PATCH" || m === "DELETE")) {
       const a = req.headers["x-knowledgeos-reader-actor"];
       if (typeof a !== "string" || !uuid3.test(a)) throw new AssetError(422, "INVALID_READER_ACTOR");
       if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
@@ -7042,32 +7229,32 @@ async function readerRoute(req, url, service, current, signal, body, reserve, se
       if (m === "POST") {
         if (typeof v.citation_id !== "string" || !uuid3.test(v.citation_id) || !["private", "project"].includes(v.visibility)) throw new AssetError(422, "INVALID_ANNOTATION");
         send(201, service.addAnnotation(current, t, v, a));
-      } else if (id) {
+      } else if (id2) {
         const r = v.expected_revision;
         if (!Number.isSafeInteger(r) || r < 1 || r >= Number.MAX_SAFE_INTEGER) throw new AssetError(422, "INVALID_ANNOTATION_REVISION");
-        send(200, m === "PATCH" ? service.updateAnnotation(current, t, id, r, v.body, a) : service.deleteAnnotation(current, t, id, r, a));
+        send(200, m === "PATCH" ? service.updateAnnotation(current, t, id2, r, v.body, a) : service.deleteAnnotation(current, t, id2, r, a));
       }
       return true;
     }
   }
   const reading = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/reader-(state|outline|bookmarks)(?:\/([a-f0-9-]+))?$/.exec(url.pathname);
   if (reading && uuid3.test(reading[1]) && uuid3.test(reading[2]) && !url.search) {
-    const t = { asset_id: reading[1], version_id: reading[2], ordinal: 1 }, kind = reading[3], id = reading[4], method = req.method;
-    if (method === "GET" && !id && kind === "state") {
+    const t = { asset_id: reading[1], version_id: reading[2], ordinal: 1 }, kind = reading[3], id2 = reading[4], method = req.method;
+    if (method === "GET" && !id2 && kind === "state") {
       send(200, service.navigation(current, t));
       return true;
     }
-    if (method === "GET" && !id && kind === "outline") {
+    if (method === "GET" && !id2 && kind === "outline") {
       reserve();
       send(200, await service.outline(current, t, signal));
       return true;
     }
-    const save = kind === "state" && method === "PUT" && !id, add = kind === "bookmarks" && method === "POST" && !id, del = kind === "bookmarks" && method === "DELETE" && id && uuid3.test(id);
+    const save = kind === "state" && method === "PUT" && !id2, add = kind === "bookmarks" && method === "POST" && !id2, del = kind === "bookmarks" && method === "DELETE" && id2 && uuid3.test(id2);
     if (save || add || del) {
       const a = req.headers["x-knowledgeos-reader-actor"];
       if (typeof a !== "string" || !uuid3.test(a)) throw new AssetError(422, "INVALID_READER_ACTOR");
-      if (del && id) {
-        send(200, service.deleteBookmark(current, t, id, a));
+      if (del && id2) {
+        send(200, service.deleteBookmark(current, t, id2, a));
         return true;
       }
       if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
@@ -7098,8 +7285,8 @@ async function readerRoute(req, url, service, current, signal, body, reserve, se
   }
   const reader = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/reader$/.exec(url.pathname);
   if (reader && uuid3.test(reader[1]) && uuid3.test(reader[2]) && req.method === "GET") {
-    const p = url.searchParams, keys2 = [...p.keys()], unit = p.get("unit") ?? "1", cid = p.get("conversion");
-    if (keys2.some((k) => !["unit", "conversion"].includes(k)) || keys2.length !== new Set(keys2).size || !/^\d{1,9}$/.test(unit) || Number(unit) < 1 || cid !== null && !uuid3.test(cid)) throw new AssetError(422, "INVALID_READER_UNIT");
+    const p = url.searchParams, keys3 = [...p.keys()], unit = p.get("unit") ?? "1", cid = p.get("conversion");
+    if (keys3.some((k) => !["unit", "conversion"].includes(k)) || keys3.length !== new Set(keys3).size || !/^\d{1,9}$/.test(unit) || Number(unit) < 1 || cid !== null && !uuid3.test(cid)) throw new AssetError(422, "INVALID_READER_UNIT");
     reserve();
     send(200, await service.page(current, { asset_id: reader[1], version_id: reader[2], ordinal: Number(unit), ...cid ? { conversion_id: cid } : {} }, signal));
     return true;
@@ -7370,15 +7557,15 @@ async function processInput(req) {
   if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((k) => !["version_id", "page"].includes(k)) || typeof value.version_id !== "string" || !uuid4.test(value.version_id) || "page" in value && (!Number.isSafeInteger(value.page) || value.page < 1 || value.page > 1e4)) throw new AssetError(422, "INVALID_PROCESS");
   return value;
 }
-async function receive(req, emptyCode, limit2) {
+async function receive(req, emptyCode, limit3) {
   const declared = req.headers["content-length"];
-  if (declared !== void 0 && (!/^\d+$/.test(declared) || Number(declared) > limit2)) throw new AssetError(413, "FILE_TOO_LARGE");
+  if (declared !== void 0 && (!/^\d+$/.test(declared) || Number(declared) > limit3)) throw new AssetError(413, "FILE_TOO_LARGE");
   const chunks = [];
   let count = 0;
   for await (const chunk2 of req) {
     const b = Buffer.isBuffer(chunk2) ? chunk2 : Buffer.from(chunk2);
     count += b.length;
-    if (count > limit2) throw new AssetError(413, "FILE_TOO_LARGE");
+    if (count > limit3) throw new AssetError(413, "FILE_TOO_LARGE");
     chunks.push(b);
   }
   if (!count) throw new AssetError(422, emptyCode);
@@ -7428,7 +7615,7 @@ async function publishInput(store, originals, current, spec, bytes, media, encod
 function libraryHandler(store, originals, origin, actorFor, parses, office, officeAvailable = () => true, archives, reader, search) {
   let transfers = 0;
   return async (req, res) => {
-    const requestId = randomUUID19();
+    const requestId = randomUUID20();
     let transfer = false, handlerDone = false, responseDone = false;
     res.setHeader("cache-control", "no-store");
     res.setHeader("x-content-type-options", "nosniff");
@@ -7505,21 +7692,21 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
       }
       const op = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/office(?:\/(start)|\/([a-f0-9-]+)\/(cancel|notes|pdf))?$/.exec(url.pathname);
       if (office && op && uuid4.test(op[1]) && uuid4.test(op[2]) && (!op[4] || uuid4.test(op[4]))) {
-        const id = op[1], v = op[2], cid = op[4], command = op[3] ?? op[5], key = req.headers["idempotency-key"];
+        const id2 = op[1], v = op[2], cid = op[4], command = op[3] ?? op[5], key = req.headers["idempotency-key"];
         const send = (status, data) => json2(status, { data, request_id: requestId });
         if (req.method === "GET" && !command) {
-          const keys2 = [...url.searchParams.keys()];
-          if (new Set(keys2).size !== keys2.length) throw new AssetError(422, "INVALID_HISTORY_CURSOR");
-          send(200, office.list(current(), id, v, Object.fromEntries(url.searchParams)));
+          const keys3 = [...url.searchParams.keys()];
+          if (new Set(keys3).size !== keys3.length) throw new AssetError(422, "INVALID_HISTORY_CURSOR");
+          send(200, office.list(current(), id2, v, Object.fromEntries(url.searchParams)));
           return;
         }
         if (req.method === "POST" && command === "start" && !url.search) {
-          const r = office.start(current(), id, v, typeof key === "string" ? key : "", officeAvailable());
+          const r = office.start(current(), id2, v, typeof key === "string" ? key : "", officeAvailable());
           send(r.replayed ? 200 : 202, r);
           return;
         }
         if (req.method === "POST" && command === "cancel" && !url.search) {
-          send(200, office.cancel(current(), id, v, cid));
+          send(200, office.cancel(current(), id2, v, cid));
           return;
         }
         if (req.method === "POST" && command === "notes" && !url.search) {
@@ -7532,13 +7719,13 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
             throw new AssetError(422, "INVALID_QUALITY_NOTE");
           }
           if (!input || typeof input !== "object" || Array.isArray(input) || Object.keys(input).some((k) => !["body", "page"].includes(k))) throw new AssetError(422, "INVALID_QUALITY_NOTE");
-          const r = office.note(current(), id, v, cid, typeof key === "string" ? key : "", input.page, input.body);
+          const r = office.note(current(), id2, v, cid, typeof key === "string" ? key : "", input.page, input.body);
           send(r.replayed ? 200 : 201, r);
           return;
         }
         if (req.method === "GET" && command === "pdf" && (!url.search || url.search === "?download=1")) {
           reserve();
-          const download = !!url.search, result = () => office.result(current(), id, v, cid, download), ref = result();
+          const download = !!url.search, result = () => office.result(current(), id2, v, cid, download), ref = result();
           const bytes = await originals.read(ref.key, ref.sha256, ref.byteLength);
           result();
           res.setHeader("content-type", "application/pdf");
@@ -7556,9 +7743,9 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
           return;
         }
         if (archive && uuid4.test(archive[1])) {
-          const id = archive[1];
+          const id2 = archive[1];
           if (req.method === "GET" && archive[2] === "entries") {
-            json2(200, { data: archives.manifest(current(), id), request_id: requestId });
+            json2(200, { data: archives.manifest(current(), id2), request_id: requestId });
             return;
           }
           if (req.method === "POST" && archive[2] === "selection") {
@@ -7574,32 +7761,32 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
               throw new AssetError(422, "INVALID_SELECTION");
             }
             if (!input || typeof input !== "object" || Object.keys(input).length !== 1 || !Array.isArray(input.entry_ids)) throw new AssetError(422, "INVALID_SELECTION");
-            const ref = archives.source(current(), id), items = archives.select(current(), id, key, input.entry_ids), pending = items.filter((e) => !e.imported);
+            const ref = archives.source(current(), id2), items = archives.select(current(), id2, key, input.entry_ids), pending = items.filter((e) => !e.imported);
             if (pending.length) {
               const bytes = await originals.read(ref.key, ref.sha256, ref.byteLength);
               try {
                 await preflightZipSelection(bytes, pending.map((e) => e.ordinal));
               } catch (e) {
-                if (e instanceof ZipInputError) for (const m of pending) archives.failure(current(), id, m.id, e.code);
+                if (e instanceof ZipInputError) for (const m of pending) archives.failure(current(), id2, m.id, e.code);
                 throw e;
               }
               for (const m of pending) {
                 current();
                 const content = await readZipMember(bytes, m.ordinal), title = m.path.split("/").at(-1);
                 if (title.length > 200) {
-                  archives.failure(current(), id, m.id, "INVALID_FILENAME");
+                  archives.failure(current(), id2, m.id, "INVALID_FILENAME");
                   continue;
                 }
                 try {
-                  await publishInput(store, originals, current, { title, key: m.key }, content, m.media, void 0, archives.publication(id, m.id, m.key));
+                  await publishInput(store, originals, current, { title, key: m.key }, content, m.media, void 0, archives.publication(id2, m.id, m.key));
                 } catch (e) {
-                  const invalid4 = inputError(e);
-                  if (!invalid4) throw e;
-                  archives.failure(current(), id, m.id, invalid4.code);
+                  const invalid6 = inputError(e);
+                  if (!invalid6) throw e;
+                  archives.failure(current(), id2, m.id, invalid6.code);
                 }
               }
             }
-            json2(200, { data: archives.manifest(current(), id), request_id: requestId });
+            json2(200, { data: archives.manifest(current(), id2), request_id: requestId });
             return;
           }
         }
@@ -7647,8 +7834,8 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
       const operation = /^\/knowledge\/v1\/operations\/([a-f0-9-]+)$/.exec(url.pathname);
       const blockPath = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/blocks$/.exec(url.pathname);
       if (blockPath && req.method === "GET" && uuid4.test(blockPath[1]) && uuid4.test(blockPath[2])) {
-        const keys2 = [...url.searchParams.keys()];
-        if (keys2.some((k) => !["from", "limit"].includes(k)) || new Set(keys2).size !== keys2.length) throw new AssetError(422, "INVALID_BLOCK_RANGE");
+        const keys3 = [...url.searchParams.keys()];
+        if (keys3.some((k) => !["from", "limit"].includes(k)) || new Set(keys3).size !== keys3.length) throw new AssetError(422, "INVALID_BLOCK_RANGE");
         json2(200, { data: store.blocks(current(), blockPath[1], blockPath[2], Number(url.searchParams.get("from") ?? 1), Number(url.searchParams.get("limit") ?? 5)), request_id: requestId });
         return;
       }
@@ -7667,10 +7854,10 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
         return;
       }
       if (pagesPath && parses && req.method === "GET" && uuid4.test(pagesPath[1]) && uuid4.test(pagesPath[2])) {
-        const keys2 = [...url.searchParams.keys()];
-        if (keys2.some((k) => !["from", "limit"].includes(k)) || new Set(keys2).size !== keys2.length) throw new AssetError(422, "INVALID_PAGE_RANGE");
-        const from = Number(url.searchParams.get("from") ?? 1), limit2 = Number(url.searchParams.get("limit") ?? 5);
-        json2(200, { data: parses.pages(current(), pagesPath[1], pagesPath[2], from, limit2), request_id: requestId });
+        const keys3 = [...url.searchParams.keys()];
+        if (keys3.some((k) => !["from", "limit"].includes(k)) || new Set(keys3).size !== keys3.length) throw new AssetError(422, "INVALID_PAGE_RANGE");
+        const from = Number(url.searchParams.get("from") ?? 1), limit3 = Number(url.searchParams.get("limit") ?? 5);
+        json2(200, { data: parses.pages(current(), pagesPath[1], pagesPath[2], from, limit3), request_id: requestId });
         return;
       }
       if (parse3 && parses && !url.search && uuid4.test(parse3[1]) && uuid4.test(parse3[2]) && req.method === (parse3[3] ? "POST" : "GET")) {
@@ -7713,6 +7900,109 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
     } finally {
       handlerDone = true;
       release();
+    }
+  };
+}
+
+// src/host/note-http.ts
+var prefix = "/knowledge/v1/notes";
+var limit2 = 2e5;
+var invalid5 = () => new AssetError(422, "INVALID_NOTE");
+var id = (value) => {
+  if (typeof value !== "string" || !noteId.test(value)) throw invalid5();
+  return value;
+};
+var keys2 = (body, allowed) => {
+  if (Object.keys(body).some((k) => !allowed.includes(k))) throw invalid5();
+};
+async function jsonBody(req) {
+  if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
+  const parts = [];
+  let size = 0;
+  if (Number(req.headers["content-length"]) > limit2) throw new AssetError(413, "BODY_TOO_LARGE");
+  for await (const chunk2 of req.iterator({ destroyOnReturn: false })) {
+    const part = Buffer.from(chunk2);
+    size += part.length;
+    if (size > limit2) {
+      req.resume();
+      throw new AssetError(413, "BODY_TOO_LARGE");
+    }
+    parts.push(part);
+  }
+  let body;
+  try {
+    body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(parts, size)));
+  } catch {
+    throw invalid5();
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw invalid5();
+  return body;
+}
+function fields2(input, all) {
+  const patch = {};
+  if (all || "title" in input) {
+    if (!noteText(input.title, noteLimits.title)) throw invalid5();
+    patch.title = input.title;
+  }
+  if (all || "body" in input) {
+    if (!noteText(input.body, noteLimits.body)) throw invalid5();
+    patch.body = input.body;
+  }
+  if (all || "kind" in input) {
+    if (!noteKinds.includes(input.kind)) throw invalid5();
+    patch.kind = input.kind;
+  }
+  return patch;
+}
+function createNoteHandler(store, origin, actorFor) {
+  return async (req, res) => {
+    const send = (status, data) => {
+      if (res.destroyed) return;
+      res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" });
+      res.end(JSON.stringify(data));
+    };
+    try {
+      const base = origin(), method = req.method;
+      if (!base || req.headers.host !== new URL(base).host || req.headers["sec-fetch-site"] === "cross-site" || req.headers.origin !== void 0 && req.headers.origin !== base || method !== "GET" && req.headers["x-knowledgeos-request"] !== "1") throw new AssetError(403, "CSRF_REJECTED");
+      const url = new URL(req.url ?? "/", base), path = url.pathname;
+      if (url.origin !== base) throw new AssetError(403, "CSRF_REJECTED");
+      const actor2 = actorFor(req);
+      if (!actor2) throw new AssetError(401, "AUTH_REQUIRED");
+      const info = { actor_id: actor2.userId }, row = /^\/knowledge\/v1\/notes\/([^/]+)$/.exec(path), project = /^\/knowledge\/v1\/notes\/projects\/([^/]+)$/.exec(path);
+      const cursor = () => {
+        if ([...url.searchParams].length === 0) return "";
+        if ([...url.searchParams].length !== 1 || !url.searchParams.has("after")) throw invalid5();
+        return id(url.searchParams.get("after"));
+      };
+      if (method === "GET" && path === prefix) return send(200, { data: { ...info, ...store.list(actor2, cursor()) } });
+      if (method === "GET" && path === prefix + "/projects") return send(200, { data: { ...info, ...store.managedProjects(actor2, cursor()) } });
+      if (method === "GET" && project) return send(200, { data: { ...info, ...store.projectRefs(actor2, id(project[1]), cursor()) } });
+      if (url.search) throw invalid5();
+      if (method === "GET" && row) return send(200, { data: { ...info, ...store.get(actor2, id(row[1])) } });
+      if (method === "POST" && path === prefix) {
+        const input = await jsonBody(req);
+        keys2(input, ["actor_id", "title", "body", "kind", "add_citation"]);
+        const saved = store.create(actor2, id(input.actor_id), id(req.headers["idempotency-key"]), fields2(input, true), "add_citation" in input ? id(input.add_citation) : void 0);
+        return send(saved.replayed ? 200 : 201, { data: { ...info, ...saved.data } });
+      }
+      if (method === "PATCH" && row) {
+        const input = await jsonBody(req);
+        keys2(input, ["actor_id", "expected_revision", "title", "body", "kind", "add_citation", "remove_reference"]);
+        const patch = fields2(input, false);
+        if ("add_citation" in input) patch.add_citation = id(input.add_citation);
+        if ("remove_reference" in input) patch.remove_reference = id(input.remove_reference);
+        if (typeof input.expected_revision !== "number") throw invalid5();
+        return send(200, { data: { ...info, ...store.save(actor2, id(input.actor_id), id(row[1]), input.expected_revision, patch) } });
+      }
+      if (method === "POST" && project) {
+        const input = await jsonBody(req);
+        keys2(input, ["actor_id", "note_id"]);
+        const result = store.linkProject(actor2, id(input.actor_id), id(project[1]), id(input.note_id));
+        return send(result.replayed ? 200 : 201, { data: { ...info, ...result } });
+      }
+      throw new AssetError(404, "NOT_FOUND");
+    } catch (e) {
+      send(e instanceof AssetError ? e.status : 503, { code: e instanceof AssetError ? e.code : "STORAGE_UNAVAILABLE" });
     }
   };
 }
@@ -8192,12 +8482,12 @@ function startOfficeWorker(store, originals, kit, openPdf2, log) {
 }
 
 // src/host/legacy-word-source.ts
-import { randomUUID as randomUUID20 } from "node:crypto";
+import { randomUUID as randomUUID21 } from "node:crypto";
 import { open as open2, unlink } from "node:fs/promises";
 function legacyWordSource(kit, originals) {
   return async (source, check, signal) => {
     if (!kit.convertTo) throw new Error("Office structure conversion unavailable");
-    const result = await kit.convertTo({ extension: "doc", format: "docx", output: { owner: randomUUID20(), name: "structure.docx" }, source: {
+    const result = await kit.convertTo({ extension: "doc", format: "docx", output: { owner: randomUUID21(), name: "structure.docx" }, source: {
       key: `knowledgeos-word-structure:${source.sha256}`,
       version: source.sha256,
       bytes: source.byteLength,
@@ -8244,7 +8534,7 @@ function buildLibraryHtml() {
 #zip{overflow-wrap:anywhere}#zip-resume{max-width:36rem}#zip-entries{list-style:none;padding:0}#zip-entries li{border-bottom:1px solid #dde5e2;padding:8px 0}#zip-entries label{display:flex;align-items:center;gap:8px}#zip-entries input{width:18px;height:18px;flex:none}#zip-entries small{display:block}
 #search-form{grid-template-columns:minmax(0,1fr) auto}#search-results{list-style:none;padding:0;margin:4px 0;overflow-wrap:anywhere}#search-results li{padding:8px 0;border-bottom:1px solid #dde5e2}#search-results small{margin-inline-start:8px}#search-results p{white-space:pre-wrap}#search-status{min-height:1.55em;margin-top:6px;color:#536866}
 </style></head><body>
-<header><div><strong>KnowledgeOS</strong><nav aria-label="业务导航"><a href="/knowledgeos/account">账号与登录</a><a href="/knowledgeos/ai">AI 工具</a></nav></div></header>
+<header><div><strong>KnowledgeOS</strong><nav aria-label="业务导航"><a href="/knowledgeos/notes">笔记</a><a href="/knowledgeos/account">账号与登录</a><a href="/knowledgeos/ai">AI 工具</a></nav></div></header>
 <main><div class="bar"><h1>PDF 资料库</h1><span id="who" class="muted"></span></div>
 <section aria-labelledby="search-heading"><h2 id="search-heading">全文检索</h2>
 <form id="search-form"><label>关键词<input id="search-query" type="search" maxlength="128" disabled required></label><button id="search-submit" type="submit" disabled>检索</button></form>
@@ -8859,7 +9149,7 @@ function buildReaderHtml() {
 </style></head><body><header><strong>KnowledgeOS</strong><a href="/knowledgeos/library">资料库</a><a href="/knowledgeos/account">账号与登录</a></header><main>
 <h1 id="title">版本阅读</h1><p id="version"></p><div class="tools"><button id="refresh">刷新</button><form id="jump"><button type="button" id="prev" aria-label="上一位置">←</button><input type="number" min="1" step="1" required id="number" aria-label="跳转位置"><button>跳转</button><button type="button" id="next" aria-label="下一位置">→</button></form><span id="count"></span></div><p id="status" role="status"></p>
 <section id="continuity" aria-label="阅读导航" hidden><details id="toc-details" open><summary>目录</summary><ul id="toc"></ul></details><details id="bookmarks-details" open><summary>我的书签</summary><ul id="bookmarks"></ul><form id="bookmark-form"><input id="bookmark-title" maxlength="120" required placeholder="书签名称" aria-label="书签名称"><button id="bookmark-add">添加书签</button></form></details><p id="reading-status" role="status"></p></section>
-<div class="layout"><nav id="rail" aria-label="页与文本块" hidden><div id="window"></div></nav><article><h2 id="anchor"></h2><div class="modes" id="modes" hidden><button id="paper">原页</button><button id="structured">结构文本</button><button id="cite" disabled>生成引用链接</button><button id="annotate" disabled>选区批注</button><button id="annotations-toggle" aria-controls="annotations" aria-expanded="false">本处批注</button><a id="link" hidden>打开引用</a></div><div id="original" hidden></div><pre id="text" hidden></pre><section id="annotations" aria-label="本处批注" hidden><p id="annotation-status" role="status"></p><ul id="annotation-items"></ul><form id="annotation-form" hidden><label for="annotation-body">批注正文</label><textarea id="annotation-body" maxlength="4000" required></textarea><label id="annotation-scope">可见范围 <select id="annotation-visibility"><option value="private">仅本人</option><option value="project">当前项目</option></select></label><div class="annotation-buttons"><button id="annotation-submit">保存批注</button><button type="button" id="annotation-rebase" hidden>读取最新版本并保留草稿</button><button type="button" id="annotation-cancel">取消</button></div></form></section></article></div></main><script>
+<div class="layout"><nav id="rail" aria-label="页与文本块" hidden><div id="window"></div></nav><article><h2 id="anchor"></h2><div class="modes" id="modes" hidden><button id="paper">原页</button><button id="structured">结构文本</button><button id="cite" disabled>生成引用链接</button><button id="annotate" disabled>选区批注</button><button id="annotations-toggle" aria-controls="annotations" aria-expanded="false">本处批注</button><a id="link" hidden>打开引用</a><a id="note-link" hidden>记笔记</a></div><div id="original" hidden></div><pre id="text" hidden></pre><section id="annotations" aria-label="本处批注" hidden><p id="annotation-status" role="status"></p><ul id="annotation-items"></ul><form id="annotation-form" hidden><label for="annotation-body">批注正文</label><textarea id="annotation-body" maxlength="4000" required></textarea><label id="annotation-scope">可见范围 <select id="annotation-visibility"><option value="private">仅本人</option><option value="project">当前项目</option></select></label><div class="annotation-buttons"><button id="annotation-submit">保存批注</button><button type="button" id="annotation-rebase" hidden>读取最新版本并保留草稿</button><button type="button" id="annotation-cancel">取消</button></div></form></section></article></div></main><script>
 'use strict';
 const $=id=>document.getElementById(id), q=new URLSearchParams(location.search), asset=q.get('asset'), version=q.get('version'), cid=q.get('citation');
 const requestedUnit=q.get('unit')??'1', requestedConversion=q.get('conversion');
@@ -8892,7 +9182,7 @@ function clearPage(){
   page=null;selection=null;posting=false;getSelection().removeAllRanges();
   for(const id of ['text','original','anchor'])$(id).replaceChildren();
   for(const id of ['text','original','modes','link'])$(id).hidden=true;
-  $('link').removeAttribute('href');$('cite').disabled=true;
+  $('link').removeAttribute('href');$('note-link').hidden=true;$('note-link').removeAttribute('href');$('cite').disabled=true;
   clearAnnotations();
 }
 function lock(message,keepDraft=false){
@@ -9092,7 +9382,7 @@ function capture(){
   // Measure from the container, not indexOf(quote): repeated passages and split mark nodes are legal.
   const prefix=r.cloneRange();prefix.selectNodeContents(text);prefix.setEnd(r.startContainer,r.startOffset);
   const start=prefix.toString().length,end=start+r.toString().length;
-  if(selection?.start!==start||selection?.end!==end){$('link').hidden=true;$('link').removeAttribute('href')}
+  if(selection?.start!==start||selection?.end!==end){for(const id of ['link','note-link']){$(id).hidden=true;$(id).removeAttribute('href')}}
   selection=validRange(page.text,start,end)?{start,end}:null;$('cite').disabled=!selection;$('annotate').disabled=!selection||annotationBusy;
 }
 async function createCitation(range=selection,announce=true){
@@ -9108,7 +9398,8 @@ async function createCitation(range=selection,announce=true){
     if(!await access(g))return;
     const c=locator(receipt);if(!uuid(c.id)||c.ordinal!==body.ordinal||c.start!==start||c.end!==end||c.source_hash!==source_hash||c.quote_hash!==quote||(c.conversion_id??null)!==(body.conversion_id??null))throw invalid();
     if(announce){const u=new URL('/knowledgeos/reader',location.origin);u.search=new URLSearchParams({asset,version,citation:c.id});
-      $('link').href=u.href;$('link').hidden=false;draw();status('引用链接已生成。')}
+      $('link').href=u.href;$('link').hidden=false;
+      $('note-link').href='/knowledgeos/notes?'+new URLSearchParams({citation:c.id});$('note-link').hidden=false;draw();status('引用链接已生成。')}
     return c;
   }catch(e){
     if(g!==gen)return;if([401,403,404,409].includes(e.http)){failure(e,g);return}
@@ -9256,6 +9547,136 @@ void load(Number(requestedUnit),{openCitation:true,openMatch:followMatch,restore
 </script></body></html>`;
 }
 
+// src/host/note-page.ts
+function buildNotesHtml() {
+  return String.raw`<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>笔记 · KnowledgeOS</title><style>
+*{box-sizing:border-box}body{margin:0;background:#f8faf9;color:#223638;font:15px/1.55 "Segoe UI","Microsoft YaHei UI",sans-serif}
+header{background:#fff;border-bottom:1px solid #cedbd7}nav,main{max-width:1120px;margin:auto;padding:0 22px}nav,.tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap}nav{min-height:54px;padding-block:8px}nav strong{color:#18565a;font-size:18px;margin-right:8px}
+main{padding-block:22px}h1,h2,p{margin:0}h1{font-size:25px}h2{font-size:17px}a{color:#176166;text-underline-offset:3px}button,input,select,textarea{font:inherit;color:inherit}button,input,select,textarea{border:1px solid #8a9d99;border-radius:5px;background:#fff;padding:6px 9px}button{cursor:pointer;color:#215c5c}button:disabled{opacity:.58;cursor:default}button[type=submit]{background:#226461;color:#fff}button[aria-current=true]{background:#e1efea;border-color:#558b83}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid #176d92;outline-offset:2px}
+.workspace{display:grid;grid-template-columns:minmax(12rem,1fr) minmax(0,3fr);gap:22px;margin-top:18px}.sidebar{border-right:1px solid #cfdad7;padding-right:16px;min-width:0}ul{padding:0;margin:8px 0;list-style:none}li{border-bottom:1px solid #dce6e3;padding:7px 0;overflow-wrap:anywhere}#list button{text-align:left;width:100%;border-color:transparent;overflow-wrap:anywhere}#list button[aria-current=true]{border-color:#558b83}
+label{display:grid;gap:4px;font-weight:600;min-width:0}input,select,textarea{width:100%;min-width:0}textarea{resize:vertical;min-height:16em}form,.stack{display:grid;gap:12px}fieldset{border:0;margin:0;padding:0;min-width:0}fieldset[disabled]{opacity:.7}section{border-top:1px solid #cfdad7;padding-top:14px}#status{min-height:1.6em;margin:6px 0;color:#526663}pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:6px 0;max-height:12em;overflow:auto}#conflict{border-left:3px solid #ad7542;padding-left:9px}#references li{display:flex;gap:10px;align-items:center;flex-wrap:wrap}small{color:#536866}#project-list{margin-bottom:0}[hidden]{display:none!important}
+@media(max-width:670px){nav,main{padding-inline:14px}.workspace{grid-template-columns:1fr;gap:14px}.sidebar{border-right:0;border-bottom:1px solid #cfdad7;padding:0 0 12px}textarea{min-height:10em}}
+</style></head><body><header><nav aria-label="业务导航"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">知识库</a><a href="/knowledgeos/notes" aria-current="page">笔记</a><a href="/knowledgeos/account">账号</a></nav></header>
+<main><h1>笔记</h1><p id="status" role="status">正在读取…</p><div id="workspace" class="workspace" hidden>
+<aside class="sidebar" aria-label="我的笔记"><button type="button" id="new">新建笔记</button><ul id="list"></ul><button type="button" id="more" hidden>更多笔记</button></aside>
+<div class="stack"><form id="editor"><fieldset id="fields" class="stack"><label>标题<input id="title" maxlength="200" required></label>
+<label>类型<select id="kind"><option value="plain">普通笔记</option><option value="reading">读书笔记</option><option value="project">项目随记</option><option value="reflection">个人复盘</option></select></label>
+<label>正文<textarea id="body" maxlength="32000"></textarea></label><div class="tools"><button type="submit" id="save">保存笔记</button><small id="revision"></small></div></fieldset></form>
+<section id="conflict" hidden><h2>服务器版本</h2><p id="latest-title"></p><pre id="latest-body"></pre><button type="button" id="rebase">保留草稿并使用此修订</button></section>
+<section><h2>资料引用</h2><ul id="references"></ul></section>
+<section id="project-section" hidden><h2>项目引用</h2><label>我的项目<select id="projects"><option value="">选择项目</option></select></label><div class="tools">
+<button type="button" id="link-project" disabled>关联当前笔记</button><button type="button" id="more-projects" hidden>更多项目</button></div><ul id="project-list"></ul><button type="button" id="more-links" hidden>更多关联</button></section></div></div></main>
+<script>
+const $=id=>document.getElementById(id), path='/knowledge/v1/notes', q=new URL(location.href).searchParams;
+const uuid=s=>typeof s==='string'&&/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(s);
+let owner, note, rows=[], next=null, pending=null, key=null, conflict=null, projectsNext=null, linksNext=null;
+let busy=false, locked=false, checking=false;
+const status=text=>$('status').textContent=text;
+const form=()=>({title:$('title').value,kind:$('kind').value,body:$('body').value});
+const desired=q.get('note'), citation=q.get('citation');
+function stop(message){
+  locked=true;$('workspace').hidden=true;note=null;rows=[];pending=null;conflict=null;
+  $('title').value=$('body').value=$('latest-title').textContent=$('latest-body').textContent='';
+  for(const id of ['list','references','projects','project-list'])$(id).replaceChildren();status(message);
+}
+function error(code){const e=new Error(code);e.code=code;return e}
+async function request(url,method='GET',body,extra={}){
+  const r=await fetch(url,{method,cache:'no-store',redirect:'error',credentials:'same-origin',
+    ...(body?{body:JSON.stringify(body),headers:{'content-type':'application/json','x-knowledgeos-request':'1',...extra}}:{})});
+  if(r.status===401||r.status===403){stop('会话不可用，请重新登录并刷新。');throw error('AUTH_REQUIRED')}
+  const result=await r.json();if(!r.ok){if(result.code==='ACTOR_CHANGED')stop('账号已切换，请刷新笔记。');throw error(result.code)}
+  if(url.startsWith(path)&&result.data?.actor_id!==owner){stop('账号已切换，请刷新笔记。');throw error('ACTOR_CHANGED')}
+  if(locked)throw error('AUTH_REQUIRED');return result.data;
+}
+async function checkAccount(){const current=await request('/knowledge/v1/me');if(!uuid(current?.id)||owner&&owner!==current.id){stop('账号已切换，请刷新笔记。');throw error('ACTOR_CHANGED')}owner=current.id}
+function enabled(){
+  $('fields').disabled=busy||locked;$('new').disabled=busy;$('more').disabled=busy;
+  $('save').disabled=!!conflict;$('rebase').disabled=busy;$('projects').disabled=busy;
+  $('link-project').disabled=busy||!note||!$('projects').value;$('more-projects').disabled=busy;$('more-links').disabled=busy;
+  for(const el of document.querySelectorAll('#list button,#references button,#project-list button'))el.disabled=busy;
+}
+async function action(work){
+  if(busy||locked||checking)return;busy=true;enabled();
+  try{await checkAccount();await work()}catch(e){
+    if(!locked)status(({SOURCE_NOT_FOUND:'引用来源不可用，草稿仍保留。',PROJECT_NOT_FOUND:'项目不可用。',NOTE_NOT_FOUND:'笔记或关联不可用。',INVALID_NOTE:'无法保存，请检查标题和内容。'})[e.code]||'没有确认操作结果，可以刷新核对；草稿仍保留。');
+  }finally{busy=false;enabled()}
+}
+function item(text,onClick){const li=document.createElement('li'),button=document.createElement('button');button.type='button';button.textContent=text;button.onclick=onClick;li.append(button);return li}
+function renderList(){
+  $('list').replaceChildren(...rows.map(r=>{
+    const li=item(r.title,()=>action(()=>open(r.id)));li.firstChild.setAttribute('aria-current',String(note?.id===r.id));return li;
+  }));$('more').hidden=!next;enabled();
+}
+function renderRefs(){
+  $('references').replaceChildren();
+  if(pending){const li=document.createElement('li');li.textContent='待保存的固定版本引用';$('references').append(li)}
+  (note?.references||[]).forEach((r,i)=>{
+    const li=item('移除引用',()=>action(()=>saveChanges({remove_reference:r.id},true)));
+    const label=document.createElement(r.status==='linked'?'a':'span');label.textContent=r.status==='linked'?'原文引用 '+(i+1):'来源不可用';
+    if(r.status==='linked'){label.href='/knowledgeos/reader?'+new URLSearchParams({asset:r.asset_id,version:r.version_id,citation:r.citation_id});label.target='_blank';label.rel='noopener noreferrer'}
+    li.prepend(label);$('references').append(li);
+  });
+  if(!$('references').children.length){const li=document.createElement('li');li.textContent='暂无引用';$('references').append(li)}
+}
+function clearConflict(){conflict=null;$('conflict').hidden=true;$('latest-title').textContent=$('latest-body').textContent=''}
+function apply(n,newCitation=null){
+  note=n;pending=newCitation;key=null;clearConflict();$('title').value=n?.title??'';$('kind').value=n?.kind??(newCitation?'reading':'plain');$('body').value=n?.body??'';
+  $('revision').textContent=n?'修订 '+n.revision:'未保存';renderList();renderRefs();
+}
+function dirty(){const d=form();return note?(d.title!==note.title||d.kind!==note.kind||d.body!==note.body):(d.title!==''||d.body!=='')}
+async function open(id){if(dirty()&&!confirm('离开未保存的草稿？'))return;const n=await request(path+'/'+id);apply(n);history.replaceState(null,'','?note='+id);status('已打开笔记。')}
+async function saveChanges(extra={},preserveDraft=false){
+  if(conflict)return;
+  const data={actor_id:owner,...(preserveDraft?{}:form()),...extra},draft=form();if(!note&&pending)data.add_citation=pending;
+  try{
+    let result;
+    if(note){data.expected_revision=note.revision;result=await request(path+'/'+note.id,'PATCH',data)}
+    else{const digest=JSON.stringify(data);if(key?.digest!==digest)key={digest,id:crypto.randomUUID()};result=await request(path,'POST',data,{'idempotency-key':key.id})}
+    rows=[result,...rows.filter(r=>r.id!==result.id)];apply(result);
+    if(preserveDraft){$('title').value=draft.title;$('body').value=draft.body;$('kind').value=draft.kind}
+    history.replaceState(null,'','?note='+result.id);status('笔记已保存。');
+  }catch(e){
+    if(e.code!=='REVISION_CONFLICT'||!note)throw e;
+    status('笔记已在另一处更新，草稿未覆盖服务器版本。');
+    conflict=await request(path+'/'+note.id);$('latest-title').textContent=conflict.title;$('latest-body').textContent=conflict.body;$('conflict').hidden=false;
+  }
+}
+async function listMore(reset){const data=await request(path+(reset?'':'?after='+encodeURIComponent(next)));rows=reset?data.items:[...rows,...data.items.filter(i=>!rows.some(r=>r.id===i.id))];next=data.next;renderList()}
+async function projectMore(reset){const data=await request(path+'/projects'+(reset?'':'?after='+encodeURIComponent(projectsNext)));projectsNext=data.next;
+  for(const p of data.items){const o=document.createElement('option');o.value=p.id;o.textContent=p.name;$('projects').append(o)}$('project-section').hidden=$('projects').options.length===1;$('more-projects').hidden=!projectsNext;
+}
+async function linkList(reset){
+  const project=$('projects').value;
+  if(reset){$('project-list').replaceChildren();$('more-links').hidden=true;linksNext=null}
+  if(!project)return;
+  const data=await request(path+'/projects/'+project+(reset?'':'?after='+encodeURIComponent(linksNext)));linksNext=data.next;
+  $('project-list').append(...data.items.map(i=>item(i.title,()=>action(()=>open(i.id)))));$('more-links').hidden=!linksNext;
+}
+$('new').onclick=()=>action(()=>{if(dirty()&&!confirm('离开未保存的草稿？'))return;apply(null);history.replaceState(null,'','/knowledgeos/notes');status('新笔记。')});
+$('more').onclick=()=>action(()=>listMore(false));$('more-projects').onclick=()=>action(()=>projectMore(false));$('more-links').onclick=()=>action(()=>linkList(false));
+$('editor').onsubmit=e=>{e.preventDefault();void action(saveChanges)};
+$('rebase').onclick=()=>action(()=>{if(!conflict)return;note=conflict;clearConflict();$('revision').textContent='修订 '+note.revision;renderRefs();status('已保留草稿，尚未保存。')});
+$('projects').onchange=()=>action(()=>linkList(true));
+$('link-project').onclick=()=>action(async()=>{const project=$('projects').value;if(!note||!project)return;await request(path+'/projects/'+project,'POST',{actor_id:owner,note_id:note.id});await linkList(true);status('项目引用已保存。')});
+async function checkVisible(){
+  if(document.hidden||busy||locked||checking||!owner)return;checking=true;
+  try{await checkAccount();if(note){const refreshed=await request(path+'/'+note.id);note={...note,references:refreshed.references};renderRefs()}$('workspace').hidden=false}
+  catch{if(!locked)$('workspace').hidden=true}
+  finally{checking=false;enabled()}
+}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)$('workspace').hidden=true;else void checkVisible()});
+setInterval(checkVisible,10000);
+void action(async()=>{
+  try{await listMore(true);await projectMore(true);
+    if(uuid(desired)){const saved=await request(path+'/'+desired);apply(saved)}else apply(null,uuid(citation)?citation:null);
+    $('workspace').hidden=document.hidden;status(note?'已打开笔记。':'新笔记。');
+  }catch(e){if(e.code==='NOTE_NOT_FOUND'&&!locked){apply(null);$('workspace').hidden=document.hidden}throw e}
+});
+</script></body></html>`;
+}
+
 // src/host/index.ts
 var name = "knowledgeos-panel";
 var inject = ["webServer", "clientModules", "connection", "connection.authentication"];
@@ -9317,14 +9738,14 @@ function apply(ctx, config = {}) {
       if (closing) throw new RecordsError("STORAGE_CLOSED", "storage is closing");
       if (storage === void 0) throw new RecordsError("STORAGE_UNAVAILABLE", "storage is not configured");
       return createProbeRecord(storage, {
-        newId: () => randomUUID21(),
+        newId: () => randomUUID22(),
         now: () => (/* @__PURE__ */ new Date()).toISOString()
       }, { idempotencyKey, content });
     },
-    get(id) {
+    get(id2) {
       if (closing) throw new RecordsError("STORAGE_CLOSED", "storage is closing");
       if (storage === void 0) throw new RecordsError("STORAGE_UNAVAILABLE", "storage is not configured");
-      return getProbeRecord(storage, id);
+      return getProbeRecord(storage, id2);
     }
   };
   const handlers = createRecordsHandlers(service, RECORDS_PATH, log);
@@ -9382,7 +9803,7 @@ function apply(ctx, config = {}) {
     res.statusCode = 503;
     res.setHeader("content-type", "application/json; charset=utf-8");
     res.setHeader("cache-control", "no-store");
-    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID21(), retryable: true, safe_details: {} }));
+    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID22(), retryable: true, safe_details: {} }));
   };
   const registerIdentityRoutes = (identityContext) => {
     const identityAvailable = () => {
@@ -9501,11 +9922,23 @@ function apply(ctx, config = {}) {
           if (!readLegacyWord) throw new Error("Office structure conversion unavailable");
           return readLegacyWord(s, check, signal);
         });
-        const handler = libraryHandler(storage.assets, originals, actualOrigin, (req) => {
+        const sessionFor = (req) => {
           const origin = actualOrigin();
           if (!origin || !identityAvailable()) return void 0;
           return identity.actor(readCookie(req, businessCookieName(identity.setupState.serviceId, origin)));
-        }, storage.parses, storage.office, () => !!officeMount, storage.archives, reader, storage.search);
+        };
+        const handler = libraryHandler(storage.assets, originals, actualOrigin, sessionFor, storage.parses, storage.office, () => !!officeMount, storage.archives, reader, storage.search);
+        const notes = createNoteHandler(storage.notes, actualOrigin, sessionFor);
+        disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/notes", auth: "anonymous", handler: withPeer(notes) }));
+        disposers.push(identityContext.webServer.register({ kind: "exact", path: "/knowledgeos/notes", auth: "anonymous", handler: (req, res) => {
+          if (req.method !== "GET") {
+            res.writeHead(405, { allow: "GET" });
+            res.end();
+            return;
+          }
+          res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "referrer-policy": "no-referrer" });
+          res.end(buildNotesHtml());
+        } }));
         if (storage.available) disposers.push(startParseWorker(storage.parses, originals, openPdf, log), startWordSearchIndex(storage.wordSearch, originals, openIndexPdf, log));
         disposers.push(identityContext.webServer.register({ kind: "exact", path: "/knowledgeos/library", auth: "anonymous", handler: (req, res) => {
           if (req.method !== "GET") {

@@ -1,7 +1,7 @@
 {
   "schema_version": "2.0",
   "instruction_revision": "4.0.0",
-  "updated_at": "2026-11-21",
+  "updated_at": "2026-11-22",
   "timezone": "Asia/Shanghai",
   "execution_phase": "codex_continuous",
   "executor": "codex",
@@ -9,8 +9,8 @@
     "path": "CODEX_START.md",
     "sha256": "da73b65a0004bfa875d1435a61a555ba6f02d45c280aeb8ed6d2e62ab4bd39d8"
   },
-  "active_unit": "LIB-006",
-  "unit_state": "passed",
+  "active_unit": "NOTE-001",
+  "unit_state": "in_progress",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "LIB-006 verified on two real books with independent source checks; advance after remote readback",
+  "state_reason": "Implementing private note persistence, fixed citations and project note links",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
