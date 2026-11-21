@@ -217,6 +217,32 @@ async function editDraft(p, item, body) {
   await p.locator('#annotation-body').fill(body)
 }
 
+async function patchWhileHidden(p, who, doc, item, responseStatus) {
+  const path = annotations(doc, 1, item.id)
+  const isPatch = r => r.method() === 'PATCH' && new URL(r.url()).pathname === prefix + path.split('?')[0]
+  const {promise, resolve: release} = Promise.withResolvers()
+  await p.route(url => url.pathname === prefix + path.split('?')[0], async route => {
+    await promise
+    await route.continue()
+  }, {times: 1})
+  const requested = p.waitForRequest(isPatch)
+  const responded = p.waitForResponse(r => isPatch(r.request()))
+  try {
+    await p.locator('#annotation-submit').click()
+    await requested
+    await visibility(p, true)
+  } finally { release() }
+  const response = await responded
+  assert.equal(response.status(), responseStatus)
+  let observed
+  if (responseStatus === 200) {
+    observed = (await response.json()).data
+    await witness(who, doc, observed)
+  }
+  await visibility(p, false)
+  return observed
+}
+
 async function patchFromBrowser(p, doc, item, body, status = 200) {
   const expected = {body, expected_revision: item.revision}
   const r = await exchange(p, 'PATCH', annotations(doc, 1, item.id), () => p.locator('#annotation-submit').click())
@@ -306,7 +332,21 @@ async function lifecycle() {
     await stale.locator('#annotation-rebase').waitFor({state: 'hidden'})
     assert.equal(await stale.locator('#annotation-body').inputValue(), draftBody)
     await witness(owner, doc, latest)
-    latest = await patchFromBrowser(stale, doc, latest, draftBody)
+    const nextBody = 'Other tab saved while the next draft was pending.'
+    await editDraft(winner, latest, nextBody)
+    latest = await patchFromBrowser(winner, doc, latest, nextBody)
+    await patchWhileHidden(stale, owner, doc, latest, 409)
+    await stale.locator('#annotation-rebase').waitFor()
+    assert.equal(await stale.locator('#annotation-body').inputValue(), draftBody)
+    assert(await stale.locator('#annotation-submit').isDisabled())
+    await witness(owner, doc, latest)
+    await snap(stale, 'annotation-pending-conflict-restored')
+    await stale.locator('#annotation-rebase').click()
+    await stale.locator('#annotation-rebase').waitFor({state: 'hidden'})
+    latest = await patchWhileHidden(stale, owner, doc, latest, 200)
+    await row(stale, item.id).waitFor()
+    await stale.waitForFunction(() => document.getElementById('annotation-status').textContent === '\u5f53\u524d\u6279\u6ce8\u5df2\u5305\u542b\u63d0\u4ea4\u5185\u5bb9\u3002')
+    assert.equal(await stale.locator('#annotation-body').inputValue(), '')
     await witness(owner, doc, latest)
     await other.close(); other = undefined
     await ctx.close()
@@ -322,7 +362,8 @@ async function lifecycle() {
     checkWrite(deleted, owner, 200, {expected_revision: latest.revision})
     await row(restored, item.id).waitFor({state: 'detached'})
     assert.deepEqual((await list(owner, doc)).items, []); assert.deepEqual(rows(doc), [])
-    return {version: doc.version_id, new_version: newer.version_id, range: expectedRange, conflict_http: 409, last_revision: latest.revision}
+    return {version: doc.version_id, new_version: newer.version_id, range: expectedRange, conflict_http: 409,
+      pending_conflict_restored: true, committed_pending_save_not_replayed: true, last_revision: latest.revision}
   } finally { await Promise.all([ctx?.close(), other?.close()]) }
 }
 

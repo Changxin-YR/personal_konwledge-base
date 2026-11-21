@@ -350,9 +350,10 @@ function refresh(){if(busy)return;continuity=null;outlineLoaded=false;readingSta
 $('refresh').onclick=refresh;
 // Clear the DOM on hide. Only a same-document tab switch can retain an in-memory draft.
 function suspend(keepDraft=false){
-  if(keepDraft&&annotationDraft&&!annotationBusy&&owner&&page){
+  // An in-flight PATCH can be rechecked by ID/revision. Never replay a hidden POST.
+  if(keepDraft&&annotationDraft&&(!annotationBusy||annotationDraft.id)&&owner&&page){
     suspendedDraft={actor:owner,ordinal:page.ordinal,conversion,anchor:page.anchor,draft:annotationDraft,
-      body:$('annotation-body').value,visibility:$('annotation-visibility').value};
+      body:$('annotation-body').value,visibility:$('annotation-visibility').value,checkingSave:annotationBusy};
   }
   resumeAt??={n:total||suspendedDraft?ordinal:Number(requestedUnit),cv:conversion,cite:followCitation};
   lock('返回后将重新检查阅读权限。',keepDraft);
@@ -370,8 +371,13 @@ async function resume(){
   discard();
   if(!data?.can_comment||annotationDraft||!annotationPanel)return;
   const draft=saved.draft;
-  if(draft.id?!data.items.some(x=>x.id===draft.id&&x.can_edit):
-    !validRange(page.text,draft.range.start,draft.range.end)||saved.visibility==='project'&&!data.can_share)return;
+  if(draft.id){
+    const current=data.items.find(x=>x.id===draft.id&&x.can_edit);if(!current)return;
+    if(saved.checkingSave&&current.revision!==draft.revision){
+      if(current.body===saved.body){annotationMessage('当前批注已包含提交内容。');return}
+      draft.conflict=true;
+    }
+  }else if(!validRange(page.text,draft.range.start,draft.range.end)||saved.visibility==='project'&&!data.can_share)return;
   annotationDraft=draft;$('annotation-body').value=saved.body;$('annotation-visibility').value=saved.visibility;
   $('annotation-scope').hidden=Boolean(draft.id);$('annotation-form').hidden=false;
   $('annotation-rebase').hidden=!draft.conflict;$('annotation-submit').disabled=Boolean(draft.conflict);
