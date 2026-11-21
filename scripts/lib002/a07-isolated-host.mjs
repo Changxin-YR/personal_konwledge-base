@@ -48,9 +48,10 @@ export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrie
     const f=join(trace,'boundary.jsonl');if(!existsSync(f))return []
     return readFileSync(f,'utf8').split('\n').slice(0,-1).map(s=>JSON.parse(s))
   }
-  async function start(flags=[]){
+  async function start(flags=[],{holdPage}={}){
     assert(!host);trace=join(dir,'boot-'+ ++seq);mkdirSync(trace)
     for(const f of flags){assert(['hold3','fail4'].includes(f));writeFileSync(join(trace,f),'')}
+    if(holdPage!==undefined){assert(Number.isSafeInteger(holdPage)&&holdPage>1&&holdPage<=10_000);writeFileSync(join(trace,'hold-page'),String(holdPage))}
     const env={};for(const [k,v] of Object.entries(process.env))if(/^(systemroot|windir|comspec|path|pathext|programfiles.*|processor_.*|number_of_processors)$/i.test(k))env[k]=v
     for(const k of ['HOME','USERPROFILE','LOCALAPPDATA','APPDATA','TEMP','TMP']){env[k]=join(dir,'env-'+k);mkdirSync(env[k],{recursive:true})}
     Object.assign(env,{DSH_HOME:home,DSH_CLIENT_COMMIT_HASH:bound.facts.upstream,TSX_DISABLE_CACHE:'1',KO_ENTRY:stagedEntry,KO_HASH:entryHash,KO_RUN:trace})

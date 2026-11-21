@@ -1,0 +1,22 @@
+{
+  "unit_id": "LIB-006",
+  "base_commit": "3495e630e890b887387a2d5cd24d66df938acc25",
+  "candidate_sha": "b47d09ba7ce612272a23e5ca645455053b40de9f",
+  "entry_sha256": "46b939e31b286a62d67b48e5c22da92f9d170193f3fbf27a973d24d84aae4b45",
+  "technical_results": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "affected_tests": 108,
+    "affected_exit": 0,
+    "synthetic_smoke": "PASS",
+    "synthetic_smoke_command": "node scripts/lib006/host-chapters.mjs b47d09ba7ce612272a23e5ca645455053b40de9f 46b939e31b286a62d67b48e5c22da92f9d170193f3fbf27a973d24d84aae4b45",
+    "synthetic_smoke_exit": 0,
+    "synthetic_smoke_local_record": ".cache/lib006-chapters/run-nMNK99/summary.json"
+  },
+  "unit_acceptance": "NOT_RUN",
+  "T01": "NOT_RUN",
+  "T02": "NOT_RUN",
+  "P02": "NOT_RUN",
+  "A06": "NOT_RUN",
+  "independent": "NOT_RUN"
+}

@@ -1,12 +1,14 @@
 // Loaded only by the isolated acceptance Host. Never changes the bundle or SQLite.
 import assert from 'node:assert/strict'
-import { appendFileSync, existsSync, realpathSync } from 'node:fs'
+import { appendFileSync, existsSync, readFileSync, realpathSync } from 'node:fs'
 import { syncBuiltinESMExports } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import threads from 'node:worker_threads'
 
 const dir = realpathSync(process.env.KO_RUN)
+const holdFile = join(dir,'hold-page')
+const holdPage = existsSync(holdFile) ? Number(readFileSync(holdFile,'utf8')) : existsSync(join(dir,'hold3')) ? 3 : 0
 const extractor = realpathSync(join(dirname(process.env.KO_ENTRY), 'pdf-extractor.js'))
 const record = (event, page) => appendFileSync(join(dir,'boundary.jsonl'), JSON.stringify({pid:process.pid, at:Date.now(), event, page})+'\n')
 const NativeWorker = threads.Worker
@@ -33,7 +35,7 @@ threads.Worker = class extends NativeWorker {
         record('inject-error',page)
         return emit.call(this,event,{error:'Synthetic single-page extraction failure',fatal:false})
       }
-      if (page === 3 && existsSync(join(dir,'hold3'))) {
+      if (page === holdPage) {
         record('held',page)
         held = setInterval(()=>{
           if (!existsSync(join(dir,'release3'))) return
