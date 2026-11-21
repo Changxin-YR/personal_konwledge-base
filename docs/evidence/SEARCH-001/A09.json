@@ -1,0 +1,40 @@
+{
+  "schema": "integrated-case-v1",
+  "case_id": "A09",
+  "unit_id": "SEARCH-001",
+  "candidate_sha": "5483832b337004717da9af2ff7702a7f13bc31a3",
+  "tree": "cecdffd951b189e03b27a9d901f68e1338065dd4",
+  "source_tree": "2a58017bf1ecc5c12e2e96b8441d8fb173166e94",
+  "entry_sha256": "4d1d4a43fc97c6ba162e33537704b29fe0e241c3502b7d07640340e71ab84542",
+  "build_sha256": "dc79d16b98059f9c621519bd6c7903fa0fcb1a715110a3a7288fe965a00229d2",
+  "participants": [
+    {
+      "unit_id": "READ-001",
+      "candidate_sha": "fdac3b02fc5ac42eabef72374aee9b7050c942e3"
+    },
+    {
+      "unit_id": "READ-002",
+      "candidate_sha": "08889f97a612b34ae205f0dfa3af6064c3585f19"
+    },
+    {
+      "unit_id": "READ-003",
+      "candidate_sha": "1ce6e4f3fe2d9a05b3bc48973b74550a46efbadc"
+    },
+    {
+      "unit_id": "SEARCH-001",
+      "candidate_sha": "5483832b337004717da9af2ff7702a7f13bc31a3"
+    }
+  ],
+  "main": {
+    "path": "docs/evidence/SEARCH-001/main-case.json",
+    "sha256": "4db36cccde98528caa88bdb26ec5dbb697fbe651e52d67a0b0f97539e2ca98b5"
+  },
+  "independent": {
+    "path": "docs/evidence/SEARCH-001/independent-case.json",
+    "sha256": "5d2af08fa0d956001ace56cbae84ecba43b7558bb9de84b53bb00ce8ad15f5cd"
+  },
+  "regression": {
+    "path": "docs/evidence/SEARCH-001/regression-case.json",
+    "sha256": "7266d32c7e3c761222c1093e5d10ce09acff638a65a72704104816c03cc5fef2"
+  }
+}

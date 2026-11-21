@@ -1,0 +1,26 @@
+{
+  "unit_id": "SEARCH-001",
+  "candidate_sha": "5483832b337004717da9af2ff7702a7f13bc31a3",
+  "entry_sha256": "4d1d4a43fc97c6ba162e33537704b29fe0e241c3502b7d07640340e71ab84542",
+  "unit_acceptance": "PASS",
+  "passed_test_ids": [
+    "SEARCH-001-T01",
+    "SEARCH-001-T02"
+  ],
+  "main_command": "node scripts/search001/host-acceptance.mjs 5483832b337004717da9af2ff7702a7f13bc31a3 4d1d4a43fc97c6ba162e33537704b29fe0e241c3502b7d07640340e71ab84542",
+  "main_exit": 0,
+  "main_record": "docs/evidence/SEARCH-001/final-main/summary.json",
+  "main_record_sha256": "285643d57e47f212e9d43df2c0199ddf66fd48595149a0151418d2f0cd303c23",
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/SEARCH-001/independent.json",
+  "integrated_case": "docs/evidence/SEARCH-001/A09.json",
+  "technical_results": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "affected_tests": 75,
+    "exit": 0,
+    "command": "node --experimental-transform-types --test scripts/search001/*.test.mjs scripts/read003/annotation-store.test.mjs scripts/read002/*.test.mjs scripts/read001/*.test.mjs scripts/lib004/*.test.mjs"
+  },
+  "scope_note": "No claim for P03/A46, deepseek provider or Windows delivery. The search cap applies to returned rows, with a separate work bound on authorized text.",
+  "prior_runs": "docs/evidence/SEARCH-001/superseded/runs.json"
+}

@@ -1,0 +1,87 @@
+{
+  "case_id": "A09",
+  "unit_id": "SEARCH-001",
+  "candidate_sha": "5483832b337004717da9af2ff7702a7f13bc31a3",
+  "tree": "cecdffd951b189e03b27a9d901f68e1338065dd4",
+  "source_tree": "2a58017bf1ecc5c12e2e96b8441d8fb173166e94",
+  "entry_sha256": "4d1d4a43fc97c6ba162e33537704b29fe0e241c3502b7d07640340e71ab84542",
+  "build_sha256": "dc79d16b98059f9c621519bd6c7903fa0fcb1a715110a3a7288fe965a00229d2",
+  "participants": [
+    {
+      "unit_id": "READ-001",
+      "candidate_sha": "fdac3b02fc5ac42eabef72374aee9b7050c942e3"
+    },
+    {
+      "unit_id": "READ-002",
+      "candidate_sha": "08889f97a612b34ae205f0dfa3af6064c3585f19"
+    },
+    {
+      "unit_id": "READ-003",
+      "candidate_sha": "1ce6e4f3fe2d9a05b3bc48973b74550a46efbadc"
+    },
+    {
+      "unit_id": "SEARCH-001",
+      "candidate_sha": "5483832b337004717da9af2ff7702a7f13bc31a3"
+    }
+  ],
+  "kind": "independent",
+  "run_id": "run-wHHSOo",
+  "runner": "Codex independent read-only reviewer",
+  "command": "node scripts/search001/host-acceptance.mjs 5483832b337004717da9af2ff7702a7f13bc31a3 4d1d4a43fc97c6ba162e33537704b29fe0e241c3502b7d07640340e71ab84542 .cache/search001-independent-final",
+  "environment": "Windows, Node v24.22.0, Chrome 158.0.8127.36, pinned DSH 39163dd30f703a79079e2d2446545cff3c453738, independent isolated DSH and SQLite data per run",
+  "inputs": "Frozen embedded-font Chinese PDFs, UTF-8 Markdown, synthetic DOCX, real authenticated project identities and grants",
+  "status": "PASS",
+  "exit": 0,
+  "results": [
+    {
+      "id": "CHINESE_QUERY_SET",
+      "status": "PASS",
+      "actual": "26 query/stage comparisons matched the complete UTF-16 hit sets; includes alias, NFKC, code, zero hits and repeated terms."
+    },
+    {
+      "id": "FIXED_SOURCE_POSITION",
+      "status": "PASS",
+      "actual": "v1 PDF page 2 remained fixed after inserting v2. All eleven highlighted glyph boxes contain actual ink; repeated Markdown selected the second range. Word kept the first conversion link after a second real conversion."
+    },
+    {
+      "id": "POSITION_BOOKMARK_ANNOTATION_RESTART",
+      "status": "PASS",
+      "actual": "Chrome added the bookmark and annotation. Host PIDs 113736, 103016, 122320; fresh context opened only asset/version, restored page 2, bookmark and annotation; citation and SQLite agree."
+    },
+    {
+      "id": "VISIBLE_PARSED_ONLY",
+      "status": "PASS",
+      "actual": "3 allowed and 31 hidden: ordered snippets, counts and ranking inputs stayed unchanged. Failed/pending text excluded; scan-time grant expired before response; revoked receipt 404, stale UI suppressed."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/SEARCH-001/final-independent/summary.json",
+      "sha256": "bb738cb78010b14ef4775f934c124d3cf6267acca2a6db59cd89968b98c0464c"
+    },
+    {
+      "path": "docs/evidence/SEARCH-001/final-independent/chinese-query.png",
+      "sha256": "9ebf6fe448ea4631c891ea9c07beb5bd8a5232ec451085a839e54d3782564570"
+    },
+    {
+      "path": "docs/evidence/SEARCH-001/final-independent/fixed-v1-original-page.png",
+      "sha256": "cea638d13ea1fd38efec27cb5640e82ae9a8a616607157573f626226394ec3cb"
+    },
+    {
+      "path": "docs/evidence/SEARCH-001/final-independent/bookmark-and-annotation.png",
+      "sha256": "a89f5ad51899ea0e32b3d36c03af2dcf9340d13b41124e7e750c7cd27d0622dc"
+    },
+    {
+      "path": "docs/evidence/SEARCH-001/final-independent/restored-after-host-restart.png",
+      "sha256": "53e03c1b8f64fad91e38a8673f609676b325ef7d86c650c3f58ae7bdc1f12f1e"
+    },
+    {
+      "path": "docs/evidence/SEARCH-001/final-independent/stale-search-rejected.png",
+      "sha256": "8be148336ddd3c829b279301fa8048047b7b4230f3fcd24be0530dc0cb01f8a1"
+    },
+    {
+      "path": "docs/evidence/SEARCH-001/final-independent/word-conversion-match.png",
+      "sha256": "0784eaeee0013aca8ed28803a41e1f6501595cec6cd357c2105e5ef0bae409ed"
+    }
+  ]
+}

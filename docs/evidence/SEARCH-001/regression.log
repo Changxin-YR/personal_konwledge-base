@@ -1,0 +1,121 @@
+✔ CLI produces fixed originals in a new directory and reports their hashes (414.1298ms)
+✔ Word V1 has the expected cells, embedded picture and indented code (385.1091ms)
+✔ Word V2 has the expected cells, embedded picture and indented code (430.6715ms)
+✔ PDF page has readable table and code and paints the quadrant image (206.5395ms)
+(node:87260) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ conversion cursor is exclusive across appends; newest ready PDF survives beyond the head window (1543.947ms)
+✔ notes return the newest chronological window and seek older windows without duplicates after an append (1345.565ms)
+✔ cursor lookups are scoped to the requested parent and authorized before validation (990.6407ms)
+✔ missing engine only denies a new eligible start; it does not conceal results or replace earlier checks (851.4118ms)
+(node:52836) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Word intake sends original bytes with DOC/DOCX MIME; other format pickers and raw originals stay isolated (2220.9652ms)
+✔ polls active jobs; failed and cancelled retries keep the last ready PDF and its page notes (5273.0033ms)
+✔ late denial, wrong-version snapshot and principal change cannot display another selection (427.5068ms)
+✔ returning to a version waits for its pending start; current permission denial clears the review (434.6803ms)
+✔ off-page ready PDF, latest notes, history navigation and live head remain independently accessible (2407.0015ms)
+✔ late detail cannot restore prior version history; current denied history clears private state (378.5933ms)
+(node:92128) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ populated v9 upgrades through v10 and v11; failures preserve each prior version, original receipts, anchors, identity and ledger (1928.0617ms)
+(node:78384) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ completed PDF and quality note survive failed, cancelled and superseded attempts; replay is version-bound (1582.061ms)
+✔ expired claim cannot finalize; reclaimed work loses authorization on logout; missing legacy ticket fails closed (1361.4439ms)
+(node:97408) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ fixture doc: validate image-only PDF and publish owned bytes (623.8759ms)
+✔ fixture docx: validate image-only PDF and publish owned bytes (627.2654ms)
+✔ reject denied token before even a cached kit response (636.4823ms)
+✔ cache hit with authority lost before return never stages or publishes bytes (623.8739ms)
+✔ deferred source read: short reservation (611.0506ms)
+✔ deferred source read: denied before read (630.9955ms)
+✔ deferred source read: denied during read (626.847ms)
+✔ deferred source read: changed version during read (621.524ms)
+✔ invalid converter output: empty (610.9253ms)
+✔ invalid converter output: unreadable (619.299ms)
+✔ invalid converter output: over originals cap (604.6553ms)
+✔ real PDFium opens both pages but rejects page two above its text budget; no partial publication (700.1093ms)
+✔ staged output ownership: invalid after staging (611.7955ms)
+✔ staged output ownership: publication refused (612.6575ms)
+✔ staged output ownership: known transaction rejection (627.4316ms)
+✔ staged output ownership: commit outcome unknown (627.7364ms)
+✔ in-flight conversion aborts on lease lost; no publication or terminal failure (2462.4577ms)
+✔ in-flight conversion aborts on unload; no publication or terminal failure (328.6508ms)
+(node:121632) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a PDF keeps its transfer reservation until finish or close, and releases it only once (7.2055ms)
+(node:111864) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Word intake through HTTP: authenticated version download, media-bound replay and no cross-account access (2755.714ms)
+(node:83316) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ DOCX originals retain exact bounded input across restart; invalid Office inputs never leave stages (55.3168ms)
+✔ normal deflated OOXML is verified against the decoded member lengths and checksums (283.3418ms)
+(node:90092) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ second identical passage stays in its original UTF-16 range (5.3032ms)
+✔ invalid, empty and split-surrogate ranges cannot produce an anchor (0.7917ms)
+(node:122676) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Word locator binds conversion, enclosing structural block, neighboring text hashes and only the selected glyphs (4.6364ms)
+✔ DOCX uses namespace-aware body paragraphs, joins runs, preserves structural breaks and rejects DTD (4.7744ms)
+✔ ordered alignment distinguishes repeated paragraphs and preserves cross-page UTF-16 offsets; no partial match (1.1834ms)
+(node:86812) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ upgrade populated v13; failure preserves ZIP members, published text, identities and ledger (1923.2678ms)
+✔ old citation survives new version and restart; current source ACL gates both resolution and replay (2044.4878ms)
+(node:102648) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v15 rolls back fully and upgrades a published v14 citation without inventing a locator (2105.8217ms)
+(node:47336) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ HTTP citation is fixed to the old version and selected occurrence; no disclosure when rendering outlives authorization (2737.4893ms)
+(node:120672) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ library opens fixed version; virtual navigation, exact repeat selection and idempotent citation replay (2691.2115ms)
+✔ nonready and failed pages remain navigable; stale results and revoked ACL cannot repaint (559.9927ms)
+✔ different account opens shared link via resolve and protected source; hash mismatch never highlights (303.7035ms)
+✔ refresh after leaving a citation retries the intended fixed page, even after multiple transient failures (439.485ms)
+✔ idle foreground reader clears cached content after revocation without reloading the page (2586.7466ms)
+✔ view switch fails closed on slow access check; releasing a late grant does not restore content (2589.0058ms)
+✔ T01 parsed chapter opens its exact PDF page with no first-page fetch (328.652ms)
+✔ Word history opens exactly the chosen conversion; account change during fetch clears the page (359.7066ms)
+✔ text-only deep link verifies the exact source range; missing pixel boundaries do not manufacture a highlight (284.6738ms)
+✔ deep link uses saved glyphs exclusively, and refuses geometry from a different original (297.872ms)
+✔ cropped and rotated original: Chinese UTF-16 range covers the actual glyph ink (784.4469ms)
+✔ raw-to-normalized UTF-16: split surrogates, CRLF, invalid surrogate and trimmed margins (1.2603ms)
+✔ parser slots are independent; only the requested page is extracted (606.4012ms)
+✔ input, deadlines, abort and concurrency release worker slots (589.3418ms)
+(node:117532) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ personal reading position only accepts a current source and revision (1545.2655ms)
+(node:94028) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v16 rollback is atomic and upgrade preserves published v15 asset, citation and locator (1955.2233ms)
+(node:107584) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ annotation fixes the selected occurrence and late revisions do not change it (1543.2439ms)
+✔ v17 rollback preserves all v16 data and successful upgrade keeps source, bookmarks, and reading state (1386.1295ms)
+✔ private annotations are not visible to project readers and a source grant is checked again on every request (1674.2434ms)
+(node:51692) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ fixed Chinese short and long terms, mixed symbols, and explicit bilingual aliases (9.4504ms)
+✔ matches point back to whole original graphemes with UTF-16 offsets (0.8974ms)
+✔ grams are only an accelerator, never proof of a contiguous term (0.7411ms)
+✔ bounded normalized input and default AND across mixed terms (1.8329ms)
+(node:76216) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ ranker excludes private content, can search separately granted project content, and rejects a cached query after revoke (2586.9647ms)
+✔ PDF partial results ignore pending or failed old text and bind hits to exact versions after replacement (976.0997ms)
+✔ v18 rollback preserves v17 content and successful upgrade indexes it without rewriting it (1007.1913ms)
+✔ v19 rollback preserves published v18 Word conversion; resumed indexing fences stale tokens and changed sources (797.2953ms)
+ℹ tests 75
+ℹ suites 0
+ℹ pass 75
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13133.0085

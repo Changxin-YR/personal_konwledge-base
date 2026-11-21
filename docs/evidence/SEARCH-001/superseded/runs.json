@@ -1,0 +1,50 @@
+{
+  "prior_runs": [
+    {
+      "id": "runner-null",
+      "candidate_sha": "f097466a12ab14c08a89603de37f5957e09492de",
+      "runner_status": "FAIL",
+      "reason": "The failed PDF row stores an empty string, not SQL NULL.",
+      "path": "docs/evidence/SEARCH-001/superseded/runner-null.json",
+      "sha256": "20e513dd818b0120986bcac13601a6752d0c081ea6ed2ef06d2e2297985e7973"
+    },
+    {
+      "id": "runner-terminal-state",
+      "candidate_sha": "ce116db139f065b2835dbf8458a8810bf037a1e4",
+      "runner_status": "FAIL",
+      "reason": "One-page replacement reached complete, not ready; corrected the runner expectation.",
+      "path": "docs/evidence/SEARCH-001/superseded/runner-terminal-state.json",
+      "sha256": "7df92b38f142fa0a9a69dcbfbb4720e19ab1bfb40440b7c19b84410847b9eccd"
+    },
+    {
+      "id": "pdf-md-only",
+      "candidate_sha": "c659bf2c240a6e86e2690e7b813194fb665702fd",
+      "runner_status": "PASS",
+      "reason": "Earlier development only, without the Word implementation.",
+      "path": "docs/evidence/SEARCH-001/superseded/pdf-md-only.json",
+      "sha256": "f02d52edc1d2aaf98321b57ddbeae23fd560c08a9a2757d8699c2b0b5c854f77"
+    },
+    {
+      "id": "unembedded-main",
+      "candidate_sha": "0ea3493a3d420b70cd8549e405242b45f075ef78",
+      "runner_status": "PASS",
+      "reason": "Runner passed, but original PDF image lacked visible Chinese glyphs; not accepted.",
+      "path": "docs/evidence/SEARCH-001/superseded/unembedded-main.json",
+      "sha256": "4be9f477fbdd82ffd92c73c7b4f7e8e0cd2e5168e076a1c2151c2c64a9b93591"
+    },
+    {
+      "id": "unembedded-independent",
+      "candidate_sha": "0ea3493a3d420b70cd8549e405242b45f075ef78",
+      "runner_status": "PASS",
+      "reason": "Independent run on superseded candidate; not used for acceptance.",
+      "path": "docs/evidence/SEARCH-001/superseded/unembedded-independent.json",
+      "sha256": "bba2eae5d3d22c1a379a4bd7695a0fffb5edaaa43abb6e5e6e1dce22599ae829"
+    }
+  ],
+  "initial_v19_regression": {
+    "path": "docs/evidence/SEARCH-001/superseded/initial-v19-regression.log",
+    "sha256": "41ad1f685bdb591ea4ad62d606777b9e6219192982c97e609ea9d5112701e66b",
+    "status": "FAIL",
+    "reason": "Two historical migration tests omitted the newly introduced migration ledger versions. Existing data and rollback checks retained."
+  }
+}

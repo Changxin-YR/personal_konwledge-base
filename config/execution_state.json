@@ -10,7 +10,7 @@
     "sha256": "da73b65a0004bfa875d1435a61a555ba6f02d45c280aeb8ed6d2e62ab4bd39d8"
   },
   "active_unit": "SEARCH-001",
-  "unit_state": "in_progress",
+  "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "SEARCH-001 active: v18 and search smoke passed on 447c121; full query corpus, project revocation, A09 and independent frozen run are outstanding",
+  "state_reason": "SEARCH-001 and integrated A09 passed on a frozen candidate; next dependency-ready unit is LIB-006",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,35 +127,47 @@
     }
   },
   "last_accepted_checkpoint": {
-    "unit_id": "READ-003",
-    "base_commit": "8f4d1be80c7b0167bc90e8874164bc7e750dedda",
-    "candidate_sha": "1ce6e4f3fe2d9a05b3bc48973b74550a46efbadc",
-    "entry_sha256": "c60eb82829138dcaef5c72c132046009cb26ef69c0b135d73fde48de76a04eaf",
+    "unit_id": "SEARCH-001",
+    "base_commit": "c05001c12dd64fa173062cddab3ff1971809166c",
+    "candidate_sha": "5483832b337004717da9af2ff7702a7f13bc31a3",
+    "entry_sha256": "4d1d4a43fc97c6ba162e33537704b29fe0e241c3502b7d07640340e71ab84542",
     "completed": [
-      "Fixed-source annotations, private/project visibility, revision conflict and draft recovery across native Chrome tab switches.",
-      "Frozen Host and SQLite main plus independent review; v16-to-v17 rollback and 28 affected tests passed. Integrated proof required for A09, P03, P08, A16 and A46."
+      "Chinese PDF and Markdown query corpus, fixed version/page/segment and real restart restoration; Word conversions fixed by conversion ID.",
+      "Final ACL check under real grant expiry, browser stale-response suppression, 75 affected tests, independent rerun and integrated A09."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
+      "A09": "PASS",
       "independent": "PASS",
+      "affected": "PASS",
       "T01": "PASS",
       "T02": "PASS"
     },
-    "evidence": "docs/evidence/READ-003/acceptance.json",
+    "evidence": "docs/evidence/SEARCH-001/acceptance.json",
     "defects": [],
-    "next_task": "SEARCH-001",
-    "blocked_dependencies": []
+    "blocked_dependencies": [],
+    "next_task": "LIB-006"
   },
   "checkpoint": {
     "unit_id": "SEARCH-001",
     "base_commit": "c05001c12dd64fa173062cddab3ff1971809166c",
-    "candidate_sha": "447c1211ac5631c4484ee171e287ff0f7814ad3f",
-    "entry_sha256": "0f9ad47d664bce95a56bdfc9dba9fdeffabeb1c7bd82bdff2ece2d7c1e0636cb",
-    "completed": ["Chinese lexical matching and ACL-filtered PDF/text search, fixed source links, and additive v18 with local query receipts", "Typecheck/build, 35 targeted tests and real Host/Chrome/SQLite smoke passed"],
-    "test_results": {"unit_acceptance":"NOT_RUN","affected_reader_and_search":"PASS","real_host_smoke":"PASS","A09":"NOT_RUN","independent":"NOT_RUN"},
-    "evidence": "docs/evidence/SEARCH-001/checkpoint.json",
-    "defects": ["Full query corpus, broader authorization races, restart A09 and independent final pass remain. Word conversion pages are not indexed."],
-    "next_task": "SEARCH-001",
-    "blocked_dependencies": []
+    "candidate_sha": "5483832b337004717da9af2ff7702a7f13bc31a3",
+    "entry_sha256": "4d1d4a43fc97c6ba162e33537704b29fe0e241c3502b7d07640340e71ab84542",
+    "completed": [
+      "Chinese PDF and Markdown query corpus, fixed version/page/segment and real restart restoration; Word conversions fixed by conversion ID.",
+      "Final ACL check under real grant expiry, browser stale-response suppression, 75 affected tests, independent rerun and integrated A09."
+    ],
+    "test_results": {
+      "unit_acceptance": "PASS",
+      "A09": "PASS",
+      "independent": "PASS",
+      "affected": "PASS",
+      "T01": "PASS",
+      "T02": "PASS"
+    },
+    "evidence": "docs/evidence/SEARCH-001/acceptance.json",
+    "defects": [],
+    "blocked_dependencies": [],
+    "next_task": "LIB-006"
   }
 }

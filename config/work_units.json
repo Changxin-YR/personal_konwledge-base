@@ -1617,9 +1617,17 @@
       "independent_review_status": "PASS",
       "retest_status": "PASS",
       "completed_at": "2026-11-20T15:31:11+08:00",
-      "completed_test_ids": ["READ-001-T01", "READ-001-T02"],
+      "completed_test_ids": [
+        "READ-001-T01",
+        "READ-001-T02"
+      ],
       "open_review_items": [],
-      "closed_review_items": ["WORD_SOURCE_PARAGRAPHS", "FIXED_PAGE_RETRY", "FOREGROUND_ACCESS_REVOCATION", "PERSISTED_LOCATOR"],
+      "closed_review_items": [
+        "WORD_SOURCE_PARAGRAPHS",
+        "FIXED_PAGE_RETRY",
+        "FOREGROUND_ACCESS_REVOCATION",
+        "PERSISTED_LOCATOR"
+      ],
       "acceptance_record": "docs/evidence/READ-001/acceptance.json",
       "evidence_paths": [
         "docs/evidence/READ-001/acceptance.json",
@@ -1672,9 +1680,15 @@
       "independent_review_status": "PASS",
       "retest_status": "PASS",
       "completed_at": "2026-11-20T17:32:52+08:00",
-      "completed_test_ids": ["READ-002-T01", "READ-002-T02"],
+      "completed_test_ids": [
+        "READ-002-T01",
+        "READ-002-T02"
+      ],
       "open_review_items": [],
-      "closed_review_items": ["PDF_OUTLINE_UNPROCESSED", "MULTILINE_MARKDOWN_OUTLINE"],
+      "closed_review_items": [
+        "PDF_OUTLINE_UNPROCESSED",
+        "MULTILINE_MARKDOWN_OUTLINE"
+      ],
       "acceptance_record": "docs/evidence/READ-002/acceptance.json",
       "evidence_paths": [
         "docs/evidence/READ-002/acceptance.json",
@@ -1727,9 +1741,15 @@
       "independent_review_status": "PASS",
       "retest_status": "PASS",
       "completed_at": "2026-11-21T20:24:09+08:00",
-      "completed_test_ids": ["READ-003-T01", "READ-003-T02"],
+      "completed_test_ids": [
+        "READ-003-T01",
+        "READ-003-T02"
+      ],
       "open_review_items": [],
-      "closed_review_items": ["HIDDEN_TAB_DRAFT_LOSS", "PENDING_CONFLICT_DRAFT_LOSS"],
+      "closed_review_items": [
+        "HIDDEN_TAB_DRAFT_LOSS",
+        "PENDING_CONFLICT_DRAFT_LOSS"
+      ],
       "acceptance_record": "docs/evidence/READ-003/acceptance.json",
       "evidence_paths": [
         "docs/evidence/READ-003/acceptance.json",
@@ -1779,9 +1799,35 @@
         "A09"
       ],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "in_progress",
-      "test_plan_status": "detailed_not_executed",
-      "test_plan_path": "scripts/search001/acceptance-plan.md"
+      "status": "passed",
+      "test_plan_status": "detailed_executed",
+      "test_plan_path": "scripts/search001/acceptance-plan.md",
+      "candidate_commit": "5483832b337004717da9af2ff7702a7f13bc31a3",
+      "acceptance_record": "docs/evidence/SEARCH-001/acceptance.json",
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "retest_status": "PASS",
+      "completed_test_ids": [
+        "SEARCH-001-T01",
+        "SEARCH-001-T02"
+      ],
+      "open_review_items": [],
+      "closed_review_items": [
+        "capped-count-receipt",
+        "initial-hidden-search-position",
+        "embedded-cjk-original-glyphs",
+        "word-conversion-search"
+      ],
+      "completed_at": "2026-11-21T13:29:19.130Z",
+      "evidence_paths": [
+        "docs/evidence/SEARCH-001/acceptance.json",
+        "docs/evidence/SEARCH-001/independent.json",
+        "docs/evidence/SEARCH-001/A09.json",
+        "docs/evidence/SEARCH-001/final-main/summary.json",
+        "docs/evidence/SEARCH-001/final-independent/summary.json",
+        "docs/evidence/SEARCH-001/regression-case.json",
+        "docs/evidence/SEARCH-001/superseded/runs.json"
+      ]
     },
     {
       "id": "LIB-006",

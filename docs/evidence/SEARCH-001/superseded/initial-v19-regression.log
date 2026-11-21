@@ -1,0 +1,180 @@
+✔ CLI produces fixed originals in a new directory and reports their hashes (559.6484ms)
+✔ Word V1 has the expected cells, embedded picture and indented code (1110.3808ms)
+✔ Word V2 has the expected cells, embedded picture and indented code (657.6301ms)
+✔ PDF page has readable table and code and paints the quadrant image (270.591ms)
+(node:109592) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ conversion cursor is exclusive across appends; newest ready PDF survives beyond the head window (1803.3214ms)
+✔ notes return the newest chronological window and seek older windows without duplicates after an append (1649.2778ms)
+✔ cursor lookups are scoped to the requested parent and authorized before validation (1426.3684ms)
+✔ missing engine only denies a new eligible start; it does not conceal results or replace earlier checks (1220.4199ms)
+(node:122712) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Word intake sends original bytes with DOC/DOCX MIME; other format pickers and raw originals stay isolated (2453.9375ms)
+✔ polls active jobs; failed and cancelled retries keep the last ready PDF and its page notes (5729.7082ms)
+✔ late denial, wrong-version snapshot and principal change cannot display another selection (672.4232ms)
+✔ returning to a version waits for its pending start; current permission denial clears the review (612.9994ms)
+✔ off-page ready PDF, latest notes, history navigation and live head remain independently accessible (2573.7991ms)
+✔ late detail cannot restore prior version history; current denied history clears private state (620.0904ms)
+(node:51692) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ populated v9 upgrades through v10 and v11; failures preserve each prior version, original receipts, anchors, identity and ledger (2379.6357ms)
+(node:44132) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ completed PDF and quality note survive failed, cancelled and superseded attempts; replay is version-bound (1552.8777ms)
+✔ expired claim cannot finalize; reclaimed work loses authorization on logout; missing legacy ticket fails closed (1759.5555ms)
+(node:106452) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ fixture doc: validate image-only PDF and publish owned bytes (664.1794ms)
+✔ fixture docx: validate image-only PDF and publish owned bytes (637.2165ms)
+✔ reject denied token before even a cached kit response (660.7878ms)
+✔ cache hit with authority lost before return never stages or publishes bytes (649.5004ms)
+✔ deferred source read: short reservation (643.6516ms)
+✔ deferred source read: denied before read (625.2237ms)
+✔ deferred source read: denied during read (635.8298ms)
+✔ deferred source read: changed version during read (626.2162ms)
+✔ invalid converter output: empty (629.0859ms)
+✔ invalid converter output: unreadable (607.4298ms)
+✔ invalid converter output: over originals cap (615.4435ms)
+✔ real PDFium opens both pages but rejects page two above its text budget; no partial publication (776.1579ms)
+✔ staged output ownership: invalid after staging (613.0791ms)
+✔ staged output ownership: publication refused (622.9632ms)
+✔ staged output ownership: known transaction rejection (613.9205ms)
+✔ staged output ownership: commit outcome unknown (616.5078ms)
+✔ in-flight conversion aborts on lease lost; no publication or terminal failure (2456.8491ms)
+✔ in-flight conversion aborts on unload; no publication or terminal failure (314.325ms)
+(node:84996) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a PDF keeps its transfer reservation until finish or close, and releases it only once (5.4863ms)
+(node:71816) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Word intake through HTTP: authenticated version download, media-bound replay and no cross-account access (3557.2765ms)
+(node:117712) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ DOCX originals retain exact bounded input across restart; invalid Office inputs never leave stages (40.5272ms)
+✔ normal deflated OOXML is verified against the decoded member lengths and checksums (830.1434ms)
+(node:106228) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ second identical passage stays in its original UTF-16 range (3.9035ms)
+✔ invalid, empty and split-surrogate ranges cannot produce an anchor (0.8926ms)
+(node:115516) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Word locator binds conversion, enclosing structural block, neighboring text hashes and only the selected glyphs (6.4802ms)
+✔ DOCX uses namespace-aware body paragraphs, joins runs, preserves structural breaks and rejects DTD (5.9212ms)
+✔ ordered alignment distinguishes repeated paragraphs and preserves cross-page UTF-16 offsets; no partial match (1.3359ms)
+(node:97508) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ upgrade populated v13; failure preserves ZIP members, published text, identities and ledger (1949.0606ms)
+✔ old citation survives new version and restart; current source ACL gates both resolution and replay (3029.729ms)
+(node:85128) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v15 rolls back fully and upgrades a published v14 citation without inventing a locator (2870.0613ms)
+(node:122824) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ HTTP citation is fixed to the old version and selected occurrence; no disclosure when rendering outlives authorization (3490.8068ms)
+(node:113260) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ library opens fixed version; virtual navigation, exact repeat selection and idempotent citation replay (3421.2515ms)
+✔ nonready and failed pages remain navigable; stale results and revoked ACL cannot repaint (731.6019ms)
+✔ different account opens shared link via resolve and protected source; hash mismatch never highlights (488.0585ms)
+✔ refresh after leaving a citation retries the intended fixed page, even after multiple transient failures (642ms)
+✔ idle foreground reader clears cached content after revocation without reloading the page (2273.8858ms)
+✔ view switch fails closed on slow access check; releasing a late grant does not restore content (2749.0053ms)
+✔ T01 parsed chapter opens its exact PDF page with no first-page fetch (441.2667ms)
+✔ Word history opens exactly the chosen conversion; account change during fetch clears the page (514.2954ms)
+✔ text-only deep link verifies the exact source range; missing pixel boundaries do not manufacture a highlight (409.4947ms)
+✔ deep link uses saved glyphs exclusively, and refuses geometry from a different original (515.2973ms)
+✔ cropped and rotated original: Chinese UTF-16 range covers the actual glyph ink (1646.188ms)
+✔ raw-to-normalized UTF-16: split surrogates, CRLF, invalid surrogate and trimmed margins (3.5616ms)
+✔ parser slots are independent; only the requested page is extracted (752.9505ms)
+✔ input, deadlines, abort and concurrency release worker slots (629.3862ms)
+(node:122016) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ personal reading position only accepts a current source and revision (1925.0816ms)
+(node:122456) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v16 rollback is atomic and upgrade preserves published v15 asset, citation and locator (2314.9725ms)
+(node:58572) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ annotation fixes the selected occurrence and late revisions do not change it (1845.595ms)
+✔ v17 rollback preserves all v16 data and successful upgrade keeps source, bookmarks, and reading state (2091.0113ms)
+✔ private annotations are not visible to project readers and a source grant is checked again on every request (2267.5595ms)
+(node:119336) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ fixed Chinese short and long terms, mixed symbols, and explicit bilingual aliases (6.0479ms)
+✔ matches point back to whole original graphemes with UTF-16 offsets (0.5279ms)
+✔ grams are only an accelerator, never proof of a contiguous term (0.4165ms)
+✔ bounded normalized input and default AND across mixed terms (0.876ms)
+(node:113844) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ ranker excludes private content, can search separately granted project content, and rejects a cached query after revoke (3302.3563ms)
+✔ PDF partial results ignore pending or failed old text and bind hits to exact versions after replacement (1422.0665ms)
+✔ v18 rollback preserves v17 content and successful upgrade indexes it without rewriting it (1456.0211ms)
+✔ v19 rollback preserves published v18 Word conversion; resumed indexing fences stale tokens and changed sources (1208.1281ms)
+ℹ tests 75
+ℹ suites 0
+ℹ pass 73
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14209.1925
+
+✖ failing tests:
+
+test at scripts\lib004\office-migration.test.mjs:14:1
+✖ populated v9 upgrades through v10 and v11; failures preserve each prior version, original receipts, anchors, identity and ledger (2379.6357ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+  +   16,
+  +   17,
+  +   18,
+  +   19
+    ]
+
+      at TestContext.<anonymous> (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/lib004/office-migration.test.mjs:37:92)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [
+      10, 11, 12, 13, 14,
+      15, 16, 17, 18, 19
+    ],
+    expected: [ 10, 11, 12, 13, 14, 15 ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at scripts\read001\citation-store.test.mjs:15:1
+✖ upgrade populated v13; failure preserves ZIP members, published text, identities and ledger (1949.0606ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+      14,
+      15,
+      16,
+      17,
+      18,
+  +   19
+    ]
+
+      at TestContext.<anonymous> (file:///C:/Users/27363/Desktop/personal%20base/personal_konwledge-base/scripts/read001/citation-store.test.mjs:28:82)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 14, 15, 16, 17, 18, 19 ],
+    expected: [ 14, 15, 16, 17, 18 ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

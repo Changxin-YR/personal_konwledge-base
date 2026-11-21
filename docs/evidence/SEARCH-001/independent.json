@@ -1,0 +1,24 @@
+{
+  "unit_id": "SEARCH-001",
+  "candidate_sha": "5483832b337004717da9af2ff7702a7f13bc31a3",
+  "entry_sha256": "4d1d4a43fc97c6ba162e33537704b29fe0e241c3502b7d07640340e71ab84542",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/search001/host-acceptance.mjs 5483832b337004717da9af2ff7702a7f13bc31a3 4d1d4a43fc97c6ba162e33537704b29fe0e241c3502b7d07640340e71ab84542 .cache/search001-independent-final",
+  "raw": {
+    "path": "docs/evidence/SEARCH-001/final-independent/summary.json",
+    "sha256": "bb738cb78010b14ef4775f934c124d3cf6267acca2a6db59cd89968b98c0464c"
+  },
+  "results": [
+    {
+      "id": "SEARCH-001-T01",
+      "status": "PASS",
+      "actual": "26 query/stage comparisons matched the complete UTF-16 hit sets; includes alias, NFKC, code, zero hits and repeated terms. v1 PDF page 2 remained fixed after inserting v2. All eleven highlighted glyph boxes contain actual ink; repeated Markdown selected the second range. Word kept the first conversion link after a second real conversion."
+    },
+    {
+      "id": "SEARCH-001-T02",
+      "status": "PASS",
+      "actual": "3 allowed and 31 hidden: ordered snippets, counts and ranking inputs stayed unchanged. Failed/pending text excluded; scan-time grant expired before response; revoked receipt 404, stale UI suppressed."
+    }
+  ]
+}

@@ -122,7 +122,8 @@
       "evidence_paths": [
         "docs/evidence/LIB-001/acceptance.json",
         "docs/evidence/LIB-002/acceptance.json",
-        "docs/evidence/LIB-003/acceptance.json"
+        "docs/evidence/LIB-003/acceptance.json",
+        "docs/evidence/SEARCH-001/acceptance.json"
       ]
     },
     {
@@ -150,7 +151,8 @@
       "implementation_status": "in_progress",
       "evidence_paths": [
         "docs/evidence/READ-002/acceptance.json",
-        "docs/evidence/READ-003/acceptance.json"
+        "docs/evidence/READ-003/acceptance.json",
+        "docs/evidence/SEARCH-001/acceptance.json"
       ]
     },
     {
@@ -1005,8 +1007,14 @@
       "expected": "命中均有可复现页段；阅读位置/批注恢复；结果只来自可见且已解析内容；报告查询集与实际检索表现。",
       "level": "real_fixture",
       "evidence_required": "固定查询集、来源版本/页段、命中记录与位置恢复截图",
-      "status": "NOT_RUN",
-      "final_milestone": "M1"
+      "status": "PASS",
+      "final_milestone": "M1",
+      "evidence_paths": [
+        "docs/evidence/SEARCH-001/A09.json",
+        "docs/evidence/SEARCH-001/main-case.json",
+        "docs/evidence/SEARCH-001/independent-case.json",
+        "docs/evidence/SEARCH-001/regression-case.json"
+      ]
     },
     {
       "id": "A10",
