@@ -15,6 +15,7 @@ const [candidate,entry,parent='.cache/search001-acceptance']=process.argv.slice(
 const root=fileURLToPath(new URL('../../',import.meta.url)), sha=bytes=>createHash('sha256').update(bytes).digest('hex')
 const git=(...args)=>execFileSync('git',['--no-optional-locks',...args],{cwd:root})
 const runners=Object.fromEntries(['scripts/search001/host-acceptance.mjs','scripts/search001/corpus.mjs',
+  'scripts/search001/fixtures/chinese-search-v1.pdf','scripts/search001/fixtures/chinese-search-v2.pdf',
   'scripts/read001/word-fixture.mjs','scripts/lib004/acceptance-samples.mjs'].map(path=>{
   const hash=sha(readFileSync(join(root,path)))
   assert.equal(hash,sha(git('show',`${candidate}:${path}`)));return [path,hash]
@@ -139,7 +140,7 @@ async function browserChain({p,m,P,M,acl}){
     await library(page);await uiSearch(page,acl+'(ACL)')
     const anchor=page.getByRole('link',{name:'corpus.pdf',exact:true});const old=await anchor.getAttribute('href')
     assert.equal(new URL(old,host.base).searchParams.get('unit'),'2');await screenshot(page,'chinese-query.png')
-    const p2=await upload('corpus.pdf','application/pdf',chinesePdf([revised]),p);await start(p2);await settled(p2)
+    const p2=await upload('corpus.pdf','application/pdf',chinesePdf(2),p);await start(p2);await settled(p2)
     report.sources.revised_pdf=p2.sha256
     await check('replacement','铜版',[hit(p2,1,4,6,revised)])
     await check('replacement',acl+'(ACL)',[P(2,3,14),hit(p2,1,7,18,revised)])
@@ -148,7 +149,21 @@ async function browserChain({p,m,P,M,acl}){
     assert.equal(new URL(page.url()).searchParams.get('version'),p.version_id)
     await until(()=>dbRead('SELECT ordinal,source_hash FROM reading_positions WHERE version_id=? AND user_id=?',[p.version_id,owner.id])
       .some(r=>r.ordinal===2&&r.source_hash===expected.source_hash),'search opening saves position')
-    await page.locator('#paper').click();await page.locator('#original img').waitFor();await screenshot(page,'fixed-v1-original-page.png')
+    await page.locator('#paper').click();await page.locator('#original img').waitFor()
+    const ink=await page.locator('#original').evaluate(async el=>{
+      const img=el.querySelector('img');await img.decode();const canvas=document.createElement('canvas')
+      canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0)
+      const imageBox=img.getBoundingClientRect(), sx=canvas.width/imageBox.width,sy=canvas.height/imageBox.height
+      const boxes=[...el.querySelectorAll('.highlight')].map(n=>n.getBoundingClientRect())
+      return boxes.map(b=>{
+        const {data}=ctx.getImageData(Math.floor((b.left-imageBox.left)*sx),Math.floor((b.top-imageBox.top)*sy),
+          Math.ceil(b.width*sx),Math.ceil(b.height*sy));let dark=0
+        for(let i=0;i<data.length;i+=4)if(data[i]<150&&data[i+1]<150&&data[i+2]<150)dark++
+        return dark
+      })
+    })
+    assert.equal(ink.length,expected.quote.length);assert(ink.every(pixels=>pixels>10),`missing rendered glyph in highlighted range: ${ink}`)
+    report.highlighted_pdf_glyph_ink=ink;await screenshot(page,'fixed-v1-original-page.png')
     await page.locator('#structured').click();await page.locator('#bookmark-title').fill('搜索定位书签');await page.locator('#bookmark-add').click()
     await page.locator('#bookmarks').getByText('搜索定位书签',{exact:true}).waitFor()
     await page.locator('#annotate:enabled').click();await page.locator('#annotation-body').fill('检索回读批注')
@@ -184,6 +199,7 @@ async function permissionChecks(){
   const revoke=g=>req(owner,'POST','/grants/revoke',204,{grant_id:g.id})
   await addMember(reader)
   const r=await markdown('baseline.md',`Intro: ${q} visible to its owner.`,reader)
+  const r2=await markdown('baseline-two.md',`Second source: ${q}.`,reader)
   const attached=async(name,text)=>{
     const doc=await markdown(name,text)
     const o=await req(owner,'POST','/objects',201,{scope:'project',project_id:project.id,object_type:'asset',title:name,body:'Synthetic source attachment'})
@@ -195,11 +211,12 @@ async function permissionChecks(){
   }
   const shared=await attached('z-project.md',`Project ${q}: ${secret}.`), timed=await attached('timed.md',`${q} expiringfixture`)
   const otherGrant=await grant(shared,outsider)
-  const visible=await search(reader,q);assert.equal(visible.count,1);assert.equal(visible.items[0].version_id,r.version_id)
+  const visible=await search(reader,q);assert.equal(visible.count,2)
+  assert.deepEqual(new Set(visible.items.map(x=>x.version_id)),new Set([r.version_id,r2.version_id]))
   assert.equal((await search(outsider,q)).count,0,'a direct read grant is not project membership')
   const permitted=await grant(shared,reader)
-  const baseline=await search(reader,q);assert.equal(baseline.count,2)
-  assert.deepEqual(new Set(baseline.items.map(x=>x.version_id)),new Set([r.version_id,shared.version_id]))
+  const baseline=await search(reader,q);assert.equal(baseline.count,3)
+  assert.deepEqual(new Set(baseline.items.map(x=>x.version_id)),new Set([r.version_id,r2.version_id,shared.version_id]))
   const ranking=id=>dbRead('SELECT normalized_query,index_version,result_source_versions,ranking_inputs FROM search_queries WHERE query_id=?',[id])[0]
   for(let n=0;n<31;n++)await markdown(`aa-hidden-${String(n).padStart(2,'0')}.md`,`${q}\n\n${secret}`)
   const withNoise=await search(reader,q);assert.deepEqual(withNoise.items,baseline.items);assert.equal(withNoise.count,baseline.count)
@@ -241,8 +258,8 @@ async function permissionChecks(){
     await page.route(realQuery,gate)
     held={arrived:deferred(),release:deferred(),finished:deferred()}
     await typeSearch(page,q);const stale=await Promise.race([held.arrived.promise,new Promise((_,rej)=>setTimeout(()=>rej(Error('search delay not reached')),10_000).unref())])
-    assert.equal(stale.count,2);await revoke(permitted)
-    assert.equal((await search(reader,q)).count,1);await access(reader,stale,404)
+    assert.equal(stale.count,3);await revoke(permitted)
+    assert.equal((await search(reader,q)).count,2);await access(reader,stale,404)
     const receipt=waitResponse(page,'/search/'+stale.query_id+'/access','GET');held.release.resolve()
     assert.equal((await receipt).status(),404);await page.locator('#search-status').getByText('无法确认检索结果，请重试。').waitFor()
     assert.equal(await page.locator('#search-results li').count(),0);await page.unroute(realQuery,gate)
@@ -258,7 +275,7 @@ async function permissionChecks(){
     held.release.resolve();await held.finished.promise
     await page.getByRole('link',{name:'newest.md',exact:true}).waitFor()
     assert.deepEqual(await page.locator('#search-results a').allTextContents(),['newest.md'])
-    report.permissions={member_without_read:0,read_without_membership:0,valid_matches:2,hidden_matches:31,
+    report.permissions={member_without_read:0,read_without_membership:0,valid_matches:3,hidden_matches:31,
       same_rank_inputs_and_snippets:true,expired_reader_denied:true,revoked_receipt:404,stale_browser_response_cleared:true,older_response_did_not_replace_newer:true}
   }finally{held?.release.resolve();await ctx.close()}
 }
