@@ -1719,8 +1719,26 @@
       ],
       "final_acceptance_ids": [],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "in_progress",
-      "test_plan_status": "planning_baseline_expand_on_activation"
+      "status": "passed",
+      "test_plan_status": "detailed_and_executed",
+      "base_commit": "8f4d1be80c7b0167bc90e8874164bc7e750dedda",
+      "candidate_commit": "1ce6e4f3fe2d9a05b3bc48973b74550a46efbadc",
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "retest_status": "PASS",
+      "completed_at": "2026-11-21T20:24:09+08:00",
+      "completed_test_ids": ["READ-003-T01", "READ-003-T02"],
+      "open_review_items": [],
+      "closed_review_items": ["HIDDEN_TAB_DRAFT_LOSS", "PENDING_CONFLICT_DRAFT_LOSS"],
+      "acceptance_record": "docs/evidence/READ-003/acceptance.json",
+      "evidence_paths": [
+        "docs/evidence/READ-003/acceptance.json",
+        "docs/evidence/READ-003/independent.json",
+        "docs/evidence/READ-003/final-main/summary.json",
+        "docs/evidence/READ-003/final-independent/summary.json",
+        "docs/evidence/READ-003/final-native/summary.json",
+        "docs/evidence/READ-003/review-history.md"
+      ]
     },
     {
       "id": "SEARCH-001",

@@ -1,0 +1,15 @@
+{
+  "unit_id": "READ-003",
+  "candidate_sha": "1ce6e4f3fe2d9a05b3bc48973b74550a46efbadc",
+  "entry_sha256": "c60eb82829138dcaef5c72c132046009cb26ef69c0b135d73fde48de76a04eaf",
+  "unit_acceptance": "PASS",
+  "passed_test_ids": ["READ-003-T01", "READ-003-T02"],
+  "main_command": "node scripts/read003/host-annotations.mjs 1ce6e4f3fe2d9a05b3bc48973b74550a46efbadc c60eb82829138dcaef5c72c132046009cb26ef69c0b135d73fde48de76a04eaf .cache/read003-pending-main",
+  "main_exit": 0,
+  "main_record": "docs/evidence/READ-003/final-main/summary.json",
+  "main_record_sha256": "b202d3b4093cb3ab04824136674fc7c8d29049f0fa0c1679753af55858084625",
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/READ-003/independent.json",
+  "technical_results": {"typecheck":"PASS","build":"PASS","affected_reader_tests":28,"exit":0,"command":"node --experimental-transform-types --test --test-concurrency=1 scripts/read001/*.test.mjs scripts/read002/*.test.mjs scripts/read003/*.test.mjs (expand paths with rg on Windows)"},
+  "scope_note": "A09, P03 and A46 remain NOT_RUN; no real model dispatch and no Windows delivery test. See review-history.md for the two rejected candidates."
+}

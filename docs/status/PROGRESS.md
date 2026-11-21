@@ -1,5 +1,7 @@
 # 实际进度
 
+2026-11-21：READ-003 [已验收](../evidence/READ-003/acceptance.json)。候选 `1ce6e4f3` 在真实 DSH Host、Chrome 和 SQLite 完成主跑及独立复核。原生 Chrome 同窗口实测普通切换、待返回的 409/200 和撤权；此前的两次草稿丢失已记录并修复。28 项阅读回归、146 项规划门禁正反例通过；后者不是产品验收。下个就绪单元 SEARCH-001；A09、P03、A46 保持 NOT_RUN。
+
 2026-11-20：READ-002 候选 `08889f9` 的 [T01/T02](../evidence/READ-002/acceptance.json) 同一冻结构建主跑与独立复核均通过。两类原始目录、个人书签、重启恢复、旧版与 Word 转换隔离、撤权清屏、并发冲突和 v16 回滚均有实测；先前独立发现的 PDF 未解析跳转和多行标题缺陷已修复。P03、A09 仍为 NOT_RUN；下个就绪单元 READ-003。
 
 2026-11-20：READ-001 候选 `fdac3b0` 的 T01/T02 经[主运行](../evidence/READ-001/word-main-fdac3b0.md)和[独立复核](../evidence/READ-001/independent-fdac3b0.json)均通过。Word 引用按源段落定位，页内高亮继续绑定固定转换；翻页重试和真实撤权清屏已复验。P02/A09/A45 整场景不提前验收。下一单元 READ-002。

@@ -1,0 +1,103 @@
+{
+  "candidate_sha": "1ce6e4f3fe2d9a05b3bc48973b74550a46efbadc",
+  "entry_sha256": "c60eb82829138dcaef5c72c132046009cb26ef69c0b135d73fde48de76a04eaf",
+  "runner_sha256": "1bfaa48958549162aa21620e5d94071d3a5a5e4aa67607e6a862b771c72f5bff",
+  "runner_committed": true,
+  "independent_acceptance": false,
+  "status": "PASS",
+  "cases": [
+    {
+      "id": "v16-to-v17-migration",
+      "source": "candidate SQLite adapter with isolated v16 fixture",
+      "status": "PASS",
+      "actual": {
+        "from": 16,
+        "to": 17,
+        "prior_sha": "08889f97a612b34ae205f0dfa3af6064c3585f19",
+        "prior_bundle_sha256": "f81fe13bc34046d73b5d4ba316ccd3c5dbec3ef90fffc9fe91e6a1b241db5536",
+        "rollback_unchanged": true
+      }
+    },
+    {
+      "id": "READ-003-T01",
+      "source": "real Host, Chrome and SQLite",
+      "status": "PASS",
+      "actual": {
+        "version": "0b8d5f6d-f9d5-4747-931e-4b2f5ca70f68",
+        "new_version": "95f15ab7-595d-4cab-9836-7eea850b12fc",
+        "range": [
+          22,
+          31
+        ],
+        "conflict_http": 409,
+        "pending_conflict_restored": true,
+        "committed_pending_save_not_replayed": true,
+        "last_revision": 4
+      }
+    },
+    {
+      "id": "READ-003-T02",
+      "source": "real Host, Chrome and SQLite",
+      "status": "PASS",
+      "actual": {
+        "version": "4d5d7f45-d220-4d26-bcd2-085c942a28e6",
+        "project": "defbe269-b3ff-4bad-92ff-4d6e152a71b7",
+        "foreground_clear_ms": 1820,
+        "background_draft_not_restored_after_read_revocation": true
+      }
+    }
+  ],
+  "screens": [
+    {
+      "file": "fixed-annotation-plain-text.png",
+      "sha256": "3d722dfa66d740529bc1e850326066ae6fbf8fc2b19541500f5eeea096667c8d"
+    },
+    {
+      "file": "annotation-draft-restored.png",
+      "sha256": "06a3f1e567d717cef449dc6ecccfc010c8861734fcc9b015b2b4821197378f10"
+    },
+    {
+      "file": "annotation-revision-conflict.png",
+      "sha256": "5f0f9c98f10b75671e404e5dfd1f5571f454cf00763831472b03ec1315a57b99"
+    },
+    {
+      "file": "annotation-pending-conflict-restored.png",
+      "sha256": "ebecd52361058046f5d7d596741078537fd761c4218f7c2e23f2af8a107bb035"
+    },
+    {
+      "file": "project-read-only-annotations.png",
+      "sha256": "3ca0a326b3b5f5442d48a63a86410c5c43ca4ac88dad45ee05af882cedc0a4bb"
+    },
+    {
+      "file": "annotation-before-read-revocation.png",
+      "sha256": "025f9f1ec6d3532e4605959e2bce03eb423b5c289df3ea57bfd11de66e9b850c"
+    },
+    {
+      "file": "annotation-after-read-revocation.png",
+      "sha256": "b669d42d1c430cc84d80ebdd46b40681d48ea05548c0be10c3a7d92f99edbd4d"
+    }
+  ],
+  "boots": [
+    120292,
+    119552,
+    105152
+  ],
+  "binding": {
+    "candidate_sha": "1ce6e4f3fe2d9a05b3bc48973b74550a46efbadc",
+    "tree": "dcf3094e18d594f69cc15b78dce6175db0879d7e",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "c60eb82829138dcaef5c72c132046009cb26ef69c0b135d73fde48de76a04eaf",
+    "helpers": {
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "ea21c1a9fff1fcbf3e744a8bec236198f7fe38d2dff727030742cdf26b0ea686",
+      "a07-isolated-host": "867f5ba0c6a098b5b911dadb271b2f9c0c840f35615a0afb6a91fa7bdd1d2629"
+    },
+    "parser": {
+      "pdf-extractor.js": "55ba94ee1a8e65de01fde358798acb0caa1af3eef539783e502ddb99eaf73fac",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "chrome": "158.0.8127.36"
+}

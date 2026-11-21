@@ -1,0 +1,21 @@
+{
+  "unit_id": "READ-003",
+  "candidate_sha": "1ce6e4f3fe2d9a05b3bc48973b74550a46efbadc",
+  "entry_sha256": "c60eb82829138dcaef5c72c132046009cb26ef69c0b135d73fde48de76a04eaf",
+  "reviewer": "Pauli (independent Codex reviewer)",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/read003/host-annotations.mjs 1ce6e4f3fe2d9a05b3bc48973b74550a46efbadc c60eb82829138dcaef5c72c132046009cb26ef69c0b135d73fde48de76a04eaf .cache/read003-pending-independent",
+  "run": "docs/evidence/READ-003/final-independent/summary.json",
+  "run_sha256": "be88f0b23f503eb6dba7693ee1cf88b16db160d388b30cecb39349c727161e31",
+  "native_run": "docs/evidence/READ-003/final-native/summary.json",
+  "native_run_sha256": "a3add6320024c414c289178e0e8d14a685587a539f572f90cfce6847dee83034",
+  "native_reproduce": "node scripts/read003/native-product-probe.mjs 1ce6e4f3fe2d9a05b3bc48973b74550a46efbadc c60eb82829138dcaef5c72c132046009cb26ef69c0b135d73fde48de76a04eaf .cache/read003-native-repeat",
+  "results": [
+    {"id":"READ-003-T01","status":"PASS","actual":"Fixed repeated-text range, restart/edit/delete and 409 revision behavior. Same-window native Chrome preserved drafts after ordinary tab switches and after a pending 409, but did not replay or reopen a committed 200."},
+    {"id":"READ-003-T02","status":"PASS","actual":"Private/project annotation authorization, read/comment split, foreground revocation, and hidden draft/source not restored after revoke. The supplemental native return received HTTP 404."}
+  ],
+  "screenshots_verified": 7,
+  "migration": "PASS",
+  "blocking_findings": []
+}

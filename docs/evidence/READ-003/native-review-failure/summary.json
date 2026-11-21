@@ -1,0 +1,127 @@
+{
+  "candidate": "8c2e9a7abf9c002d132aa0b7bd6fa1d1a69afe3f",
+  "entry": "898f6927f38980780cf2cc876cdf4625a44941e38f1b023386e98f3d79977d8f",
+  "status": "FAIL",
+  "setup": {
+    "command": "node --input-type=module - (inline read-only reviewer harness)",
+    "chromeCommand": [
+      "<chrome.exe>",
+      "--user-data-dir=<fresh evidence temp profile>",
+      "--headless=new",
+      "--remote-debugging-port=0",
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--disable-background-networking",
+      "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1",
+      "<isolated Host>/knowledgeos/account"
+    ],
+    "transport": "browser WebSocket from DevToolsActivePort",
+    "tabs": "default context; Target.createTarget background:true; browser-level Target.activateTarget; no Playwright, focus emulation or DOM visibility override",
+    "host": "isolate(candidate,entry) from scripts/lib002/a07-isolated-host.mjs; TEMP/TMP under independent evidence root; KO_TEST_CACHE repository .cache"
+  },
+  "cases": {
+    "native_restore_conflict": {
+      "status": "PASS",
+      "events": [
+        {
+          "hidden": true,
+          "trusted": true
+        },
+        {
+          "hidden": false,
+          "trusted": true
+        }
+      ],
+      "cleared_when_hidden": {
+        "draftEmpty": true,
+        "listEmpty": true,
+        "sourceEmpty": true,
+        "formHidden": true
+      },
+      "revision": {
+        "http": 2,
+        "sqlite": 2
+      }
+    },
+    "native_read_revocation": {
+      "status": "PASS",
+      "events": [
+        {
+          "hidden": true,
+          "trusted": true
+        },
+        {
+          "hidden": false,
+          "trusted": true
+        }
+      ],
+      "after_return": {
+        "draftEmpty": true,
+        "listEmpty": true,
+        "sourceEmpty": true,
+        "formHidden": true
+      },
+      "http_denial": 404
+    },
+    "native_in_flight_stale_save": {
+      "status": "FAIL",
+      "real_patch_status": 409,
+      "events": [
+        {
+          "hidden": true,
+          "trusted": true
+        },
+        {
+          "hidden": false,
+          "trusted": true
+        }
+      ],
+      "draft_restored": false,
+      "revision": {
+        "http": 3,
+        "sqlite": 3
+      }
+    }
+  },
+  "screens": [
+    {
+      "file": "01-native-before.png",
+      "sha256": "6c6f837e1615789ee5b01641f405472b63e657f8616cb3ffb9fd10b7a2144866"
+    },
+    {
+      "file": "02-native-restored.png",
+      "sha256": "8972520add8e17f74d9aadd2a1c1f2fb54a46a7196756bb4d95fce09a27a0858"
+    },
+    {
+      "file": "03-native-conflict.png",
+      "sha256": "8972520add8e17f74d9aadd2a1c1f2fb54a46a7196756bb4d95fce09a27a0858"
+    },
+    {
+      "file": "04-native-read-revoked.png",
+      "sha256": "211200e9418477049796d41d25b3c8620d0b85a909937290eff0f6ea1101656c"
+    },
+    {
+      "file": "05-native-pending-conflict-return.png",
+      "sha256": "7e38fc6e7a979519d9c8c9f674083115720ea26ccbf9c5f06b82f8cb96c18e4a"
+    }
+  ],
+  "binding": {
+    "candidate_sha": "8c2e9a7abf9c002d132aa0b7bd6fa1d1a69afe3f",
+    "tree": "9d4410328f434251fc9545342c4a6fb3c76fcfea",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "898f6927f38980780cf2cc876cdf4625a44941e38f1b023386e98f3d79977d8f",
+    "helpers": {
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "ea21c1a9fff1fcbf3e744a8bec236198f7fe38d2dff727030742cdf26b0ea686",
+      "a07-isolated-host": "867f5ba0c6a098b5b911dadb271b2f9c0c840f35615a0afb6a91fa7bdd1d2629"
+    },
+    "parser": {
+      "pdf-extractor.js": "55ba94ee1a8e65de01fde358798acb0caa1af3eef539783e502ddb99eaf73fac",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "chrome": "Chrome/158.0.8127.36",
+  "sameWindow": true
+}

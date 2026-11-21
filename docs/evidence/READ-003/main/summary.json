@@ -1,0 +1,97 @@
+{
+  "candidate_sha": "8c2e9a7abf9c002d132aa0b7bd6fa1d1a69afe3f",
+  "entry_sha256": "898f6927f38980780cf2cc876cdf4625a44941e38f1b023386e98f3d79977d8f",
+  "runner_sha256": "161db3ab63fb4a50c6804642b0f2579675d9f7ed818c1865bc90f4d1a4c54dfe",
+  "runner_committed": true,
+  "independent_acceptance": false,
+  "status": "PASS",
+  "cases": [
+    {
+      "id": "v16-to-v17-migration",
+      "source": "candidate SQLite adapter with isolated v16 fixture",
+      "status": "PASS",
+      "actual": {
+        "from": 16,
+        "to": 17,
+        "prior_sha": "08889f97a612b34ae205f0dfa3af6064c3585f19",
+        "prior_bundle_sha256": "f81fe13bc34046d73b5d4ba316ccd3c5dbec3ef90fffc9fe91e6a1b241db5536",
+        "rollback_unchanged": true
+      }
+    },
+    {
+      "id": "READ-003-T01",
+      "source": "real Host, Chrome and SQLite",
+      "status": "PASS",
+      "actual": {
+        "version": "465876a5-c1a9-4e10-8ba9-b81022d87ce4",
+        "new_version": "918d3e4a-f4d5-4d4c-9203-744f442c00cb",
+        "range": [
+          22,
+          31
+        ],
+        "conflict_http": 409,
+        "last_revision": 3
+      }
+    },
+    {
+      "id": "READ-003-T02",
+      "source": "real Host, Chrome and SQLite",
+      "status": "PASS",
+      "actual": {
+        "version": "f43b6041-878b-419e-bd8c-738f6d108c8e",
+        "project": "5db4921d-58f5-4d04-b8a2-bb756778413b",
+        "foreground_clear_ms": 331,
+        "background_draft_not_restored_after_read_revocation": true
+      }
+    }
+  ],
+  "screens": [
+    {
+      "file": "fixed-annotation-plain-text.png",
+      "sha256": "408762f42da55cf3155347ea6d5d1f92d0fd4f0522f268906b63ff625192dec9"
+    },
+    {
+      "file": "annotation-draft-restored.png",
+      "sha256": "9a08646d8744d569cbec7805e0c8fe7a29cddf7eff33818b9b4c57e5ed80e393"
+    },
+    {
+      "file": "annotation-revision-conflict.png",
+      "sha256": "07f0a052a0ec2b0dd2f3ba1e805492ff69929d006168cb8b6153a246fb6067bb"
+    },
+    {
+      "file": "project-read-only-annotations.png",
+      "sha256": "2f5dd6605b4f8495cf89b2c2f56e808076938b07a1b9d81404cf092d461a143b"
+    },
+    {
+      "file": "annotation-before-read-revocation.png",
+      "sha256": "e7e18e1f71b1f7df043dd71ad720c52578ebfa84b41bd037c42e2cfd0986e37b"
+    },
+    {
+      "file": "annotation-after-read-revocation.png",
+      "sha256": "b669d42d1c430cc84d80ebdd46b40681d48ea05548c0be10c3a7d92f99edbd4d"
+    }
+  ],
+  "boots": [
+    60476,
+    70560,
+    112556
+  ],
+  "binding": {
+    "candidate_sha": "8c2e9a7abf9c002d132aa0b7bd6fa1d1a69afe3f",
+    "tree": "9d4410328f434251fc9545342c4a6fb3c76fcfea",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "898f6927f38980780cf2cc876cdf4625a44941e38f1b023386e98f3d79977d8f",
+    "helpers": {
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "ea21c1a9fff1fcbf3e744a8bec236198f7fe38d2dff727030742cdf26b0ea686",
+      "a07-isolated-host": "867f5ba0c6a098b5b911dadb271b2f9c0c840f35615a0afb6a91fa7bdd1d2629"
+    },
+    "parser": {
+      "pdf-extractor.js": "55ba94ee1a8e65de01fde358798acb0caa1af3eef539783e502ddb99eaf73fac",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "chrome": "158.0.8127.36"
+}
