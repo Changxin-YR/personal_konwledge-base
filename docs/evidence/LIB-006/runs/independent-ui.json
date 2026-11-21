@@ -1,0 +1,92 @@
+{
+  "candidate_sha": "680b8689adbcf0967d00051aaabc79ca3c513662",
+  "entry_sha256": "33f178bebe116b9d1d181d2333492b9f83cc473a96d604d0aeb1f0b57ae2ea06",
+  "status": "PASS",
+  "pages": [
+    {
+      "physical_page": 19,
+      "api_version_matches": true,
+      "chrome_render_hash_matches_both_full_runs": true,
+      "db_text_sha256": "646a768be60018eda6b51346569ac021231ae01e407f4288c1261fba1adf9549",
+      "preview_sha256": "13164c8ffdcefc06330c68000602ce953089aab73b13340c38fad88bdde4e36a",
+      "state": "review",
+      "structured_layout_notice": null
+    },
+    {
+      "physical_page": 58,
+      "api_version_matches": true,
+      "chrome_render_hash_matches_both_full_runs": true,
+      "db_text_sha256": "e82ef9fcd5a69839fbe193e97f26b8a986b22c9a6a9b6ecb6bd5757858f64c94",
+      "preview_sha256": "fd662624d412f2aaccf615ed6cca0eb1af9eada02df01d3e5174cf21b4e52244",
+      "state": "ready",
+      "structured_layout_notice": null
+    },
+    {
+      "physical_page": 59,
+      "api_version_matches": true,
+      "chrome_render_hash_matches_both_full_runs": true,
+      "db_text_sha256": "7490277c0a5dfa68c9b08ccf737ceb6de7244ff7df6cc3b7fe661ce20146cf9c",
+      "preview_sha256": "4f6c4aacf9ad2709edcb1f58379d114c8efd540cba48c24fae1a2e70cf04371c",
+      "state": "review",
+      "structured_layout_notice": null
+    },
+    {
+      "physical_page": 67,
+      "api_version_matches": true,
+      "chrome_render_hash_matches_both_full_runs": true,
+      "db_text_sha256": "e8618c6bb1d5cfd1b44e0004da931cbaacf3ad05f4255323930ae68efb36aa0a",
+      "preview_sha256": "882783f6a3cc7aa8b0f42b6ea0bbd0a182a191948230b31420594d2ba54fb7c7",
+      "state": "review",
+      "structured_layout_notice": true
+    },
+    {
+      "physical_page": 336,
+      "api_version_matches": true,
+      "chrome_render_hash_matches_both_full_runs": true,
+      "db_text_sha256": "bd2a17aa38b0942e75b156f2f69ff699bd22453914e8c0aab34918e98deefe18",
+      "preview_sha256": "cb8728156ca320d414e0b4ac550abf5aeebb6bb6c6b640d2e59afb3113383f96",
+      "state": "ready",
+      "structured_layout_notice": null
+    },
+    {
+      "physical_page": 337,
+      "api_version_matches": true,
+      "chrome_render_hash_matches_both_full_runs": true,
+      "db_text_sha256": "5a8f8818f36b182a67c30fcd4f0bc64a5a377c91c9dc89b823d890bcdf21fb4a",
+      "preview_sha256": "5ebe0d674cb7518c0a26047760b03cde5f57309b0fd4515adb73a354e75aea83",
+      "state": "review",
+      "structured_layout_notice": null
+    },
+    {
+      "physical_page": 350,
+      "api_version_matches": true,
+      "chrome_render_hash_matches_both_full_runs": true,
+      "db_text_sha256": "e45977adfd1b46bc9ca186eab2dec56db1ac2334405c126565bd1e72e753c182",
+      "preview_sha256": "a95255f375c56904003e4ca80a050ab107f159fa89c5533d8ab929909ffaa7c2",
+      "state": "ready",
+      "structured_layout_notice": true
+    },
+    {
+      "physical_page": 939,
+      "api_version_matches": true,
+      "chrome_render_hash_matches_both_full_runs": true,
+      "db_text_sha256": "ce3eb41b8db43c39ffc18ef22858a2e29f7467cb34707d232e027ec2eff90b4c",
+      "preview_sha256": "bc0d347ce839d8f1060a3b634d00d9955fa349cb6c71cd4f2af501147a08c1f4",
+      "state": "ready",
+      "structured_layout_notice": null
+    }
+  ],
+  "chrome": "158.0.8127.36",
+  "exit": 0,
+  "raw_local_record": {
+    "path": ".cache/lib006-final-independent-cs/run-XnmMam/render-contrast/independent-reader-ui-retry.json",
+    "sha256": "d0ccfcd34b9e4c279fcbc902e0dd6a707d4eb86690ef00f965d1b31659530013"
+  },
+  "prior_attempt": {
+    "path": ".cache/lib006-final-independent-cs/run-XnmMam/render-contrast/independent-reader-ui.json",
+    "sha256": "924d9a1232e502bad619c3c6d378ad8e926a92f4792f33f75ea30190d972cffd",
+    "status": "FAIL",
+    "exit": 1,
+    "reason": "Test request body format caused HTTP 422; corrected the caller, not the candidate."
+  }
+}

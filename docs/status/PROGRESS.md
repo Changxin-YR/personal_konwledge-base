@@ -1,5 +1,9 @@
 # 实际进度
 
+2026-11-21：LIB-006 候选 `680b868` [已验收](../evidence/LIB-006/acceptance.json)。Windows 上以真实 DSH Host、Chrome 和 SQLite，分别对 664 页 / 48,299,547 字节及 939 页 / 56,261,511 字节的 OpenStax 教材完成主跑及独立复核。整本和分章原件一致，物理页码不变；第 59 页跨页代码缩进恢复，第 67、350 页明确区分提取文本和原页版式。113 项受影响测试及 A07、A09 真实 Host 回归通过。[P02](../evidence/LIB-006/P02.json) 与 [A06](../evidence/LIB-006/A06.json) 绑定实际集成候选；F05、F06 verified，F07 仍待 A45。下一就绪单元 NOTE-001。
+
+2026-11-21：SEARCH-001 已验收，[单元](../evidence/SEARCH-001/acceptance.json)及[完整 A09](../evidence/SEARCH-001/A09.json)绑定候选 `5483832`。LIB-006 在新候选上重跑 A09，不改写历史证据。
+
 2026-11-21：SEARCH-001 已开始，[开发检查点](../evidence/SEARCH-001/checkpoint.json) `447c1211`。现有 PDF 已解析页和 Markdown/纯文本段落可在当前权限内检索。v18 仅追加；35 项专项与受影响回归、真实 Host/Chrome/SQLite 冒烟通过。完整查询集、项目撤权实跑、重启后的书签批注及独立验收未完成；SEARCH-001 不关单，A09 保持 NOT_RUN。
 
 2026-11-21：READ-003 [已验收](../evidence/READ-003/acceptance.json)。候选 `1ce6e4f3` 在真实 DSH Host、Chrome 和 SQLite 完成主跑及独立复核。原生 Chrome 同窗口实测普通切换、待返回的 409/200 和撤权；此前的两次草稿丢失已记录并修复。28 项阅读回归、146 项规划门禁正反例通过；后者不是产品验收。下个就绪单元 SEARCH-001；A09、P03、A46 保持 NOT_RUN。

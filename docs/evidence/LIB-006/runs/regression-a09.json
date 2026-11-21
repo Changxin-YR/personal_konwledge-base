@@ -1,0 +1,24 @@
+{
+  "candidate_sha": "680b8689adbcf0967d00051aaabc79ca3c513662",
+  "tree": "eb428cbfefe48be8b357b625d05e36cdfb6483b6",
+  "source_tree": "9f19d8d62c9da713e00afd5f4cf3aac82e377e86",
+  "entry_sha256": "33f178bebe116b9d1d181d2333492b9f83cc473a96d604d0aeb1f0b57ae2ea06",
+  "build_sha256": "64dd35eb9489fbcbd41d1ee303eb6904eab0a397bdb5158bd49ac2418be5db4d",
+  "status": "PASS",
+  "exit": 0,
+  "A09": "PASS",
+  "schema_version": {
+    "expected": 20,
+    "actual": 20
+  },
+  "local_record": {
+    "path": ".cache/lib006-final-a09/run-6J91qY/summary.json",
+    "sha256": "7e0614e724ae8dc3120800e4af068f300995006d1c3669ba581b38b070b963bc"
+  },
+  "query_checks": 26,
+  "chrome": "158.0.8127.36",
+  "coverage": [
+    "Real Chrome fixed PDF/Markdown/Word sources, bookmarks, annotations and restart",
+    "Final ACL recheck and inaccessible candidates excluded"
+  ]
+}

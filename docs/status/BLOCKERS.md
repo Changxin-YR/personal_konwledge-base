@@ -1,5 +1,7 @@
 # 当前收口问题
 
+2026-11-21，FND-005 补查：锁定运行时的原生 listing、provider hooks 和 Messages extensions 共 26 项上游测试通过，使用测试替身，实际业务推理为零。原生 `admit` 只做模型兼容检查，`prepare` 在 `admit` 之前可能访问模型目录，不能把它当预算或零出站派送闸门。仍需在隔离 Host 验证正式派送边界及无凭据/无许可零出站；未获得 API 有效性或额度结论，暂不请求用户提供密钥。
+
 2026-11-21，FND-005：只读核对锁定 DSH。`llm-deepseek-api-key` 注册的 `deepseek-official` 由 `llm-deepseek` 的 Messages 适配器直接派送，不经过现有 `llm-pi-ai/request-headers` 守卫。原生 `deepseekLlmApiExtensions` 的单字段准备异常会被吞并；不能用该回调拒绝来代替额度闸门。下一步在隔离副本上验证原生派送前拒绝及零出站负例，再绑定已授权的原生凭据引用。此次未触发推理，也未发现可判定 API 有效性的证据。
 
 2026-11-20，FND-005：锁定 DSH 的原生 CLI 已初始化隔离 Web profile，冻结插件确实加载，但仍未获得合规路由，真实模型调用为零。除确认已授权凭据引用外，原生 `deepseek-official` 与现有 `llm-pi-ai` 专用派送门禁的兼容性需要核对；保持 `BLOCKED`，不能据此判断 API 无效。详见[更新预检](../evidence/FND-005/continuous/isolated-profile-preflight-20261120.json)。

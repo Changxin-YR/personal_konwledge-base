@@ -1872,8 +1872,33 @@
         "A06"
       ],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "in_progress",
-      "test_plan_status": "scripts/lib006/acceptance-plan.md"
+      "status": "passed",
+      "test_plan_status": "detailed_executed",
+      "test_plan_path": "scripts/lib006/acceptance-plan.md",
+      "candidate_commit": "680b8689adbcf0967d00051aaabc79ca3c513662",
+      "acceptance_record": "docs/evidence/LIB-006/acceptance.json",
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "retest_status": "PASS",
+      "completed_test_ids": [
+        "LIB-006-T01",
+        "LIB-006-T02"
+      ],
+      "open_review_items": [],
+      "closed_review_items": [
+        "pdfium-in-memory-utc",
+        "large-corpus-search-work-bound",
+        "page-59-leading-indent",
+        "flat-table-warning"
+      ],
+      "completed_at": "2026-11-21T15:37:55.294Z",
+      "evidence_paths": [
+        "docs/evidence/LIB-006/acceptance.json",
+        "docs/evidence/LIB-006/independent.json",
+        "docs/evidence/LIB-006/P02.json",
+        "docs/evidence/LIB-006/A06.json",
+        "docs/evidence/LIB-006/superseded.json"
+      ]
     },
     {
       "id": "SHARE-001",

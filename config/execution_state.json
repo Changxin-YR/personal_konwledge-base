@@ -10,7 +10,7 @@
     "sha256": "da73b65a0004bfa875d1435a61a555ba6f02d45c280aeb8ed6d2e62ab4bd39d8"
   },
   "active_unit": "LIB-006",
-  "unit_state": "in_progress",
+  "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Validating whole-book and chapter import with real large PDFs",
+  "state_reason": "LIB-006 verified on two real books with independent source checks; advance after remote readback",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,48 +127,51 @@
     }
   },
   "last_accepted_checkpoint": {
-    "unit_id": "SEARCH-001",
-    "base_commit": "c05001c12dd64fa173062cddab3ff1971809166c",
-    "candidate_sha": "5483832b337004717da9af2ff7702a7f13bc31a3",
-    "entry_sha256": "4d1d4a43fc97c6ba162e33537704b29fe0e241c3502b7d07640340e71ab84542",
+    "unit_id": "LIB-006",
+    "base_commit": "3495e630e890b887387a2d5cd24d66df938acc25",
+    "candidate_sha": "680b8689adbcf0967d00051aaabc79ca3c513662",
+    "entry_sha256": "33f178bebe116b9d1d181d2333492b9f83cc473a96d604d0aeb1f0b57ae2ea06",
     "completed": [
-      "Chinese PDF and Markdown query corpus, fixed version/page/segment and real restart restoration; Word conversions fixed by conversion ID.",
-      "Final ACL check under real grant expiry, browser stale-response suppression, 75 affected tests, independent rerun and integrated A09."
+      "Whole and chapter modes preserve immutable original bytes, physical pages and visible parse state.",
+      "Main and independent tests with 664- and 939-page textbooks passed in real Chrome/Host/SQLite. Fixed page-leading code indentation without shifting existing citations; flat text warns it is not original layout.",
+      "113 affected tests, real A07/A09 and integrated P02/A06 passed."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
-      "A09": "PASS",
+      "P02": "PASS",
+      "A06": "PASS",
       "independent": "PASS",
       "affected": "PASS",
       "T01": "PASS",
       "T02": "PASS"
     },
-    "evidence": "docs/evidence/SEARCH-001/acceptance.json",
+    "evidence": "docs/evidence/LIB-006/acceptance.json",
     "defects": [],
     "blocked_dependencies": [],
-    "next_task": "LIB-006"
+    "next_task": "NOTE-001"
   },
   "checkpoint": {
     "unit_id": "LIB-006",
     "base_commit": "3495e630e890b887387a2d5cd24d66df938acc25",
-    "candidate_sha": "b47d09ba7ce612272a23e5ca645455053b40de9f",
-    "entry_sha256": "46b939e31b286a62d67b48e5c22da92f9d170193f3fbf27a973d24d84aae4b45",
+    "candidate_sha": "680b8689adbcf0967d00051aaabc79ca3c513662",
+    "entry_sha256": "33f178bebe116b9d1d181d2333492b9f83cc473a96d604d0aeb1f0b57ae2ea06",
     "completed": [
-      "Chapter selection persists against the original physical page numbers and resumes after cancellation and restart.",
-      "Six-page synthetic Host/Chrome/SQLite smoke and 108 affected regression tests passed."
+      "Whole and chapter modes preserve immutable original bytes, physical pages and visible parse state.",
+      "Main and independent tests with 664- and 939-page textbooks passed in real Chrome/Host/SQLite. Fixed page-leading code indentation without shifting existing citations; flat text warns it is not original layout.",
+      "113 affected tests, real A07/A09 and integrated P02/A06 passed."
     ],
     "test_results": {
-      "unit_acceptance": "NOT_RUN",
-      "P02": "NOT_RUN",
-      "A06": "NOT_RUN",
-      "independent": "NOT_RUN",
+      "unit_acceptance": "PASS",
+      "P02": "PASS",
+      "A06": "PASS",
+      "independent": "PASS",
       "affected": "PASS",
-      "T01": "NOT_RUN",
-      "T02": "NOT_RUN"
+      "T01": "PASS",
+      "T02": "PASS"
     },
-    "evidence": "docs/evidence/LIB-006/checkpoint.json",
+    "evidence": "docs/evidence/LIB-006/acceptance.json",
     "defects": [],
     "blocked_dependencies": [],
-    "next_task": "Run real large PDF whole-book and chapter checks; freeze and independently rerun including affected A07 and search paths."
+    "next_task": "NOTE-001"
   }
 }

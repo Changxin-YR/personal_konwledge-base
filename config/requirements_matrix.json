@@ -84,12 +84,13 @@
         "P02",
         "A05"
       ],
-      "implementation_status": "in_progress",
+      "implementation_status": "verified",
       "evidence_paths": [
         "docs/evidence/LIB-001/acceptance.json",
         "docs/evidence/LIB-003/acceptance.json",
         "docs/evidence/LIB-004/acceptance.json",
-        "docs/evidence/LIB-005/acceptance.json"
+        "docs/evidence/LIB-005/acceptance.json",
+        "docs/evidence/LIB-006/acceptance.json"
       ]
     },
     {
@@ -101,9 +102,10 @@
         "P02",
         "A06"
       ],
-      "implementation_status": "in_progress",
+      "implementation_status": "verified",
       "evidence_paths": [
-        "docs/evidence/LIB-002/acceptance.json"
+        "docs/evidence/LIB-002/acceptance.json",
+        "docs/evidence/LIB-006/acceptance.json"
       ]
     },
     {
@@ -123,7 +125,8 @@
         "docs/evidence/LIB-001/acceptance.json",
         "docs/evidence/LIB-002/acceptance.json",
         "docs/evidence/LIB-003/acceptance.json",
-        "docs/evidence/SEARCH-001/acceptance.json"
+        "docs/evidence/SEARCH-001/acceptance.json",
+        "docs/evidence/LIB-006/acceptance.json"
       ]
     },
     {
@@ -668,8 +671,11 @@
       "expected": "已完成章节可阅读；未处理与待复核分开显示；来源页与版本正确；最终结果与原件核对。",
       "level": "real_fixture",
       "evidence_required": "输入哈希、页数、大小、解析范围、耗时/内存记录、抽查页映射",
-      "status": "NOT_RUN",
-      "final_milestone": "M1"
+      "status": "PASS",
+      "final_milestone": "M1",
+      "evidence_paths": [
+        "docs/evidence/LIB-006/P02.json"
+      ]
     },
     {
       "id": "P03",
@@ -955,8 +961,11 @@
       "expected": "来源页可回溯；拆分保留原书位置；差异显式报告；UI可响应；记录耗时与峰值内存，不用小夹具冒充实测。",
       "level": "real_fixture",
       "evidence_required": "真实输入元数据、页面抽查表、性能观测",
-      "status": "NOT_RUN",
-      "final_milestone": "M1"
+      "status": "PASS",
+      "final_milestone": "M1",
+      "evidence_paths": [
+        "docs/evidence/LIB-006/A06.json"
+      ]
     },
     {
       "id": "A07",

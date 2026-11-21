@@ -1,0 +1,46 @@
+{
+  "unit_id": "LIB-006",
+  "candidate_sha": "680b8689adbcf0967d00051aaabc79ca3c513662",
+  "tree": "eb428cbfefe48be8b357b625d05e36cdfb6483b6",
+  "source_tree": "9f19d8d62c9da713e00afd5f4cf3aac82e377e86",
+  "entry_sha256": "33f178bebe116b9d1d181d2333492b9f83cc473a96d604d0aeb1f0b57ae2ea06",
+  "build_sha256": "64dd35eb9489fbcbd41d1ee303eb6904eab0a397bdb5158bd49ac2418be5db4d",
+  "status": "PASS",
+  "exit": 0,
+  "runner": "Codex independent reviewer (Bacon)",
+  "command": "node scripts/lib006/host-volume.mjs 680b8689adbcf0967d00051aaabc79ca3c513662 33f178bebe116b9d1d181d2333492b9f83cc473a96d604d0aeb1f0b57ae2ea06 .cache/lib006-samples/openstax-introduction-to-computer-science.pdf 939 49 '19-48,49-67,322-350,921-939' .cache/lib006-final-independent-cs; node scripts/lib006/host-volume.mjs 680b8689adbcf0967d00051aaabc79ca3c513662 33f178bebe116b9d1d181d2333492b9f83cc473a96d604d0aeb1f0b57ae2ea06 .cache/lib006-samples/openstax-introduction-sociology-3e.pdf 664 47 '10-50,318-345,638-664' .cache/lib006-final-independent-soc (plus read-only SQLite, Poppler and fresh Chrome original/text checks)",
+  "artifacts": [
+    {
+      "path": "docs/evidence/LIB-006/runs/independent-cs.json",
+      "sha256": "b6c6bbc788ae19b72b657c586a3cfed0fac09cd4d85624f3b830a3a16f4a39ab"
+    },
+    {
+      "path": "docs/evidence/LIB-006/runs/independent-sociology.json",
+      "sha256": "289206c2588c750394a649d825f3218ef60a05c06da4d15b53a37cd1d4fc4f80"
+    },
+    {
+      "path": "docs/evidence/LIB-006/runs/independent-source-cs.json",
+      "sha256": "8fb8d2dea5182e48d1b917c322e9237edc47f46efdbb42e8154ac8f8de7de3c8"
+    },
+    {
+      "path": "docs/evidence/LIB-006/runs/independent-source-sociology.json",
+      "sha256": "34994e1ba287fcfda82c6b0f318997cdb0d6728889fef2b307483d2c94607bb9"
+    },
+    {
+      "path": "docs/evidence/LIB-006/runs/independent-ui.json",
+      "sha256": "4bbd08399caafc0191c6d8570471c432c77a87c0aaba2f1e672d45a79af84fb4"
+    }
+  ],
+  "results": [
+    {
+      "id": "LIB-006-T01",
+      "status": "PASS",
+      "actual": "Two real Chrome uploads, physical page and exact search hit before cancellation, unchanged database while stopped, and both jobs resumed at the held page after a new Host without republishing prior pages."
+    },
+    {
+      "id": "LIB-006-T02",
+      "status": "PASS",
+      "actual": "Original byte hashes agree, selected rows match the whole versions, omitted pages remain pending, and source render checks cover photos, tables, code and tail. Independent Poppler and SQLite confirmed the 4-column fix at physical page 59; Chrome confirmed the flat-text warning on pages 67 and 350."
+    }
+  ]
+}

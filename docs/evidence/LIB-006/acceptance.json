@@ -1,0 +1,57 @@
+{
+  "unit_id": "LIB-006",
+  "candidate_sha": "680b8689adbcf0967d00051aaabc79ca3c513662",
+  "tree": "eb428cbfefe48be8b357b625d05e36cdfb6483b6",
+  "source_tree": "9f19d8d62c9da713e00afd5f4cf3aac82e377e86",
+  "entry_sha256": "33f178bebe116b9d1d181d2333492b9f83cc473a96d604d0aeb1f0b57ae2ea06",
+  "build_sha256": "64dd35eb9489fbcbd41d1ee303eb6904eab0a397bdb5158bd49ac2418be5db4d",
+  "unit_acceptance": "PASS",
+  "passed_test_ids": [
+    "LIB-006-T01",
+    "LIB-006-T02"
+  ],
+  "main_command": "node scripts/lib006/host-volume.mjs 680b8689adbcf0967d00051aaabc79ca3c513662 33f178bebe116b9d1d181d2333492b9f83cc473a96d604d0aeb1f0b57ae2ea06 .cache/lib006-samples/openstax-introduction-to-computer-science.pdf 939 49 '19-48,49-67,322-350,921-939' .cache/lib006-final-cs; node scripts/lib006/host-volume.mjs 680b8689adbcf0967d00051aaabc79ca3c513662 33f178bebe116b9d1d181d2333492b9f83cc473a96d604d0aeb1f0b57ae2ea06 .cache/lib006-samples/openstax-introduction-sociology-3e.pdf 664 47 '10-50,318-345,638-664' .cache/lib006-final-soc",
+  "main_exit": 0,
+  "main_records": [
+    {
+      "path": "docs/evidence/LIB-006/runs/main-cs.json",
+      "sha256": "49130a04b40a8bd5631c618c7b729cbb7d6924f0b492d5ba9f3bf6a8997cd3e8"
+    },
+    {
+      "path": "docs/evidence/LIB-006/runs/main-sociology.json",
+      "sha256": "64a706267b5f5bb2de025b2fb3fb6b32bb137e04869922ea0f8ed7ecc1ebc839"
+    },
+    {
+      "path": "docs/evidence/LIB-006/runs/main-source-review.json",
+      "sha256": "5946bbcc4a5bdd8c103910ddab1374c3b409bef94880039f70b5f43f89320319"
+    }
+  ],
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/LIB-006/independent.json",
+  "integrated_cases": [
+    "docs/evidence/LIB-006/P02.json",
+    "docs/evidence/LIB-006/A06.json"
+  ],
+  "technical_results": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "affected_tests": 113,
+    "exit": 0,
+    "command": "node --experimental-transform-types --test 'scripts/lib00[2346]/*.test.mjs' 'scripts/read00[123]/*.test.mjs' 'scripts/search001/*.test.mjs'",
+    "regression_records": [
+      {
+        "path": "docs/evidence/LIB-006/runs/regression-unit-tests.json",
+        "sha256": "4c689d8d4074aacf3aed7abc3ca6cd2905f074175ef37248a319a0b2befccddf"
+      },
+      {
+        "path": "docs/evidence/LIB-006/runs/regression-a07.json",
+        "sha256": "7007f01b4dbdac64ded4868ccb349aede397dfc3d206ca6572d904c4f8349452"
+      },
+      {
+        "path": "docs/evidence/LIB-006/runs/regression-a09.json",
+        "sha256": "63b9e3ec0967bec8a8ce87edae100e4e91ac53cd7aee32566fd295a35d028505"
+      }
+    ]
+  },
+  "prior_candidate": "docs/evidence/LIB-006/superseded.json"
+}

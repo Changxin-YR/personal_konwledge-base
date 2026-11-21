@@ -1,0 +1,253 @@
+{
+  "candidate_sha": "680b8689adbcf0967d00051aaabc79ca3c513662",
+  "entry_sha256": "33f178bebe116b9d1d181d2333492b9f83cc473a96d604d0aeb1f0b57ae2ea06",
+  "input_sha256": "fd56aaf80c851e9f3b417745785ea5c832fc2911acfd2094a86f4c517fdf435a",
+  "sqlite_read_only": true,
+  "pages": {
+    "19": {
+      "sqlite_text_sha256": "646a768be60018eda6b51346569ac021231ae01e407f4288c1261fba1adf9549",
+      "state": "review",
+      "host_data_url_sha256": "13164c8ffdcefc06330c68000602ce953089aab73b13340c38fad88bdde4e36a",
+      "poppler_png_sha256": "076d927fef541219b9d19076b7c34072e9f1959f695469a7bc89451263b0fa57",
+      "product_png_sha256": "5801f4f80e1d1348263953583c6c302a61d11edd744691cf363745d3e7fb064e",
+      "same_physical_page_top_match": 19,
+      "render_similarity": 0.9997,
+      "next_best_similarity": 0.1636,
+      "plain_text_contains_review_notice": false,
+      "figure": {
+        "source_colored_fraction": 0.486,
+        "product_colored_fraction": 0.4784,
+        "region_similarity": 0.9988
+      }
+    },
+    "58": {
+      "sqlite_text_sha256": "e82ef9fcd5a69839fbe193e97f26b8a986b22c9a6a9b6ecb6bd5757858f64c94",
+      "state": "ready",
+      "host_data_url_sha256": "fd662624d412f2aaccf615ed6cca0eb1af9eada02df01d3e5174cf21b4e52244",
+      "poppler_png_sha256": "4be3adb312f849afbe6887d168f1a7bae54a7210f3b9b1564a9153e3040f554b",
+      "product_png_sha256": "28b8247b10c654417835f05005cc59d4d7e9f5ec4696a1924fc0f04032c5e997",
+      "same_physical_page_top_match": 58,
+      "render_similarity": 0.9935,
+      "next_best_similarity": 0.246,
+      "plain_text_contains_review_notice": false,
+      "code_boundary": {
+        "lines": 6,
+        "line_text_sha256": "0a53bc784c16c5128cbdb62159fdde2103c17dafe2b146ac31b18c0e4bf11140",
+        "indent_source": [
+          0,
+          2,
+          2,
+          4,
+          2,
+          2
+        ],
+        "indent_db": [
+          [
+            0,
+            2,
+            2,
+            4,
+            2,
+            2
+          ]
+        ],
+        "unindented_exact_matches": [
+          36
+        ],
+        "open_brace_delta": 2,
+        "y": [
+          647.2,
+          714.7
+        ],
+        "intervening_source_lines": 0
+      }
+    },
+    "59": {
+      "sqlite_text_sha256": "7490277c0a5dfa68c9b08ccf737ceb6de7244ff7df6cc3b7fe661ce20146cf9c",
+      "state": "review",
+      "host_data_url_sha256": "4f6c4aacf9ad2709edcb1f58379d114c8efd540cba48c24fae1a2e70cf04371c",
+      "poppler_png_sha256": "85ef2dfc53a29e181a2cc48e3df5d6c632e901ad0d11d0c154d9b212d2f86343",
+      "product_png_sha256": "c18a9444e089ff63fec67618d568b2ff9f56dfa9ac75c9325721107cad819178",
+      "same_physical_page_top_match": 59,
+      "render_similarity": 0.998,
+      "next_best_similarity": 0.2127,
+      "plain_text_contains_review_notice": false,
+      "code_boundary": {
+        "lines": 8,
+        "line_text_sha256": "2624d923aecc30019cb1854415aadfbf048b73caff4815394aff70d7f1ba13b9",
+        "indent_source": [
+          4,
+          4,
+          2,
+          0,
+          0,
+          0,
+          2,
+          0
+        ],
+        "indent_db": [
+          [
+            4,
+            4,
+            2,
+            0,
+            0,
+            0,
+            2,
+            0
+          ]
+        ],
+        "unindented_exact_matches": [
+          0
+        ],
+        "open_brace_delta": -2,
+        "y": [
+          60.6,
+          155.1
+        ],
+        "intervening_source_lines": 0
+      }
+    },
+    "67": {
+      "sqlite_text_sha256": "e8618c6bb1d5cfd1b44e0004da931cbaacf3ad05f4255323930ae68efb36aa0a",
+      "state": "review",
+      "host_data_url_sha256": "882783f6a3cc7aa8b0f42b6ea0bbd0a182a191948230b31420594d2ba54fb7c7",
+      "poppler_png_sha256": "53abc76ebcc8d5bce080c47ac8dced3d188b27c998069a410d3281c9b33aa511",
+      "product_png_sha256": "4224439ba2d20f0eafdd0cd79bba5dc0765feb56e393cf86a4e6d6a7f7fd5262",
+      "same_physical_page_top_match": 67,
+      "render_similarity": 0.9978,
+      "next_best_similarity": 0.2021,
+      "plain_text_contains_review_notice": false,
+      "table": {
+        "rows": 4,
+        "columns": 3,
+        "ink_cells_source": 12,
+        "ink_cells_product": 12
+      }
+    },
+    "336": {
+      "sqlite_text_sha256": "bd2a17aa38b0942e75b156f2f69ff699bd22453914e8c0aab34918e98deefe18",
+      "state": "ready",
+      "host_data_url_sha256": "cb8728156ca320d414e0b4ac550abf5aeebb6bb6c6b640d2e59afb3113383f96",
+      "poppler_png_sha256": "0726fe27c35da41a3690e877747d4092147f35ba7eeb157eb4bb9accc96761de",
+      "product_png_sha256": "9113092630bc7d59d149846f563666e9c0270cc75f3445cf83813bb98acb2612",
+      "same_physical_page_top_match": 336,
+      "render_similarity": 0.9937,
+      "next_best_similarity": 0.2412,
+      "plain_text_contains_review_notice": false,
+      "code_boundary": {
+        "lines": 1,
+        "line_text_sha256": "0e046bba35c1b5c782a739f6528e7a12e54c6bb95d494d8b972b6f1d0d8dcaef",
+        "indent_source": [
+          0
+        ],
+        "indent_db": [
+          [
+            0
+          ]
+        ],
+        "unindented_exact_matches": [
+          38
+        ],
+        "open_brace_delta": 0,
+        "y": [
+          676.9,
+          676.9
+        ],
+        "intervening_source_lines": 1
+      }
+    },
+    "337": {
+      "sqlite_text_sha256": "5a8f8818f36b182a67c30fcd4f0bc64a5a377c91c9dc89b823d890bcdf21fb4a",
+      "state": "review",
+      "host_data_url_sha256": "5ebe0d674cb7518c0a26047760b03cde5f57309b0fd4515adb73a354e75aea83",
+      "poppler_png_sha256": "cdf1e8a3c1a9546290e3f17fa901ef0b9ca9b8a6a921c5497f01d46f7149b579",
+      "product_png_sha256": "4414c72104f1cb1f5d07ade41e5283c416007f8d228503c78a554d43fd3f46b8",
+      "same_physical_page_top_match": 337,
+      "render_similarity": 0.9952,
+      "next_best_similarity": 0.1955,
+      "plain_text_contains_review_notice": false,
+      "code_boundary": {
+        "lines": 1,
+        "line_text_sha256": "e1f0162edc97f38d844e99361504d57edeb866007e73035f815e328d59eb4d03",
+        "indent_source": [
+          0
+        ],
+        "indent_db": [
+          [
+            0
+          ]
+        ],
+        "unindented_exact_matches": [
+          0
+        ],
+        "open_brace_delta": 0,
+        "y": [
+          60.6,
+          60.6
+        ],
+        "intervening_source_lines": 0
+      }
+    },
+    "350": {
+      "sqlite_text_sha256": "e45977adfd1b46bc9ca186eab2dec56db1ac2334405c126565bd1e72e753c182",
+      "state": "ready",
+      "host_data_url_sha256": "a95255f375c56904003e4ca80a050ab107f159fa89c5533d8ab929909ffaa7c2",
+      "poppler_png_sha256": "6219ad065519c91d832a6f0d11fd08c89dcd046515178324f108ff8f76359c60",
+      "product_png_sha256": "7924b0513301f3730501090440a1b6bd51be779e3901b4adb573615c0fc98230",
+      "same_physical_page_top_match": 350,
+      "render_similarity": 0.9958,
+      "next_best_similarity": 0.2361,
+      "plain_text_contains_review_notice": false,
+      "table": {
+        "rows": 5,
+        "columns": 2,
+        "ink_cells_source": 10,
+        "ink_cells_product": 10
+      }
+    },
+    "939": {
+      "sqlite_text_sha256": "ce3eb41b8db43c39ffc18ef22858a2e29f7467cb34707d232e027ec2eff90b4c",
+      "state": "ready",
+      "host_data_url_sha256": "bc0d347ce839d8f1060a3b634d00d9955fa349cb6c71cd4f2af501147a08c1f4",
+      "poppler_png_sha256": "c53615776c57ab183e98ea25c72624af513cc0c812b5bea72dd4ef9704f4b436",
+      "product_png_sha256": "83e5b1104b59b255ff041ff747c68110c877e6dc5ce82e9d548d589dbef8cc72",
+      "same_physical_page_top_match": 939,
+      "render_similarity": 0.9996,
+      "next_best_similarity": 0.0563,
+      "plain_text_contains_review_notice": false
+    }
+  },
+  "assertions": {
+    "real_cancel_restart_trace": {
+      "hold": 49,
+      "held_and_released": true,
+      "request_before_restart": 49,
+      "whole_resume_then_split_request_sequence": true
+    },
+    "original_disk_blobs": [
+      {
+        "sha256": "fd56aaf80c851e9f3b417745785ea5c832fc2911acfd2094a86f4c517fdf435a",
+        "bytes": 56261511
+      },
+      {
+        "sha256": "fd56aaf80c851e9f3b417745785ea5c832fc2911acfd2094a86f4c517fdf435a",
+        "bytes": 56261511
+      }
+    ],
+    "page_59_regression": {
+      "old_text_sha256": "19b227530682d1d2288a1cad577840e2efd2d9153d57cf62c945da9b9e5a7b47",
+      "previous_first_line_indent": 0,
+      "actual_first_line_indent": 4
+    },
+    "layout_notice_browser_350": {
+      "whole": true,
+      "split": true
+    },
+    "volume_status": "PASS"
+  },
+  "raw_local_record": {
+    "path": ".cache/lib006-final-independent-cs/run-XnmMam/render-contrast/independent-source-check.json",
+    "sha256": "e83231c8071f99af74a66d5bb5fa80af2c03340fae9e75140b2d83857740c245"
+  }
+}

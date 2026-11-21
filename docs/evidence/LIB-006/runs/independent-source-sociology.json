@@ -1,0 +1,130 @@
+{
+  "candidate_sha": "680b8689adbcf0967d00051aaabc79ca3c513662",
+  "entry_sha256": "33f178bebe116b9d1d181d2333492b9f83cc473a96d604d0aeb1f0b57ae2ea06",
+  "input_sha256": "e70f1afc8495f4a4b481f3570cf8fbc186cbd5417b3a91033d8d01d237c0c5bd",
+  "sqlite_read_only": true,
+  "pages": {
+    "10": {
+      "sqlite_text_sha256": "c80752ac78599024c6414bac8bd30a42e1ecf8ea4d8a3262bf9f142ac75d75d7",
+      "state": "ready",
+      "host_data_url_sha256": "aa6eba5c4ba65bcdf41c61c0ed0ea737cd5ac96b67872010f95bac7641e5149f",
+      "poppler_png_sha256": "0983aa96af2bb886c5d78dba13a2dffcd90284bf6bce0e72b5d226aa5a670976",
+      "product_png_sha256": "9c0fb25b07c42e8bbfb3769f49fb9a24cd90a9dbf9655b4fd147cd0960c14255",
+      "same_physical_page_top_match": 10,
+      "render_similarity": 0.9934,
+      "next_best_similarity": 0.2152,
+      "plain_text_contains_review_notice": false
+    },
+    "30": {
+      "sqlite_text_sha256": "0e5e988f85a321914d6b8d7955f025932741255de8bcaea895fb08f403643bdb",
+      "state": "ready",
+      "host_data_url_sha256": "06da2037acf4dfcad96fd7b75223061e7174ff979b907cd3fc3de308abecea20",
+      "poppler_png_sha256": "f9e2b507280b60a0ddcf7d5e446160590992ef54c53bd05805ed38753810b9f9",
+      "product_png_sha256": "004a411d42c7e50e225e15a15017f3a244c65fcb6c003a83e34b0d85e841df68",
+      "same_physical_page_top_match": 30,
+      "render_similarity": 0.9949,
+      "next_best_similarity": 0.2733,
+      "plain_text_contains_review_notice": false
+    },
+    "50": {
+      "sqlite_text_sha256": "ee2efea8139451d4d8d91788e99cbc826aad8691f87e2454df7e466da8715d7f",
+      "state": "ready",
+      "host_data_url_sha256": "67efb6a1b35aa52d636cd19f136012b10a5111b1a0b6bd8ab193c7652d5fead7",
+      "poppler_png_sha256": "7f879090c04dbe8fc8bc9c5e08f0c3d45ac9f6c45df51ea99783bab48b7abcb7",
+      "product_png_sha256": "ffe656f5c89ecf6817ab3a029d1882e87cc65b393351220dc72ec77c618d8a82",
+      "same_physical_page_top_match": 50,
+      "render_similarity": 0.9947,
+      "next_best_similarity": 0.2621,
+      "plain_text_contains_review_notice": false
+    },
+    "318": {
+      "sqlite_text_sha256": "93cb2fcc8bcbb9304a7333bc4c1e88fa44457e19db1d046ea2d4b2152c1173fa",
+      "state": "review",
+      "host_data_url_sha256": "cb11884b5668a36ed3797303afd8ba42855294a1250047dd7917a7c1ab94e032",
+      "poppler_png_sha256": "3135dd475d272753af09a52af37ae70ebce24f7d1c7acfc6ae584f2ac1bc3ede",
+      "product_png_sha256": "217d9d5ee8e0db9fbafb41ab1be0558eeb5a13af0512cc0acef23924928a5684",
+      "same_physical_page_top_match": 318,
+      "render_similarity": 0.9986,
+      "next_best_similarity": 0.2722,
+      "plain_text_contains_review_notice": false
+    },
+    "331": {
+      "sqlite_text_sha256": "f8e44fc463c9341777423e49c778d88cda29a343efe29e2f031dce845edc9631",
+      "state": "ready",
+      "host_data_url_sha256": "adec3e65c99064b8c13530fc9c5bc9dda1963a86b49e3651fd376a4b94d96417",
+      "poppler_png_sha256": "281bbd590e0a77663156207b7a548335f40290dbefae98086026f40a42ea713c",
+      "product_png_sha256": "a29f16464eb8cae4286bfb66fe6a10678a55b3d04c36dd00f50195a242e83768",
+      "same_physical_page_top_match": 331,
+      "render_similarity": 0.9963,
+      "next_best_similarity": 0.5038,
+      "plain_text_contains_review_notice": false
+    },
+    "345": {
+      "sqlite_text_sha256": "aabcab0fefe3481092a0bc5033b8f9e572662c666a9a526ab6f42212dda34f7f",
+      "state": "review",
+      "host_data_url_sha256": "0720ffb84f7ea94bb9ec5bb0b4a0088f842ec30fe417553f01d8918c02ecce4c",
+      "poppler_png_sha256": "c54979255d0256d11ca0dacd22a0821a59cb303943e7e3eb69f44c3b5fee9649",
+      "product_png_sha256": "4ab6fa02f7688234f0f5784ae5c6c7a44b3bda2b435f9071e58c332863f33695",
+      "same_physical_page_top_match": 345,
+      "render_similarity": 0.9991,
+      "next_best_similarity": 0.4093,
+      "plain_text_contains_review_notice": false
+    },
+    "638": {
+      "sqlite_text_sha256": "06868b1ee6ed019351f66eeb19939668e04b0a2180e922fc6206e1f25f91f4e9",
+      "state": "review",
+      "host_data_url_sha256": "534120f089646dbe82d17957326c56273c94b6f594d4e7e8cf2be9dccb4cddc5",
+      "poppler_png_sha256": "deb63a6014c1cf7f81bb91af913d669e43b4005e6a1e48ef2a4c2d993643a32c",
+      "product_png_sha256": "f3aec6a365f8e5267746211782b4944d05544559991db8ac73b87d0aded581b4",
+      "same_physical_page_top_match": 638,
+      "render_similarity": 0.9984,
+      "next_best_similarity": 0.4118,
+      "plain_text_contains_review_notice": false
+    },
+    "651": {
+      "sqlite_text_sha256": "ff2d6108e929b8cc0fe533772db248d095a92b139b9c9e7ae83b1dec1fe5fb60",
+      "state": "review",
+      "host_data_url_sha256": "7ba574bc824a69a040c87746bd7bfaf79e6eb8888459564d8bb39b5020fe1cbd",
+      "poppler_png_sha256": "101f502aaea6469a775533d969e54de1bedbb29c3049306e2902d0acec31c4d1",
+      "product_png_sha256": "87915a1668598782cec8d4c30e9104d3f9433da629b556945cee78930cfd2f90",
+      "same_physical_page_top_match": 651,
+      "render_similarity": 0.9952,
+      "next_best_similarity": 0.5023,
+      "plain_text_contains_review_notice": false
+    },
+    "664": {
+      "sqlite_text_sha256": "e420733736c30ee22d21c5644f03416f1e69acc4de9aba73fb04465f5edda8c1",
+      "state": "ready",
+      "host_data_url_sha256": "09ebe0789d3c2eda1d25b0b72bfba60bc1a92e98c97e8e5481a5408b9d311a1a",
+      "poppler_png_sha256": "6d8d27a2fc7e9b883c38cf00c3e1fd4e727a4f9b7a345c170e6a51660a8503c7",
+      "product_png_sha256": "20ccb9d0a0636e1705ac13692d02d4ab6e2a3d219cde8aee38aa93842b0ed37a",
+      "same_physical_page_top_match": 664,
+      "render_similarity": 0.9967,
+      "next_best_similarity": 0.1085,
+      "plain_text_contains_review_notice": false
+    }
+  },
+  "assertions": {
+    "real_cancel_restart_trace": {
+      "hold": 47,
+      "held_and_released": true,
+      "request_before_restart": 47,
+      "whole_resume_then_split_request_sequence": true
+    },
+    "original_disk_blobs": [
+      {
+        "sha256": "e70f1afc8495f4a4b481f3570cf8fbc186cbd5417b3a91033d8d01d237c0c5bd",
+        "bytes": 48299547
+      },
+      {
+        "sha256": "e70f1afc8495f4a4b481f3570cf8fbc186cbd5417b3a91033d8d01d237c0c5bd",
+        "bytes": 48299547
+      }
+    ],
+    "volume_status": "PASS"
+  },
+  "raw_local_record": {
+    "path": ".cache/lib006-final-independent-soc/run-yOl61f/render-contrast/independent-source-check.json",
+    "sha256": "343e3aa8d1169ae0dc966a35404d47f15b3caea017f42eda75f930662ea848a6"
+  }
+}

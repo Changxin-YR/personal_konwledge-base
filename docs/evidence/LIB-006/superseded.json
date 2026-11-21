@@ -1,0 +1,31 @@
+{
+  "candidate_sha": "ef4ae20dfc2035e24df834d076c83ed2b3448cb1",
+  "entry_sha256": "bbae7d854e7622ac31050dc4be55097cffbc3fa9874f99ed0d68f89263151c51",
+  "volume_probe_status": "PASS",
+  "volume_records": [
+    {
+      "path": ".cache/lib006-volume/run-WB4ggQ/summary.json",
+      "sha256": "11d85ac205c1e97f4deae2b29754388f41457c9e9187dad7888d7b07493ee65d"
+    },
+    {
+      "path": ".cache/lib006-volume-cs/run-jcOrH2/summary.json",
+      "sha256": "f26bb577a2f2b3ceec1a54442ec264d03d068dc1709cdc62d96fa1050f4e6fa3"
+    },
+    {
+      "path": ".cache/lib006-volume-independent/run-gAY4TD/summary.json",
+      "sha256": "18e192acd5dc4adb7ef5b44df5fb50bbd41b1687cc961d0199fb1052a2fa9889"
+    },
+    {
+      "path": ".cache/lib006-volume-cs-independent/run-lSSpvt/summary.json",
+      "sha256": "f5fd8a61a270ecde1af15b950fa8eb51b88cb39088dccf3ead4b8dd97e0346e3"
+    }
+  ],
+  "A06": "FAIL",
+  "independent": "FAIL",
+  "defect": "Physical page 59 lost initial four-column C++ indentation in both import paths. Page 350 had no flat-text layout warning. Passing the volume probe did not close A06.",
+  "original_comparison": {
+    "path": ".cache/lib006-content-check/main.json",
+    "sha256": "4c0eb792d2e348fb1c7fa7e8e0b5c13ef1b0f1be52057cbdc84edf898e4aec9d"
+  },
+  "resolution_candidate_sha": "680b8689adbcf0967d00051aaabc79ca3c513662"
+}
