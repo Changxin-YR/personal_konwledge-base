@@ -14,12 +14,15 @@ export async function until(fn,label,ms=15000){
   throw Error('timeout: '+label)
 }
 const git=(...args)=>execFileSync('git',['--no-optional-locks',...args],{cwd:root})
-export async function isolate(commit,entryHash,{officeBarrier=false}={}){
+export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrier=false}={}){
   const bound=binding(commit,resolve(process.env.KO_TEST_CACHE??join(root,'.cache')))
   assert.equal(bound.facts.entry_sha256,entryHash)
   const scopes=['scripts/lib002','scripts/fnd003','scripts/fnd004']
   assert.equal(git('status','--porcelain','--untracked-files=all','--',...scopes).toString().trim(),'')
   const helpers={}
+  if(searchBarrier){
+    const path='scripts/search001/scan-barrier.mjs';helpers['search-barrier']=sha(readFileSync(join(root,path)));assert.equal(helpers['search-barrier'],sha(git('show',commit+':'+path)))
+  }
   if(officeBarrier){
     const path='scripts/lib004/office-barrier-preload.mjs';helpers['office-barrier']=sha(readFileSync(join(root,path)));assert.equal(helpers['office-barrier'],sha(git('show',commit+':'+path)))
   }
@@ -53,6 +56,7 @@ export async function isolate(commit,entryHash,{officeBarrier=false}={}){
     Object.assign(env,{DSH_HOME:home,DSH_CLIENT_COMMIT_HASH:bound.facts.upstream,TSX_DISABLE_CACHE:'1',KO_ENTRY:stagedEntry,KO_HASH:entryHash,KO_RUN:trace})
     if(officeBarrier)env.KO_OFFICE_ORIGINALS=join(data,'originals')
     const extra=officeBarrier?['--import',new URL('../lib004/office-barrier-preload.mjs',import.meta.url).href]:[]
+    if(searchBarrier)extra.push('--import',new URL('../search001/scan-barrier.mjs',import.meta.url).href)
     const child=spawn(process.execPath,['--import',new URL('../fnd005/candidate-live-trace.mjs',import.meta.url).href,'--import',new URL('a07-extractor-preload.mjs',import.meta.url).href,...extra,'--import','tsx/esm','apps/cli/src/bin.ts','--profile',profile,'--host','127.0.0.1','--port',String(port),'--no-open'],{cwd:bound.runtime,env,stdio:['ignore','pipe','pipe'],windowsHide:true})
     let ended=false,tail='';const done=new Promise(ok=>{child.once('close',(code,signal)=>{ended=true;ok({code,signal})});child.once('error',()=>{ended=true;ok({spawnError:true})})});host={child,done}
     for(const s of [child.stdout,child.stderr])s.on('data',chunk=>{tail=(tail+chunk).slice(-32000)})
@@ -67,6 +71,8 @@ export async function isolate(commit,entryHash,{officeBarrier=false}={}){
     let timer;try{const exit=await Promise.race([done,new Promise((_,no)=>{timer=setTimeout(()=>no(Error('Host did not exit')),15000)})]);host=undefined;return {pid:child.pid,hard,...exit}}finally{clearTimeout(timer)}
   }
   const officeFlag=name=>{assert(officeBarrier&&['hold-cancel','release-cancel','hold-stale','release-stale','fail-result'].includes(name));writeFileSync(join(trace,name),'',{flag:'wx'})}
-  return {base,port,data,start,stop,events,officeFlag,release:()=>writeFileSync(join(trace,'release3'),'',{flag:'wx'}),
+  const gateSearch=data=>{assert(searchBarrier&&host);writeFileSync(join(trace,'hold-search-scan.json'),JSON.stringify(data),{flag:'wx'})}
+  const searchGateFacts=()=>JSON.parse(readFileSync(join(trace,'hold-search-scan.json.observed'),'utf8'))
+  return {base,port,data,start,stop,events,officeFlag,gateSearch,searchGateFacts,release:()=>writeFileSync(join(trace,'release3'),'',{flag:'wx'}),
     facts:{...bound.facts,helpers,parser},playwright:bound.playwright}
 }

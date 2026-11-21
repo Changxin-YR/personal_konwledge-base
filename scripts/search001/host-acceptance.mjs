@@ -60,7 +60,7 @@ async function upload(name,media,bytes,previous,user=owner){
 const markdown=(name,text,user)=>upload(name,'text/markdown',Buffer.from(text),undefined,user)
 const parse=(doc,suffix='')=>version(doc)+'/parse'+suffix
 const start=doc=>req(owner,'POST',parse(doc,'/start'),202)
-const settled=doc=>until(async()=>{const s=await req(owner,'GET',parse(doc),200);return ['ready','partial'].includes(s.state)&&s},'parse settled')
+const settled=doc=>until(async()=>{const s=await req(owner,'GET',parse(doc),200);return ['complete','partial'].includes(s.state)&&s},'parse settled')
 async function context(user){
   const c=await browser.newContext({viewport:{width:1280,height:960},serviceWorkers:'block'}),p=await c.newPage()
   c.setDefaultTimeout(15_000);assert.equal((await c.cookies()).length,0)
@@ -213,6 +213,16 @@ async function permissionChecks(){
   await req(reader,'GET',version(timed)+'/reader?unit=1',404,undefined,{},['expiringfixture'])
   await revoke(otherGrant)
 
+  const timedText=`${q} scansnapshot`, final=await attached('final-check.md',timedText), between=Date.now()+3100
+  await grant(final,reader,new Date(between).toISOString())
+  const open=await search(reader,'scansnapshot');assert.equal(open.count,1);await access(reader,open,200)
+  host.gateSearch({until:between,version:final.version_id,text:timedText})
+  const guarded=await search(reader,'scansnapshot'), boundary=host.searchGateFacts()
+  assert(boundary.scannedAt<between&&boundary.releasedAt>between);assert.equal(boundary.version,final.version_id)
+  assert.deepEqual(guarded.items,[]);assert.equal(guarded.count,0);assert.equal(ranking(guarded.query_id).ranking_inputs,'[]')
+  await access(reader,open,404)
+  report.final_acl_recheck={...boundary,authorized_before_scan:1,visible_after_scan:0,http_receipt_excluded:true}
+
   const [ctx,page]=await context(reader)
   let held
   const realQuery=host.base+prefix+'/search'
@@ -252,13 +262,13 @@ async function permissionChecks(){
 }
 
 try{
-  host=await isolate(candidate,entry);report.binding=host.facts;await boot(['hold3','fail4'])
+  host=await isolate(candidate,entry,{searchBarrier:true});report.binding=host.facts;await boot(['hold3','fail4'])
   const {chromium}=await import(pathToFileURL(host.playwright).href)
   browser=await chromium.launch({channel:'chrome',headless:true,args:['--disable-background-networking']});report.chrome=browser.version()
   phase='T01 fixed corpus';const fixtures=await lexical()
   phase='A09 reader chain';await browserChain(fixtures);report.T01='PASS'
   phase='T02 real grants and late responses';await permissionChecks();report.T02='PASS'
-  // Development run only: office, server-final ACL and independent candidate review are still required.
+  // Development run only: office and independent candidate review are still required.
   report.status='PASS'
 }catch(e){report.status='FAIL';report.failure={phase,message:(e.stack??String(e)).slice(0,2400)}}
 finally{
