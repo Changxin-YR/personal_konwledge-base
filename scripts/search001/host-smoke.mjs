@@ -57,7 +57,7 @@ try{
   await page.locator('#search-submit').click()
   const r=await response;assert.equal(r.status(),200)
   const result=(await r.json()).data,expected='\u8bbf\u95ee\u63a7\u5236\u5217\u8868'
-  assert.deepEqual(result.items.map(x=>[x.version_id,x.ordinal,x.quote]),[[doc.version_id,2,expected]])
+  assert.deepEqual(result.items.map(x=>[x.version_id,x.ordinal,x.quote]),[[doc.version_id,3,expected]])
   assert.equal((await search(other.cookie,expected)).count,0)
   assert.equal((await request(other.cookie,'GET','/search/'+result.query_id+'/access')).status,404)
   const hit=page.locator('#search-results a');await hit.waitFor();await screenshot(page,'search-results.png')
@@ -65,7 +65,7 @@ try{
   const mark=page.locator('#text mark');await mark.waitFor();assert.equal(await mark.textContent(),expected)
   await screenshot(page,'fixed-reader-highlight.png')
   const saved=await until(()=>sql(dbPath(host.data),'SELECT source_hash,ordinal FROM reading_positions WHERE version_id=?',[doc.version_id])[0],'search position save')
-  assert.deepEqual([saved.ordinal,saved.source_hash],[2,result.items[0].source_hash]);assert.equal(sql(dbPath(host.data),'PRAGMA user_version')[0].user_version,18)
+  assert.deepEqual([saved.ordinal,saved.source_hash],[3,result.items[0].source_hash]);assert.equal(sql(dbPath(host.data),'PRAGMA user_version')[0].user_version,18)
   const forged=new URL(href,host.base);forged.searchParams.set('match','0:2:'+ '0'.repeat(64))
   await page.goto(forged.href);await page.getByText('引用或来源已变化，与固定版本不匹配。').waitFor()
   assert.equal(await page.locator('#text mark').count(),0)
