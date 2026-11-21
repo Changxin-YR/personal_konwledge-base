@@ -1,0 +1,43 @@
+{
+  "unit_id": "NOTE-001",
+  "candidate_sha": "7a0e482540177be4db68e977f8ba85d8bff224ec",
+  "tree": "91eda2507dc875b30a405e0c01417a84e95988ba",
+  "source_tree": "892ccf654edfe97a714a4ed7e442fa353fdb978f",
+  "entry_sha256": "1348a2c36a8778ac60fb9a3ebe14789aaa4b121cc5dbd5a436a38a2686f90801",
+  "build_sha256": "d5a680366c2137c1d2c57ad23f32782fa8bbf668f6f405d3af30c093a0f96eef",
+  "unit_acceptance": "PASS",
+  "passed_test_ids": [
+    "NOTE-001-T01",
+    "NOTE-001-T02"
+  ],
+  "main_command": "node scripts/note001/host-notes.mjs 7a0e482540177be4db68e977f8ba85d8bff224ec 1348a2c36a8778ac60fb9a3ebe14789aaa4b121cc5dbd5a436a38a2686f90801 .cache/note001-final",
+  "main_exit": 0,
+  "main_records": [
+    {
+      "path": "docs/evidence/NOTE-001/runs/main.json",
+      "sha256": "317f30943738cc62e947addb5a127ecdb906eeee46104c7f7df3528a407cb5dd"
+    }
+  ],
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/NOTE-001/independent.json",
+  "integrated_cases": [
+    "docs/evidence/NOTE-001/A04.json"
+  ],
+  "technical_results": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "affected_tests": 117,
+    "A09": "PASS",
+    "regression_records": [
+      {
+        "path": "docs/evidence/NOTE-001/runs/regression-unit-tests.json",
+        "sha256": "e819524c8a248e8b669e0b179ce1a3149b022cc4f15fbed1a0db55c50836d6de"
+      },
+      {
+        "path": "docs/evidence/NOTE-001/runs/regression.json",
+        "sha256": "9e0b792fd4728e95678660c75c1bb645b9a208f4c84d71de07d4d8115e29e9be"
+      }
+    ]
+  },
+  "prior_candidate": "docs/evidence/NOTE-001/superseded.json"
+}

@@ -1,0 +1,30 @@
+{
+  "unit_id": "NOTE-001",
+  "candidate_sha": "7a0e482540177be4db68e977f8ba85d8bff224ec",
+  "tree": "91eda2507dc875b30a405e0c01417a84e95988ba",
+  "source_tree": "892ccf654edfe97a714a4ed7e442fa353fdb978f",
+  "entry_sha256": "1348a2c36a8778ac60fb9a3ebe14789aaa4b121cc5dbd5a436a38a2686f90801",
+  "build_sha256": "d5a680366c2137c1d2c57ad23f32782fa8bbf668f6f405d3af30c093a0f96eef",
+  "status": "PASS",
+  "exit": 0,
+  "run_id": "run-NWy9Ts",
+  "reviewer": "Codex independent reviewer Bacon",
+  "command": "node scripts/note001/host-notes.mjs 7a0e482540177be4db68e977f8ba85d8bff224ec 1348a2c36a8778ac60fb9a3ebe14789aaa4b121cc5dbd5a436a38a2686f90801 .cache/note001-independent-final",
+  "results": [
+    {
+      "id": "NOTE-001-T01",
+      "status": "PASS",
+      "actual": "Four kinds survived edit/restart; old reader view and quote stayed on the pinned version after replacement."
+    },
+    {
+      "id": "NOTE-001-T02",
+      "status": "PASS",
+      "actual": "Conflict preserved local and untouched remote fields; real grant revoke and delayed account response were fenced. Removing associations did not delete assets or citations."
+    }
+  ],
+  "artifact": {
+    "path": "docs/evidence/NOTE-001/runs/independent.json",
+    "sha256": "7fcdcdbeb6327d86e63730c32e8e290639235b9bc33528663f7224ada5b0ff34"
+  },
+  "remaining": "This independent Host run did not exercise project membership expiry, the migration fault, or A09; migration and A09 are separately recorded as affected regression."
+}

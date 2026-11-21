@@ -1,0 +1,63 @@
+{
+  "case_id": "A04",
+  "unit_id": "NOTE-001",
+  "candidate_sha": "7a0e482540177be4db68e977f8ba85d8bff224ec",
+  "tree": "91eda2507dc875b30a405e0c01417a84e95988ba",
+  "source_tree": "892ccf654edfe97a714a4ed7e442fa353fdb978f",
+  "entry_sha256": "1348a2c36a8778ac60fb9a3ebe14789aaa4b121cc5dbd5a436a38a2686f90801",
+  "build_sha256": "d5a680366c2137c1d2c57ad23f32782fa8bbf668f6f405d3af30c093a0f96eef",
+  "participants": [
+    {
+      "unit_id": "FND-004",
+      "candidate_sha": "3c78f1f1379a033c20a193cc091f873e0573e0c1"
+    },
+    {
+      "unit_id": "LIB-001",
+      "candidate_sha": "5d9dc58866d518c496677b3e85ba60c217323291"
+    },
+    {
+      "unit_id": "READ-001",
+      "candidate_sha": "fdac3b02fc5ac42eabef72374aee9b7050c942e3"
+    },
+    {
+      "unit_id": "NOTE-001",
+      "candidate_sha": "7a0e482540177be4db68e977f8ba85d8bff224ec"
+    }
+  ],
+  "kind": "independent",
+  "run_id": "run-NWy9Ts",
+  "runner": "Codex independent reviewer Bacon",
+  "command": "node scripts/note001/host-notes.mjs 7a0e482540177be4db68e977f8ba85d8bff224ec 1348a2c36a8778ac60fb9a3ebe14789aaa4b121cc5dbd5a436a38a2686f90801 .cache/note001-independent-final",
+  "environment": "Windows; Node v24.22.0; Chrome 158.0.8127.36; upstream 39163dd30f703a79079e2d2446545cff3c453738; isolated Host, browser contexts, and SQLite",
+  "inputs": "Fresh synthetic accounts, text versions, private notes, real project and authorization actions; isolated database.",
+  "status": "PASS",
+  "exit": 0,
+  "results": [
+    {
+      "id": "INDEPENDENT_NOTE_AND_ORIGINAL",
+      "status": "PASS",
+      "actual": "Four independent note kinds restart; no note stored as a library asset; source displayed in library."
+    },
+    {
+      "id": "FIXED_VERSION_CITATION",
+      "status": "PASS",
+      "actual": "Replacement version with distinct bytes does not retarget citation; Chrome opens old source and resolved quote is unchanged."
+    },
+    {
+      "id": "PROJECT_LINK_AND_ACL",
+      "status": "PASS",
+      "actual": "Authorized repeat is idempotent; project member cannot read owner note or link their own without management rights."
+    },
+    {
+      "id": "REMOVE_LINK_PRESERVES_SOURCE",
+      "status": "PASS",
+      "actual": "No reference after unlink and restart; project link, both source versions and original bytes remain; foreign key check clean."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/NOTE-001/runs/independent.json",
+      "sha256": "7fcdcdbeb6327d86e63730c32e8e290639235b9bc33528663f7224ada5b0ff34"
+    }
+  ]
+}

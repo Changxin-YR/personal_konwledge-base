@@ -1,0 +1,20 @@
+{
+  "unit_id": "NOTE-001",
+  "candidate_sha": "94aa46859a746e160a7381c93e459e0d9e651a0e",
+  "entry_sha256": "37728a9981804c6582bb0575f98f85ee3387c5091772d4d54e9e9868056336b9",
+  "main_status": "PASS",
+  "independent_review": "FAIL",
+  "independent_execution": "NOT_RUN",
+  "unit_acceptance": "NOT_RUN",
+  "main_artifact": {
+    "path": "docs/evidence/NOTE-001/runs/superseded-main.json",
+    "sha256": "988a23549dbe6bb982e2858e0c489597be1902c13646489e15b40d91527f06fb"
+  },
+  "findings": [
+    "rebase reintroduced revoked references",
+    "rebase restored fields not edited locally",
+    "delayed previous actor response not covered",
+    "A04 lacked restart after unlink and non-manager linking own note negative test"
+  ],
+  "resolved_by": "7a0e482540177be4db68e977f8ba85d8bff224ec"
+}

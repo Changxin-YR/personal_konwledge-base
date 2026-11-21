@@ -10,7 +10,7 @@
     "sha256": "da73b65a0004bfa875d1435a61a555ba6f02d45c280aeb8ed6d2e62ab4bd39d8"
   },
   "active_unit": "NOTE-001",
-  "unit_state": "in_progress",
+  "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Implementing private note persistence, fixed citations and project note links",
+  "state_reason": "NOTE-001 and A04 verified; advance after remote readback",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,51 +127,57 @@
     }
   },
   "last_accepted_checkpoint": {
-    "unit_id": "LIB-006",
-    "base_commit": "3495e630e890b887387a2d5cd24d66df938acc25",
-    "candidate_sha": "680b8689adbcf0967d00051aaabc79ca3c513662",
-    "entry_sha256": "33f178bebe116b9d1d181d2333492b9f83cc473a96d604d0aeb1f0b57ae2ea06",
+    "unit_id": "NOTE-001",
+    "base_commit": "58c58a5d5e4a2eb69e632798d55f78a9fed1caac",
+    "candidate_sha": "7a0e482540177be4db68e977f8ba85d8bff224ec",
+    "tree": "91eda2507dc875b30a405e0c01417a84e95988ba",
+    "source_tree": "892ccf654edfe97a714a4ed7e442fa353fdb978f",
+    "entry_sha256": "1348a2c36a8778ac60fb9a3ebe14789aaa4b121cc5dbd5a436a38a2686f90801",
+    "build_sha256": "d5a680366c2137c1d2c57ad23f32782fa8bbf668f6f405d3af30c093a0f96eef",
     "completed": [
-      "Whole and chapter modes preserve immutable original bytes, physical pages and visible parse state.",
-      "Main and independent tests with 664- and 939-page textbooks passed in real Chrome/Host/SQLite. Fixed page-leading code indentation without shifting existing citations; flat text warns it is not original layout.",
-      "113 affected tests, real A07/A09 and integrated P02/A06 passed."
+      "Independent four-kind private note editor; fixed reference and project linking.",
+      "Conflict rebase refreshes ACL and preserves independently edited fields; stale account response fenced.",
+      "T01/T02 and A04 passed in separate real Host runs, 117 affected tests and real A09 regression passed."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
-      "P02": "PASS",
-      "A06": "PASS",
+      "T01": "PASS",
+      "T02": "PASS",
+      "A04": "PASS",
       "independent": "PASS",
       "affected": "PASS",
-      "T01": "PASS",
-      "T02": "PASS"
+      "A09": "PASS"
     },
-    "evidence": "docs/evidence/LIB-006/acceptance.json",
+    "evidence": "docs/evidence/NOTE-001/acceptance.json",
     "defects": [],
     "blocked_dependencies": [],
-    "next_task": "NOTE-001"
+    "next_task": "LEARN-004"
   },
   "checkpoint": {
-    "unit_id": "LIB-006",
-    "base_commit": "3495e630e890b887387a2d5cd24d66df938acc25",
-    "candidate_sha": "680b8689adbcf0967d00051aaabc79ca3c513662",
-    "entry_sha256": "33f178bebe116b9d1d181d2333492b9f83cc473a96d604d0aeb1f0b57ae2ea06",
+    "unit_id": "NOTE-001",
+    "base_commit": "58c58a5d5e4a2eb69e632798d55f78a9fed1caac",
+    "candidate_sha": "7a0e482540177be4db68e977f8ba85d8bff224ec",
+    "tree": "91eda2507dc875b30a405e0c01417a84e95988ba",
+    "source_tree": "892ccf654edfe97a714a4ed7e442fa353fdb978f",
+    "entry_sha256": "1348a2c36a8778ac60fb9a3ebe14789aaa4b121cc5dbd5a436a38a2686f90801",
+    "build_sha256": "d5a680366c2137c1d2c57ad23f32782fa8bbf668f6f405d3af30c093a0f96eef",
     "completed": [
-      "Whole and chapter modes preserve immutable original bytes, physical pages and visible parse state.",
-      "Main and independent tests with 664- and 939-page textbooks passed in real Chrome/Host/SQLite. Fixed page-leading code indentation without shifting existing citations; flat text warns it is not original layout.",
-      "113 affected tests, real A07/A09 and integrated P02/A06 passed."
+      "Independent four-kind private note editor; fixed reference and project linking.",
+      "Conflict rebase refreshes ACL and preserves independently edited fields; stale account response fenced.",
+      "T01/T02 and A04 passed in separate real Host runs, 117 affected tests and real A09 regression passed."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
-      "P02": "PASS",
-      "A06": "PASS",
+      "T01": "PASS",
+      "T02": "PASS",
+      "A04": "PASS",
       "independent": "PASS",
       "affected": "PASS",
-      "T01": "PASS",
-      "T02": "PASS"
+      "A09": "PASS"
     },
-    "evidence": "docs/evidence/LIB-006/acceptance.json",
+    "evidence": "docs/evidence/NOTE-001/acceptance.json",
     "defects": [],
     "blocked_dependencies": [],
-    "next_task": "NOTE-001"
+    "next_task": "LEARN-004"
   }
 }

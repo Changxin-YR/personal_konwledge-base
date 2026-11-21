@@ -1,0 +1,794 @@
+{
+  "candidate_sha": "7a0e482540177be4db68e977f8ba85d8bff224ec",
+  "entry_sha256": "1348a2c36a8778ac60fb9a3ebe14789aaa4b121cc5dbd5a436a38a2686f90801",
+  "runners": {
+    "scripts/search001/host-acceptance.mjs": "1a9fa9b26f9e02639af03a6161d5b28143636d7c44f4aa80ea73f994d34a83ac",
+    "scripts/search001/corpus.mjs": "82314096a09a668e01a6c298e87e6fc6a145f27ba79e29365f082f41aeed8267",
+    "scripts/search001/fixtures/chinese-search-v1.pdf": "f0401e5083c2efa19a4a4ade514d2797129845d9ab5721df4b5f5b108cc9269a",
+    "scripts/search001/fixtures/chinese-search-v2.pdf": "49d1cca81dc657bad850832b7ba2d6b4d8952874c89da89f88f2eea8bab02f58",
+    "scripts/read001/word-fixture.mjs": "2a9d372da61a506b7202acbe92a746653c051b2d8891e6f61cf1a1d2196e2ff7",
+    "scripts/lib004/acceptance-samples.mjs": "8d2fda1bcd1ba58be163dfe2793106d89cb81f7f4c37bebf53d20e31e7c12cb5"
+  },
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "A09": "PASS",
+  "queries": [
+    {
+      "stage": "held",
+      "query": "盐",
+      "expected": [
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 1,
+          "start": 3,
+          "end": 4,
+          "quote": "盐",
+          "source_hash": "5162ee414e71249b47802bfb53f12e86e39f85339cea62e61e0e2d483e2d18a4"
+        },
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 2,
+          "start": 15,
+          "end": 16,
+          "quote": "盐",
+          "source_hash": "3b53472854eca5c066d24c11f6dbf1112fc9ca445924c125639a91df19b4d9a3"
+        }
+      ],
+      "actual": [
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 1,
+          "start": 3,
+          "end": 4,
+          "quote": "盐",
+          "source_hash": "5162ee414e71249b47802bfb53f12e86e39f85339cea62e61e0e2d483e2d18a4"
+        },
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 2,
+          "start": 15,
+          "end": 16,
+          "quote": "盐",
+          "source_hash": "3b53472854eca5c066d24c11f6dbf1112fc9ca445924c125639a91df19b4d9a3"
+        }
+      ],
+      "count": 2
+    },
+    {
+      "stage": "held",
+      "query": "盐析",
+      "expected": [
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 1,
+          "start": 3,
+          "end": 5,
+          "quote": "盐析",
+          "source_hash": "5162ee414e71249b47802bfb53f12e86e39f85339cea62e61e0e2d483e2d18a4"
+        },
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 2,
+          "start": 15,
+          "end": 17,
+          "quote": "盐析",
+          "source_hash": "3b53472854eca5c066d24c11f6dbf1112fc9ca445924c125639a91df19b4d9a3"
+        }
+      ],
+      "actual": [
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 1,
+          "start": 3,
+          "end": 5,
+          "quote": "盐析",
+          "source_hash": "5162ee414e71249b47802bfb53f12e86e39f85339cea62e61e0e2d483e2d18a4"
+        },
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 2,
+          "start": 15,
+          "end": 17,
+          "quote": "盐析",
+          "source_hash": "3b53472854eca5c066d24c11f6dbf1112fc9ca445924c125639a91df19b4d9a3"
+        }
+      ],
+      "count": 2
+    },
+    {
+      "stage": "held",
+      "query": "访问控制列表",
+      "expected": [
+        {
+          "version_id": "ce0712c3-725c-421c-8bf8-4a56ab91f086",
+          "ordinal": 3,
+          "start": 6,
+          "end": 12,
+          "quote": "访问控制列表",
+          "source_hash": "d3b6812054aa62c1134ff6c925e5148618edb2b77e2be2fb50a2885c8478fe7d"
+        },
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 2,
+          "start": 3,
+          "end": 9,
+          "quote": "访问控制列表",
+          "source_hash": "3b53472854eca5c066d24c11f6dbf1112fc9ca445924c125639a91df19b4d9a3"
+        }
+      ],
+      "actual": [
+        {
+          "version_id": "ce0712c3-725c-421c-8bf8-4a56ab91f086",
+          "ordinal": 3,
+          "start": 6,
+          "end": 12,
+          "quote": "访问控制列表",
+          "source_hash": "d3b6812054aa62c1134ff6c925e5148618edb2b77e2be2fb50a2885c8478fe7d"
+        },
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 2,
+          "start": 3,
+          "end": 9,
+          "quote": "访问控制列表",
+          "source_hash": "3b53472854eca5c066d24c11f6dbf1112fc9ca445924c125639a91df19b4d9a3"
+        }
+      ],
+      "count": 2
+    },
+    {
+      "stage": "held",
+      "query": "存取控制清单",
+      "expected": [
+        {
+          "version_id": "ce0712c3-725c-421c-8bf8-4a56ab91f086",
+          "ordinal": 3,
+          "start": 6,
+          "end": 12,
+          "quote": "访问控制列表",
+          "source_hash": "d3b6812054aa62c1134ff6c925e5148618edb2b77e2be2fb50a2885c8478fe7d"
+        },
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 2,
+          "start": 3,
+          "end": 9,
+          "quote": "访问控制列表",
+          "source_hash": "3b53472854eca5c066d24c11f6dbf1112fc9ca445924c125639a91df19b4d9a3"
+        }
+      ],
+      "actual": [
+        {
+          "version_id": "ce0712c3-725c-421c-8bf8-4a56ab91f086",
+          "ordinal": 3,
+          "start": 6,
+          "end": 12,
+          "quote": "访问控制列表",
+          "source_hash": "d3b6812054aa62c1134ff6c925e5148618edb2b77e2be2fb50a2885c8478fe7d"
+        },
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 2,
+          "start": 3,
+          "end": 9,
+          "quote": "访问控制列表",
+          "source_hash": "3b53472854eca5c066d24c11f6dbf1112fc9ca445924c125639a91df19b4d9a3"
+        }
+      ],
+      "count": 2
+    },
+    {
+      "stage": "held",
+      "query": "最小权限原则",
+      "expected": [
+        {
+          "version_id": "ce0712c3-725c-421c-8bf8-4a56ab91f086",
+          "ordinal": 3,
+          "start": 14,
+          "end": 20,
+          "quote": "最小权限原则",
+          "source_hash": "d3b6812054aa62c1134ff6c925e5148618edb2b77e2be2fb50a2885c8478fe7d"
+        }
+      ],
+      "actual": [
+        {
+          "version_id": "ce0712c3-725c-421c-8bf8-4a56ab91f086",
+          "ordinal": 3,
+          "start": 14,
+          "end": 20,
+          "quote": "最小权限原则",
+          "source_hash": "d3b6812054aa62c1134ff6c925e5148618edb2b77e2be2fb50a2885c8478fe7d"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "stage": "held",
+      "query": "访问控制列表（ACL）",
+      "expected": [
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 2,
+          "start": 3,
+          "end": 14,
+          "quote": "访问控制列表（ACL）",
+          "source_hash": "3b53472854eca5c066d24c11f6dbf1112fc9ca445924c125639a91df19b4d9a3"
+        }
+      ],
+      "actual": [
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 2,
+          "start": 3,
+          "end": 14,
+          "quote": "访问控制列表（ACL）",
+          "source_hash": "3b53472854eca5c066d24c11f6dbf1112fc9ca445924c125639a91df19b4d9a3"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "stage": "held",
+      "query": "访问控制列表(ACL)",
+      "expected": [
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 2,
+          "start": 3,
+          "end": 14,
+          "quote": "访问控制列表（ACL）",
+          "source_hash": "3b53472854eca5c066d24c11f6dbf1112fc9ca445924c125639a91df19b4d9a3"
+        }
+      ],
+      "actual": [
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 2,
+          "start": 3,
+          "end": 14,
+          "quote": "访问控制列表（ACL）",
+          "source_hash": "3b53472854eca5c066d24c11f6dbf1112fc9ca445924c125639a91df19b4d9a3"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "stage": "held",
+      "query": "authzCheck",
+      "expected": [
+        {
+          "version_id": "ce0712c3-725c-421c-8bf8-4a56ab91f086",
+          "ordinal": 5,
+          "start": 18,
+          "end": 28,
+          "quote": "authzCheck",
+          "source_hash": "8178e6f4a1b3786e21d5f773899d3de83c4f1853ad3aa7522999cf345dcdf95e"
+        }
+      ],
+      "actual": [
+        {
+          "version_id": "ce0712c3-725c-421c-8bf8-4a56ab91f086",
+          "ordinal": 5,
+          "start": 18,
+          "end": 28,
+          "quote": "authzCheck",
+          "source_hash": "8178e6f4a1b3786e21d5f773899d3de83c4f1853ad3aa7522999cf345dcdf95e"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "stage": "held",
+      "query": "user_id",
+      "expected": [
+        {
+          "version_id": "ce0712c3-725c-421c-8bf8-4a56ab91f086",
+          "ordinal": 5,
+          "start": 29,
+          "end": 36,
+          "quote": "user_id",
+          "source_hash": "8178e6f4a1b3786e21d5f773899d3de83c4f1853ad3aa7522999cf345dcdf95e"
+        }
+      ],
+      "actual": [
+        {
+          "version_id": "ce0712c3-725c-421c-8bf8-4a56ab91f086",
+          "ordinal": 5,
+          "start": 29,
+          "end": 36,
+          "quote": "user_id",
+          "source_hash": "8178e6f4a1b3786e21d5f773899d3de83c4f1853ad3aa7522999cf345dcdf95e"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "stage": "held",
+      "query": "authzCheck(user_id)",
+      "expected": [
+        {
+          "version_id": "ce0712c3-725c-421c-8bf8-4a56ab91f086",
+          "ordinal": 5,
+          "start": 18,
+          "end": 37,
+          "quote": "authzCheck(user_id)",
+          "source_hash": "8178e6f4a1b3786e21d5f773899d3de83c4f1853ad3aa7522999cf345dcdf95e"
+        }
+      ],
+      "actual": [
+        {
+          "version_id": "ce0712c3-725c-421c-8bf8-4a56ab91f086",
+          "ordinal": 5,
+          "start": 18,
+          "end": 37,
+          "quote": "authzCheck(user_id)",
+          "source_hash": "8178e6f4a1b3786e21d5f773899d3de83c4f1853ad3aa7522999cf345dcdf95e"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "stage": "held",
+      "query": "缓存命中",
+      "expected": [
+        {
+          "version_id": "ce0712c3-725c-421c-8bf8-4a56ab91f086",
+          "ordinal": 7,
+          "start": 2,
+          "end": 6,
+          "quote": "缓存命中",
+          "source_hash": "cdf2d2caf66c8736a9225888f86c8f176c470024e5580b247fca93156ab5784c"
+        }
+      ],
+      "actual": [
+        {
+          "version_id": "ce0712c3-725c-421c-8bf8-4a56ab91f086",
+          "ordinal": 7,
+          "start": 2,
+          "end": 6,
+          "quote": "缓存命中",
+          "source_hash": "cdf2d2caf66c8736a9225888f86c8f176c470024e5580b247fca93156ab5784c"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "stage": "held",
+      "query": "待页朱砂",
+      "expected": [],
+      "actual": [],
+      "count": 0
+    },
+    {
+      "stage": "held",
+      "query": "故页玄铁",
+      "expected": [],
+      "actual": [],
+      "count": 0
+    },
+    {
+      "stage": "held",
+      "query": "墨晶",
+      "expected": [],
+      "actual": [],
+      "count": 0
+    },
+    {
+      "stage": "held",
+      "query": "图页银砂",
+      "expected": [],
+      "actual": [],
+      "count": 0
+    },
+    {
+      "stage": "held",
+      "query": "火星材料",
+      "expected": [],
+      "actual": [],
+      "count": 0
+    },
+    {
+      "stage": "held",
+      "query": "铜版",
+      "expected": [],
+      "actual": [],
+      "count": 0
+    },
+    {
+      "stage": "partial",
+      "query": "存取控制清单",
+      "expected": [
+        {
+          "version_id": "ce0712c3-725c-421c-8bf8-4a56ab91f086",
+          "ordinal": 3,
+          "start": 6,
+          "end": 12,
+          "quote": "访问控制列表",
+          "source_hash": "d3b6812054aa62c1134ff6c925e5148618edb2b77e2be2fb50a2885c8478fe7d"
+        },
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 2,
+          "start": 3,
+          "end": 9,
+          "quote": "访问控制列表",
+          "source_hash": "3b53472854eca5c066d24c11f6dbf1112fc9ca445924c125639a91df19b4d9a3"
+        },
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 3,
+          "start": 8,
+          "end": 14,
+          "quote": "访问控制列表",
+          "source_hash": "4250e00f3a8ff10a26f18c819b85d4d49618afb449e2d1ad8774e10fe0ec104e"
+        }
+      ],
+      "actual": [
+        {
+          "version_id": "ce0712c3-725c-421c-8bf8-4a56ab91f086",
+          "ordinal": 3,
+          "start": 6,
+          "end": 12,
+          "quote": "访问控制列表",
+          "source_hash": "d3b6812054aa62c1134ff6c925e5148618edb2b77e2be2fb50a2885c8478fe7d"
+        },
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 2,
+          "start": 3,
+          "end": 9,
+          "quote": "访问控制列表",
+          "source_hash": "3b53472854eca5c066d24c11f6dbf1112fc9ca445924c125639a91df19b4d9a3"
+        },
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 3,
+          "start": 8,
+          "end": 14,
+          "quote": "访问控制列表",
+          "source_hash": "4250e00f3a8ff10a26f18c819b85d4d49618afb449e2d1ad8774e10fe0ec104e"
+        }
+      ],
+      "count": 3
+    },
+    {
+      "stage": "partial",
+      "query": "待页朱砂",
+      "expected": [
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 3,
+          "start": 3,
+          "end": 7,
+          "quote": "待页朱砂",
+          "source_hash": "4250e00f3a8ff10a26f18c819b85d4d49618afb449e2d1ad8774e10fe0ec104e"
+        }
+      ],
+      "actual": [
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 3,
+          "start": 3,
+          "end": 7,
+          "quote": "待页朱砂",
+          "source_hash": "4250e00f3a8ff10a26f18c819b85d4d49618afb449e2d1ad8774e10fe0ec104e"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "stage": "failed-stale-text",
+      "query": "故页玄铁",
+      "expected": [],
+      "actual": [],
+      "count": 0
+    },
+    {
+      "stage": "review-with-text",
+      "query": "墨晶",
+      "expected": [
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 5,
+          "start": 3,
+          "end": 5,
+          "quote": "墨晶",
+          "source_hash": "647a29c80aa52d14e4863202c806fedf0f6fb9c2c06be5d37630119a5c641130"
+        }
+      ],
+      "actual": [
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 5,
+          "start": 3,
+          "end": 5,
+          "quote": "墨晶",
+          "source_hash": "647a29c80aa52d14e4863202c806fedf0f6fb9c2c06be5d37630119a5c641130"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "stage": "pending-stale-text",
+      "query": "墨晶",
+      "expected": [],
+      "actual": [],
+      "count": 0
+    },
+    {
+      "stage": "retry",
+      "query": "故页玄铁",
+      "expected": [
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 4,
+          "start": 3,
+          "end": 7,
+          "quote": "故页玄铁",
+          "source_hash": "16f2d1416ba8a94f5b499b20e933e3f226d242c149fb28b37711edff1de6b472"
+        }
+      ],
+      "actual": [
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 4,
+          "start": 3,
+          "end": 7,
+          "quote": "故页玄铁",
+          "source_hash": "16f2d1416ba8a94f5b499b20e933e3f226d242c149fb28b37711edff1de6b472"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "stage": "retry",
+      "query": "访问控制列表",
+      "expected": [
+        {
+          "version_id": "ce0712c3-725c-421c-8bf8-4a56ab91f086",
+          "ordinal": 3,
+          "start": 6,
+          "end": 12,
+          "quote": "访问控制列表",
+          "source_hash": "d3b6812054aa62c1134ff6c925e5148618edb2b77e2be2fb50a2885c8478fe7d"
+        },
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 2,
+          "start": 3,
+          "end": 9,
+          "quote": "访问控制列表",
+          "source_hash": "3b53472854eca5c066d24c11f6dbf1112fc9ca445924c125639a91df19b4d9a3"
+        },
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 3,
+          "start": 8,
+          "end": 14,
+          "quote": "访问控制列表",
+          "source_hash": "4250e00f3a8ff10a26f18c819b85d4d49618afb449e2d1ad8774e10fe0ec104e"
+        },
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 4,
+          "start": 8,
+          "end": 14,
+          "quote": "访问控制列表",
+          "source_hash": "16f2d1416ba8a94f5b499b20e933e3f226d242c149fb28b37711edff1de6b472"
+        }
+      ],
+      "actual": [
+        {
+          "version_id": "ce0712c3-725c-421c-8bf8-4a56ab91f086",
+          "ordinal": 3,
+          "start": 6,
+          "end": 12,
+          "quote": "访问控制列表",
+          "source_hash": "d3b6812054aa62c1134ff6c925e5148618edb2b77e2be2fb50a2885c8478fe7d"
+        },
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 2,
+          "start": 3,
+          "end": 9,
+          "quote": "访问控制列表",
+          "source_hash": "3b53472854eca5c066d24c11f6dbf1112fc9ca445924c125639a91df19b4d9a3"
+        },
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 3,
+          "start": 8,
+          "end": 14,
+          "quote": "访问控制列表",
+          "source_hash": "4250e00f3a8ff10a26f18c819b85d4d49618afb449e2d1ad8774e10fe0ec104e"
+        },
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 4,
+          "start": 8,
+          "end": 14,
+          "quote": "访问控制列表",
+          "source_hash": "16f2d1416ba8a94f5b499b20e933e3f226d242c149fb28b37711edff1de6b472"
+        }
+      ],
+      "count": 4
+    },
+    {
+      "stage": "replacement",
+      "query": "铜版",
+      "expected": [
+        {
+          "version_id": "10a1b968-bfdf-4c1d-ab8a-57a7f386f64c",
+          "ordinal": 1,
+          "start": 4,
+          "end": 6,
+          "quote": "铜版",
+          "source_hash": "9bf3f89abd79d23b4fc8a8d6ec421d709bc44fcaafcd77a48cfc54d808e5614d"
+        }
+      ],
+      "actual": [
+        {
+          "version_id": "10a1b968-bfdf-4c1d-ab8a-57a7f386f64c",
+          "ordinal": 1,
+          "start": 4,
+          "end": 6,
+          "quote": "铜版",
+          "source_hash": "9bf3f89abd79d23b4fc8a8d6ec421d709bc44fcaafcd77a48cfc54d808e5614d"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "stage": "replacement",
+      "query": "访问控制列表(ACL)",
+      "expected": [
+        {
+          "version_id": "10a1b968-bfdf-4c1d-ab8a-57a7f386f64c",
+          "ordinal": 1,
+          "start": 7,
+          "end": 18,
+          "quote": "访问控制列表（ACL）",
+          "source_hash": "9bf3f89abd79d23b4fc8a8d6ec421d709bc44fcaafcd77a48cfc54d808e5614d"
+        },
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 2,
+          "start": 3,
+          "end": 14,
+          "quote": "访问控制列表（ACL）",
+          "source_hash": "3b53472854eca5c066d24c11f6dbf1112fc9ca445924c125639a91df19b4d9a3"
+        }
+      ],
+      "actual": [
+        {
+          "version_id": "10a1b968-bfdf-4c1d-ab8a-57a7f386f64c",
+          "ordinal": 1,
+          "start": 7,
+          "end": 18,
+          "quote": "访问控制列表（ACL）",
+          "source_hash": "9bf3f89abd79d23b4fc8a8d6ec421d709bc44fcaafcd77a48cfc54d808e5614d"
+        },
+        {
+          "version_id": "d608141c-124f-4333-9cd6-8b82b89899a3",
+          "ordinal": 2,
+          "start": 3,
+          "end": 14,
+          "quote": "访问控制列表（ACL）",
+          "source_hash": "3b53472854eca5c066d24c11f6dbf1112fc9ca445924c125639a91df19b4d9a3"
+        }
+      ],
+      "count": 2
+    }
+  ],
+  "screens": [
+    {
+      "file": "chinese-query.png",
+      "sha256": "398e057548563e530ef99a77125f11880698391f1ae12f1dce435376728462c7"
+    },
+    {
+      "file": "fixed-v1-original-page.png",
+      "sha256": "3c413a35afe26bdb40efef6dda360ac02a427a093543e437bfb759b33e15b704"
+    },
+    {
+      "file": "bookmark-and-annotation.png",
+      "sha256": "4990a18596233cc85a34e4eee0d8c083b34438d9516b15ae4a19b10eaff9f444"
+    },
+    {
+      "file": "restored-after-host-restart.png",
+      "sha256": "dc7f6ec4db369a29a7b1095d0cbdf3931f3e1c8b3575ee82201b46b66af1974d"
+    },
+    {
+      "file": "stale-search-rejected.png",
+      "sha256": "ba91c0577bce79b990d91ca532c679c33dda886263a24d048cb98e44dea54741"
+    },
+    {
+      "file": "word-conversion-match.png",
+      "sha256": "cca213a3732e79c3edc35057a8ad40163a0033a0ecd408f55ce6dc6dafa2c83c"
+    }
+  ],
+  "boots": [
+    91132,
+    101880,
+    45156
+  ],
+  "binding": {
+    "candidate_sha": "7a0e482540177be4db68e977f8ba85d8bff224ec",
+    "tree": "91eda2507dc875b30a405e0c01417a84e95988ba",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "1348a2c36a8778ac60fb9a3ebe14789aaa4b121cc5dbd5a436a38a2686f90801",
+    "helpers": {
+      "search-barrier": "9a35e1a78500a7a41f80ebbd2b320d10cba40b4a2d17bb065063706cf8bacc8f",
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "5278ebf7cc64773560b3b672c9182c65b4e1d82a20b8f569328cb0765a627f10",
+      "a07-isolated-host": "fb8c0294b8cd27e451ff0936b359e43c4b14faff0af0a48259ce8797fceca05c"
+    },
+    "parser": {
+      "pdf-extractor.js": "ea4f49f1779a169e6da3079b4ee8e08ec50798c824fb651acbfaa61b0dca44ed",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "chrome": "158.0.8127.36",
+  "sources": {
+    "pdf": "f0401e5083c2efa19a4a4ade514d2797129845d9ab5721df4b5f5b108cc9269a",
+    "markdown": "ca3f05585d287628d8b3a0722d3195c2326ca717d64eddd6599b793d5909b4cc",
+    "revised_pdf": "49d1cca81dc657bad850832b7ba2d6b4d8952874c89da89f88f2eea8bab02f58"
+  },
+  "highlighted_pdf_glyph_ink": [
+    232,
+    190,
+    266,
+    249,
+    189,
+    263,
+    64,
+    114,
+    91,
+    67,
+    60
+  ],
+  "restored": {
+    "version": "d608141c-124f-4333-9cd6-8b82b89899a3",
+    "replacement": "10a1b968-bfdf-4c1d-ab8a-57a7f386f64c",
+    "ordinal": 2,
+    "citation": "ff3715c5-dded-40d5-ada7-80ed2f801373",
+    "source_hash": "3b53472854eca5c066d24c11f6dbf1112fc9ca445924c125639a91df19b4d9a3"
+  },
+  "final_acl_recheck": {
+    "version": "c98bb9e5-8431-4afd-b4da-91921f8552e3",
+    "scannedAt": 1795279855250,
+    "expiresAt": 1795279858332,
+    "releasedAt": 1795279858344,
+    "authorized_before_scan": 1,
+    "visible_after_scan": 0,
+    "http_receipt_excluded": true
+  },
+  "permissions": {
+    "member_without_read": 0,
+    "read_without_membership": 0,
+    "valid_matches": 3,
+    "hidden_matches": 31,
+    "same_rank_inputs_and_snippets": true,
+    "expired_reader_denied": true,
+    "revoked_receipt": 404,
+    "stale_browser_response_cleared": true,
+    "older_response_did_not_replace_newer": true
+  },
+  "word": {
+    "source_sha256": "0abafac4f360399c6bde103c0217aa9215626ea2f140ec7af856098faeb27d48",
+    "version": "d6374d37-089f-4563-be45-8b4d9d04f4b0",
+    "first": "e21d65ed-43e0-4fb0-982f-6830dba8ef24",
+    "second": "ffcda026-0fb6-4972-b059-c8a9972f3989",
+    "ordinal": 1,
+    "fixed_converted_pdf_sha256": "449058467af036cc700eccccc7b116b477164747dfacc1caec8f7abd2292b3e5",
+    "matched_quote": "OnlyWordNeedle",
+    "outsider_count": 0
+  },
+  "schema_version": {
+    "expected": 21,
+    "actual": 21
+  },
+  "exit": 0
+}

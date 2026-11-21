@@ -1,0 +1,142 @@
+{
+  "candidate_sha": "7a0e482540177be4db68e977f8ba85d8bff224ec",
+  "entry_sha256": "1348a2c36a8778ac60fb9a3ebe14789aaa4b121cc5dbd5a436a38a2686f90801",
+  "runner_sha256": "2b0b0c90d3cc451bdbb47bbc3adbd8b4816e43d40f1e6c845109cc6525dbc9b6",
+  "status": "PASS",
+  "exit": 0,
+  "checks": [
+    {
+      "id": "FIXED_BROWSER_REFERENCE",
+      "status": "PASS",
+      "details": {
+        "content_sha256": "5c113bcd758a3b56eb0e34bd1bc74f32f58b8501d733c8dac046b2188beb795d",
+        "note_kind": "reading",
+        "revision": 1,
+        "physical_position": 1
+      }
+    },
+    {
+      "id": "PROJECT_LINK_AND_PRIVATE_ACL",
+      "status": "PASS",
+      "details": {
+        "same_note": true,
+        "replay_no_duplicates": true,
+        "peer_note": 404,
+        "peer_project_items": 0
+      }
+    },
+    {
+      "id": "CONFLICT_DRAFT_PRESERVED",
+      "status": "PASS",
+      "details": {
+        "draft_not_overwritten": true,
+        "untouched_field_preserved": true,
+        "explicit_retry": true
+      }
+    },
+    {
+      "id": "REAL_GRANT_REVOKED_WITHOUT_NOTE_OR_SOURCE_LOSS",
+      "status": "PASS",
+      "details": {
+        "fixture": "project asset binding only",
+        "before": 200,
+        "after": 404,
+        "redacted_payload": true,
+        "rebase_does_not_restore_link": true,
+        "removed_in_browser": true,
+        "owner_source_unchanged": true,
+        "member_cannot_link_own_note": true
+      }
+    },
+    {
+      "id": "DELAYED_PRIOR_ACCOUNT_RESPONSE_DISCARDED",
+      "status": "PASS",
+      "details": {
+        "real_a_response": 200,
+        "switched_to_b": true,
+        "cleared_editor": true
+      }
+    },
+    {
+      "id": "FOUR_EDITED_NOTE_KINDS_RESTORED",
+      "status": "PASS",
+      "details": {
+        "kinds": [
+          {
+            "kind": "reading",
+            "revision": 3
+          },
+          {
+            "kind": "plain",
+            "revision": 2
+          },
+          {
+            "kind": "project",
+            "revision": 2
+          },
+          {
+            "kind": "reflection",
+            "revision": 2
+          }
+        ],
+        "restart": true
+      }
+    },
+    {
+      "id": "FIXED_REFERENCE_AFTER_SOURCE_REPLACEMENT",
+      "status": "PASS",
+      "details": {
+        "old_sha256": "5c113bcd758a3b56eb0e34bd1bc74f32f58b8501d733c8dac046b2188beb795d",
+        "current_sha256": "9c71b488f7df50cf2d43015eb2285e6913e39c2aadee98e78b0b666463a8bad2",
+        "browser_read_old": true
+      }
+    },
+    {
+      "id": "ORIGINAL_UNCHANGED_AFTER_RESTART_AND_UNLINK",
+      "status": "PASS",
+      "details": {
+        "sha256": "5c113bcd758a3b56eb0e34bd1bc74f32f58b8501d733c8dac046b2188beb795d",
+        "schema": 21,
+        "project_reference_retained": true,
+        "notes_in_library": 0
+      }
+    }
+  ],
+  "screens": [
+    {
+      "name": "conflict-desktop.png",
+      "sha256": "2ed8072bb36d64dfb232e109e5b1e797d4a157d125a9dece9b40af183b402e31"
+    },
+    {
+      "name": "revoked-source.png",
+      "sha256": "c1f379aabc985d5606760a8329eca656f1a66485b010708f1c3dcb1fbc15f4cd"
+    },
+    {
+      "name": "restored-mobile.png",
+      "sha256": "7a5f7af03e9e7cdd4b67ff62862a26668640b7d2771dbd144920c8b7c8fc728c"
+    }
+  ],
+  "boots": [
+    99960,
+    45776,
+    124264
+  ],
+  "binding": {
+    "candidate_sha": "7a0e482540177be4db68e977f8ba85d8bff224ec",
+    "tree": "91eda2507dc875b30a405e0c01417a84e95988ba",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "1348a2c36a8778ac60fb9a3ebe14789aaa4b121cc5dbd5a436a38a2686f90801",
+    "helpers": {
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "5278ebf7cc64773560b3b672c9182c65b4e1d82a20b8f569328cb0765a627f10",
+      "a07-isolated-host": "fb8c0294b8cd27e451ff0936b359e43c4b14faff0af0a48259ce8797fceca05c"
+    },
+    "parser": {
+      "pdf-extractor.js": "ea4f49f1779a169e6da3079b4ee8e08ec50798c824fb651acbfaa61b0dca44ed",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "chrome": "158.0.8127.36"
+}

@@ -1,0 +1,28 @@
+{
+  "unit_id": "NOTE-001",
+  "candidate_sha": "7a0e482540177be4db68e977f8ba85d8bff224ec",
+  "tree": "91eda2507dc875b30a405e0c01417a84e95988ba",
+  "source_tree": "892ccf654edfe97a714a4ed7e442fa353fdb978f",
+  "entry_sha256": "1348a2c36a8778ac60fb9a3ebe14789aaa4b121cc5dbd5a436a38a2686f90801",
+  "build_sha256": "d5a680366c2137c1d2c57ad23f32782fa8bbf668f6f405d3af30c093a0f96eef",
+  "status": "PASS",
+  "exit": 0,
+  "tools": [
+    {
+      "command": "npm run typecheck --prefix packages/knowledgeos-panel",
+      "exit": 0
+    },
+    {
+      "command": "npm run build --prefix packages/knowledgeos-panel",
+      "exit": 0
+    },
+    {
+      "command": "node --experimental-transform-types --test 'scripts/lib00[2346]/*.test.mjs' 'scripts/read00[123]/*.test.mjs' 'scripts/search001/*.test.mjs' 'scripts/note001/*.test.mjs'",
+      "tests": 117,
+      "passed": 117,
+      "failed": 0,
+      "exit": 0
+    }
+  ],
+  "migration": "v20 -> v21 populated database migration rollback, replay and preservation checked in affected tests"
+}

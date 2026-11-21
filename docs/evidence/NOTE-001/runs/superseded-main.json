@@ -1,0 +1,129 @@
+{
+  "candidate_sha": "94aa46859a746e160a7381c93e459e0d9e651a0e",
+  "entry_sha256": "37728a9981804c6582bb0575f98f85ee3387c5091772d4d54e9e9868056336b9",
+  "runner_sha256": "83dc066b5ad00491411c63af8891da631f8fd25b00afc0e203487d0166382b3e",
+  "status": "PASS",
+  "exit": 0,
+  "checks": [
+    {
+      "id": "FIXED_BROWSER_REFERENCE",
+      "status": "PASS",
+      "details": {
+        "content_sha256": "5c113bcd758a3b56eb0e34bd1bc74f32f58b8501d733c8dac046b2188beb795d",
+        "note_kind": "reading",
+        "revision": 1,
+        "physical_position": 1
+      }
+    },
+    {
+      "id": "PROJECT_LINK_AND_PRIVATE_ACL",
+      "status": "PASS",
+      "details": {
+        "same_note": true,
+        "replay_no_duplicates": true,
+        "peer_note": 404,
+        "peer_project_items": 0
+      }
+    },
+    {
+      "id": "CONFLICT_DRAFT_PRESERVED",
+      "status": "PASS",
+      "details": {
+        "draft_not_overwritten": true,
+        "explicit_retry": true
+      }
+    },
+    {
+      "id": "REAL_GRANT_REVOKED_WITHOUT_NOTE_OR_SOURCE_LOSS",
+      "status": "PASS",
+      "details": {
+        "fixture": "project asset binding only",
+        "before": 200,
+        "after": 404,
+        "redacted_payload": true,
+        "removed_in_browser": true,
+        "owner_source_unchanged": true
+      }
+    },
+    {
+      "id": "FOUR_EDITED_NOTE_KINDS_RESTORED",
+      "status": "PASS",
+      "details": {
+        "kinds": [
+          {
+            "kind": "reading",
+            "revision": 3
+          },
+          {
+            "kind": "plain",
+            "revision": 2
+          },
+          {
+            "kind": "project",
+            "revision": 2
+          },
+          {
+            "kind": "reflection",
+            "revision": 2
+          }
+        ],
+        "restart": true
+      }
+    },
+    {
+      "id": "FIXED_REFERENCE_AFTER_SOURCE_REPLACEMENT",
+      "status": "PASS",
+      "details": {
+        "old_sha256": "5c113bcd758a3b56eb0e34bd1bc74f32f58b8501d733c8dac046b2188beb795d",
+        "current_sha256": "9c71b488f7df50cf2d43015eb2285e6913e39c2aadee98e78b0b666463a8bad2",
+        "browser_read_old": true
+      }
+    },
+    {
+      "id": "ORIGINAL_UNCHANGED_AFTER_RESTART_AND_UNLINK",
+      "status": "PASS",
+      "details": {
+        "sha256": "5c113bcd758a3b56eb0e34bd1bc74f32f58b8501d733c8dac046b2188beb795d",
+        "schema": 21,
+        "project_reference_retained": true,
+        "notes_in_library": 0
+      }
+    }
+  ],
+  "screens": [
+    {
+      "name": "conflict-desktop.png",
+      "sha256": "43f0032423a3c228920d5a703e9b12194551ed03ddede3bea1b41f70967ce89f"
+    },
+    {
+      "name": "revoked-source.png",
+      "sha256": "18cd984844eafcfb81151254d3202b882245511214887cab0f686f68f33d4ab4"
+    },
+    {
+      "name": "restored-mobile.png",
+      "sha256": "2cd6eaf8f38c19c61fd1964c3033213fbc25a0eef256157b9ea007e676a4f60b"
+    }
+  ],
+  "boots": [
+    125024,
+    105936
+  ],
+  "binding": {
+    "candidate_sha": "94aa46859a746e160a7381c93e459e0d9e651a0e",
+    "tree": "836f1b7d481b66335ce9b9af7569226759b56bf2",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "37728a9981804c6582bb0575f98f85ee3387c5091772d4d54e9e9868056336b9",
+    "helpers": {
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "5278ebf7cc64773560b3b672c9182c65b4e1d82a20b8f569328cb0765a627f10",
+      "a07-isolated-host": "fb8c0294b8cd27e451ff0936b359e43c4b14faff0af0a48259ce8797fceca05c"
+    },
+    "parser": {
+      "pdf-extractor.js": "ea4f49f1779a169e6da3079b4ee8e08ec50798c824fb651acbfaa61b0dca44ed",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "chrome": "158.0.8127.36"
+}

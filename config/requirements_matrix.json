@@ -72,7 +72,8 @@
       ],
       "implementation_status": "in_progress",
       "evidence_paths": [
-        "docs/evidence/LIB-001/acceptance.json"
+        "docs/evidence/LIB-001/acceptance.json",
+        "docs/evidence/NOTE-001/acceptance.json"
       ]
     },
     {
@@ -304,8 +305,10 @@
         "A04",
         "A17"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/NOTE-001/acceptance.json"
+      ]
     },
     {
       "id": "F22",
@@ -928,8 +931,11 @@
       "expected": "资料原件仍在知识库；笔记仍在笔记模块；引用删除不删除原件；对象不重复创建。",
       "level": "integration",
       "evidence_required": "测试记录、关键状态与操作证据",
-      "status": "NOT_RUN",
-      "final_milestone": "M2"
+      "status": "PASS",
+      "final_milestone": "M2",
+      "evidence_paths": [
+        "docs/evidence/NOTE-001/A04.json"
+      ]
     },
     {
       "id": "A05",
