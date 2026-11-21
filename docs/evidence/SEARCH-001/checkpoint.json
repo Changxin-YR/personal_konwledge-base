@@ -1,0 +1,22 @@
+{
+  "unit_id": "SEARCH-001",
+  "status": "in_progress",
+  "base_commit": "c05001c12dd64fa173062cddab3ff1971809166c",
+  "candidate_sha": "447c1211ac5631c4484ee171e287ff0f7814ad3f",
+  "entry_sha256": "0f9ad47d664bce95a56bdfc9dba9fdeffabeb1c7bd82bdff2ece2d7c1e0636cb",
+  "scope": "Development checkpoint, not accepted candidate. Search parsed PDF pages and published Markdown/text blocks, filtered against current ACL; local query evidence and fixed source links.",
+  "typecheck": "PASS",
+  "build": "PASS",
+  "affected_tests": {"status":"PASS","exit":0,"count":35,"source":"READ-001 through READ-003 plus SEARCH-001 lexical, store and v18 migration tests"},
+  "smoke": {"status":"PASS","exit":0,"command":"node scripts/search001/host-smoke.mjs 447c1211ac5631c4484ee171e287ff0f7814ad3f 0f9ad47d664bce95a56bdfc9dba9fdeffabeb1c7bd82bdff2ece2d7c1e0636cb","record":"docs/evidence/SEARCH-001/smoke/summary.json","sha256":"342ef48ff4bbf37994aca4dbca8ddadddcc4967222d170e5ed4975a8875a4e25"},
+  "prior_smoke": {"status":"FAIL","exit":1,"record":"docs/evidence/SEARCH-001/initial-smoke/summary.json","cause":"The test incorrectly expected the Markdown paragraph to be block 2; the published blank block occupies ordinal 2. The runner-only correction records block 3; source binding and business assertions were retained."},
+  "unit_acceptance": "NOT_RUN",
+  "full_A09": "NOT_RUN",
+  "independent_final_run": "NOT_RUN",
+  "next": [
+    "Freeze Chinese PDF source bytes and Markdown corpus with independently checked UTF-16 offsets; cover all planned positive and negative queries, repeated occurrences, pending/retry states and replacement while a v1 result link exists.",
+    "Run project grant and membership cases via the real Host, including late revocation and stale results. Quantify bounded index behavior and document which source types are actually indexed; Word extraction is not indexed by this checkpoint.",
+    "Complete A09 through browser search, actual source page/segment, bookmark and annotation creation, Host restart and re-entry without an explicit unit. Freeze a candidate, run the affected regressions and have an independent reviewer rerun it, then use integrated-case-v1. Do not mark A46/P03 from this work."
+  ],
+  "blocked_dependencies": []
+}

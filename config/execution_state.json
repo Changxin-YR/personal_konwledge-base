@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "SEARCH-001 active: frozen acceptance expectations, Chinese lexical matcher, authorized version-bound source search under development",
+  "state_reason": "SEARCH-001 active: v18 and search smoke passed on 447c121; full query corpus, project revocation, A09 and independent frozen run are outstanding",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -126,7 +126,7 @@
       "auto_advance": false
     }
   },
-  "checkpoint": {
+  "last_accepted_checkpoint": {
     "unit_id": "READ-003",
     "base_commit": "8f4d1be80c7b0167bc90e8874164bc7e750dedda",
     "candidate_sha": "1ce6e4f3fe2d9a05b3bc48973b74550a46efbadc",
@@ -143,6 +143,18 @@
     },
     "evidence": "docs/evidence/READ-003/acceptance.json",
     "defects": [],
+    "next_task": "SEARCH-001",
+    "blocked_dependencies": []
+  },
+  "checkpoint": {
+    "unit_id": "SEARCH-001",
+    "base_commit": "c05001c12dd64fa173062cddab3ff1971809166c",
+    "candidate_sha": "447c1211ac5631c4484ee171e287ff0f7814ad3f",
+    "entry_sha256": "0f9ad47d664bce95a56bdfc9dba9fdeffabeb1c7bd82bdff2ece2d7c1e0636cb",
+    "completed": ["Chinese lexical matching and ACL-filtered PDF/text search, fixed source links, and additive v18 with local query receipts", "Typecheck/build, 35 targeted tests and real Host/Chrome/SQLite smoke passed"],
+    "test_results": {"unit_acceptance":"NOT_RUN","affected_reader_and_search":"PASS","real_host_smoke":"PASS","A09":"NOT_RUN","independent":"NOT_RUN"},
+    "evidence": "docs/evidence/SEARCH-001/checkpoint.json",
+    "defects": ["Full query corpus, broader authorization races, restart A09 and independent final pass remain. Word conversion pages are not indexed."],
     "next_task": "SEARCH-001",
     "blocked_dependencies": []
   }

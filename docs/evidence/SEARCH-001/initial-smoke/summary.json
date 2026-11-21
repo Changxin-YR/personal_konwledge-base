@@ -1,0 +1,46 @@
+{
+  "candidate": "56d88e608edf1749c421ff4c28d52e789324df90",
+  "entry": "0f9ad47d664bce95a56bdfc9dba9fdeffabeb1c7bd82bdff2ece2d7c1e0636cb",
+  "status": "FAIL",
+  "cases": {
+    "pdf_publication": {
+      "status": "PASS",
+      "held": [
+        1,
+        2
+      ],
+      "after": [
+        1,
+        2,
+        3,
+        6
+      ],
+      "source_sha256": "b38bf0e0fa4d34df938b378c322f2f99815f14070ea3df736f125236eaad6d95"
+    }
+  },
+  "screens": [],
+  "binding": {
+    "candidate_sha": "56d88e608edf1749c421ff4c28d52e789324df90",
+    "tree": "ab06428bcacf6109cc7ff480bc84d333202ad5da",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "0f9ad47d664bce95a56bdfc9dba9fdeffabeb1c7bd82bdff2ece2d7c1e0636cb",
+    "helpers": {
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "ea21c1a9fff1fcbf3e744a8bec236198f7fe38d2dff727030742cdf26b0ea686",
+      "a07-isolated-host": "867f5ba0c6a098b5b911dadb271b2f9c0c840f35615a0afb6a91fa7bdd1d2629"
+    },
+    "parser": {
+      "pdf-extractor.js": "55ba94ee1a8e65de01fde358798acb0caa1af3eef539783e502ddb99eaf73fac",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "chrome": "158.0.8127.36",
+  "failure": {
+    "phase": "browser text search",
+    "name": "AssertionError",
+    "message": "Expected values to be strictly deep-equal:"
+  },
+  "exit": 1
+}
