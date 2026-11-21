@@ -9,8 +9,8 @@
     "path": "CODEX_START.md",
     "sha256": "da73b65a0004bfa875d1435a61a555ba6f02d45c280aeb8ed6d2e62ab4bd39d8"
   },
-  "active_unit": "NOTE-001",
-  "unit_state": "passed",
+  "active_unit": "LEARN-004",
+  "unit_state": "in_progress",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "NOTE-001 and A04 verified; advance after remote readback",
+  "state_reason": "Cross-page selection and safe practice projection implemented; SQLite, actual Host/Chrome and independent acceptance pending",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -154,30 +154,33 @@
     "next_task": "LEARN-004"
   },
   "checkpoint": {
-    "unit_id": "NOTE-001",
-    "base_commit": "58c58a5d5e4a2eb69e632798d55f78a9fed1caac",
-    "candidate_sha": "7a0e482540177be4db68e977f8ba85d8bff224ec",
-    "tree": "91eda2507dc875b30a405e0c01417a84e95988ba",
-    "source_tree": "892ccf654edfe97a714a4ed7e442fa353fdb978f",
+    "unit_id": "LEARN-004",
+    "base_commit": "8ed6d200e435a2f70df234ef1ab753b087f5a8d6",
+    "candidate_sha": "a96c2ac7a83500c29fd43c4c8ca66a70f5e33e79",
+    "tree": "502fe69d152535d5e0301a266522d4744ec7d5bd",
+    "source_tree": "d83dfca842d13aca8f338eb878fe0e6d473c30d5",
     "entry_sha256": "1348a2c36a8778ac60fb9a3ebe14789aaa4b121cc5dbd5a436a38a2686f90801",
     "build_sha256": "d5a680366c2137c1d2c57ad23f32782fa8bbf668f6f405d3af30c093a0f96eef",
     "completed": [
-      "Independent four-kind private note editor; fixed reference and project linking.",
-      "Conflict rebase refreshes ACL and preserves independently edited fields; stale account response fenced.",
-      "T01/T02 and A04 passed in separate real Host runs, 117 affected tests and real A09 regression passed."
+      "Validated contiguous fixed source UTF-16 page spans and digests.",
+      "Validated cross-page mask groups, with server-side practice projection that omits unrevealed answer bytes.",
+      "Independent fixture/design review completed; four range tests, typecheck and existing bundle build passed."
     ],
     "test_results": {
-      "unit_acceptance": "PASS",
-      "T01": "PASS",
-      "T02": "PASS",
-      "A04": "PASS",
-      "independent": "PASS",
-      "affected": "PASS",
-      "A09": "PASS"
+      "range_rules": "PASS",
+      "typecheck": "PASS",
+      "build": "PASS",
+      "T01": "NOT_RUN",
+      "T02": "NOT_RUN",
+      "P04": "NOT_RUN",
+      "independent": "NOT_RUN",
+      "unit_acceptance": "NOT_RUN"
     },
-    "evidence": "docs/evidence/NOTE-001/acceptance.json",
-    "defects": [],
+    "evidence": "docs/evidence/LEARN-004/checkpoint.md",
+    "defects": [
+      "v22 persistence, real Host routing and cross-page browser selection/practice are not integrated yet."
+    ],
     "blocked_dependencies": [],
-    "next_task": "LEARN-004"
+    "next_task": "Append v22 storage, prove v21 migration rollback, then wire fixed-version recall material and resumable attempts through real Host and Chrome."
   }
 }

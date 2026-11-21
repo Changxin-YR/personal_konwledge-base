@@ -2382,8 +2382,9 @@
         "P04"
       ],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "planned",
-      "test_plan_status": "planning_baseline_expand_on_activation"
+      "status": "in_progress",
+      "test_plan_status": "detailed_in_progress",
+      "test_plan_path": "scripts/learn004/acceptance-plan.md"
     },
     {
       "id": "LEARN-005",
