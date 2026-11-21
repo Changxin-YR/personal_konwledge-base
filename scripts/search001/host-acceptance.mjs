@@ -1,4 +1,4 @@
-// Usage: node scripts/search001/host-acceptance.mjs <candidate> <entry hash> [evidence dir]
+// Usage: node scripts/search001/host-acceptance.mjs <candidate> <entry hash> [evidence dir] [schema version]
 import assert from 'node:assert/strict'
 import {execFileSync} from 'node:child_process'
 import {createHash,randomUUID} from 'node:crypto'
@@ -11,7 +11,8 @@ import {isolate,until} from '../lib002/a07-isolated-host.mjs'
 import {chinesePdf,mdBlocks,pdfPages,revised} from './corpus.mjs'
 import {wordFixture} from '../read001/word-fixture.mjs'
 
-const [candidate,entry,parent='.cache/search001-acceptance']=process.argv.slice(2)
+const [candidate,entry,parent='.cache/search001-acceptance',schema='19']=process.argv.slice(2)
+assert.match(schema,/^[1-9]\d{0,2}$/)
 const root=fileURLToPath(new URL('../../',import.meta.url)), sha=bytes=>createHash('sha256').update(bytes).digest('hex')
 const git=(...args)=>execFileSync('git',['--no-optional-locks',...args],{cwd:root})
 const runners=Object.fromEntries(['scripts/search001/host-acceptance.mjs','scripts/search001/corpus.mjs',
@@ -329,7 +330,9 @@ try{
   phase='A09 reader chain';await browserChain(fixtures);report.T01='PASS'
   phase='T02 real grants and late responses';await permissionChecks();report.T02='PASS'
   phase='Word conversion search';await officeChecks()
-  assert.equal(dbRead('PRAGMA user_version')[0].user_version,19)
+  const actualSchema=dbRead('PRAGMA user_version')[0].user_version
+  report.schema_version={expected:Number(schema),actual:actualSchema}
+  assert.equal(actualSchema,Number(schema))
   report.A09='PASS'
   report.status='PASS'
 }catch(e){report.status='FAIL';report.failure={phase,message:(e.stack??String(e)).slice(0,2400)}}
