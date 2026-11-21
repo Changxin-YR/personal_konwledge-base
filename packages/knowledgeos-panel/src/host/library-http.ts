@@ -10,6 +10,7 @@ import {WORD_MEDIA} from './office-schema.ts'
 import type {OfficeStore} from './office-store.ts'
 import type {ZipStore} from './zip-store.ts'
 import {readerRoute,type ReaderService} from './reader-http.ts'
+import type {SearchStore} from './search-store.ts'
 import {inspectZip,preflightZipSelection,readZipMember,ZipInputError} from './zip-reader.ts'
 
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/
@@ -63,7 +64,7 @@ async function publishInput(store:AssetStore,originals:PdfOriginals,current:()=>
   return result
 }
 
-export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:()=>string|undefined,actorFor:(req:IncomingMessage)=>SessionActor|undefined, parses?:ParseStore, office?:OfficeStore,officeAvailable=()=>true,archives?:ZipStore,reader?:ReaderService){
+export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:()=>string|undefined,actorFor:(req:IncomingMessage)=>SessionActor|undefined, parses?:ParseStore, office?:OfficeStore,officeAvailable=()=>true,archives?:ZipStore,reader?:ReaderService,search?:SearchStore){
   let transfers=0
   return async(req:IncomingMessage,res:ServerResponse)=>{
     const requestId=randomUUID();let transfer=false,handlerDone=false,responseDone=false
@@ -77,6 +78,17 @@ export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:
       const actor=actorFor(req);if(!actor)throw new AssetError(401,'AUTH_REQUIRED')
       const current=()=>{const a=actorFor(req);if(!a||a.sessionId!==actor.sessionId)throw new AssetError(401,'AUTH_REQUIRED');return a}
       const url=new URL(req.url??'/',host);if(url.origin!==host)throw new AssetError(403,'CSRF_REJECTED')
+      const replay=/^\/knowledge\/v1\/search\/([a-f0-9-]+)\/access$/.exec(url.pathname)
+      if(search&&replay&&uuid.test(replay[1]!)&&req.method==='GET'&&!url.search){
+        json(200,{data:search.revalidate(current(),replay[1]!),request_id:requestId});return
+      }
+      if(search&&url.pathname==='/knowledge/v1/search'&&req.method==='POST'&&!url.search){
+        if(req.headers['content-type']?.split(';')[0]!=='application/json')throw new AssetError(415,'JSON_REQUIRED')
+        const bytes=await receive(req,'INVALID_SEARCH_QUERY',2048);let value
+        try{value=JSON.parse(bytes.toString('utf8'))}catch{throw new AssetError(422,'INVALID_SEARCH_QUERY')}
+        if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).length!==1||typeof value.query!=='string')throw new AssetError(422,'INVALID_SEARCH_QUERY')
+        json(200,{data:search.search(current(),value.query),request_id:requestId});return
+      }
       if(reader&&(/\/reader(?:-access|-state|-outline|-(?:bookmarks|annotations)(?:\/[a-f0-9-]+)?)?$/.test(url.pathname)||url.pathname.startsWith('/knowledge/v1/citations'))){
         const ac=new AbortController(),stop=()=>ac.abort();res.once('close',stop);if(res.destroyed)stop()
         try{if(await readerRoute(req,url,reader,current,ac.signal,receive,reserve,(code,data)=>json(code,{data,request_id:requestId})))return}finally{res.off('close',stop)}

@@ -266,7 +266,7 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
           if(!readLegacyWord)throw new Error('Office structure conversion unavailable')
           return readLegacyWord(s,check,signal)
         })
-        const handler=libraryHandler(storage.assets,originals,actualOrigin,req=>{const origin=actualOrigin();if(!origin||!identityAvailable())return undefined;return identity.actor(readCookie(req,businessCookieName(identity.setupState.serviceId,origin)))},storage.parses,storage.office,()=>!!officeMount,storage.archives,reader)
+        const handler=libraryHandler(storage.assets,originals,actualOrigin,req=>{const origin=actualOrigin();if(!origin||!identityAvailable())return undefined;return identity.actor(readCookie(req,businessCookieName(identity.setupState.serviceId,origin)))},storage.parses,storage.office,()=>!!officeMount,storage.archives,reader,storage.search)
         if(storage.available)disposers.push(startParseWorker(storage.parses,originals,openPdf,log))
         disposers.push(identityContext.webServer.register({kind:'exact',path:'/knowledgeos/library',auth:'anonymous',handler:(req,res)=>{
           if(req.method!=='GET'){res.statusCode=405;res.end();return}res.setHeader('content-type','text/html; charset=utf-8');res.setHeader('cache-control','no-store');res.end(buildLibraryHtml())
@@ -278,6 +278,7 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
         disposers.push(identityContext.webServer.register({kind:'prefix',path:'/knowledge/v1/assets',auth:'anonymous',handler:withPeer(handler)}))
         disposers.push(identityContext.webServer.register({kind:'prefix',path:'/knowledge/v1/citations',auth:'anonymous',handler:withPeer(handler)}))
         disposers.push(identityContext.webServer.register({kind:'prefix',path:'/knowledge/v1/operations',auth:'anonymous',handler:withPeer(handler)}))
+        disposers.push(identityContext.webServer.register({kind:'prefix',path:'/knowledge/v1/search',auth:'anonymous',handler:withPeer(handler)}))
       }
       disposers.push(identityContext.webServer.register({ kind: 'exact', path: '/knowledgeos/ai', auth: 'anonymous', handler: (req, res) => { if (req.method !== 'GET') { res.statusCode = 405; res.end(); return }; res.setHeader('content-type', 'text/html; charset=utf-8'); res.setHeader('cache-control', 'no-store'); res.end(buildAiHtml()) } }))
       const aiHandler = createAiHandler({ service: () => ai, origin: actualOrigin, actorFor: req => { const origin = actualOrigin(); if (origin === undefined || !identityAvailable()) return undefined; return identity.actor(readCookie(req, businessCookieName(identity.setupState.serviceId, origin))) } })

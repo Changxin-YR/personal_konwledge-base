@@ -11,11 +11,12 @@ export function buildReaderHtml(): string {
 'use strict';
 const $=id=>document.getElementById(id), q=new URLSearchParams(location.search), asset=q.get('asset'), version=q.get('version'), cid=q.get('citation');
 const requestedUnit=q.get('unit')??'1', requestedConversion=q.get('conversion');
+const requestedMatch=q.get('match');
 const uuid=s=>typeof s==='string' && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(s), digest=s=>typeof s==='string' && /^[a-f0-9]{64}$/.test(s);
 const integer=Number.isSafeInteger, ready=d=>d.state==='ready'||d.state==='review';
 const status=s=>{$('status').textContent=s}, invalid=()=>new Error('invalid'), problem=http=>Object.assign(new Error(),{http});
 const sha=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s))),n=>n.toString(16).padStart(2,'0')).join('');
-let gen=0, owner=null, ordinal=1, total=0, conversion=null, page=null, selection=null, pending=null, posting=false, mode=null, resolved=null, versionLabel='', followCitation=!!cid;
+let gen=0, owner=null, ordinal=1, total=0, conversion=null, page=null, selection=null, pending=null, posting=false, mode=null, resolved=null, versionLabel='', followCitation=!!cid, followMatch=requestedMatch!==null;
 const readerPath='assets/'+asset+'/versions/'+version+'/reader';
 let continuity=null, outlineLoaded=false, busy=false;
 let annotationPanel=false, annotationDraft=null, annotationBusy=false, annotationSequence=0, suspendedDraft=null;
@@ -45,6 +46,7 @@ function lock(message,keepDraft=false){
   if(!keepDraft)suspendedDraft=null;
   ++gen;owner=null;total=0;conversion=null;resolved=null;pending=null;ordinal=1;versionLabel='';mode=null;clearPage();
   followCitation=!!cid;
+  followMatch=requestedMatch!==null;
   continuity=null;outlineLoaded=false;busy=false;$('continuity').hidden=true;$('toc').replaceChildren();$('bookmarks').replaceChildren();$('bookmark-title').value='';readingStatus('');
   $('title').textContent='版本阅读';$('version').textContent='';navigation();status(message);
 }
@@ -149,11 +151,13 @@ async function changeBookmark(m){
   }catch(e){await writeFailure(e,g,m?'未确认删除书签。':'未确认添加书签。')}
   finally{if(g===gen){busy=false;renderBookmarks()}}
 }
-async function load(n,{openCitation=false,restore=false,save=false,bookmark=null}={}){
+async function load(n,{openCitation=false,openMatch=false,restore=false,save=false,bookmark=null}={}){
   if(document.hidden)return;
-  const g=++gen;clearPage();resolved=null;followCitation=!!cid&&openCitation;ordinal=n;navigation();status('正在读取…');
+  const g=++gen;clearPage();resolved=null;followCitation=!!cid&&openCitation;followMatch=openMatch;ordinal=n;navigation();status('正在读取…');
   try{
     if(!uuid(asset)||!uuid(version)||(cid!==null&&!uuid(cid))||!/^\d{1,9}$/.test(requestedUnit)||Number(requestedUnit)<1||(requestedConversion!==null&&!uuid(requestedConversion)))throw invalid();
+    const needle=openMatch&&requestedMatch?.match(/^(\d{1,9}):(\d{1,9}):([a-f0-9]{64})$/);
+    if(openMatch&&(!needle||cid||requestedConversion||!q.has('unit')||n!==Number(requestedUnit)))throw invalid();
     if(!await access(g))return;
     if(!continuity){try{await readState(g)}catch{if(!await access(g))return;readingStatus('个人阅读状态暂不可用。')}}
     const c=openCitation && cid?locator(await api('citations/'+cid+'/resolve'),cid):null;
@@ -170,11 +174,13 @@ async function load(n,{openCitation=false,restore=false,save=false,bookmark=null
     if(!digest(d.anchor)||await sha(d.text)!==d.anchor)throw problem(409);
     if(c && (c.conversion_id??null)!==(d.conversion_id??null))throw invalid();
     if(c && ready(d) && (!validRange(d.text,c.start,c.end)||await sha(d.text)!==c.source_hash||await sha(d.text.slice(c.start,c.end))!==c.quote_hash))throw problem(409);
+    if(needle&&(!ready(d)||d.anchor!==needle[3]||!validRange(d.text,Number(needle[1]),Number(needle[2]))))throw problem(409);
     if(!await access(g))return;
     resolved=c;ordinal=at;total=d.total;conversion=d.conversion_id??null;page=d;navigation();
     $('version').textContent=versionLabel+' · '+version;$('title').textContent=d.title||'版本阅读';$('anchor').textContent=d.chapter||((d.kind==='text'?'文本块 ':'第 ')+at+(d.kind==='text'?'':' 页'));
     if(c && ready(d))selection={start:c.start,end:c.end};
-    draw();if(c)document.querySelector('#original .highlight,#text mark')?.scrollIntoView({block:'nearest'});
+    if(needle){selection={start:Number(needle[1]),end:Number(needle[2])};mode='text'}
+    draw();if(c||needle)document.querySelector('#original .highlight,#text mark')?.scrollIntoView({block:'nearest'});
     $('continuity').hidden=false;renderBookmarks();
     if(save){busy=true;await remember(g,d)}
     void showOutline(g);
@@ -346,7 +352,7 @@ $('annotation-rebase').onclick=async()=>{
 $('bookmark-form').onsubmit=e=>{e.preventDefault();void changeBookmark(null)};
 $('jump').onsubmit=e=>{e.preventDefault();navigate(Number($('number').value))};$('prev').onclick=()=>navigate(ordinal-1);$('next').onclick=()=>navigate(ordinal+1);
 $('rail').onscroll=renderWindow;new ResizeObserver(renderWindow).observe($('rail'));
-function refresh(){if(busy)return;continuity=null;outlineLoaded=false;readingStatus('');void load(total?ordinal:Number(requestedUnit),{openCitation:followCitation,restore:!total&&!cid&&!q.has('unit')&&!requestedConversion})}
+function refresh(){if(busy)return;continuity=null;outlineLoaded=false;readingStatus('');void load(total?ordinal:Number(requestedUnit),{openCitation:followCitation,openMatch:followMatch,restore:!total&&!cid&&!q.has('unit')&&!requestedConversion})}
 $('refresh').onclick=refresh;
 // Clear the DOM on hide. Only a same-document tab switch can retain an in-memory draft.
 function suspend(keepDraft=false){
@@ -355,13 +361,13 @@ function suspend(keepDraft=false){
     suspendedDraft={actor:owner,ordinal:page.ordinal,conversion,anchor:page.anchor,draft:annotationDraft,
       body:$('annotation-body').value,visibility:$('annotation-visibility').value,checkingSave:annotationBusy};
   }
-  resumeAt??={n:total||suspendedDraft?ordinal:Number(requestedUnit),cv:conversion,cite:followCitation};
+  resumeAt??={n:total||suspendedDraft?ordinal:Number(requestedUnit),cv:conversion,cite:followCitation,match:followMatch};
   lock('返回后将重新检查阅读权限。',keepDraft);
 }
 async function resume(){
   if(document.hidden||!resumeAt)return;
   const prior=resumeAt,saved=suspendedDraft,g=gen+1;resumeAt=null;conversion=prior.cv;
-  await load(prior.n,{openCitation:prior.cite});
+  await load(prior.n,{openCitation:prior.cite,openMatch:prior.match});
   if(g!==gen||!saved||suspendedDraft!==saved)return;
   const discard=()=>{if(suspendedDraft===saved)suspendedDraft=null};
   if(!page||owner!==saved.actor||page.ordinal!==saved.ordinal||conversion!==saved.conversion||page.anchor!==saved.anchor||annotationPanel){discard();return}
@@ -388,6 +394,6 @@ window.addEventListener('pageshow',e=>{if(e.persisted)resume()});
 window.addEventListener('focus',recheck);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)suspend(true);else if(resumeAt)resume();else refresh()});
 setInterval(recheck,2000);
-void load(Number(requestedUnit),{openCitation:true,restore:!cid&&!q.has('unit')&&!requestedConversion});
+void load(Number(requestedUnit),{openCitation:true,openMatch:followMatch,save:followMatch,restore:!cid&&!q.has('unit')&&!requestedConversion});
 </script></body></html>`
 }

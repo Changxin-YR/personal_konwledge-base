@@ -8,9 +8,13 @@ export function buildLibraryHtml(): string {
 #mode-picker,#block-picker{max-width:36rem;margin-top:8px}#encoding-picker{grid-column:1/-1;max-width:24rem}#blocks li{padding-block:6px;border-bottom:1px solid #dde5e2}#blocks pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:3px 0;font:inherit}#reader{overflow-wrap:anywhere}
 #office{overflow-wrap:anywhere}#office-version{max-width:36rem}#office-notes li{white-space:pre-wrap}#office-note-form{grid-template-columns:minmax(5rem,7rem) minmax(0,1fr) auto}#office-body{font:inherit;min-width:0;width:100%;resize:vertical;padding:6px;border:1px solid #889f9c;border-radius:5px}@media(max-width:640px){#office-note-form{grid-template-columns:minmax(0,1fr)}}
 #zip{overflow-wrap:anywhere}#zip-resume{max-width:36rem}#zip-entries{list-style:none;padding:0}#zip-entries li{border-bottom:1px solid #dde5e2;padding:8px 0}#zip-entries label{display:flex;align-items:center;gap:8px}#zip-entries input{width:18px;height:18px;flex:none}#zip-entries small{display:block}
+#search-form{grid-template-columns:minmax(0,1fr) auto}#search-results{list-style:none;padding:0;margin:4px 0;overflow-wrap:anywhere}#search-results li{padding:8px 0;border-bottom:1px solid #dde5e2}#search-results small{margin-inline-start:8px}#search-results p{white-space:pre-wrap}#search-status{min-height:1.55em;margin-top:6px;color:#536866}
 </style></head><body>
 <header><div><strong>KnowledgeOS</strong><nav aria-label="业务导航"><a href="/knowledgeos/account">账号与登录</a><a href="/knowledgeos/ai">AI 工具</a></nav></div></header>
 <main><div class="bar"><h1>PDF 资料库</h1><span id="who" class="muted"></span></div>
+<section aria-labelledby="search-heading"><h2 id="search-heading">全文检索</h2>
+<form id="search-form"><label>关键词<input id="search-query" type="search" maxlength="128" disabled required></label><button id="search-submit" type="submit" disabled>检索</button></form>
+<p id="search-status" role="status"></p><ul id="search-results"></ul></section>
 <section aria-labelledby="import-heading"><h2 id="import-heading">导入原件</h2>
 <label id="mode-picker">导入格式<select id="mode" disabled><option value="pdf">PDF</option><option value="text">Markdown / 纯文本</option><option value="word">Word</option><option value="zip">ZIP 压缩包</option></select></label>
 <form id="import"><label id="encoding-picker" hidden>文本编码<select id="encoding" disabled><option value="">自动识别</option><option value="utf-8">UTF-8</option><option value="utf-16le">UTF-16 LE</option><option value="utf-16be">UTF-16 BE</option><option value="gb18030">GB18030</option></select></label>
@@ -73,6 +77,7 @@ function drawMode(){
   if(zipMode()){$('file-label').textContent='ZIP 文件';file.accept='.zip,application/zip';$('submit').textContent='预览压缩包'}
 }
 let owner = null, generation = 0, busy = false, ready = false, key = null, conflict = false, rows = [];
+let searchSequence=0, searchReceipt=null, searchChecking=false;
 function status(text,error=false){ $('status').textContent=text; $('status').toggleAttribute('data-error',error) }
 function controls(){
   mode.disabled = file.disabled = target.disabled = !ready || busy;
@@ -80,10 +85,12 @@ function controls(){
   $('office-version').disabled = $('block-version').disabled = $('parse-version').disabled = !ready || busy;
   $('submit').disabled = file.disabled || !key || conflict;
   $('refresh').disabled = busy;
+  $('search-query').disabled=$('search-submit').disabled=!ready||busy;
   if(zipMode()){target.disabled=true;zipControls()}
 }
 function clearDraft(){ file.value=''; encoding.value=''; key=null; conflict=false }
 function clearPrivate(){
+  clearSearch();$('search-query').value='';
   clearZip();clearOffice();clearParse();clearReader();mode.value='pdf';drawMode();
   owner=null; ready=false; rows=[]; clearDraft(); target.replaceChildren(new Option('新建资料',''));
   $('who').textContent=''; $('receipt').hidden=true; $('result').replaceChildren(); $('list').replaceChildren();
@@ -118,6 +125,42 @@ function fail(e,gen,upload){
   status(zipMode() && e.http===422?'压缩包无效或超出安全限制，未导入任何文件。':wordMode() && e.http===422?'无法导入此 Word 文件，请核对原件后重新选择。':hint[e.http] || '未收到有效回执。请检查连接或服务状态，保留当前选择并重试。',true);
 }
 const uuid=/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;
+function clearSearch(message=''){
+  searchSequence++;searchReceipt=null;$('search-results').replaceChildren();$('search-status').textContent=message;
+}
+function searchRecord(r){
+  if(!r||!uuid.test(r.asset_id)||!uuid.test(r.version_id)||!Number.isSafeInteger(r.version)||r.version<1||
+    !Number.isSafeInteger(r.ordinal)||r.ordinal<1||!Number.isSafeInteger(r.start)||!Number.isSafeInteger(r.end)||r.start<0||r.end<=r.start||
+    typeof r.title!=='string'||typeof r.snippet!=='string'||typeof r.quote!=='string'||!['pdf','text'].includes(r.kind)||!/^[a-f0-9]{64}$/.test(r.source_hash))throw problem(502);
+  const li=document.createElement('li'),a=document.createElement('a'),meta=document.createElement('small'),p=document.createElement('p');
+  a.href='/knowledgeos/reader?'+new URLSearchParams({asset:r.asset_id,version:r.version_id,unit:String(r.ordinal),match:r.start+':'+r.end+':'+r.source_hash});
+  a.textContent=r.title;meta.textContent='v'+r.version+' · '+(r.kind==='pdf'?'第 '+r.ordinal+' 页':'文本块 '+r.ordinal);
+  p.textContent=r.snippet;li.append(a,meta,p);return li;
+}
+$('search-form').onsubmit=async e=>{
+  e.preventDefault();const query=$('search-query').value.trim();if(!ready||!owner||!query||document.hidden)return;
+  clearSearch('检索中…');const s=searchSequence,gen=generation,actor=owner;
+  const current=()=>s===searchSequence&&gen===generation&&actor===owner&&!document.hidden;
+  try{
+    const data=await request('search',{method:'POST',headers:{'content-type':'application/json','x-knowledgeos-request':'1'},body:JSON.stringify({query})});
+    if(!await checkOwnerWhile(current))return;
+    if(data?.actor_id!==actor||!uuid.test(data.query_id)||!Array.isArray(data.items)||data.items.length>30)throw problem(502);
+    const nodes=data.items.map(searchRecord),access=await request('search/'+data.query_id+'/access',{signal:AbortSignal.timeout(2500)});
+    if(!current()||access?.actor_id!==actor||access.query_id!==data.query_id)return;
+    $('search-results').replaceChildren(...nodes);searchReceipt=nodes.length?data.query_id:null;
+    $('search-status').textContent=nodes.length?'显示 '+nodes.length+' 条':'没有匹配的可访问内容。';
+  }catch(e){if(current())clearSearch(e.http===422?'请输入有效关键词。':'无法确认检索结果，请重试。')}
+};
+$('search-query').oninput=()=>clearSearch();
+async function checkSearch(){
+  const id=searchReceipt,s=searchSequence,actor=owner;
+  if(!id||document.hidden||searchChecking)return;
+  searchChecking=true;
+  try{const a=await request('search/'+id+'/access',{signal:AbortSignal.timeout(2500)});
+    if(s===searchSequence&&(a?.actor_id!==actor||a.query_id!==id))clearSearch('检索权限已变化，请重查。');
+  }catch{if(s===searchSequence)clearSearch('无法确认检索权限，请重查。')}
+  finally{searchChecking=false}
+}
 function record(r){
   if(!r || !uuid.test(r.id) || !uuid.test(r.version_id) || typeof r.title!=='string' || !Number.isSafeInteger(r.version) || r.version<1 || !Number.isSafeInteger(r.byte_length) || r.byte_length<0 || !/^[a-f\d]{64}$/i.test(r.sha256))throw problem(502);
   return {...r,media_type:r.media_type===undefined?'application/pdf':r.media_type};
@@ -534,7 +577,9 @@ function checkSession(){
   if(!owner){if(!busy)void load();return}
   const gen=generation;confirmOwner(gen).catch(e=>{if(gen!==generation)return;if(e.http===401)signedOut();else if(!busy)void load()});
 }
-window.addEventListener('focus',checkSession);document.addEventListener('visibilitychange',checkSession);
+window.addEventListener('focus',()=>{checkSession();void checkSearch()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)clearSearch();else checkSession()});
+window.addEventListener('pagehide',()=>clearSearch());setInterval(checkSearch,2500);
 window.addEventListener('pageshow',e=>{if(e.persisted)void load(true)});
 void load();
 })()</script></body></html>`

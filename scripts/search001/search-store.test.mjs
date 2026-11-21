@@ -1,0 +1,107 @@
+import assert from 'node:assert/strict'
+import {createHash,randomUUID} from 'node:crypto'
+import {execFileSync} from 'node:child_process'
+import {mkdtempSync,writeFileSync} from 'node:fs'
+import {join} from 'node:path'
+import {tmpdir} from 'node:os'
+import {DatabaseSync} from 'node:sqlite'
+import {pathToFileURL} from 'node:url'
+import test from 'node:test'
+import {ProbeStorage,MIGRATION_V18_CHECKSUM} from '../../packages/knowledgeos-panel/src/host/storage.ts'
+import {IdentityService} from '../../packages/knowledgeos-panel/src/host/identity.ts'
+import {decodeText} from '../../packages/knowledgeos-panel/src/host/text-document.ts'
+import {seed} from '../fnd006/independent/common.mjs'
+
+const live={ProbeStorage,IdentityService}, dbAt=dir=>new DatabaseSync(join(dir,'knowledgeos.sqlite'))
+const digest=b=>createHash('sha256').update(b).digest('hex')
+const publish=(s,a,title,text,previous)=>{
+  const bytes=Buffer.from(text), key=randomUUID(), pdf=title.endsWith('.pdf')
+  return s.assets.publish(a,{title,key,...(previous?{assetId:previous.id,expectedVersion:previous.version}:{})},
+    {key,sha256:digest(bytes),byteLength:bytes.length},pdf?undefined:{media:'text/markdown',...decodeText(bytes,'text/markdown')}).receipt
+}
+
+test('ranker excludes private content, can search separately granted project content, and rejects a cached query after revoke',async()=>{
+  const dir=mkdtempSync(join(tmpdir(),'kos-search-acl-')), {actor:owner}=await seed(live,dir)
+  const s=new ProbeStorage({dataDir:dir}), db=dbAt(dir), u=new IdentityService(s)
+  try{
+    const password=randomUUID(),name='search-reviewer'
+    await u.register({loginName:name,displayName:name,password})
+    const reader=u.actor((await u.login({loginName:name,password,source:'fixture'})).token),now=new Date().toISOString()
+    const mine=publish(s,reader,'visible.md','needle only')
+    const base=s.search.search(reader,'needle')
+    assert.deepEqual(base.items.map(i=>i.asset_id),[mine.id])
+    const hidden=publish(s,owner,'unreadable.md','needle needle secret')
+    assert.equal(s.search.search(owner,'secret').items[0].asset_id,hidden.id)
+    const after=s.search.search(reader,'needle')
+    assert.equal(after.count,1);assert.deepEqual(after.items,base.items);assert.equal(s.search.search(reader,'secret').count,0)
+    const shared=publish(s,owner,'project.md','needle specific marker')
+    const project=s.createProject({id:randomUUID(),ownerUserId:owner.userId,serviceId:owner.serviceId,name:'synthetic',now})
+    s.addProjectMembership({projectId:project.id,userId:reader.userId,role:'member',validFrom:now})
+    db.prepare("UPDATE knowledge_objects SET scope_kind='project',project_id=? WHERE id=?").run(project.id,shared.id)
+    const grant=randomUUID()
+    db.prepare(`INSERT INTO resource_grants(id,service_id,resource_type,resource_id,subject_type,subject_id,action,valid_from,created_at)
+      VALUES (?,?,'knowledge_object',?,'user',?,'read',?,?)`).run(grant,owner.serviceId,shared.id,reader.userId,now,now)
+    assert.equal(s.assets.list(reader).some(i=>i.id===shared.id),false)
+    const result=s.search.search(reader,'needle')
+    assert.equal(result.count,2)
+    const found=result.items.find(i=>i.asset_id===shared.id)
+    assert.deepEqual([found.version_id,found.ordinal,found.start,found.end,found.quote,found.source_hash],
+      [shared.version_id,1,0,6,'needle',digest('needle specific marker')])
+    assert.equal(s.search.revalidate(reader,result.query_id).query_id,result.query_id)
+    assert.throws(()=>s.search.revalidate(owner,result.query_id),{status:404})
+    db.prepare('UPDATE resource_grants SET revoked_at=? WHERE id=?').run(new Date().toISOString(),grant)
+    assert.throws(()=>s.search.revalidate(reader,result.query_id),{status:404})
+    assert.throws(()=>s.citations.access(reader,shared.id,shared.version_id),{status:404})
+    assert.deepEqual(s.search.search(reader,'needle').items,base.items)
+    assert.equal(s.search.search(reader,'specific').count,0)
+  } finally {db.close();await u.close();s.close()}
+})
+
+test('PDF partial results ignore pending or failed old text and bind hits to exact versions after replacement',async()=>{
+  const dir=mkdtempSync(join(tmpdir(),'kos-search-pages-')), {actor}=await seed(live,dir)
+  const s=new ProbeStorage({dataDir:dir}),db=dbAt(dir)
+  try{
+    const book=publish(s,actor,'frozen.pdf','isolated PDF metadata fixture')
+    db.prepare("INSERT INTO pdf_parse_runs(version_id,session_id,user_id,state,total) VALUES(?,?,?,'partial',4)").run(book.version_id,actor.sessionId,actor.userId)
+    const page=db.prepare('INSERT INTO pdf_pages(version_id,page,state,text) VALUES(?,?,?,?)')
+    page.run(book.version_id,1,'ready','Page one stable')
+    page.run(book.version_id,2,'pending','old secret')
+    page.run(book.version_id,3,'failed','old secret')
+    page.run(book.version_id,4,'review','old secret')
+    assert.equal(s.search.search(actor,'stable').count,1)
+    const prior=s.search.search(actor,'secret')
+    assert.deepEqual(prior.items.map(i=>i.ordinal),[4])
+    db.prepare("UPDATE pdf_pages SET state='pending' WHERE version_id=? AND page=4").run(book.version_id)
+    assert.equal(s.search.search(actor,'secret').count,0)
+    assert.throws(()=>s.search.revalidate(actor,prior.query_id),{status:404})
+    const old=publish(s,actor,'versioned.md','legacy unique'),modern=publish(s,actor,'versioned.md','current text',old)
+    assert.notEqual(old.version_id,modern.version_id)
+    assert.deepEqual(s.search.search(actor,'legacy').items.map(i=>i.version_id),[old.version_id])
+    assert.deepEqual(s.search.search(actor,'current').items.map(i=>i.version_id),[modern.version_id])
+  }finally{db.close();s.close()}
+})
+
+test('v18 rollback preserves v17 content and successful upgrade indexes it without rewriting it',async()=>{
+  const dir=mkdtempSync(join(tmpdir(),'kos-search-v18-')), prior=join(dir,'v17.mjs')
+  writeFileSync(prior,execFileSync('git',['show','1ce6e4f3fe2d9a05b3bc48973b74550a46efbadc:packages/knowledgeos-panel/lib/test-support.js']))
+  const old=await import(pathToFileURL(prior).href),{actor}=await seed(old,dir), before=new old.ProbeStorage({dataDir:dir})
+  const doc=publish(before,actor,'v17.md','legacy fixture');before.close()
+  const db=dbAt(dir)
+  const facts=()=>({version:db.prepare('PRAGMA user_version').get().user_version,ledger:db.prepare('SELECT * FROM schema_migrations ORDER BY version').all(),
+    schema:db.prepare('SELECT name,tbl_name,sql FROM sqlite_schema ORDER BY name').all(),blocks:db.prepare('SELECT * FROM text_blocks').all()})
+  let upgraded
+  try{
+    const expected=facts();assert.equal(expected.version,17)
+    const failed=new ProbeStorage({dataDir:dir,failureAt:'v18:after-schema'});assert.equal(failed.available,false);failed.close()
+    assert.deepEqual(facts(),expected)
+    upgraded=new ProbeStorage({dataDir:dir});assert(upgraded.available,upgraded.failure?.message)
+    const actual=facts();assert.equal(actual.version,18);assert.deepEqual(actual.ledger.slice(0,17),expected.ledger)
+    assert.equal(actual.ledger.at(-1).checksum,MIGRATION_V18_CHECKSUM)
+    assert.deepEqual(actual.schema.filter(x=>x.tbl_name!=='search_queries'),expected.schema)
+    assert.deepEqual(actual.blocks,expected.blocks)
+    assert.equal(upgraded.search.search(actor,'legacy').items[0].version_id,doc.version_id)
+    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[])
+    upgraded.close();upgraded=new ProbeStorage({dataDir:dir});assert(upgraded.available,upgraded.failure?.message)
+    assert.equal(upgraded.search.search(actor,'legacy').items[0].version_id,doc.version_id)
+  }finally{upgraded?.close();db.close()}
+})
