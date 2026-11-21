@@ -7,15 +7,19 @@ export type Box = Rect & { start: number; end: number }
 export type RenderedPage = { text: string; width: number; height: number; image: string; boxes: Box[] }
 
 // The extractor and the reader must never normalize the same page differently.
-export function normalizeText(raw: string) {
-  return raw.toWellFormed().replace(/\r\n?/g, '\n').trim()
+function textStart(raw:string, preserveIndent:boolean){
+  return preserveIndent ? /^(?:[^\S\r\n]*(?:\r\n|\r|\n))*/.exec(raw)![0].length : raw.length-raw.trimStart().length
+}
+
+export function normalizeText(raw: string, preserveIndent=false) {
+  return raw.slice(textStart(raw,preserveIndent)).toWellFormed().replace(/\r\n?/g, '\n').trimEnd()
 }
 
 // PDFium may emit either a scalar or two surrogate entries for a single glyph.
 // Keep raw UTF-16 indices until pairs, CRLF and trimmed margins are accounted for.
-export function normalizeBoxes(raw: string, source: (Rect | undefined)[], text: string): Box[] {
+export function normalizeBoxes(raw: string, source: (Rect | undefined)[], text: string, preserveIndent=false): Box[] {
   const boxes: Box[] = []
-  const trimStart = raw.length - raw.trimStart().length
+  const trimStart = textStart(raw,preserveIndent)
   let out = 0
   for (let i = trimStart; i < raw.length && out < text.length;) {
     const cp = raw.codePointAt(i)!
@@ -35,6 +39,15 @@ export function normalizeBoxes(raw: string, source: (Rect | undefined)[], text: 
     out += units
   }
   return boxes
+}
+
+// Legacy PDF pages used trim(), and their persisted citations use those offsets.
+// Accept only the exact legacy representation of the same rendered original.
+export function alignSavedPdfText(page:RenderedPage, saved:string):RenderedPage|undefined {
+  if(page.text===saved)return page
+  if(page.text.trimStart()!==saved)return
+  const leading=page.text.length-saved.length
+  return {...page,text:saved,boxes:page.boxes.filter(b=>b.start>=leading).map(b=>({...b,start:b.start-leading,end:b.end-leading}))}
 }
 
 export function viewport(api: Engine, page: number) {

@@ -1084,8 +1084,10 @@ var ParseStore = class {
     return this.leased(token2, (db, v) => {
       if (result && (result.text.length > 262144 || result.chapter.length > 512)) throw Error("PAGE_OUTPUT_LIMIT");
       const state = result ? result.needsReview || !result.text.trim() ? "review" : "ready" : "failed";
+      const previous = String(db.prepare("SELECT text FROM pdf_pages WHERE version_id=? AND page=? AND state='pending'").get(v, page)?.text ?? "");
+      const text = !result || previous !== "" && result.text.trimStart() === previous ? previous : result.text;
       const wrote = db.prepare(`UPDATE pdf_pages SET state=?,text=?,chapter=?,error=?,generation=generation+1
-      WHERE version_id=? AND page=? AND state='pending' AND ${targeted}`).run(state, result?.text ?? "", result?.chapter ?? "", result ? null : "PAGE_EXTRACTION_FAILED", v, page);
+      WHERE version_id=? AND page=? AND state='pending' AND ${targeted}`).run(state, text, result?.chapter ?? "", result ? null : "PAGE_EXTRACTION_FAILED", v, page);
       if (wrote.changes) db.prepare("UPDATE pdf_parse_runs SET losses=0 WHERE version_id=?").run(v);
       return Boolean(wrote.changes);
     });

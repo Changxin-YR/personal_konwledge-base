@@ -9,12 +9,13 @@ import {alignWordSelection,wordPageLimit,wordParagraphs} from './word-locator.ts
 import {WORD_MEDIA} from './office-schema.ts'
 import {canRemember,positionHash,type ReadingPoint} from './reading-state.ts'
 import type {AnnotationDraft} from './annotation-store.ts'
+import {alignSavedPdfText} from './reader-render-page.ts'
 
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/
 const hash=(s:string)=>createHash('sha256').update(s,'utf8').digest('hex')
 type Current=()=>SessionActor
 type Rendered={text:string;image:string;width:number;height:number;boxes:{start:number;end:number;x:number;y:number;width:number;height:number}[]}
-export type PageRenderer=(bytes:Buffer,ordinal:number,signal:AbortSignal)=>Promise<Rendered>
+export type PageRenderer=(bytes:Buffer,ordinal:number,signal:AbortSignal,preserveIndent:boolean)=>Promise<Rendered>
 export type WordPages=(bytes:Buffer,signal:AbortSignal)=>Promise<{numPages:number;page(n:number):Promise<{text:string}>;outline?():Promise<{ordinal:number;title:string;depth:number}[]>;close():Promise<void>}>
 export type LegacyWordSource=(s:NonNullable<ReaderSource['wordOriginal']>,check:()=>void,signal:AbortSignal)=>Promise<Buffer>
 
@@ -49,8 +50,12 @@ export class ReaderService {
     const check=()=>{if(signal.aborted)throw new AssetError(409,'READ_CANCELLED');const r=this.store.source(current(),s)
       if(r.state!==s.state||r.text!==s.text||r.ref?.sha256!==s.ref?.sha256||r.conversion_id!==s.conversion_id)throw new AssetError(409,'CITATION_SOURCE_CHANGED')}
     check();let rendered:Rendered
-    try{rendered=await this.render(bytes,s.ordinal,signal)}catch(e){check();if((e as {code?:string})?.code==='PDF_BUSY')throw new AssetError(429,'PAGE_RENDER_BUSY');throw e instanceof AssetError?e:new AssetError(503,'PAGE_RENDER_UNAVAILABLE')}
-    check();if(s.kind==='pdf'&&rendered.text!==s.text)throw new AssetError(409,'CITATION_SOURCE_CHANGED')
+    try{rendered=await this.render(bytes,s.ordinal,signal,s.kind==='pdf')}catch(e){check();if((e as {code?:string})?.code==='PDF_BUSY')throw new AssetError(429,'PAGE_RENDER_BUSY');throw e instanceof AssetError?e:new AssetError(503,'PAGE_RENDER_UNAVAILABLE')}
+    check();if(s.kind==='pdf'){
+      const aligned=alignSavedPdfText(rendered,s.text)
+      if(!aligned)throw new AssetError(409,'CITATION_SOURCE_CHANGED')
+      return aligned
+    }
     return rendered
   }
   async page(current:Current,t:ReaderTarget,signal:AbortSignal){

@@ -10,7 +10,7 @@ import { fixture } from '../lib002/pdf-fixtures.mjs'
 // Build the actual worker from source in disposable test output, never into lib/.
 const here = dirname(fileURLToPath(import.meta.url)), pkg = join(here, '../../packages/knowledgeos-panel')
 const require = createRequire(join(pkg, 'package.json'))
-let dir, render, openPdf, normalizeBoxes, normalizeText
+let dir, render, openPdf, openIndexPdf, normalizeBoxes, normalizeText, alignSavedPdfText
 before(async () => {
   dir = await mkdtemp(join(here, 'render-tmp-'))
   const entries = ['pdf-extractor', 'reader-render', 'reader-render-page']
@@ -18,8 +18,8 @@ before(async () => {
     outdir: dir, platform:'node', target:'node22', format:'esm', bundle:true, splitting:true, outExtension:{'.js':'.js'}})
   await copyFile(require.resolve('@embedpdf/pdfium/pdfium.wasm'), join(dir, 'pdfium.wasm'))
   const load = name => import(pathToFileURL(join(dir, name+'.js')))
-  ;({render} = await load('reader-render')); ({openPdf} = await load('pdf-extractor'))
-  ;({normalizeBoxes, normalizeText} = await load('reader-render-page'))
+  ;({render} = await load('reader-render')); ({openPdf,openIndexPdf} = await load('pdf-extractor'))
+  ;({normalizeBoxes, normalizeText, alignSavedPdfText} = await load('reader-render-page'))
 })
 after(async () => { if (dir) await rm(dir, {recursive:true,force:true}) })
 
@@ -50,8 +50,9 @@ function rotated() {
 }
 
 test('cropped and rotated original: Chinese UTF-16 range covers the actual glyph ink',async()=>{
-  const bytes=rotated(), p=await render(bytes,1), doc=await openPdf(bytes)
-  try {assert.equal((await doc.page(1)).text,p.text)} finally {await doc.close()}
+  const bytes=rotated(), raw=await render(bytes,1,undefined,true), doc=await openPdf(bytes)
+  try {assert.equal((await doc.page(1)).text,raw.text)} finally {await doc.close()}
+  const p=alignSavedPdfText(raw,'\u4e2d');assert(p)
   assert.equal(p.text,'\u4e2d'); assert.deepEqual([p.width,p.height],[200,300]); assert.equal(p.boxes.length,1)
   const box=p.boxes[0]; assert.deepEqual([box.start,box.end],[0,1]); const at=pixels(p)
   let ink=0,inside=0
@@ -69,6 +70,32 @@ test('raw-to-normalized UTF-16: split surrogates, CRLF, invalid surrogate and tr
   assert.equal(text,'A\ud83d\ude80\n\u4e2d\nZ\ufffd')
   assert.deepEqual(boxes.map(b=>[b.start,b.end]),[[0,1],[1,3],[4,5],[6,7],[7,8]])
   assert.deepEqual(normalizeBoxes('  \r\n',[],''),[])
+})
+
+test('PDF drops blank lines, preserves indentation and aligns exact legacy glyph offsets',()=>{
+  const raw=' \r\n\t\r\n\u00a0  A\r\n  B ', rect={x:1,y:2,width:3,height:4}
+  const legacy=normalizeText(raw), text=normalizeText(raw,true)
+  assert.equal(legacy,'A\n  B');assert.equal(text,'\u00a0  A\n  B')
+  assert.equal(normalizeText(' \r\n\t \r\n\u00a0 ',true),'')
+  const source=Array(raw.length).fill(rect), boxes=normalizeBoxes(raw,source,text,true)
+  const view={text,boxes,image:'original',width:20,height:20}
+  assert.deepEqual(alignSavedPdfText(view,legacy),{...view,text:legacy,boxes:normalizeBoxes(raw,source,legacy)})
+  assert.equal(alignSavedPdfText(view,text),view)
+  assert.equal(alignSavedPdfText(view,'A\n B'),undefined)
+  assert.equal(alignSavedPdfText(view,'  A\n  B'),undefined)
+})
+
+test('PDF extraction and preview agree; converted Word mode keeps the legacy text',async()=>{
+  const bytes=fixture({pages:['    code']})
+  const pdf=await openPdf(bytes), office=await openIndexPdf(bytes)
+  try{
+    const raw=await render(bytes,1,undefined,true), converted=await render(bytes,1)
+    // PDFium collapses conventional spaces in this fixture; the real
+    // textbook's NBSP indentation is independently checked by host-volume.
+    assert.equal(raw.text,' code');assert.equal((await pdf.page(1)).text,raw.text)
+    assert.equal(converted.text,'code');assert.equal((await office.page(1)).text,converted.text)
+    assert.deepEqual(alignSavedPdfText(raw,converted.text),converted)
+  }finally{await Promise.all([pdf.close(),office.close()])}
 })
 
 test('parser slots are independent; only the requested page is extracted',async t=>{

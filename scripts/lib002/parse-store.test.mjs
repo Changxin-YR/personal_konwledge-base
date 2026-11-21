@@ -56,6 +56,17 @@ test('revoked session cannot publish pending work or read progress',async()=>{
     assert.throws(()=>p.control(actor,r.id,r.version_id,'status'),e=>e.code==='ASSET_NOT_FOUND')
   }finally{s.close();db.close()}
 })
+test('retry keeps legacy citation offsets through indentation-only changes and transient failures',async()=>{
+  const {dir,db,actor,r}=await fixture(),s=new ProbeStorage({dataDir:dir}),p=s.parses,control=op=>p.control(actor,r.id,r.version_id,op,1)
+  const source=()=>s.citations.source(actor,{asset_id:r.id,version_id:r.version_id,ordinal:1})
+  try{
+    control('start');const first=p.claim();p.initialize(first.token,1);assert(p.publish(first.token,1,{...ok,needsReview:true}));p.next(first.token)
+    function retry(result){control('retry');assert.equal(source().text,'');const job=p.claim();assert(p.publish(job.token,1,result));p.next(job.token)}
+    retry(null);assert.deepEqual([source().state,source().text],['failed','']);assert.equal(p.pages(actor,r.id,r.version_id,1,1).pages[0].text,null)
+    retry({...ok,text:'\u00a0   '+ok.text,needsReview:true});assert.deepEqual([source().state,source().text],['review',ok.text])
+    retry({...ok,text:'   changed content'});assert.equal(source().text,'   changed content')
+  }finally{s.close();db.close()}
+})
 test('a failed page transaction leaves no text or progress, and retry does not resume a cancelled document',async()=>{
   const {dir,db,actor,r}=await fixture(),s=new ProbeStorage({dataDir:dir}),p=s.parses,control=(op,n)=>p.control(actor,r.id,r.version_id,op,n)
   try{

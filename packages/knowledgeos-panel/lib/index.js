@@ -3057,8 +3057,10 @@ var ParseStore = class {
     return this.leased(token2, (db, v) => {
       if (result && (result.text.length > 262144 || result.chapter.length > 512)) throw Error("PAGE_OUTPUT_LIMIT");
       const state = result ? result.needsReview || !result.text.trim() ? "review" : "ready" : "failed";
+      const previous = String(db.prepare("SELECT text FROM pdf_pages WHERE version_id=? AND page=? AND state='pending'").get(v, page)?.text ?? "");
+      const text2 = !result || previous !== "" && result.text.trimStart() === previous ? previous : result.text;
       const wrote = db.prepare(`UPDATE pdf_pages SET state=?,text=?,chapter=?,error=?,generation=generation+1
-      WHERE version_id=? AND page=? AND state='pending' AND ${targeted}`).run(state, result?.text ?? "", result?.chapter ?? "", result ? null : "PAGE_EXTRACTION_FAILED", v, page);
+      WHERE version_id=? AND page=? AND state='pending' AND ${targeted}`).run(state, text2, result?.chapter ?? "", result ? null : "PAGE_EXTRACTION_FAILED", v, page);
       if (wrote.changes) db.prepare("UPDATE pdf_parse_runs SET losses=0 WHERE version_id=?").run(v);
       return Boolean(wrote.changes);
     });
@@ -6761,6 +6763,106 @@ async function alignWordSelection(paragraphs, version, sourceSha, ordinal, text2
   if (blocks.length) return { source_sha256: sourceSha, blocks };
 }
 
+// src/host/reader-render-page.ts
+import { crc32 as crc322, deflateSync } from "node:zlib";
+function textStart(raw, preserveIndent) {
+  return preserveIndent ? /^(?:[^\S\r\n]*(?:\r\n|\r|\n))*/.exec(raw)[0].length : raw.length - raw.trimStart().length;
+}
+function normalizeText(raw, preserveIndent = false) {
+  return raw.slice(textStart(raw, preserveIndent)).toWellFormed().replace(/\r\n?/g, "\n").trimEnd();
+}
+function normalizeBoxes(raw, source, text2, preserveIndent = false) {
+  const boxes = [];
+  const trimStart = textStart(raw, preserveIndent);
+  let out = 0;
+  for (let i = trimStart; i < raw.length && out < text2.length; ) {
+    const cp = raw.codePointAt(i);
+    const units = cp > 65535 ? 2 : 1;
+    const crlf = cp === 13 && raw.charCodeAt(i + 1) === 10;
+    if (cp !== 13 && cp !== 10) {
+      let rect = source[i];
+      const tail = units === 2 ? source[i + 1] : void 0;
+      if (tail && rect) {
+        const x = Math.min(rect.x, tail.x), y = Math.min(rect.y, tail.y);
+        rect = {
+          x,
+          y,
+          width: Math.max(rect.x + rect.width, tail.x + tail.width) - x,
+          height: Math.max(rect.y + rect.height, tail.y + tail.height) - y
+        };
+      } else rect ??= tail;
+      if (rect) boxes.push({ start: out, end: out + units, ...rect });
+    }
+    i += crlf ? 2 : units;
+    out += units;
+  }
+  return boxes;
+}
+function alignSavedPdfText(page, saved) {
+  if (page.text === saved) return page;
+  if (page.text.trimStart() !== saved) return;
+  const leading = page.text.length - saved.length;
+  return { ...page, text: saved, boxes: page.boxes.filter((b) => b.start >= leading).map((b) => ({ ...b, start: b.start - leading, end: b.end - leading })) };
+}
+function viewport(api, page) {
+  const w = api.FPDF_GetPageWidthF(page), h = api.FPDF_GetPageHeightF(page);
+  if (![w, h].every((n) => Number.isFinite(n) && n > 0)) throw Error("Invalid PDF page dimensions");
+  const scale = Math.min(2, 1536 / Math.max(w, h));
+  return { width: Math.max(1, Math.round(w * scale)), height: Math.max(1, Math.round(h * scale)) };
+}
+function glyphRect(api, page, tp, index, width, height, ptr) {
+  if (api.FPDFText_IsGenerated(tp, index) !== 0 || !api.FPDFText_GetCharBox(tp, index, ptr, ptr + 8, ptr + 16, ptr + 24)) return;
+  const [left, right, bottom, top] = new Float64Array(api.memory.buffer, ptr, 4);
+  if (![left, right, bottom, top].every(Number.isFinite)) return;
+  const point2 = (x2, y2) => {
+    if (!api.FPDF_PageToDevice(page, 0, 0, width, height, 0, x2, y2, ptr, ptr + 4)) return;
+    return Array.from(new Int32Array(api.memory.buffer, ptr, 2));
+  };
+  const a = point2(left, bottom), b = point2(right, top);
+  if (!a || !b) return;
+  const x = Math.max(0, Math.min(a[0], b[0])), y = Math.max(0, Math.min(a[1], b[1]));
+  const w = Math.min(width, Math.max(a[0], b[0])) - x, h = Math.min(height, Math.max(a[1], b[1])) - y;
+  if (w > 0 && h > 0) return { x, y, width: w, height: h };
+}
+function chunk(name2, data) {
+  const buf = Buffer.allocUnsafe(data.length + 12);
+  buf.writeUInt32BE(data.length);
+  buf.write(name2, 4, 4, "ascii");
+  data.copy(buf, 8);
+  buf.writeUInt32BE(crc322(buf.subarray(4, -4)), buf.length - 4);
+  return buf;
+}
+function imagePng(api, page, width, height) {
+  const bitmap = api.FPDFBitmap_Create(width, height, 0);
+  if (!bitmap) throw Error("PDF bitmap unavailable");
+  try {
+    if (!api.FPDFBitmap_FillRect(bitmap, 0, 0, width, height, 4294967295)) throw Error("PDF bitmap unavailable");
+    api.FPDF_RenderPageBitmap(bitmap, page, 0, 0, width, height, 0, 1);
+    const ptr = api.FPDFBitmap_GetBuffer(bitmap), stride = api.FPDFBitmap_GetStride(bitmap);
+    if (!ptr || stride < width * 4) throw Error("Invalid PDF bitmap");
+    const bgr = new Uint8Array(api.memory.buffer, ptr, stride * height);
+    const rows = Buffer.allocUnsafe((1 + 3 * width) * height);
+    let dst = 0;
+    for (let y = 0; y < height; y++) {
+      rows[dst++] = 0;
+      for (let x = 0, src = y * stride; x < width; x++, src += 4) {
+        rows[dst++] = bgr[src + 2];
+        rows[dst++] = bgr[src + 1];
+        rows[dst++] = bgr[src];
+      }
+    }
+    const header = Buffer.alloc(13);
+    header.writeUInt32BE(width);
+    header.writeUInt32BE(height, 4);
+    header[8] = 8;
+    header[9] = 2;
+    const png = Buffer.concat([Buffer.from("89504e470d0a1a0a", "hex"), chunk("IHDR", header), chunk("IDAT", deflateSync(rows, { level: 1 })), chunk("IEND", Buffer.alloc(0))]);
+    return "data:image/png;base64," + png.toString("base64");
+  } finally {
+    api.FPDFBitmap_Destroy(bitmap);
+  }
+}
+
 // src/host/reader-http.ts
 var uuid3 = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 var hash2 = (s) => createHash16("sha256").update(s, "utf8").digest("hex");
@@ -6836,14 +6938,18 @@ var ReaderService = class {
     check();
     let rendered;
     try {
-      rendered = await this.render(bytes, s.ordinal, signal);
+      rendered = await this.render(bytes, s.ordinal, signal, s.kind === "pdf");
     } catch (e) {
       check();
       if (e?.code === "PDF_BUSY") throw new AssetError(429, "PAGE_RENDER_BUSY");
       throw e instanceof AssetError ? e : new AssetError(503, "PAGE_RENDER_UNAVAILABLE");
     }
     check();
-    if (s.kind === "pdf" && rendered.text !== s.text) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
+    if (s.kind === "pdf") {
+      const aligned = alignSavedPdfText(rendered, s.text);
+      if (!aligned) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
+      return aligned;
+    }
     return rendered;
   }
   async page(current, t, signal) {
@@ -7025,7 +7131,7 @@ async function readerRoute(req, url, service, current, signal, body, reserve, se
 }
 
 // src/host/zip-reader.ts
-import { crc32 as crc322, createInflateRaw as createInflateRaw2 } from "node:zlib";
+import { crc32 as crc323, createInflateRaw as createInflateRaw2 } from "node:zlib";
 var MiB = 1024 * 1024;
 var ZIP_LIMITS = Object.freeze({
   archiveBytes: 64 * MiB,
@@ -7198,7 +7304,7 @@ async function decode(packed, r, signal) {
   const { size, media } = r.entry;
   let output;
   if (r.method === 0) {
-    if (crc322(packed) !== r.crc) reject("ZIP_INTEGRITY");
+    if (crc323(packed) !== r.crc) reject("ZIP_INTEGRITY");
     output = Buffer.from(packed);
   } else {
     output = Buffer.allocUnsafe(size);
@@ -7214,7 +7320,7 @@ async function decode(packed, r, signal) {
         if (chunk2.length > size - written) reject("ZIP_INTEGRITY");
         chunk2.copy(output, written);
         written += chunk2.length;
-        crc = crc322(chunk2, crc);
+        crc = crc323(chunk2, crc);
       }
       active(signal);
       if (written !== size || stream.bytesWritten !== packed.length || crc !== r.crc) reject("ZIP_INTEGRITY");
@@ -7614,99 +7720,6 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
 // src/host/pdf-extractor.ts
 import { readFile } from "node:fs/promises";
 import { Worker, parentPort, workerData } from "node:worker_threads";
-
-// src/host/reader-render-page.ts
-import { crc32 as crc323, deflateSync } from "node:zlib";
-function normalizeText(raw) {
-  return raw.toWellFormed().replace(/\r\n?/g, "\n").trim();
-}
-function normalizeBoxes(raw, source, text2) {
-  const boxes = [];
-  const trimStart = raw.length - raw.trimStart().length;
-  let out = 0;
-  for (let i = trimStart; i < raw.length && out < text2.length; ) {
-    const cp = raw.codePointAt(i);
-    const units = cp > 65535 ? 2 : 1;
-    const crlf = cp === 13 && raw.charCodeAt(i + 1) === 10;
-    if (cp !== 13 && cp !== 10) {
-      let rect = source[i];
-      const tail = units === 2 ? source[i + 1] : void 0;
-      if (tail && rect) {
-        const x = Math.min(rect.x, tail.x), y = Math.min(rect.y, tail.y);
-        rect = {
-          x,
-          y,
-          width: Math.max(rect.x + rect.width, tail.x + tail.width) - x,
-          height: Math.max(rect.y + rect.height, tail.y + tail.height) - y
-        };
-      } else rect ??= tail;
-      if (rect) boxes.push({ start: out, end: out + units, ...rect });
-    }
-    i += crlf ? 2 : units;
-    out += units;
-  }
-  return boxes;
-}
-function viewport(api, page) {
-  const w = api.FPDF_GetPageWidthF(page), h = api.FPDF_GetPageHeightF(page);
-  if (![w, h].every((n) => Number.isFinite(n) && n > 0)) throw Error("Invalid PDF page dimensions");
-  const scale = Math.min(2, 1536 / Math.max(w, h));
-  return { width: Math.max(1, Math.round(w * scale)), height: Math.max(1, Math.round(h * scale)) };
-}
-function glyphRect(api, page, tp, index, width, height, ptr) {
-  if (api.FPDFText_IsGenerated(tp, index) !== 0 || !api.FPDFText_GetCharBox(tp, index, ptr, ptr + 8, ptr + 16, ptr + 24)) return;
-  const [left, right, bottom, top] = new Float64Array(api.memory.buffer, ptr, 4);
-  if (![left, right, bottom, top].every(Number.isFinite)) return;
-  const point2 = (x2, y2) => {
-    if (!api.FPDF_PageToDevice(page, 0, 0, width, height, 0, x2, y2, ptr, ptr + 4)) return;
-    return Array.from(new Int32Array(api.memory.buffer, ptr, 2));
-  };
-  const a = point2(left, bottom), b = point2(right, top);
-  if (!a || !b) return;
-  const x = Math.max(0, Math.min(a[0], b[0])), y = Math.max(0, Math.min(a[1], b[1]));
-  const w = Math.min(width, Math.max(a[0], b[0])) - x, h = Math.min(height, Math.max(a[1], b[1])) - y;
-  if (w > 0 && h > 0) return { x, y, width: w, height: h };
-}
-function chunk(name2, data) {
-  const buf = Buffer.allocUnsafe(data.length + 12);
-  buf.writeUInt32BE(data.length);
-  buf.write(name2, 4, 4, "ascii");
-  data.copy(buf, 8);
-  buf.writeUInt32BE(crc323(buf.subarray(4, -4)), buf.length - 4);
-  return buf;
-}
-function imagePng(api, page, width, height) {
-  const bitmap = api.FPDFBitmap_Create(width, height, 0);
-  if (!bitmap) throw Error("PDF bitmap unavailable");
-  try {
-    if (!api.FPDFBitmap_FillRect(bitmap, 0, 0, width, height, 4294967295)) throw Error("PDF bitmap unavailable");
-    api.FPDF_RenderPageBitmap(bitmap, page, 0, 0, width, height, 0, 1);
-    const ptr = api.FPDFBitmap_GetBuffer(bitmap), stride = api.FPDFBitmap_GetStride(bitmap);
-    if (!ptr || stride < width * 4) throw Error("Invalid PDF bitmap");
-    const bgr = new Uint8Array(api.memory.buffer, ptr, stride * height);
-    const rows = Buffer.allocUnsafe((1 + 3 * width) * height);
-    let dst = 0;
-    for (let y = 0; y < height; y++) {
-      rows[dst++] = 0;
-      for (let x = 0, src = y * stride; x < width; x++, src += 4) {
-        rows[dst++] = bgr[src + 2];
-        rows[dst++] = bgr[src + 1];
-        rows[dst++] = bgr[src];
-      }
-    }
-    const header = Buffer.alloc(13);
-    header.writeUInt32BE(width);
-    header.writeUInt32BE(height, 4);
-    header[8] = 8;
-    header[9] = 2;
-    const png = Buffer.concat([Buffer.from("89504e470d0a1a0a", "hex"), chunk("IHDR", header), chunk("IDAT", deflateSync(rows, { level: 1 })), chunk("IEND", Buffer.alloc(0))]);
-    return "data:image/png;base64," + png.toString("base64");
-  } finally {
-    api.FPDFBitmap_Destroy(bitmap);
-  }
-}
-
-// src/host/pdf-extractor.ts
 var MiB2 = 1024 * 1024;
 var MAX_BYTES2 = 64 * MiB2;
 var MAX_MEMORY = 256 * MiB2;
@@ -7718,6 +7731,7 @@ var DEADLINE_MS = 15e3;
 var MAX_WORKERS = 2;
 var role = "knowledgeos:pdf-extractor:v1";
 var readerRole = "knowledgeos:pdf-reader:v1";
+var indexRole = "knowledgeos:pdf-index:v1";
 var active2 = { extract: 0, reader: 0, index: 0 };
 function pdfError(code, message) {
   return Object.assign(new Error(message), { code });
@@ -7738,7 +7752,7 @@ async function open(bytes, pool, signal) {
   if (active2[pool] >= (pool === "index" ? 1 : MAX_WORKERS)) throw pdfError("PDF_BUSY", "PDF extractor busy");
   const copy = new Uint8Array(bytes);
   const worker = new Worker(new URL("./pdf-extractor.js", import.meta.url), {
-    workerData: pool === "reader" ? readerRole : role,
+    workerData: pool === "reader" ? readerRole : pool === "index" ? indexRole : role,
     env: {},
     execArgv: [],
     resourceLimits: { maxOldGenerationSizeMb: 48, maxYoungGenerationSizeMb: 8 }
@@ -7798,9 +7812,9 @@ async function open(bytes, pool, signal) {
     }, async page(n) {
       if (!Number.isInteger(n) || n < 1 || n > numPages) throw new RangeError("Invalid PDF page number");
       return await request(n);
-    }, async renderPage(n) {
+    }, async renderPage(n, preserveIndent = false) {
       if (!Number.isInteger(n) || n < 1 || n > numPages) throw new RangeError("Invalid PDF page number");
-      return await request({ render: n });
+      return await request({ render: n, preserveIndent });
     } };
   } catch (error) {
     await close();
@@ -7925,7 +7939,7 @@ async function parse2(bytes) {
     for (const entry of readOutline(api, doc, numPages, false)) if (!titles.has(entry.ordinal)) titles.set(entry.ordinal, entry.title);
     for (let i = 1; i <= numPages; i++) labels.push(titles.get(i) ?? labels[i - 1]);
   }
-  function page(n, render2 = false) {
+  function page(n, render2 = false, preserveIndent = workerData === role) {
     const p = api.FPDF_LoadPage(doc, n - 1);
     if (!p) throw new PageFailure("Failed to load PDF page");
     try {
@@ -7954,8 +7968,8 @@ async function parse2(bytes) {
           if (scratch) api.free(scratch);
         }
         const raw = text2;
-        text2 = normalizeText(raw);
-        if (view) return { text: text2, ...view, boxes: normalizeBoxes(raw, source, text2), image: imagePng(api, p, view.width, view.height) };
+        text2 = normalizeText(raw, preserveIndent);
+        if (view) return { text: text2, ...view, boxes: normalizeBoxes(raw, source, text2, preserveIndent), image: imagePng(api, p, view.width, view.height) };
         needsReview ||= !text2 || /[\ufffd\p{Co}\x00-\x08\x0b\x0c\x0e-\x1f]/u.test(text2);
         return { text: text2, needsReview, chapter: labels[n] };
       } finally {
@@ -7967,7 +7981,7 @@ async function parse2(bytes) {
   }
   return { numPages, page, outline: () => readOutline(api, doc, numPages, true) };
 }
-if (parentPort && (workerData === role || workerData === readerRole)) {
+if (parentPort && (workerData === role || workerData === readerRole || workerData === indexRole)) {
   const port = parentPort;
   let document;
   port.on("message", async (input) => {
@@ -7977,7 +7991,7 @@ if (parentPort && (workerData === role || workerData === readerRole)) {
         port.postMessage({ value: document.numPages });
       } else if (input === "outline") port.postMessage({ value: document.outline() });
       else if (typeof input === "number") port.postMessage({ value: document.page(input) });
-      else port.postMessage({ value: document.page(input.render, true) });
+      else port.postMessage({ value: document.page(input.render, true, input.preserveIndent) });
     } catch (err) {
       const error = err instanceof Error ? err.message : "PDF parser failed";
       port.postMessage({ error, fatal: !(err instanceof PageFailure) });
@@ -7986,13 +8000,13 @@ if (parentPort && (workerData === role || workerData === readerRole)) {
 }
 
 // src/host/reader-render.ts
-async function render(bytes, ordinal, signal) {
+async function render(bytes, ordinal, signal, preserveIndent = false) {
   if (!Number.isInteger(ordinal) || ordinal < 1 || ordinal > 1e4) throw new RangeError("Invalid PDF page number");
   if (signal?.aborted) throw new DOMException("PDF render cancelled", "AbortError");
   let doc;
   try {
     doc = await openReaderPdf(bytes, signal);
-    return await doc.renderPage(ordinal);
+    return await doc.renderPage(ordinal, preserveIndent);
   } catch (err) {
     if (signal?.aborted) throw new DOMException("PDF render cancelled", "AbortError");
     if (err instanceof RangeError) throw new RangeError("Invalid PDF page number");
@@ -9068,7 +9082,8 @@ function draw(){
   $('cite').disabled=!available||!s||posting;
   $('annotate').disabled=!available||!s||posting||annotationBusy;$('annotations-toggle').disabled=!available;
   const states={failed:'本处解析失败。',empty:'此版本没有可阅读的文本块。',unconverted:'此版本尚无已完成的转换。',review:'本页解析结果待复核。'};
-  status(states[d.state] || (!available?'本处尚未就绪。':showOriginal&&s&&!boxes.length?'原页缺少精确选区坐标，请查看结构文本中的高亮。':resolved?'已定位到固定版本引用。':'已打开固定版本。'));
+  const layout=d.kind==='pdf'&&available&&!showOriginal?' 提取文本不等同于原页版式。':'';
+  status((states[d.state] || (!available?'本处尚未就绪。':showOriginal&&s&&!boxes.length?'原页缺少精确选区坐标，请查看结构文本中的高亮。':resolved?'已定位到固定版本引用。':'已打开固定版本。'))+layout);
 }
 function capture(){
   if(!page||!ready(page)||posting||$('text').hidden)return;

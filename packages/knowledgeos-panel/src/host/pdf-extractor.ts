@@ -9,10 +9,11 @@ const MAX_CHARS = 32_000, MAX_BOOKMARKS = 2048, MAX_TITLE_BYTES = 512
 const DEADLINE_MS = 15_000, MAX_WORKERS = 2
 const role = 'knowledgeos:pdf-extractor:v1'
 const readerRole = 'knowledgeos:pdf-reader:v1'
+const indexRole = 'knowledgeos:pdf-index:v1'
 type Page = { text: string; needsReview: boolean; chapter: string }
 type Outline = {ordinal:number;title:string;depth:number}[]
-type Doc = { numPages: number; page(n: number): Promise<Page>; outline():Promise<Outline>; renderPage(n: number): Promise<RenderedPage>; close(): Promise<void> }
-type Input = Uint8Array<ArrayBuffer> | number | {render: number} | 'outline'
+type Doc = { numPages: number; page(n: number): Promise<Page>; outline():Promise<Outline>; renderPage(n: number, preserveIndent?:boolean): Promise<RenderedPage>; close(): Promise<void> }
+type Input = Uint8Array<ArrayBuffer> | number | {render: number;preserveIndent:boolean} | 'outline'
 type Result = { value: number | Page | RenderedPage | Outline } | { error: string; fatal: boolean }
 const active = { extract: 0, reader: 0, index: 0 }
 
@@ -34,7 +35,7 @@ async function open(bytes: Uint8Array, pool: keyof typeof active, signal?: Abort
   if (active[pool] >= (pool==='index'?1:MAX_WORKERS)) throw pdfError('PDF_BUSY', 'PDF extractor busy')
   const copy = new Uint8Array(bytes) // never transfer/detach the caller's buffer or pooled slab
   const worker = new Worker(new URL('./pdf-extractor.js', import.meta.url), {
-    workerData: pool === 'reader' ? readerRole : role, env: {}, execArgv: [], resourceLimits: { maxOldGenerationSizeMb: 48, maxYoungGenerationSizeMb: 8 },
+    workerData: pool === 'reader' ? readerRole : pool==='index' ? indexRole : role, env: {}, execArgv: [], resourceLimits: { maxOldGenerationSizeMb: 48, maxYoungGenerationSizeMb: 8 },
   })
   active[pool]++
   let pending: ((msg: Result) => void) | undefined
@@ -81,9 +82,9 @@ async function open(bytes: Uint8Array, pool: keyof typeof active, signal?: Abort
     return { numPages, close, async outline(){return await request('outline') as Outline}, async page(n) {
       if (!Number.isInteger(n) || n < 1 || n > numPages) throw new RangeError('Invalid PDF page number')
       return await request(n) as Page
-    }, async renderPage(n) {
+    }, async renderPage(n,preserveIndent=false) {
       if (!Number.isInteger(n) || n < 1 || n > numPages) throw new RangeError('Invalid PDF page number')
-      return await request({render:n}) as RenderedPage
+      return await request({render:n,preserveIndent}) as RenderedPage
     } }
   } catch (error) { await close(); throw error }
 }
@@ -204,7 +205,7 @@ async function parse(bytes: Uint8Array) {
     for(const entry of readOutline(api,doc,numPages,false))if(!titles.has(entry.ordinal))titles.set(entry.ordinal,entry.title)
     for (let i = 1; i <= numPages; i++) labels.push(titles.get(i) ?? labels[i-1])
   }
-  function page(n: number, render = false): Page | RenderedPage {
+  function page(n: number, render = false, preserveIndent = workerData===role): Page | RenderedPage {
     const p = api.FPDF_LoadPage(doc, n - 1)
     if (!p) throw new PageFailure('Failed to load PDF page')
     try {
@@ -233,8 +234,8 @@ async function parse(bytes: Uint8Array) {
           }
         } finally { if (scratch) api.free(scratch) }
         const raw = text
-        text = normalizeText(raw)
-        if (view) return {text, ...view, boxes: normalizeBoxes(raw, source, text), image: imagePng(api, p, view.width, view.height)}
+        text = normalizeText(raw,preserveIndent)
+        if (view) return {text, ...view, boxes: normalizeBoxes(raw, source, text,preserveIndent), image: imagePng(api, p, view.width, view.height)}
         needsReview ||= !text || /[\ufffd\p{Co}\x00-\x08\x0b\x0c\x0e-\x1f]/u.test(text)
         return {text, needsReview, chapter: labels[n]}
       } finally { api.FPDFText_ClosePage(tp) }
@@ -243,7 +244,7 @@ async function parse(bytes: Uint8Array) {
   return { numPages, page, outline:()=>readOutline(api,doc,numPages,true) }
 }
 
-if (parentPort && (workerData === role || workerData === readerRole)) {
+if (parentPort && (workerData === role || workerData === readerRole || workerData===indexRole)) {
   const port = parentPort
   let document: Awaited<ReturnType<typeof parse>>
   port.on('message', async (input: Input) => {
@@ -251,7 +252,7 @@ if (parentPort && (workerData === role || workerData === readerRole)) {
       if (input instanceof Uint8Array) { document = await parse(input); port.postMessage({value: document.numPages}) }
       else if (input==='outline') port.postMessage({value:document.outline()})
       else if (typeof input === 'number') port.postMessage({value: document.page(input)})
-      else port.postMessage({value: document.page(input.render, true)})
+      else port.postMessage({value: document.page(input.render, true,input.preserveIndent)})
     } catch (err) {
       const error = err instanceof Error ? err.message : 'PDF parser failed'
       port.postMessage({error, fatal: !(err instanceof PageFailure)})

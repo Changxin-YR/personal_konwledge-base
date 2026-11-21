@@ -4,12 +4,15 @@ import { Worker, parentPort, workerData } from "node:worker_threads";
 
 // src/host/reader-render-page.ts
 import { crc32, deflateSync } from "node:zlib";
-function normalizeText(raw) {
-  return raw.toWellFormed().replace(/\r\n?/g, "\n").trim();
+function textStart(raw, preserveIndent) {
+  return preserveIndent ? /^(?:[^\S\r\n]*(?:\r\n|\r|\n))*/.exec(raw)[0].length : raw.length - raw.trimStart().length;
 }
-function normalizeBoxes(raw, source, text) {
+function normalizeText(raw, preserveIndent = false) {
+  return raw.slice(textStart(raw, preserveIndent)).toWellFormed().replace(/\r\n?/g, "\n").trimEnd();
+}
+function normalizeBoxes(raw, source, text, preserveIndent = false) {
   const boxes = [];
-  const trimStart = raw.length - raw.trimStart().length;
+  const trimStart = textStart(raw, preserveIndent);
   let out = 0;
   for (let i = trimStart; i < raw.length && out < text.length; ) {
     const cp = raw.codePointAt(i);
@@ -105,6 +108,7 @@ var DEADLINE_MS = 15e3;
 var MAX_WORKERS = 2;
 var role = "knowledgeos:pdf-extractor:v1";
 var readerRole = "knowledgeos:pdf-reader:v1";
+var indexRole = "knowledgeos:pdf-index:v1";
 var active = { extract: 0, reader: 0, index: 0 };
 function pdfError(code, message) {
   return Object.assign(new Error(message), { code });
@@ -125,7 +129,7 @@ async function open(bytes, pool, signal) {
   if (active[pool] >= (pool === "index" ? 1 : MAX_WORKERS)) throw pdfError("PDF_BUSY", "PDF extractor busy");
   const copy = new Uint8Array(bytes);
   const worker = new Worker(new URL("./pdf-extractor.js", import.meta.url), {
-    workerData: pool === "reader" ? readerRole : role,
+    workerData: pool === "reader" ? readerRole : pool === "index" ? indexRole : role,
     env: {},
     execArgv: [],
     resourceLimits: { maxOldGenerationSizeMb: 48, maxYoungGenerationSizeMb: 8 }
@@ -185,9 +189,9 @@ async function open(bytes, pool, signal) {
     }, async page(n) {
       if (!Number.isInteger(n) || n < 1 || n > numPages) throw new RangeError("Invalid PDF page number");
       return await request(n);
-    }, async renderPage(n) {
+    }, async renderPage(n, preserveIndent = false) {
       if (!Number.isInteger(n) || n < 1 || n > numPages) throw new RangeError("Invalid PDF page number");
-      return await request({ render: n });
+      return await request({ render: n, preserveIndent });
     } };
   } catch (error) {
     await close();
@@ -312,7 +316,7 @@ async function parse(bytes) {
     for (const entry of readOutline(api, doc, numPages, false)) if (!titles.has(entry.ordinal)) titles.set(entry.ordinal, entry.title);
     for (let i = 1; i <= numPages; i++) labels.push(titles.get(i) ?? labels[i - 1]);
   }
-  function page(n, render = false) {
+  function page(n, render = false, preserveIndent = workerData === role) {
     const p = api.FPDF_LoadPage(doc, n - 1);
     if (!p) throw new PageFailure("Failed to load PDF page");
     try {
@@ -341,8 +345,8 @@ async function parse(bytes) {
           if (scratch) api.free(scratch);
         }
         const raw = text;
-        text = normalizeText(raw);
-        if (view) return { text, ...view, boxes: normalizeBoxes(raw, source, text), image: imagePng(api, p, view.width, view.height) };
+        text = normalizeText(raw, preserveIndent);
+        if (view) return { text, ...view, boxes: normalizeBoxes(raw, source, text, preserveIndent), image: imagePng(api, p, view.width, view.height) };
         needsReview ||= !text || /[\ufffd\p{Co}\x00-\x08\x0b\x0c\x0e-\x1f]/u.test(text);
         return { text, needsReview, chapter: labels[n] };
       } finally {
@@ -354,7 +358,7 @@ async function parse(bytes) {
   }
   return { numPages, page, outline: () => readOutline(api, doc, numPages, true) };
 }
-if (parentPort && (workerData === role || workerData === readerRole)) {
+if (parentPort && (workerData === role || workerData === readerRole || workerData === indexRole)) {
   const port = parentPort;
   let document;
   port.on("message", async (input) => {
@@ -364,7 +368,7 @@ if (parentPort && (workerData === role || workerData === readerRole)) {
         port.postMessage({ value: document.numPages });
       } else if (input === "outline") port.postMessage({ value: document.outline() });
       else if (typeof input === "number") port.postMessage({ value: document.page(input) });
-      else port.postMessage({ value: document.page(input.render, true) });
+      else port.postMessage({ value: document.page(input.render, true, input.preserveIndent) });
     } catch (err) {
       const error = err instanceof Error ? err.message : "PDF parser failed";
       port.postMessage({ error, fatal: !(err instanceof PageFailure) });

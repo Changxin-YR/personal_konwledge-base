@@ -105,6 +105,17 @@ test('T01 parsed chapter opens its exact PDF page with no first-page fetch',asyn
   const rows=page.locator('#parse-pages li');await rows.filter({hasText:'第十二章'}).getByRole('link').click();assert.equal(page.url(),url+'&unit=12')
   await page.locator('#original img').waitFor();assert.deepEqual(peer.calls,[{unit:'12'}])
 })
+test('layout notice is specific to available PDF extraction, not original or Word mode',async t=>{
+  const {page,peer,url}=await fixture(t),source=peer.reader,status=page.locator('#status'),notice=/提取文本不等同于原页版式/
+  peer.reader=n=>({...source(n),kind:'pdf',conversion_id:undefined})
+  await page.goto(url);await page.locator('#original img').waitFor();assert.doesNotMatch(await status.innerText(),notice)
+  await page.locator('#structured').click();await page.getByText(notice).waitFor()
+  peer.reader=n=>({...source(n),kind:'pdf',conversion_id:undefined,state:'pending',image:undefined,text:'',anchor:sha('')})
+  await page.locator('#next').click();await status.filter({hasText:/尚未就绪/}).waitFor();assert.doesNotMatch(await status.innerText(),notice)
+  peer.reader=source
+  await page.goto(url);await page.locator('#original img').waitFor();await page.locator('#structured').click()
+  await page.locator('#text').waitFor();assert.doesNotMatch(await status.innerText(),notice)
+})
 test('Word history opens exactly the chosen conversion; account change during fetch clears the page',async t=>{
   const {page,peer,url,version,conversion}=await fixture(t);await page.goto('http://localhost/knowledgeos/library');await page.locator('#office-version').selectOption(version)
   await page.locator('#office-attempts li').filter({hasText:conversion}).getByRole('link').click();assert.equal(page.url(),url+'&conversion='+conversion)

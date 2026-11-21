@@ -23,6 +23,7 @@ const sha=b=>createHash('sha256').update(b).digest('hex'), runner=sha(readFileSy
 assert.equal(runner,sha(execFileSync('git',['show',`${candidate}:${self}`],{cwd:root})))
 const size=statSync(source).size;assert(size>=25_000_000&&size<=64*1024*1024)
 const sourceHash=sha(readFileSync(source))
+const codeTextbook=sourceHash==='fd56aaf80c851e9f3b417745785ea5c832fc2911acfd2094a86f4c517fdf435a'
 mkdirSync(resolve(parent),{recursive:true});const out=mkdtempSync(join(resolve(parent),'run-'))
 const facts={candidate_sha:candidate,entry_sha256:entry,runner_sha256:runner,status:'NOT_RUN',P02:'NOT_RUN',A06:'NOT_RUN',
   sample:{name:basename(source),sha256:sourceHash,bytes:size,pages:total},hold_page:holdPage,ranges,boots:[],screens:[],timing_ms:{},search:{}}
@@ -59,7 +60,9 @@ const snapshot=d=>sql(dbPath(host.data),'SELECT page,state,generation,text,chapt
 const terminal=d=>until(async()=>{const s=await checked(await get(parse(d)),200);return ['partial','complete','failed'].includes(s.state)&&s},'all targeted pages',240_000)
 const stateSummary=rows=>Object.fromEntries(['ready','review','failed','pending'].map(s=>[s,rows.filter(r=>r.state===s).length]))
 const selectedPage=p=>ranges.some(([a,b])=>p>=a&&p<=b)
-const spotPages=[...new Set(ranges.flatMap(([a,b])=>[a,Math.floor((a+b)/2),b]))]
+const contentPages=codeTextbook?[19,58,59,67,336,337,350,939]:[]
+assert(contentPages.every(selectedPage),'the original content witnesses must be in the fixed chapter plan')
+const spotPages=[...new Set([...ranges.flatMap(([a,b])=>[a,Math.floor((a+b)/2),b]),...contentPages])].sort((a,b)=>a-b)
 async function screenshot(file,element=tab){const png=await element.screenshot({path:join(out,file)});facts.screens.push({file,sha256:sha(png)})}
 async function original(d){const r=await get(ver(d)+'/original');assert.equal(r.status(),200);assert.equal(sha(await r.body()),sourceHash)}
 async function openPage(d,p){
@@ -77,6 +80,34 @@ async function search(subject,d,row,query){
 }
 const pageWitness=({res,http_ms},p)=>{assert.match(res.image,/^data:image\/png;base64,/);return {page:p,original_sha256:res.original_sha256,
   text_sha256:sha(res.text),image_sha256:sha(res.image),state:res.state,http_ms}}
+
+async function textbookContent(doc,rows,label){
+  if(!codeTextbook)return
+  const row=p=>rows.find(r=>r.page===p), previous=row(58), current=row(59)
+  const indent=/^([\x20\u00a0]{4})\/\/ Recursive step\r?\n[\x20\u00a0]{4}return x \+ recursiveSum/m
+  assert.match(previous.text,/int recursiveSum \(int x\) \{[\s\S]*\} else \{/)
+  assert(indent.test(current.text)&&current.text.indexOf('// Recursive step')===4)
+  const openUi=p=>tab.goto(host.base+`/knowledgeos/reader?asset=${doc.id}&version=${doc.version_id}&unit=${p}`)
+  const image=tab.locator('#original img'), number=tab.locator('#number'), status=tab.locator('#status'), text=tab.locator('#text')
+  const layout=/提取文本不等同于原页版式/
+  async function originalAt(p){
+    const current=tab.locator(`#original img[alt="第 ${p} 页原页"]`)
+    await current.waitFor();await tab.waitForFunction(p=>{const i=document.querySelector('#original img');return i?.alt===`第 ${p} 页原页`&&i.complete&&i.naturalWidth>0},p)
+    assert.equal(await number.inputValue(),String(p));assert.doesNotMatch(await status.innerText(),layout)
+    return sha(await image.getAttribute('src'))
+  }
+  await openUi(58);const first=await originalAt(58)
+  await tab.locator('#next').click();const second=await originalAt(59);assert.notEqual(first,second)
+  await tab.locator('#structured').click();await status.filter({hasText:layout}).waitFor()
+  assert.equal(await text.textContent(),current.text)
+  await screenshot(`${label}-code-page-59.png`)
+  await openUi(350);const table=await originalAt(350);assert.equal(row(350).state,'ready')
+  await tab.locator('#structured').click();await status.filter({hasText:layout}).waitFor();assert.equal(await text.textContent(),row(350).text)
+  await tab.locator('#paper').click();assert.equal(await originalAt(350),table)
+  await screenshot(`${label}-table-page-350.png`)
+  ;(facts.content??={})[label]={pages:contentPages,code_at_physical_pages:[58,59],first_line_indent:4,
+    page_59_text_sha256:sha(current.text),page_58_image_sha256:first,page_59_image_sha256:second,table_350_image_sha256:table,layout_notice:true}
+}
 
 try{
   host=await isolate(candidate,entry);facts.binding=host.facts
@@ -114,6 +145,7 @@ try{
   await original(whole);const wholeHit=await search('whole_terminal',whole,probe,query)
   facts.compare=[]
   for(const p of spotPages)facts.compare.push({whole:pageWitness(await openPage(whole,p),p)})
+  await textbookContent(whole,wholeRows,'whole')
   memory()
 
   phase='chapter import';await login('split');assert.equal((await get(ver(whole)+'/reader?unit=2')).status(),404)
@@ -139,6 +171,7 @@ try{
   }
   const splitHit=await search('split_terminal',split,probe,query)
   assert(wholeHit&&splitHit);assert.deepEqual(splitHit,wholeHit)
+  await textbookContent(split,splitRows,'split')
   await original(split);memory()
   assert.equal(facts.whole.failed_pages.length,0,'unexpected real extraction failures')
   assert(facts.search.whole_terminal.matched,'completed textbook is not discoverable by the same verified query')

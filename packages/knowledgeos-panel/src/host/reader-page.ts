@@ -230,7 +230,8 @@ function draw(){
   $('cite').disabled=!available||!s||posting;
   $('annotate').disabled=!available||!s||posting||annotationBusy;$('annotations-toggle').disabled=!available;
   const states={failed:'本处解析失败。',empty:'此版本没有可阅读的文本块。',unconverted:'此版本尚无已完成的转换。',review:'本页解析结果待复核。'};
-  status(states[d.state] || (!available?'本处尚未就绪。':showOriginal&&s&&!boxes.length?'原页缺少精确选区坐标，请查看结构文本中的高亮。':resolved?'已定位到固定版本引用。':'已打开固定版本。'));
+  const layout=d.kind==='pdf'&&available&&!showOriginal?' 提取文本不等同于原页版式。':'';
+  status((states[d.state] || (!available?'本处尚未就绪。':showOriginal&&s&&!boxes.length?'原页缺少精确选区坐标，请查看结构文本中的高亮。':resolved?'已定位到固定版本引用。':'已打开固定版本。'))+layout);
 }
 function capture(){
   if(!page||!ready(page)||posting||$('text').hidden)return;
