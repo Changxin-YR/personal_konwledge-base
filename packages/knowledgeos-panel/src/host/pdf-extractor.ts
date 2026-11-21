@@ -101,10 +101,27 @@ async function loadEngine(): Promise<Pdfium> {
   const binary = await readFile(new URL('./pdfium.wasm', import.meta.url))
   const module = await WebAssembly.compile(binary)
   let api: Pdfium
-  const abort = () => { throw new Error('PDF parser stopped') }
+  const unsupported = (op:string) => () => { throw new Error(`PDF parser stopped: ${op}`) }
+  // Color/image rendering initializes libc timezone state. Supply deterministic
+  // UTC in WASM memory, without exposing the host clock, locale or environment.
+  const utcTime = (low:number, high:number, out:number) => {
+    const date = new Date((high * 2**32 + (low >>> 0)) * 1000)
+    if (!Number.isFinite(date.getTime())) throw new Error('Invalid PDF timestamp')
+    const year = date.getUTCFullYear(), jan = new Date(0)
+    jan.setUTCFullYear(year, 0, 1)
+    const parts = [date.getUTCSeconds(), date.getUTCMinutes(), date.getUTCHours(), date.getUTCDate(), date.getUTCMonth(),
+      year - 1900, date.getUTCDay(), Math.floor((date.getTime()-jan.getTime())/86_400_000), 0, 0]
+    const tm = new DataView(api.memory.buffer, out >>> 0, parts.length*4)
+    for (const [i,value] of parts.entries()) tm.setInt32(i*4,value,true)
+  }
   const env: WebAssembly.ModuleImports = {
-    _abort_js: abort, __assert_fail: abort, _emscripten_throw_longjmp: abort,
-    emscripten_date_now: () => 0, _tzset_js: abort, _localtime_js: abort, _gmtime_js: abort,
+    _abort_js: unsupported('abort'), __assert_fail: unsupported('assertion'), _emscripten_throw_longjmp: unsupported('unwind'),
+    emscripten_date_now: () => 0, _localtime_js: utcTime, _gmtime_js: utcTime,
+    _tzset_js: (timezone:number, daylight:number, standard:number, summer:number) => {
+      const data = new DataView(api.memory.buffer)
+      data.setInt32(timezone >>> 0,0,true);data.setInt32(daylight >>> 0,0,true)
+      for (const ptr of [standard,summer]) new Uint8Array(api.memory.buffer,ptr >>> 0,4).set([85,84,67,0]) // UTC\0
+    },
     _emscripten_memcpy_js: (to: number, from: number, len: number) => {
       new Uint8Array(api.memory.buffer).copyWithin(to, from, from + len)
     },

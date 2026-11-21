@@ -2515,7 +2515,6 @@ var bilingual = [
 ];
 var aliases = new Map(bilingual.flatMap(([a, b]) => [[a, [a, b]], [b, [b, a]]]));
 var normalize = (s) => s.normalize("NFKC").toLowerCase();
-var termGram = (s) => Array.from(s).slice(0, 3).join("");
 function compileSearchQuery(raw) {
   if (raw.length > 256 || Array.from(raw).length > 128) throw new Error("INVALID_SEARCH_QUERY");
   const value = normalize(raw).trim().replace(/\(\)$/, "");
@@ -2531,14 +2530,7 @@ function indexSearchText(source) {
     const range = { start: index, end: index + segment.length };
     for (let i = 0; i < value.length; i++) ranges.push(range);
   }
-  const normalized = parts.join(""), codepoints = Array.from(normalized), grams = /* @__PURE__ */ new Set();
-  for (let i = 0; i < codepoints.length; i++) {
-    const a = codepoints[i], b = codepoints[i + 1], c = codepoints[i + 2];
-    grams.add(a);
-    if (b !== void 0) grams.add(a + b);
-    if (c !== void 0) grams.add(a + b + c);
-  }
-  return { normalized, ranges, grams };
+  return { normalized: parts.join(""), ranges };
 }
 function matchSearchText(index, query) {
   const range = (at, length, score2) => ({ start: index.ranges[at].start, end: index.ranges[at + length - 1].end, score: score2 });
@@ -2548,7 +2540,6 @@ function matchSearchText(index, query) {
   for (const variants of query.terms) {
     let found;
     for (const [i, text2] of variants.entries()) {
-      if (!index.grams.has(termGram(text2))) continue;
       const at = index.normalized.indexOf(text2);
       if (at !== -1) {
         found = range(at, text2.length, i === 0 ? 2 : 1);
@@ -2569,8 +2560,9 @@ var SEARCH_SCHEMA = `CREATE TABLE search_queries (
   ranking_inputs TEXT NOT NULL, created_at TEXT NOT NULL
 ) STRICT;
 CREATE INDEX search_queries_actor ON search_queries(actor_id,created_at);`;
-var indexVersion = "lexical-nfkc-ngram-v1";
-var maxWork = 1e6;
+var indexVersion = "lexical-nfkc-v2";
+var maxWork = 4 * 1024 * 1024;
+var maxSources = 2e4;
 var maxResults = 30;
 var maxCache = 256e3;
 var sha = (text2) => createHash3("sha256").update(text2, "utf8").digest("hex");
@@ -2606,7 +2598,7 @@ var SearchStore = class {
       this.cache.set(hash3, hit);
       return hit.index;
     }
-    const index = indexSearchText(text2), weight = index.ranges.length + index.grams.size * 3;
+    const index = indexSearchText(text2), weight = index.ranges.length;
     if (weight > maxCache) return index;
     while (this.weight + weight > maxCache) {
       const key = this.cache.keys().next().value;
@@ -2628,11 +2620,11 @@ var SearchStore = class {
       const a = this.actor(prior, now);
       const ids = db.prepare(`SELECT a.id FROM assets a JOIN knowledge_objects o ON a.id=o.id WHERE o.service_id=? AND o.status='active'`).all(a.serviceId).map((r) => String(r.id)).filter((id) => this.allowed(a, id, now));
       const bound = JSON.stringify(ids), results = [];
-      let work = 0;
+      let work = 0, sources2 = 0;
       for (const row of db.prepare(sourceSQL).iterate(bound, bound, bound)) {
         const { text: text2, conversion_id, ...source } = row;
         work += text2.length;
-        if (work > maxWork) throw new AssetError(503, "SEARCH_WORK_LIMIT");
+        if (work > maxWork || ++sources2 > maxSources) throw new AssetError(503, "SEARCH_WORK_LIMIT");
         const source_hash = sha(text2), match = matchSearchText(this.indexed(source_hash, text2), query);
         if (!match) continue;
         const from = Math.max(0, match.start - 70), to = Math.min(text2.length, match.end + 70);
@@ -7819,17 +7811,42 @@ async function loadEngine() {
   const binary = await readFile(new URL("./pdfium.wasm", import.meta.url));
   const module = await WebAssembly.compile(binary);
   let api;
-  const abort = () => {
-    throw new Error("PDF parser stopped");
+  const unsupported = (op) => () => {
+    throw new Error(`PDF parser stopped: ${op}`);
+  };
+  const utcTime = (low, high, out) => {
+    const date = new Date((high * 2 ** 32 + (low >>> 0)) * 1e3);
+    if (!Number.isFinite(date.getTime())) throw new Error("Invalid PDF timestamp");
+    const year = date.getUTCFullYear(), jan = /* @__PURE__ */ new Date(0);
+    jan.setUTCFullYear(year, 0, 1);
+    const parts = [
+      date.getUTCSeconds(),
+      date.getUTCMinutes(),
+      date.getUTCHours(),
+      date.getUTCDate(),
+      date.getUTCMonth(),
+      year - 1900,
+      date.getUTCDay(),
+      Math.floor((date.getTime() - jan.getTime()) / 864e5),
+      0,
+      0
+    ];
+    const tm = new DataView(api.memory.buffer, out >>> 0, parts.length * 4);
+    for (const [i, value] of parts.entries()) tm.setInt32(i * 4, value, true);
   };
   const env = {
-    _abort_js: abort,
-    __assert_fail: abort,
-    _emscripten_throw_longjmp: abort,
+    _abort_js: unsupported("abort"),
+    __assert_fail: unsupported("assertion"),
+    _emscripten_throw_longjmp: unsupported("unwind"),
     emscripten_date_now: () => 0,
-    _tzset_js: abort,
-    _localtime_js: abort,
-    _gmtime_js: abort,
+    _localtime_js: utcTime,
+    _gmtime_js: utcTime,
+    _tzset_js: (timezone, daylight, standard, summer) => {
+      const data = new DataView(api.memory.buffer);
+      data.setInt32(timezone >>> 0, 0, true);
+      data.setInt32(daylight >>> 0, 0, true);
+      for (const ptr of [standard, summer]) new Uint8Array(api.memory.buffer, ptr >>> 0, 4).set([85, 84, 67, 0]);
+    },
     _emscripten_memcpy_js: (to, from, len) => {
       new Uint8Array(api.memory.buffer).copyWithin(to, from, from + len);
     },

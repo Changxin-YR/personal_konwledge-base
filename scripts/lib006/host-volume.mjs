@@ -58,17 +58,25 @@ async function click(doc,tail,text,status){
 const snapshot=d=>sql(dbPath(host.data),'SELECT page,state,generation,text,chapter,error FROM pdf_pages WHERE version_id=? ORDER BY page',[d.version_id])
 const terminal=d=>until(async()=>{const s=await checked(await get(parse(d)),200);return ['partial','complete','failed'].includes(s.state)&&s},'all targeted pages',240_000)
 const stateSummary=rows=>Object.fromEntries(['ready','review','failed','pending'].map(s=>[s,rows.filter(r=>r.state===s).length]))
+const selectedPage=p=>ranges.some(([a,b])=>p>=a&&p<=b)
+const spotPages=[...new Set(ranges.flatMap(([a,b])=>[a,Math.floor((a+b)/2),b]))]
 async function screenshot(file,element=tab){const png=await element.screenshot({path:join(out,file)});facts.screens.push({file,sha256:sha(png)})}
 async function original(d){const r=await get(ver(d)+'/original');assert.equal(r.status(),200);assert.equal(sha(await r.body()),sourceHash)}
 async function openPage(d,p){
-  const t=performance.now(),res=await checked(await get(ver(d)+`/reader?unit=${p}`),200)
+  const t=performance.now(),r=await get(ver(d)+`/reader?unit=${p}`)
+  assert.equal(r.status(),200,`physical page ${p}: HTTP ${r.status()}`)
+  const {data:res}=await r.json()
   assert.equal(res.ordinal,p);assert.equal(res.version_id,d.version_id)
   return {res,http_ms:elapsed(t)}
 }
 async function search(subject,d,row,query){
-  const t=performance.now(),r=await post('/search',{query}),json=await r.json(),hit=json.data?.items?.some(x=>x.version_id===d.version_id&&x.ordinal===row.page)
-  facts.search[subject]={http:r.status(),error:json.error?.code??null,physical_page:row.page,matched:hit===true,elapsed_ms:elapsed(t)}
+  const t=performance.now(),r=await post('/search',{query}),json=await r.json(),hit=json.data?.items?.find(x=>x.version_id===d.version_id&&x.ordinal===row.page)
+  facts.search[subject]={http:r.status(),error:json.code??null,physical_page:row.page,matched:!!hit,elapsed_ms:elapsed(t)}
+  if(hit)assert.deepEqual([hit.source_hash,hit.quote],[sha(row.text),row.text.slice(hit.start,hit.end)])
+  return hit&&[hit.ordinal,hit.source_hash,hit.start,hit.end,hit.quote]
 }
+const pageWitness=({res,http_ms},p)=>{assert.match(res.image,/^data:image\/png;base64,/);return {page:p,original_sha256:res.original_sha256,
+  text_sha256:sha(res.text),image_sha256:sha(res.image),state:res.state,http_ms}}
 
 try{
   host=await isolate(candidate,entry);facts.binding=host.facts
@@ -84,7 +92,7 @@ try{
   await until(()=>host.events().some(e=>e.event==='held'&&e.page===holdPage),'hold real next reply',120_000)
   const paused=snapshot(whole);assert.equal(paused.length,total)
   assert(paused.slice(0,holdPage-1).every(p=>p.generation===1));assert(paused.slice(holdPage-1).every(p=>p.state==='pending'&&p.generation===0))
-  const probe=paused.slice(0,holdPage-1).reverse().find(p=>p.state==='ready'&&/[A-Za-z]{8,}/.test(p.text))
+  const probe=paused.slice(0,holdPage-1).reverse().find(p=>selectedPage(p.page)&&p.state==='ready'&&/[A-Za-z]{8,}/.test(p.text))
   assert(probe,'must have searchable real text before cancellation')
   const query=[...probe.text.matchAll(/[A-Za-z]{8,}/g)].map(m=>m[0]).sort((a,b)=>b.length-a.length)[0]
   await tab.locator('#parse-refresh').click();await tab.locator('#parse-summary').getByText(/未处理 [1-9]/).waitFor()
@@ -103,14 +111,17 @@ try{
     failed_pages:wholeRows.filter(p=>p.state==='failed').map(p=>p.page),review_pages:wholeRows.filter(p=>p.state==='review').map(p=>p.page)}
   assert(wholeRows.every(r=>r.generation===1));assert.deepEqual(wholeRows.slice(0,holdPage-1),paused.slice(0,holdPage-1))
   assert.deepEqual(host.events().filter(e=>e.event==='request').map(e=>e.page),wholeRows.slice(holdPage-1).map(r=>r.page))
-  await original(whole);await search('whole_terminal',whole,probe,query);memory()
+  await original(whole);const wholeHit=await search('whole_terminal',whole,probe,query)
+  facts.compare=[]
+  for(const p of spotPages)facts.compare.push({whole:pageWitness(await openPage(whole,p),p)})
+  memory()
 
   phase='chapter import';await login('split');assert.equal((await get(ver(whole)+'/reader?unit=2')).status(),404)
   const split=await upload('split');await library(split)
   await tab.locator('#parse-mode').selectOption('chapters');await tab.locator('#parse-ranges').fill(rangeArg)
   const splitStart=performance.now();assert.deepEqual((await click(split,'/chapters','开始解析',202)).chapters,ranges)
   const splitStatus=await terminal(split);facts.timing_ms.split_start_to_terminal=elapsed(splitStart)
-  const splitRows=snapshot(split),target=p=>ranges.some(([a,b])=>p>=a&&p<=b)
+  const splitRows=snapshot(split),target=selectedPage
   facts.split={state:splitStatus.state,counts:stateSummary(splitRows),outside:splitRows.filter(r=>!target(r.page)).length,
     failed_pages:splitRows.filter(p=>p.state==='failed').map(p=>p.page),review_pages:splitRows.filter(p=>p.state==='review').map(p=>p.page)}
   const selected=splitRows.filter(r=>target(r.page))
@@ -122,11 +133,12 @@ try{
   const first=selected.find(p=>p.state==='ready'||p.state==='review'),link=tab.locator('#parse-chapters').getByRole('link').first()
   assert.match(await link.getAttribute('href'),new RegExp('unit='+first.page+'$'));await link.click()
   await tab.locator('#original img').waitFor();assert.equal(await tab.locator('#number').inputValue(),String(first.page))
-  facts.compare=[]
-  for(const p of new Set(ranges.flat().concat([Math.floor((ranges[0][0]+ranges[0][1])/2)]))){
-    const b=await openPage(split,p);assert.equal(b.res.text,wholeRows[p-1].text)
-    facts.compare.push({page:p,text_sha256:sha(b.res.text),state:wholeRows[p-1].state,http_ms:b.http_ms})
+  for(const item of facts.compare){
+    const {page,text_sha256,image_sha256,state}=item.whole,b=await openPage(split,page);item.split=pageWitness(b,page)
+    assert.deepEqual([item.split.text_sha256,item.split.image_sha256,item.split.state,item.split.original_sha256],[text_sha256,image_sha256,state,sourceHash])
   }
+  const splitHit=await search('split_terminal',split,probe,query)
+  assert(wholeHit&&splitHit);assert.deepEqual(splitHit,wholeHit)
   await original(split);memory()
   assert.equal(facts.whole.failed_pages.length,0,'unexpected real extraction failures')
   assert(facts.search.whole_terminal.matched,'completed textbook is not discoverable by the same verified query')

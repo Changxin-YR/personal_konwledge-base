@@ -12,8 +12,10 @@ export const SEARCH_SCHEMA=`CREATE TABLE search_queries (
 ) STRICT;
 CREATE INDEX search_queries_actor ON search_queries(actor_id,created_at);`
 
-const indexVersion='lexical-nfkc-ngram-v1'
-const maxWork=1_000_000, maxResults=30, maxCache=256_000
+const indexVersion='lexical-nfkc-v2'
+// A real 664-page textbook has ~1.9M UTF-16 units. Still bound both
+// normalization work and per-source bookkeeping, independently of the result cap.
+const maxWork=4*1024*1024, maxSources=20_000, maxResults=30, maxCache=256_000
 const sha=(text:string)=>createHash('sha256').update(text,'utf8').digest('hex')
 const sourceSQL=`SELECT v.asset_id AS asset_id,v.id AS version_id,v.version,v.original_name AS title,
     p.page AS ordinal,p.chapter AS chapter,'pdf' AS kind,p.state AS state,p.text AS text,NULL AS conversion_id
@@ -43,7 +45,7 @@ export class SearchStore {
   private indexed(hash:string,text:string){
     const hit=this.cache.get(hash)
     if(hit){this.cache.delete(hash);this.cache.set(hash,hit);return hit.index}
-    const index=indexSearchText(text),weight=index.ranges.length+index.grams.size*3
+    const index=indexSearchText(text),weight=index.ranges.length
     if(weight>maxCache)return index
     while(this.weight+weight>maxCache){const key=this.cache.keys().next().value!;this.weight-=this.cache.get(key)!.weight;this.cache.delete(key)}
     this.cache.set(hash,{index,weight});this.weight+=weight;return index
@@ -57,11 +59,11 @@ export class SearchStore {
       const ids=db.prepare(`SELECT a.id FROM assets a JOIN knowledge_objects o ON a.id=o.id WHERE o.service_id=? AND o.status='active'`)
         .all(a.serviceId).map(r=>String(r.id)).filter(id=>this.allowed(a,id,now))
       const bound=JSON.stringify(ids),results:Candidate[]=[]
-      let work=0
+      let work=0,sources=0
       for(const row of db.prepare(sourceSQL).iterate(bound,bound,bound)){
         const {text,conversion_id,...source}=row as unknown as Unit
         work+=text.length
-        if(work>maxWork)throw new AssetError(503,'SEARCH_WORK_LIMIT')
+        if(work>maxWork||++sources>maxSources)throw new AssetError(503,'SEARCH_WORK_LIMIT')
         const source_hash=sha(text),match=matchSearchText(this.indexed(source_hash,text),query)
         if(!match)continue
         const from=Math.max(0,match.start-70),to=Math.min(text.length,match.end+70)

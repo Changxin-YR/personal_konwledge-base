@@ -6,10 +6,9 @@ const aliases = new Map<string, readonly string[]>(bilingual.flatMap(([a,b]) => 
 
 type Range = {start:number;end:number}
 export interface SearchQuery { readonly terms: readonly (readonly string[])[]; readonly phrase: string; readonly normalized: string }
-export interface SearchText { readonly normalized:string; readonly ranges:readonly Range[]; readonly grams:ReadonlySet<string> }
+export interface SearchText { readonly normalized:string; readonly ranges:readonly Range[] }
 
 const normalize = (s:string) => s.normalize('NFKC').toLowerCase()
-const termGram = (s:string) => Array.from(s).slice(0,3).join('')
 export function compileSearchQuery(raw:string):SearchQuery {
   if (raw.length > 256 || Array.from(raw).length > 128) throw new Error('INVALID_SEARCH_QUERY')
   const value=normalize(raw).trim().replace(/\(\)$/,'')
@@ -27,14 +26,7 @@ export function indexSearchText(source:string):SearchText {
     // Map every normalized UTF-16 unit back to the complete original grapheme.
     for(let i=0;i<value.length;i++)ranges.push(range)
   }
-  const normalized=parts.join(''), codepoints=Array.from(normalized), grams=new Set<string>()
-  for(let i=0;i<codepoints.length;i++){
-    const a=codepoints[i]!,b=codepoints[i+1],c=codepoints[i+2]
-    grams.add(a)
-    if(b!==undefined)grams.add(a+b)
-    if(c!==undefined)grams.add(a+b+c)
-  }
-  return {normalized,ranges,grams}
+  return {normalized:parts.join(''),ranges}
 }
 
 export function matchSearchText(index:SearchText,query:SearchQuery): (Range&{score:number})|null {
@@ -45,7 +37,6 @@ export function matchSearchText(index:SearchText,query:SearchQuery): (Range&{sco
   for(const variants of query.terms){
     let found:typeof first
     for(const [i,text] of variants.entries()){
-      if(!index.grams.has(termGram(text)))continue
       const at=index.normalized.indexOf(text)
       if(at!==-1){found=range(at,text.length,i===0?2:1);break}
     }

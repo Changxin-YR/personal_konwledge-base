@@ -30,7 +30,7 @@ test('matches point back to whole original graphemes with UTF-16 offsets', () =>
   }
 })
 
-test('grams are only an accelerator, never proof of a contiguous term', () => {
+test('lookup requires contiguous text and prefers direct terms over aliases', () => {
   assert.equal(match('abc bcd cde', 'abcde'), null)
   assert.equal(match('notwithstanding', 'standing')?.start, 7)
   const direct = match('deadlock', 'deadlock')

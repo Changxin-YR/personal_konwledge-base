@@ -20,6 +20,29 @@ const publish=(s,a,title,text,previous)=>{
     {key,sha256:digest(bytes),byteLength:bytes.length},pdf?undefined:{media:'text/markdown',...decodeText(bytes,'text/markdown')}).receipt
 }
 
+test('search reaches a known physical page after a real-book-sized authorized corpus and still fails closed above its work bound',async()=>{
+  const dir=mkdtempSync(join(tmpdir(),'kos-search-volume-')), {actor}=await seed(live,dir)
+  const s=new ProbeStorage({dataDir:dir}),db=dbAt(dir)
+  try{
+    const book=publish(s,actor,'volume.pdf','PDF metadata fixture')
+    const total=1600, mark='physicalpageneedle', clause='scope, systems and sources '.repeat(110)
+    db.prepare("INSERT INTO pdf_parse_runs(version_id,session_id,user_id,state,total) VALUES(?,?,?,'partial',?)")
+      .run(book.version_id,actor.sessionId,actor.userId,total)
+    const insert=db.prepare("INSERT INTO pdf_pages(version_id,page,state,text) VALUES(?,?,'ready',?)")
+    db.exec('BEGIN')
+    for(let page=1;page<=710;page++)insert.run(book.version_id,page,clause+(page===700?mark:'')+page)
+    db.exec('COMMIT')
+    const got=s.search.search(actor,mark)
+    assert.deepEqual(got.items.map(r=>[r.version_id,r.ordinal,r.quote]),[[book.version_id,700,mark]])
+    assert.equal(s.search.revalidate(actor,got.query_id).query_id,got.query_id)
+    db.exec('BEGIN')
+    for(let page=711;page<=total;page++)insert.run(book.version_id,page,clause+page)
+    db.exec('COMMIT')
+    assert.throws(()=>s.search.search(actor,mark),{status:503,code:'SEARCH_WORK_LIMIT'})
+    assert.equal(db.prepare('SELECT count(*) AS n FROM search_queries').get().n,1)
+  }finally{db.close();s.close()}
+})
+
 test('ranker excludes private content, can search separately granted project content, and rejects a cached query after revoke',async()=>{
   const dir=mkdtempSync(join(tmpdir(),'kos-search-acl-')), {actor:owner}=await seed(live,dir)
   const s=new ProbeStorage({dataDir:dir}), db=dbAt(dir), u=new IdentityService(s)
