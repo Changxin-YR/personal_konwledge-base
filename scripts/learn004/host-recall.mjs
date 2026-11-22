@@ -40,7 +40,7 @@ const begin=old[0].indexOf('Page 1 Row 10 ')+5,end=old[2].indexOf('Page 3 Row 21
 const expected=[[1,begin,old[0].length,hashes[0]],[2,0,old[1].length,hashes[1]],[3,0,end,hashes[2]]]
 const defTerms=terms.map((term,i)=>old[i===3?1:0].indexOf(term))
 assert(defTerms.every(n=>n>=0));assert(expected.reduce((n,p)=>n+p[2]-p[1],0)>5000)
-const facts={candidate_sha:candidate,entry_sha256:entry,runner_sha256:runner,node:process.version,status:'NOT_RUN',T01:'NOT_RUN',T02:'NOT_RUN',P04:'NOT_RUN',checks:[],shots:[],boots:[]}
+const facts={candidate_sha:candidate,entry_sha256:entry,runner_sha256:runner,node:process.version,status:'NOT_RUN',T01:'NOT_RUN',T02:'NOT_RUN',P04:'NOT_RUN',checks:[],shots:[],recordings:[],boots:[]}
 let h,browser,phase='binding'
 const pass=(id,details)=>facts.checks.push({id,status:'PASS',details})
 const prefix='/knowledge/v1',marker={'x-knowledgeos-request':'1'},recall='/recall',password=randomUUID()
@@ -56,8 +56,8 @@ async function request(ctx,path,code,{method='GET',headers={},data}={}){
 }
 const post=(ctx,path,data,code=201,key=randomUUID())=>request(ctx,path,code,{method:'POST',data,headers:{'idempotency-key':key}})
 const patch=(ctx,path,data,code=200,key=randomUUID())=>request(ctx,path,code,{method:'PATCH',data,headers:{'idempotency-key':key}})
-async function login(name,viewport){
-  const ctx=await browser.newContext({viewport}),page=await ctx.newPage();await page.goto(h.base+'/knowledgeos/account')
+async function login(name,viewport,record=false){
+  const ctx=await browser.newContext({viewport,...(record?{recordVideo:{dir:out,size:viewport}}:{})}),page=await ctx.newPage();await page.goto(h.base+'/knowledgeos/account')
   await page.locator('#login_name').fill(name);await page.locator('#login_password').fill(password);await page.locator('#login').click();await page.locator('#profile').waitFor()
   return {ctx,page,user:(await request(ctx,'/me',200)).id}
 }
@@ -71,6 +71,11 @@ async function parse(ctx,doc){
   return until(async()=>{const p=await request(ctx,path,200);return ['complete','partial'].includes(p.state)&&p},'PDF extraction',60_000)
 }
 async function screen(page,name){const b=await page.screenshot({path:join(out,name+'.png')});facts.shots.push({name,sha256:sha(b)})}
+async function recording({ctx,page},name){
+  const file=name+'.webm',video=page.video();assert(video);await ctx.close();await video.saveAs(join(out,file));await video.delete()
+  const bytes=readFileSync(join(out,file));assert.equal(bytes.subarray(0,4).toString('hex'),'1a45dfa3');assert(bytes.length>30_000)
+  facts.recordings.push({file,sha256:sha(bytes),byte_length:bytes.length})
+}
 async function drag(page,startPage,start,endPage,end){
   await page.locator('#source-title').click();assert(await page.evaluate(()=>getSelection().isCollapsed))
   // A DOM Range measures glyph positions only; mouse events create the actual selection.
@@ -99,7 +104,7 @@ try{
   const boot=await h.start(),cookie=await entryCookie(boot.entry);facts.boots.push(boot.pid)
   assert.equal((await api(h.port,cookie.cookie,'POST',prefix+'/auth/bootstrap',{login_name:'owner',display_name:'Owner',password})).status,201)
   assert.equal((await api(h.port,'','POST',prefix+'/auth/register',{login_name:'peer',display_name:'Peer',password})).status,201)
-  await launch();const owner=await login('owner',{width:1280,height:3000}),peer=await login('peer'),{ctx,page,user}=owner
+  await launch();const owner=await login('owner',{width:1280,height:3000},true),peer=await login('peer'),{ctx,page,user}=owner
   phase='PDF source and actual mouse drags';const doc=await upload(ctx,'oldsource')
   const parsed=await parse(ctx,doc);assert.equal(parsed.state,'complete');assert.equal(parsed.total,3)
   const byPage=await request(ctx,pathOf(doc)+'/pages?from=1&limit=3',200);assert.deepEqual(byPage.pages.map(p=>p.text),old)
@@ -149,8 +154,8 @@ try{
   assert.equal(await patch(ctx,path,pair[loser].body,409,pair[win].key),'IDEMPOTENCY_CONFLICT')
   assert.equal(rows('SELECT count(*) n FROM recall_events WHERE material_id=?',[id])[0].n,6)
 
-  phase='restart and publish replacement';await browser.close();browser=null;await h.stop()
-  facts.boots.push((await h.start()).pid);await launch();const resumed=await login('owner',{width:430,height:850})
+  phase='restart and publish replacement';await recording(owner,'01-drag-and-practice');await browser.close();browser=null;await h.stop()
+  facts.boots.push((await h.start()).pid);await launch();const resumed=await login('owner',{width:430,height:850},true)
   const fresh=await upload(resumed.ctx,'newsource',doc);assert.equal(fresh.id,doc.id);assert.notEqual(fresh.version_id,doc.version_id)
   assert.equal((await parse(resumed.ctx,fresh)).state,'complete');assert.deepEqual((await request(resumed.ctx,pathOf(fresh)+'/pages?from=1&limit=3',200)).pages.map(p=>p.text),[1,2,3].map(n=>textFor(n,'newsource')))
   const restored=await request(resumed.ctx,path,200);assert(restored.source_changed);assert.equal(restored.material.version_id,doc.version_id)
@@ -184,7 +189,7 @@ try{
   assert.equal(rows('SELECT count(*) n FROM recall_events WHERE material_id=?',[practice.material.id])[0].n,0)
   assert.deepEqual(rows('PRAGMA foreign_key_check'),[])
   pass('REAL_REVOCATION',{fixture:'project source binding only',source_and_practice_denied:true,failed_write_has_no_event:true,dom_cleared:true})
-  facts.T02='PASS';facts.P04='PASS';facts.status='PASS'
+  await recording(resumed,'02-resume-after-host-restart');facts.T02='PASS';facts.P04='PASS';facts.status='PASS'
 }catch(e){facts.status='FAIL';facts.phase=phase;facts.error=String(e.stack);console.error(e);process.exitCode=1}
 finally{
   try{await browser?.close()}finally{
