@@ -27,6 +27,7 @@ import { PdfOriginals } from './pdf-originals.ts'
 import { libraryHandler } from './library-http.ts'
 import { createNoteHandler } from './note-http.ts'
 import { createRecallHandler } from './recall-http.ts'
+import { createInvitationHandler } from './invitation-http.ts'
 import { ReaderService } from './reader-http.ts'
 import { render as renderReaderPage } from './reader-render.ts'
 import { startParseWorker } from './parse-worker.ts'
@@ -39,6 +40,7 @@ import { buildLibraryHtml } from './library-page.ts'
 import { buildReaderHtml } from './reader-page.ts'
 import { buildNotesHtml } from './note-page.ts'
 import { buildRecallHtml } from './recall-page.ts'
+import { buildInvitationHtml } from './invitation-page.ts'
 
 export { Config }
 
@@ -274,6 +276,11 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
         const sessionFor=(req:import('node:http').IncomingMessage)=>{const origin=actualOrigin();if(!origin||!identityAvailable())return undefined;return identity.actor(readCookie(req,businessCookieName(identity.setupState.serviceId,origin)))}
         const handler=libraryHandler(storage.assets,originals,actualOrigin,sessionFor,storage.parses,storage.office,()=>!!officeMount,storage.archives,reader,storage.search)
         const notes=createNoteHandler(storage.notes,actualOrigin,sessionFor)
+        disposers.push(identityContext.webServer.register({kind:'prefix',path:'/knowledge/v1/invitations',auth:'anonymous',handler:withPeer(createInvitationHandler(storage.invitations,actualOrigin,sessionFor))}))
+        disposers.push(identityContext.webServer.register({kind:'exact',path:'/knowledgeos/invitations',auth:'anonymous',handler:(req,res)=>{
+          if(req.method!=='GET'){res.writeHead(405,{allow:'GET'});res.end();return}
+          res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer'});res.end(buildInvitationHtml())
+        }}))
         disposers.push(identityContext.webServer.register({kind:'prefix',path:'/knowledge/v1/recall',auth:'anonymous',handler:withPeer(createRecallHandler(storage.recall,actualOrigin,sessionFor))}))
         disposers.push(identityContext.webServer.register({kind:'exact',path:'/knowledgeos/recall',auth:'anonymous',handler:(req,res)=>{
           if(req.method!=='GET'){res.statusCode=405;res.end();return}

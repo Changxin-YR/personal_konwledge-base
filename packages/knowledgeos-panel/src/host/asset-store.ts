@@ -68,8 +68,11 @@ export class AssetStore {
 
   list(prior:SessionActor):AssetReceipt[] { return this.tx('read',(db,now)=>{
     const actor=this.actor(prior,now);return db.prepare(receiptSQL+`JOIN knowledge_objects o ON o.id=v.asset_id
-      WHERE o.owner_user_id=? AND o.service_id=? AND o.status='active'
-      ORDER BY v.created_at DESC,v.version DESC,v.id`).all(actor.userId,actor.serviceId).filter(v=>this.allowed(actor,String(v.id),'read',now)).map(receipt)
+      WHERE o.service_id=? AND o.status='active' AND (o.owner_user_id=? OR EXISTS(
+        SELECT 1 FROM invitations i JOIN invitation_redemptions r ON r.invitation_id=i.id
+        WHERE i.object_id=o.id AND i.service_id=o.service_id AND r.user_id=? AND i.revoked_at IS NULL
+          AND r.revoked_at IS NULL AND r.expires_at=i.expires_at AND r.expires_at>?))
+      ORDER BY v.created_at DESC,v.version DESC,v.id`).all(actor.serviceId,actor.userId,actor.userId,now).filter(v=>this.allowed(actor,String(v.id),'read',now)).map(receipt)
   }) }
 
   original(prior:SessionActor,id:string,versionId:string,download:boolean) {return this.tx('read',(db,now)=>{

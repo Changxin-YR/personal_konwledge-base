@@ -3,6 +3,7 @@ import type { SessionActor } from './identity.ts'
 export const AUTH_ACTIONS = ['read', 'comment', 'edit', 'export', 'manage_share', 'delete', 'review', 'view_learning_records'] as const
 export type AuthorizationAction = typeof AUTH_ACTIONS[number]
 export type ResourceScope = 'personal' | 'project'
+export type AuthorizationPrincipal = Pick<SessionActor, 'userId' | 'serviceId' | 'personalSpaceId'>
 
 export interface AuthorizationTarget {
   readonly serviceId: string
@@ -42,18 +43,21 @@ export function isGrantActive(grant: Pick<AuthorizationGrant, 'validFrom' | 'exp
  * time. Missing or stale grants are denied by default.
  */
 export function authorize(
-  actor: SessionActor,
+  actor: AuthorizationPrincipal,
   target: AuthorizationTarget,
   action: AuthorizationAction,
   now: string,
   grants: readonly AuthorizationGrant[] = [],
   memberships: readonly ProjectMembership[] = [],
+  documentInvitations: readonly AuthorizationGrant[] = [],
 ): boolean {
-  if (target.status !== 'active' || target.serviceId !== actor.serviceId || target.spaceId !== actor.personalSpaceId && target.scope === 'personal') return false
-  if (target.scope === 'personal') return target.ownerUserId === actor.userId
+  if (target.status !== 'active' || target.serviceId !== actor.serviceId) return false
+  const invited = (action === 'read' || action === 'edit') && documentInvitations.some(item =>
+    item.subjectType === 'user' && item.subjectId === actor.userId && item.action === action && isGrantActive(item, now))
+  if (target.scope === 'personal') return (target.spaceId === actor.personalSpaceId && target.ownerUserId === actor.userId) || invited
   if (target.projectId === undefined) return false
   const member = memberships.some(item => item.projectId === target.projectId && item.userId === actor.userId && isGrantActive(item, now))
   if (!member) return false
-  return grants.some(item => item.subjectType === 'user' && item.subjectId === actor.userId && item.action === action && isGrantActive(item, now))
+  return invited || grants.some(item => item.subjectType === 'user' && item.subjectId === actor.userId && item.action === action && isGrantActive(item, now))
     || grants.some(item => item.subjectType === 'project' && item.subjectId === target.projectId && item.action === action && isGrantActive(item, now) && member)
 }

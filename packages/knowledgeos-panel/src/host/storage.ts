@@ -22,7 +22,7 @@ import type {
   UserCreateInput,
   UserRecord,
 } from './identity.ts'
-import { authorize, isGrantActive, type AuthorizationAction, type AuthorizationGrant, type AuthorizationTarget, type ProjectMembership, type ResourceScope } from './authorization.ts'
+import { authorize, isGrantActive, type AuthorizationAction, type AuthorizationGrant, type AuthorizationPrincipal, type AuthorizationTarget, type ProjectMembership, type ResourceScope } from './authorization.ts'
 import type { CreateOutcome, ProbeRecord, ProbeStorePort } from './records.ts'
 import { RecordsError } from './records.ts'
 import {ASSET_SCHEMA, AssetStore, AssetError} from './asset-store.ts'
@@ -40,12 +40,14 @@ import {ANNOTATION_SCHEMA} from './annotation-store.ts'
 import {CITATION_LOCATOR_SCHEMA} from './citation-locator-schema.ts'
 import {NOTE_SCHEMA,NoteStore} from './note-store.ts'
 import {RECALL_SCHEMA,RecallStore} from './recall-store.ts'
+import {INVITATION_SCHEMA,InvitationStore,type InvitationTarget} from './invitation-store.ts'
 
 /** Fixed application identity written to PRAGMA application_id (KOS1). */
 export const APPLICATION_ID = 0x4b4f5331
 /** Current application schema version. */
-export const SCHEMA_VERSION = 22
-type VerifiedSchema = 6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22
+export const SCHEMA_VERSION = 23
+type VerifiedSchema = 6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23
+export const MIGRATION_V23_CHECKSUM = createHash('sha256').update(INVITATION_SCHEMA).digest('hex')
 export const MIGRATION_V22_CHECKSUM = createHash('sha256').update(RECALL_SCHEMA).digest('hex')
 export const MIGRATION_V21_CHECKSUM = createHash('sha256').update(NOTE_SCHEMA).digest('hex')
 export const MIGRATION_V20_CHECKSUM = createHash('sha256').update(PDF_CHAPTER_SCHEMA).digest('hex')
@@ -276,6 +278,7 @@ export interface ProbeStorageOptions {
     | 'v20:after-schema'
     | 'v21:after-schema'
     | 'v22:after-schema'
+    | 'v23:after-schema'
 }
 
 export interface DatabaseFacts {
@@ -403,6 +406,11 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
   })
   readonly recall = new RecallStore(this.#assetTx,(s,now)=>this.#currentActor(s,now),(a,id,now)=>Boolean(this.authorizeObject(a,id,'read',now)),
     (db,a,t,now)=>this.citations.recallSource(db,a,t,now))
+  readonly invitations = new InvitationStore(this.#assetTx,(s,now)=>this.#currentActor(s,now),(db,user,service)=>{
+    const row=db.prepare(`SELECT p.id FROM users u JOIN spaces p ON p.owner_user_id=u.id AND p.kind='personal'
+      WHERE u.id=? AND u.planning_home_service_id=? AND u.status='active' AND p.status='active' AND p.service_id=?`).get(user,service,service)
+    return row&&{userId:user,serviceId:service,personalSpaceId:String(row.id)}
+  },(a,t,now)=>this.#canIssue(a,t,now),(a,p,now)=>this.canCreateProjectObject(a,p,now))
   readonly office = new OfficeStore(this.#assetTx,(sessionId,userId,id,action,now)=>{
     const actor=this.#currentActor({sessionId,userId},now)
     return !!actor && !!this.authorizeObject(actor,id,action,now)
@@ -490,6 +498,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       if (priorVersion<20) this.#migrateV20(db)
       if (priorVersion<21) this.#migrateV21(db)
       if (priorVersion<22) this.#migrateV22(db)
+      if (priorVersion<23) this.#migrateV23(db)
       this.#verify(db,SCHEMA_VERSION)
       const facts = readDatabaseFacts(path)
       const pragmas = this.#readPragmas(db)
@@ -924,9 +933,19 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     }catch(e){if(!this.#rollback(db))throw this.#failure;throw new RecordsError('STORAGE_INCOMPATIBLE','recall migration failed',false,{cause:e})}
   }
 
+  #migrateV23(db:DatabaseSync):void {
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      db.exec(INVITATION_SCHEMA)
+      this.#injectFailure('v23:after-schema')
+      db.prepare('INSERT INTO schema_migrations VALUES(23,?,?)').run(MIGRATION_V23_CHECKSUM,new Date().toISOString())
+      db.exec('PRAGMA user_version=23; COMMIT')
+    }catch(e){if(!this.#rollback(db))throw this.#failure;throw new RecordsError('STORAGE_INCOMPATIBLE','invitation migration failed',false,{cause:e})}
+  }
+
   #verify(db: DatabaseSync, version:VerifiedSchema): void {
     const facts = readDatabaseFacts(this.databasePath)
-    const checks=[MIGRATION_V6_CHECKSUM,MIGRATION_V7_CHECKSUM,MIGRATION_V8_CHECKSUM,MIGRATION_V9_CHECKSUM,MIGRATION_V10_CHECKSUM,MIGRATION_V11_CHECKSUM,MIGRATION_V12_CHECKSUM,MIGRATION_V13_CHECKSUM,MIGRATION_V14_CHECKSUM,MIGRATION_V15_CHECKSUM,MIGRATION_V16_CHECKSUM,MIGRATION_V17_CHECKSUM,MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM,MIGRATION_V20_CHECKSUM,MIGRATION_V21_CHECKSUM,MIGRATION_V22_CHECKSUM].slice(0,version-5)
+    const checks=[MIGRATION_V6_CHECKSUM,MIGRATION_V7_CHECKSUM,MIGRATION_V8_CHECKSUM,MIGRATION_V9_CHECKSUM,MIGRATION_V10_CHECKSUM,MIGRATION_V11_CHECKSUM,MIGRATION_V12_CHECKSUM,MIGRATION_V13_CHECKSUM,MIGRATION_V14_CHECKSUM,MIGRATION_V15_CHECKSUM,MIGRATION_V16_CHECKSUM,MIGRATION_V17_CHECKSUM,MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM,MIGRATION_V20_CHECKSUM,MIGRATION_V21_CHECKSUM,MIGRATION_V22_CHECKSUM,MIGRATION_V23_CHECKSUM].slice(0,version-5)
     if(facts.applicationId!==APPLICATION_ID || facts.userVersion!==version || facts.ledger.length!==version || checks.some((hash,i)=>facts.ledger[i+5]?.version!==i+6||facts.ledger[i+5]?.checksum!==hash))throw new RecordsError('STORAGE_INCOMPATIBLE','database ownership/version verification failed')
     const reference = new DatabaseSync(':memory:')
     try {
@@ -947,6 +966,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       if(version>=20)reference.exec(PDF_CHAPTER_SCHEMA)
       if(version>=21)reference.exec(NOTE_SCHEMA)
       if(version>=22)reference.exec(RECALL_SCHEMA)
+      if(version>=23)reference.exec(INVITATION_SCHEMA)
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all()
       for (const {name,sql} of definitions) {
         if (db.prepare('SELECT sql FROM sqlite_master WHERE name=?').get(name!)?.sql!==sql) throw new RecordsError('STORAGE_INCOMPATIBLE','jobs schema definition mismatch')
@@ -1155,7 +1175,31 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
   }
 
   #memberships(db: DatabaseSync, projectId: string): ProjectMembership[] {
-    return (db.prepare('SELECT project_id, user_id, role, valid_from, expires_at, revoked_at FROM project_memberships WHERE project_id = ?').all(projectId) as Record<string, unknown>[]).map(row => ({ projectId: String(row.project_id), userId: String(row.user_id), role: String(row.role), validFrom: String(row.valid_from), expiresAt: row.expires_at == null ? undefined : String(row.expires_at), revokedAt: row.revoked_at == null ? undefined : String(row.revoked_at) }))
+    return db.prepare(`SELECT project_id,user_id,role,valid_from,expires_at,revoked_at FROM project_memberships WHERE project_id=?
+      UNION ALL SELECT i.project_id,r.user_id,'member',r.redeemed_at,r.expires_at,r.revoked_at
+      FROM invitations i JOIN invitation_redemptions r ON r.invitation_id=i.id
+      JOIN knowledge_projects p ON p.id=i.project_id AND p.service_id=i.service_id AND p.status='active'
+      WHERE i.project_id=? AND i.permission='member' AND i.revoked_at IS NULL AND r.expires_at=i.expires_at`).all(projectId,projectId).map(row => ({ projectId: String(row.project_id), userId: String(row.user_id), role: String(row.role), validFrom: String(row.valid_from), expiresAt: row.expires_at == null ? undefined : String(row.expires_at), revokedAt: row.revoked_at == null ? undefined : String(row.revoked_at) }))
+  }
+
+  #invitedActions(db:DatabaseSync,actor:AuthorizationPrincipal,object:KnowledgeObjectRecord,action:AuthorizationAction,now:string):AuthorizationGrant[] {
+    if((action!=='read'&&action!=='edit')||object.objectType!=='asset')return []
+    return db.prepare(`SELECT r.redeemed_at,r.expires_at FROM invitations i JOIN invitation_redemptions r ON r.invitation_id=i.id
+      WHERE i.object_id=? AND i.service_id=? AND r.user_id=? AND r.revoked_at IS NULL AND i.revoked_at IS NULL
+      AND i.expires_at=r.expires_at AND r.expires_at>? AND (i.permission='edit' OR i.permission=?)`)
+      .all(object.id,actor.serviceId,actor.userId,now,action).map(r=>({subjectType:'user',subjectId:actor.userId,action,validFrom:String(r.redeemed_at),expiresAt:String(r.expires_at)}))
+  }
+
+  #canIssue(actor:AuthorizationPrincipal,t:InvitationTarget,now:string){
+    if(t.scope==='project'){
+      if(t.permission!=='member'||!this.canManageProject(actor,t.id))return
+      const row=this.#ensureReady().prepare('SELECT name FROM knowledge_projects WHERE id=?').get(t.id)
+      return row&&{title:String(row.name)}
+    }
+    if(t.permission!=='read'&&t.permission!=='edit')return
+    const object=this.authorizeObject(actor,t.id,'manage_share',now)
+    if(object?.objectType!=='asset'||!this.authorizeObject(actor,t.id,'read',now)||t.permission==='edit'&&!this.authorizeObject(actor,t.id,'edit',now))return
+    return {title:object.title,project_id:object.projectId}
   }
 
   #loadObject(id: string): KnowledgeObjectRecord | undefined {
@@ -1163,16 +1207,16 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     return row === undefined ? undefined : this.#objectRow(row)
   }
 
-  authorizeObject(actor: SessionActor, objectId: string, action: AuthorizationAction, now: string): KnowledgeObjectRecord | undefined {
+  authorizeObject(actor: AuthorizationPrincipal, objectId: string, action: AuthorizationAction, now: string): KnowledgeObjectRecord | undefined {
     const db = this.#ensureReady(); const object = this.#loadObject(objectId)
     if (object === undefined) return undefined
-    const allowed = authorize(actor, this.#objectTarget(object), action, now, this.#grants(db, object.id), object.projectId === undefined ? [] : this.#memberships(db, object.projectId))
+    const allowed = authorize(actor, this.#objectTarget(object), action, now, this.#grants(db, object.id), object.projectId === undefined ? [] : this.#memberships(db, object.projectId),this.#invitedActions(db,actor,object,action,now))
     return allowed ? object : undefined
   }
 
   listObjects(actor: SessionActor, action: AuthorizationAction, now: string): KnowledgeObjectRecord[] {
     const db = this.#ensureReady(); const rows = db.prepare('SELECT id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at FROM knowledge_objects WHERE service_id = ? AND status = \'active\' ORDER BY created_at, id').all(actor.serviceId) as Record<string, unknown>[]
-    return rows.map(row => this.#objectRow(row)).filter(object => authorize(actor, this.#objectTarget(object), action, now, this.#grants(db, object.id), object.projectId === undefined ? [] : this.#memberships(db, object.projectId)))
+    return rows.map(row => this.#objectRow(row)).filter(object => authorize(actor, this.#objectTarget(object), action, now, this.#grants(db, object.id), object.projectId === undefined ? [] : this.#memberships(db, object.projectId),this.#invitedActions(db,actor,object,action,now)))
   }
 
   createProject(input: { readonly id: string; readonly serviceId: string; readonly ownerUserId: string; readonly name: string; readonly now: string }): ProjectRecord {
@@ -1180,12 +1224,16 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     try { db.exec('BEGIN IMMEDIATE'); tx = true; db.prepare('INSERT INTO knowledge_projects (id, service_id, owner_user_id, name, status, created_at, updated_at) VALUES (?, ?, ?, ?, \'active\', ?, ?)').run(input.id, input.serviceId, input.ownerUserId, input.name, input.now, input.now); db.prepare('INSERT INTO project_memberships (project_id, user_id, role, valid_from) VALUES (?, ?, \'owner\', ?)').run(input.id, input.ownerUserId, input.now); db.exec('COMMIT'); tx = false; return { id: input.id, serviceId: input.serviceId, ownerUserId: input.ownerUserId, name: input.name, status: 'active', createdAt: input.now, updatedAt: input.now } } catch (error: unknown) { if (tx && !this.#rollback(db)) throw new RecordsError('STORAGE_UNAVAILABLE', 'storage transaction state is unknown', false, { cause: error }); throw this.#mapError(error) }
   }
 
-  canManageProject(actor: SessionActor, projectId: string): boolean {
+  canManageProject(actor: AuthorizationPrincipal, projectId: string): boolean {
     const row = this.#ensureReady().prepare('SELECT service_id, owner_user_id, status FROM knowledge_projects WHERE id = ?').get(projectId) as Record<string, unknown> | undefined
     return row !== undefined && String(row.service_id) === actor.serviceId && String(row.owner_user_id) === actor.userId && String(row.status) === 'active'
   }
 
-  canCreateProjectObject(actor: SessionActor, projectId: string, now: string): boolean {
+  ownedProjects(actor:SessionActor){
+    return this.#ensureReady().prepare("SELECT id,name AS title FROM knowledge_projects WHERE service_id=? AND owner_user_id=? AND status='active' ORDER BY created_at DESC,id LIMIT 200").all(actor.serviceId,actor.userId)
+  }
+
+  canCreateProjectObject(actor: AuthorizationPrincipal, projectId: string, now: string): boolean {
     const db = this.#ensureReady()
     const project = db.prepare('SELECT service_id, status FROM knowledge_projects WHERE id = ?').get(projectId) as Record<string, unknown> | undefined
     if (project === undefined || String(project.service_id) !== actor.serviceId || String(project.status) !== 'active') return false

@@ -59,10 +59,10 @@ test('v17 rollback preserves all v16 data and successful upgrade keeps source, b
     assert.equal(broken.available,false);assert.match(broken.failure.cause.message,/v17:after-schema/);broken.close();assert.deepEqual(snapshot(),v16)
     migrated=new ProbeStorage({dataDir:dir});assert(migrated.available,migrated.failure?.message)
     const upgraded=snapshot(),{reader_annotations,search_queries,word_search_runs,word_search_pages,pdf_chapter_ranges,notes,note_nodes,note_references,project_note_refs,schema_migrations,...rows}=upgraded.rows
-    const newTables=['recall_attempts','recall_events','recall_masks','recall_materials','recall_segments','recall_pdf_blank_pages','recall_word_sources']
+    const newTables=['recall_attempts','recall_events','recall_masks','recall_materials','recall_segments','recall_pdf_blank_pages','recall_word_sources','invitations','invitation_redemptions','invitation_audit']
     for(const table of newTables){assert.deepEqual(rows[table],[]);delete rows[table]}
-    assert.equal(upgraded.version,22);assert.deepEqual([reader_annotations,search_queries,word_search_runs,word_search_pages,pdf_chapter_ranges,notes,note_nodes,note_references,project_note_refs],[[],[],[],[],[],[],[],[],[]])
-    assert.deepEqual(schema_migrations.slice(16).map(x=>x.version),[17,18,19,20,21,22]);assert.deepEqual(schema_migrations.slice(0,16),v16.rows.schema_migrations)
+    assert.equal(upgraded.version,23);assert.deepEqual([reader_annotations,search_queries,word_search_runs,word_search_pages,pdf_chapter_ranges,notes,note_nodes,note_references,project_note_refs],[[],[],[],[],[],[],[],[],[]])
+    assert.deepEqual(schema_migrations.slice(16).map(x=>x.version),[17,18,19,20,21,22,23]);assert.deepEqual(schema_migrations.slice(0,16),v16.rows.schema_migrations)
     assert.deepEqual({...rows,schema_migrations:schema_migrations.slice(0,16)},v16.rows)
     assert.deepEqual(migrated.citations.navigation(actor,t),before.navigation);assert.deepEqual(migrated.citations.resolve(actor,c.id),before.citation)
     assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[])

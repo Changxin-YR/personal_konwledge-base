@@ -41,8 +41,8 @@ test('v20 rollback then v21 append preserves actual citation, project and prior 
   try{
     assert.equal(version(),20);s=new ProbeStorage({dataDir:dir,failureAt:'v21:after-schema'});assert.equal(s.available,false);s.close()
     assert.equal(version(),20);assert.deepEqual(snapshot(),prev);assert.equal(db.prepare("SELECT 1 FROM sqlite_schema WHERE name='notes'").get(),undefined)
-    s=new ProbeStorage({dataDir:dir});assert(s.available,s.failure?.message);assert.equal(version(),22)
-    const now=snapshot();assert.equal(now.schema_migrations.pop().version,22);assert.deepEqual(now.schema_migrations.pop().checksum,MIGRATION_V21_CHECKSUM);assert.deepEqual(now,prev)
+    s=new ProbeStorage({dataDir:dir});assert(s.available,s.failure?.message);assert.equal(version(),23)
+    const now=snapshot();assert.equal(now.schema_migrations.pop().version,23);assert.equal(now.schema_migrations.pop().version,22);assert.deepEqual(now.schema_migrations.pop().checksum,MIGRATION_V21_CHECKSUM);assert.deepEqual(now,prev)
     assert.equal(s.citations.resolve(actor,citation.id).quote,'immutable text');assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[])
   }finally{s?.close();db.close()}
 })

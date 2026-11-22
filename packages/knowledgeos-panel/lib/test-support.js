@@ -313,7 +313,7 @@ var AiService = class {
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash13, randomUUID as randomUUID14 } from "node:crypto";
+import { createHash as createHash14, randomUUID as randomUUID15 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -452,13 +452,14 @@ var AUTH_ACTIONS = ["read", "comment", "edit", "export", "manage_share", "delete
 function isGrantActive(grant, now) {
   return grant.revokedAt === void 0 && grant.validFrom <= now && (grant.expiresAt === void 0 || now < grant.expiresAt);
 }
-function authorize(actor, target, action, now, grants = [], memberships = []) {
-  if (target.status !== "active" || target.serviceId !== actor.serviceId || target.spaceId !== actor.personalSpaceId && target.scope === "personal") return false;
-  if (target.scope === "personal") return target.ownerUserId === actor.userId;
-  if (target.projectId === void 0) return false;
-  const member = memberships.some((item) => item.projectId === target.projectId && item.userId === actor.userId && isGrantActive(item, now));
+function authorize(actor, target2, action, now, grants = [], memberships = [], documentInvitations = []) {
+  if (target2.status !== "active" || target2.serviceId !== actor.serviceId) return false;
+  const invited = (action === "read" || action === "edit") && documentInvitations.some((item) => item.subjectType === "user" && item.subjectId === actor.userId && item.action === action && isGrantActive(item, now));
+  if (target2.scope === "personal") return target2.spaceId === actor.personalSpaceId && target2.ownerUserId === actor.userId || invited;
+  if (target2.projectId === void 0) return false;
+  const member = memberships.some((item) => item.projectId === target2.projectId && item.userId === actor.userId && isGrantActive(item, now));
   if (!member) return false;
-  return grants.some((item) => item.subjectType === "user" && item.subjectId === actor.userId && item.action === action && isGrantActive(item, now)) || grants.some((item) => item.subjectType === "project" && item.subjectId === target.projectId && item.action === action && isGrantActive(item, now) && member);
+  return invited || grants.some((item) => item.subjectType === "user" && item.subjectId === actor.userId && item.action === action && isGrantActive(item, now)) || grants.some((item) => item.subjectType === "project" && item.subjectId === target2.projectId && item.action === action && isGrantActive(item, now) && member);
 }
 
 // src/host/asset-store.ts
@@ -503,12 +504,12 @@ var AssetStore = class {
   publish(prior, spec, blob, format, onPublish) {
     const text = format && "blocks" in format ? format : void 0;
     return this.tx("write", (db, now) => {
-      const actor = this.actor(prior, now), digest2 = createHash3("sha256").update(JSON.stringify([spec.title, spec.assetId ?? null, spec.expectedVersion ?? null, blob.sha256, blob.byteLength, ...text ? [text.media, text.encoding] : format ? [format.media] : []])).digest("hex");
+      const actor = this.actor(prior, now), digest3 = createHash3("sha256").update(JSON.stringify([spec.title, spec.assetId ?? null, spec.expectedVersion ?? null, blob.sha256, blob.byteLength, ...text ? [text.media, text.encoding] : format ? [format.media] : []])).digest("hex");
       const prev = db.prepare("SELECT id,asset_id,request_digest FROM asset_versions WHERE created_by=? AND idempotency_key=?").get(actor.userId, spec.key);
       if (prev) {
         this.check(actor, String(prev.asset_id), "read", now);
         this.check(actor, String(prev.asset_id), "edit", now);
-        if (prev.request_digest !== digest2) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        if (prev.request_digest !== digest3) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
         const r = receipt(db.prepare(receiptSQL + "WHERE v.id=?").get(prev.id));
         onPublish?.(db, actor, r);
         return { receipt: r, replayed: true };
@@ -530,7 +531,7 @@ var AssetStore = class {
         db.prepare("INSERT INTO assets VALUES (?)").run(id);
       }
       db.prepare("INSERT INTO blobs VALUES (?,?,?,?,?)").run(bid, blob.key, blob.sha256, blob.byteLength, format?.media ?? "application/pdf");
-      db.prepare("INSERT INTO asset_versions VALUES (?,?,?,?,?,?,?,?,?,?)").run(vid, id, version, parent, bid, spec.title, actor.userId, now, spec.key, digest2);
+      db.prepare("INSERT INTO asset_versions VALUES (?,?,?,?,?,?,?,?,?,?)").run(vid, id, version, parent, bid, spec.title, actor.userId, now, spec.key, digest3);
       if (text) {
         db.prepare("INSERT INTO text_versions VALUES(?,?,?)").run(vid, text.encoding, text.blocks.length);
         const insert = db.prepare("INSERT INTO text_blocks VALUES(?,?,?,?,?,?,?)");
@@ -545,8 +546,11 @@ var AssetStore = class {
     return this.tx("read", (db, now) => {
       const actor = this.actor(prior, now);
       return db.prepare(receiptSQL + `JOIN knowledge_objects o ON o.id=v.asset_id
-      WHERE o.owner_user_id=? AND o.service_id=? AND o.status='active'
-      ORDER BY v.created_at DESC,v.version DESC,v.id`).all(actor.userId, actor.serviceId).filter((v) => this.allowed(actor, String(v.id), "read", now)).map(receipt);
+      WHERE o.service_id=? AND o.status='active' AND (o.owner_user_id=? OR EXISTS(
+        SELECT 1 FROM invitations i JOIN invitation_redemptions r ON r.invitation_id=i.id
+        WHERE i.object_id=o.id AND i.service_id=o.service_id AND r.user_id=? AND i.revoked_at IS NULL
+          AND r.revoked_at IS NULL AND r.expires_at=i.expires_at AND r.expires_at>?))
+      ORDER BY v.created_at DESC,v.version DESC,v.id`).all(actor.serviceId, actor.userId, actor.userId, now).filter((v) => this.allowed(actor, String(v.id), "read", now)).map(receipt);
     });
   }
   original(prior, id, versionId, download) {
@@ -864,8 +868,8 @@ var ZipStore = class {
       v.asset_id,v.id AS version_id,v.version,v.original_name,b.sha256,b.byte_length FROM zip_entries e
       LEFT JOIN asset_versions v ON v.id=e.version_id LEFT JOIN blobs b ON b.id=v.blob_id WHERE e.import_id=? ORDER BY e.ordinal`).all(id);
       const entries = rows.map(({ asset_id, version_id, version, original_name, sha256, byte_length, ...e }) => {
-        const receipt2 = asset_id && this.readable(a, String(asset_id), now) ? { id: asset_id, version_id, version, title: original_name, sha256, byte_length, media_type: e.media_type } : void 0;
-        return { ...e, ...receipt2 ? { receipt: receipt2 } : {} };
+        const receipt3 = asset_id && this.readable(a, String(asset_id), now) ? { id: asset_id, version_id, version, title: original_name, sha256, byte_length, media_type: e.media_type } : void 0;
+        return { ...e, ...receipt3 ? { receipt: receipt3 } : {} };
       });
       const state = rows.some((x) => x.state === "selected") ? "selected" : rows.some((x) => x.state === "failed") ? "partial" : rows.some((x) => x.state === "imported") ? "imported" : "staged";
       return { id, title: r.title, byte_length: r.byte_length, sha256: r.sha256, state, entries };
@@ -876,16 +880,16 @@ var ZipStore = class {
       const a = this.actor(prior, now);
       this.owned(db, a, id);
       if (!uuid.test(key) || !Array.isArray(ids) || !ids.length || ids.length > 512 || ids.some((x) => typeof x !== "string" || !uuid.test(x)) || new Set(ids).size !== ids.length) throw new AssetError(422, "INVALID_SELECTION");
-      const canonical = JSON.stringify([...ids].sort()), digest2 = createHash5("sha256").update(canonical).digest("hex");
+      const canonical = JSON.stringify([...ids].sort()), digest3 = createHash5("sha256").update(canonical).digest("hex");
       const seen = db.prepare("SELECT import_id,selection_digest FROM zip_selections WHERE owner_id=? AND request_key=?").get(a.userId, key);
-      if (seen && (seen.import_id !== id || seen.selection_digest !== digest2)) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+      if (seen && (seen.import_id !== id || seen.selection_digest !== digest3)) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
       const get = db.prepare("SELECT id,ordinal,path,media_type,reason,state,publish_key FROM zip_entries WHERE import_id=? AND id=?");
       const members = ids.map((entry) => {
         const r = get.get(id, entry);
         if (!r || r.reason !== null || !r.media_type) throw new AssetError(422, "INVALID_SELECTION");
         return { id: entry, ordinal: Number(r.ordinal), path: String(r.path), media: String(r.media_type), key: String(r.publish_key), imported: r.state === "imported" };
       });
-      if (!seen) db.prepare("INSERT INTO zip_selections VALUES(?,?,?,?,?,?,?)").run(randomUUID6(), id, a.userId, key, digest2, canonical, now);
+      if (!seen) db.prepare("INSERT INTO zip_selections VALUES(?,?,?,?,?,?,?)").run(randomUUID6(), id, a.userId, key, digest3, canonical, now);
       const mark = db.prepare("UPDATE zip_entries SET state='selected',error=NULL WHERE import_id=? AND id=? AND state IN ('available','failed')");
       for (const entry of ids) mark.run(id, entry);
       return members.sort((a2, b) => a2.ordinal - b.ordinal);
@@ -1366,8 +1370,8 @@ function citationAnchor(text, start, end) {
   return { start, end, quote_hash: hash2(quote), source_hash: hash2(text) };
 }
 function resolveCitationText(text, anchor) {
-  const digest2 = createHash6("sha256").update(text, "utf8").digest("hex");
-  if (digest2 !== anchor.source_hash) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
+  const digest3 = createHash6("sha256").update(text, "utf8").digest("hex");
+  if (digest3 !== anchor.source_hash) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
   const actual = citationAnchor(text, anchor.start, anchor.end);
   if (actual.quote_hash !== anchor.quote_hash) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
   return text.slice(anchor.start, anchor.end);
@@ -1837,15 +1841,15 @@ var NoteStore = class {
       const a = this.actor(session, now, expected);
       draftValid(d);
       if (!noteId.test(key)) throw invalid2();
-      const digest2 = createHash10("sha256").update(JSON.stringify([d.title, d.body, d.kind, ...citation === void 0 ? [] : [citation]])).digest("hex");
+      const digest3 = createHash10("sha256").update(JSON.stringify([d.title, d.body, d.kind, ...citation === void 0 ? [] : [citation]])).digest("hex");
       const old = db.prepare("SELECT id,create_digest FROM notes WHERE service_id=? AND owner_user_id=? AND create_key=?").get(a.serviceId, a.userId, key);
       if (old) {
-        if (old.create_digest !== digest2) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        if (old.create_digest !== digest3) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
         return { data: this.detail(db, a, String(old.id), now), replayed: true };
       }
       const id = randomUUID12();
       if (citation !== void 0) this.assertCitation(db, a, citation, now);
-      db.prepare("INSERT INTO notes VALUES(?,?,?,?,?,?,1,?,?,?,?)").run(id, a.serviceId, a.personalSpaceId, a.userId, d.title, d.kind, now, now, key, digest2);
+      db.prepare("INSERT INTO notes VALUES(?,?,?,?,?,?,1,?,?,?,?)").run(id, a.serviceId, a.personalSpaceId, a.userId, d.title, d.kind, now, now, key, digest3);
       db.prepare("INSERT INTO note_nodes VALUES(?,?,NULL,0,?,1)").run(id, id, d.body);
       if (citation !== void 0) db.prepare("INSERT INTO note_references VALUES(?,?,?)").run(randomUUID12(), id, citation);
       return { data: this.detail(db, a, id, now), replayed: false };
@@ -2093,11 +2097,11 @@ var RecallStore = class {
   }
   create(prior, expected, key, draft) {
     return this.tx("write", (db, now) => {
-      const a = this.actor(prior, now, expected), digest2 = sha3(JSON.stringify(draft));
+      const a = this.actor(prior, now, expected), digest3 = sha3(JSON.stringify(draft));
       const old = db.prepare("SELECT id,request_digest FROM recall_materials WHERE service_id=? AND owner_user_id=? AND request_key=?").get(a.serviceId, a.userId, key);
       if (old) {
         const m2 = this.material(db, a, String(old.id), now);
-        if (old.request_digest !== digest2) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        if (old.request_digest !== digest3) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
         return { data: this.practice(db, a, m2, now), replayed: true };
       }
       if (!draft.title.trim() || draft.title.length > 200 || !draft.masks.length) throw invalid4();
@@ -2105,7 +2109,7 @@ var RecallStore = class {
       const read = (n) => n === first.ordinal ? first.text : this.source(db, a, point2(draft, n), now).text;
       const segments = recallSelection(draft.first, draft.last, draft.interior_hashes, first.total, read), masks = recallMasks(segments, draft.masks, read), id = randomUUID13();
       const m = { id, title: draft.title, asset_id: draft.asset_id, version_id: draft.version_id, conversion_id: draft.conversion_id ?? null };
-      db.prepare("INSERT INTO recall_materials VALUES(?,?,?,?,?,?,?,?,?,?)").run(id, a.userId, a.serviceId, m.asset_id, m.version_id, m.conversion_id, m.title, now, key, digest2);
+      db.prepare("INSERT INTO recall_materials VALUES(?,?,?,?,?,?,?,?,?,?)").run(id, a.userId, a.serviceId, m.asset_id, m.version_id, m.conversion_id, m.title, now, key, digest3);
       const insert = db.prepare("INSERT INTO recall_segments VALUES(?,?,?,?,?)");
       for (const s of segments) insert.run(id, s.ordinal, s.start, s.end, s.source_hash);
       const maskInsert = db.prepare("INSERT INTO recall_masks VALUES(?,?,?,?,?)");
@@ -2116,10 +2120,10 @@ var RecallStore = class {
   }
   act(prior, expected, id, key, action) {
     return this.tx("write", (db, now) => {
-      const a = this.actor(prior, now, expected), m = this.material(db, a, id, now), digest2 = sha3(JSON.stringify(action));
+      const a = this.actor(prior, now, expected), m = this.material(db, a, id, now), digest3 = sha3(JSON.stringify(action));
       const priorEvent = db.prepare("SELECT request_digest FROM recall_events WHERE material_id=? AND request_key=?").get(id, key);
       if (priorEvent) {
-        if (priorEvent.request_digest !== digest2) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        if (priorEvent.request_digest !== digest3) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
         return this.practice(db, a, m, now);
       }
       const attempt = db.prepare("SELECT active_ordinal,revision FROM recall_attempts WHERE material_id=?").get(id);
@@ -2135,32 +2139,214 @@ var RecallStore = class {
       } else if (event === "rating" ? value > 5 : true) throw invalid4();
       const revision = action.expected_revision + 1;
       db.prepare("UPDATE recall_attempts SET active_ordinal=?,revision=? WHERE material_id=?").run(ordinal, revision, id);
-      db.prepare("INSERT INTO recall_events VALUES(?,?,?,?,?,?,?)").run(id, revision, key, digest2, event, value, now);
+      db.prepare("INSERT INTO recall_events VALUES(?,?,?,?,?,?,?)").run(id, revision, key, digest3, event, value, now);
       return this.practice(db, a, m, now);
+    });
+  }
+};
+
+// src/host/invitation-store.ts
+import { createHash as createHash13, randomBytes, randomUUID as randomUUID14 } from "node:crypto";
+var INVITATION_SCHEMA = `CREATE TABLE invitations (
+  id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE CHECK(length(token_hash)=64),
+  service_id TEXT NOT NULL, issuer_id TEXT NOT NULL REFERENCES users(id),
+  object_id TEXT REFERENCES knowledge_objects(id), project_id TEXT REFERENCES knowledge_projects(id),
+  permission TEXT NOT NULL CHECK(permission IN ('read','edit','member')),
+  issued_at TEXT NOT NULL, expires_at TEXT NOT NULL CHECK(expires_at>issued_at), revoked_at TEXT,
+  max_redemptions INTEGER NOT NULL CHECK(max_redemptions BETWEEN 1 AND 100),
+  redeemed_count INTEGER NOT NULL DEFAULT 0 CHECK(redeemed_count BETWEEN 0 AND max_redemptions),
+  revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1), request_key TEXT NOT NULL,
+  request_digest TEXT NOT NULL CHECK(length(request_digest)=64), UNIQUE(service_id,issuer_id,request_key),
+  CHECK((object_id IS NOT NULL AND project_id IS NULL AND permission IN ('read','edit'))
+    OR (project_id IS NOT NULL AND object_id IS NULL AND permission='member'))
+) STRICT;
+CREATE TABLE invitation_redemptions (
+  id TEXT PRIMARY KEY, invitation_id TEXT NOT NULL REFERENCES invitations(id), user_id TEXT NOT NULL REFERENCES users(id),
+  redeemed_at TEXT NOT NULL, expires_at TEXT NOT NULL CHECK(expires_at>redeemed_at), revoked_at TEXT,
+  UNIQUE(invitation_id,user_id)
+) STRICT;
+CREATE INDEX invitation_redemptions_user ON invitation_redemptions(user_id,invitation_id);
+CREATE INDEX invitations_object ON invitations(object_id);
+CREATE INDEX invitations_project ON invitations(project_id);
+CREATE TABLE invitation_audit (
+  invitation_id TEXT NOT NULL REFERENCES invitations(id), revision INTEGER NOT NULL CHECK(revision>=1),
+  actor_id TEXT NOT NULL REFERENCES users(id), event TEXT NOT NULL CHECK(event IN ('issue','redeem','renew','revoke')),
+  occurred_at TEXT NOT NULL, prior_expires_at TEXT, expires_at TEXT NOT NULL,
+  affected_count INTEGER NOT NULL CHECK(affected_count>=0), PRIMARY KEY(invitation_id,revision)
+) STRICT;`;
+var day = 864e5;
+var digest2 = (value) => createHash13("sha256").update(value).digest("hex");
+var invalid5 = () => new AssetError(422, "INVALID_INVITATION");
+var unavailable = () => new AssetError(404, "INVITATION_UNAVAILABLE");
+var conflict2 = () => new AssetError(409, "INVITATION_CHANGED");
+var target = (r) => r.project_id ? { scope: "project", id: r.project_id, permission: "member" } : { scope: "object", id: r.object_id, permission: r.permission };
+function duration(days = 7) {
+  if (!Number.isInteger(days) || days < 1 || days > 90) throw invalid5();
+  return days * day;
+}
+function cap(n = 1) {
+  if (!Number.isInteger(n) || n < 1 || n > 100) throw invalid5();
+  return n;
+}
+function receipt2(r) {
+  return {
+    id: r.id,
+    target: target(r),
+    issued_at: r.issued_at,
+    expires_at: r.expires_at,
+    revoked_at: r.revoked_at,
+    max_redemptions: r.max_redemptions,
+    redeemed_count: r.redeemed_count,
+    revision: r.revision
+  };
+}
+var active = (r, now) => r.revoked_at === null && now < r.expires_at;
+function audit(db, r, a, event, now, before, count) {
+  db.prepare("INSERT INTO invitation_audit VALUES(?,?,?,?,?,?,?,?)").run(r.id, r.revision, a.userId, event, now, before, r.expires_at, count);
+}
+var InvitationStore = class {
+  constructor(tx, current, principal, canIssue, isMember) {
+    this.tx = tx;
+    this.current = current;
+    this.principal = principal;
+    this.canIssue = canIssue;
+    this.isMember = isMember;
+  }
+  actor(prior, now, expected) {
+    const a = this.current(prior, now);
+    if (!a) throw new AssetError(401, "AUTH_REQUIRED");
+    if (a.userId !== expected) throw new AssetError(409, "ACTOR_CHANGED");
+    return a;
+  }
+  issueTarget(a, t, now) {
+    const scope = this.canIssue(a, t, now);
+    if (!scope) throw unavailable();
+    return scope;
+  }
+  managed(db, a, id, now) {
+    const r = db.prepare("SELECT * FROM invitations WHERE service_id=? AND id=?").get(a.serviceId, id);
+    if (!r) throw unavailable();
+    this.issueTarget(a, target(r), now);
+    return r;
+  }
+  issueSpec(a, s, now) {
+    const { scope, id, permission } = s, t = { scope, id, permission };
+    const info = this.issueTarget(a, t, now), expires_at = new Date(Date.parse(now) + duration(s.days)).toISOString();
+    return { target: t, title: info.title, expires_at, max_redemptions: cap(s.max_redemptions), server_time: now };
+  }
+  preview(prior, expected, s) {
+    return this.tx("read", (_db, now) => {
+      return this.issueSpec(this.actor(prior, now, expected), s, now);
+    });
+  }
+  create(prior, expected, s, key) {
+    return this.tx("write", (db, now) => {
+      const a = this.actor(prior, now, expected), p = this.issueSpec(a, s, now);
+      const req = digest2(JSON.stringify([p.target, s.days ?? 7, p.max_redemptions]));
+      const old = db.prepare("SELECT * FROM invitations WHERE service_id=? AND issuer_id=? AND request_key=?").get(a.serviceId, a.userId, key);
+      if (old) {
+        if (old.request_digest !== req) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        return { ...receipt2(old), title: p.title, server_time: now, replayed: true };
+      }
+      const token2 = randomBytes(32).toString("base64url");
+      const r = {
+        id: randomUUID14(),
+        service_id: a.serviceId,
+        issuer_id: a.userId,
+        object_id: s.scope === "object" ? s.id : null,
+        project_id: s.scope === "project" ? s.id : null,
+        permission: s.permission,
+        issued_at: now,
+        expires_at: p.expires_at,
+        revoked_at: null,
+        max_redemptions: p.max_redemptions,
+        redeemed_count: 0,
+        revision: 1
+      };
+      db.prepare(`INSERT INTO invitations(id,token_hash,service_id,issuer_id,object_id,project_id,permission,issued_at,expires_at,max_redemptions,request_key,request_digest)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`).run(r.id, digest2(token2), a.serviceId, a.userId, r.object_id, r.project_id, r.permission, now, r.expires_at, r.max_redemptions, key, req);
+      audit(db, r, a, "issue", now, null, 0);
+      return { ...receipt2(r), title: p.title, token: token2, server_time: now, replayed: false };
+    });
+  }
+  redeem(prior, expected, token2) {
+    return this.tx("write", (db, now) => {
+      const a = this.actor(prior, now, expected);
+      if (!/^[a-zA-Z0-9_-]{43}$/.test(token2)) throw unavailable();
+      const r = db.prepare("SELECT * FROM invitations WHERE service_id=? AND token_hash=?").get(a.serviceId, digest2(token2));
+      if (!r || !active(r, now)) throw unavailable();
+      const t = target(r), issuer = this.principal(db, r.issuer_id, a.serviceId);
+      if (!issuer || issuer.userId === a.userId) throw unavailable();
+      const info = this.issueTarget(issuer, t, now);
+      if (t.scope === "object" && info.project_id && !this.isMember(a, info.project_id, now)) throw unavailable();
+      const priorRedemption = db.prepare("SELECT id,redeemed_at,expires_at,revoked_at FROM invitation_redemptions WHERE invitation_id=? AND user_id=?").get(r.id, a.userId);
+      if (priorRedemption) {
+        if (!active(priorRedemption, now)) throw unavailable();
+        return { id: priorRedemption.id, target: t, title: info.title, expires_at: priorRedemption.expires_at, server_time: now, replayed: true };
+      }
+      if (r.redeemed_count >= r.max_redemptions) throw new AssetError(409, "INVITATION_FULL");
+      const grant = randomUUID14();
+      db.prepare("INSERT INTO invitation_redemptions VALUES(?,?,?,?,?,NULL)").run(grant, r.id, a.userId, now, r.expires_at);
+      const change = db.prepare("UPDATE invitations SET redeemed_count=redeemed_count+1,revision=revision+1 WHERE id=? AND revision=? AND redeemed_count<max_redemptions").run(r.id, r.revision);
+      if (change.changes !== 1) throw conflict2();
+      audit(db, { ...r, revision: r.revision + 1 }, a, "redeem", now, null, 1);
+      return { id: grant, target: t, title: info.title, expires_at: r.expires_at, server_time: now, replayed: false };
+    });
+  }
+  get(prior, expected, id) {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(prior, now, expected), r = this.managed(db, a, id, now);
+      const rows = db.prepare("SELECT id,user_id,expires_at FROM invitation_redemptions WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? ORDER BY id").all(id, now);
+      return { ...receipt2(r), active: active(r, now), affected: rows, server_time: now };
+    });
+  }
+  list(prior) {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(prior, now, prior.userId);
+      const rows = db.prepare("SELECT * FROM invitations WHERE service_id=? AND issuer_id=? ORDER BY issued_at DESC,id DESC LIMIT 100").all(a.serviceId, a.userId);
+      const items = rows.flatMap((r) => {
+        const scope = this.canIssue(a, target(r), now);
+        return scope ? [{ ...receipt2(r), title: scope.title, active: active(r, now) }] : [];
+      });
+      return { actor_id: a.userId, server_time: now, items };
+    });
+  }
+  change(prior, expected, id, expectedRevision, event, days) {
+    return this.tx("write", (db, now) => {
+      const a = this.actor(prior, now, expected), r = this.managed(db, a, id, now);
+      if (!active(r, now)) throw unavailable();
+      if (expectedRevision !== r.revision) throw conflict2();
+      const expires_at = event === "renew" ? new Date(Date.parse(r.expires_at) + duration(days)).toISOString() : r.expires_at;
+      const changed2 = event === "renew" ? db.prepare("UPDATE invitation_redemptions SET expires_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>?").run(expires_at, id, now) : db.prepare("UPDATE invitation_redemptions SET revoked_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>?").run(now, id, now);
+      const next = { ...r, expires_at, revoked_at: event === "revoke" ? now : null, revision: r.revision + 1 };
+      db.prepare("UPDATE invitations SET expires_at=?,revoked_at=?,revision=? WHERE id=?").run(expires_at, next.revoked_at, next.revision, id);
+      audit(db, next, a, event, now, r.expires_at, Number(changed2.changes));
+      return { ...receipt2(next), affected_count: Number(changed2.changes), server_time: now };
     });
   }
 };
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 22;
-var MIGRATION_V22_CHECKSUM = createHash13("sha256").update(RECALL_SCHEMA).digest("hex");
-var MIGRATION_V21_CHECKSUM = createHash13("sha256").update(NOTE_SCHEMA).digest("hex");
-var MIGRATION_V20_CHECKSUM = createHash13("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
-var MIGRATION_V19_CHECKSUM = createHash13("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V18_CHECKSUM = createHash13("sha256").update(SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V17_CHECKSUM = createHash13("sha256").update(ANNOTATION_SCHEMA).digest("hex");
-var MIGRATION_V16_CHECKSUM = createHash13("sha256").update(READING_STATE_SCHEMA).digest("hex");
-var MIGRATION_V15_CHECKSUM = createHash13("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
-var MIGRATION_V13_CHECKSUM = createHash13("sha256").update(ZIP_SCHEMA).digest("hex");
-var MIGRATION_V14_CHECKSUM = createHash13("sha256").update(CITATION_SCHEMA).digest("hex");
-var MIGRATION_V12_CHECKSUM = createHash13("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
-var MIGRATION_V11_CHECKSUM = createHash13("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
-var MIGRATION_V10_CHECKSUM = createHash13("sha256").update(OFFICE_SCHEMA).digest("hex");
-var MIGRATION_V9_CHECKSUM = createHash13("sha256").update(TEXT_SCHEMA).digest("hex");
-var MIGRATION_V8_CHECKSUM = createHash13("sha256").update(PARSE_SCHEMA).digest("hex");
-var MIGRATION_V7_CHECKSUM = createHash13("sha256").update(ASSET_SCHEMA).digest("hex");
-var MIGRATION_V6_CHECKSUM = createHash13("sha256").update(JOB_SCHEMA).digest("hex");
+var SCHEMA_VERSION = 23;
+var MIGRATION_V23_CHECKSUM = createHash14("sha256").update(INVITATION_SCHEMA).digest("hex");
+var MIGRATION_V22_CHECKSUM = createHash14("sha256").update(RECALL_SCHEMA).digest("hex");
+var MIGRATION_V21_CHECKSUM = createHash14("sha256").update(NOTE_SCHEMA).digest("hex");
+var MIGRATION_V20_CHECKSUM = createHash14("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
+var MIGRATION_V19_CHECKSUM = createHash14("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V18_CHECKSUM = createHash14("sha256").update(SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V17_CHECKSUM = createHash14("sha256").update(ANNOTATION_SCHEMA).digest("hex");
+var MIGRATION_V16_CHECKSUM = createHash14("sha256").update(READING_STATE_SCHEMA).digest("hex");
+var MIGRATION_V15_CHECKSUM = createHash14("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
+var MIGRATION_V13_CHECKSUM = createHash14("sha256").update(ZIP_SCHEMA).digest("hex");
+var MIGRATION_V14_CHECKSUM = createHash14("sha256").update(CITATION_SCHEMA).digest("hex");
+var MIGRATION_V12_CHECKSUM = createHash14("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
+var MIGRATION_V11_CHECKSUM = createHash14("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
+var MIGRATION_V10_CHECKSUM = createHash14("sha256").update(OFFICE_SCHEMA).digest("hex");
+var MIGRATION_V9_CHECKSUM = createHash14("sha256").update(TEXT_SCHEMA).digest("hex");
+var MIGRATION_V8_CHECKSUM = createHash14("sha256").update(PARSE_SCHEMA).digest("hex");
+var MIGRATION_V7_CHECKSUM = createHash14("sha256").update(ASSET_SCHEMA).digest("hex");
+var MIGRATION_V6_CHECKSUM = createHash14("sha256").update(JOB_SCHEMA).digest("hex");
 var PROBE_SCHEMA_VERSION = 1;
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
@@ -2177,7 +2363,7 @@ CREATE TABLE storage_probe_records (
   created_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V1_CHECKSUM = createHash13("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
+var MIGRATION_V1_CHECKSUM = createHash14("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
 var MIGRATION_V2_SQL = `CREATE TABLE password_credentials (
   id TEXT PRIMARY KEY,
   algorithm TEXT NOT NULL,
@@ -2231,7 +2417,7 @@ CREATE TABLE spaces (
   updated_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V2_CHECKSUM = createHash13("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
+var MIGRATION_V2_CHECKSUM = createHash14("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
 var MIGRATION_V3_SQL = `CREATE TABLE knowledge_projects (
   id TEXT PRIMARY KEY,
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
@@ -2281,7 +2467,7 @@ CREATE TABLE resource_grants (
   UNIQUE (resource_id, subject_type, subject_id, action)
 ) STRICT;
 `;
-var MIGRATION_V3_CHECKSUM = createHash13("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
+var MIGRATION_V3_CHECKSUM = createHash14("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
 var MIGRATION_V4_SQL = `ALTER TABLE resource_grants RENAME TO resource_grants_v3;
 CREATE TABLE resource_grants (
   id TEXT PRIMARY KEY,
@@ -2303,7 +2489,7 @@ CREATE UNIQUE INDEX resource_grants_active_subject_action_uq
   WHERE revoked_at IS NULL;
 DROP TABLE resource_grants_v3;
 `;
-var MIGRATION_V4_CHECKSUM = createHash13("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
+var MIGRATION_V4_CHECKSUM = createHash14("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
 var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -2315,7 +2501,7 @@ var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   PRIMARY KEY (service_id, user_id, idempotency_key)
 ) STRICT;
 `;
-var MIGRATION_V5_CHECKSUM = createHash13("sha256").update(MIGRATION_V5_SQL).digest("hex");
+var MIGRATION_V5_CHECKSUM = createHash14("sha256").update(MIGRATION_V5_SQL).digest("hex");
 var PROBE_SUPPORTED_TABLES = ["schema_migrations", "storage_probe_records"];
 var IDENTITY_SUPPORTED_TABLES = [
   "auth_sessions",
@@ -2427,6 +2613,11 @@ var ProbeStorage = class {
     (a, id, now) => Boolean(this.authorizeObject(a, id, "read", now)),
     (db, a, t, now) => this.citations.recallSource(db, a, t, now)
   );
+  invitations = new InvitationStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (db, user, service) => {
+    const row = db.prepare(`SELECT p.id FROM users u JOIN spaces p ON p.owner_user_id=u.id AND p.kind='personal'
+      WHERE u.id=? AND u.planning_home_service_id=? AND u.status='active' AND p.status='active' AND p.service_id=?`).get(user, service, service);
+    return row && { userId: user, serviceId: service, personalSpaceId: String(row.id) };
+  }, (a, t, now) => this.#canIssue(a, t, now), (a, p, now) => this.canCreateProjectObject(a, p, now));
   office = new OfficeStore(this.#assetTx, (sessionId, userId, id, action, now) => {
     const actor = this.#currentActor({ sessionId, userId }, now);
     return !!actor && !!this.authorizeObject(actor, id, action, now);
@@ -2520,6 +2711,7 @@ var ProbeStorage = class {
       if (priorVersion < 20) this.#migrateV20(db);
       if (priorVersion < 21) this.#migrateV21(db);
       if (priorVersion < 22) this.#migrateV22(db);
+      if (priorVersion < 23) this.#migrateV23(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -2746,7 +2938,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID14());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID15());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -3016,9 +3208,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "recall migration failed", false, { cause: e });
     }
   }
+  #migrateV23(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(INVITATION_SCHEMA);
+      this.#injectFailure("v23:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(23,?,?)").run(MIGRATION_V23_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=23; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "invitation migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash2, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash2)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -3039,6 +3243,7 @@ var ProbeStorage = class {
       if (version >= 20) reference.exec(PDF_CHAPTER_SCHEMA);
       if (version >= 21) reference.exec(NOTE_SCHEMA);
       if (version >= 22) reference.exec(RECALL_SCHEMA);
+      if (version >= 23) reference.exec(INVITATION_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -3141,9 +3346,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID14();
-      const spaceId = randomUUID14();
-      const credentialId = randomUUID14();
+      const userId = randomUUID15();
+      const spaceId = randomUUID15();
+      const credentialId = randomUUID15();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -3177,9 +3382,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID14();
-      const spaceId = randomUUID14();
-      const credentialId = randomUUID14();
+      const userId = randomUUID15();
+      const spaceId = randomUUID15();
+      const credentialId = randomUUID15();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -3278,7 +3483,28 @@ var ProbeStorage = class {
     return db.prepare("SELECT subject_type, subject_id, action, valid_from, expires_at, revoked_at FROM resource_grants WHERE resource_type = 'knowledge_object' AND resource_id = ?").all(objectId).map((row) => ({ subjectType: String(row.subject_type), subjectId: String(row.subject_id), action: String(row.action), validFrom: String(row.valid_from), expiresAt: row.expires_at == null ? void 0 : String(row.expires_at), revokedAt: row.revoked_at == null ? void 0 : String(row.revoked_at) }));
   }
   #memberships(db, projectId) {
-    return db.prepare("SELECT project_id, user_id, role, valid_from, expires_at, revoked_at FROM project_memberships WHERE project_id = ?").all(projectId).map((row) => ({ projectId: String(row.project_id), userId: String(row.user_id), role: String(row.role), validFrom: String(row.valid_from), expiresAt: row.expires_at == null ? void 0 : String(row.expires_at), revokedAt: row.revoked_at == null ? void 0 : String(row.revoked_at) }));
+    return db.prepare(`SELECT project_id,user_id,role,valid_from,expires_at,revoked_at FROM project_memberships WHERE project_id=?
+      UNION ALL SELECT i.project_id,r.user_id,'member',r.redeemed_at,r.expires_at,r.revoked_at
+      FROM invitations i JOIN invitation_redemptions r ON r.invitation_id=i.id
+      JOIN knowledge_projects p ON p.id=i.project_id AND p.service_id=i.service_id AND p.status='active'
+      WHERE i.project_id=? AND i.permission='member' AND i.revoked_at IS NULL AND r.expires_at=i.expires_at`).all(projectId, projectId).map((row) => ({ projectId: String(row.project_id), userId: String(row.user_id), role: String(row.role), validFrom: String(row.valid_from), expiresAt: row.expires_at == null ? void 0 : String(row.expires_at), revokedAt: row.revoked_at == null ? void 0 : String(row.revoked_at) }));
+  }
+  #invitedActions(db, actor, object, action, now) {
+    if (action !== "read" && action !== "edit" || object.objectType !== "asset") return [];
+    return db.prepare(`SELECT r.redeemed_at,r.expires_at FROM invitations i JOIN invitation_redemptions r ON r.invitation_id=i.id
+      WHERE i.object_id=? AND i.service_id=? AND r.user_id=? AND r.revoked_at IS NULL AND i.revoked_at IS NULL
+      AND i.expires_at=r.expires_at AND r.expires_at>? AND (i.permission='edit' OR i.permission=?)`).all(object.id, actor.serviceId, actor.userId, now, action).map((r) => ({ subjectType: "user", subjectId: actor.userId, action, validFrom: String(r.redeemed_at), expiresAt: String(r.expires_at) }));
+  }
+  #canIssue(actor, t, now) {
+    if (t.scope === "project") {
+      if (t.permission !== "member" || !this.canManageProject(actor, t.id)) return;
+      const row = this.#ensureReady().prepare("SELECT name FROM knowledge_projects WHERE id=?").get(t.id);
+      return row && { title: String(row.name) };
+    }
+    if (t.permission !== "read" && t.permission !== "edit") return;
+    const object = this.authorizeObject(actor, t.id, "manage_share", now);
+    if (object?.objectType !== "asset" || !this.authorizeObject(actor, t.id, "read", now) || t.permission === "edit" && !this.authorizeObject(actor, t.id, "edit", now)) return;
+    return { title: object.title, project_id: object.projectId };
   }
   #loadObject(id) {
     const row = this.#ensureReady().prepare("SELECT id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at FROM knowledge_objects WHERE id = ?").get(id);
@@ -3288,13 +3514,13 @@ var ProbeStorage = class {
     const db = this.#ensureReady();
     const object = this.#loadObject(objectId);
     if (object === void 0) return void 0;
-    const allowed = authorize(actor, this.#objectTarget(object), action, now, this.#grants(db, object.id), object.projectId === void 0 ? [] : this.#memberships(db, object.projectId));
+    const allowed = authorize(actor, this.#objectTarget(object), action, now, this.#grants(db, object.id), object.projectId === void 0 ? [] : this.#memberships(db, object.projectId), this.#invitedActions(db, actor, object, action, now));
     return allowed ? object : void 0;
   }
   listObjects(actor, action, now) {
     const db = this.#ensureReady();
     const rows = db.prepare("SELECT id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at FROM knowledge_objects WHERE service_id = ? AND status = 'active' ORDER BY created_at, id").all(actor.serviceId);
-    return rows.map((row) => this.#objectRow(row)).filter((object) => authorize(actor, this.#objectTarget(object), action, now, this.#grants(db, object.id), object.projectId === void 0 ? [] : this.#memberships(db, object.projectId)));
+    return rows.map((row) => this.#objectRow(row)).filter((object) => authorize(actor, this.#objectTarget(object), action, now, this.#grants(db, object.id), object.projectId === void 0 ? [] : this.#memberships(db, object.projectId), this.#invitedActions(db, actor, object, action, now)));
   }
   createProject(input) {
     const db = this.#ensureReady();
@@ -3315,6 +3541,9 @@ var ProbeStorage = class {
   canManageProject(actor, projectId) {
     const row = this.#ensureReady().prepare("SELECT service_id, owner_user_id, status FROM knowledge_projects WHERE id = ?").get(projectId);
     return row !== void 0 && String(row.service_id) === actor.serviceId && String(row.owner_user_id) === actor.userId && String(row.status) === "active";
+  }
+  ownedProjects(actor) {
+    return this.#ensureReady().prepare("SELECT id,name AS title FROM knowledge_projects WHERE service_id=? AND owner_user_id=? AND status='active' ORDER BY created_at DESC,id LIMIT 200").all(actor.serviceId, actor.userId);
   }
   canCreateProjectObject(actor, projectId, now) {
     const db = this.#ensureReady();
@@ -3344,7 +3573,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID14(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
+        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID15(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -3389,8 +3618,8 @@ var ProbeStorage = class {
       if (session === void 0) return finish({ kind: "session_expired" });
       const current = this.authorizeObject(actor, input.objectId, "edit", now);
       if (current === void 0 || this.authorizeObject(actor, input.objectId, "read", now) === void 0) return finish({ kind: "not_found" });
-      const receipt2 = db.prepare("SELECT request_digest, result_json FROM ai_tool_mutations WHERE service_id = ? AND user_id = ? AND idempotency_key = ?").get(actor.serviceId, actor.userId, input.key);
-      if (receipt2 !== void 0) return finish(receipt2.request_digest === input.digest ? { kind: "replayed", object: JSON.parse(receipt2.result_json) } : { kind: "idempotency_conflict" });
+      const receipt3 = db.prepare("SELECT request_digest, result_json FROM ai_tool_mutations WHERE service_id = ? AND user_id = ? AND idempotency_key = ?").get(actor.serviceId, actor.userId, input.key);
+      if (receipt3 !== void 0) return finish(receipt3.request_digest === input.digest ? { kind: "replayed", object: JSON.parse(receipt3.result_json) } : { kind: "idempotency_conflict" });
       if (current.revision !== input.expectedRevision) return finish({ kind: "conflict" });
       const changed2 = db.prepare("UPDATE knowledge_objects SET title = ?, body = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ? AND status = 'active'").run(input.title ?? current.title, input.body ?? current.body, now, input.objectId, input.expectedRevision);
       if (Number(changed2.changes) !== 1) return finish({ kind: "conflict" });
@@ -3441,8 +3670,8 @@ var ProbeStorage = class {
     let primaryCode;
     let failed = false;
     try {
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash13("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash13("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash14("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash14("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
     } catch (error) {
       failed = true;
       primaryCode = primarySqliteCode(error);
@@ -3500,7 +3729,7 @@ var ProbeStorage = class {
 };
 
 // src/host/identity.ts
-import { createHash as createHash14, randomBytes, randomUUID as randomUUID15, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
+import { createHash as createHash15, randomBytes as randomBytes2, randomUUID as randomUUID16, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
 var DOMAINS = ["software_engineering", "system_architecture", "hardware_engineering", "ai_development"];
 var LEARNING_TRACKS = ["engineering_practice", "architecture_exam", "knowledge_accumulation"];
 var DEFAULT_TIMEZONE = "Asia/Shanghai";
@@ -3572,10 +3801,10 @@ function validateGoalText(value) {
   return value;
 }
 function tokenHash(token2) {
-  return createHash14("sha256").update(token2, "utf8").digest("hex");
+  return createHash15("sha256").update(token2, "utf8").digest("hex");
 }
 function makeToken() {
-  return randomBytes(32).toString("base64url");
+  return randomBytes2(32).toString("base64url");
 }
 var KdfScheduler = class {
   #maxRunning = 2;
@@ -3654,7 +3883,7 @@ var KdfScheduler = class {
   }
 };
 async function derivePassword(scheduler, password, signal) {
-  const salt = randomBytes(KDF_CONFIG.saltBytes);
+  const salt = randomBytes2(KDF_CONFIG.saltBytes);
   const derivedKey = await scheduler.derive(password, salt, signal);
   return { algorithm: KDF_CONFIG.algorithm, version: KDF_CONFIG.version, n: KDF_CONFIG.n, r: KDF_CONFIG.r, p: KDF_CONFIG.p, maxmem: KDF_CONFIG.maxmem, salt, derivedKey };
 }
@@ -3777,7 +4006,7 @@ var IdentityService = class {
     const token2 = makeToken();
     const createdAt = /* @__PURE__ */ new Date();
     const expiresAt = new Date(createdAt.getTime() + SESSION_TTL_MS).toISOString();
-    this.#store.createSession({ sessionId: randomUUID15(), userId: lookup.userId, tokenHash: tokenHash(token2), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
+    this.#store.createSession({ sessionId: randomUUID16(), userId: lookup.userId, tokenHash: tokenHash(token2), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
     const user = this.#store.getProfile(lookup.userId);
     if (user === void 0) throw new IdentityError("STORAGE_UNAVAILABLE", "user profile unavailable");
     return { user, token: token2, expiresAt };
@@ -3805,7 +4034,7 @@ var IdentityService = class {
 };
 
 // src/host/identity-http.ts
-import { createHash as createHash15, randomUUID as randomUUID16 } from "node:crypto";
+import { createHash as createHash16, randomUUID as randomUUID17 } from "node:crypto";
 import { isIP } from "node:net";
 function isLoopbackAddress(value) {
   if (value === void 0) return false;

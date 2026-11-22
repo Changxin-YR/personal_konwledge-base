@@ -28,7 +28,7 @@ test('v20 rollback preserves a working whole-document task; chapter plan fences 
     const v19=snapshot(),failed=new ProbeStorage({dataDir:local,failureAt:'v20:after-schema'});assert.equal(v19.version,19)
     assert.equal(failed.available,false);assert.match(failed.failure.cause.message,/v20:after-schema/);failed.close();assert.deepEqual(snapshot(),v19)
     s=new ProbeStorage({dataDir:local});assert(s.available,s.failure?.message)
-    const after=snapshot();assert.equal(after.version,22);assert.deepEqual(after.ledger.slice(0,19),v19.ledger)
+    const after=snapshot();assert.equal(after.version,23);assert.deepEqual(after.ledger.slice(0,19),v19.ledger)
     assert.equal(after.ledger[19].checksum,MIGRATION_V20_CHECKSUM);assert.deepEqual(after.runs,v19.runs);assert.deepEqual(after.pages,v19.pages)
     assert.equal(s.parses.control(actor,whole.id,whole.version_id,'status').chapters,undefined)
     s.parses.control(actor,whole.id,whole.version_id,'start');const continued=s.parses.claim();assert.equal(s.parses.next(continued.token),2)
