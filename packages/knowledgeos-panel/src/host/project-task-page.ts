@@ -1,0 +1,87 @@
+export function buildProjectTaskHtml(nonce: string): string {
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>项目协作 · KnowledgeOS</title>
+<style nonce="${nonce}">
+:root{color:#243934;background:#f5f8f7;font:15px/1.55 "Segoe UI","Microsoft YaHei UI",sans-serif}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}header{border-bottom:1px solid #cddbd6;background:#fff}nav,main{max-width:1200px;margin:auto;padding:12px 24px}nav,.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}nav strong,a{color:#195a4e}h1{font-size:25px;margin:6px 0}h2{font-size:17px;margin:0 0 8px}h3{font-size:15px;margin:0 0 6px}p{margin:0 0 8px}section{border-top:1px solid #cddbd6;padding:14px 0}#status{min-height:24px;color:#40564f}.workspace{display:grid;grid-template-columns:minmax(190px,265px) minmax(0,1fr);gap:24px}.side{border-right:1px solid #cddbd6;padding-right:16px}.side,#content,label,input,select,textarea{min-width:0}.fields{display:grid;grid-template-columns:1fr 1fr;gap:9px 16px}.wide{grid-column:1/-1}label{display:grid;gap:3px}input,select,textarea,button{font:inherit;color:inherit;background:#fff;border:1px solid #aabfb6;border-radius:5px;padding:6px 8px;max-width:100%}textarea{resize:vertical;min-height:68px}button{cursor:pointer;text-align:left}button:disabled{opacity:.6;cursor:default}button:focus-visible,a:focus-visible,textarea:focus-visible{outline:2px solid #177c84;outline-offset:2px}button[aria-current=true]{background:#dfede8;border-color:#638e80}.primary{color:white;background:#225e51;border-color:#225e51}.quiet{color:#526a60}.danger{color:#8a382b}ul{padding:0;list-style:none;margin:5px 0}li{margin-bottom:4px;overflow-wrap:anywhere}.selector button{width:100%;overflow-wrap:anywhere}.member{display:flex;align-items:center;justify-content:space-between;gap:8px}.member button{flex-shrink:0}.criteria{display:grid;grid-template-columns:minmax(0,1fr) minmax(62px,96px) auto;align-items:end;gap:8px}.history{padding:10px 0;border-top:1px solid #d6e2dc}ol{padding-left:22px;overflow-wrap:anywhere}dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 15px}dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}dialog{max-width:min(420px,92vw);border:1px solid #9db4aa;border-radius:6px;background:#fff;color:inherit}dialog::backdrop{background:#182a2660}
+@media(max-width:680px){nav,main{padding-inline:13px}.workspace,.fields{grid-template-columns:minmax(0,1fr);gap:8px}.side{border:0;padding-right:0}}
+</style></head><body><header><nav aria-label="业务导航"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">知识库</a><a href="/knowledgeos/projects" aria-current="page">项目协作</a><a href="/knowledgeos/invitations">邀请码</a><a href="/knowledgeos/account">账号</a></nav></header>
+<main><h1>项目协作</h1><p id="status" role="status">正在读取…</p><a id="login" href="/knowledgeos/account" hidden>登录</a><div id="workspace" class="workspace" hidden>
+<aside class="side"><h2>工作范围</h2><ul id="projects" class="selector"></ul><section><h2>新建项目</h2><form id="new-project"><label>项目名称<input id="name" maxlength="200" required></label><button type="submit" class="primary">创建项目</button></form></section></aside>
+<div id="content"><h2 id="scope-title">个人任务</h2><section id="membership" hidden><div class="row"><h2>当前成员</h2><a id="invite" href="/knowledgeos/invitations" hidden>管理邀请</a></div><ul id="members"></ul></section>
+<section id="dispatch"><h2>派发任务</h2><form id="task-form"><div class="fields"><label class="wide">标题<input id="title" maxlength="160" required></label><label class="wide">目标<textarea id="goal" maxlength="4000" required></textarea></label>
+<label>截止时间（本地时间）<input id="due" type="datetime-local" required></label><label id="assignee-label">负责人<select id="assignee"></select></label><label id="reviewer-label">终审人<select id="reviewer"></select></label><label id="peer-label">同伴预审（可选）<select id="peer"></select></label>
+<div class="wide"><h3>验收标准</h3><ul id="criteria"></ul><button type="button" id="add-criterion">添加标准</button></div></div><button type="submit" class="primary">发布任务</button></form></section>
+<section><h2>任务列表</h2><ul id="tasks" class="selector"></ul></section>
+<section id="task-detail" hidden><h2 id="task-title"></h2><dl id="task-facts"></dl><h3>标准历史</h3><div id="history"></div><button type="button" id="revise" hidden>修改标准</button>
+<form id="revision-form" hidden><h3>新版本验收标准</h3><ul id="revision-criteria"></ul><div class="row"><button type="button" id="add-revision-criterion">添加标准</button><button type="submit" class="primary">保存新版本</button><button type="button" id="cancel-revise">取消</button></div></form></section></div></div>
+<dialog id="remove-dialog"><form method="dialog"><h2>移除项目成员</h2><p id="removal-name"></p><div class="row"><button value="cancel">取消</button><button value="remove" class="danger" id="remove-confirm">确认移除</button></div></form></dialog></main>
+<script nonce="${nonce}">
+'use strict';
+const $=id=>document.getElementById(id), api='/knowledge/v1/project-tasks', mark={'content-type':'application/json','x-knowledgeos-request':'1'};
+const labels={NOT_FOUND:'当前账号无权访问，或记录已失效。',AUTH_REQUIRED:'请登录。',ACTOR_MISMATCH:'账号已变更。',TASK_MEMBER_UNAVAILABLE:'负责人或审核人已不在项目中。',TASK_REVIEW_POLICY_REJECTED:'审核人必须符合当前审核路径，并且不同于负责人。',TASK_REVISION_CONFLICT:'任务标准已更新，请重新打开查看。',INVALID_TASK_DUE:'请选择未来的截止时间。',INVALID_TASK_INPUT:'检查必填项、标准和权重。',TASK_REQUEST_CONFLICT:'之前的派发请求结果未确定，请重新读取任务列表。'};
+const kinds={personal:'个人任务',project_admin:'管理员终审',project_collaboration:'指定审核'};
+let actor,scope=null,project,projectRows=[],tasks=[],task,removeTarget,busy=false,epoch=0,controller=new AbortController(),pendingAssign;
+const status=s=>$('status').textContent=s;
+const get=(k)=>$(k).value;
+function protect(){epoch++;controller.abort();controller=new AbortController();busy=false;actor=project=task=removeTarget=pendingAssign=undefined;tasks=[];projectRows=[];$('workspace').hidden=$('task-detail').hidden=$('membership').hidden=$('revision-form').hidden=true;
+ if($('remove-dialog').open)$('remove-dialog').close();for(const id of ['projects','members','tasks','history','task-title','task-facts','removal-name'])$(id).replaceChildren();$('new-project').reset();$('task-form').reset();$('revision-criteria').replaceChildren();criterionRows('criteria',[]);}
+async function request(endpoint,method='GET',data,key){const check=epoch;const response=await fetch(endpoint,{method,cache:'no-store',redirect:'error',signal:controller.signal,
+ headers:method==='GET'?{}:{...mark,...(key?{'idempotency-key':key}:{})},body:data===undefined?undefined:JSON.stringify(data)});
+ const result=await response.json();if(check!==epoch)throw Error('STALE');if(response.status===401||result.code==='ACTOR_MISMATCH'||(actor&&result.data?.actor_id&&result.data.actor_id!==actor)){
+  protect();status('请重新登录。');$('login').hidden=false;throw Error('STALE');}
+ if(!response.ok)throw Error(result.code);return result.data;}
+async function operation(work){if(busy)return;busy=true;const check=epoch;
+ try{await work();}catch(e){if(check===epoch){if(e.message==='NOT_FOUND')protect();status(labels[e.message]||'暂时无法完成，请重新读取。');}}finally{if(check===epoch)busy=false;}}
+function el(tag,text){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;return node;}
+function button(text,fn){const b=el('button',text);b.type='button';b.addEventListener('click',fn);return b;}
+function listItem(ul,b){const li=el('li');li.append(b);$(ul).append(li);return li;}
+function option(id,text){const node=el('option',text);node.value=id;return node;}
+function showProjects(){const personal=button('个人任务',()=>void operation(()=>choose(null)));if(scope===null)personal.setAttribute('aria-current','true');$('projects').replaceChildren();listItem('projects',personal);
+ for(const p of projectRows){const b=button(p.name,()=>void operation(()=>choose(p.id)));if(scope===p.id)b.setAttribute('aria-current','true');listItem('projects',b);}}
+function showTasks(){ const ul=$('tasks');ul.replaceChildren();if(!tasks.length)ul.append(el('li','没有任务'));
+ for(const t of tasks){const b=button(t.title,()=>void operation(()=>openTask(t.id)));if(t.id===task?.id)b.setAttribute('aria-current','true');listItem('tasks',b);}}
+function setOptions(id,people,placeholder,preferred){const node=$(id);node.replaceChildren(option('',placeholder),...people.map(p=>option(p.id,p.display_name)));if(people.some(p=>p.id===preferred))node.value=preferred;}
+function scopeView(){const p=project;const manage=Boolean(p?.can_manage);const people=p?.members??[];const isAdmin=people.some(m=>m.id===actor&&m.role==='admin');
+ $('scope-title').textContent=p?.name??'个人任务';$('membership').hidden=!p;$('invite').hidden=!manage;$('dispatch').hidden=Boolean(p&&!manage);$('members').replaceChildren();
+ for(const member of people){const li=el('li');li.className='member';li.append(el('span',member.display_name+(member.id===p.owner_id?' · 项目所有者':member.role==='admin'?' · 管理员':'')));
+  if(manage&&member.id!==p.owner_id)li.append(button('移除',()=>{if(busy)return;removeTarget=member.id;$('removal-name').textContent=member.display_name;$('remove-dialog').showModal();}));$('members').append(li);}
+ for(const id of ['assignee','reviewer','peer'])$(id+'-label').hidden=!p;( $('peer-label')).hidden=!p||!isAdmin;
+ setOptions('assignee',people,'请选择');setOptions('reviewer',isAdmin?people.filter(m=>m.role==='admin'):people,'请选择',isAdmin?actor:undefined);setOptions('peer',people,'无');
+ showProjects();showTasks();}
+async function choose(id){const next=id? (await request(api+'/projects/'+id+'/members')).project:undefined;
+ const loaded=(await request(api+(id?'?project_id='+id:''))).tasks;
+ if(scope!==id){$('task-form').reset();criterionRows('criteria',[]);pendingAssign=undefined;}scope=id;project=next;tasks=loaded;task=undefined;$('task-detail').hidden=true;scopeView();$('workspace').hidden=false;status('');}
+async function refresh(){const data=await request(api+'/projects');actor=data.actor_id;projectRows=data.projects;$('login').hidden=true;
+ const preferred=scope&&projectRows.some(p=>p.id===scope)?scope:null;await choose(preferred);}
+function addCriterion(list,value={description:'',weight:1}){if($(list).children.length>=20)return;const li=el('li');li.className='criteria';
+ const dl=el('label','标准'),desc=el('input');desc.required=true;desc.maxLength=1000;desc.value=value.description;dl.append(desc);
+ const wl=el('label','权重'),weight=el('input');weight.type='number';weight.required=true;weight.min='1';weight.max='100';weight.value=String(value.weight);wl.append(weight);
+ const b=button('删除',()=>{if($(list).children.length>1)li.remove();});li.append(dl,wl,b);$(list).append(li);}
+function criterionRows(list,items){$(list).replaceChildren();for(const item of items.length?items:[undefined])addCriterion(list,item);}
+const criteria=list=>({items:[...$(list).children].map(row=>{const [d,w]=row.querySelectorAll('input');return {description:d.value,weight:Number(w.value)};}),submission_rule:'next_submission'});
+const name=id=>project?.members.find(p=>p.id===id)?.display_name??(id===actor?'本人':'待核验');
+const date=at=>new Intl.DateTimeFormat('zh-CN',{dateStyle:'medium',timeStyle:'short'}).format(new Date(at));
+async function openTask(id){const response=await request(api+'/'+id);task=response.task;const t=task;
+ $('task-title').textContent=t.title;$('task-facts').replaceChildren();
+ for(const [key,value] of [['目标',t.goal],['截止时间',date(t.due_at)],['状态',t.state==='assigned'?'已派发':t.state],['负责人 / 下一处理人',name(t.next_actor_id)],['审核路径',kinds[t.task_kind]],['终审人',name(t.final_reviewer_id)],['同伴预审',t.peer_reviewer_id?name(t.peer_reviewer_id):'无']])$('task-facts').append(el('dt',key),el('dd',value));
+ $('history').replaceChildren();for(const version of t.criteria_history){const row=el('div');row.className='history';row.append(el('strong','第 '+version.version+' 版'+(t.criteria_revision===version.version?' · 适用下次提交':' · 历史版本')));const ul=el('ol');for(const item of version.items)ul.append(el('li',item.description+' · 权重 '+item.weight));row.append(ul);$('history').append(row);}
+ $('revise').hidden=t.issuer_id!==actor;$('revision-form').hidden=true;$('task-detail').hidden=false;showTasks();}
+$('new-project').addEventListener('submit',e=>{e.preventDefault();void operation(async()=>{
+ const data=await request('/knowledge/v1/projects','POST',{name:get('name').trim()});$('new-project').reset();scope=data.id;await refresh();status('项目已创建。');});});
+$('task-form').addEventListener('submit',e=>{e.preventDefault();void operation(async()=>{
+ const draft={actor_id:actor,project_id:scope,title:get('title'),goal:get('goal'),due_at:new Date(get('due')).toISOString(),assignee_id:scope?get('assignee'):actor,
+ final_reviewer_id:scope?get('reviewer'):actor,criteria:criteria('criteria')};if(scope&&!$('peer-label').hidden&&get('peer'))draft.peer_reviewer_id=get('peer');
+ const digest=JSON.stringify(draft);if(pendingAssign&&pendingAssign.digest!==digest)throw Error('TASK_REQUEST_CONFLICT');
+ if(!pendingAssign)pendingAssign={digest,key:crypto.randomUUID()};let result;
+ try{result=await request(api,'POST',draft,pendingAssign.key);}catch(error){if(labels[error.message]&&error.message!=='TASK_REQUEST_CONFLICT')pendingAssign=undefined;throw error;}
+ pendingAssign=undefined;$('task-form').reset();criterionRows('criteria',[]);await choose(scope);await openTask(result.task.id);status('任务已派发。');});});
+$('add-criterion').onclick=()=>addCriterion('criteria');$('add-revision-criterion').onclick=()=>addCriterion('revision-criteria');
+$('revise').onclick=()=>{if(!task)return;criterionRows('revision-criteria',task.criteria_history.at(-1).items);$('revision-form').hidden=false;};$('cancel-revise').onclick=()=>{$('revision-form').hidden=true;};
+$('revision-form').addEventListener('submit',e=>{e.preventDefault();void operation(async()=>{
+ const id=task.id;await request(api+'/'+id,'PATCH',{actor_id:actor,expected_revision:task.revision,criteria:criteria('revision-criteria')});
+ await openTask(id);status('验收标准已保存。');});});
+$('remove-dialog').addEventListener('close',()=>{const member=removeTarget;if($('remove-dialog').returnValue==='remove'&&member){void operation(async()=>{
+ await request(api+'/projects/'+scope+'/members','POST',{actor_id:actor,remove_member_id:member});await choose(scope);status('项目成员已移除。');});}removeTarget=undefined;});
+addEventListener('pagehide',protect);addEventListener('pageshow',()=>void operation(refresh));
+let hidden=false;document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){hidden=true;protect();}else if(hidden){hidden=false;void operation(refresh);}});
+</script></body></html>`
+}

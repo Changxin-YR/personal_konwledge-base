@@ -133,6 +133,8 @@ export class InvitationStore {
     if(!issuer||issuer.userId===a.userId)throw unavailable()
     const info=this.issueTarget(issuer,t,now)
     if(t.scope==='object'&&info.project_id&&!this.isMember(a,info.project_id,now))throw unavailable()
+    if(t.scope==='project'&&db.prepare('SELECT 1 FROM project_membership_removals WHERE project_id=? AND user_id=? AND removed_at>=? LIMIT 1')
+      .get(t.id,a.userId,r.issued_at))throw unavailable()
     const priorRedemption=db.prepare('SELECT id,redeemed_at,expires_at,revoked_at FROM invitation_redemptions WHERE invitation_id=? AND user_id=?').get(r.id,a.userId) as Redemption|undefined
     if(priorRedemption){
       if(!active(priorRedemption,now))throw unavailable()

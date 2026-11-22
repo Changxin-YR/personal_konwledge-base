@@ -8,7 +8,7 @@ import { DatabaseSync } from 'node:sqlite'
 import test from 'node:test'
 import { pathToFileURL } from 'node:url'
 import { seed } from '../fnd006/independent/common.mjs'
-import { ProbeStorage, MIGRATION_V28_CHECKSUM } from '../../packages/knowledgeos-panel/lib/storage.js'
+import { ProbeStorage, MIGRATION_V28_CHECKSUM,MIGRATION_V29_CHECKSUM } from '../../packages/knowledgeos-panel/lib/storage.js'
 import { GitHubRepository, repositoryName, repositoryRef, isRepositoryPath } from '../../packages/knowledgeos-panel/src/host/github-repository.ts'
 
 test('v28 rolls back atomically, preserves v27 notes and binds immutable files to the owner and commit', async () => {
@@ -28,8 +28,10 @@ test('v28 rolls back atomically, preserves v27 notes and binds immutable files t
     s = new ProbeStorage({ dataDir: dir, failureAt: 'v28:after-schema' })
     assert.equal(s.available, false); assert.match(s.failure.cause.message, /v28:after-schema/); s.close()
     assert.equal(version(), 27); assert.deepEqual(all('schema_migrations'), ledger); assert.deepEqual(all('sqlite_schema'), schema)
-    s = new ProbeStorage({ dataDir: dir }); assert(s.available); assert.equal(version(), 28)
-    const migrated = all('schema_migrations'); assert.equal(migrated.pop().checksum, MIGRATION_V28_CHECKSUM); assert.deepEqual(migrated, ledger)
+    s = new ProbeStorage({ dataDir: dir }); assert(s.available); assert.equal(version(), 29)
+    const migrated = all('schema_migrations')
+    assert.equal(migrated.pop().checksum, MIGRATION_V29_CHECKSUM); assert.equal(migrated.pop().checksum, MIGRATION_V28_CHECKSUM)
+    assert.deepEqual(migrated, ledger)
     assert.deepEqual(all('notes'), notes); assert.equal(s.notes.get(actor, note.id).body, 'Keep the data')
     const remote = { owner: 'Synthetic', name: 'repo', id: 1, private: false }, ref = {kind:'branch',value:'test'}
     const revision = { commit: 'a'.repeat(40), tree: 'b'.repeat(40) }, signal = new AbortController()

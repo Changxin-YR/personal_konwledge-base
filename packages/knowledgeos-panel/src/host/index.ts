@@ -44,6 +44,8 @@ import { buildInvitationHtml } from './invitation-page.ts'
 import { createRepositoryHandler, repositoryApi } from './repository-http.ts'
 import { RepositoryService } from './repository-store.ts'
 import { buildRepositoryHtml } from './repository-page.ts'
+import { createProjectTaskHandler, taskApi } from './project-task-http.ts'
+import { buildProjectTaskHtml } from './project-task-page.ts'
 
 export { Config }
 
@@ -279,6 +281,15 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
         const sessionFor=(req:import('node:http').IncomingMessage)=>{const origin=actualOrigin();if(!origin||!identityAvailable())return undefined;return identity.actor(readCookie(req,businessCookieName(identity.setupState.serviceId,origin)))}
         const handler=libraryHandler(storage.assets,originals,actualOrigin,sessionFor,storage.parses,storage.office,()=>!!officeMount,storage.archives,reader,storage.search)
         const notes=createNoteHandler(storage.notes,actualOrigin,sessionFor)
+        disposers.push(identityContext.webServer.register({kind:'prefix',path:taskApi,auth:'anonymous',
+          handler:withPeer(createProjectTaskHandler(storage.projectTasks,actualOrigin,sessionFor))}))
+        disposers.push(identityContext.webServer.register({kind:'exact',path:'/knowledgeos/projects',auth:'anonymous',handler:(req,res)=>{
+          if(req.method!=='GET'){res.writeHead(405,{allow:'GET'});res.end();return}
+          const nonce=randomUUID()
+          res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer',
+            'x-content-type-options':'nosniff','content-security-policy':"default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; connect-src 'self'; script-src 'nonce-"+nonce+"'; style-src 'nonce-"+nonce+"'"})
+          res.end(buildProjectTaskHtml(nonce))
+        }}))
         const repositoryScope = new AbortController()
         const repositories = new RepositoryService(storage.repositories, config.repositoryCredentials ?? [], async ref =>
           (await ctx.get('credentials')?.resolve(ref))?.value)

@@ -8,7 +8,7 @@ import {DatabaseSync} from 'node:sqlite'
 import test from 'node:test'
 import {pathToFileURL} from 'node:url'
 import * as lib from '../../packages/knowledgeos-panel/lib/test-support.js'
-import {MIGRATION_V27_CHECKSUM,MIGRATION_V28_CHECKSUM} from '../../packages/knowledgeos-panel/lib/storage.js'
+import {MIGRATION_V27_CHECKSUM,MIGRATION_V28_CHECKSUM,MIGRATION_V29_CHECKSUM} from '../../packages/knowledgeos-panel/lib/storage.js'
 import {seed} from '../fnd006/independent/common.mjs'
 
 test('v27 migration rolls back cleanly and layout revision is independent of tree, drafts and undo',async()=>{
@@ -31,8 +31,8 @@ test('v27 migration rolls back cleanly and layout revision is independent of tre
     assert.equal(version(),26);s=new lib.ProbeStorage({dataDir:dir,failureAt:'v27:after-schema'});assert(!s.available)
     assert.match(s.failure.cause.message,/v27:after-schema/);s.close()
     assert.equal(version(),26);assert.deepEqual(rows('schema_migrations'),ledger);assert.deepEqual(rows('sqlite_schema'),schema);assert.deepEqual(content(),initial)
-    s=new lib.ProbeStorage({dataDir:dir});assert(s.available,s.failure?.message);assert.equal(version(),28)
-    const newLedger=rows('schema_migrations');assert.equal(newLedger.pop().checksum,MIGRATION_V28_CHECKSUM);assert.equal(newLedger.pop().checksum,MIGRATION_V27_CHECKSUM);assert.deepEqual(newLedger,ledger)
+    s=new lib.ProbeStorage({dataDir:dir});assert(s.available,s.failure?.message);assert.equal(version(),29)
+    const newLedger=rows('schema_migrations');assert.equal(newLedger.pop().checksum,MIGRATION_V29_CHECKSUM);assert.equal(newLedger.pop().checksum,MIGRATION_V28_CHECKSUM);assert.equal(newLedger.pop().checksum,MIGRATION_V27_CHECKSUM);assert.deepEqual(newLedger,ledger)
     assert.deepEqual(s.notes.get(actor,id),{...before,layout:{direction:'horizontal',revision:0}})
     const change=(rev,direction)=>s.notes.saveLayout(actor,user,id,rev,direction)
     assert.deepEqual(change(0,'horizontal'),{direction:'horizontal',revision:0});assert.deepEqual(rows('note_map_layouts'),[])

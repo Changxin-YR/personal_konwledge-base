@@ -11,7 +11,7 @@ export function buildLibraryHtml(): string {
 #zip{overflow-wrap:anywhere}#zip-resume{max-width:36rem}#zip-entries{list-style:none;padding:0}#zip-entries li{border-bottom:1px solid #dde5e2;padding:8px 0}#zip-entries label{display:flex;align-items:center;gap:8px}#zip-entries input{width:18px;height:18px;flex:none}#zip-entries small{display:block}
 #search-form{grid-template-columns:minmax(0,1fr) auto}#search-results{list-style:none;padding:0;margin:4px 0;overflow-wrap:anywhere}#search-results li{padding:8px 0;border-bottom:1px solid #dde5e2}#search-results small{margin-inline-start:8px}#search-results p{white-space:pre-wrap}#search-status{min-height:1.55em;margin-top:6px;color:#536866}
 </style></head><body>
-<header><div><strong>KnowledgeOS</strong><nav aria-label="业务导航"><a href="/knowledgeos/notes">笔记</a><a href="/knowledgeos/recall">遮挡背诵</a><a href="/knowledgeos/repositories">仓库与代码</a><a href="/knowledgeos/invitations">邀请码</a><a href="/knowledgeos/account">账号与登录</a><a href="/knowledgeos/ai">AI 工具</a></nav></div></header>
+<header><div><strong>KnowledgeOS</strong><nav aria-label="业务导航"><a href="/knowledgeos/notes">笔记</a><a href="/knowledgeos/recall">遮挡背诵</a><a href="/knowledgeos/repositories">仓库与代码</a><a href="/knowledgeos/projects">项目协作</a><a href="/knowledgeos/invitations">邀请码</a><a href="/knowledgeos/account">账号与登录</a><a href="/knowledgeos/ai">AI 工具</a></nav></div></header>
 <main><div class="bar"><h1>PDF 资料库</h1><span id="who" class="muted"></span></div>
 <section aria-labelledby="search-heading"><h2 id="search-heading">全文检索</h2>
 <form id="search-form"><label>关键词<input id="search-query" type="search" maxlength="128" disabled required></label><button id="search-submit" type="submit" disabled>检索</button></form>
