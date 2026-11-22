@@ -1,0 +1,36 @@
+{
+  "unit_id": "LEARN-004",
+  "candidate_sha": "1e567853a5c6fd23330246d4f35990328a96326d",
+  "tree": "a23ebce188d53dc1f01cf7d5c5c5d0a9c6accb41",
+  "source_tree": "e13542ad55cae8c50ff6aa7a9849ba73322db037",
+  "entry_sha256": "4d94a4a04971094f2f4d48138f6c78bc9bdb6810c77904ce56a4044a14edf7d0",
+  "build_sha256": "7e00e498adedb54653505171710b6a51fbf46693529ff6aa96760d76fe852462",
+  "unit_acceptance": "PASS",
+  "passed_test_ids": [
+    "LEARN-004-T01",
+    "LEARN-004-T02"
+  ],
+  "main_command": "$env:PLAYWRIGHT_BROWSERS_PATH=Join-Path $PWD '.cache/learn004-video-tools'; node scripts/learn004/host-recall.mjs 1e567853a5c6fd23330246d4f35990328a96326d 4d94a4a04971094f2f4d48138f6c78bc9bdb6810c77904ce56a4044a14edf7d0 .cache/learn004-recorded",
+  "main_exit": 0,
+  "main_records": [
+    {
+      "path": "docs/evidence/LEARN-004/runs/main.json",
+      "sha256": "e4d1df92a0fc325ffd46bc672e7d4ecf97eeb9b14ae975c306a612ef42850f0f"
+    }
+  ],
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/LEARN-004/independent.json",
+  "technical_results": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "affected_tests": 31,
+    "A07": "PASS",
+    "regression_record": {
+      "path": "docs/evidence/LEARN-004/runs/a07-regression.json",
+      "sha256": "3832b8c6d113d9a5ce2ca11fd0790acf62ed2c0a2dfdb57de7b249372a472d36"
+    }
+  },
+  "final_cases": [
+    "docs/evidence/LEARN-004/P04.json"
+  ]
+}

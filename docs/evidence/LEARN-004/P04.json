@@ -1,0 +1,25 @@
+{
+  "unit_id": "LEARN-004",
+  "candidate_sha": "1e567853a5c6fd23330246d4f35990328a96326d",
+  "tree": "a23ebce188d53dc1f01cf7d5c5c5d0a9c6accb41",
+  "source_tree": "e13542ad55cae8c50ff6aa7a9849ba73322db037",
+  "entry_sha256": "4d94a4a04971094f2f4d48138f6c78bc9bdb6810c77904ce56a4044a14edf7d0",
+  "build_sha256": "7e00e498adedb54653505171710b6a51fbf46693529ff6aa96760d76fe852462",
+  "case_id": "P04",
+  "status": "PASS",
+  "exit": 0,
+  "command": "$env:PLAYWRIGHT_BROWSERS_PATH=Join-Path $PWD '.cache/learn004-video-tools'; node scripts/learn004/host-recall.mjs 1e567853a5c6fd23330246d4f35990328a96326d 4d94a4a04971094f2f4d48138f6c78bc9bdb6810c77904ce56a4044a14edf7d0 .cache/learn004-recorded",
+  "main": {
+    "path": "docs/evidence/LEARN-004/runs/main.json",
+    "sha256": "e4d1df92a0fc325ffd46bc672e7d4ecf97eeb9b14ae975c306a612ef42850f0f"
+  },
+  "independent": {
+    "path": "docs/evidence/LEARN-004/runs/independent.json",
+    "sha256": "e553acc5b49e0de88f95f7544988b10bd9b60c522d749356484ee0bbfd636ff0"
+  },
+  "selected_utf16": 5398,
+  "selected_pages": 3,
+  "mask_groups": 3,
+  "recordings_dir": ".cache/learn004-recorded/run-OoJhBN",
+  "model_calls": 0
+}

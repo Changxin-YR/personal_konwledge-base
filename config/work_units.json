@@ -2382,9 +2382,33 @@
         "P04"
       ],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "in_progress",
-      "test_plan_status": "detailed_in_progress",
-      "test_plan_path": "scripts/learn004/acceptance-plan.md"
+      "status": "passed",
+      "test_plan_status": "detailed_executed",
+      "test_plan_path": "scripts/learn004/acceptance-plan.md",
+      "candidate_commit": "1e567853a5c6fd23330246d4f35990328a96326d",
+      "acceptance_record": "docs/evidence/LEARN-004/acceptance.json",
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "retest_status": "PASS",
+      "completed_test_ids": [
+        "LEARN-004-T01",
+        "LEARN-004-T02"
+      ],
+      "open_review_items": [],
+      "closed_review_items": [
+        "interior-source-hash",
+        "page-quality",
+        "private-current-acl",
+        "progress-reload",
+        "explicit-page-length"
+      ],
+      "completed_at": "2026-11-22T01:00:42.002Z",
+      "evidence_paths": [
+        "docs/evidence/LEARN-004/acceptance.json",
+        "docs/evidence/LEARN-004/independent.json",
+        "docs/evidence/LEARN-004/P04.json",
+        "docs/evidence/LEARN-004/REPORT.md"
+      ]
     },
     {
       "id": "LEARN-005",

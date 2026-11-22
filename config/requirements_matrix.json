@@ -184,7 +184,9 @@
       ],
       "implementation_status": "in_progress",
       "evidence_paths": [
-        "docs/evidence/LEARN-004/checkpoint.md"
+        "docs/evidence/LEARN-004/checkpoint.md",
+        "docs/evidence/LEARN-004/acceptance.json",
+        "docs/evidence/LEARN-004/P04.json"
       ]
     },
     {
@@ -710,8 +712,12 @@
       "expected": "原选区完整，无静默截断；遮挡组、揭示/提示记录、版本及练习位置恢复。",
       "level": "e2e",
       "evidence_required": "完整选区与原文范围比对、录屏、持久化记录",
-      "status": "NOT_RUN",
-      "final_milestone": "M2"
+      "status": "PASS",
+      "final_milestone": "M2",
+      "evidence_paths": [
+        "docs/evidence/LEARN-004/P04.json",
+        "docs/evidence/LEARN-004/REPORT.md"
+      ]
     },
     {
       "id": "P05",

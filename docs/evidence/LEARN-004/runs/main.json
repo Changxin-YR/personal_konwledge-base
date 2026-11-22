@@ -1,0 +1,156 @@
+{
+  "candidate_sha": "1e567853a5c6fd23330246d4f35990328a96326d",
+  "entry_sha256": "4d94a4a04971094f2f4d48138f6c78bc9bdb6810c77904ce56a4044a14edf7d0",
+  "runner_sha256": "b45aed449c997056e14f723f91e4cb15329c9a01703e77a75f07e7985202df46",
+  "node": "v24.22.0",
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "P04": "PASS",
+  "checks": [
+    {
+      "id": "MOUSE_UTF16_MASKS_AND_REDACTION",
+      "status": "PASS",
+      "details": {
+        "selection": [
+          1,
+          689,
+          3,
+          1530
+        ],
+        "segments": [
+          [
+            1,
+            689,
+            2279,
+            "4f4677f11934ba2276658332bb0927393f9d3f2d9a86f480693c14955ae199f8"
+          ],
+          [
+            2,
+            0,
+            2278,
+            "79a8810dd4c11f30954af197b556f769934bbb471a580203ac97bcd59eb3e3ba"
+          ],
+          [
+            3,
+            0,
+            1530,
+            "e20b5a91352189f3985e093feb48cde6eaf2268d8182bb9da86df95f05a4c5b1"
+          ]
+        ],
+        "masked_segments": [
+          [
+            1,
+            899,
+            911,
+            1
+          ],
+          [
+            1,
+            1049,
+            1063,
+            2
+          ],
+          [
+            1,
+            2267,
+            2279,
+            3
+          ],
+          [
+            2,
+            0,
+            12,
+            3
+          ]
+        ],
+        "no_cache": true,
+        "stale_interior_rejected": true,
+        "guessed_id_rejected": true
+      }
+    },
+    {
+      "id": "RESTART_AND_REPLACEMENT",
+      "status": "PASS",
+      "details": {
+        "original": "da0e40846c50a971a59bec75f52635b22ced7263af43bac2da4a2b0962997afd",
+        "replacement": "a8da2e1710b2ee2bd27deebb1fb50aa065f48b3b662b03e622b24a90b576288c",
+        "ordinal": 2,
+        "progress": {
+          "hints": [
+            {
+              "group": 1,
+              "count": 1
+            }
+          ],
+          "revealed": [
+            3
+          ],
+          "independent_recall": [
+            2
+          ],
+          "self_rating": 4
+        },
+        "conflict_and_idempotency": true
+      }
+    },
+    {
+      "id": "REAL_REVOCATION",
+      "status": "PASS",
+      "details": {
+        "fixture": "project source binding only",
+        "source_and_practice_denied": true,
+        "failed_write_has_no_event": true,
+        "dom_cleared": true
+      }
+    }
+  ],
+  "shots": [
+    {
+      "name": "mouse-across-three-pages",
+      "sha256": "cce328fbfc6e6434bd43890255ab7b56a3ea53946a69f60685df3c0f9d4bf390"
+    },
+    {
+      "name": "practice-before-reveal",
+      "sha256": "00eda070901287431257f872d88c8912a7f135e09aab4e64543f42475a30e093"
+    },
+    {
+      "name": "resumed-old-version-mobile",
+      "sha256": "ed68b3ad5f69259905ced1511095a2a4dbbad8e3340443d9dd82e2d49db8b66a"
+    }
+  ],
+  "recordings": [
+    {
+      "file": "01-drag-and-practice.webm",
+      "sha256": "d7c060854131419857f16bf9be83b73e3c6f9f8012c90ef93dbf766359c8c45b",
+      "byte_length": 975572
+    },
+    {
+      "file": "02-resume-after-host-restart.webm",
+      "sha256": "1177b95b27fa3d8f00476ac77bc74f268fde7b9e9e420dbf1d59ca97af0ccc45",
+      "byte_length": 534058
+    }
+  ],
+  "boots": [
+    84672,
+    79636
+  ],
+  "binding": {
+    "candidate_sha": "1e567853a5c6fd23330246d4f35990328a96326d",
+    "tree": "a23ebce188d53dc1f01cf7d5c5c5d0a9c6accb41",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "4d94a4a04971094f2f4d48138f6c78bc9bdb6810c77904ce56a4044a14edf7d0",
+    "helpers": {
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "5278ebf7cc64773560b3b672c9182c65b4e1d82a20b8f569328cb0765a627f10",
+      "a07-isolated-host": "fb8c0294b8cd27e451ff0936b359e43c4b14faff0af0a48259ce8797fceca05c"
+    },
+    "parser": {
+      "pdf-extractor.js": "49fb0588ba0c37486a287a083d9bd2a032d89205d34af615845c4928b1f6745c",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "chrome": "158.0.8127.36"
+}
