@@ -9,8 +9,8 @@
     "path": "CODEX_START.md",
     "sha256": "da73b65a0004bfa875d1435a61a555ba6f02d45c280aeb8ed6d2e62ab4bd39d8"
   },
-  "active_unit": "NOTE-003",
-  "unit_state": "passed",
+  "active_unit": "REPO-001",
+  "unit_state": "ready",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "NOTE-003 T01/T02 and A17 passed on the frozen v27 integration candidate; KNOW-001 awaits FND-005.",
+  "state_reason": "Selected after NOTE-003: PASS",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",

@@ -14,7 +14,7 @@ export async function until(fn,label,ms=15000){
   throw Error('timeout: '+label)
 }
 const git=(...args)=>execFileSync('git',['--no-optional-locks',...args],{cwd:root})
-export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrier=false,businessClock}={}){
+export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrier=false,businessClock,nativeEgressProbe=false}={}){
   const bound=binding(commit,resolve(process.env.KO_TEST_CACHE??join(root,'.cache')))
   assert.equal(bound.facts.entry_sha256,entryHash)
   const scopes=['scripts/lib002','scripts/fnd003','scripts/fnd004']
@@ -22,6 +22,11 @@ export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrie
   const helpers={}
   if(businessClock!==undefined){
     const path='scripts/share001/test-clock-preload.mjs';helpers['business-clock']=sha(readFileSync(join(root,path)));assert.equal(helpers['business-clock'],sha(git('show',commit+':'+path)))
+  }
+  if(nativeEgressProbe){
+    for(const name of ['native-host-egress-preload','native-host-egress-plugin']){
+      const path=`scripts/fnd005/${name}.mjs`;helpers[name]=sha(readFileSync(join(root,path)));assert.equal(helpers[name],sha(git('show',commit+':'+path)))
+    }
   }
   if(searchBarrier){
     const path='scripts/search001/scan-barrier.mjs';helpers['search-barrier']=sha(readFileSync(join(root,path)));assert.equal(helpers['search-barrier'],sha(git('show',commit+':'+path)))
@@ -47,7 +52,10 @@ export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrie
   const deps=join(product,'node_modules/@deepseek-ai');mkdirSync(deps,{recursive:true});symlinkSync(realpathSync(join(bound.runtime,'apps/cli/node_modules/@deepseek-ai/schemastery')),join(deps,'schemastery'),'junction')
   const config=(file,o)=>writeFileSync(join(profileDir,file),JSON.stringify(o))
   config('package.json',{name:profile,private:true,dependencies:{'knowledgeos-panel':'link:'+product.replaceAll('\\','/')},dsh:{profile:{bundles:['@deepseek-ai/dsh-base','@deepseek-ai/dsh-web-app','knowledgeos-panel']}}})
-  config('cordis.yml',[]);config('cordis.patch.yml',[{id:'knowledgeos-host',config:{dataDir:data.replaceAll('\\','/')}}])
+  config('cordis.yml',[])
+  const patch=[{id:'knowledgeos-host',config:{dataDir:data.replaceAll('\\','/')}}]
+  if(nativeEgressProbe)patch.push({insert:[{id:'native-egress-probe',name:fileURLToPath(new URL('../fnd005/native-host-egress-plugin.mjs',import.meta.url)).replaceAll('\\','/')} ]})
+  config('cordis.patch.yml',patch)
   const socket=createServer();await new Promise((ok,no)=>socket.once('error',no).listen(0,'127.0.0.1',ok));const port=socket.address().port;await new Promise(ok=>socket.close(ok))
   const base='http://127.0.0.1:'+port;let host,seq=0,trace
   function events(){
@@ -70,6 +78,7 @@ export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrie
     const extra=officeBarrier?['--import',new URL('../lib004/office-barrier-preload.mjs',import.meta.url).href]:[]
     if(searchBarrier)extra.push('--import',new URL('../search001/scan-barrier.mjs',import.meta.url).href)
     if(businessClock!==undefined){env.KO_TEST_BUSINESS_CLOCK=clockFile;extra.push('--import',new URL('../share001/test-clock-preload.mjs',import.meta.url).href)}
+    if(nativeEgressProbe){env.KO_TEST_LOOPBACK=base;extra.unshift('--import',new URL('../fnd005/native-host-egress-preload.mjs',import.meta.url).href)}
     const child=spawn(process.execPath,['--import',new URL('../fnd005/candidate-live-trace.mjs',import.meta.url).href,'--import',new URL('a07-extractor-preload.mjs',import.meta.url).href,...extra,'--import','tsx/esm','apps/cli/src/bin.ts','--profile',profile,'--host','127.0.0.1','--port',String(port),'--no-open'],{cwd:bound.runtime,env,stdio:['ignore','pipe','pipe'],windowsHide:true})
     let ended=false,tail='';const done=new Promise(ok=>{child.once('close',(code,signal)=>{ended=true;ok({code,signal})});child.once('error',()=>{ended=true;ok({spawnError:true})})});host={child,done}
     for(const s of [child.stdout,child.stderr])s.on('data',chunk=>{tail=(tail+chunk).slice(-32000)})
@@ -87,5 +96,6 @@ export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrie
   const gateSearch=data=>{assert(searchBarrier&&host);writeFileSync(join(trace,'hold-search-scan.json'),JSON.stringify(data),{flag:'wx'})}
   const searchGateFacts=()=>JSON.parse(readFileSync(join(trace,'hold-search-scan.json.observed'),'utf8'))
   return {base,port,data,start,stop,events,officeFlag,gateSearch,searchGateFacts,clock,invitationArrivals,release:()=>writeFileSync(join(trace,'release3'),'',{flag:'wx'}),
+    nativeResult:()=>{assert(nativeEgressProbe);const path=join(trace,'native-egress.json');return existsSync(path)?JSON.parse(readFileSync(path,'utf8')):undefined},
     facts:{...bound.facts,helpers,parser},playwright:bound.playwright}
 }
