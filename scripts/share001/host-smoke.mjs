@@ -72,7 +72,7 @@ try{
   facts.checks.push('UI issue/redeem and fixed-version reading; live edit allowed and management denied')
   phase='renew and revoke in Chrome';await owner.page.getByRole('button',{name:'管理邀请'}).click();await owner.page.locator('#managed').waitFor()
   const db=dbPath(h.data),dispatch=event=>`/invitations/${issued.id}/${event}`,getManaged=()=>http(owner.ctx,'/invitations/'+issued.id,200)
-  const grants=()=>sql(db,'SELECT id,user_id,expires_at,revoked_at FROM invitation_redemptions WHERE invitation_id=? ORDER BY id',[issued.id])
+  const grants=()=>sql(db,'SELECT id,user_id,expires_at,revoked_at FROM invitation_redemptions WHERE invitation_id=? ORDER BY id',[issued.id]).map(g=>({...g}))
   const audit=()=>sql(db,'SELECT actor_id,event,prior_expires_at,expires_at,affected_count FROM invitation_audit WHERE invitation_id=? ORDER BY revision',[issued.id])
   const before=await getManaged(),beforeGrants=grants()
   const title=owner.page.locator('#managed-title'),meta=owner.page.locator('#managed-meta')
