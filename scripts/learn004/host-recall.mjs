@@ -72,6 +72,7 @@ async function parse(ctx,doc){
 }
 async function screen(page,name){const b=await page.screenshot({path:join(out,name+'.png')});facts.shots.push({name,sha256:sha(b)})}
 async function drag(page,startPage,start,endPage,end){
+  await page.locator('#source-title').click();assert(await page.evaluate(()=>getSelection().isCollapsed))
   // A DOM Range measures glyph positions only; mouse events create the actual selection.
   const coords=await page.evaluate(args=>args.map(([n,o])=>{
     const node=document.querySelector('pre[data-ordinal="'+n+'"]').firstChild,r=document.createRange()
