@@ -40,8 +40,8 @@ test('v21 data and exact ledger survive injected v22 rollback, append and reopen
     assert.equal(version(),21);assert.deepEqual(schema(),before);assert.deepEqual(contents(),expected);assert.deepEqual(rows('schema_migrations'),ledger)
     for(let i=0;i<2;i++){
       s=new lib.ProbeStorage({dataDir:dir});assert(s.available,s.failure?.message)
-      assert.equal(version(),24);assert.deepEqual(contents(),expected)
-      const applied=rows('schema_migrations');assert.equal(applied.pop().version,24);assert.equal(applied.pop().version,23);const last=applied.pop();assert.deepEqual([last.version,last.checksum],[22,MIGRATION_V22_CHECKSUM]);assert.deepEqual(applied,ledger)
+      assert.equal(version(),25);assert.deepEqual(contents(),expected)
+      const applied=rows('schema_migrations');assert.equal(applied.pop().version,25);assert.equal(applied.pop().version,24);assert.equal(applied.pop().version,23);const last=applied.pop();assert.deepEqual([last.version,last.checksum],[22,MIGRATION_V22_CHECKSUM]);assert.deepEqual(applied,ledger)
       assert.equal(s.notes.get(actor,note.id).body,'Note body');assert.equal(s.citations.resolve(actor,citation.id).quote,text)
       assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);s.close()
     }

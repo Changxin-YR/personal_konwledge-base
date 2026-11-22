@@ -4177,6 +4177,11 @@ CREATE TABLE domain_event_outbox (
   event_id TEXT PRIMARY KEY REFERENCES domain_events(event_id), created_at TEXT NOT NULL,
   delivered_at TEXT, failures INTEGER NOT NULL DEFAULT 0 CHECK(failures>=0), retry_at TEXT, last_error TEXT
 ) STRICT;`;
+var INVITATION_CHANGE_SCHEMA = `CREATE TABLE invitation_change_receipts (
+  service_id TEXT NOT NULL, actor_id TEXT NOT NULL REFERENCES users(id), request_key TEXT NOT NULL,
+  invitation_id TEXT NOT NULL REFERENCES invitations(id), request_digest TEXT NOT NULL CHECK(length(request_digest)=64),
+  result_json TEXT NOT NULL CHECK(json_valid(result_json)), PRIMARY KEY(service_id,actor_id,request_key)
+) STRICT;`;
 var day = 864e5;
 var digest2 = (value) => createHash12("sha256").update(value).digest("hex");
 var invalid5 = () => new AssetError(422, "INVALID_INVITATION");
@@ -4323,24 +4328,33 @@ var InvitationStore = class {
       return { actor_id: a.userId, server_time: now, items };
     });
   }
-  change(prior, expected, id4, expectedRevision, event, days, correlation = randomUUID14()) {
+  change(prior, expected, id4, expectedRevision, event, days, key = randomUUID14(), correlation = randomUUID14()) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now, expected), { r } = this.managed(db, a, id4, now);
+      const extension = event === "renew" ? duration(days) : 0, req = digest2(JSON.stringify([id4, expectedRevision, event, extension]));
+      const priorReceipt = db.prepare("SELECT request_digest,result_json FROM invitation_change_receipts WHERE service_id=? AND actor_id=? AND request_key=?").get(a.serviceId, a.userId, key);
+      if (priorReceipt) {
+        if (priorReceipt.request_digest !== req) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        return { ...JSON.parse(String(priorReceipt.result_json)), replayed: true };
+      }
       if (!active(r, now)) throw unavailable();
       if (expectedRevision !== r.revision) throw conflict2();
-      const expires_at = event === "renew" ? new Date(Date.parse(r.expires_at) + duration(days)).toISOString() : r.expires_at;
+      const expires_at = event === "renew" ? new Date(Date.parse(r.expires_at) + extension).toISOString() : r.expires_at;
       const changed2 = (event === "renew" ? db.prepare("UPDATE invitation_redemptions SET expires_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? RETURNING id").all(expires_at, id4, now) : db.prepare("UPDATE invitation_redemptions SET revoked_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? RETURNING id").all(now, id4, now)).map((r2) => String(r2.id));
       const next = { ...r, expires_at, revoked_at: event === "revoke" ? now : null, revision: r.revision + 1 };
       db.prepare("UPDATE invitations SET expires_at=?,revoked_at=?,revision=? WHERE id=?").run(expires_at, next.revoked_at, next.revision, id4);
+      const result = { ...receipt2(next), affected_count: changed2.length, server_time: now };
+      db.prepare("INSERT INTO invitation_change_receipts VALUES(?,?,?,?,?,?)").run(a.serviceId, a.userId, key, id4, req, JSON.stringify(result));
       recordEvent(db, next, a, event, now, r.expires_at, changed2, correlation);
-      return { ...receipt2(next), affected_count: changed2.length, server_time: now };
+      return { ...result, replayed: false };
     });
   }
 };
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 24;
+var SCHEMA_VERSION = 25;
+var MIGRATION_V25_CHECKSUM = createHash13("sha256").update(INVITATION_CHANGE_SCHEMA).digest("hex");
 var MIGRATION_V24_CHECKSUM = createHash13("sha256").update(INVITATION_EVENT_SCHEMA).digest("hex");
 var MIGRATION_V23_CHECKSUM = createHash13("sha256").update(INVITATION_SCHEMA).digest("hex");
 var MIGRATION_V22_CHECKSUM = createHash13("sha256").update(RECALL_SCHEMA).digest("hex");
@@ -4724,6 +4738,7 @@ var ProbeStorage = class {
       if (priorVersion < 22) this.#migrateV22(db);
       if (priorVersion < 23) this.#migrateV23(db);
       if (priorVersion < 24) this.#migrateV24(db);
+      if (priorVersion < 25) this.#migrateV25(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path2);
       const pragmas = this.#readPragmas(db);
@@ -5244,9 +5259,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "invitation event migration failed", false, { cause: e });
     }
   }
+  #migrateV25(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(INVITATION_CHANGE_SCHEMA);
+      this.#injectFailure("v25:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(25,?,?)").run(MIGRATION_V25_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=25; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "invitation receipt migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash4, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash4)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -5269,6 +5296,7 @@ var ProbeStorage = class {
       if (version >= 22) reference.exec(RECALL_SCHEMA);
       if (version >= 23) reference.exec(INVITATION_SCHEMA);
       if (version >= 24) reference.exec(INVITATION_EVENT_SCHEMA);
+      if (version >= 25) reference.exec(INVITATION_CHANGE_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name: name2, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name2)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -5620,20 +5648,22 @@ var ProbeStorage = class {
       throw this.#mapError(error);
     }
   }
-  updateObject(actor2, objectId, expectedRevision, patch, now) {
-    const db = this.#ensureReady();
-    const current = this.authorizeObject(actor2, objectId, "edit", now);
-    if (current === void 0) return { kind: "not_found" };
-    if (current.revision !== expectedRevision) return { kind: "conflict", currentRevision: current.revision };
-    const title = patch.title ?? current.title;
-    const body2 = patch.body ?? current.body;
-    const result = db.prepare("UPDATE knowledge_objects SET title = ?, body = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ? AND status = 'active'").run(title, body2, now, objectId, expectedRevision);
-    if (Number(result.changes) !== 1) {
-      const latest = this.#loadObject(objectId);
-      return latest === void 0 || latest.status !== "active" ? { kind: "not_found" } : { kind: "conflict", currentRevision: latest.revision };
+  updateObject(prior, objectId, expectedRevision, patch) {
+    try {
+      return this.#assetTx("write", (db, now) => {
+        const actor2 = this.#currentActor(prior, now);
+        if (!actor2) return { kind: "session_expired" };
+        const current = this.authorizeObject(actor2, objectId, "edit", now);
+        if (!current) return { kind: "not_found" };
+        if (current.revision !== expectedRevision) return { kind: "conflict", currentRevision: current.revision };
+        const updated = db.prepare(`UPDATE knowledge_objects SET title=?,body=?,revision=revision+1,updated_at=?
+          WHERE id=? AND revision=? AND status='active' RETURNING *`).get(patch.title ?? current.title, patch.body ?? current.body, now, objectId, expectedRevision);
+        if (!updated) throw new RecordsError("STORAGE_UNAVAILABLE", "locked object update did not write a row");
+        return { kind: "updated", object: this.#objectRow(updated) };
+      });
+    } catch (e) {
+      throw this.#mapError(e);
     }
-    const updated = this.#loadObject(objectId);
-    return updated === void 0 ? { kind: "not_found" } : { kind: "updated", object: updated };
   }
   /** Revalidate the original login inside the same transaction as ACL/version/receipt. */
   mutateObjectOnce(actor2, input, now) {
@@ -6544,10 +6574,11 @@ function createObjectHandlers(options) {
           const body2 = await readBody3(req);
           keys(body2, ["expected_revision", "title", "body"]);
           if (!Number.isInteger(body2.expected_revision) || Number(body2.expected_revision) < 1) throw new ObjectHttpError(422, "INPUT_INVALID", "expected_revision is invalid");
-          const result = options.storage.updateObject(current, objectId, Number(body2.expected_revision), { title: body2.title === void 0 ? void 0 : text(body2.title, "title", 200), body: body2.body === void 0 ? void 0 : text(body2.body, "body", 1e5) }, now);
+          const result = options.storage.updateObject(current, objectId, Number(body2.expected_revision), { title: body2.title === void 0 ? void 0 : text(body2.title, "title", 200), body: body2.body === void 0 ? void 0 : text(body2.body, "body", 1e5) });
+          if (result.kind === "session_expired") throw new ObjectHttpError(401, "SESSION_EXPIRED", "business session is required");
           if (result.kind === "not_found") throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
           if (result.kind === "conflict") throw new ObjectHttpError(409, "REVISION_CONFLICT", "object revision has changed");
-          json(res, 200, { data: safeObject(result.object), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
+          json(res, 200, { data: safeObject(result.object), meta: { request_id: requestId, service_id: current.serviceId, server_time: result.object.updatedAt } });
           return;
         }
         if (segments.length === 4 && req.method === "DELETE") {
@@ -8762,7 +8793,7 @@ function createInvitationHandler(store, origin, actorFor) {
         }
         if (row?.[2] === "renew" || row?.[2] === "revoke") {
           keys3(b, row[2] === "renew" ? ["actor_id", "expected_revision", "days"] : ["actor_id", "expected_revision"]);
-          return reply(200, store.change(a, expected, id3(row[1]), positive(b.expected_revision), row[2], optional(b.days), correlation));
+          return reply(200, store.change(a, expected, id3(row[1]), positive(b.expected_revision), row[2], optional(b.days), id3(req.headers["idempotency-key"]), correlation));
         }
       }
       throw new AssetError(404, "NOT_FOUND");
@@ -10650,10 +10681,12 @@ $('create').onclick=()=>{if(!issue)return;void run(async g=>{const p=await call(
 $('cancel-issue').onclick=()=>{issue=null;$('preview').hidden=true};$('copy').onclick=()=>{const code=$('issued-code').textContent;if(code)void navigator.clipboard.writeText(code).then(()=>status('邀请码已复制。'),()=>status('无法访问剪贴板。'))};
 $('redeem').onsubmit=e=>{e.preventDefault();const token=$('token').value.trim();void run(async g=>{const d=await call(g,'/redeem',{token});$('token').value='';$('redeemed').textContent=d.title+' · '+labels[d.target.permission]+' · '+term(d.expires_at,d.server_time);$('redeemed').hidden=false;status(d.replayed?'已确认此前兑换。':'兑换成功。');})};
 function prepare(event){if(!current?.active)return;const days=$('renew-days').valueAsNumber;if(event==='renew'&&!$('renew-days').reportValidity())return;
-  change={event,id:current.id,revision:current.revision,days};const n=current.affected.length;
+  change={event,id:current.id,revision:current.revision,days,key:crypto.randomUUID()};const n=current.affected.length;
   $('change-preview').textContent=event==='revoke'?'撤销会同时终止 '+n+' 份有效派生授权。':n+' 份有效派生授权的截止从 '+format(current.expires_at)+' 延长至 '+format(new Date(Date.parse(current.expires_at)+days*86400000).toISOString())+'。';$('confirm-panel').hidden=false;}
 $('preview-renew').onclick=()=>prepare('renew');$('preview-revoke').onclick=()=>prepare('revoke');$('cancel-change').onclick=()=>{change=null;$('confirm-panel').hidden=true};
-$('confirm-change').onclick=()=>{const x=change;if(!x)return;void run(async g=>{try{const d=await call(g,'/'+x.id+'/'+x.event,{expected_revision:x.revision,...(x.event==='renew'?{days:x.days}:{})});status('已更新 '+d.affected_count+' 份派生授权。')}finally{change=null;$('confirm-panel').hidden=true;await manage(g,x.id);await list(g)}})};
+$('confirm-change').onclick=()=>{const x=change;if(!x)return;void run(async g=>{try{const d=await call(g,'/'+x.id+'/'+x.event,{expected_revision:x.revision,...(x.event==='renew'?{days:x.days}:{})},x.key);status('已更新 '+d.affected_count+' 份派生授权。')}
+  catch(e){if(g===epoch&&!e.code){status('未收到确认。可使用当前预览重新确认。');return}throw e}
+  change=null;$('confirm-panel').hidden=true;await manage(g,x.id);await list(g)})};
 function reloadWhenVisible(){if(document.hidden)return;if(busy)reloadPending=true;else void run(load)}
 document.addEventListener('visibilitychange',()=>{if(document.hidden)conceal();else reloadWhenVisible()});window.addEventListener('pagehide',conceal);window.addEventListener('pageshow',e=>{if(e.persisted)reloadWhenVisible()});
 void run(load);

@@ -52,7 +52,7 @@ export function createInvitationHandler(store:InvitationStore,origin:()=>string|
         }
         if(row?.[2]==='renew'||row?.[2]==='revoke'){
           keys(b,row[2]==='renew'?['actor_id','expected_revision','days']:['actor_id','expected_revision'])
-          return reply(200,store.change(a,expected,id(row[1]),positive(b.expected_revision),row[2],optional(b.days),correlation))
+          return reply(200,store.change(a,expected,id(row[1]),positive(b.expected_revision),row[2],optional(b.days),id(req.headers['idempotency-key']),correlation))
         }
       }
       throw new AssetError(404,'NOT_FOUND')

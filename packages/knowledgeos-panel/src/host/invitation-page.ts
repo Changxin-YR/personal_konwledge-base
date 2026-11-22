@@ -48,10 +48,12 @@ $('create').onclick=()=>{if(!issue)return;void run(async g=>{const p=await call(
 $('cancel-issue').onclick=()=>{issue=null;$('preview').hidden=true};$('copy').onclick=()=>{const code=$('issued-code').textContent;if(code)void navigator.clipboard.writeText(code).then(()=>status('邀请码已复制。'),()=>status('无法访问剪贴板。'))};
 $('redeem').onsubmit=e=>{e.preventDefault();const token=$('token').value.trim();void run(async g=>{const d=await call(g,'/redeem',{token});$('token').value='';$('redeemed').textContent=d.title+' · '+labels[d.target.permission]+' · '+term(d.expires_at,d.server_time);$('redeemed').hidden=false;status(d.replayed?'已确认此前兑换。':'兑换成功。');})};
 function prepare(event){if(!current?.active)return;const days=$('renew-days').valueAsNumber;if(event==='renew'&&!$('renew-days').reportValidity())return;
-  change={event,id:current.id,revision:current.revision,days};const n=current.affected.length;
+  change={event,id:current.id,revision:current.revision,days,key:crypto.randomUUID()};const n=current.affected.length;
   $('change-preview').textContent=event==='revoke'?'撤销会同时终止 '+n+' 份有效派生授权。':n+' 份有效派生授权的截止从 '+format(current.expires_at)+' 延长至 '+format(new Date(Date.parse(current.expires_at)+days*86400000).toISOString())+'。';$('confirm-panel').hidden=false;}
 $('preview-renew').onclick=()=>prepare('renew');$('preview-revoke').onclick=()=>prepare('revoke');$('cancel-change').onclick=()=>{change=null;$('confirm-panel').hidden=true};
-$('confirm-change').onclick=()=>{const x=change;if(!x)return;void run(async g=>{try{const d=await call(g,'/'+x.id+'/'+x.event,{expected_revision:x.revision,...(x.event==='renew'?{days:x.days}:{})});status('已更新 '+d.affected_count+' 份派生授权。')}finally{change=null;$('confirm-panel').hidden=true;await manage(g,x.id);await list(g)}})};
+$('confirm-change').onclick=()=>{const x=change;if(!x)return;void run(async g=>{try{const d=await call(g,'/'+x.id+'/'+x.event,{expected_revision:x.revision,...(x.event==='renew'?{days:x.days}:{})},x.key);status('已更新 '+d.affected_count+' 份派生授权。')}
+  catch(e){if(g===epoch&&!e.code){status('未收到确认。可使用当前预览重新确认。');return}throw e}
+  change=null;$('confirm-panel').hidden=true;await manage(g,x.id);await list(g)})};
 function reloadWhenVisible(){if(document.hidden)return;if(busy)reloadPending=true;else void run(load)}
 document.addEventListener('visibilitychange',()=>{if(document.hidden)conceal();else reloadWhenVisible()});window.addEventListener('pagehide',conceal);window.addEventListener('pageshow',e=>{if(e.persisted)reloadWhenVisible()});
 void run(load);

@@ -46,6 +46,12 @@ CREATE TABLE domain_event_outbox (
   delivered_at TEXT, failures INTEGER NOT NULL DEFAULT 0 CHECK(failures>=0), retry_at TEXT, last_error TEXT
 ) STRICT;`
 
+export const INVITATION_CHANGE_SCHEMA=`CREATE TABLE invitation_change_receipts (
+  service_id TEXT NOT NULL, actor_id TEXT NOT NULL REFERENCES users(id), request_key TEXT NOT NULL,
+  invitation_id TEXT NOT NULL REFERENCES invitations(id), request_digest TEXT NOT NULL CHECK(length(request_digest)=64),
+  result_json TEXT NOT NULL CHECK(json_valid(result_json)), PRIMARY KEY(service_id,actor_id,request_key)
+) STRICT;`
+
 const day=86_400_000
 const digest=(value:string)=>createHash('sha256').update(value).digest('hex')
 const invalid=()=>new AssetError(422,'INVALID_INVITATION')
@@ -64,6 +70,7 @@ function duration(days=7){if(!Number.isInteger(days)||days<1||days>90)throw inva
 function cap(n=1){if(!Number.isInteger(n)||n<1||n>100)throw invalid();return n}
 function receipt(r:InvitationRow){return {id:r.id,target:target(r),issued_at:r.issued_at,expires_at:r.expires_at,revoked_at:r.revoked_at,
   max_redemptions:r.max_redemptions,redeemed_count:r.redeemed_count,revision:r.revision}}
+type ChangeReceipt=ReturnType<typeof receipt> & {affected_count:number;server_time:string}
 const active=(r:{expires_at:string;revoked_at:string|null},now:string)=>r.revoked_at===null&&now<r.expires_at
 type InvitationEvent='issue'|'redeem'|'renew'|'revoke'
 function recordEvent(db:DatabaseSync,r:InvitationRow,a:SessionActor,event:InvitationEvent,now:string,before:string|null,affected:string[],correlation:string){
@@ -150,18 +157,27 @@ export class InvitationStore {
     const items=rows.flatMap(r=>{const scope=this.canIssue(a,target(r),now);return scope?[{...receipt(r),title:scope.title,active:active(r,now)}]:[]})
     return {actor_id:a.userId,server_time:now,items}
   })}
-  change(prior:SessionActor,expected:string,id:string,expectedRevision:number,event:'renew'|'revoke',days?:number,correlation=randomUUID()){return this.tx('write',(db,now)=>{
+  change(prior:SessionActor,expected:string,id:string,expectedRevision:number,event:'renew'|'revoke',days?:number,key:string=randomUUID(),correlation=randomUUID()){return this.tx('write',(db,now)=>{
     const a=this.actor(prior,now,expected),{r}=this.managed(db,a,id,now)
+    const extension=event==='renew'?duration(days):0,req=digest(JSON.stringify([id,expectedRevision,event,extension]))
+    const priorReceipt=db.prepare('SELECT request_digest,result_json FROM invitation_change_receipts WHERE service_id=? AND actor_id=? AND request_key=?')
+      .get(a.serviceId,a.userId,key)
+    if(priorReceipt){
+      if(priorReceipt.request_digest!==req)throw new AssetError(409,'IDEMPOTENCY_CONFLICT')
+      return {...(JSON.parse(String(priorReceipt.result_json)) as ChangeReceipt),replayed:true}
+    }
     if(!active(r,now))throw unavailable()
     if(expectedRevision!==r.revision)throw conflict()
-    const expires_at=event==='renew'?new Date(Date.parse(r.expires_at)+duration(days)).toISOString():r.expires_at
+    const expires_at=event==='renew'?new Date(Date.parse(r.expires_at)+extension).toISOString():r.expires_at
     // Existing direct permissions and previously revoked redemptions never join this transaction.
     const changed=(event==='renew'?
       db.prepare('UPDATE invitation_redemptions SET expires_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? RETURNING id').all(expires_at,id,now):
       db.prepare('UPDATE invitation_redemptions SET revoked_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? RETURNING id').all(now,id,now)).map(r=>String(r.id))
     const next={...r,expires_at,revoked_at:event==='revoke'?now:null,revision:r.revision+1}
     db.prepare('UPDATE invitations SET expires_at=?,revoked_at=?,revision=? WHERE id=?').run(expires_at,next.revoked_at,next.revision,id)
+    const result:ChangeReceipt={...receipt(next),affected_count:changed.length,server_time:now}
+    db.prepare('INSERT INTO invitation_change_receipts VALUES(?,?,?,?,?,?)').run(a.serviceId,a.userId,key,id,req,JSON.stringify(result))
     recordEvent(db,next,a,event,now,r.expires_at,changed,correlation)
-    return {...receipt(next),affected_count:changed.length,server_time:now}
+    return {...result,replayed:false}
   })}
 }

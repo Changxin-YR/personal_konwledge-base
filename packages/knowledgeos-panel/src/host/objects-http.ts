@@ -75,10 +75,11 @@ export function createObjectHandlers(options: ObjectHttpOptions): (req: Incoming
           const body = await readBody(req)
           keys(body, ['expected_revision', 'title', 'body'])
           if (!Number.isInteger(body.expected_revision) || Number(body.expected_revision) < 1) throw new ObjectHttpError(422, 'INPUT_INVALID', 'expected_revision is invalid')
-          const result = options.storage.updateObject(current, objectId, Number(body.expected_revision), { title: body.title === undefined ? undefined : text(body.title, 'title', 200), body: body.body === undefined ? undefined : text(body.body, 'body', 100_000) }, now)
+          const result = options.storage.updateObject(current, objectId, Number(body.expected_revision), { title: body.title === undefined ? undefined : text(body.title, 'title', 200), body: body.body === undefined ? undefined : text(body.body, 'body', 100_000) })
+          if (result.kind === 'session_expired') throw new ObjectHttpError(401, 'SESSION_EXPIRED', 'business session is required')
           if (result.kind === 'not_found') throw new ObjectHttpError(404, 'NOT_FOUND', 'object not found')
           if (result.kind === 'conflict') throw new ObjectHttpError(409, 'REVISION_CONFLICT', 'object revision has changed')
-          json(res, 200, { data: safeObject(result.object), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } }); return
+          json(res, 200, { data: safeObject(result.object), meta: { request_id: requestId, service_id: current.serviceId, server_time: result.object.updatedAt } }); return
         }
         if (segments.length === 4 && req.method === 'DELETE') { if (!options.storage.deleteObject(current, objectId, now)) throw new ObjectHttpError(404, 'NOT_FOUND', 'object not found'); res.statusCode = 204; res.end(); return }
         if (segments.length === 5 && segments[4] === 'action' && req.method === 'POST') { const body = await readBody(req); keys(body, ['action']); const wanted = action(body.action); if (options.storage.authorizeObject(current, objectId, wanted, now) === undefined) throw new ObjectHttpError(404, 'NOT_FOUND', 'object not found'); json(res, 200, { data: { allowed: true, action: wanted, object_id: objectId }, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } }); return }

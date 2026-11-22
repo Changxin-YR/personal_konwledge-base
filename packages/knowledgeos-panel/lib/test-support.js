@@ -2202,6 +2202,11 @@ CREATE TABLE domain_event_outbox (
   event_id TEXT PRIMARY KEY REFERENCES domain_events(event_id), created_at TEXT NOT NULL,
   delivered_at TEXT, failures INTEGER NOT NULL DEFAULT 0 CHECK(failures>=0), retry_at TEXT, last_error TEXT
 ) STRICT;`;
+var INVITATION_CHANGE_SCHEMA = `CREATE TABLE invitation_change_receipts (
+  service_id TEXT NOT NULL, actor_id TEXT NOT NULL REFERENCES users(id), request_key TEXT NOT NULL,
+  invitation_id TEXT NOT NULL REFERENCES invitations(id), request_digest TEXT NOT NULL CHECK(length(request_digest)=64),
+  result_json TEXT NOT NULL CHECK(json_valid(result_json)), PRIMARY KEY(service_id,actor_id,request_key)
+) STRICT;`;
 var day = 864e5;
 var digest2 = (value) => createHash13("sha256").update(value).digest("hex");
 var invalid5 = () => new AssetError(422, "INVALID_INVITATION");
@@ -2348,24 +2353,33 @@ var InvitationStore = class {
       return { actor_id: a.userId, server_time: now, items };
     });
   }
-  change(prior, expected, id, expectedRevision, event, days, correlation = randomUUID14()) {
+  change(prior, expected, id, expectedRevision, event, days, key = randomUUID14(), correlation = randomUUID14()) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now, expected), { r } = this.managed(db, a, id, now);
+      const extension = event === "renew" ? duration(days) : 0, req = digest2(JSON.stringify([id, expectedRevision, event, extension]));
+      const priorReceipt = db.prepare("SELECT request_digest,result_json FROM invitation_change_receipts WHERE service_id=? AND actor_id=? AND request_key=?").get(a.serviceId, a.userId, key);
+      if (priorReceipt) {
+        if (priorReceipt.request_digest !== req) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        return { ...JSON.parse(String(priorReceipt.result_json)), replayed: true };
+      }
       if (!active(r, now)) throw unavailable();
       if (expectedRevision !== r.revision) throw conflict2();
-      const expires_at = event === "renew" ? new Date(Date.parse(r.expires_at) + duration(days)).toISOString() : r.expires_at;
+      const expires_at = event === "renew" ? new Date(Date.parse(r.expires_at) + extension).toISOString() : r.expires_at;
       const changed2 = (event === "renew" ? db.prepare("UPDATE invitation_redemptions SET expires_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? RETURNING id").all(expires_at, id, now) : db.prepare("UPDATE invitation_redemptions SET revoked_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? RETURNING id").all(now, id, now)).map((r2) => String(r2.id));
       const next = { ...r, expires_at, revoked_at: event === "revoke" ? now : null, revision: r.revision + 1 };
       db.prepare("UPDATE invitations SET expires_at=?,revoked_at=?,revision=? WHERE id=?").run(expires_at, next.revoked_at, next.revision, id);
+      const result = { ...receipt2(next), affected_count: changed2.length, server_time: now };
+      db.prepare("INSERT INTO invitation_change_receipts VALUES(?,?,?,?,?,?)").run(a.serviceId, a.userId, key, id, req, JSON.stringify(result));
       recordEvent(db, next, a, event, now, r.expires_at, changed2, correlation);
-      return { ...receipt2(next), affected_count: changed2.length, server_time: now };
+      return { ...result, replayed: false };
     });
   }
 };
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 24;
+var SCHEMA_VERSION = 25;
+var MIGRATION_V25_CHECKSUM = createHash14("sha256").update(INVITATION_CHANGE_SCHEMA).digest("hex");
 var MIGRATION_V24_CHECKSUM = createHash14("sha256").update(INVITATION_EVENT_SCHEMA).digest("hex");
 var MIGRATION_V23_CHECKSUM = createHash14("sha256").update(INVITATION_SCHEMA).digest("hex");
 var MIGRATION_V22_CHECKSUM = createHash14("sha256").update(RECALL_SCHEMA).digest("hex");
@@ -2754,6 +2768,7 @@ var ProbeStorage = class {
       if (priorVersion < 22) this.#migrateV22(db);
       if (priorVersion < 23) this.#migrateV23(db);
       if (priorVersion < 24) this.#migrateV24(db);
+      if (priorVersion < 25) this.#migrateV25(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -3274,9 +3289,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "invitation event migration failed", false, { cause: e });
     }
   }
+  #migrateV25(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(INVITATION_CHANGE_SCHEMA);
+      this.#injectFailure("v25:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(25,?,?)").run(MIGRATION_V25_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=25; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "invitation receipt migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash2, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash2)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -3299,6 +3326,7 @@ var ProbeStorage = class {
       if (version >= 22) reference.exec(RECALL_SCHEMA);
       if (version >= 23) reference.exec(INVITATION_SCHEMA);
       if (version >= 24) reference.exec(INVITATION_EVENT_SCHEMA);
+      if (version >= 25) reference.exec(INVITATION_CHANGE_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -3650,20 +3678,22 @@ var ProbeStorage = class {
       throw this.#mapError(error);
     }
   }
-  updateObject(actor, objectId, expectedRevision, patch, now) {
-    const db = this.#ensureReady();
-    const current = this.authorizeObject(actor, objectId, "edit", now);
-    if (current === void 0) return { kind: "not_found" };
-    if (current.revision !== expectedRevision) return { kind: "conflict", currentRevision: current.revision };
-    const title = patch.title ?? current.title;
-    const body = patch.body ?? current.body;
-    const result = db.prepare("UPDATE knowledge_objects SET title = ?, body = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ? AND status = 'active'").run(title, body, now, objectId, expectedRevision);
-    if (Number(result.changes) !== 1) {
-      const latest = this.#loadObject(objectId);
-      return latest === void 0 || latest.status !== "active" ? { kind: "not_found" } : { kind: "conflict", currentRevision: latest.revision };
+  updateObject(prior, objectId, expectedRevision, patch) {
+    try {
+      return this.#assetTx("write", (db, now) => {
+        const actor = this.#currentActor(prior, now);
+        if (!actor) return { kind: "session_expired" };
+        const current = this.authorizeObject(actor, objectId, "edit", now);
+        if (!current) return { kind: "not_found" };
+        if (current.revision !== expectedRevision) return { kind: "conflict", currentRevision: current.revision };
+        const updated = db.prepare(`UPDATE knowledge_objects SET title=?,body=?,revision=revision+1,updated_at=?
+          WHERE id=? AND revision=? AND status='active' RETURNING *`).get(patch.title ?? current.title, patch.body ?? current.body, now, objectId, expectedRevision);
+        if (!updated) throw new RecordsError("STORAGE_UNAVAILABLE", "locked object update did not write a row");
+        return { kind: "updated", object: this.#objectRow(updated) };
+      });
+    } catch (e) {
+      throw this.#mapError(e);
     }
-    const updated = this.#loadObject(objectId);
-    return updated === void 0 ? { kind: "not_found" } : { kind: "updated", object: updated };
   }
   /** Revalidate the original login inside the same transaction as ACL/version/receipt. */
   mutateObjectOnce(actor, input, now) {

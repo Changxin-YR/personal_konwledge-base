@@ -12,7 +12,7 @@ const object=id=>`/objects/${id}`
 const issue=(http,a,scope,target_id,permission,options={})=>http(a.ctx,'/invitations',201,'POST',{actor_id:a.user,scope,target_id,permission,...options})
 const redeem=(http,a,code,i)=>http(a.ctx,'/invitations/redeem',code,'POST',{actor_id:a.user,token:i.token})
 const manage=(http,a,i,status=200)=>http(a.ctx,'/invitations/'+i.id,status)
-const change=(http,a,i,event,status=200,extra={})=>http(a.ctx,`/invitations/${i.id}/${event}`,status,'POST',{actor_id:a.user,expected_revision:i.revision,...extra})
+const change=(http,a,i,event,status=200,extra={},key)=>http(a.ctx,`/invitations/${i.id}/${event}`,status,'POST',{actor_id:a.user,expected_revision:i.revision,...extra},key)
 const direct=(http,a,id,b,p)=>http(a.ctx,'/grants',201,'POST',grantSpec(id,b.user,p))
 const revoke=(http,a,g)=>http(a.ctx,'/grants/revoke',204,'POST',{grant_id:g.id})
 
@@ -20,7 +20,8 @@ function snapshot(db,i){return [sql(db,'SELECT * FROM invitations WHERE id=?',[i
   sql(db,'SELECT * FROM invitation_redemptions WHERE invitation_id=? ORDER BY id',[i.id]),
   sql(db,'SELECT * FROM invitation_audit WHERE invitation_id=? ORDER BY revision',[i.id]),
   sql(db,`SELECT e.*,o.created_at AS queued_at FROM domain_events e LEFT JOIN domain_event_outbox o USING(event_id)
-          WHERE aggregate_type='invitation' AND aggregate_id=? ORDER BY aggregate_revision`,[i.id])]}
+          WHERE aggregate_type='invitation' AND aggregate_id=? ORDER BY aggregate_revision`,[i.id]),
+  sql(db,'SELECT * FROM invitation_change_receipts WHERE invitation_id=? ORDER BY request_key',[i.id])]}
 
 async function stagedRequest(h,a,path,method,data,key=randomUUID()){
   const url=h.base+'/knowledge/v1'+path,label=randomBytes(16).toString('hex'),cookies=await a.ctx.cookies(url)
@@ -183,12 +184,13 @@ export async function transactionFaults({http,db,h,owner,first,doc,faultChecks})
   const i=await issue(http,owner,'object',doc.id,'read')
   for(const event of ['redeem','renew','revoke']){
     const before=snapshot(db,i),current=await manage(http,owner,i)
+    const key=randomUUID(),extra=event==='renew'?{days:1}:{}
     const conn=new DatabaseSync(db)
     try{conn.exec(`CREATE TRIGGER share_test_failure BEFORE INSERT ON domain_event_outbox
                    WHEN (SELECT event_type FROM domain_events WHERE event_id=NEW.event_id)='knowledgeos.invitation.${event}'
                    BEGIN SELECT RAISE(ABORT,'synthetic rollback check'); END`)}finally{conn.close()}
     if(event==='redeem')await redeem(http,first,503,i)
-    else await change(http,owner,current,event,503,event==='renew'?{days:1}:{})
+    else await change(http,owner,current,event,503,extra,key)
     assert.deepEqual(snapshot(db,i),before)
     await h.stop()
     const cleanup=new DatabaseSync(db)
@@ -196,11 +198,16 @@ export async function transactionFaults({http,db,h,owner,first,doc,faultChecks})
     await h.start();assert.deepEqual(snapshot(db,i),before)
     await http(owner.ctx,'/me',200);await http(first.ctx,'/me',200)
     if(event==='redeem')await redeem(http,first,201,i)
-    else await change(http,owner,current,event,200,event==='renew'?{days:1}:{})
+    else{
+      const written=await change(http,owner,current,event,200,extra,key);assert.equal(written.replayed,false)
+      assert.deepEqual(await change(http,owner,current,event,200,extra,key),{...written,replayed:true})
+      assert.equal(await change(http,owner,current,event,409,{...extra,expected_revision:current.revision+1},key),'IDEMPOTENCY_CONFLICT')
+    }
     const snapshotAfter=snapshot(db,i)
     assert.equal(snapshotAfter[2].filter(a=>a.event===event).length,1)
     const stored=snapshotAfter[3].filter(e=>e.event_type==='knowledgeos.invitation.'+event)
     assert.equal(stored.length,1);assert.equal(stored[0].occurred_at,stored[0].queued_at)
+    assert.equal(snapshotAfter[4].length,before[4].length+(event==='redeem'?0:1))
     faultChecks.push({event,failure_http:503,snapshot_unchanged_after_reopen:true,successful_audit_and_outbox_rows_after_retry:1})
   }
   const stored=snapshot(db,i)

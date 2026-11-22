@@ -40,13 +40,14 @@ import {ANNOTATION_SCHEMA} from './annotation-store.ts'
 import {CITATION_LOCATOR_SCHEMA} from './citation-locator-schema.ts'
 import {NOTE_SCHEMA,NoteStore} from './note-store.ts'
 import {RECALL_SCHEMA,RecallStore} from './recall-store.ts'
-import {INVITATION_EVENT_SCHEMA,INVITATION_SCHEMA,InvitationStore,type InvitationTarget} from './invitation-store.ts'
+import {INVITATION_CHANGE_SCHEMA,INVITATION_EVENT_SCHEMA,INVITATION_SCHEMA,InvitationStore,type InvitationTarget} from './invitation-store.ts'
 
 /** Fixed application identity written to PRAGMA application_id (KOS1). */
 export const APPLICATION_ID = 0x4b4f5331
 /** Current application schema version. */
-export const SCHEMA_VERSION = 24
-type VerifiedSchema = 6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24
+export const SCHEMA_VERSION = 25
+type VerifiedSchema = 6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25
+export const MIGRATION_V25_CHECKSUM = createHash('sha256').update(INVITATION_CHANGE_SCHEMA).digest('hex')
 export const MIGRATION_V24_CHECKSUM = createHash('sha256').update(INVITATION_EVENT_SCHEMA).digest('hex')
 export const MIGRATION_V23_CHECKSUM = createHash('sha256').update(INVITATION_SCHEMA).digest('hex')
 export const MIGRATION_V22_CHECKSUM = createHash('sha256').update(RECALL_SCHEMA).digest('hex')
@@ -281,6 +282,7 @@ export interface ProbeStorageOptions {
     | 'v22:after-schema'
     | 'v23:after-schema'
     | 'v24:after-schema'
+    | 'v25:after-schema'
 }
 
 export interface DatabaseFacts {
@@ -502,6 +504,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       if (priorVersion<22) this.#migrateV22(db)
       if (priorVersion<23) this.#migrateV23(db)
       if (priorVersion<24) this.#migrateV24(db)
+      if (priorVersion<25) this.#migrateV25(db)
       this.#verify(db,SCHEMA_VERSION)
       const facts = readDatabaseFacts(path)
       const pragmas = this.#readPragmas(db)
@@ -956,9 +959,19 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     }catch(e){if(!this.#rollback(db))throw this.#failure;throw new RecordsError('STORAGE_INCOMPATIBLE','invitation event migration failed',false,{cause:e})}
   }
 
+  #migrateV25(db:DatabaseSync):void {
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      db.exec(INVITATION_CHANGE_SCHEMA)
+      this.#injectFailure('v25:after-schema')
+      db.prepare('INSERT INTO schema_migrations VALUES(25,?,?)').run(MIGRATION_V25_CHECKSUM,new Date().toISOString())
+      db.exec('PRAGMA user_version=25; COMMIT')
+    }catch(e){if(!this.#rollback(db))throw this.#failure;throw new RecordsError('STORAGE_INCOMPATIBLE','invitation receipt migration failed',false,{cause:e})}
+  }
+
   #verify(db: DatabaseSync, version:VerifiedSchema): void {
     const facts = readDatabaseFacts(this.databasePath)
-    const checks=[MIGRATION_V6_CHECKSUM,MIGRATION_V7_CHECKSUM,MIGRATION_V8_CHECKSUM,MIGRATION_V9_CHECKSUM,MIGRATION_V10_CHECKSUM,MIGRATION_V11_CHECKSUM,MIGRATION_V12_CHECKSUM,MIGRATION_V13_CHECKSUM,MIGRATION_V14_CHECKSUM,MIGRATION_V15_CHECKSUM,MIGRATION_V16_CHECKSUM,MIGRATION_V17_CHECKSUM,MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM,MIGRATION_V20_CHECKSUM,MIGRATION_V21_CHECKSUM,MIGRATION_V22_CHECKSUM,MIGRATION_V23_CHECKSUM,MIGRATION_V24_CHECKSUM].slice(0,version-5)
+    const checks=[MIGRATION_V6_CHECKSUM,MIGRATION_V7_CHECKSUM,MIGRATION_V8_CHECKSUM,MIGRATION_V9_CHECKSUM,MIGRATION_V10_CHECKSUM,MIGRATION_V11_CHECKSUM,MIGRATION_V12_CHECKSUM,MIGRATION_V13_CHECKSUM,MIGRATION_V14_CHECKSUM,MIGRATION_V15_CHECKSUM,MIGRATION_V16_CHECKSUM,MIGRATION_V17_CHECKSUM,MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM,MIGRATION_V20_CHECKSUM,MIGRATION_V21_CHECKSUM,MIGRATION_V22_CHECKSUM,MIGRATION_V23_CHECKSUM,MIGRATION_V24_CHECKSUM,MIGRATION_V25_CHECKSUM].slice(0,version-5)
     if(facts.applicationId!==APPLICATION_ID || facts.userVersion!==version || facts.ledger.length!==version || checks.some((hash,i)=>facts.ledger[i+5]?.version!==i+6||facts.ledger[i+5]?.checksum!==hash))throw new RecordsError('STORAGE_INCOMPATIBLE','database ownership/version verification failed')
     const reference = new DatabaseSync(':memory:')
     try {
@@ -981,6 +994,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       if(version>=22)reference.exec(RECALL_SCHEMA)
       if(version>=23)reference.exec(INVITATION_SCHEMA)
       if(version>=24)reference.exec(INVITATION_EVENT_SCHEMA)
+      if(version>=25)reference.exec(INVITATION_CHANGE_SCHEMA)
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all()
       for (const {name,sql} of definitions) {
         if (db.prepare('SELECT sql FROM sqlite_master WHERE name=?').get(name!)?.sql!==sql) throw new RecordsError('STORAGE_INCOMPATIBLE','jobs schema definition mismatch')
@@ -1274,20 +1288,20 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     try { db.exec('BEGIN IMMEDIATE'); tx = true; db.prepare('INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, \'active\', 1, ?, ?)').run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now); if (input.scope === 'project' && input.projectId !== undefined) { for (const action of ['read', 'comment', 'edit', 'export', 'manage_share', 'delete', 'review', 'view_learning_records'] as AuthorizationAction[]) db.prepare('INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, \'knowledge_object\', ?, \'user\', ?, ?, ?, ?)').run(randomUUID(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now) }; db.exec('COMMIT'); tx = false; const created = this.#loadObject(input.id); if (created === undefined) throw new RecordsError('STORAGE_UNAVAILABLE', 'created object could not be read'); return created } catch (error: unknown) { if (tx && !this.#rollback(db)) throw new RecordsError('STORAGE_UNAVAILABLE', 'storage transaction state is unknown', false, { cause: error }); throw this.#mapError(error) }
   }
 
-  updateObject(actor: SessionActor, objectId: string, expectedRevision: number, patch: { readonly title?: string; readonly body?: string }, now: string): UpdateObjectResult {
-    const db = this.#ensureReady()
-    const current = this.authorizeObject(actor, objectId, 'edit', now)
-    if (current === undefined) return { kind: 'not_found' }
-    if (current.revision !== expectedRevision) return { kind: 'conflict', currentRevision: current.revision }
-    const title = patch.title ?? current.title
-    const body = patch.body ?? current.body
-    const result = db.prepare('UPDATE knowledge_objects SET title = ?, body = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ? AND status = \'active\'').run(title, body, now, objectId, expectedRevision)
-    if (Number(result.changes) !== 1) {
-      const latest = this.#loadObject(objectId)
-      return latest === undefined || latest.status !== 'active' ? { kind: 'not_found' } : { kind: 'conflict', currentRevision: latest.revision }
-    }
-    const updated = this.#loadObject(objectId)
-    return updated === undefined ? { kind: 'not_found' } : { kind: 'updated', object: updated }
+  updateObject(prior: SessionActor, objectId: string, expectedRevision: number, patch: { readonly title?: string; readonly body?: string }): UpdateObjectResult | { kind:'session_expired' } {
+    try {
+      return this.#assetTx('write',(db,now)=>{
+        const actor=this.#currentActor(prior,now)
+        if(!actor)return {kind:'session_expired'}
+        const current=this.authorizeObject(actor,objectId,'edit',now)
+        if(!current)return {kind:'not_found'}
+        if(current.revision!==expectedRevision)return {kind:'conflict',currentRevision:current.revision}
+        const updated=db.prepare(`UPDATE knowledge_objects SET title=?,body=?,revision=revision+1,updated_at=?
+          WHERE id=? AND revision=? AND status='active' RETURNING *`).get(patch.title??current.title,patch.body??current.body,now,objectId,expectedRevision)
+        if(!updated)throw new RecordsError('STORAGE_UNAVAILABLE','locked object update did not write a row')
+        return {kind:'updated',object:this.#objectRow(updated)}
+      })
+    }catch(e){throw this.#mapError(e)}
   }
 
   /** Revalidate the original login inside the same transaction as ACL/version/receipt. */

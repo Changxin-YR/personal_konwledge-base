@@ -103,6 +103,11 @@ try{
   const extended=(await renewed.json()).data
   assert.equal(extended.affected_count,2);assert.equal(Date.parse(extended.expires_at)-Date.parse(issued.expires_at),7*day)
   assert.deepEqual(grants(),beforeGrants.map(g=>({...g,expires_at:extended.expires_at})));assert.equal((await getManaged()).redeemed_count,before.redeemed_count)
+  const renewKey=renewed.request().headers()['idempotency-key'],renewInput={actor_id:owner.user,expected_revision:before.revision,days:7}
+  assert.match(renewKey,/^[a-f0-9-]{36}$/)
+  assert.deepEqual(await http(owner.ctx,dispatch('renew'),200,'POST',renewInput,renewKey),{...extended,replayed:true})
+  assert.equal(await http(owner.ctx,dispatch('renew'),409,'POST',{...renewInput,days:8},renewKey),'IDEMPOTENCY_CONFLICT')
+  assert.equal(await http(owner.ctx,dispatch('revoke'),409,'POST',{actor_id:owner.user,expected_revision:extended.revision},renewKey),'IDEMPOTENCY_CONFLICT')
   await http(owner.ctx,dispatch('renew'),409,'POST',{actor_id:owner.user,expected_revision:before.revision,days:7})
   try{await owner.page.locator('#managed-meta').filter({hasText:'14 天'}).waitFor({timeout:5000})}
   catch(e){
@@ -125,6 +130,8 @@ try{
   await owner.page.getByRole('button',{name:'预览撤销'}).click();await owner.page.locator('#confirm-panel').waitFor()
   const [revoked]=await Promise.all([owner.page.waitForResponse(r=>r.url().endsWith('/revoke')),owner.page.getByRole('button',{name:'确认操作'}).click()]);assert.equal(revoked.status(),200)
   const revokeReceipt=(await revoked.json()).data;assert.equal(revokeReceipt.affected_count,3)
+  const revokeKey=revoked.request().headers()['idempotency-key'];assert.match(revokeKey,/^[a-f0-9-]{36}$/)
+  assert.deepEqual(await http(owner.ctx,dispatch('revoke'),200,'POST',{actor_id:owner.user,expected_revision:revokeReceipt.revision-1},revokeKey),{...revokeReceipt,replayed:true})
   for(const a of [first,rival,outsider])await http(a.ctx,original,404)
   await http(first.ctx,resource,404,'PATCH',{expected_revision:currentObject.revision,body:'Denied write'})
   await http(first.ctx,`/search/${query.query_id}/access`,404)
@@ -151,6 +158,9 @@ try{
   assert.deepEqual(JSON.parse(events[5].payload),{target:issued.target,prior_expires_at:extended.expires_at,expires_at:extended.expires_at,
     revoked_at:revokeReceipt.revoked_at,affected_redemption_ids:ended.map(g=>g.id)})
   assert(!JSON.stringify(events).includes(issued.token));facts.event_outbox={queued:events.length,matched_browser_correlations:3,affected_counts:[2,3]}
+  const receipts=sql(db,'SELECT request_key,result_json FROM invitation_change_receipts WHERE invitation_id=? ORDER BY request_key',[issued.id])
+  assert.deepEqual(receipts.map(r=>r.request_key),[renewKey,revokeKey].sort());assert(!JSON.stringify(receipts).includes(issued.token))
+  facts.change_receipts={count:receipts.length,exact_retry:'PASS',changed_parameters:'PASS',cross_command_key:'PASS'}
   await http(owner.ctx,dispatch('revoke'),404,'POST',{actor_id:owner.user,expected_revision:revokeReceipt.revision})
   await http(first.ctx,'/invitations/redeem',404,'POST',{actor_id:first.user,token:issued.token});assert.deepEqual(audit(),auditAfter)
   assert.deepEqual(sql(db,'PRAGMA foreign_key_check'),[])
