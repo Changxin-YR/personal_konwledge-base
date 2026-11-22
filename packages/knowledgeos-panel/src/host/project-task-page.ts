@@ -72,7 +72,7 @@ const name=id=>project?.members.find(p=>p.id===id)?.display_name??(id===actor?'�
 const date=at=>new Intl.DateTimeFormat('zh-CN',{dateStyle:'medium',timeStyle:'short'}).format(new Date(at));
 async function access(projectId,taskId){
  const query=new URLSearchParams();if(projectId)query.set('project_id',projectId);if(taskId)query.set('task_id',taskId);
- const result=await fetch(api+'/access?'+query,{cache:'no-store',redirect:'error',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(2500)])});
+ const result=await fetch(api+'/access?'+query,{cache:'no-store',redirect:'error',headers:{'x-knowledgeos-material-view':'1'},signal:AbortSignal.any([controller.signal,AbortSignal.timeout(2500)])});
  if(!result.ok)throw Error('NOT_FOUND');return (await result.json()).data;
 }
 async function openTask(id){const openedEpoch=epoch,response=await request(api+'/'+id),t=response.task;
@@ -187,7 +187,11 @@ setInterval(async()=>{
   const value=await access(checkedScope,checkedTask);
   if(!current())return;
   if(value?.actor_id!==identity||value?.allowed!==true)throw Error('ACCESS_REVOKED');
-  if(checkedTask&&value.access_revision!==accessRevision){invalidateWorkflow();await operation(()=>openTask(checkedTask));}
+  if(checkedTask&&value.access_revision!==accessRevision){
+   // An in-flight operation will revalidate before painting its receipt; hide the stale DOM now.
+   if(busy){if(accessRevision!==value.access_revision)clearWorkflow();return;}
+   invalidateWorkflow();await operation(()=>openTask(checkedTask));
+  }
  }catch{if(current()){protect();scope=null;status('无法确认任务访问权限，已隐藏内容。');$('login').hidden=false;}}
  finally{checking=false;}
 },3000);

@@ -65,7 +65,7 @@ export function createProjectTaskHandler(store:ProjectTaskStore,origin:()=>strin
         if([...url.searchParams].some(([key])=>key!=='project_id'&&key!=='task_id')||
             url.searchParams.getAll('project_id').length>1||url.searchParams.getAll('task_id').length>1)throw invalid()
         return sendData(200,store.checkAccess(a,url.searchParams.has('project_id')?id(url.searchParams.get('project_id')):null,
-          url.searchParams.has('task_id')?id(url.searchParams.get('task_id')):undefined))
+          url.searchParams.has('task_id')?id(url.searchParams.get('task_id')):undefined,req.headers['x-knowledgeos-material-view']==='1'))
       }
       if(url.search)throw invalid()
       if(path===taskApi+'/projects'&&method==='GET')return sendData(200,{projects:store.projects(a)})

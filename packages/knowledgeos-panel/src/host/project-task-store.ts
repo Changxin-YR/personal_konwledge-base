@@ -248,15 +248,17 @@ export class ProjectTaskStore {
     return {...task,current_state:next,revision:task.revision+1,updated_at:now}
   }
 
-  checkAccess(s:SessionActor,projectId:string|null,taskId?:string) {
-    return this.tx(taskId?'write':'read',(db,now)=>{
+  checkAccess(s:SessionActor,projectId:string|null,taskId?:string,materialView=false) {
+    return this.tx(taskId&&materialView?'write':'read',(db,now)=>{
       const a=this.actor(s,now)
       if(projectId!==null)this.project(db,a,projectId,now)
       if(taskId){
         const task=this.lookup(db,a,taskId,now)
         if(task.project_id!==projectId)throw hidden()
-        const current=this.reconcileMaterials(db,task,now)
-        return {allowed:true,access_revision:this.materialVisibility(a,current,db,now).access_revision}
+        if(materialView){
+          const current=this.reconcileMaterials(db,task,now)
+          return {allowed:true,access_revision:this.materialVisibility(a,current,db,now).access_revision}
+        }
       }
       return {allowed:true}
     })

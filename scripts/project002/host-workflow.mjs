@@ -52,7 +52,7 @@ async function uiReview(page,action,met,message,requested){
   await page.getByRole('checkbox').setChecked(met);await page.getByLabel('标准 1 依据').fill(met?'Confirmed output':'Missing reproduction')
   await page.getByLabel('审核理由').fill(message);if(requested)await page.getByLabel('需补充内容').fill(requested)
   const peer=action.startsWith('peer_');await page.getByRole('button',{name:peer?'保存预审':'保存终审'}).click()
-  await page.getByText(peer?'预审已保存。':'终审已保存。',{exact:true}).waitFor()
+  await page.getByText(peer?'预审已保存。':'终审已保存。',{exact:true}).waitFor().catch(async e=>{throw Error(`${e.message}\nPage status: ${await page.locator('#status').textContent()}`)})
 }
 async function upload(actor,name,text,prior){
   const res=await actor.context.request.post(host.base+prefix+'/imports',{headers:{...marker,...key(),'content-type':'text/plain',
