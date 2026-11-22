@@ -7,7 +7,7 @@ import {tmpdir} from 'node:os'
 import {DatabaseSync} from 'node:sqlite'
 import {pathToFileURL} from 'node:url'
 import test from 'node:test'
-import {ProbeStorage,MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM,MIGRATION_V20_CHECKSUM,MIGRATION_V21_CHECKSUM,MIGRATION_V22_CHECKSUM,MIGRATION_V23_CHECKSUM} from '../../packages/knowledgeos-panel/src/host/storage.ts'
+import {ProbeStorage,MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM,MIGRATION_V20_CHECKSUM,MIGRATION_V21_CHECKSUM,MIGRATION_V22_CHECKSUM,MIGRATION_V23_CHECKSUM,MIGRATION_V24_CHECKSUM} from '../../packages/knowledgeos-panel/src/host/storage.ts'
 import {IdentityService} from '../../packages/knowledgeos-panel/src/host/identity.ts'
 import {decodeText} from '../../packages/knowledgeos-panel/src/host/text-document.ts'
 import {seed} from '../fnd006/independent/common.mjs'
@@ -119,8 +119,9 @@ test('v18 rollback preserves v17 content and successful upgrade indexes it witho
     assert.deepEqual(facts(),expected)
     upgraded=new ProbeStorage({dataDir:dir});assert(upgraded.available,upgraded.failure?.message)
     const actual=facts();assert.equal(actual.version,24);assert.deepEqual(actual.ledger.slice(0,17),expected.ledger)
-    assert.deepEqual(actual.ledger.slice(17).map(x=>x.checksum),[MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM,MIGRATION_V20_CHECKSUM,MIGRATION_V21_CHECKSUM,MIGRATION_V22_CHECKSUM,MIGRATION_V23_CHECKSUM])
-    assert.deepEqual(actual.schema.filter(x=>!x.tbl_name.startsWith('recall_')&&!x.tbl_name.startsWith('invitation')&&!['search_queries','word_search_runs','word_search_pages','pdf_chapter_ranges','notes','note_nodes','note_references','project_note_refs'].includes(x.tbl_name)),expected.schema)
+    assert.deepEqual(actual.ledger.slice(17).map(x=>x.checksum),[MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM,MIGRATION_V20_CHECKSUM,MIGRATION_V21_CHECKSUM,MIGRATION_V22_CHECKSUM,MIGRATION_V23_CHECKSUM,MIGRATION_V24_CHECKSUM])
+    assert.deepEqual(actual.schema.filter(x=>!x.tbl_name.startsWith('recall_')&&!x.tbl_name.startsWith('invitation')&&!['search_queries','word_search_runs','word_search_pages','pdf_chapter_ranges','notes','note_nodes','note_references','project_note_refs','domain_events','domain_event_outbox'].includes(x.tbl_name)),expected.schema)
+    for(const table of ['domain_events','domain_event_outbox'])assert.equal(db.prepare(`SELECT count(*) n FROM ${table}`).get().n,0)
     assert.deepEqual(actual.blocks,expected.blocks)
     assert.equal(upgraded.search.search(actor,'legacy').items[0].version_id,doc.version_id)
     assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[])
