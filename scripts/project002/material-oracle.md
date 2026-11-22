@@ -1,0 +1,8 @@
+## Shared material checks on the frozen candidate
+
+- With separate sessions, reject a submission made without current material read permission, an unrelated project asset, a mismatched version or conversion, and spoofed actor or timestamp. A task reviewer without a material grant cannot read the fixed target, its title, or its content through task history or the reader.
+- Submit a fixed material at the deadline. A reviewer without read access waits; granting access returns to the original stage without issuing a decision. Pass peer review and verify that formal completion remains pending administrator review.
+- Revoke material access after preparing a final decision. Submit the prepared request: no decision, no receipt, no change to submission time; repeated requests remain denied. Inspect the UI and SQLite. Reboot, then regrant the same version and retry only at the current revision. Losing task access instead returns no task or history and clears the page.
+- Advance the asset, confirm that the old link still reads the original version, then replace the material while waiting or after return. Preserve the original versions, return remarks, standards and server timestamps. Reject a previous tab's revision and previous active submission. Valid idempotent replay must not add rows or bypass current authorization.
+- Fail v31 before commit on populated v30 data. Compare tasks, criteria, submissions, decisions, schema and ledger. Retry normally and check unchanged history and foreign-key integrity.
+- Exercise the original A31 distinctions: overdue submission, return with reasons, obstruction without a verdict, and terminal failure. P08 remains NOT_RUN pending SCORE-001.

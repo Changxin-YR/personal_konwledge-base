@@ -1,5 +1,5 @@
 export function buildProjectTaskHtml(nonce: string): string {
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>项目协作 · KnowledgeOS</title>
+  return String.raw`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>项目协作 · KnowledgeOS</title>
 <style nonce="${nonce}">
 :root{color:#243934;background:#f5f8f7;font:15px/1.55 "Segoe UI","Microsoft YaHei UI",sans-serif}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}header{border-bottom:1px solid #cddbd6;background:#fff}nav,main{max-width:1200px;margin:auto;padding:12px 24px}nav,.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}nav strong,a{color:#195a4e}h1{font-size:25px;margin:6px 0}h2{font-size:17px;margin:0 0 8px}h3{font-size:15px;margin:0 0 6px}p{margin:0 0 8px}section{border-top:1px solid #cddbd6;padding:14px 0}#status{min-height:24px;color:#40564f}.workspace{display:grid;grid-template-columns:minmax(190px,265px) minmax(0,1fr);gap:24px}.side{border-right:1px solid #cddbd6;padding-right:16px}.side,#content,label,input,select,textarea{min-width:0}.fields{display:grid;grid-template-columns:1fr 1fr;gap:9px 16px}.wide{grid-column:1/-1}label{display:grid;gap:3px}input,select,textarea,button{font:inherit;color:inherit;background:#fff;border:1px solid #aabfb6;border-radius:5px;padding:6px 8px;max-width:100%}textarea{resize:vertical;min-height:68px}button{cursor:pointer;text-align:left}button:disabled{opacity:.6;cursor:default}button:focus-visible,a:focus-visible,textarea:focus-visible{outline:2px solid #177c84;outline-offset:2px}button[aria-current=true]{background:#dfede8;border-color:#638e80}.primary{color:white;background:#225e51;border-color:#225e51}.quiet{color:#526a60}.danger{color:#8a382b}ul{padding:0;list-style:none;margin:5px 0}li{margin-bottom:4px;overflow-wrap:anywhere}.selector button{width:100%;overflow-wrap:anywhere}.member{display:flex;align-items:center;justify-content:space-between;gap:8px}.member button{flex-shrink:0}.criteria{display:grid;grid-template-columns:minmax(0,1fr) minmax(62px,96px) auto;align-items:end;gap:8px}.history{padding:10px 0;border-top:1px solid #d6e2dc}ol{padding-left:22px;overflow-wrap:anywhere}dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 15px}dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}dialog{max-width:min(420px,92vw);border:1px solid #9db4aa;border-radius:6px;background:#fff;color:inherit}dialog::backdrop{background:#182a2660}
 #workflow{margin:14px 0;overflow-wrap:anywhere}.attempt-body,.review-evidence{white-space:pre-wrap}.checkline{display:flex;align-items:center;gap:8px}.checkline input{width:auto}.review-item{margin:8px 0;padding:8px 0;border-top:1px solid #d6e2dc}
@@ -25,12 +25,15 @@ const states={assigned:'已派发',in_progress:'进行中',submitted:'待审核'
 const verdicts={pass:'通过预审',accept:'终审通过',return:'退回',fail:'终审未通过'};
 labels.TASK_REVISION_CONFLICT='任务已更新，请重新打开查看。';labels.TASK_SUBMISSION_CONFLICT='提交版本已变更，请重新打开任务。';
 labels.TASK_STATE_CONFLICT='当前任务状态不允许此操作。';labels.TASK_REQUEST_CONFLICT='原操作结果未确定，请保留本次内容重试或重新读取。';
-let actor,scope=null,project,projectRows=[],tasks=[],task,removeTarget,busy=false,epoch=0,controller=new AbortController(),pendingAssign,pendingWorkflow;
+labels.TASK_MATERIAL_UNAVAILABLE='材料不可读、版本无效或不属于当前项目。';labels.TASK_MATERIAL_ACCESS_REQUIRED='材料授权已改变，审核未保存。';
+labels.TASK_MATERIAL_REPLACEMENT_REQUIRED='请提供不同的固定版本材料。';labels.INVALID_MATERIAL_LINK='请输入本站的固定版本阅读链接。';
+let actor,scope=null,project,projectRows=[],tasks=[],task,removeTarget,busy=false,epoch=0,controller=new AbortController(),pendingAssign,pendingWorkflow,accessRevision;
 const status=s=>$('status').textContent=s;
 const get=(k)=>$(k).value;
 function clearWorkflow(){$('workflow').hidden=true;$('attempts').replaceChildren();$('workflow-action').replaceChildren();}
+function invalidateWorkflow(){epoch++;controller.abort();controller=new AbortController();busy=false;pendingWorkflow=accessRevision=undefined;clearWorkflow();}
 function protect(){epoch++;controller.abort();controller=new AbortController();busy=false;actor=project=task=removeTarget=pendingAssign=undefined;tasks=[];projectRows=[];$('workspace').hidden=$('task-detail').hidden=$('membership').hidden=$('revision-form').hidden=true;
- pendingWorkflow=undefined;clearWorkflow();if($('remove-dialog').open)$('remove-dialog').close();for(const id of ['projects','members','tasks','history','task-title','task-facts','scope-title','removal-name','assignee','reviewer','peer'])$(id).replaceChildren();$('new-project').reset();$('task-form').reset();$('revision-criteria').replaceChildren();criterionRows('criteria',[]);}
+ pendingWorkflow=accessRevision=undefined;clearWorkflow();if($('remove-dialog').open)$('remove-dialog').close();for(const id of ['projects','members','tasks','history','task-title','task-facts','scope-title','removal-name','assignee','reviewer','peer'])$(id).replaceChildren();$('new-project').reset();$('task-form').reset();$('revision-criteria').replaceChildren();criterionRows('criteria',[]);}
 async function request(endpoint,method='GET',data,key){const check=epoch;const response=await fetch(endpoint,{method,cache:'no-store',redirect:'error',signal:controller.signal,
  headers:method==='GET'?{}:{...mark,...(key?{'idempotency-key':key}:{})},body:data===undefined?undefined:JSON.stringify(data)});
  const result=await response.json();if(check!==epoch)throw Error('STALE');if(response.status===401||result.code==='ACTOR_MISMATCH'||(actor&&result.data?.actor_id&&result.data.actor_id!==actor)){
@@ -67,9 +70,19 @@ function criterionRows(list,items){$(list).replaceChildren();for(const item of i
 const criteria=list=>({items:[...$(list).children].map(row=>{const [d,w]=row.querySelectorAll('input');return {description:d.value,weight:Number(w.value)};}),submission_rule:'next_submission'});
 const name=id=>project?.members.find(p=>p.id===id)?.display_name??(id===actor?'本人':'待核验');
 const date=at=>new Intl.DateTimeFormat('zh-CN',{dateStyle:'medium',timeStyle:'short'}).format(new Date(at));
-async function openTask(id){const response=await request(api+'/'+id),t=response.task;
+async function access(projectId,taskId){
+ const query=new URLSearchParams();if(projectId)query.set('project_id',projectId);if(taskId)query.set('task_id',taskId);
+ const result=await fetch(api+'/access?'+query,{cache:'no-store',redirect:'error',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(2500)])});
+ if(!result.ok)throw Error('NOT_FOUND');return (await result.json()).data;
+}
+async function openTask(id){const openedEpoch=epoch,response=await request(api+'/'+id),t=response.task;
  const timeline=t.task_kind==='personal'?null:await request(api+'/'+id+'/history');
- if(timeline&&timeline.task_revision!==t.revision){clearWorkflow();$('task-detail').hidden=true;throw Error('TASK_REVISION_CONFLICT');}
+ let check;try{check=await access(scope,id);}catch{if(epoch===openedEpoch)protect();throw Error('NOT_FOUND');}
+ if(epoch!==openedEpoch)throw Error('STALE');
+ if(check?.actor_id!==actor||check?.allowed!==true){protect();throw Error('NOT_FOUND');}
+ if(timeline&&(timeline.task_revision!==t.revision||timeline.access_revision!==check.access_revision)){
+  clearWorkflow();$('task-detail').hidden=true;throw Error('TASK_REVISION_CONFLICT');}
+ accessRevision=check.access_revision;
  task=t;
  $('task-title').textContent=t.title;$('task-facts').replaceChildren();
  const shownState=t.state==='submitted'&&t.peer_reviewer_id?'待同伴预审':t.state==='submitted'&&t.task_kind==='project_admin'?'待管理员终审':states[t.state]??t.state;
@@ -81,7 +94,13 @@ async function workflowWrite(t,suffix,draft,done){
  const path=api+'/'+t.id+'/'+suffix,digest=JSON.stringify([path,draft]);
  if(pendingWorkflow?.id===t.id&&pendingWorkflow.digest!==digest)throw Error('TASK_REQUEST_CONFLICT');
  if(!pendingWorkflow||pendingWorkflow.id!==t.id)pendingWorkflow={id:t.id,digest,key:crypto.randomUUID()};
- try{await request(path,'POST',draft,pendingWorkflow.key);}catch(e){if(labels[e.message]&&e.message!=='TASK_REQUEST_CONFLICT')pendingWorkflow=undefined;throw e;}
+ try{await request(path,'POST',draft,pendingWorkflow.key);}catch(e){
+  if(labels[e.message]&&e.message!=='TASK_REQUEST_CONFLICT')pendingWorkflow=undefined;
+  if(e.message==='TASK_MATERIAL_ACCESS_REQUIRED'||e.message==='TASK_REVISION_CONFLICT'||e.message==='TASK_SUBMISSION_CONFLICT'){
+   clearWorkflow();await openTask(t.id);
+  }
+  throw e;
+ }
  pendingWorkflow=undefined;await openTask(t.id);status(done);
 }
 function renderWorkflow(t,timeline){clearWorkflow();if(!timeline)return;
@@ -89,7 +108,12 @@ function renderWorkflow(t,timeline){clearWorkflow();if(!timeline)return;
  if(!current)attempts.append(el('p','暂无提交'));
  for(const attempt of [...timeline.submissions].reverse()){
   const row=el('article');row.className='history';row.append(el('h3','提交第 '+attempt.version+' 版 · 标准第 '+attempt.criteria_version+' 版'),el('p',date(attempt.submitted_at)+' · '+(attempt.timing==='on_time'?'按期提交':'逾期提交')));
-  const content=el('p',attempt.content);content.className='attempt-body';row.append(content);
+  const content=el('p',attempt.content??'部分材料不可读，提交与审核正文已隐藏。');content.className='attempt-body';row.append(content);
+  for(const [i,target] of (attempt.materials??[]).entries()){
+   if(!target){row.append(el('p','材料 '+(i+1)+' · 无读取权限'));continue;}
+   const link=el('a','打开固定材料 '+(i+1));link.href='/knowledgeos/reader?'+new URLSearchParams({asset:target.asset_id,version:target.version_id,unit:String(target.ordinal),...(target.conversion_id?{conversion:target.conversion_id}:{})});link.target='_blank';link.rel='noopener';
+   const item=el('p');item.append(link);row.append(item);
+  }
   for(const decision of timeline.reviews.filter(r=>r.submission_id===attempt.id)){
    const block=el('div');block.className='review-item';block.append(el('strong',(decision.stage==='peer'?'同伴预审':'管理员终审')+' · '+verdicts[decision.verdict]),el('p',name(decision.reviewer_id)+' · '+date(decision.decided_at)),el('p',decision.reason));
    if(decision.requested_work)block.append(el('p','需补充：'+decision.requested_work));
@@ -100,9 +124,12 @@ function renderWorkflow(t,timeline){clearWorkflow();if(!timeline)return;
   attempts.append(row);
  }
  const form=el('form'),send=el('button');send.className='primary';send.type='submit';
- if(t.assignee_id===actor&&['assigned','in_progress','returned'].includes(t.state)){
-  const [wrap,input]=control('提交内容','textarea',16000);input.id='submission-content';send.textContent=t.state==='returned'?'重新提交':'提交成果';form.append(wrap,send);
-  form.onsubmit=e=>{e.preventDefault();void operation(()=>workflowWrite(t,'submissions',{actor_id:actor,expected_revision:t.revision,content:input.value},'成果已提交。'));};actions.append(form);return;
+ const waiting=t.state==='awaiting_material_access';
+ if(t.assignee_id===actor&&(['assigned','in_progress','returned'].includes(t.state)||waiting)){
+  const [wrap,input]=control('提交内容','textarea',16000),[materialWrap,material]=control('固定材料链接（每行一条）','textarea',4000);
+  input.id='submission-content';material.id='submission-materials';material.required=waiting;
+  send.textContent=waiting?'替换材料并重新提交':t.state==='returned'?'重新提交':'提交成果';form.append(wrap,materialWrap,send);
+  form.onsubmit=e=>{e.preventDefault();void operation(()=>workflowWrite(t,'submissions',{actor_id:actor,expected_revision:t.revision,content:input.value,...(material.value.trim()?{materials:materialTargets(material.value)}:{})},'成果已提交。'));};actions.append(form);return;
  }
  const peer=t.task_kind==='project_admin'&&t.state==='submitted'&&t.peer_reviewer_id===actor;
  const admin=t.task_kind==='project_admin'&&t.final_reviewer_id===actor&&project?.members.some(m=>m.id===actor&&m.role==='admin')&&
@@ -121,6 +148,15 @@ function renderWorkflow(t,timeline){clearWorkflow();if(!timeline)return;
  send.textContent=peer?'保存预审':'保存终审';form.append(why,more,send);
  form.onsubmit=e=>{e.preventDefault();void operation(()=>workflowWrite(t,'reviews',{actor_id:actor,expected_revision:t.revision,submission_id:current.id,action:options.value,
   results:inputs.map(([check,proof],i)=>({criterion:i+1,met:check.checked,evidence:proof.value})),reason:reason.value,...(work.required?{requested_work:work.value}:{})},peer?'预审已保存。':'终审已保存。'));};actions.append(form);
+}
+function materialTargets(text){
+ const id=/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
+ try{return text.trim().split(/\r?\n/).filter(v=>v.trim()).map(value=>{
+  const uri=new URL(value.trim(),location.origin),p=uri.searchParams,asset=p.get('asset'),version=p.get('version'),unit=p.get('unit'),cv=p.get('conversion');
+  if(uri.origin!==location.origin||uri.username||uri.password||uri.pathname!=='/knowledgeos/reader'||!id.test(asset)||!id.test(version)||!/^\d{1,9}$/.test(unit??'1')||
+   (p.has('conversion')&&!id.test(cv))||[...p].some(([k])=>!['asset','version','unit','conversion'].includes(k)||p.getAll(k).length!==1))throw Error();
+  return {asset_id:asset,version_id:version,ordinal:Number(unit??1),...(cv?{conversion_id:cv}:{})};
+ });}catch{throw Error('INVALID_MATERIAL_LINK');}
 }
 $('new-project').addEventListener('submit',e=>{e.preventDefault();void operation(async()=>{
  const data=await request('/knowledge/v1/projects','POST',{name:get('name').trim()});$('new-project').reset();scope=data.id;await refresh();status('项目已创建。');});});
@@ -146,12 +182,12 @@ setInterval(async()=>{
  if(checking||!actor||hidden||$('workspace').hidden)return;
  const identity=actor,checkedScope=scope,checkedTask=task?.id,checkedEpoch=epoch;
  const current=()=>epoch===checkedEpoch&&actor===identity&&scope===checkedScope&&task?.id===checkedTask;
- const query=new URLSearchParams();if(checkedScope)query.set('project_id',checkedScope);if(checkedTask)query.set('task_id',checkedTask);
  checking=true;
  try{
-  const result=await fetch(api+'/access?'+query,{cache:'no-store',redirect:'error',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(2500)])});
-  const value=result.ok?await result.json():null;
-  if(current()&&(value?.data?.actor_id!==identity||value?.data?.allowed!==true))throw Error('ACCESS_REVOKED');
+  const value=await access(checkedScope,checkedTask);
+  if(!current())return;
+  if(value?.actor_id!==identity||value?.allowed!==true)throw Error('ACCESS_REVOKED');
+  if(checkedTask&&value.access_revision!==accessRevision){invalidateWorkflow();await operation(()=>openTask(checkedTask));}
  }catch{if(current()){protect();scope=null;status('无法确认任务访问权限，已隐藏内容。');$('login').hidden=false;}}
  finally{checking=false;}
 },3000);

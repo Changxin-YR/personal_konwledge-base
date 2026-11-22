@@ -3563,6 +3563,10 @@ var CitationStore = class {
   source(prior, t) {
     return this.tx("read", (db, now) => this.read(db, this.actor(prior, now), t, now));
   }
+  validateTaskMaterial(db, actor2, t, now) {
+    const source = this.read(db, actor2, t, now);
+    return source.total >= t.ordinal && (source.kind !== "office" || Boolean(t.conversion_id && source.conversion_id === t.conversion_id));
+  }
   recallSource(db, actor2, t, now) {
     const s = this.read(db, actor2, t, now);
     if (s.kind === "office") {
@@ -4545,6 +4549,12 @@ CREATE TABLE task_criteria_versions (
   created_by TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL, PRIMARY KEY(task_id,version)
 ) STRICT;
 `;
+var waiting = "awaiting_material_access";
+var isReviewPhase = (state) => state === "submitted" || state === "awaiting_admin_review";
+var uuid3 = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
+var validId = (id6) => typeof id6 === "string" && uuid3.test(id6);
+var materialUnavailable = () => new AssetError(404, "TASK_MATERIAL_UNAVAILABLE");
+var materialAccessRequired = () => new AssetError(409, "TASK_MATERIAL_ACCESS_REQUIRED");
 var hidden3 = () => new AssetError(404, "NOT_FOUND");
 var invalid3 = () => new AssetError(422, "INVALID_TASK_INPUT");
 var submissionView = (t, r) => ({
@@ -4576,8 +4586,8 @@ var workflow = (t) => ({
   finalReviewer: t.final_reviewer_id,
   state: t.current_state
 });
-var nextActor = (t) => {
-  switch (t.current_state) {
+var nextActor = (t, state = t.current_state) => {
+  switch (state) {
     case "assigned":
     case "in_progress":
     case "returned":
@@ -4590,7 +4600,8 @@ var nextActor = (t) => {
       return null;
   }
 };
-var taskSummary = (t) => ({
+var materialWait = (db, id6) => db.prepare("SELECT submission_version,resume_state FROM task_material_waits WHERE task_id=?").get(id6);
+var taskSummary = (db, t) => ({
   id: t.id,
   project_id: t.project_id,
   task_kind: t.task_kind,
@@ -4603,12 +4614,12 @@ var taskSummary = (t) => ({
   peer_reviewer_id: t.peer_reviewer_id,
   criteria_revision: t.criteria_revision,
   state: t.current_state,
-  next_actor_id: nextActor(t),
+  next_actor_id: nextActor(t, t.current_state === waiting ? materialWait(db, t.id)?.resume_state : void 0),
   revision: t.revision,
   issued_at: t.issued_at,
   updated_at: t.updated_at
 });
-var taskView = (db, t) => ({ ...taskSummary(t), criteria_history: db.prepare(
+var taskView = (db, t) => ({ ...taskSummary(db, t), criteria_history: db.prepare(
   "SELECT version,acceptance_items,effective_submission_rule,created_by,created_at FROM task_criteria_versions WHERE task_id=? ORDER BY version"
 ).all(t.id).map(({ acceptance_items, ...r }) => ({ ...r, items: JSON.parse(String(acceptance_items)) })) });
 var clean = (c) => c.items.map((item) => ({ description: item.description.trim(), weight: item.weight }));
@@ -4617,6 +4628,22 @@ var requireRevision = (task, expected) => {
 };
 var validRevision = (revision) => Number.isSafeInteger(revision) && revision > 0;
 var latestSubmission = (db, id6) => db.prepare("SELECT * FROM task_submissions WHERE task_id=? ORDER BY version DESC LIMIT 1").get(id6);
+var pinnedTargets = (db, submission) => db.prepare(`SELECT asset_id,version_id,ordinal,conversion_id
+  FROM task_submission_materials WHERE task_id=? AND submission_version=? ORDER BY position`).all(submission.task_id, submission.version).map((r) => ({ asset_id: String(r.asset_id), version_id: String(r.version_id), ordinal: Number(r.ordinal), ...r.conversion_id ? { conversion_id: String(r.conversion_id) } : {} }));
+var materialList = (input) => {
+  if (!Array.isArray(input) || input.length > 10) throw invalid3();
+  const values = input.map((m) => {
+    if (!m || typeof m !== "object" || Array.isArray(m) || Object.keys(m).some((k) => !["asset_id", "version_id", "ordinal", "conversion_id"].includes(k)) || !validId(m.asset_id) || !validId(m.version_id) || !Number.isSafeInteger(m.ordinal) || m.ordinal < 1 || m.conversion_id !== void 0 && !validId(m.conversion_id)) throw invalid3();
+    return {
+      asset_id: m.asset_id.toLowerCase(),
+      version_id: m.version_id.toLowerCase(),
+      ordinal: m.ordinal,
+      ...m.conversion_id ? { conversion_id: m.conversion_id.toLowerCase() } : {}
+    };
+  });
+  if (new Set(values.map((m) => JSON.stringify(m))).size !== values.length) throw invalid3();
+  return values;
+};
 var advance = (db, task, state, now) => {
   const result = db.prepare("UPDATE tasks SET current_state=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?").run(state, now, task.id, task.revision);
   if (Number(result.changes) !== 1) throw new AssetError(409, "TASK_REVISION_CONFLICT");
@@ -4627,10 +4654,12 @@ var transition = (task, a, action2) => {
   return next.state;
 };
 var ProjectTaskStore = class {
-  constructor(tx, current, memberships) {
+  constructor(tx, current, memberships, canReadMaterial, validateMaterial) {
     this.tx = tx;
     this.current = current;
     this.memberships = memberships;
+    this.canReadMaterial = canReadMaterial;
+    this.validateMaterial = validateMaterial;
   }
   actor(s, now, expected = s.userId) {
     const user = this.current(s, now);
@@ -4694,16 +4723,67 @@ var ProjectTaskStore = class {
     }
     return row;
   }
+  readable(a, task, target3, now) {
+    return task.project_id !== null && this.canReadMaterial(a, target3.asset_id, task.project_id, now);
+  }
+  materialVisibility(a, task, db, now) {
+    const attempts = db.prepare("SELECT * FROM task_submissions WHERE task_id=? ORDER BY version").all(task.id);
+    const visible = attempts.map((attempt) => ({ attempt, materials: pinnedTargets(db, attempt).map((target3) => this.readable(a, task, target3, now) ? target3 : null) }));
+    const access_revision = requestDigest([task.revision, visible.map((row) => row.materials.map(Boolean))]);
+    return { visible, access_revision };
+  }
+  reviewAvailability(db, task, phase, targets, now) {
+    if (!targets.length) return "ready";
+    if (!task.project_id) return "ineligible";
+    const userId = nextActor(task, phase);
+    if (!this.memberships(db, task.project_id).some((m) => m.userId === userId && isGrantActive(m, now))) return "ineligible";
+    const row = db.prepare(`SELECT u.role,p.id AS personal_space_id FROM users u JOIN spaces p ON p.owner_user_id=u.id
+      AND p.service_id=u.planning_home_service_id AND p.kind='personal' AND p.status='active'
+      WHERE u.id=? AND u.status='active' AND u.planning_home_service_id=?`).get(userId, task.service_id);
+    if (!row || task.task_kind === "project_admin" && userId === task.final_reviewer_id && row.role !== "admin") return "ineligible";
+    const reviewer = { userId, serviceId: task.service_id, personalSpaceId: String(row.personal_space_id) };
+    return targets.every((target3) => this.readable(reviewer, task, target3, now)) ? "ready" : "missing";
+  }
+  advancePhase(db, task, phase, submission, now) {
+    db.prepare("DELETE FROM task_material_waits WHERE task_id=?").run(task.id);
+    if (isReviewPhase(phase) && this.reviewAvailability(db, task, phase, pinnedTargets(db, submission), now) === "missing") {
+      db.prepare("INSERT INTO task_material_waits VALUES(?,?,?)").run(task.id, submission.version, phase);
+      advance(db, task, waiting, now);
+    } else advance(db, task, phase, now);
+  }
+  // Only call in a write transaction, after checking the caller's task access.
+  reconcileMaterials(db, task, now) {
+    const state = task.current_state;
+    if (state !== waiting && !isReviewPhase(state)) return task;
+    const active4 = latestSubmission(db, task.id);
+    if (!active4) return task;
+    const wait2 = state === waiting ? materialWait(db, task.id) : void 0;
+    if (state === waiting && (!wait2 || wait2.submission_version !== active4.version)) return task;
+    const phase = wait2?.resume_state ?? state;
+    if (!isReviewPhase(phase)) return task;
+    const availability = this.reviewAvailability(db, task, phase, pinnedTargets(db, active4), now);
+    if (availability === "ineligible" || state === waiting === (availability === "missing")) return task;
+    const next = state === waiting ? phase : waiting;
+    if (state === waiting) db.prepare("DELETE FROM task_material_waits WHERE task_id=?").run(task.id);
+    else db.prepare("INSERT INTO task_material_waits VALUES(?,?,?)").run(task.id, active4.version, phase);
+    advance(db, task, next, now);
+    return { ...task, current_state: next, revision: task.revision + 1, updated_at: now };
+  }
   checkAccess(s, projectId, taskId) {
-    return this.tx("read", (db, now) => {
+    return this.tx(taskId ? "write" : "read", (db, now) => {
       const a = this.actor(s, now);
       if (projectId !== null) this.project(db, a, projectId, now);
-      if (taskId && this.lookup(db, a, taskId, now).project_id !== projectId) throw hidden3();
+      if (taskId) {
+        const task = this.lookup(db, a, taskId, now);
+        if (task.project_id !== projectId) throw hidden3();
+        const current = this.reconcileMaterials(db, task, now);
+        return { allowed: true, access_revision: this.materialVisibility(a, current, db, now).access_revision };
+      }
       return { allowed: true };
     });
   }
   get(s, id6) {
-    return this.tx("read", (db, now) => taskView(db, this.lookup(db, this.actor(s, now), id6, now)));
+    return this.tx("write", (db, now) => taskView(db, this.reconcileMaterials(db, this.lookup(db, this.actor(s, now), id6, now), now)));
   }
   list(s, projectId) {
     return this.tx("read", (db, now) => {
@@ -4711,7 +4791,7 @@ var ProjectTaskStore = class {
       const rows = projectId === null ? db.prepare(`SELECT * FROM tasks WHERE service_id=? AND project_id IS NULL AND personal_space_id=? AND issuer_id=? ORDER BY issued_at DESC,id LIMIT 201`).all(a.serviceId, a.personalSpaceId, a.userId) : db.prepare(`SELECT * FROM tasks WHERE service_id=? AND project_id=? AND (? OR ? IN (issuer_id,assignee_id,final_reviewer_id,peer_reviewer_id))
           ORDER BY issued_at DESC,id LIMIT 201`).all(a.serviceId, projectId, Number(this.project(db, a, projectId, now).row.owner_user_id === a.userId), a.userId);
       if (rows.length > 200) throw new AssetError(409, "TASK_LIST_LIMIT");
-      return rows.map(taskSummary);
+      return rows.map((task) => taskSummary(db, task));
     });
   }
   assign(s, expected, projectId, key, d) {
@@ -4754,46 +4834,73 @@ var ProjectTaskStore = class {
     });
   }
   history(s, id6) {
-    return this.tx("read", (db, now) => {
-      const task = this.lookup(db, this.actor(s, now), id6, now);
-      const submissions = db.prepare("SELECT * FROM task_submissions WHERE task_id=? ORDER BY version").all(id6);
+    return this.tx("write", (db, now) => {
+      const a = this.actor(s, now), task = this.reconcileMaterials(db, this.lookup(db, a, id6, now), now);
+      const { visible, access_revision } = this.materialVisibility(a, task, db, now);
+      const restricted = new Set(visible.filter((r) => r.materials.includes(null)).map((r) => r.attempt.id));
       const reviews = db.prepare(`SELECT d.* FROM task_review_decisions d JOIN task_submissions s ON s.id=d.submission_id
         WHERE s.task_id=? ORDER BY s.version,CASE d.stage WHEN 'peer' THEN 0 ELSE 1 END`).all(id6);
-      return { task_revision: task.revision, submissions: submissions.map((r) => submissionView(task, r)), reviews: reviews.map(reviewView) };
+      return { task_revision: task.revision, access_revision, submissions: visible.map(({ attempt, materials }) => ({
+        ...submissionView(task, attempt),
+        ...materials.length ? { materials } : {},
+        ...restricted.has(attempt.id) ? { content: null } : {}
+      })), reviews: reviews.map((r) => ({ ...reviewView(r), ...restricted.has(r.submission_id) ? { criteria_results: [], reason: null, requested_work: null } : {} })) };
     });
   }
-  submit(s, expected, id6, key, revision, content) {
+  submit(s, expected, id6, key, revision, content, materials = []) {
     if (!validRevision(revision) || !validTaskSubmission(content)) throw invalid3();
-    const normalized = content.trim(), digest4 = requestDigest([revision, normalized]);
-    return this.tx("write", (db, now) => {
-      const a = this.actor(s, now, expected), task = this.lookup(db, a, id6, now);
+    const normalized = content.trim(), targets = materialList(materials), digest4 = requestDigest(targets.length ? [revision, normalized, targets] : [revision, normalized]);
+    const result = this.tx("write", (db, now) => {
+      const a = this.actor(s, now, expected), before = this.lookup(db, a, id6, now);
+      const task = this.reconcileMaterials(db, before, now);
       if (task.assignee_id !== a.userId) throw hidden3();
       const old = db.prepare("SELECT * FROM task_submissions WHERE task_id=? AND author_id=? AND request_key=?").get(id6, a.userId, key);
       if (old) {
         if (old.request_digest !== digest4) throw new AssetError(409, "TASK_REQUEST_CONFLICT");
-        return { task: taskView(db, task), submission: submissionView(task, old), replayed: true };
+        const refs = pinnedTargets(db, old);
+        if (refs.some((m) => !this.readable(a, task, m, now))) return materialUnavailable();
+        return { task: taskView(db, task), submission: { ...submissionView(task, old), ...refs.length ? { materials: refs } : {} }, replayed: true };
       }
+      if (before.revision !== task.revision) return new AssetError(409, "TASK_REVISION_CONFLICT");
       requireRevision(task, revision);
-      const state = transition(task, a, "submit"), previous = latestSubmission(db, id6);
+      const previous = latestSubmission(db, id6);
+      const state = transition(task.current_state === waiting ? { ...task, current_state: "returned" } : task, a, "submit");
+      if (task.current_state === waiting && (!targets.length || requestDigest(targets) === requestDigest(pinnedTargets(db, previous)))) throw new AssetError(409, "TASK_MATERIAL_REPLACEMENT_REQUIRED");
+      for (const target3 of targets) {
+        if (!this.readable(a, task, target3, now)) throw materialUnavailable();
+        try {
+          if (!this.validateMaterial(db, a, target3, now)) throw materialUnavailable();
+        } catch (e) {
+          if (e instanceof AssetError && (e.status === 404 || e.status === 422)) throw materialUnavailable();
+          throw e;
+        }
+      }
       const version = (previous?.version ?? 0) + 1;
       if (version > 50) throw new AssetError(409, "TASK_SUBMISSION_LIMIT");
       const submissionId = randomUUID14();
       db.prepare(`INSERT INTO task_submissions(id,task_id,version,criteria_version,author_id,content,submitted_at,previous_version,request_key,request_digest)
         VALUES(?,?,?,?,?,?,?,?,?,?)`).run(submissionId, id6, version, task.criteria_revision, a.userId, normalized, now, previous?.version ?? null, key, digest4);
-      advance(db, task, state, now);
       const saved = latestSubmission(db, id6);
-      return { task: taskView(db, this.lookup(db, a, id6, now)), submission: submissionView(task, saved), replayed: false };
+      const insert = db.prepare("INSERT INTO task_submission_materials VALUES(?,?,?,?,?,?,?)");
+      for (const [i, t] of targets.entries()) insert.run(id6, version, i + 1, t.asset_id, t.version_id, t.ordinal, t.conversion_id ?? null);
+      this.advancePhase(db, task, state, saved, now);
+      return { task: taskView(db, this.lookup(db, a, id6, now)), submission: { ...submissionView(task, saved), ...targets.length ? { materials: targets } : {} }, replayed: false };
     });
+    if (result instanceof AssetError) throw result;
+    return result;
   }
   review(s, expected, id6, key, revision, submissionId, action2, input) {
     if (!validRevision(revision) || !isTaskReviewAction(action2)) throw invalid3();
     const stage = action2.startsWith("peer_") ? "peer" : "final", verdict = action2.slice(stage.length + 1);
-    return this.tx("write", (db, now) => {
-      const a = this.actor(s, now, expected), task = this.lookup(db, a, id6, now);
-      if (stage === "peer" ? a.userId !== task.peer_reviewer_id : a.userId !== task.final_reviewer_id || a.role !== "admin") throw hidden3();
-      if (task.task_kind !== "project_admin") throw new AssetError(409, "TASK_WORKFLOW_UNAVAILABLE");
+    const result = this.tx("write", (db, now) => {
+      const a = this.actor(s, now, expected), before = this.lookup(db, a, id6, now);
+      if (stage === "peer" ? a.userId !== before.peer_reviewer_id : a.userId !== before.final_reviewer_id || a.role !== "admin") throw hidden3();
+      if (before.task_kind !== "project_admin") throw new AssetError(409, "TASK_WORKFLOW_UNAVAILABLE");
       const submission = db.prepare("SELECT * FROM task_submissions WHERE task_id=? AND id=?").get(id6, submissionId);
       if (!submission) throw hidden3();
+      const task = this.reconcileMaterials(db, before, now);
+      if (pinnedTargets(db, submission).some((m) => !this.readable(a, task, m, now))) return materialAccessRequired();
+      if (before.revision !== task.revision) return new AssetError(409, "TASK_REVISION_CONFLICT");
       const { acceptance_items } = db.prepare("SELECT acceptance_items FROM task_criteria_versions WHERE task_id=? AND version=?").get(id6, submission.criteria_version);
       if (!validTaskReview(action2, JSON.parse(String(acceptance_items)).length, input)) throw invalid3();
       const results = input.results.map((r) => ({ criterion: r.criterion, met: r.met, evidence: r.evidence.trim() })).sort((l, r) => l.criterion - r.criterion);
@@ -4809,10 +4916,12 @@ var ProjectTaskStore = class {
       const state = transition(task, a, action2), reviewId = randomUUID14();
       db.prepare(`INSERT INTO task_review_decisions(id,submission_id,reviewer_id,stage,verdict,criteria_results,reason,requested_work,decided_at,request_key,request_digest)
         VALUES(?,?,?,?,?,?,?,?,?,?,?)`).run(reviewId, submissionId, a.userId, stage, verdict, JSON.stringify(results), reason, requested, now, key, digest4);
-      advance(db, task, state, now);
+      this.advancePhase(db, task, state, submission, now);
       const saved = db.prepare("SELECT * FROM task_review_decisions WHERE id=?").get(reviewId);
       return { task: taskView(db, this.lookup(db, a, id6, now)), review: reviewView(saved), replayed: false };
     });
+    if (result instanceof AssetError) throw result;
+    return result;
   }
 };
 
@@ -4839,6 +4948,23 @@ CREATE TABLE task_review_decisions (
   CHECK((stage='peer' AND verdict IN ('pass','return')) OR (stage='final' AND verdict IN ('accept','return','fail'))),
   CHECK((verdict='return' AND requested_work IS NOT NULL AND length(requested_work) BETWEEN 1 AND 4000)
     OR (verdict!='return' AND requested_work IS NULL))
+) STRICT;
+`;
+
+// src/host/project-task-material-schema.ts
+var PROJECT_TASK_MATERIAL_SCHEMA = `
+CREATE TABLE task_submission_materials (
+  task_id TEXT NOT NULL, submission_version INTEGER NOT NULL,
+  position INTEGER NOT NULL CHECK(position BETWEEN 1 AND 10),
+  asset_id TEXT NOT NULL REFERENCES assets(id), version_id TEXT NOT NULL REFERENCES asset_versions(id),
+  ordinal INTEGER NOT NULL CHECK(ordinal>=1), conversion_id TEXT REFERENCES office_conversions(id),
+  PRIMARY KEY(task_id,submission_version,position),
+  FOREIGN KEY(task_id,submission_version) REFERENCES task_submissions(task_id,version)
+) STRICT;
+CREATE TABLE task_material_waits (
+  task_id TEXT PRIMARY KEY, submission_version INTEGER NOT NULL,
+  resume_state TEXT NOT NULL CHECK(resume_state IN ('submitted','awaiting_admin_review')),
+  FOREIGN KEY(task_id,submission_version) REFERENCES task_submissions(task_id,version)
 ) STRICT;
 `;
 
@@ -5288,7 +5414,8 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 30;
+var SCHEMA_VERSION = 31;
+var MIGRATION_V31_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_MATERIAL_SCHEMA).digest("hex");
 var MIGRATION_V30_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_REVIEW_SCHEMA).digest("hex");
 var MIGRATION_V29_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_SCHEMA).digest("hex");
 var MIGRATION_V28_CHECKSUM = createHash15("sha256").update(REPOSITORY_SCHEMA).digest("hex");
@@ -5556,7 +5683,16 @@ var ProbeStorage = class {
   }
   assets = new AssetStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (actor2, id6, action2, now) => Boolean(this.authorizeObject(actor2, id6, action2, now)));
   repositories = new RepositoryStore(this.#assetTx, (s, now) => this.#currentActor(s, now));
-  projectTasks = new ProjectTaskStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (db, id6) => this.#memberships(db, id6));
+  projectTasks = new ProjectTaskStore(
+    this.#assetTx,
+    (s, now) => this.#currentActor(s, now),
+    (db, id6) => this.#memberships(db, id6),
+    (actor2, id6, project, now) => {
+      const asset = this.authorizeObject(actor2, id6, "read", now);
+      return asset?.objectType === "asset" && (asset.scope === "personal" || asset.projectId === project);
+    },
+    (db, actor2, target3, now) => this.citations.validateTaskMaterial(db, actor2, target3, now)
+  );
   notes = new NoteStore(
     this.#assetTx,
     (s, now) => this.#currentActor(s, now),
@@ -5686,6 +5822,7 @@ var ProbeStorage = class {
       if (priorVersion < 28) this.#migrateV28(db);
       if (priorVersion < 29) this.#migrateV29(db);
       if (priorVersion < 30) this.#migrateV30(db);
+      if (priorVersion < 31) this.#migrateV31(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path2);
       const pragmas = this.#readPragmas(db);
@@ -6278,9 +6415,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "project task review migration failed", false, { cause: e });
     }
   }
+  #migrateV31(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(PROJECT_TASK_MATERIAL_SCHEMA);
+      this.#injectFailure("v31:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(31,?,?)").run(MIGRATION_V31_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=31; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "task material migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash4, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash4)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -6309,6 +6458,7 @@ var ProbeStorage = class {
       if (version >= 28) reference.exec(REPOSITORY_SCHEMA);
       if (version >= 29) reference.exec(PROJECT_TASK_SCHEMA);
       if (version >= 30) reference.exec(PROJECT_TASK_REVIEW_SCHEMA);
+      if (version >= 31) reference.exec(PROJECT_TASK_MATERIAL_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name: name2, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name2)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -8665,7 +8815,7 @@ function imagePng(api, page, width, height) {
 }
 
 // src/host/reader-http.ts
-var uuid3 = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
+var uuid4 = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 var hash2 = (s) => createHash22("sha256").update(s, "utf8").digest("hex");
 var ReaderService = class {
   constructor(store, originals, render2, wordPages, legacyWord) {
@@ -8818,9 +8968,9 @@ var ReaderService = class {
 };
 async function readerRoute(req, url, service, current, signal, body4, reserve, send) {
   const annotations = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/reader-annotations(?:\/([a-f0-9-]+))?$/.exec(url.pathname);
-  if (annotations && uuid3.test(annotations[1]) && uuid3.test(annotations[2]) && (!annotations[3] || uuid3.test(annotations[3]))) {
+  if (annotations && uuid4.test(annotations[1]) && uuid4.test(annotations[2]) && (!annotations[3] || uuid4.test(annotations[3]))) {
     const p = url.searchParams, keys4 = [...p.keys()], n = p.get("unit") ?? "1", cv = p.get("conversion"), id6 = annotations[3], m = req.method;
-    if (keys4.some((k) => k !== "unit" && k !== "conversion") || new Set(keys4).size !== keys4.length || !/^\d{1,9}$/.test(n) || Number(n) < 1 || cv && !uuid3.test(cv) || cv === "") throw new AssetError(422, "INVALID_READER_UNIT");
+    if (keys4.some((k) => k !== "unit" && k !== "conversion") || new Set(keys4).size !== keys4.length || !/^\d{1,9}$/.test(n) || Number(n) < 1 || cv && !uuid4.test(cv) || cv === "") throw new AssetError(422, "INVALID_READER_UNIT");
     const t = { asset_id: annotations[1], version_id: annotations[2], ordinal: Number(n), ...cv ? { conversion_id: cv } : {} };
     if (m === "GET" && !id6) {
       send(200, service.listAnnotations(current, t));
@@ -8828,7 +8978,7 @@ async function readerRoute(req, url, service, current, signal, body4, reserve, s
     }
     if (m === "POST" && !id6 || id6 && (m === "PATCH" || m === "DELETE")) {
       const a = req.headers["x-knowledgeos-reader-actor"];
-      if (typeof a !== "string" || !uuid3.test(a)) throw new AssetError(422, "INVALID_READER_ACTOR");
+      if (typeof a !== "string" || !uuid4.test(a)) throw new AssetError(422, "INVALID_READER_ACTOR");
       if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
       reserve();
       const b = await body4(req, "INVALID_ANNOTATION", 26e3);
@@ -8841,7 +8991,7 @@ async function readerRoute(req, url, service, current, signal, body4, reserve, s
       const allowed = m === "POST" ? ["citation_id", "visibility", "body"] : m === "PATCH" ? ["body", "expected_revision"] : ["expected_revision"];
       if (!v || typeof v !== "object" || Array.isArray(v) || Object.keys(v).some((k) => !allowed.includes(k)) || m !== "DELETE" && (typeof v.body !== "string" || !v.body.trim() || v.body.length > 4e3 || v.body.includes("\0"))) throw new AssetError(422, "INVALID_ANNOTATION");
       if (m === "POST") {
-        if (typeof v.citation_id !== "string" || !uuid3.test(v.citation_id) || !["private", "project"].includes(v.visibility)) throw new AssetError(422, "INVALID_ANNOTATION");
+        if (typeof v.citation_id !== "string" || !uuid4.test(v.citation_id) || !["private", "project"].includes(v.visibility)) throw new AssetError(422, "INVALID_ANNOTATION");
         send(201, service.addAnnotation(current, t, v, a));
       } else if (id6) {
         const r = v.expected_revision;
@@ -8852,7 +9002,7 @@ async function readerRoute(req, url, service, current, signal, body4, reserve, s
     }
   }
   const reading = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/reader-(state|outline|bookmarks)(?:\/([a-f0-9-]+))?$/.exec(url.pathname);
-  if (reading && uuid3.test(reading[1]) && uuid3.test(reading[2]) && !url.search) {
+  if (reading && uuid4.test(reading[1]) && uuid4.test(reading[2]) && !url.search) {
     const t = { asset_id: reading[1], version_id: reading[2], ordinal: 1 }, kind = reading[3], id6 = reading[4], method = req.method;
     if (method === "GET" && !id6 && kind === "state") {
       send(200, service.navigation(current, t));
@@ -8863,10 +9013,10 @@ async function readerRoute(req, url, service, current, signal, body4, reserve, s
       send(200, await service.outline(current, t, signal));
       return true;
     }
-    const save = kind === "state" && method === "PUT" && !id6, add = kind === "bookmarks" && method === "POST" && !id6, del = kind === "bookmarks" && method === "DELETE" && id6 && uuid3.test(id6);
+    const save = kind === "state" && method === "PUT" && !id6, add = kind === "bookmarks" && method === "POST" && !id6, del = kind === "bookmarks" && method === "DELETE" && id6 && uuid4.test(id6);
     if (save || add || del) {
       const a = req.headers["x-knowledgeos-reader-actor"];
-      if (typeof a !== "string" || !uuid3.test(a)) throw new AssetError(422, "INVALID_READER_ACTOR");
+      if (typeof a !== "string" || !uuid4.test(a)) throw new AssetError(422, "INVALID_READER_ACTOR");
       if (del && id6) {
         send(200, service.deleteBookmark(current, t, id6, a));
         return true;
@@ -8880,7 +9030,7 @@ async function readerRoute(req, url, service, current, signal, body4, reserve, s
       } catch {
         throw new AssetError(422, "INVALID_READING_POINT");
       }
-      if (!v || typeof v !== "object" || Array.isArray(v) || Object.keys(v).some((k) => !["ordinal", "source_hash", "conversion_id", save ? "expected_revision" : "title"].includes(k)) || !Number.isSafeInteger(v.ordinal) || v.ordinal < 1 || v.ordinal > 1e6 || typeof v.source_hash !== "string" || !/^[a-f0-9]{64}$/.test(v.source_hash) || "conversion_id" in v && (typeof v.conversion_id !== "string" || !uuid3.test(v.conversion_id))) throw new AssetError(422, "INVALID_READING_POINT");
+      if (!v || typeof v !== "object" || Array.isArray(v) || Object.keys(v).some((k) => !["ordinal", "source_hash", "conversion_id", save ? "expected_revision" : "title"].includes(k)) || !Number.isSafeInteger(v.ordinal) || v.ordinal < 1 || v.ordinal > 1e6 || typeof v.source_hash !== "string" || !/^[a-f0-9]{64}$/.test(v.source_hash) || "conversion_id" in v && (typeof v.conversion_id !== "string" || !uuid4.test(v.conversion_id))) throw new AssetError(422, "INVALID_READING_POINT");
       const p = { ...t, ordinal: v.ordinal, source_hash: v.source_hash, ...v.conversion_id ? { conversion_id: v.conversion_id } : {} };
       if (save) {
         if (!Number.isSafeInteger(v.expected_revision) || v.expected_revision < 0 || v.expected_revision >= Number.MAX_SAFE_INTEGER) throw new AssetError(422, "INVALID_READER_REVISION");
@@ -8893,20 +9043,20 @@ async function readerRoute(req, url, service, current, signal, body4, reserve, s
     }
   }
   const access = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/reader-access$/.exec(url.pathname);
-  if (access && uuid3.test(access[1]) && uuid3.test(access[2]) && !url.search && req.method === "GET") {
+  if (access && uuid4.test(access[1]) && uuid4.test(access[2]) && !url.search && req.method === "GET") {
     send(200, service.access(current, access[1], access[2]));
     return true;
   }
   const reader = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/reader$/.exec(url.pathname);
-  if (reader && uuid3.test(reader[1]) && uuid3.test(reader[2]) && req.method === "GET") {
+  if (reader && uuid4.test(reader[1]) && uuid4.test(reader[2]) && req.method === "GET") {
     const p = url.searchParams, keys4 = [...p.keys()], unit = p.get("unit") ?? "1", cid = p.get("conversion");
-    if (keys4.some((k) => !["unit", "conversion"].includes(k)) || keys4.length !== new Set(keys4).size || !/^\d{1,9}$/.test(unit) || Number(unit) < 1 || cid !== null && !uuid3.test(cid)) throw new AssetError(422, "INVALID_READER_UNIT");
+    if (keys4.some((k) => !["unit", "conversion"].includes(k)) || keys4.length !== new Set(keys4).size || !/^\d{1,9}$/.test(unit) || Number(unit) < 1 || cid !== null && !uuid4.test(cid)) throw new AssetError(422, "INVALID_READER_UNIT");
     reserve();
     send(200, await service.page(current, { asset_id: reader[1], version_id: reader[2], ordinal: Number(unit), ...cid ? { conversion_id: cid } : {} }, signal));
     return true;
   }
   const resolve2 = /^\/knowledge\/v1\/citations\/([a-f0-9-]+)\/resolve$/.exec(url.pathname);
-  if (resolve2 && uuid3.test(resolve2[1]) && !url.search && req.method === "GET") {
+  if (resolve2 && uuid4.test(resolve2[1]) && !url.search && req.method === "GET") {
     reserve();
     send(200, await service.resolve(current, resolve2[1], signal));
     return true;
@@ -8914,7 +9064,7 @@ async function readerRoute(req, url, service, current, signal, body4, reserve, s
   if (req.method === "POST" && url.pathname === "/knowledge/v1/citations" && !url.search) {
     if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
     const key = req.headers["idempotency-key"];
-    if (typeof key !== "string" || !uuid3.test(key)) throw new AssetError(422, "INVALID_CITATION_KEY");
+    if (typeof key !== "string" || !uuid4.test(key)) throw new AssetError(422, "INVALID_CITATION_KEY");
     reserve();
     const b = await body4(req, "INVALID_CITATION", 2048);
     let v;
@@ -8923,7 +9073,7 @@ async function readerRoute(req, url, service, current, signal, body4, reserve, s
     } catch {
       throw new AssetError(422, "INVALID_CITATION");
     }
-    if (!v || typeof v !== "object" || Array.isArray(v) || Object.keys(v).some((k) => !["asset_id", "version_id", "ordinal", "start", "end", "source_hash", "conversion_id"].includes(k)) || typeof v.asset_id !== "string" || !uuid3.test(v.asset_id) || typeof v.version_id !== "string" || !uuid3.test(v.version_id) || "conversion_id" in v && (typeof v.conversion_id !== "string" || !uuid3.test(v.conversion_id)) || !Number.isSafeInteger(v.ordinal) || v.ordinal < 1 || !Number.isSafeInteger(v.start) || !Number.isSafeInteger(v.end) || v.start < 0 || v.end <= v.start || typeof v.source_hash !== "string" || !/^[a-f0-9]{64}$/.test(v.source_hash)) throw new AssetError(422, "INVALID_CITATION");
+    if (!v || typeof v !== "object" || Array.isArray(v) || Object.keys(v).some((k) => !["asset_id", "version_id", "ordinal", "start", "end", "source_hash", "conversion_id"].includes(k)) || typeof v.asset_id !== "string" || !uuid4.test(v.asset_id) || typeof v.version_id !== "string" || !uuid4.test(v.version_id) || "conversion_id" in v && (typeof v.conversion_id !== "string" || !uuid4.test(v.conversion_id)) || !Number.isSafeInteger(v.ordinal) || v.ordinal < 1 || !Number.isSafeInteger(v.start) || !Number.isSafeInteger(v.end) || v.start < 0 || v.end <= v.start || typeof v.source_hash !== "string" || !/^[a-f0-9]{64}$/.test(v.source_hash)) throw new AssetError(422, "INVALID_CITATION");
     const r = await service.create(current, v, key, signal);
     send(r.replayed ? 200 : 201, r.data);
     return true;
@@ -9150,7 +9300,7 @@ async function preflightZipSelection(bytes, ordinals, signal) {
 }
 
 // src/host/library-http.ts
-var uuid4 = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
+var uuid5 = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 var max = 64 * 1024 * 1024;
 async function processInput(req) {
   if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
@@ -9168,7 +9318,7 @@ async function processInput(req) {
   } catch {
     throw new AssetError(422, "INVALID_PROCESS");
   }
-  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((k) => !["version_id", "page"].includes(k)) || typeof value.version_id !== "string" || !uuid4.test(value.version_id) || "page" in value && (!Number.isSafeInteger(value.page) || value.page < 1 || value.page > 1e4)) throw new AssetError(422, "INVALID_PROCESS");
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((k) => !["version_id", "page"].includes(k)) || typeof value.version_id !== "string" || !uuid5.test(value.version_id) || "page" in value && (!Number.isSafeInteger(value.page) || value.page < 1 || value.page > 1e4)) throw new AssetError(422, "INVALID_PROCESS");
   return value;
 }
 async function receive(req, emptyCode, limit5) {
@@ -9187,7 +9337,7 @@ async function receive(req, emptyCode, limit5) {
 }
 function specFor(req) {
   const key = req.headers["idempotency-key"], name2 = req.headers["x-knowledgeos-filename"], assetId = req.headers["x-knowledgeos-asset-id"], version = req.headers["x-knowledgeos-expected-version"];
-  if (typeof key !== "string" || !uuid4.test(key) || typeof name2 !== "string" || name2.length > 2200) throw new AssetError(422, "INVALID_IMPORT");
+  if (typeof key !== "string" || !uuid5.test(key) || typeof name2 !== "string" || name2.length > 2200) throw new AssetError(422, "INVALID_IMPORT");
   let title;
   try {
     title = decodeURIComponent(name2).trim().normalize("NFC");
@@ -9196,7 +9346,7 @@ function specFor(req) {
   }
   if (!title || title.length > 200 || /[\\/\x00-\x1f\x7f]/u.test(title)) throw new AssetError(422, "INVALID_FILENAME");
   if (assetId === void 0 && version === void 0) return { title, key };
-  if (typeof assetId !== "string" || !uuid4.test(assetId) || typeof version !== "string" || !/^\d{1,9}$/.test(version) || Number(version) < 1) throw new AssetError(422, "INVALID_VERSION");
+  if (typeof assetId !== "string" || !uuid5.test(assetId) || typeof version !== "string" || !/^\d{1,9}$/.test(version) || Number(version) < 1) throw new AssetError(422, "INVALID_VERSION");
   return { title, key, assetId, expectedVersion: Number(version) };
 }
 function inputError(e) {
@@ -9273,7 +9423,7 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
       const url = new URL(req.url ?? "/", host);
       if (url.origin !== host) throw new AssetError(403, "CSRF_REJECTED");
       const replay = /^\/knowledge\/v1\/search\/([a-f0-9-]+)\/access$/.exec(url.pathname);
-      if (search && replay && uuid4.test(replay[1]) && req.method === "GET" && !url.search) {
+      if (search && replay && uuid5.test(replay[1]) && req.method === "GET" && !url.search) {
         json3(200, { data: search.revalidate(current(), replay[1]), request_id: requestId });
         return;
       }
@@ -9305,7 +9455,7 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
         return;
       }
       const op = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/office(?:\/(start)|\/([a-f0-9-]+)\/(cancel|notes|pdf))?$/.exec(url.pathname);
-      if (office && op && uuid4.test(op[1]) && uuid4.test(op[2]) && (!op[4] || uuid4.test(op[4]))) {
+      if (office && op && uuid5.test(op[1]) && uuid5.test(op[2]) && (!op[4] || uuid5.test(op[4]))) {
         const id6 = op[1], v = op[2], cid = op[4], command = op[3] ?? op[5], key = req.headers["idempotency-key"];
         const send = (status, data) => json3(status, { data, request_id: requestId });
         if (req.method === "GET" && !command) {
@@ -9356,7 +9506,7 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
           json3(200, { data: { items: archives.list(current()) }, request_id: requestId });
           return;
         }
-        if (archive && uuid4.test(archive[1])) {
+        if (archive && uuid5.test(archive[1])) {
           const id6 = archive[1];
           if (req.method === "GET" && archive[2] === "entries") {
             json3(200, { data: archives.manifest(current(), id6), request_id: requestId });
@@ -9364,7 +9514,7 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
           }
           if (req.method === "POST" && archive[2] === "selection") {
             const key = req.headers["idempotency-key"];
-            if (typeof key !== "string" || !uuid4.test(key)) throw new AssetError(422, "INVALID_SELECTION");
+            if (typeof key !== "string" || !uuid5.test(key)) throw new AssetError(422, "INVALID_SELECTION");
             if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
             reserve();
             const body4 = await receive(req, "INVALID_SELECTION", 24 * 1024);
@@ -9447,7 +9597,7 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
       const pagesPath = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/pages$/.exec(url.pathname);
       const operation = /^\/knowledge\/v1\/operations\/([a-f0-9-]+)$/.exec(url.pathname);
       const blockPath = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/blocks$/.exec(url.pathname);
-      if (blockPath && req.method === "GET" && uuid4.test(blockPath[1]) && uuid4.test(blockPath[2])) {
+      if (blockPath && req.method === "GET" && uuid5.test(blockPath[1]) && uuid5.test(blockPath[2])) {
         const keys4 = [...url.searchParams.keys()];
         if (keys4.some((k) => !["from", "limit"].includes(k)) || new Set(keys4).size !== keys4.length) throw new AssetError(422, "INVALID_BLOCK_RANGE");
         json3(200, { data: store.blocks(current(), blockPath[1], blockPath[2], Number(url.searchParams.get("from") ?? 1), Number(url.searchParams.get("limit") ?? 5)), request_id: requestId });
@@ -9458,23 +9608,23 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
         if (asyncRequest && active4) res.setHeader("location", location);
         json3(asyncRequest && active4 ? 202 : 200, { data: { ...data, operation_id: v, status_url: location, cancellable: active4 }, request_id: requestId });
       };
-      if (operation && parses && req.method === "GET" && !url.search && uuid4.test(operation[1])) {
+      if (operation && parses && req.method === "GET" && !url.search && uuid5.test(operation[1])) {
         respond(operation[1], parses.operation(current(), operation[1]), false);
         return;
       }
-      if (processPath && parses && req.method === "POST" && !url.search && uuid4.test(processPath[1])) {
+      if (processPath && parses && req.method === "POST" && !url.search && uuid5.test(processPath[1])) {
         const { version_id: v, page } = await processInput(req);
         respond(v, parses.control(current(), processPath[1], v, page ? "retry" : "start", page), true);
         return;
       }
-      if (pagesPath && parses && req.method === "GET" && uuid4.test(pagesPath[1]) && uuid4.test(pagesPath[2])) {
+      if (pagesPath && parses && req.method === "GET" && uuid5.test(pagesPath[1]) && uuid5.test(pagesPath[2])) {
         const keys4 = [...url.searchParams.keys()];
         if (keys4.some((k) => !["from", "limit"].includes(k)) || new Set(keys4).size !== keys4.length) throw new AssetError(422, "INVALID_PAGE_RANGE");
         const from = Number(url.searchParams.get("from") ?? 1), limit5 = Number(url.searchParams.get("limit") ?? 5);
         json3(200, { data: parses.pages(current(), pagesPath[1], pagesPath[2], from, limit5), request_id: requestId });
         return;
       }
-      if (parse3 && parses && !url.search && uuid4.test(parse3[1]) && uuid4.test(parse3[2]) && req.method === (parse3[3] ? "POST" : "GET")) {
+      if (parse3 && parses && !url.search && uuid5.test(parse3[1]) && uuid5.test(parse3[2]) && req.method === (parse3[3] ? "POST" : "GET")) {
         if (parse3[3] === "chapters") {
           if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
           const bytes = await receive(req, "INVALID_PDF_CHAPTERS", 4096);
@@ -9492,7 +9642,7 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
         return;
       }
       const path2 = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/original$/.exec(url.pathname);
-      if (req.method === "GET" && path2 && uuid4.test(path2[1]) && uuid4.test(path2[2]) && (!url.search || url.search === "?download=1")) {
+      if (req.method === "GET" && path2 && uuid5.test(path2[1]) && uuid5.test(path2[2]) && (!url.search || url.search === "?download=1")) {
         reserve();
         const download = Boolean(url.search), original = () => store.original(current(), path2[1], path2[2], download), r = original();
         const word = isWordMedia(r.media), ext = word ? r.media === WORD_MEDIA.doc ? "doc" : "docx" : r.media === "text/plain" ? "txt" : r.media === "text/markdown" ? "md" : "pdf";
@@ -9666,11 +9816,11 @@ function createNoteHandler(store, origin, actorFor) {
 
 // src/host/recall-http.ts
 var basePath = "/knowledge/v1/recall";
-var uuid5 = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
+var uuid6 = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 var limit3 = 2 * 1024 * 1024;
 var invalid10 = () => new AssetError(422, "INVALID_RECALL");
 function id2(x) {
-  if (typeof x !== "string" || !uuid5.test(x)) throw invalid10();
+  if (typeof x !== "string" || !uuid6.test(x)) throw invalid10();
   return x;
 }
 function integer(x, min = 1) {
@@ -9767,10 +9917,10 @@ function createRecallHandler(store, origin, actorFor) {
 // src/host/invitation-http.ts
 import { randomUUID as randomUUID25 } from "node:crypto";
 var path = "/knowledge/v1/invitations";
-var uuid6 = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
+var uuid7 = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 var invalid11 = () => new AssetError(422, "INVALID_INVITATION");
 function id3(v) {
-  if (typeof v !== "string" || !uuid6.test(v)) throw invalid11();
+  if (typeof v !== "string" || !uuid7.test(v)) throw invalid11();
   return v;
 }
 function positive(v) {
@@ -10998,7 +11148,7 @@ function buildReaderHtml() {
 #continuity{margin-top:12px;border-block:1px solid #cbd9d6;padding:8px 0}#continuity details{margin:4px 0}#continuity summary{cursor:pointer;color:#18565a}#continuity ul{list-style:none;margin:6px 0;padding:0;max-height:20em;overflow:auto}#continuity li{display:flex;gap:6px;margin:4px 0}#continuity li button:first-child{overflow-wrap:anywhere;text-align:left}#bookmark-title{width:min(100%,20em)}#reading-status{margin:4px 0;min-height:1.6em;color:#536866}
 #annotations{border-block:1px solid #cbd9d6;margin-block:14px;padding-block:8px;overflow-wrap:anywhere}#annotation-form{display:grid;gap:8px}#annotation-body{max-width:100%;width:100%;min-height:6em;font:inherit;padding:6px;border:1px solid #8ba4a0;border-radius:4px}#annotation-items{list-style:none;padding:0;margin:0}#annotation-items li{border-top:1px solid #cbd9d6;padding:8px 0}#annotation-items p{white-space:pre-wrap;margin:4px 0}.annotation-buttons{display:flex;flex-wrap:wrap;gap:8px}
 </style></head><body><header><strong>KnowledgeOS</strong><a href="/knowledgeos/library">资料库</a><a href="/knowledgeos/account">账号与登录</a></header><main>
-<h1 id="title">版本阅读</h1><p id="version"></p><div class="tools"><button id="refresh">刷新</button><form id="jump"><button type="button" id="prev" aria-label="上一位置">←</button><input type="number" min="1" step="1" required id="number" aria-label="跳转位置"><button>跳转</button><button type="button" id="next" aria-label="下一位置">→</button></form><span id="count"></span></div><p id="status" role="status"></p>
+<h1 id="title">版本阅读</h1><p id="version"></p><div class="tools"><button id="refresh">刷新</button><form id="jump"><button type="button" id="prev" aria-label="上一位置">←</button><input type="number" min="1" step="1" required id="number" aria-label="跳转位置"><button>跳转</button><button type="button" id="next" aria-label="下一位置">→</button></form><span id="count"></span><a id="task-material-link" hidden>固定材料链接</a></div><p id="status" role="status"></p>
 <section id="continuity" aria-label="阅读导航" hidden><details id="toc-details" open><summary>目录</summary><ul id="toc"></ul></details><details id="bookmarks-details" open><summary>我的书签</summary><ul id="bookmarks"></ul><form id="bookmark-form"><input id="bookmark-title" maxlength="120" required placeholder="书签名称" aria-label="书签名称"><button id="bookmark-add">添加书签</button></form></details><p id="reading-status" role="status"></p></section>
 <div class="layout"><nav id="rail" aria-label="页与文本块" hidden><div id="window"></div></nav><article><h2 id="anchor"></h2><div class="modes" id="modes" hidden><button id="paper">原页</button><button id="structured">结构文本</button><button id="cite" disabled>生成引用链接</button><button id="annotate" disabled>选区批注</button><button id="annotations-toggle" aria-controls="annotations" aria-expanded="false">本处批注</button><a id="link" hidden>打开引用</a><a id="note-link" hidden>记笔记</a><a id="recall-link" hidden>制作遮挡练习</a></div><div id="original" hidden></div><pre id="text" hidden></pre><section id="annotations" aria-label="本处批注" hidden><p id="annotation-status" role="status"></p><ul id="annotation-items"></ul><form id="annotation-form" hidden><label for="annotation-body">批注正文</label><textarea id="annotation-body" maxlength="4000" required></textarea><label id="annotation-scope">可见范围 <select id="annotation-visibility"><option value="private">仅本人</option><option value="project">当前项目</option></select></label><div class="annotation-buttons"><button id="annotation-submit">保存批注</button><button type="button" id="annotation-rebase" hidden>读取最新版本并保留草稿</button><button type="button" id="annotation-cancel">取消</button></div></form></section></article></div></main><script>
 'use strict';
@@ -11043,6 +11193,7 @@ function clearPage(){
   for(const id of ['text','original','modes','link'])$(id).hidden=true;
   $('link').removeAttribute('href');$('note-link').hidden=true;$('note-link').removeAttribute('href');$('cite').disabled=true;
   $('recall-link').hidden=true;$('recall-link').removeAttribute('href');
+  $('task-material-link').hidden=true;$('task-material-link').removeAttribute('href');
   clearAnnotations();
 }
 function lock(message,keepDraft=false){
@@ -11220,6 +11371,10 @@ function draw(){
   const d=page;if(!d)return;
   const showOriginal=!!d.image && mode!=='text', surface=$('original'), text=$('text');
   const available=ready(d), s=available?selection:null, boxes=exactBoxes(d,s);
+  const material=$('task-material-link'),canPin=d.ordinal<=d.total&&(d.kind!=='office'||Boolean(d.conversion_id));
+  material.hidden=!canPin;
+  if(canPin)material.href='/knowledgeos/reader?'+new URLSearchParams({asset,version,unit:String(d.ordinal),...(d.conversion_id?{conversion:d.conversion_id}:{})});
+  else material.removeAttribute('href');
   $('modes').hidden=!d.image&&!available;$('paper').disabled=!d.image;$('structured').disabled=!available;
   $('paper').setAttribute('aria-pressed',String(showOriginal));$('structured').setAttribute('aria-pressed',String(!showOriginal&&available));
   surface.hidden=!showOriginal;text.hidden=showOriginal||!available;surface.replaceChildren();text.replaceChildren();
@@ -12248,9 +12403,9 @@ function createProjectTaskHandler(store, origin, actorFor) {
         const taskId = id5(workflow2[1]), action2 = workflow2[2];
         if (action2 === "history" && method === "GET") return sendData(200, store.history(a, taskId));
         if (action2 === "submissions" && method === "POST") {
-          const input = await body3(req, ["actor_id", "expected_revision", "content"]);
+          const input = await body3(req, ["actor_id", "expected_revision", "content", "materials"]);
           if (typeof input.expected_revision !== "number") throw invalid12();
-          const result = store.submit(a, id5(input.actor_id), taskId, id5(req.headers["idempotency-key"]), input.expected_revision, text3(input.content));
+          const result = store.submit(a, id5(input.actor_id), taskId, id5(req.headers["idempotency-key"]), input.expected_revision, text3(input.content), input.materials);
           return sendData(result.replayed ? 200 : 201, result);
         }
         if (action2 === "reviews" && method === "POST") {
@@ -12276,60 +12431,63 @@ function createProjectTaskHandler(store, origin, actorFor) {
 
 // src/host/project-task-page.ts
 function buildProjectTaskHtml(nonce) {
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>\u9879\u76EE\u534F\u4F5C \xB7 KnowledgeOS</title>
+  return String.raw`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>项目协作 · KnowledgeOS</title>
 <style nonce="${nonce}">
 :root{color:#243934;background:#f5f8f7;font:15px/1.55 "Segoe UI","Microsoft YaHei UI",sans-serif}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}header{border-bottom:1px solid #cddbd6;background:#fff}nav,main{max-width:1200px;margin:auto;padding:12px 24px}nav,.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}nav strong,a{color:#195a4e}h1{font-size:25px;margin:6px 0}h2{font-size:17px;margin:0 0 8px}h3{font-size:15px;margin:0 0 6px}p{margin:0 0 8px}section{border-top:1px solid #cddbd6;padding:14px 0}#status{min-height:24px;color:#40564f}.workspace{display:grid;grid-template-columns:minmax(190px,265px) minmax(0,1fr);gap:24px}.side{border-right:1px solid #cddbd6;padding-right:16px}.side,#content,label,input,select,textarea{min-width:0}.fields{display:grid;grid-template-columns:1fr 1fr;gap:9px 16px}.wide{grid-column:1/-1}label{display:grid;gap:3px}input,select,textarea,button{font:inherit;color:inherit;background:#fff;border:1px solid #aabfb6;border-radius:5px;padding:6px 8px;max-width:100%}textarea{resize:vertical;min-height:68px}button{cursor:pointer;text-align:left}button:disabled{opacity:.6;cursor:default}button:focus-visible,a:focus-visible,textarea:focus-visible{outline:2px solid #177c84;outline-offset:2px}button[aria-current=true]{background:#dfede8;border-color:#638e80}.primary{color:white;background:#225e51;border-color:#225e51}.quiet{color:#526a60}.danger{color:#8a382b}ul{padding:0;list-style:none;margin:5px 0}li{margin-bottom:4px;overflow-wrap:anywhere}.selector button{width:100%;overflow-wrap:anywhere}.member{display:flex;align-items:center;justify-content:space-between;gap:8px}.member button{flex-shrink:0}.criteria{display:grid;grid-template-columns:minmax(0,1fr) minmax(62px,96px) auto;align-items:end;gap:8px}.history{padding:10px 0;border-top:1px solid #d6e2dc}ol{padding-left:22px;overflow-wrap:anywhere}dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 15px}dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}dialog{max-width:min(420px,92vw);border:1px solid #9db4aa;border-radius:6px;background:#fff;color:inherit}dialog::backdrop{background:#182a2660}
 #workflow{margin:14px 0;overflow-wrap:anywhere}.attempt-body,.review-evidence{white-space:pre-wrap}.checkline{display:flex;align-items:center;gap:8px}.checkline input{width:auto}.review-item{margin:8px 0;padding:8px 0;border-top:1px solid #d6e2dc}
 @media(max-width:680px){nav,main{padding-inline:13px}.workspace,.fields{grid-template-columns:minmax(0,1fr);gap:8px}.side{border:0;padding-right:0}}
-</style></head><body><header><nav aria-label="\u4E1A\u52A1\u5BFC\u822A"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">\u77E5\u8BC6\u5E93</a><a href="/knowledgeos/projects" aria-current="page">\u9879\u76EE\u534F\u4F5C</a><a href="/knowledgeos/invitations">\u9080\u8BF7\u7801</a><a href="/knowledgeos/account">\u8D26\u53F7</a></nav></header>
-<main><h1>\u9879\u76EE\u534F\u4F5C</h1><p id="status" role="status">\u6B63\u5728\u8BFB\u53D6\u2026</p><a id="login" href="/knowledgeos/account" hidden>\u767B\u5F55</a><div id="workspace" class="workspace" hidden>
-<aside class="side"><h2>\u5DE5\u4F5C\u8303\u56F4</h2><ul id="projects" class="selector"></ul><section><h2>\u65B0\u5EFA\u9879\u76EE</h2><form id="new-project"><label>\u9879\u76EE\u540D\u79F0<input id="name" maxlength="200" required></label><button type="submit" class="primary">\u521B\u5EFA\u9879\u76EE</button></form></section></aside>
-<div id="content"><h2 id="scope-title">\u4E2A\u4EBA\u4EFB\u52A1</h2><section id="membership" hidden><div class="row"><h2>\u5F53\u524D\u6210\u5458</h2><a id="invite" href="/knowledgeos/invitations" hidden>\u7BA1\u7406\u9080\u8BF7</a></div><ul id="members"></ul></section>
-<section id="dispatch"><h2>\u6D3E\u53D1\u4EFB\u52A1</h2><form id="task-form"><div class="fields"><label class="wide">\u6807\u9898<input id="title" maxlength="160" required></label><label class="wide">\u76EE\u6807<textarea id="goal" maxlength="4000" required></textarea></label>
-<label>\u622A\u6B62\u65F6\u95F4\uFF08\u672C\u5730\u65F6\u95F4\uFF09<input id="due" type="datetime-local" required></label><label id="assignee-label">\u8D1F\u8D23\u4EBA<select id="assignee"></select></label><label id="reviewer-label">\u7EC8\u5BA1\u4EBA<select id="reviewer"></select></label><label id="peer-label">\u540C\u4F34\u9884\u5BA1\uFF08\u53EF\u9009\uFF09<select id="peer"></select></label>
-<div class="wide"><h3>\u9A8C\u6536\u6807\u51C6</h3><ul id="criteria"></ul><button type="button" id="add-criterion">\u6DFB\u52A0\u6807\u51C6</button></div></div><button type="submit" class="primary">\u53D1\u5E03\u4EFB\u52A1</button></form></section>
-<section><h2>\u4EFB\u52A1\u5217\u8868</h2><ul id="tasks" class="selector"></ul></section>
-<section id="task-detail" hidden><h2 id="task-title"></h2><dl id="task-facts"></dl><h3>\u6807\u51C6\u5386\u53F2</h3><div id="history"></div><button type="button" id="revise" hidden>\u4FEE\u6539\u6807\u51C6</button>
-<form id="revision-form" hidden><h3>\u65B0\u7248\u672C\u9A8C\u6536\u6807\u51C6</h3><ul id="revision-criteria"></ul><div class="row"><button type="button" id="add-revision-criterion">\u6DFB\u52A0\u6807\u51C6</button><button type="submit" class="primary">\u4FDD\u5B58\u65B0\u7248\u672C</button><button type="button" id="cancel-revise">\u53D6\u6D88</button></div></form>
-<div id="workflow" hidden><h3>\u63D0\u4EA4\u4E0E\u5BA1\u6838</h3><div id="attempts"></div><div id="workflow-action"></div></div></section></div></div>
-<dialog id="remove-dialog"><form method="dialog"><h2>\u79FB\u9664\u9879\u76EE\u6210\u5458</h2><p id="removal-name"></p><div class="row"><button value="cancel">\u53D6\u6D88</button><button value="remove" class="danger" id="remove-confirm">\u786E\u8BA4\u79FB\u9664</button></div></form></dialog></main>
+</style></head><body><header><nav aria-label="业务导航"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">知识库</a><a href="/knowledgeos/projects" aria-current="page">项目协作</a><a href="/knowledgeos/invitations">邀请码</a><a href="/knowledgeos/account">账号</a></nav></header>
+<main><h1>项目协作</h1><p id="status" role="status">正在读取…</p><a id="login" href="/knowledgeos/account" hidden>登录</a><div id="workspace" class="workspace" hidden>
+<aside class="side"><h2>工作范围</h2><ul id="projects" class="selector"></ul><section><h2>新建项目</h2><form id="new-project"><label>项目名称<input id="name" maxlength="200" required></label><button type="submit" class="primary">创建项目</button></form></section></aside>
+<div id="content"><h2 id="scope-title">个人任务</h2><section id="membership" hidden><div class="row"><h2>当前成员</h2><a id="invite" href="/knowledgeos/invitations" hidden>管理邀请</a></div><ul id="members"></ul></section>
+<section id="dispatch"><h2>派发任务</h2><form id="task-form"><div class="fields"><label class="wide">标题<input id="title" maxlength="160" required></label><label class="wide">目标<textarea id="goal" maxlength="4000" required></textarea></label>
+<label>截止时间（本地时间）<input id="due" type="datetime-local" required></label><label id="assignee-label">负责人<select id="assignee"></select></label><label id="reviewer-label">终审人<select id="reviewer"></select></label><label id="peer-label">同伴预审（可选）<select id="peer"></select></label>
+<div class="wide"><h3>验收标准</h3><ul id="criteria"></ul><button type="button" id="add-criterion">添加标准</button></div></div><button type="submit" class="primary">发布任务</button></form></section>
+<section><h2>任务列表</h2><ul id="tasks" class="selector"></ul></section>
+<section id="task-detail" hidden><h2 id="task-title"></h2><dl id="task-facts"></dl><h3>标准历史</h3><div id="history"></div><button type="button" id="revise" hidden>修改标准</button>
+<form id="revision-form" hidden><h3>新版本验收标准</h3><ul id="revision-criteria"></ul><div class="row"><button type="button" id="add-revision-criterion">添加标准</button><button type="submit" class="primary">保存新版本</button><button type="button" id="cancel-revise">取消</button></div></form>
+<div id="workflow" hidden><h3>提交与审核</h3><div id="attempts"></div><div id="workflow-action"></div></div></section></div></div>
+<dialog id="remove-dialog"><form method="dialog"><h2>移除项目成员</h2><p id="removal-name"></p><div class="row"><button value="cancel">取消</button><button value="remove" class="danger" id="remove-confirm">确认移除</button></div></form></dialog></main>
 <script nonce="${nonce}">
 'use strict';
 const $=id=>document.getElementById(id), api='/knowledge/v1/project-tasks', mark={'content-type':'application/json','x-knowledgeos-request':'1'};
-const labels={NOT_FOUND:'\u5F53\u524D\u8D26\u53F7\u65E0\u6743\u8BBF\u95EE\uFF0C\u6216\u8BB0\u5F55\u5DF2\u5931\u6548\u3002',AUTH_REQUIRED:'\u8BF7\u767B\u5F55\u3002',ACTOR_MISMATCH:'\u8D26\u53F7\u5DF2\u53D8\u66F4\u3002',TASK_MEMBER_UNAVAILABLE:'\u8D1F\u8D23\u4EBA\u6216\u5BA1\u6838\u4EBA\u5DF2\u4E0D\u5728\u9879\u76EE\u4E2D\u3002',TASK_REVIEW_POLICY_REJECTED:'\u5BA1\u6838\u4EBA\u5FC5\u987B\u7B26\u5408\u5F53\u524D\u5BA1\u6838\u8DEF\u5F84\uFF0C\u5E76\u4E14\u4E0D\u540C\u4E8E\u8D1F\u8D23\u4EBA\u3002',TASK_REVISION_CONFLICT:'\u4EFB\u52A1\u6807\u51C6\u5DF2\u66F4\u65B0\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00\u67E5\u770B\u3002',INVALID_TASK_DUE:'\u8BF7\u9009\u62E9\u672A\u6765\u7684\u622A\u6B62\u65F6\u95F4\u3002',INVALID_TASK_INPUT:'\u68C0\u67E5\u5FC5\u586B\u9879\u3001\u6807\u51C6\u548C\u6743\u91CD\u3002',TASK_REQUEST_CONFLICT:'\u4E4B\u524D\u7684\u6D3E\u53D1\u8BF7\u6C42\u7ED3\u679C\u672A\u786E\u5B9A\uFF0C\u8BF7\u91CD\u65B0\u8BFB\u53D6\u4EFB\u52A1\u5217\u8868\u3002'};
-const kinds={personal:'\u4E2A\u4EBA\u4EFB\u52A1',project_admin:'\u7BA1\u7406\u5458\u7EC8\u5BA1',project_collaboration:'\u6307\u5B9A\u5BA1\u6838'};
-const states={assigned:'\u5DF2\u6D3E\u53D1',in_progress:'\u8FDB\u884C\u4E2D',submitted:'\u5F85\u5BA1\u6838',awaiting_admin_review:'\u5F85\u7BA1\u7406\u5458\u7EC8\u5BA1',returned:'\u5DF2\u9000\u56DE',accepted:'\u5DF2\u5B8C\u6210',failed:'\u672A\u901A\u8FC7',blocked_pending:'\u5F85\u786E\u8BA4\u53D7\u963B',blocked:'\u53D7\u963B',awaiting_material_access:'\u5F85\u6750\u6599\u6388\u6743'};
-const verdicts={pass:'\u901A\u8FC7\u9884\u5BA1',accept:'\u7EC8\u5BA1\u901A\u8FC7',return:'\u9000\u56DE',fail:'\u7EC8\u5BA1\u672A\u901A\u8FC7'};
-labels.TASK_REVISION_CONFLICT='\u4EFB\u52A1\u5DF2\u66F4\u65B0\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00\u67E5\u770B\u3002';labels.TASK_SUBMISSION_CONFLICT='\u63D0\u4EA4\u7248\u672C\u5DF2\u53D8\u66F4\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00\u4EFB\u52A1\u3002';
-labels.TASK_STATE_CONFLICT='\u5F53\u524D\u4EFB\u52A1\u72B6\u6001\u4E0D\u5141\u8BB8\u6B64\u64CD\u4F5C\u3002';labels.TASK_REQUEST_CONFLICT='\u539F\u64CD\u4F5C\u7ED3\u679C\u672A\u786E\u5B9A\uFF0C\u8BF7\u4FDD\u7559\u672C\u6B21\u5185\u5BB9\u91CD\u8BD5\u6216\u91CD\u65B0\u8BFB\u53D6\u3002';
-let actor,scope=null,project,projectRows=[],tasks=[],task,removeTarget,busy=false,epoch=0,controller=new AbortController(),pendingAssign,pendingWorkflow;
+const labels={NOT_FOUND:'当前账号无权访问，或记录已失效。',AUTH_REQUIRED:'请登录。',ACTOR_MISMATCH:'账号已变更。',TASK_MEMBER_UNAVAILABLE:'负责人或审核人已不在项目中。',TASK_REVIEW_POLICY_REJECTED:'审核人必须符合当前审核路径，并且不同于负责人。',TASK_REVISION_CONFLICT:'任务标准已更新，请重新打开查看。',INVALID_TASK_DUE:'请选择未来的截止时间。',INVALID_TASK_INPUT:'检查必填项、标准和权重。',TASK_REQUEST_CONFLICT:'之前的派发请求结果未确定，请重新读取任务列表。'};
+const kinds={personal:'个人任务',project_admin:'管理员终审',project_collaboration:'指定审核'};
+const states={assigned:'已派发',in_progress:'进行中',submitted:'待审核',awaiting_admin_review:'待管理员终审',returned:'已退回',accepted:'已完成',failed:'未通过',blocked_pending:'待确认受阻',blocked:'受阻',awaiting_material_access:'待材料授权'};
+const verdicts={pass:'通过预审',accept:'终审通过',return:'退回',fail:'终审未通过'};
+labels.TASK_REVISION_CONFLICT='任务已更新，请重新打开查看。';labels.TASK_SUBMISSION_CONFLICT='提交版本已变更，请重新打开任务。';
+labels.TASK_STATE_CONFLICT='当前任务状态不允许此操作。';labels.TASK_REQUEST_CONFLICT='原操作结果未确定，请保留本次内容重试或重新读取。';
+labels.TASK_MATERIAL_UNAVAILABLE='材料不可读、版本无效或不属于当前项目。';labels.TASK_MATERIAL_ACCESS_REQUIRED='材料授权已改变，审核未保存。';
+labels.TASK_MATERIAL_REPLACEMENT_REQUIRED='请提供不同的固定版本材料。';labels.INVALID_MATERIAL_LINK='请输入本站的固定版本阅读链接。';
+let actor,scope=null,project,projectRows=[],tasks=[],task,removeTarget,busy=false,epoch=0,controller=new AbortController(),pendingAssign,pendingWorkflow,accessRevision;
 const status=s=>$('status').textContent=s;
 const get=(k)=>$(k).value;
 function clearWorkflow(){$('workflow').hidden=true;$('attempts').replaceChildren();$('workflow-action').replaceChildren();}
+function invalidateWorkflow(){epoch++;controller.abort();controller=new AbortController();busy=false;pendingWorkflow=accessRevision=undefined;clearWorkflow();}
 function protect(){epoch++;controller.abort();controller=new AbortController();busy=false;actor=project=task=removeTarget=pendingAssign=undefined;tasks=[];projectRows=[];$('workspace').hidden=$('task-detail').hidden=$('membership').hidden=$('revision-form').hidden=true;
- pendingWorkflow=undefined;clearWorkflow();if($('remove-dialog').open)$('remove-dialog').close();for(const id of ['projects','members','tasks','history','task-title','task-facts','scope-title','removal-name','assignee','reviewer','peer'])$(id).replaceChildren();$('new-project').reset();$('task-form').reset();$('revision-criteria').replaceChildren();criterionRows('criteria',[]);}
+ pendingWorkflow=accessRevision=undefined;clearWorkflow();if($('remove-dialog').open)$('remove-dialog').close();for(const id of ['projects','members','tasks','history','task-title','task-facts','scope-title','removal-name','assignee','reviewer','peer'])$(id).replaceChildren();$('new-project').reset();$('task-form').reset();$('revision-criteria').replaceChildren();criterionRows('criteria',[]);}
 async function request(endpoint,method='GET',data,key){const check=epoch;const response=await fetch(endpoint,{method,cache:'no-store',redirect:'error',signal:controller.signal,
  headers:method==='GET'?{}:{...mark,...(key?{'idempotency-key':key}:{})},body:data===undefined?undefined:JSON.stringify(data)});
  const result=await response.json();if(check!==epoch)throw Error('STALE');if(response.status===401||result.code==='ACTOR_MISMATCH'||(actor&&result.data?.actor_id&&result.data.actor_id!==actor)){
-  protect();status('\u8BF7\u91CD\u65B0\u767B\u5F55\u3002');$('login').hidden=false;throw Error('STALE');}
+  protect();status('请重新登录。');$('login').hidden=false;throw Error('STALE');}
  if(!response.ok)throw Error(result.code);return result.data;}
 async function operation(work){if(busy)return;busy=true;const check=epoch;
- try{await work();}catch(e){if(check===epoch){if(e.message==='NOT_FOUND')protect();status(labels[e.message]||'\u6682\u65F6\u65E0\u6CD5\u5B8C\u6210\uFF0C\u8BF7\u91CD\u65B0\u8BFB\u53D6\u3002');}}finally{if(check===epoch)busy=false;}}
+ try{await work();}catch(e){if(check===epoch){if(e.message==='NOT_FOUND')protect();status(labels[e.message]||'暂时无法完成，请重新读取。');}}finally{if(check===epoch)busy=false;}}
 function el(tag,text){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;return node;}
 function button(text,fn){const b=el('button',text);b.type='button';b.addEventListener('click',fn);return b;}
 function listItem(ul,b){const li=el('li');li.append(b);$(ul).append(li);return li;}
 function option(id,text){const node=el('option',text);node.value=id;return node;}
-function showProjects(){const personal=button('\u4E2A\u4EBA\u4EFB\u52A1',()=>void operation(()=>choose(null)));if(scope===null)personal.setAttribute('aria-current','true');$('projects').replaceChildren();listItem('projects',personal);
+function showProjects(){const personal=button('个人任务',()=>void operation(()=>choose(null)));if(scope===null)personal.setAttribute('aria-current','true');$('projects').replaceChildren();listItem('projects',personal);
  for(const p of projectRows){const b=button(p.name,()=>void operation(()=>choose(p.id)));if(scope===p.id)b.setAttribute('aria-current','true');listItem('projects',b);}}
-function showTasks(){ const ul=$('tasks');ul.replaceChildren();if(!tasks.length)ul.append(el('li','\u6CA1\u6709\u4EFB\u52A1'));
+function showTasks(){ const ul=$('tasks');ul.replaceChildren();if(!tasks.length)ul.append(el('li','没有任务'));
  for(const t of tasks){const b=button(t.title,()=>void operation(()=>openTask(t.id)));if(t.id===task?.id)b.setAttribute('aria-current','true');listItem('tasks',b);}}
 function setOptions(id,people,placeholder,preferred){const node=$(id);node.replaceChildren(option('',placeholder),...people.map(p=>option(p.id,p.display_name)));if(people.some(p=>p.id===preferred))node.value=preferred;}
 function scopeView(){const p=project;const manage=Boolean(p?.can_manage);const people=p?.members??[];const isAdmin=people.some(m=>m.id===actor&&m.role==='admin');
- $('scope-title').textContent=p?.name??'\u4E2A\u4EBA\u4EFB\u52A1';$('membership').hidden=!p;$('invite').hidden=!manage;$('dispatch').hidden=Boolean(p&&!manage);$('members').replaceChildren();
- for(const member of people){const li=el('li');li.className='member';li.append(el('span',member.display_name+(member.id===p.owner_id?' \xB7 \u9879\u76EE\u6240\u6709\u8005':member.role==='admin'?' \xB7 \u7BA1\u7406\u5458':'')));
-  if(manage&&member.id!==p.owner_id)li.append(button('\u79FB\u9664',()=>{if(busy)return;removeTarget=member.id;$('removal-name').textContent=member.display_name;$('remove-dialog').showModal();}));$('members').append(li);}
+ $('scope-title').textContent=p?.name??'个人任务';$('membership').hidden=!p;$('invite').hidden=!manage;$('dispatch').hidden=Boolean(p&&!manage);$('members').replaceChildren();
+ for(const member of people){const li=el('li');li.className='member';li.append(el('span',member.display_name+(member.id===p.owner_id?' · 项目所有者':member.role==='admin'?' · 管理员':'')));
+  if(manage&&member.id!==p.owner_id)li.append(button('移除',()=>{if(busy)return;removeTarget=member.id;$('removal-name').textContent=member.display_name;$('remove-dialog').showModal();}));$('members').append(li);}
  for(const id of ['assignee','reviewer','peer'])$(id+'-label').hidden=!p;( $('peer-label')).hidden=!p||!isAdmin;
- setOptions('assignee',people,'\u8BF7\u9009\u62E9');setOptions('reviewer',isAdmin?people.filter(m=>m.role==='admin'):people,'\u8BF7\u9009\u62E9',isAdmin?actor:undefined);setOptions('peer',people,'\u65E0');
+ setOptions('assignee',people,'请选择');setOptions('reviewer',isAdmin?people.filter(m=>m.role==='admin'):people,'请选择',isAdmin?actor:undefined);setOptions('peer',people,'无');
  showProjects();showTasks();}
 async function choose(id){const next=id? (await request(api+'/projects/'+id+'/members')).project:undefined;
  const loaded=(await request(api+(id?'?project_id='+id:''))).tasks;
@@ -12337,84 +12495,117 @@ async function choose(id){const next=id? (await request(api+'/projects/'+id+'/me
 async function refresh(){const data=await request(api+'/projects');actor=data.actor_id;projectRows=data.projects;$('login').hidden=true;
  const preferred=scope&&projectRows.some(p=>p.id===scope)?scope:null;await choose(preferred);}
 function addCriterion(list,value={description:'',weight:1}){if($(list).children.length>=20)return;const li=el('li');li.className='criteria';
- const dl=el('label','\u6807\u51C6'),desc=el('input');desc.required=true;desc.maxLength=1000;desc.value=value.description;dl.append(desc);
- const wl=el('label','\u6743\u91CD'),weight=el('input');weight.type='number';weight.required=true;weight.min='1';weight.max='100';weight.value=String(value.weight);wl.append(weight);
- const b=button('\u5220\u9664',()=>{if($(list).children.length>1)li.remove();});li.append(dl,wl,b);$(list).append(li);}
+ const dl=el('label','标准'),desc=el('input');desc.required=true;desc.maxLength=1000;desc.value=value.description;dl.append(desc);
+ const wl=el('label','权重'),weight=el('input');weight.type='number';weight.required=true;weight.min='1';weight.max='100';weight.value=String(value.weight);wl.append(weight);
+ const b=button('删除',()=>{if($(list).children.length>1)li.remove();});li.append(dl,wl,b);$(list).append(li);}
 function criterionRows(list,items){$(list).replaceChildren();for(const item of items.length?items:[undefined])addCriterion(list,item);}
 const criteria=list=>({items:[...$(list).children].map(row=>{const [d,w]=row.querySelectorAll('input');return {description:d.value,weight:Number(w.value)};}),submission_rule:'next_submission'});
-const name=id=>project?.members.find(p=>p.id===id)?.display_name??(id===actor?'\u672C\u4EBA':'\u5F85\u6838\u9A8C');
+const name=id=>project?.members.find(p=>p.id===id)?.display_name??(id===actor?'本人':'待核验');
 const date=at=>new Intl.DateTimeFormat('zh-CN',{dateStyle:'medium',timeStyle:'short'}).format(new Date(at));
-async function openTask(id){const response=await request(api+'/'+id),t=response.task;
+async function access(projectId,taskId){
+ const query=new URLSearchParams();if(projectId)query.set('project_id',projectId);if(taskId)query.set('task_id',taskId);
+ const result=await fetch(api+'/access?'+query,{cache:'no-store',redirect:'error',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(2500)])});
+ if(!result.ok)throw Error('NOT_FOUND');return (await result.json()).data;
+}
+async function openTask(id){const openedEpoch=epoch,response=await request(api+'/'+id),t=response.task;
  const timeline=t.task_kind==='personal'?null:await request(api+'/'+id+'/history');
- if(timeline&&timeline.task_revision!==t.revision){clearWorkflow();$('task-detail').hidden=true;throw Error('TASK_REVISION_CONFLICT');}
+ let check;try{check=await access(scope,id);}catch{if(epoch===openedEpoch)protect();throw Error('NOT_FOUND');}
+ if(epoch!==openedEpoch)throw Error('STALE');
+ if(check?.actor_id!==actor||check?.allowed!==true){protect();throw Error('NOT_FOUND');}
+ if(timeline&&(timeline.task_revision!==t.revision||timeline.access_revision!==check.access_revision)){
+  clearWorkflow();$('task-detail').hidden=true;throw Error('TASK_REVISION_CONFLICT');}
+ accessRevision=check.access_revision;
  task=t;
  $('task-title').textContent=t.title;$('task-facts').replaceChildren();
- const shownState=t.state==='submitted'&&t.peer_reviewer_id?'\u5F85\u540C\u4F34\u9884\u5BA1':t.state==='submitted'&&t.task_kind==='project_admin'?'\u5F85\u7BA1\u7406\u5458\u7EC8\u5BA1':states[t.state]??t.state;
- for(const [key,value] of [['\u76EE\u6807',t.goal],['\u622A\u6B62\u65F6\u95F4',date(t.due_at)],['\u72B6\u6001',shownState],['\u8D1F\u8D23\u4EBA',name(t.assignee_id)],['\u4E0B\u4E00\u5904\u7406\u4EBA',t.next_actor_id?name(t.next_actor_id):'\u65E0'],['\u5BA1\u6838\u8DEF\u5F84',kinds[t.task_kind]],['\u7EC8\u5BA1\u4EBA',name(t.final_reviewer_id)],['\u540C\u4F34\u9884\u5BA1',t.peer_reviewer_id?name(t.peer_reviewer_id):'\u65E0']])$('task-facts').append(el('dt',key),el('dd',value));
- $('history').replaceChildren();for(const version of t.criteria_history){const row=el('div');row.className='history';row.append(el('strong','\u7B2C '+version.version+' \u7248'+(t.criteria_revision===version.version?' \xB7 \u9002\u7528\u4E0B\u6B21\u63D0\u4EA4':' \xB7 \u5386\u53F2\u7248\u672C')));const ul=el('ol');for(const item of version.items)ul.append(el('li',item.description+' \xB7 \u6743\u91CD '+item.weight));row.append(ul);$('history').append(row);}
+ const shownState=t.state==='submitted'&&t.peer_reviewer_id?'待同伴预审':t.state==='submitted'&&t.task_kind==='project_admin'?'待管理员终审':states[t.state]??t.state;
+ for(const [key,value] of [['目标',t.goal],['截止时间',date(t.due_at)],['状态',shownState],['负责人',name(t.assignee_id)],['下一处理人',t.next_actor_id?name(t.next_actor_id):'无'],['审核路径',kinds[t.task_kind]],['终审人',name(t.final_reviewer_id)],['同伴预审',t.peer_reviewer_id?name(t.peer_reviewer_id):'无']])$('task-facts').append(el('dt',key),el('dd',value));
+ $('history').replaceChildren();for(const version of t.criteria_history){const row=el('div');row.className='history';row.append(el('strong','第 '+version.version+' 版'+(t.criteria_revision===version.version?' · 适用下次提交':' · 历史版本')));const ul=el('ol');for(const item of version.items)ul.append(el('li',item.description+' · 权重 '+item.weight));row.append(ul);$('history').append(row);}
  $('revise').hidden=t.issuer_id!==actor||!['assigned','returned'].includes(t.state);$('revision-form').hidden=true;renderWorkflow(t,timeline);$('task-detail').hidden=false;showTasks();}
 function control(label,kind,max){const wrap=el('label',label),input=el(kind);input.required=true;input.maxLength=max;wrap.append(input);return [wrap,input];}
 async function workflowWrite(t,suffix,draft,done){
  const path=api+'/'+t.id+'/'+suffix,digest=JSON.stringify([path,draft]);
  if(pendingWorkflow?.id===t.id&&pendingWorkflow.digest!==digest)throw Error('TASK_REQUEST_CONFLICT');
  if(!pendingWorkflow||pendingWorkflow.id!==t.id)pendingWorkflow={id:t.id,digest,key:crypto.randomUUID()};
- try{await request(path,'POST',draft,pendingWorkflow.key);}catch(e){if(labels[e.message]&&e.message!=='TASK_REQUEST_CONFLICT')pendingWorkflow=undefined;throw e;}
+ try{await request(path,'POST',draft,pendingWorkflow.key);}catch(e){
+  if(labels[e.message]&&e.message!=='TASK_REQUEST_CONFLICT')pendingWorkflow=undefined;
+  if(e.message==='TASK_MATERIAL_ACCESS_REQUIRED'||e.message==='TASK_REVISION_CONFLICT'||e.message==='TASK_SUBMISSION_CONFLICT'){
+   clearWorkflow();await openTask(t.id);
+  }
+  throw e;
+ }
  pendingWorkflow=undefined;await openTask(t.id);status(done);
 }
 function renderWorkflow(t,timeline){clearWorkflow();if(!timeline)return;
  $('workflow').hidden=false;const attempts=$('attempts'),actions=$('workflow-action'),current=timeline.submissions.at(-1);
- if(!current)attempts.append(el('p','\u6682\u65E0\u63D0\u4EA4'));
+ if(!current)attempts.append(el('p','暂无提交'));
  for(const attempt of [...timeline.submissions].reverse()){
-  const row=el('article');row.className='history';row.append(el('h3','\u63D0\u4EA4\u7B2C '+attempt.version+' \u7248 \xB7 \u6807\u51C6\u7B2C '+attempt.criteria_version+' \u7248'),el('p',date(attempt.submitted_at)+' \xB7 '+(attempt.timing==='on_time'?'\u6309\u671F\u63D0\u4EA4':'\u903E\u671F\u63D0\u4EA4')));
-  const content=el('p',attempt.content);content.className='attempt-body';row.append(content);
+  const row=el('article');row.className='history';row.append(el('h3','提交第 '+attempt.version+' 版 · 标准第 '+attempt.criteria_version+' 版'),el('p',date(attempt.submitted_at)+' · '+(attempt.timing==='on_time'?'按期提交':'逾期提交')));
+  const content=el('p',attempt.content??'部分材料不可读，提交与审核正文已隐藏。');content.className='attempt-body';row.append(content);
+  for(const [i,target] of (attempt.materials??[]).entries()){
+   if(!target){row.append(el('p','材料 '+(i+1)+' · 无读取权限'));continue;}
+   const link=el('a','打开固定材料 '+(i+1));link.href='/knowledgeos/reader?'+new URLSearchParams({asset:target.asset_id,version:target.version_id,unit:String(target.ordinal),...(target.conversion_id?{conversion:target.conversion_id}:{})});link.target='_blank';link.rel='noopener';
+   const item=el('p');item.append(link);row.append(item);
+  }
   for(const decision of timeline.reviews.filter(r=>r.submission_id===attempt.id)){
-   const block=el('div');block.className='review-item';block.append(el('strong',(decision.stage==='peer'?'\u540C\u4F34\u9884\u5BA1':'\u7BA1\u7406\u5458\u7EC8\u5BA1')+' \xB7 '+verdicts[decision.verdict]),el('p',name(decision.reviewer_id)+' \xB7 '+date(decision.decided_at)),el('p',decision.reason));
-   if(decision.requested_work)block.append(el('p','\u9700\u8865\u5145\uFF1A'+decision.requested_work));
+   const block=el('div');block.className='review-item';block.append(el('strong',(decision.stage==='peer'?'同伴预审':'管理员终审')+' · '+verdicts[decision.verdict]),el('p',name(decision.reviewer_id)+' · '+date(decision.decided_at)),el('p',decision.reason));
+   if(decision.requested_work)block.append(el('p','需补充：'+decision.requested_work));
    const items=el('ol'),standard=t.criteria_history.find(v=>v.version===attempt.criteria_version);
-   for(const r of decision.criteria_results){const item=el('li',(standard?.items[r.criterion-1]?.description??'\u6807\u51C6 '+r.criterion)+' \xB7 '+(r.met?'\u8FBE\u6807':'\u672A\u8FBE\u6807')+'\uFF1A'+r.evidence);item.className='review-evidence';items.append(item);}
+   for(const r of decision.criteria_results){const item=el('li',(standard?.items[r.criterion-1]?.description??'标准 '+r.criterion)+' · '+(r.met?'达标':'未达标')+'：'+r.evidence);item.className='review-evidence';items.append(item);}
    block.append(items);row.append(block);
   }
   attempts.append(row);
  }
  const form=el('form'),send=el('button');send.className='primary';send.type='submit';
- if(t.assignee_id===actor&&['assigned','in_progress','returned'].includes(t.state)){
-  const [wrap,input]=control('\u63D0\u4EA4\u5185\u5BB9','textarea',16000);input.id='submission-content';send.textContent=t.state==='returned'?'\u91CD\u65B0\u63D0\u4EA4':'\u63D0\u4EA4\u6210\u679C';form.append(wrap,send);
-  form.onsubmit=e=>{e.preventDefault();void operation(()=>workflowWrite(t,'submissions',{actor_id:actor,expected_revision:t.revision,content:input.value},'\u6210\u679C\u5DF2\u63D0\u4EA4\u3002'));};actions.append(form);return;
+ const waiting=t.state==='awaiting_material_access';
+ if(t.assignee_id===actor&&(['assigned','in_progress','returned'].includes(t.state)||waiting)){
+  const [wrap,input]=control('提交内容','textarea',16000),[materialWrap,material]=control('固定材料链接（每行一条）','textarea',4000);
+  input.id='submission-content';material.id='submission-materials';material.required=waiting;
+  send.textContent=waiting?'替换材料并重新提交':t.state==='returned'?'重新提交':'提交成果';form.append(wrap,materialWrap,send);
+  form.onsubmit=e=>{e.preventDefault();void operation(()=>workflowWrite(t,'submissions',{actor_id:actor,expected_revision:t.revision,content:input.value,...(material.value.trim()?{materials:materialTargets(material.value)}:{})},'成果已提交。'));};actions.append(form);return;
  }
  const peer=t.task_kind==='project_admin'&&t.state==='submitted'&&t.peer_reviewer_id===actor;
  const admin=t.task_kind==='project_admin'&&t.final_reviewer_id===actor&&project?.members.some(m=>m.id===actor&&m.role==='admin')&&
   (t.state==='awaiting_admin_review'||t.state==='submitted'&&!t.peer_reviewer_id);
  if(!current||!peer&&!admin)return;
  const standard=t.criteria_history.find(v=>v.version===current.criteria_version);if(!standard)return;
- const options=el('select');options.id='review-verdict';const selectLabel=el('label',peer?'\u9884\u5BA1\u7ED3\u8BBA':'\u7EC8\u5BA1\u7ED3\u8BBA');selectLabel.append(options);
- for(const [id,name] of peer?[['peer_pass','\u901A\u8FC7\u9884\u5BA1'],['peer_return','\u9000\u56DE']]:[['final_accept','\u901A\u8FC7\u7EC8\u5BA1'],['final_return','\u9000\u56DE'],['final_fail','\u7EC8\u5BA1\u672A\u901A\u8FC7']])options.append(option(id,name));
+ const options=el('select');options.id='review-verdict';const selectLabel=el('label',peer?'预审结论':'终审结论');selectLabel.append(options);
+ for(const [id,name] of peer?[['peer_pass','通过预审'],['peer_return','退回']]:[['final_accept','通过终审'],['final_return','退回'],['final_fail','终审未通过']])options.append(option(id,name));
  form.append(selectLabel);
  const inputs=standard.items.map((item,index)=>{
-  const label=el('label',item.description+' \xB7 \u6743\u91CD '+item.weight),check=el('input');check.type='checkbox';label.className='checkline';label.prepend(check);
-  const [wrap,proof]=control('\u6807\u51C6 '+(index+1)+' \u4F9D\u636E','textarea',1000);const row=el('div');row.className='review-item';row.append(label,wrap);form.append(row);return [check,proof];
+  const label=el('label',item.description+' · 权重 '+item.weight),check=el('input');check.type='checkbox';label.className='checkline';label.prepend(check);
+  const [wrap,proof]=control('标准 '+(index+1)+' 依据','textarea',1000);const row=el('div');row.className='review-item';row.append(label,wrap);form.append(row);return [check,proof];
  });
- const [why,reason]=control('\u5BA1\u6838\u7406\u7531','textarea',4000),[more,work]=control('\u9700\u8865\u5145\u5185\u5BB9','textarea',4000);
+ const [why,reason]=control('审核理由','textarea',4000),[more,work]=control('需补充内容','textarea',4000);
  const selection=()=>{const returned=options.value.endsWith('_return');more.hidden=!returned;work.required=returned;};options.onchange=selection;selection();
- send.textContent=peer?'\u4FDD\u5B58\u9884\u5BA1':'\u4FDD\u5B58\u7EC8\u5BA1';form.append(why,more,send);
+ send.textContent=peer?'保存预审':'保存终审';form.append(why,more,send);
  form.onsubmit=e=>{e.preventDefault();void operation(()=>workflowWrite(t,'reviews',{actor_id:actor,expected_revision:t.revision,submission_id:current.id,action:options.value,
-  results:inputs.map(([check,proof],i)=>({criterion:i+1,met:check.checked,evidence:proof.value})),reason:reason.value,...(work.required?{requested_work:work.value}:{})},peer?'\u9884\u5BA1\u5DF2\u4FDD\u5B58\u3002':'\u7EC8\u5BA1\u5DF2\u4FDD\u5B58\u3002'));};actions.append(form);
+  results:inputs.map(([check,proof],i)=>({criterion:i+1,met:check.checked,evidence:proof.value})),reason:reason.value,...(work.required?{requested_work:work.value}:{})},peer?'预审已保存。':'终审已保存。'));};actions.append(form);
+}
+function materialTargets(text){
+ const id=/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
+ try{return text.trim().split(/\r?\n/).filter(v=>v.trim()).map(value=>{
+  const uri=new URL(value.trim(),location.origin),p=uri.searchParams,asset=p.get('asset'),version=p.get('version'),unit=p.get('unit'),cv=p.get('conversion');
+  if(uri.origin!==location.origin||uri.username||uri.password||uri.pathname!=='/knowledgeos/reader'||!id.test(asset)||!id.test(version)||!/^\d{1,9}$/.test(unit??'1')||
+   (p.has('conversion')&&!id.test(cv))||[...p].some(([k])=>!['asset','version','unit','conversion'].includes(k)||p.getAll(k).length!==1))throw Error();
+  return {asset_id:asset,version_id:version,ordinal:Number(unit??1),...(cv?{conversion_id:cv}:{})};
+ });}catch{throw Error('INVALID_MATERIAL_LINK');}
 }
 $('new-project').addEventListener('submit',e=>{e.preventDefault();void operation(async()=>{
- const data=await request('/knowledge/v1/projects','POST',{name:get('name').trim()});$('new-project').reset();scope=data.id;await refresh();status('\u9879\u76EE\u5DF2\u521B\u5EFA\u3002');});});
+ const data=await request('/knowledge/v1/projects','POST',{name:get('name').trim()});$('new-project').reset();scope=data.id;await refresh();status('项目已创建。');});});
 $('task-form').addEventListener('submit',e=>{e.preventDefault();void operation(async()=>{
  const draft={actor_id:actor,project_id:scope,title:get('title'),goal:get('goal'),due_at:new Date(get('due')).toISOString(),assignee_id:scope?get('assignee'):actor,
  final_reviewer_id:scope?get('reviewer'):actor,criteria:criteria('criteria')};if(scope&&!$('peer-label').hidden&&get('peer'))draft.peer_reviewer_id=get('peer');
  const digest=JSON.stringify(draft);if(pendingAssign&&pendingAssign.digest!==digest)throw Error('TASK_REQUEST_CONFLICT');
  if(!pendingAssign)pendingAssign={digest,key:crypto.randomUUID()};let result;
  try{result=await request(api,'POST',draft,pendingAssign.key);}catch(error){if(labels[error.message]&&error.message!=='TASK_REQUEST_CONFLICT')pendingAssign=undefined;throw error;}
- pendingAssign=undefined;$('task-form').reset();criterionRows('criteria',[]);await choose(scope);await openTask(result.task.id);status('\u4EFB\u52A1\u5DF2\u6D3E\u53D1\u3002');});});
+ pendingAssign=undefined;$('task-form').reset();criterionRows('criteria',[]);await choose(scope);await openTask(result.task.id);status('任务已派发。');});});
 $('add-criterion').onclick=()=>addCriterion('criteria');$('add-revision-criterion').onclick=()=>addCriterion('revision-criteria');
 $('revise').onclick=()=>{if(!task)return;criterionRows('revision-criteria',task.criteria_history.at(-1).items);$('revision-form').hidden=false;};$('cancel-revise').onclick=()=>{$('revision-form').hidden=true;};
 $('revision-form').addEventListener('submit',e=>{e.preventDefault();void operation(async()=>{
  const id=task.id;await request(api+'/'+id,'PATCH',{actor_id:actor,expected_revision:task.revision,criteria:criteria('revision-criteria')});
- await openTask(id);status('\u9A8C\u6536\u6807\u51C6\u5DF2\u4FDD\u5B58\u3002');});});
+ await openTask(id);status('验收标准已保存。');});});
 $('remove-dialog').addEventListener('close',()=>{const member=removeTarget;if($('remove-dialog').returnValue==='remove'&&member){void operation(async()=>{
- await request(api+'/projects/'+scope+'/members','POST',{actor_id:actor,remove_member_id:member});await choose(scope);status('\u9879\u76EE\u6210\u5458\u5DF2\u79FB\u9664\u3002');});}removeTarget=undefined;});
+ await request(api+'/projects/'+scope+'/members','POST',{actor_id:actor,remove_member_id:member});await choose(scope);status('项目成员已移除。');});}removeTarget=undefined;});
 addEventListener('pagehide',protect);addEventListener('pageshow',()=>void operation(refresh));
 let hidden=false;document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){hidden=true;protect();}else if(hidden){hidden=false;void operation(refresh);}});
 // An open foreground tab must not retain project text after a remote revocation.
@@ -12423,13 +12614,13 @@ setInterval(async()=>{
  if(checking||!actor||hidden||$('workspace').hidden)return;
  const identity=actor,checkedScope=scope,checkedTask=task?.id,checkedEpoch=epoch;
  const current=()=>epoch===checkedEpoch&&actor===identity&&scope===checkedScope&&task?.id===checkedTask;
- const query=new URLSearchParams();if(checkedScope)query.set('project_id',checkedScope);if(checkedTask)query.set('task_id',checkedTask);
  checking=true;
  try{
-  const result=await fetch(api+'/access?'+query,{cache:'no-store',redirect:'error',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(2500)])});
-  const value=result.ok?await result.json():null;
-  if(current()&&(value?.data?.actor_id!==identity||value?.data?.allowed!==true))throw Error('ACCESS_REVOKED');
- }catch{if(current()){protect();scope=null;status('\u65E0\u6CD5\u786E\u8BA4\u4EFB\u52A1\u8BBF\u95EE\u6743\u9650\uFF0C\u5DF2\u9690\u85CF\u5185\u5BB9\u3002');$('login').hidden=false;}}
+  const value=await access(checkedScope,checkedTask);
+  if(!current())return;
+  if(value?.actor_id!==identity||value?.allowed!==true)throw Error('ACCESS_REVOKED');
+  if(checkedTask&&value.access_revision!==accessRevision){invalidateWorkflow();await operation(()=>openTask(checkedTask));}
+ }catch{if(current()){protect();scope=null;status('无法确认任务访问权限，已隐藏内容。');$('login').hidden=false;}}
  finally{checking=false;}
 },3000);
 </script></body></html>`;

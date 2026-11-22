@@ -67,6 +67,11 @@ export class CitationStore {
       wordOriginal:{key:String(r.storage_key),byteLength:Number(r.byte_length),sha256:String(r.sha256),media:r.media_type}}
   }
   source(prior:SessionActor,t:ReaderTarget){return this.tx('read',(db,now)=>this.read(db,this.actor(prior,now),t,now))}
+  validateTaskMaterial(db:DatabaseSync,actor:SessionActor,t:ReaderTarget,now:string) {
+    const source=this.read(db,actor,t,now)
+    // Never pin a floating Word rendering or a location the reader cannot verify.
+    return source.total>=t.ordinal&&(source.kind!=='office'||Boolean(t.conversion_id&&source.conversion_id===t.conversion_id))
+  }
   recallSource(db:DatabaseSync,actor:SessionActor,t:ReaderTarget,now:string){
     const s=this.read(db,actor,t,now)
     if(s.kind==='office'){

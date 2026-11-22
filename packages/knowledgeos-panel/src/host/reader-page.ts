@@ -5,7 +5,7 @@ export function buildReaderHtml(): string {
 #continuity{margin-top:12px;border-block:1px solid #cbd9d6;padding:8px 0}#continuity details{margin:4px 0}#continuity summary{cursor:pointer;color:#18565a}#continuity ul{list-style:none;margin:6px 0;padding:0;max-height:20em;overflow:auto}#continuity li{display:flex;gap:6px;margin:4px 0}#continuity li button:first-child{overflow-wrap:anywhere;text-align:left}#bookmark-title{width:min(100%,20em)}#reading-status{margin:4px 0;min-height:1.6em;color:#536866}
 #annotations{border-block:1px solid #cbd9d6;margin-block:14px;padding-block:8px;overflow-wrap:anywhere}#annotation-form{display:grid;gap:8px}#annotation-body{max-width:100%;width:100%;min-height:6em;font:inherit;padding:6px;border:1px solid #8ba4a0;border-radius:4px}#annotation-items{list-style:none;padding:0;margin:0}#annotation-items li{border-top:1px solid #cbd9d6;padding:8px 0}#annotation-items p{white-space:pre-wrap;margin:4px 0}.annotation-buttons{display:flex;flex-wrap:wrap;gap:8px}
 </style></head><body><header><strong>KnowledgeOS</strong><a href="/knowledgeos/library">资料库</a><a href="/knowledgeos/account">账号与登录</a></header><main>
-<h1 id="title">版本阅读</h1><p id="version"></p><div class="tools"><button id="refresh">刷新</button><form id="jump"><button type="button" id="prev" aria-label="上一位置">←</button><input type="number" min="1" step="1" required id="number" aria-label="跳转位置"><button>跳转</button><button type="button" id="next" aria-label="下一位置">→</button></form><span id="count"></span></div><p id="status" role="status"></p>
+<h1 id="title">版本阅读</h1><p id="version"></p><div class="tools"><button id="refresh">刷新</button><form id="jump"><button type="button" id="prev" aria-label="上一位置">←</button><input type="number" min="1" step="1" required id="number" aria-label="跳转位置"><button>跳转</button><button type="button" id="next" aria-label="下一位置">→</button></form><span id="count"></span><a id="task-material-link" hidden>固定材料链接</a></div><p id="status" role="status"></p>
 <section id="continuity" aria-label="阅读导航" hidden><details id="toc-details" open><summary>目录</summary><ul id="toc"></ul></details><details id="bookmarks-details" open><summary>我的书签</summary><ul id="bookmarks"></ul><form id="bookmark-form"><input id="bookmark-title" maxlength="120" required placeholder="书签名称" aria-label="书签名称"><button id="bookmark-add">添加书签</button></form></details><p id="reading-status" role="status"></p></section>
 <div class="layout"><nav id="rail" aria-label="页与文本块" hidden><div id="window"></div></nav><article><h2 id="anchor"></h2><div class="modes" id="modes" hidden><button id="paper">原页</button><button id="structured">结构文本</button><button id="cite" disabled>生成引用链接</button><button id="annotate" disabled>选区批注</button><button id="annotations-toggle" aria-controls="annotations" aria-expanded="false">本处批注</button><a id="link" hidden>打开引用</a><a id="note-link" hidden>记笔记</a><a id="recall-link" hidden>制作遮挡练习</a></div><div id="original" hidden></div><pre id="text" hidden></pre><section id="annotations" aria-label="本处批注" hidden><p id="annotation-status" role="status"></p><ul id="annotation-items"></ul><form id="annotation-form" hidden><label for="annotation-body">批注正文</label><textarea id="annotation-body" maxlength="4000" required></textarea><label id="annotation-scope">可见范围 <select id="annotation-visibility"><option value="private">仅本人</option><option value="project">当前项目</option></select></label><div class="annotation-buttons"><button id="annotation-submit">保存批注</button><button type="button" id="annotation-rebase" hidden>读取最新版本并保留草稿</button><button type="button" id="annotation-cancel">取消</button></div></form></section></article></div></main><script>
 'use strict';
@@ -50,6 +50,7 @@ function clearPage(){
   for(const id of ['text','original','modes','link'])$(id).hidden=true;
   $('link').removeAttribute('href');$('note-link').hidden=true;$('note-link').removeAttribute('href');$('cite').disabled=true;
   $('recall-link').hidden=true;$('recall-link').removeAttribute('href');
+  $('task-material-link').hidden=true;$('task-material-link').removeAttribute('href');
   clearAnnotations();
 }
 function lock(message,keepDraft=false){
@@ -227,6 +228,10 @@ function draw(){
   const d=page;if(!d)return;
   const showOriginal=!!d.image && mode!=='text', surface=$('original'), text=$('text');
   const available=ready(d), s=available?selection:null, boxes=exactBoxes(d,s);
+  const material=$('task-material-link'),canPin=d.ordinal<=d.total&&(d.kind!=='office'||Boolean(d.conversion_id));
+  material.hidden=!canPin;
+  if(canPin)material.href='/knowledgeos/reader?'+new URLSearchParams({asset,version,unit:String(d.ordinal),...(d.conversion_id?{conversion:d.conversion_id}:{})});
+  else material.removeAttribute('href');
   $('modes').hidden=!d.image&&!available;$('paper').disabled=!d.image;$('structured').disabled=!available;
   $('paper').setAttribute('aria-pressed',String(showOriginal));$('structured').setAttribute('aria-pressed',String(!showOriginal&&available));
   surface.hidden=!showOriginal;text.hidden=showOriginal||!available;surface.replaceChildren();text.replaceChildren();

@@ -88,9 +88,9 @@ export function createProjectTaskHandler(store:ProjectTaskStore,origin:()=>strin
         const taskId=id(workflow[1]),action=workflow[2]
         if(action==='history'&&method==='GET')return sendData(200,store.history(a,taskId))
         if(action==='submissions'&&method==='POST'){
-          const input=await body(req,['actor_id','expected_revision','content'])
+          const input=await body(req,['actor_id','expected_revision','content','materials'])
           if(typeof input.expected_revision!=='number')throw invalid()
-          const result=store.submit(a,id(input.actor_id),taskId,id(req.headers['idempotency-key']),input.expected_revision,text(input.content))
+          const result=store.submit(a,id(input.actor_id),taskId,id(req.headers['idempotency-key']),input.expected_revision,text(input.content),input.materials)
           return sendData(result.replayed?200:201,result)
         }
         if(action==='reviews'&&method==='POST'){

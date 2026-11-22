@@ -8,7 +8,7 @@ import {DatabaseSync} from 'node:sqlite'
 import test from 'node:test'
 import {pathToFileURL} from 'node:url'
 import {IdentityService,ProbeStorage} from '../../packages/knowledgeos-panel/lib/test-support.js'
-import {MIGRATION_V30_CHECKSUM,SCHEMA_VERSION} from '../../packages/knowledgeos-panel/lib/storage.js'
+import {MIGRATION_V30_CHECKSUM,MIGRATION_V31_CHECKSUM,SCHEMA_VERSION} from '../../packages/knowledgeos-panel/lib/storage.js'
 import {seed} from '../fnd006/independent/common.mjs'
 
 const criteria=description=>({items:[{description,weight:2}],submission_rule:'next_submission'})
@@ -34,7 +34,46 @@ test('v30 migration is atomic over populated v29 task and criteria records',asyn
     storage=new ProbeStorage({dataDir:dir});assert(storage.available,storage.failure?.message)
     assert.equal(db.prepare('PRAGMA user_version').get().user_version,SCHEMA_VERSION);assert.equal(list('schema_migrations')[29].checksum,MIGRATION_V30_CHECKSUM)
     assert.deepEqual(list('schema_migrations').slice(0,29),ledger);assert.deepEqual(list('tasks'),originalTasks);assert.deepEqual(list('task_criteria_versions'),originalCriteria)
-    assert.deepEqual(storage.projectTasks.get(actor,task.id),task);assert.deepEqual(storage.projectTasks.history(actor,task.id),{task_revision:1,submissions:[],reviews:[]})
+    assert.deepEqual(storage.projectTasks.get(actor,task.id),task)
+    const {access_revision,...history}=storage.projectTasks.history(actor,task.id)
+    assert.match(access_revision,/^[a-f0-9]{64}$/);assert.deepEqual(history,{task_revision:1,submissions:[],reviews:[]})
+    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[])
+  }finally{storage?.close();db.close()}
+})
+
+test('v31 rolls back over populated v30 task, submission and decision history',async()=>{
+  const dir=mkdtempSync(join(tmpdir(),'kos-task-v31-')),path=join(dir,'knowledgeos.sqlite'),oldPath=join(dir,'v30.mjs')
+  writeFileSync(oldPath,execFileSync('git',['show','76fba933296077d8d68caf8b8a29f2f3f0763f20:packages/knowledgeos-panel/lib/test-support.js']))
+  const old=await import(pathToFileURL(oldPath).href),{actor}=await seed(old,dir)
+  const original=new old.ProbeStorage({dataDir:dir}),identity=new old.IdentityService(original)
+  const creds={loginName:'migration-worker',password:randomUUID(),displayName:'Migration worker'}
+  await identity.register(creds);const member=identity.actor((await identity.login({...creds,source:'fixture'})).token)
+  const {id:p}=original.createProject({id:randomUUID(),serviceId:actor.serviceId,ownerUserId:actor.userId,name:'v30 History',now:new Date().toISOString()})
+  const invitation=original.invitations.create(actor,actor.userId,{scope:'project',id:p,permission:'member',days:2,max_redemptions:1},randomUUID())
+  original.invitations.redeem(member,member.userId,invitation.token)
+  const {task}=original.projectTasks.assign(actor,actor.userId,p,randomUUID(),draft(member.userId,actor.userId,null,new Date(Date.now()+60000).toISOString()))
+  const {submission}=original.projectTasks.submit(member,member.userId,task.id,randomUUID(),1,'Original v30 evidence')
+  original.projectTasks.review(actor,actor.userId,task.id,randomUUID(),2,submission.id,'final_return',review(false,'More detail'))
+  const history=original.projectTasks.history(actor,task.id)
+  await identity.close();original.close()
+  const db=new DatabaseSync(path),tables=['tasks','task_criteria_versions','task_submissions','task_review_decisions']
+  const list=t=>db.prepare('SELECT * FROM '+t+' ORDER BY rowid').all()
+  const snapshot=tables.map(list),schema=list('sqlite_schema'),ledger=list('schema_migrations')
+  let storage
+  try{
+    db.prepare('UPDATE schema_migrations SET checksum=? WHERE version=30').run('0'.repeat(64))
+    storage=new ProbeStorage({dataDir:dir});assert(!storage.available);storage.close()
+    assert.equal(db.prepare('PRAGMA user_version').get().user_version,30)
+    db.prepare('UPDATE schema_migrations SET checksum=? WHERE version=30').run(MIGRATION_V30_CHECKSUM)
+    storage=new ProbeStorage({dataDir:dir,failureAt:'v31:after-schema'});assert(!storage.available);assert.match(storage.failure.cause.message,/v31:after-schema/);storage.close()
+    assert.equal(db.prepare('PRAGMA user_version').get().user_version,30)
+    assert.deepEqual(list('sqlite_schema'),schema);assert.deepEqual(list('schema_migrations'),ledger);assert.deepEqual(tables.map(list),snapshot)
+    storage=new ProbeStorage({dataDir:dir});assert(storage.available,storage.failure?.message)
+    assert.equal(db.prepare('PRAGMA user_version').get().user_version,SCHEMA_VERSION)
+    assert.equal(list('schema_migrations')[30].checksum,MIGRATION_V31_CHECKSUM)
+    assert.deepEqual(list('schema_migrations').slice(0,30),ledger);assert.deepEqual(tables.map(list),snapshot)
+    const {access_revision,...migrated}=storage.projectTasks.history(actor,task.id)
+    assert.match(access_revision,/^[a-f0-9]{64}$/);assert.deepEqual(migrated,history)
     assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[])
   }finally{storage?.close();db.close()}
 })

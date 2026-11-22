@@ -17,7 +17,7 @@ assert.equal(git('rev-parse','HEAD').toString().trim(),candidate);assert.equal(h
 const {tree,source_tree,entry_sha256,build_sha256}=candidateFacts(root,candidate);assert.equal(entry_sha256,entry)
 const parent=join(root,'.cache/project002-host');mkdirSync(parent,{recursive:true});const dir=mkdtempSync(join(parent,'run-'));git('check-ignore','--',join(dir,'summary.json'))
 const facts={unit_id:'PROJECT-002',candidate_sha:candidate,tree,source_tree,entry_sha256,build_sha256,runner_sha256,
-  status:'NOT_RUN',scope:'Host checks for inline review workflow; shared material access and scoring not covered',checks:[],boots:[],screens:[],P08:'NOT_RUN',A31:'NOT_RUN'}
+  status:'NOT_RUN',scope:'Host checks for inline and fixed-material review workflow; scoring not covered',checks:[],boots:[],screens:[],P08:'NOT_RUN',A31:'NOT_RUN'}
 const prefix='/knowledge/v1',base=prefix+'/project-tasks',pagePath='/knowledgeos/projects',projectName='Workflow Project',title='Delivery evidence'
 const time=Date.parse('2026-11-22T06:00:00.000Z'),due=new Date(time+20000).toISOString(),password=randomUUID()
 const marker={'x-knowledgeos-request':'1'},key=()=>({'idempotency-key':randomUUID()})
@@ -53,6 +53,23 @@ async function uiReview(page,action,met,message,requested){
   await page.getByLabel('审核理由').fill(message);if(requested)await page.getByLabel('需补充内容').fill(requested)
   const peer=action.startsWith('peer_');await page.getByRole('button',{name:peer?'保存预审':'保存终审'}).click()
   await page.getByText(peer?'预审已保存。':'终审已保存。',{exact:true}).waitFor()
+}
+async function upload(actor,name,text,prior){
+  const res=await actor.context.request.post(host.base+prefix+'/imports',{headers:{...marker,...key(),'content-type':'text/plain',
+    'x-knowledgeos-filename':name,...(prior?{'x-knowledgeos-asset-id':prior.id,'x-knowledgeos-expected-version':String(prior.version)}:{})},data:Buffer.from(text)})
+  assert.equal(res.status(),201,await res.text());return (await res.json()).data
+}
+const targetOf=({id,version_id})=>({asset_id:id,version_id,ordinal:1})
+const materialUrl=t=>'/knowledgeos/reader?'+new URLSearchParams({asset:t.asset_id,version:t.version_id,unit:t.ordinal})
+const materialRead=t=>`${prefix}/assets/${t.asset_id}/versions/${t.version_id}/reader?unit=${t.ordinal}`
+async function grantMaterial(issuer,recipient,asset){
+  const invitation=await request(issuer,prefix+'/invitations','POST',{actor_id:issuer.id,scope:'object',target_id:asset.id,permission:'read',days:2,max_redemptions:1},201,undefined,key())
+  await request(recipient,prefix+'/invitations/redeem','POST',{actor_id:recipient.id,token:invitation.token},201)
+  return invitation
+}
+async function revokeMaterial(issuer,invitation){
+  const path=prefix+'/invitations/'+invitation.id,current=await request(issuer,path)
+  return request(issuer,path+'/revoke','POST',{actor_id:issuer.id,expected_revision:current.revision},200,undefined,key())
 }
 
 try{
@@ -119,6 +136,101 @@ try{
   await open(owner,'Failure example');await op.getByText('未通过',{exact:true}).waitFor()
   ok('formal_failure_is_not_a_return')
 
+  phase='fixed material submission and initial independent peer access';
+  const mtitle='Fixed-material review',sentinel='PRIVATE_MATERIAL_EVIDENCE_211',materialName='private-material-211.txt';
+  const material=await upload(worker,materialName,sentinel),firstTarget=targetOf(material)
+  const otherMaterial=await upload(outsider,'external-material.txt','Other scope')
+  const delivery=await request(owner,base,'POST',{...common,title:mtitle,due_at:new Date(Date.parse(due)+15000).toISOString(),peer_reviewer_id:peer.id},201,undefined,key())
+  const mp=base+'/'+delivery.task.id,mtime=delivery.task.due_at;
+  const mHistory=a=>request(a,mp+'/history');
+  const mDraft={actor_id:worker.id,expected_revision:1,content:sentinel,materials:[firstTarget]}
+  for(const material of [targetOf(otherMaterial),{...firstTarget,version_id:randomUUID()},{...firstTarget,ordinal:20},{...firstTarget,conversion_id:randomUUID()}])
+    await request(worker,mp+'/submissions','POST',{...mDraft,materials:[material]},404,'TASK_MATERIAL_UNAVAILABLE',key());
+  await request(worker,mp+'/submissions','POST',{...mDraft,materials:[{...firstTarget,read:true}]},422,'INVALID_TASK_INPUT',key());
+  assert.equal(rows('SELECT COUNT(*) AS n FROM task_submissions WHERE task_id=?',delivery.task.id)[0].n,0)
+  host.clock(Date.parse(mtime));
+  const sourcePage=await worker.context.newPage();await sourcePage.goto(host.base+materialUrl(firstTarget));
+  await sourcePage.locator('#task-material-link').waitFor();assert.equal(await sourcePage.locator('#task-material-link').getAttribute('href'),materialUrl(firstTarget));await sourcePage.close()
+  await open(worker,mtitle);await wp.locator('#submission-content').fill(sentinel);await wp.locator('#submission-materials').fill(materialUrl(firstTarget));
+  await wp.getByRole('button',{name:'提交成果'}).click();await wp.getByText('成果已提交。',{exact:true}).waitFor()
+  const firstMaterial=(await mHistory(worker)).submissions[0];assert.deepEqual(firstMaterial.materials,[firstTarget]);assert.equal(firstMaterial.submitted_at,mtime);
+  await open(peer,mtitle);await pp.getByText('待材料授权',{exact:true}).waitFor();assert.equal(await pp.locator('#review-verdict').count(),0);
+  for(const value of [sentinel,materialName,firstTarget.asset_id,firstTarget.version_id])assert(!JSON.stringify(await mHistory(peer)).includes(value));
+  await request(peer,materialRead(firstTarget),'GET',undefined,404,'SOURCE_NOT_FOUND');
+  const peerPermit=await grantMaterial(worker,peer,material),ownerPermit=await grantMaterial(worker,owner,material);
+  await pp.getByText('待同伴预审',{exact:true}).waitFor();const link=pp.getByRole('link',{name:'打开固定材料 1'});
+  assert.equal(await link.getAttribute('href'),materialUrl(firstTarget));
+  const newer=await upload(worker,materialName,'CURRENT_MATERIAL_VERSION',material);
+  assert.equal((await mHistory(peer)).submissions[0].materials[0].version_id,firstTarget.version_id);
+  assert.match(JSON.stringify(await request(peer,materialRead(firstTarget))),new RegExp(sentinel));
+  assert.match(JSON.stringify(await request(peer,materialRead(targetOf(newer)))),/CURRENT_MATERIAL_VERSION/);
+  await uiReview(pp,'peer_pass',true,'Material checked');await pp.getByText('待管理员终审',{exact:true}).waitFor();
+  ok('fixed_version_scope_and_peer_recovery');
+
+  phase='decision prepared before revocation, durable wait and recovery';
+  await open(owner,mtitle);await op.getByRole('link',{name:'打开固定材料 1'}).waitFor();await op.bringToFront();
+  const activeBefore=(await request(owner,mp)).task,finalDraft={actor_id:owner.id,expected_revision:activeBefore.revision,submission_id:firstMaterial.id,action:'final_accept',...good}
+  const blockedKey=key();await revokeMaterial(worker,ownerPermit);
+  for(let i=0;i<2;i++)await request(owner,mp+'/reviews','POST',finalDraft,409,'TASK_MATERIAL_ACCESS_REQUIRED',blockedKey);
+  await op.getByText('待材料授权',{exact:true}).waitFor();assert.equal(await op.locator('#review-verdict').count(),0);
+  assert.equal(await op.getByRole('link',{name:'打开固定材料 1'}).count(),0);assert(!await op.getByText(sentinel,{exact:true}).count());
+  await request(owner,materialRead(firstTarget),'GET',undefined,404,'SOURCE_NOT_FOUND');
+  assert.deepEqual(rows('SELECT submission_version,resume_state FROM task_material_waits WHERE task_id=?',delivery.task.id),[{submission_version:1,resume_state:'awaiting_admin_review'}]);
+  assert.equal(rows('SELECT COUNT(*) AS n FROM task_review_decisions WHERE submission_id=?',firstMaterial.id)[0].n,1);
+  await capture(op,'awaiting-material-access.png');
+  await host.stop();await boot();
+  assert.equal((await request(owner,mp)).task.state,'awaiting_material_access');
+  host.clock(Date.parse(mtime)+5000);await grantMaterial(worker,owner,material);
+  const recovered=(await request(owner,mp)).task;assert.equal(recovered.state,'awaiting_admin_review');assert.equal(recovered.next_actor_id,owner.id);
+  await request(owner,mp+'/reviews','POST',finalDraft,409,'TASK_REVISION_CONFLICT',blockedKey);
+  await open(owner,mtitle);await uiReview(op,'final_return',false,'Old trace is missing','Add the new trace');
+  const returned=(await request(owner,mp)).task;assert.equal(returned.state,'returned');
+  await request(owner,mp,'PATCH',{actor_id:owner.id,expected_revision:returned.revision,criteria:{...criteria,items:[{description:'Current trace',weight:3}]}});
+  assert.deepEqual((await mHistory(owner)).submissions,[firstMaterial]);
+  ok('final_rights_rechecked_after_preparation_and_restored_after_restart');
+
+  phase='immutable replacement during wait and stale tabs';
+  await revokeMaterial(worker,peerPermit);
+  const revisedMaterial=(await request(worker,mp)).task;
+  const resubmit={actor_id:worker.id,expected_revision:revisedMaterial.revision,content:'Denied version awaiting a peer grant',materials:[targetOf(newer)]};
+  const resubmitKey=key();
+  const attempts=await Promise.all([201,200].map(async()=>{
+    const r=await worker.context.request.post(host.base+mp+'/submissions',{headers:{...marker,...resubmitKey},data:resubmit});return {status:r.status(),body:await r.json()};
+  }));
+  assert.deepEqual(attempts.map(r=>r.status).sort(),[200,201]);assert.equal(attempts[0].body.data.submission.id,attempts[1].body.data.submission.id);
+  const secondMaterial=attempts[0].body.data.submission;const waiting=(await request(worker,mp)).task;assert.equal(waiting.state,'awaiting_material_access');
+  const replacement=await upload(worker,'replacement-material.txt','Authorized replacement trace');
+  await grantMaterial(worker,peer,replacement);const replaceOwner=await grantMaterial(worker,owner,replacement);
+  const {submission:thirdMaterial,task:thirdTask}=await request(worker,mp+'/submissions','POST',{actor_id:worker.id,expected_revision:waiting.revision,content:'Replacement trace',materials:[targetOf(replacement)]},201,undefined,key());
+  assert.equal(thirdMaterial.previous_version,2);assert.equal(thirdMaterial.criteria_version,2);assert.equal(thirdMaterial.timing,'late');
+  const obsolete={actor_id:peer.id,expected_revision:waiting.revision,submission_id:secondMaterial.id,action:'peer_pass',...good};
+  await request(peer,mp+'/reviews','POST',obsolete,409,'TASK_MATERIAL_ACCESS_REQUIRED',key());
+  await request(peer,mp+'/reviews','POST',{...obsolete,submission_id:thirdMaterial.id},409,'TASK_REVISION_CONFLICT',key());
+  const passDraft={...obsolete,expected_revision:thirdTask.revision,submission_id:thirdMaterial.id},peerKey=key();
+  const passed=await request(peer,mp+'/reviews','POST',passDraft,201,undefined,peerKey);
+  assert.equal(passed.task.state,'awaiting_admin_review');assert.equal((await request(peer,mp+'/reviews','POST',passDraft,200,undefined,peerKey)).replayed,true);
+  const finalThird={...finalDraft,expected_revision:passed.task.revision,submission_id:thirdMaterial.id},finalKey=key();
+  const finalAccepted=await request(owner,mp+'/reviews','POST',finalThird,201,undefined,finalKey);assert.equal(finalAccepted.task.state,'accepted');
+  const full=await mHistory(worker);assert.deepEqual(full.submissions,[firstMaterial,secondMaterial,thirdMaterial]);
+  assert.equal(full.submissions[0].criteria_version,1);assert.equal(full.reviews[1].requested_work,'Add the new trace');
+  assert.equal(rows('SELECT COUNT(*) AS n FROM task_submission_materials WHERE task_id=?',delivery.task.id)[0].n,3);
+  await revokeMaterial(worker,replaceOwner);
+  await request(owner,mp+'/reviews','POST',finalThird,409,'TASK_MATERIAL_ACCESS_REQUIRED',finalKey);
+  assert.equal((await request(owner,mp)).task.state,'accepted');
+  ok('immutable_material_replacement_and_idempotency');
+
+  phase='authorization timeout clears foreground and discards late data';
+  await open(peer,mtitle);await pp.bringToFront();await pp.getByRole('link',{name:'打开固定材料 1'}).first().waitFor();
+  let release;const held=new Promise(resolve=>{release=resolve});
+  const accessRoute='**/knowledge/v1/project-tasks/access?**';
+  await pp.route(accessRoute,async route=>{await held;await route.continue().catch(()=>{});});
+  try{
+    await pp.getByText('无法确认任务访问权限，已隐藏内容。',{exact:true}).waitFor({timeout:8000});
+    assert.equal(await pp.locator('#attempts').textContent(),'');
+  }finally{release();await pp.unroute(accessRoute);}
+  assert.equal(await pp.locator('#workspace').isHidden(),true);
+  ok('foreground_timeout_discards_material_and_stale_access_result');
+
   phase='foreground revocation clears new evidence and restart persists immutable facts';await open(peer);await pp.bringToFront()
   await pp.evaluate(()=>{window.visibilityChanges=0;document.addEventListener('visibilitychange',()=>window.visibilityChanges++)})
   assert.match(await pp.locator('#attempts').textContent(),/Second version/)
@@ -131,6 +243,6 @@ try{
   assert.deepEqual(await request(mobile,path+'/history'),terminal);assert.deepEqual(rows('PRAGMA foreign_key_check'),[])
   assert(await mobile.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'workflow page horizontally overflows')
   await capture(mobile.page,'review-history-mobile.png');ok('revocation_and_durable_restart')
-  facts.status='PASS'
+  facts.T01=facts.T02=facts.A31=facts.status='PASS'
 }catch(error){facts.status='FAIL';facts.failure={phase,message:String(error.message).slice(0,420)};throw error}
 finally{await browser?.close();await host?.stop();writeFileSync(join(dir,'summary.json'),JSON.stringify(facts,null,2)+'\n');console.log(JSON.stringify({status:facts.status,dir}))}

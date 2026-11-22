@@ -1289,6 +1289,10 @@ var CitationStore = class {
   source(prior, t) {
     return this.tx("read", (db, now) => this.read(db, this.actor(prior, now), t, now));
   }
+  validateTaskMaterial(db, actor, t, now) {
+    const source = this.read(db, actor, t, now);
+    return source.total >= t.ordinal && (source.kind !== "office" || Boolean(t.conversion_id && source.conversion_id === t.conversion_id));
+  }
   recallSource(db, actor, t, now) {
     const s = this.read(db, actor, t, now);
     if (s.kind === "office") {
@@ -2070,6 +2074,12 @@ CREATE TABLE task_criteria_versions (
   created_by TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL, PRIMARY KEY(task_id,version)
 ) STRICT;
 `;
+var waiting = "awaiting_material_access";
+var isReviewPhase = (state) => state === "submitted" || state === "awaiting_admin_review";
+var uuid3 = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
+var validId = (id) => typeof id === "string" && uuid3.test(id);
+var materialUnavailable = () => new AssetError(404, "TASK_MATERIAL_UNAVAILABLE");
+var materialAccessRequired = () => new AssetError(409, "TASK_MATERIAL_ACCESS_REQUIRED");
 var hidden3 = () => new AssetError(404, "NOT_FOUND");
 var invalid3 = () => new AssetError(422, "INVALID_TASK_INPUT");
 var submissionView = (t, r) => ({
@@ -2101,8 +2111,8 @@ var workflow = (t) => ({
   finalReviewer: t.final_reviewer_id,
   state: t.current_state
 });
-var nextActor = (t) => {
-  switch (t.current_state) {
+var nextActor = (t, state = t.current_state) => {
+  switch (state) {
     case "assigned":
     case "in_progress":
     case "returned":
@@ -2115,7 +2125,8 @@ var nextActor = (t) => {
       return null;
   }
 };
-var taskSummary = (t) => ({
+var materialWait = (db, id) => db.prepare("SELECT submission_version,resume_state FROM task_material_waits WHERE task_id=?").get(id);
+var taskSummary = (db, t) => ({
   id: t.id,
   project_id: t.project_id,
   task_kind: t.task_kind,
@@ -2128,12 +2139,12 @@ var taskSummary = (t) => ({
   peer_reviewer_id: t.peer_reviewer_id,
   criteria_revision: t.criteria_revision,
   state: t.current_state,
-  next_actor_id: nextActor(t),
+  next_actor_id: nextActor(t, t.current_state === waiting ? materialWait(db, t.id)?.resume_state : void 0),
   revision: t.revision,
   issued_at: t.issued_at,
   updated_at: t.updated_at
 });
-var taskView = (db, t) => ({ ...taskSummary(t), criteria_history: db.prepare(
+var taskView = (db, t) => ({ ...taskSummary(db, t), criteria_history: db.prepare(
   "SELECT version,acceptance_items,effective_submission_rule,created_by,created_at FROM task_criteria_versions WHERE task_id=? ORDER BY version"
 ).all(t.id).map(({ acceptance_items, ...r }) => ({ ...r, items: JSON.parse(String(acceptance_items)) })) });
 var clean = (c) => c.items.map((item) => ({ description: item.description.trim(), weight: item.weight }));
@@ -2142,6 +2153,22 @@ var requireRevision = (task, expected) => {
 };
 var validRevision = (revision) => Number.isSafeInteger(revision) && revision > 0;
 var latestSubmission = (db, id) => db.prepare("SELECT * FROM task_submissions WHERE task_id=? ORDER BY version DESC LIMIT 1").get(id);
+var pinnedTargets = (db, submission) => db.prepare(`SELECT asset_id,version_id,ordinal,conversion_id
+  FROM task_submission_materials WHERE task_id=? AND submission_version=? ORDER BY position`).all(submission.task_id, submission.version).map((r) => ({ asset_id: String(r.asset_id), version_id: String(r.version_id), ordinal: Number(r.ordinal), ...r.conversion_id ? { conversion_id: String(r.conversion_id) } : {} }));
+var materialList = (input) => {
+  if (!Array.isArray(input) || input.length > 10) throw invalid3();
+  const values = input.map((m) => {
+    if (!m || typeof m !== "object" || Array.isArray(m) || Object.keys(m).some((k) => !["asset_id", "version_id", "ordinal", "conversion_id"].includes(k)) || !validId(m.asset_id) || !validId(m.version_id) || !Number.isSafeInteger(m.ordinal) || m.ordinal < 1 || m.conversion_id !== void 0 && !validId(m.conversion_id)) throw invalid3();
+    return {
+      asset_id: m.asset_id.toLowerCase(),
+      version_id: m.version_id.toLowerCase(),
+      ordinal: m.ordinal,
+      ...m.conversion_id ? { conversion_id: m.conversion_id.toLowerCase() } : {}
+    };
+  });
+  if (new Set(values.map((m) => JSON.stringify(m))).size !== values.length) throw invalid3();
+  return values;
+};
 var advance = (db, task, state, now) => {
   const result = db.prepare("UPDATE tasks SET current_state=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?").run(state, now, task.id, task.revision);
   if (Number(result.changes) !== 1) throw new AssetError(409, "TASK_REVISION_CONFLICT");
@@ -2152,10 +2179,12 @@ var transition = (task, a, action) => {
   return next.state;
 };
 var ProjectTaskStore = class {
-  constructor(tx, current, memberships) {
+  constructor(tx, current, memberships, canReadMaterial, validateMaterial) {
     this.tx = tx;
     this.current = current;
     this.memberships = memberships;
+    this.canReadMaterial = canReadMaterial;
+    this.validateMaterial = validateMaterial;
   }
   actor(s, now, expected = s.userId) {
     const user = this.current(s, now);
@@ -2219,16 +2248,67 @@ var ProjectTaskStore = class {
     }
     return row;
   }
+  readable(a, task, target2, now) {
+    return task.project_id !== null && this.canReadMaterial(a, target2.asset_id, task.project_id, now);
+  }
+  materialVisibility(a, task, db, now) {
+    const attempts = db.prepare("SELECT * FROM task_submissions WHERE task_id=? ORDER BY version").all(task.id);
+    const visible = attempts.map((attempt) => ({ attempt, materials: pinnedTargets(db, attempt).map((target2) => this.readable(a, task, target2, now) ? target2 : null) }));
+    const access_revision = requestDigest([task.revision, visible.map((row) => row.materials.map(Boolean))]);
+    return { visible, access_revision };
+  }
+  reviewAvailability(db, task, phase, targets, now) {
+    if (!targets.length) return "ready";
+    if (!task.project_id) return "ineligible";
+    const userId = nextActor(task, phase);
+    if (!this.memberships(db, task.project_id).some((m) => m.userId === userId && isGrantActive(m, now))) return "ineligible";
+    const row = db.prepare(`SELECT u.role,p.id AS personal_space_id FROM users u JOIN spaces p ON p.owner_user_id=u.id
+      AND p.service_id=u.planning_home_service_id AND p.kind='personal' AND p.status='active'
+      WHERE u.id=? AND u.status='active' AND u.planning_home_service_id=?`).get(userId, task.service_id);
+    if (!row || task.task_kind === "project_admin" && userId === task.final_reviewer_id && row.role !== "admin") return "ineligible";
+    const reviewer = { userId, serviceId: task.service_id, personalSpaceId: String(row.personal_space_id) };
+    return targets.every((target2) => this.readable(reviewer, task, target2, now)) ? "ready" : "missing";
+  }
+  advancePhase(db, task, phase, submission, now) {
+    db.prepare("DELETE FROM task_material_waits WHERE task_id=?").run(task.id);
+    if (isReviewPhase(phase) && this.reviewAvailability(db, task, phase, pinnedTargets(db, submission), now) === "missing") {
+      db.prepare("INSERT INTO task_material_waits VALUES(?,?,?)").run(task.id, submission.version, phase);
+      advance(db, task, waiting, now);
+    } else advance(db, task, phase, now);
+  }
+  // Only call in a write transaction, after checking the caller's task access.
+  reconcileMaterials(db, task, now) {
+    const state = task.current_state;
+    if (state !== waiting && !isReviewPhase(state)) return task;
+    const active2 = latestSubmission(db, task.id);
+    if (!active2) return task;
+    const wait = state === waiting ? materialWait(db, task.id) : void 0;
+    if (state === waiting && (!wait || wait.submission_version !== active2.version)) return task;
+    const phase = wait?.resume_state ?? state;
+    if (!isReviewPhase(phase)) return task;
+    const availability = this.reviewAvailability(db, task, phase, pinnedTargets(db, active2), now);
+    if (availability === "ineligible" || state === waiting === (availability === "missing")) return task;
+    const next = state === waiting ? phase : waiting;
+    if (state === waiting) db.prepare("DELETE FROM task_material_waits WHERE task_id=?").run(task.id);
+    else db.prepare("INSERT INTO task_material_waits VALUES(?,?,?)").run(task.id, active2.version, phase);
+    advance(db, task, next, now);
+    return { ...task, current_state: next, revision: task.revision + 1, updated_at: now };
+  }
   checkAccess(s, projectId, taskId) {
-    return this.tx("read", (db, now) => {
+    return this.tx(taskId ? "write" : "read", (db, now) => {
       const a = this.actor(s, now);
       if (projectId !== null) this.project(db, a, projectId, now);
-      if (taskId && this.lookup(db, a, taskId, now).project_id !== projectId) throw hidden3();
+      if (taskId) {
+        const task = this.lookup(db, a, taskId, now);
+        if (task.project_id !== projectId) throw hidden3();
+        const current = this.reconcileMaterials(db, task, now);
+        return { allowed: true, access_revision: this.materialVisibility(a, current, db, now).access_revision };
+      }
       return { allowed: true };
     });
   }
   get(s, id) {
-    return this.tx("read", (db, now) => taskView(db, this.lookup(db, this.actor(s, now), id, now)));
+    return this.tx("write", (db, now) => taskView(db, this.reconcileMaterials(db, this.lookup(db, this.actor(s, now), id, now), now)));
   }
   list(s, projectId) {
     return this.tx("read", (db, now) => {
@@ -2236,7 +2316,7 @@ var ProjectTaskStore = class {
       const rows = projectId === null ? db.prepare(`SELECT * FROM tasks WHERE service_id=? AND project_id IS NULL AND personal_space_id=? AND issuer_id=? ORDER BY issued_at DESC,id LIMIT 201`).all(a.serviceId, a.personalSpaceId, a.userId) : db.prepare(`SELECT * FROM tasks WHERE service_id=? AND project_id=? AND (? OR ? IN (issuer_id,assignee_id,final_reviewer_id,peer_reviewer_id))
           ORDER BY issued_at DESC,id LIMIT 201`).all(a.serviceId, projectId, Number(this.project(db, a, projectId, now).row.owner_user_id === a.userId), a.userId);
       if (rows.length > 200) throw new AssetError(409, "TASK_LIST_LIMIT");
-      return rows.map(taskSummary);
+      return rows.map((task) => taskSummary(db, task));
     });
   }
   assign(s, expected, projectId, key, d) {
@@ -2279,46 +2359,73 @@ var ProjectTaskStore = class {
     });
   }
   history(s, id) {
-    return this.tx("read", (db, now) => {
-      const task = this.lookup(db, this.actor(s, now), id, now);
-      const submissions = db.prepare("SELECT * FROM task_submissions WHERE task_id=? ORDER BY version").all(id);
+    return this.tx("write", (db, now) => {
+      const a = this.actor(s, now), task = this.reconcileMaterials(db, this.lookup(db, a, id, now), now);
+      const { visible, access_revision } = this.materialVisibility(a, task, db, now);
+      const restricted = new Set(visible.filter((r) => r.materials.includes(null)).map((r) => r.attempt.id));
       const reviews = db.prepare(`SELECT d.* FROM task_review_decisions d JOIN task_submissions s ON s.id=d.submission_id
         WHERE s.task_id=? ORDER BY s.version,CASE d.stage WHEN 'peer' THEN 0 ELSE 1 END`).all(id);
-      return { task_revision: task.revision, submissions: submissions.map((r) => submissionView(task, r)), reviews: reviews.map(reviewView) };
+      return { task_revision: task.revision, access_revision, submissions: visible.map(({ attempt, materials }) => ({
+        ...submissionView(task, attempt),
+        ...materials.length ? { materials } : {},
+        ...restricted.has(attempt.id) ? { content: null } : {}
+      })), reviews: reviews.map((r) => ({ ...reviewView(r), ...restricted.has(r.submission_id) ? { criteria_results: [], reason: null, requested_work: null } : {} })) };
     });
   }
-  submit(s, expected, id, key, revision, content) {
+  submit(s, expected, id, key, revision, content, materials = []) {
     if (!validRevision(revision) || !validTaskSubmission(content)) throw invalid3();
-    const normalized = content.trim(), digest3 = requestDigest([revision, normalized]);
-    return this.tx("write", (db, now) => {
-      const a = this.actor(s, now, expected), task = this.lookup(db, a, id, now);
+    const normalized = content.trim(), targets = materialList(materials), digest3 = requestDigest(targets.length ? [revision, normalized, targets] : [revision, normalized]);
+    const result = this.tx("write", (db, now) => {
+      const a = this.actor(s, now, expected), before = this.lookup(db, a, id, now);
+      const task = this.reconcileMaterials(db, before, now);
       if (task.assignee_id !== a.userId) throw hidden3();
       const old = db.prepare("SELECT * FROM task_submissions WHERE task_id=? AND author_id=? AND request_key=?").get(id, a.userId, key);
       if (old) {
         if (old.request_digest !== digest3) throw new AssetError(409, "TASK_REQUEST_CONFLICT");
-        return { task: taskView(db, task), submission: submissionView(task, old), replayed: true };
+        const refs = pinnedTargets(db, old);
+        if (refs.some((m) => !this.readable(a, task, m, now))) return materialUnavailable();
+        return { task: taskView(db, task), submission: { ...submissionView(task, old), ...refs.length ? { materials: refs } : {} }, replayed: true };
       }
+      if (before.revision !== task.revision) return new AssetError(409, "TASK_REVISION_CONFLICT");
       requireRevision(task, revision);
-      const state = transition(task, a, "submit"), previous = latestSubmission(db, id);
+      const previous = latestSubmission(db, id);
+      const state = transition(task.current_state === waiting ? { ...task, current_state: "returned" } : task, a, "submit");
+      if (task.current_state === waiting && (!targets.length || requestDigest(targets) === requestDigest(pinnedTargets(db, previous)))) throw new AssetError(409, "TASK_MATERIAL_REPLACEMENT_REQUIRED");
+      for (const target2 of targets) {
+        if (!this.readable(a, task, target2, now)) throw materialUnavailable();
+        try {
+          if (!this.validateMaterial(db, a, target2, now)) throw materialUnavailable();
+        } catch (e) {
+          if (e instanceof AssetError && (e.status === 404 || e.status === 422)) throw materialUnavailable();
+          throw e;
+        }
+      }
       const version = (previous?.version ?? 0) + 1;
       if (version > 50) throw new AssetError(409, "TASK_SUBMISSION_LIMIT");
       const submissionId = randomUUID13();
       db.prepare(`INSERT INTO task_submissions(id,task_id,version,criteria_version,author_id,content,submitted_at,previous_version,request_key,request_digest)
         VALUES(?,?,?,?,?,?,?,?,?,?)`).run(submissionId, id, version, task.criteria_revision, a.userId, normalized, now, previous?.version ?? null, key, digest3);
-      advance(db, task, state, now);
       const saved = latestSubmission(db, id);
-      return { task: taskView(db, this.lookup(db, a, id, now)), submission: submissionView(task, saved), replayed: false };
+      const insert = db.prepare("INSERT INTO task_submission_materials VALUES(?,?,?,?,?,?,?)");
+      for (const [i, t] of targets.entries()) insert.run(id, version, i + 1, t.asset_id, t.version_id, t.ordinal, t.conversion_id ?? null);
+      this.advancePhase(db, task, state, saved, now);
+      return { task: taskView(db, this.lookup(db, a, id, now)), submission: { ...submissionView(task, saved), ...targets.length ? { materials: targets } : {} }, replayed: false };
     });
+    if (result instanceof AssetError) throw result;
+    return result;
   }
   review(s, expected, id, key, revision, submissionId, action, input) {
     if (!validRevision(revision) || !isTaskReviewAction(action)) throw invalid3();
     const stage = action.startsWith("peer_") ? "peer" : "final", verdict = action.slice(stage.length + 1);
-    return this.tx("write", (db, now) => {
-      const a = this.actor(s, now, expected), task = this.lookup(db, a, id, now);
-      if (stage === "peer" ? a.userId !== task.peer_reviewer_id : a.userId !== task.final_reviewer_id || a.role !== "admin") throw hidden3();
-      if (task.task_kind !== "project_admin") throw new AssetError(409, "TASK_WORKFLOW_UNAVAILABLE");
+    const result = this.tx("write", (db, now) => {
+      const a = this.actor(s, now, expected), before = this.lookup(db, a, id, now);
+      if (stage === "peer" ? a.userId !== before.peer_reviewer_id : a.userId !== before.final_reviewer_id || a.role !== "admin") throw hidden3();
+      if (before.task_kind !== "project_admin") throw new AssetError(409, "TASK_WORKFLOW_UNAVAILABLE");
       const submission = db.prepare("SELECT * FROM task_submissions WHERE task_id=? AND id=?").get(id, submissionId);
       if (!submission) throw hidden3();
+      const task = this.reconcileMaterials(db, before, now);
+      if (pinnedTargets(db, submission).some((m) => !this.readable(a, task, m, now))) return materialAccessRequired();
+      if (before.revision !== task.revision) return new AssetError(409, "TASK_REVISION_CONFLICT");
       const { acceptance_items } = db.prepare("SELECT acceptance_items FROM task_criteria_versions WHERE task_id=? AND version=?").get(id, submission.criteria_version);
       if (!validTaskReview(action, JSON.parse(String(acceptance_items)).length, input)) throw invalid3();
       const results = input.results.map((r) => ({ criterion: r.criterion, met: r.met, evidence: r.evidence.trim() })).sort((l, r) => l.criterion - r.criterion);
@@ -2334,10 +2441,12 @@ var ProjectTaskStore = class {
       const state = transition(task, a, action), reviewId = randomUUID13();
       db.prepare(`INSERT INTO task_review_decisions(id,submission_id,reviewer_id,stage,verdict,criteria_results,reason,requested_work,decided_at,request_key,request_digest)
         VALUES(?,?,?,?,?,?,?,?,?,?,?)`).run(reviewId, submissionId, a.userId, stage, verdict, JSON.stringify(results), reason, requested, now, key, digest3);
-      advance(db, task, state, now);
+      this.advancePhase(db, task, state, submission, now);
       const saved = db.prepare("SELECT * FROM task_review_decisions WHERE id=?").get(reviewId);
       return { task: taskView(db, this.lookup(db, a, id, now)), review: reviewView(saved), replayed: false };
     });
+    if (result instanceof AssetError) throw result;
+    return result;
   }
 };
 
@@ -2364,6 +2473,23 @@ CREATE TABLE task_review_decisions (
   CHECK((stage='peer' AND verdict IN ('pass','return')) OR (stage='final' AND verdict IN ('accept','return','fail'))),
   CHECK((verdict='return' AND requested_work IS NOT NULL AND length(requested_work) BETWEEN 1 AND 4000)
     OR (verdict!='return' AND requested_work IS NULL))
+) STRICT;
+`;
+
+// src/host/project-task-material-schema.ts
+var PROJECT_TASK_MATERIAL_SCHEMA = `
+CREATE TABLE task_submission_materials (
+  task_id TEXT NOT NULL, submission_version INTEGER NOT NULL,
+  position INTEGER NOT NULL CHECK(position BETWEEN 1 AND 10),
+  asset_id TEXT NOT NULL REFERENCES assets(id), version_id TEXT NOT NULL REFERENCES asset_versions(id),
+  ordinal INTEGER NOT NULL CHECK(ordinal>=1), conversion_id TEXT REFERENCES office_conversions(id),
+  PRIMARY KEY(task_id,submission_version,position),
+  FOREIGN KEY(task_id,submission_version) REFERENCES task_submissions(task_id,version)
+) STRICT;
+CREATE TABLE task_material_waits (
+  task_id TEXT PRIMARY KEY, submission_version INTEGER NOT NULL,
+  resume_state TEXT NOT NULL CHECK(resume_state IN ('submitted','awaiting_admin_review')),
+  FOREIGN KEY(task_id,submission_version) REFERENCES task_submissions(task_id,version)
 ) STRICT;
 `;
 
@@ -2813,7 +2939,8 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 30;
+var SCHEMA_VERSION = 31;
+var MIGRATION_V31_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_MATERIAL_SCHEMA).digest("hex");
 var MIGRATION_V30_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_REVIEW_SCHEMA).digest("hex");
 var MIGRATION_V29_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_SCHEMA).digest("hex");
 var MIGRATION_V28_CHECKSUM = createHash15("sha256").update(REPOSITORY_SCHEMA).digest("hex");
@@ -3088,7 +3215,16 @@ var ProbeStorage = class {
   }
   assets = new AssetStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (actor, id, action, now) => Boolean(this.authorizeObject(actor, id, action, now)));
   repositories = new RepositoryStore(this.#assetTx, (s, now) => this.#currentActor(s, now));
-  projectTasks = new ProjectTaskStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (db, id) => this.#memberships(db, id));
+  projectTasks = new ProjectTaskStore(
+    this.#assetTx,
+    (s, now) => this.#currentActor(s, now),
+    (db, id) => this.#memberships(db, id),
+    (actor, id, project, now) => {
+      const asset = this.authorizeObject(actor, id, "read", now);
+      return asset?.objectType === "asset" && (asset.scope === "personal" || asset.projectId === project);
+    },
+    (db, actor, target2, now) => this.citations.validateTaskMaterial(db, actor, target2, now)
+  );
   notes = new NoteStore(
     this.#assetTx,
     (s, now) => this.#currentActor(s, now),
@@ -3218,6 +3354,7 @@ var ProbeStorage = class {
       if (priorVersion < 28) this.#migrateV28(db);
       if (priorVersion < 29) this.#migrateV29(db);
       if (priorVersion < 30) this.#migrateV30(db);
+      if (priorVersion < 31) this.#migrateV31(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -3810,9 +3947,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "project task review migration failed", false, { cause: e });
     }
   }
+  #migrateV31(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(PROJECT_TASK_MATERIAL_SCHEMA);
+      this.#injectFailure("v31:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(31,?,?)").run(MIGRATION_V31_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=31; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "task material migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash2, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash2)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -3841,6 +3990,7 @@ var ProbeStorage = class {
       if (version >= 28) reference.exec(REPOSITORY_SCHEMA);
       if (version >= 29) reference.exec(PROJECT_TASK_SCHEMA);
       if (version >= 30) reference.exec(PROJECT_TASK_REVIEW_SCHEMA);
+      if (version >= 31) reference.exec(PROJECT_TASK_MATERIAL_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -4368,6 +4518,7 @@ export {
   MIGRATION_V2_SQL,
   MIGRATION_V3,
   MIGRATION_V30_CHECKSUM,
+  MIGRATION_V31_CHECKSUM,
   MIGRATION_V3_CHECKSUM,
   MIGRATION_V3_SQL,
   MIGRATION_V4,
