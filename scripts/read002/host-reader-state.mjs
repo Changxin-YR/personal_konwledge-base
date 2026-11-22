@@ -637,7 +637,7 @@ async function migrationCase() {
   writeFileSync(oldBundle, oldBytes, {flag: 'wx'})
   const old = await import(pathToFileURL(oldBundle).href)
   const current = await import(pathToFileURL(join(root, pkg, 'lib/storage.js')).href)
-  assert.equal(current.SCHEMA_VERSION, 16)
+  assert(current.SCHEMA_VERSION >= 16)
   assert.match(current.MIGRATION_V16_CHECKSUM, /^[a-f0-9]{64}$/)
   const storage = new old.ProbeStorage({dataDir: dir}), identity = new old.IdentityService(storage)
   let actor, witness
@@ -677,13 +677,16 @@ async function migrationCase() {
       assert(next.available, next.failure?.message)
       assert.deepEqual(next.citations.resolve(actor, witness.id), witness)
       const after = snapshot(dir)
-      assert.equal(after.version, 16)
+      assert.equal(after.version, current.SCHEMA_VERSION)
       assert.equal(after.app, before.app)
-      assert.deepEqual(after.schema.filter(row => !['reading_positions', 'reading_bookmarks'].includes(row.tbl_name)), before.schema)
-      const {reading_positions, reading_bookmarks, schema_migrations, ...original} = after.rows
+      const originalNames = new Set(before.schema.map(row=>row.name))
+      assert.deepEqual(after.schema.filter(row => originalNames.has(row.name)), before.schema)
+      const {reading_positions, reading_bookmarks, schema_migrations} = after.rows
+      const original = Object.fromEntries(Object.keys(before.rows).map(name=>[name,after.rows[name]]))
       assert.deepEqual(reading_positions, []); assert.deepEqual(reading_bookmarks, [])
       const ledger = schema_migrations.toSorted((a, b) => a.version - b.version)
-      const v16 = ledger.at(-1)
+      assert.deepEqual(ledger.map(row=>row.version),Array.from({length:current.SCHEMA_VERSION},(_,i)=>i+1))
+      const v16 = ledger.find(row=>row.version===16)
       assert.equal(v16.version, 16)
       assert.equal(v16.checksum, current.MIGRATION_V16_CHECKSUM)
       assert.deepEqual({...original, schema_migrations: schema_migrations.filter(row => row.version < 16)}, before.rows)
@@ -692,7 +695,7 @@ async function migrationCase() {
       else assert.deepEqual(after, upgraded)
     } finally { next.close() }
   }
-  return {from: 15, to: 16, prior_commit: prior, prior_bundle_sha256: sha(oldBytes), rollback_unchanged: true}
+  return {from: 15, to: current.SCHEMA_VERSION, checked_migration:16, prior_commit: prior, prior_bundle_sha256: sha(oldBytes), rollback_unchanged: true}
 }
 
 function diagnostic(error) {

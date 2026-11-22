@@ -8,6 +8,7 @@ import {DatabaseSync} from 'node:sqlite'
 import test from 'node:test'
 import {pathToFileURL} from 'node:url'
 import * as lib from '../../packages/knowledgeos-panel/lib/test-support.js'
+import {SCHEMA_VERSION} from '../../packages/knowledgeos-panel/lib/storage.js'
 import {seed} from '../fnd006/independent/common.mjs'
 import {decodeText} from '../../packages/knowledgeos-panel/src/host/text-document.ts'
 
@@ -25,7 +26,10 @@ test('upgrade populated v13; failure preserves ZIP members, published text, iden
     const before=snapshot(),broken=new lib.ProbeStorage({dataDir:dir,failureAt:'v14:after-schema'});assert.equal(broken.available,false);broken.close()
     assert.deepEqual(snapshot(),before);assert.equal(db.prepare('PRAGMA user_version').get().user_version,13);assert.equal(db.prepare("SELECT count(*) n FROM sqlite_master WHERE name='citations'").get().n,0)
     for(let i=0;i<2;i++){const next=new lib.ProbeStorage({dataDir:dir});try{
-      assert(next.available,next.failure?.message);const after=snapshot();assert.deepEqual(after.schema_migrations.splice(before.schema_migrations.length).map(m=>m.version),[14,15,16,17,18,19,20,21,22,23,24,25]);assert.deepEqual(after,before);assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[])
+      assert(next.available,next.failure?.message);const after=snapshot()
+      assert.equal(db.prepare('PRAGMA user_version').get().user_version,SCHEMA_VERSION)
+      assert.deepEqual(after.schema_migrations.splice(before.schema_migrations.length).map(m=>m.version),Array.from({length:SCHEMA_VERSION-13},(_,i)=>i+14))
+      assert.deepEqual(after,before);assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[])
       assert.deepEqual(next.archives.manifest(actor,id),manifest);assert.equal(next.citations.source(actor,{asset_id:r.id,version_id:r.version_id,ordinal:1}).text,'Chapter one')
     }finally{next.close()}}
   }finally{db.close()}
