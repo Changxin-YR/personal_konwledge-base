@@ -54,7 +54,8 @@ try{
   for(const [login_name,display_name] of [['worker','Assigned Member'],['peer','Peer Reviewer'],['outsider','Nonmember']])assert.equal((await api(host.port,'','POST',prefix+'/auth/register',{login_name,display_name,password})).status,201)
   assert.equal(rows('PRAGMA user_version')[0].user_version,29)
   const {chromium}=await import(pathToFileURL(host.playwright).href);browser=await chromium.launch({channel:'chrome',headless:true,args:['--disable-background-networking','--disable-component-update','--disable-sync','--no-proxy-server']});facts.chrome=browser.version()
-  const owner=await login('owner'),worker=await login('worker'),peer=await login('peer'),outsider=await login('outsider')
+  let owner=await login('owner'),worker=await login('worker'),peer=await login('peer')
+  const outsider=await login('outsider')
   test='T01';phase='create project from the library collaboration navigation'
   const projectName='Synthetic project', title='Validate delivery', personalTitle='Private self assignment'
   await owner.page.goto(host.base+'/knowledgeos/library');await owner.page.getByRole('link',{name:'项目协作'}).click();await owner.page.locator('#workspace').waitFor()
@@ -97,6 +98,8 @@ try{
   facts.T01='PASS'
 
   test='T02';phase='absolute invitation expiry and member removal';host.clock(Date.parse(peerInvitation.expires_at))
+  owner=await login('owner');worker=await login('worker');peer=await login('peer')
+  assert.equal((await request(peer,taskApi+'/projects')).projects.length,0)
   await request(peer,taskApi+'/'+id,'GET',undefined,404,'NOT_FOUND')
   await request(owner,taskApi,'POST',body(owner,{...valid,peer_reviewer_id:peer.id}),409,'TASK_MEMBER_UNAVAILABLE',{'idempotency-key':randomUUID()})
   await open(peer);assert.equal(await peer.page.locator('#projects').getByRole('button',{name:projectName}).count(),0)
