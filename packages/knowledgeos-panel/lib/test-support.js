@@ -2415,6 +2415,14 @@ var ProjectTaskStore = class {
     }
     return row;
   }
+  checkAccess(s, projectId, taskId) {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(s, now);
+      if (projectId !== null) this.project(db, a, projectId, now);
+      if (taskId && this.lookup(db, a, taskId, now).project_id !== projectId) throw hidden3();
+      return { allowed: true };
+    });
+  }
   get(s, id) {
     return this.tx("read", (db, now) => taskView(db, this.lookup(db, this.actor(s, now), id, now)));
   }

@@ -23,7 +23,7 @@ let actor,scope=null,project,projectRows=[],tasks=[],task,removeTarget,busy=fals
 const status=s=>$('status').textContent=s;
 const get=(k)=>$(k).value;
 function protect(){epoch++;controller.abort();controller=new AbortController();busy=false;actor=project=task=removeTarget=pendingAssign=undefined;tasks=[];projectRows=[];$('workspace').hidden=$('task-detail').hidden=$('membership').hidden=$('revision-form').hidden=true;
- if($('remove-dialog').open)$('remove-dialog').close();for(const id of ['projects','members','tasks','history','task-title','task-facts','removal-name'])$(id).replaceChildren();$('new-project').reset();$('task-form').reset();$('revision-criteria').replaceChildren();criterionRows('criteria',[]);}
+ if($('remove-dialog').open)$('remove-dialog').close();for(const id of ['projects','members','tasks','history','task-title','task-facts','scope-title','removal-name','assignee','reviewer','peer'])$(id).replaceChildren();$('new-project').reset();$('task-form').reset();$('revision-criteria').replaceChildren();criterionRows('criteria',[]);}
 async function request(endpoint,method='GET',data,key){const check=epoch;const response=await fetch(endpoint,{method,cache:'no-store',redirect:'error',signal:controller.signal,
  headers:method==='GET'?{}:{...mark,...(key?{'idempotency-key':key}:{})},body:data===undefined?undefined:JSON.stringify(data)});
  const result=await response.json();if(check!==epoch)throw Error('STALE');if(response.status===401||result.code==='ACTOR_MISMATCH'||(actor&&result.data?.actor_id&&result.data.actor_id!==actor)){
@@ -83,5 +83,20 @@ $('remove-dialog').addEventListener('close',()=>{const member=removeTarget;if($(
  await request(api+'/projects/'+scope+'/members','POST',{actor_id:actor,remove_member_id:member});await choose(scope);status('项目成员已移除。');});}removeTarget=undefined;});
 addEventListener('pagehide',protect);addEventListener('pageshow',()=>void operation(refresh));
 let hidden=false;document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){hidden=true;protect();}else if(hidden){hidden=false;void operation(refresh);}});
+// An open foreground tab must not retain project text after a remote revocation.
+let checking=false;
+setInterval(async()=>{
+ if(checking||!actor||hidden||$('workspace').hidden)return;
+ const identity=actor,checkedScope=scope,checkedTask=task?.id,checkedEpoch=epoch;
+ const current=()=>epoch===checkedEpoch&&actor===identity&&scope===checkedScope&&task?.id===checkedTask;
+ const query=new URLSearchParams();if(checkedScope)query.set('project_id',checkedScope);if(checkedTask)query.set('task_id',checkedTask);
+ checking=true;
+ try{
+  const result=await fetch(api+'/access?'+query,{cache:'no-store',redirect:'error',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(2500)])});
+  const value=result.ok?await result.json():null;
+  if(current()&&(value?.data?.actor_id!==identity||value?.data?.allowed!==true))throw Error('ACCESS_REVOKED');
+ }catch{if(current()){protect();scope=null;status('无法确认任务访问权限，已隐藏内容。');$('login').hidden=false;}}
+ finally{checking=false;}
+},3000);
 </script></body></html>`
 }

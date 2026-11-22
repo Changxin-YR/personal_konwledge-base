@@ -46,6 +46,23 @@ async function issue(owner,id,days){return request(owner,invitePath,'POST',body(
 async function redeem(actor,token,status=201,error){return request(actor,invitePath+'/redeem','POST',body(actor,{token}),status,error)}
 const taskRows=()=>rows('SELECT * FROM tasks ORDER BY id')
 const criteriaRows=()=>rows('SELECT * FROM task_criteria_versions ORDER BY task_id,version')
+const access=(projectId,taskId)=>taskApi+'/access?'+new URLSearchParams({...(projectId?{project_id:projectId}:{}),...(taskId?{task_id:taskId}:{})})
+async function openTask(actor,project,title){
+  await open(actor,project);await actor.page.locator('#tasks').getByRole('button',{name:title,exact:true}).click();await actor.page.locator('#task-detail').waitFor()
+}
+async function watchForeground(page){
+  await page.bringToFront();await page.evaluate(()=>{
+    if(document.visibilityState!=='visible')throw Error('Revocation test must start visible')
+    window.observedVisibilityChanges=[]
+    document.addEventListener('visibilitychange',()=>window.observedVisibilityChanges.push(document.visibilityState))
+  })
+}
+async function assertClearedInForeground(page){
+  await page.getByText('无法确认任务访问权限，已隐藏内容。',{exact:true}).waitFor({timeout:8000})
+  assert.equal(await page.locator('#workspace').isVisible(),false)
+  assert.deepEqual(await page.locator('#tasks,#task-title,#task-facts,#history,#members,#scope-title').allTextContents(),Array(6).fill(''))
+  assert.deepEqual(await page.evaluate(()=>[document.visibilityState,window.observedVisibilityChanges]),['visible',[]])
+}
 
 try{
   phase='isolated task Host and four real business accounts';host=await isolate(candidate,entry,{businessClock:clock});facts.binding=host.facts
@@ -61,8 +78,8 @@ try{
   await owner.page.goto(host.base+'/knowledgeos/library');await owner.page.getByRole('link',{name:'项目协作'}).click();await owner.page.locator('#workspace').waitFor()
   await owner.page.locator('#name').fill(projectName);await owner.page.getByRole('button',{name:'创建项目'}).click();await owner.page.locator('#membership').waitFor()
   const project=(await request(owner,taskApi+'/projects')).projects[0], p=project.id
-  const workerInvitation=await issue(owner,p,4), peerInvitation=await issue(owner,p,1), oldUnused=await issue(owner,p,4)
-  await redeem(worker,workerInvitation.token);await redeem(peer,peerInvitation.token)
+  const workerInvitation=await issue(owner,p,4), workerExtra=await issue(owner,p,4), peerInvitation=await issue(owner,p,1), oldUnused=await issue(owner,p,4)
+  await redeem(worker,workerInvitation.token);await redeem(worker,workerExtra.token);await redeem(peer,peerInvitation.token)
   await open(owner,projectName)
   phase='publish and read a real administrator task with immutable criteria'
   assert.equal(await owner.page.locator('#members li').count(),3)
@@ -87,6 +104,10 @@ try{
   const protectedRows=taskRows(),protectedCriteria=criteriaRows();const valid={project_id:p,title:'Another assignment',goal:'Confirm current access',due_at:initial.due_at,
     assignee_id:worker.id,final_reviewer_id:owner.id,criteria:{items:[{description:'Reproducible',weight:1}],submission_rule:'next_submission'}}
   await request(outsider,taskApi+'?project_id='+p,'GET',undefined,404,'NOT_FOUND');await request(outsider,taskApi+'/'+id,'GET',undefined,404,'NOT_FOUND')
+  await request(outsider,access(p,id),'GET',undefined,404,'NOT_FOUND')
+  assert.deepEqual(await request(worker,access(p,id)),{actor_id:worker.id,allowed:true})
+  await request(worker,access(null,id),'GET',undefined,404,'NOT_FOUND')
+  await request(worker,access(p,id)+'&project_id='+p,'GET',undefined,422,'INVALID_TASK_INPUT')
   await request(outsider,taskApi,'POST',body(outsider,valid),404,'NOT_FOUND',{'idempotency-key':randomUUID()})
   await request(outsider,taskApi+'/'+id+'/claim','POST',body(outsider,{}),404,'NOT_FOUND');await request(outsider,taskApi+'/'+id,'PATCH',body(outsider,{expected_revision:2,criteria:valid.criteria}),404,'NOT_FOUND')
   await request(worker,taskApi,'POST',body(owner,valid),409,'ACTOR_MISMATCH',{'idempotency-key':randomUUID()})
@@ -97,7 +118,7 @@ try{
   ok('authorized_assignment_and_versioning',{revisions:[1,2],forged_or_stale_writes:0})
   facts.T01='PASS'
 
-  test='T02';phase='absolute invitation expiry and member removal';host.clock(Date.parse(peerInvitation.expires_at))
+  test='T02';phase='absolute invitation expiry';const advance=Date.parse(peerInvitation.expires_at);host.clock(advance)
   owner=await login('owner');worker=await login('worker');peer=await login('peer')
   assert.equal((await request(peer,taskApi+'/projects')).projects.length,0)
   await request(peer,taskApi+'/'+id,'GET',undefined,404,'NOT_FOUND')
@@ -106,6 +127,36 @@ try{
   const personal=(await request(worker,taskApi,'POST',body(worker,{...valid,project_id:null,title:personalTitle,assignee_id:worker.id,final_reviewer_id:worker.id}),201,undefined,{'idempotency-key':randomUUID()})).task
   await request(owner,taskApi+'/'+personal.id,'GET',undefined,404,'NOT_FOUND')
   const personalObject=(await request(worker,prefix+'/objects','POST',{title:'Private material',body:'Should not join the project'},201)).id
+  const redemptions=()=>rows('SELECT revoked_at FROM invitation_redemptions WHERE user_id=? ORDER BY invitation_id',worker.id)
+  assert.deepEqual(redemptions(),[{revoked_at:null},{revoked_at:null}])
+
+  phase='remote removal with two active invitation grants and a continuously visible task'
+  await openTask(worker,projectName,title);await watchForeground(worker.page)
+  assert.match(await worker.page.locator('#history').textContent(),/Updated acceptance/)
+  assert.equal(await worker.page.locator('#task-title').textContent(),title)
+  await request(owner,taskApi+'/projects/'+p+'/members','POST',body(owner,{remove_member_id:worker.id}))
+  await assertClearedInForeground(worker.page)
+  assert.deepEqual(redemptions(),Array.from({length:2},()=>({revoked_at:new Date(advance).toISOString()})))
+  await request(worker,access(p,id),'GET',undefined,404,'NOT_FOUND')
+  await request(worker,taskApi+'/'+id,'GET',undefined,404,'NOT_FOUND');await request(worker,taskApi+'?project_id='+p,'GET',undefined,404,'NOT_FOUND')
+  await redeem(worker,oldUnused.token,404,'INVITATION_UNAVAILABLE')
+  assert.deepEqual(await request(worker,access(null,personal.id)),{actor_id:worker.id,allowed:true})
+  ok('remote_revocation_clears_foreground_and_both_invitation_grants',{visibility_changes:0,revoked_grants:2})
+
+  phase='revalidation timeout clears protected personal data even when the session is still valid'
+  await openTask(worker,null,personalTitle)
+  await watchForeground(worker.page)
+  const accessURL=host.base+access(null,personal.id)
+  let observed=0
+  await worker.page.route(accessURL,()=>{observed++})
+  await assertClearedInForeground(worker.page)
+  assert.equal(observed,1)
+  await worker.page.unroute(accessURL)
+  assert.deepEqual(await request(worker,access(null,personal.id)),{actor_id:worker.id,allowed:true})
+  ok('revalidation_timeout_clears_visible_task_without_disabling_session')
+
+  phase='fresh project invitation then removal through the owner UI';host.clock(advance+1)
+  await redeem(worker,(await issue(owner,p,4)).token);await request(worker,access(p,id))
   await open(owner,projectName);const memberRow=owner.page.locator('#members li').filter({hasText:'Assigned Member'})
   await memberRow.getByRole('button',{name:'移除',exact:true}).click();await owner.page.locator('#remove-confirm').click()
   await owner.page.getByText('项目成员已移除。',{exact:true}).waitFor()
@@ -114,7 +165,8 @@ try{
   assert.equal((await request(worker,prefix+'/objects/'+personalObject)).scope,'personal')
   await request(owner,prefix+'/objects/'+personalObject,'GET',undefined,404,'NOT_FOUND')
   await redeem(worker,oldUnused.token,404,'INVITATION_UNAVAILABLE')
-  assert.deepEqual(rows('SELECT user_id,removed_by FROM project_membership_removals'),[{user_id:worker.id,removed_by:owner.id}])
+  assert.deepEqual(rows('SELECT user_id,removed_by FROM project_membership_removals ORDER BY removed_at'),
+    Array.from({length:2},()=>({user_id:worker.id,removed_by:owner.id})))
   ok('expired_and_removed_members_cannot_read_or_join_by_old_code',{personal_stays_private:true})
 
   phase='actual Host restart and independent browser context';await host.stop();await boot()

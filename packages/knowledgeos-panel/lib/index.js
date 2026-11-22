@@ -4592,6 +4592,14 @@ var ProjectTaskStore = class {
     }
     return row;
   }
+  checkAccess(s, projectId, taskId) {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(s, now);
+      if (projectId !== null) this.project(db, a, projectId, now);
+      if (taskId && this.lookup(db, a, taskId, now).project_id !== projectId) throw hidden3();
+      return { allowed: true };
+    });
+  }
   get(s, id6) {
     return this.tx("read", (db, now) => taskView(db, this.lookup(db, this.actor(s, now), id6, now)));
   }
@@ -11991,6 +11999,14 @@ function createProjectTaskHandler(store, origin, actorFor) {
         if (url.searchParams.size !== 1 || !url.searchParams.has("project_id")) throw invalid12();
         return sendData(200, { tasks: store.list(a, id5(url.searchParams.get("project_id"))) });
       }
+      if (path2 === taskApi + "/access" && method === "GET") {
+        if ([...url.searchParams].some(([key]) => key !== "project_id" && key !== "task_id") || url.searchParams.getAll("project_id").length > 1 || url.searchParams.getAll("task_id").length > 1) throw invalid12();
+        return sendData(200, store.checkAccess(
+          a,
+          url.searchParams.has("project_id") ? id5(url.searchParams.get("project_id")) : null,
+          url.searchParams.has("task_id") ? id5(url.searchParams.get("task_id")) : void 0
+        ));
+      }
       if (url.search) throw invalid12();
       if (path2 === taskApi + "/projects" && method === "GET") return sendData(200, { projects: store.projects(a) });
       const project = /^\/knowledge\/v1\/project-tasks\/projects\/([^/]+)\/members$/.exec(path2);
@@ -12053,7 +12069,7 @@ let actor,scope=null,project,projectRows=[],tasks=[],task,removeTarget,busy=fals
 const status=s=>$('status').textContent=s;
 const get=(k)=>$(k).value;
 function protect(){epoch++;controller.abort();controller=new AbortController();busy=false;actor=project=task=removeTarget=pendingAssign=undefined;tasks=[];projectRows=[];$('workspace').hidden=$('task-detail').hidden=$('membership').hidden=$('revision-form').hidden=true;
- if($('remove-dialog').open)$('remove-dialog').close();for(const id of ['projects','members','tasks','history','task-title','task-facts','removal-name'])$(id).replaceChildren();$('new-project').reset();$('task-form').reset();$('revision-criteria').replaceChildren();criterionRows('criteria',[]);}
+ if($('remove-dialog').open)$('remove-dialog').close();for(const id of ['projects','members','tasks','history','task-title','task-facts','scope-title','removal-name','assignee','reviewer','peer'])$(id).replaceChildren();$('new-project').reset();$('task-form').reset();$('revision-criteria').replaceChildren();criterionRows('criteria',[]);}
 async function request(endpoint,method='GET',data,key){const check=epoch;const response=await fetch(endpoint,{method,cache:'no-store',redirect:'error',signal:controller.signal,
  headers:method==='GET'?{}:{...mark,...(key?{'idempotency-key':key}:{})},body:data===undefined?undefined:JSON.stringify(data)});
  const result=await response.json();if(check!==epoch)throw Error('STALE');if(response.status===401||result.code==='ACTOR_MISMATCH'||(actor&&result.data?.actor_id&&result.data.actor_id!==actor)){
@@ -12113,6 +12129,21 @@ $('remove-dialog').addEventListener('close',()=>{const member=removeTarget;if($(
  await request(api+'/projects/'+scope+'/members','POST',{actor_id:actor,remove_member_id:member});await choose(scope);status('\u9879\u76EE\u6210\u5458\u5DF2\u79FB\u9664\u3002');});}removeTarget=undefined;});
 addEventListener('pagehide',protect);addEventListener('pageshow',()=>void operation(refresh));
 let hidden=false;document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){hidden=true;protect();}else if(hidden){hidden=false;void operation(refresh);}});
+// An open foreground tab must not retain project text after a remote revocation.
+let checking=false;
+setInterval(async()=>{
+ if(checking||!actor||hidden||$('workspace').hidden)return;
+ const identity=actor,checkedScope=scope,checkedTask=task?.id,checkedEpoch=epoch;
+ const current=()=>epoch===checkedEpoch&&actor===identity&&scope===checkedScope&&task?.id===checkedTask;
+ const query=new URLSearchParams();if(checkedScope)query.set('project_id',checkedScope);if(checkedTask)query.set('task_id',checkedTask);
+ checking=true;
+ try{
+  const result=await fetch(api+'/access?'+query,{cache:'no-store',redirect:'error',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(2500)])});
+  const value=result.ok?await result.json():null;
+  if(current()&&(value?.data?.actor_id!==identity||value?.data?.allowed!==true))throw Error('ACCESS_REVOKED');
+ }catch{if(current()){protect();scope=null;status('\u65E0\u6CD5\u786E\u8BA4\u4EFB\u52A1\u8BBF\u95EE\u6743\u9650\uFF0C\u5DF2\u9690\u85CF\u5185\u5BB9\u3002');$('login').hidden=false;}}
+ finally{checking=false;}
+},3000);
 </script></body></html>`;
 }
 
