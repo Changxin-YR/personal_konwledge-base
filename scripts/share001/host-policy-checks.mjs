@@ -21,11 +21,12 @@ function snapshot(db,i){return [sql(db,'SELECT * FROM invitations WHERE id=?',[i
   sql(db,'SELECT * FROM invitation_audit WHERE invitation_id=? ORDER BY revision',[i.id])]}
 
 async function stagedRedeem(h,a,i,key=randomUUID()){
-  const label=randomBytes(16).toString('hex'),cookies=await a.ctx.cookies(h.base)
+  const url=h.base+'/knowledge/v1/invitations/redeem',label=randomBytes(16).toString('hex'),cookies=await a.ctx.cookies(url)
+  assert.equal(cookies.filter(c=>/^kos_session_[a-f0-9]+$/.test(c.name)).length,1,'one scoped business cookie expected')
   const body=JSON.stringify({actor_id:a.user,token:i.token})
   let req
   const outcome=new Promise((ok,no)=>{
-    req=request(h.base+'/knowledge/v1/invitations/redeem',{method:'POST',timeout:15000,headers:{
+    req=request(url,{method:'POST',timeout:20000,headers:{
       cookie:cookies.map(c=>c.name+'='+c.value).join('; '),'x-knowledgeos-request':'1','content-type':'application/json',
       'content-length':Buffer.byteLength(body),'idempotency-key':key,'x-kos-test-arrival':label}},res=>{
         const parts=[];res.on('data',c=>parts.push(c));res.on('error',no);res.on('end',()=>{
@@ -47,7 +48,8 @@ export async function redemptionRace({h,http,db,users,i,mode,at}){
     const key=randomUUID()
     for(const user of users)pending.push(await stagedRedeem(h,user,i,sameUser?key:undefined))
     const labels=pending.map(p=>p.label),trace=()=>h.invitationArrivals().filter(x=>labels.includes(x.label))
-    await until(()=>trace().length===2,'both redeem bodies entered the authenticated Host')
+    const premature=p=>p.outcome.then(r=>assert.fail(`redemption returned ${r.status} before the barrier released it`))
+    await Promise.race([until(()=>trace().length===2,'both redeem bodies entered the authenticated Host'),...pending.map(premature)])
     assert.deepEqual(trace().map(x=>[x.event,x.at]),[['entered',at],['entered',at]])
     const edge=Date.parse(i.expires_at)
     if(mode==='split-cutoff'){
