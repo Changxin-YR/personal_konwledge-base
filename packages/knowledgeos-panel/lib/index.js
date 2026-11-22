@@ -10620,7 +10620,7 @@ const uuid=s=>typeof s==='string'&&/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}
 let owner, note, rows=[], next=null, pending=null, key=null, conflict=null, projectsNext=null, linksNext=null;
 let busy=false, locked=false, checking=false;
 let selected=null,preview=null,outlineConflict=null;
-let view=q.get('view')==='map'?'map':'outline',refreshRequested=false;
+let view=q.get('view')==='map'?'map':'outline',refreshRequested=false,pendingMapFocus;
 const changeChannel=typeof BroadcastChannel==='function'?new BroadcastChannel('knowledgeos-notes-change-v1'):null;
 const announceChange=()=>changeChannel?.postMessage('changed');
 const status=text=>$('status').textContent=text;
@@ -10629,7 +10629,7 @@ const desired=q.get('note'), citation=q.get('citation');
 function stop(message){
   locked=true;$('workspace').hidden=true;note=null;rows=[];pending=null;conflict=null;
   $('title').value=$('body').value=$('latest-title').textContent=$('latest-body').textContent='';
-  selected=null;clearOutlinePanels();$('node-body').value='';$('node-target').replaceChildren();$('outline-list').replaceChildren();$('map-graph').replaceChildren();$('map-layout-status').textContent='';$('outline').hidden=true;
+  selected=null;pendingMapFocus=undefined;clearOutlinePanels();$('node-body').value='';$('node-target').replaceChildren();$('outline-list').replaceChildren();$('map-graph').replaceChildren();$('map-layout-status').textContent='';$('outline').hidden=true;
   for(const id of ['list','references','projects','project-list'])$(id).replaceChildren();status(message);
 }
 function error(code){const e=new Error(code);e.code=code;return e}
@@ -10903,6 +10903,7 @@ $('projects').onchange=()=>action(()=>linkList(true));
 $('link-project').onclick=()=>action(async()=>{const project=$('projects').value;if(!note||!project)return;await request(path+'/projects/'+project,'POST',{actor_id:owner,note_id:note.id});await linkList(true);status('项目引用已保存。')});
 async function checkVisible(allowHidden=false){
   if(document.hidden&&!allowHidden||busy||locked||checking||!owner)return;
+  const focus=focusedMapNode()??pendingMapFocus;
   checking=true;refreshRequested=false;enabled();
   try{
     await checkAccount();
@@ -10918,10 +10919,24 @@ async function checkVisible(allowHidden=false){
     $('workspace').hidden=document.hidden;
   }
   catch{if(!locked)$('workspace').hidden=true}
-  finally{checking=false;enabled();if(refreshRequested&&!locked)void checkVisible(true)}
+  finally{
+    checking=false;enabled();
+    if(!locked&&!$('workspace').hidden){
+      pendingMapFocus=undefined;
+      if(view==='map'&&focus&&document.activeElement===document.body){
+        const target=[...$('map-graph').querySelectorAll('button')].find(b=>b.dataset.nodeId===focus&&!b.disabled);
+        (target??$('mindmap')).focus({preventScroll:true});
+      }
+    }
+    if(refreshRequested&&!locked)void checkVisible(true);
+  }
 }
 if(changeChannel)changeChannel.onmessage=()=>{refreshRequested=true;void checkVisible(true)};
-document.addEventListener('visibilitychange',()=>{if(document.hidden)$('workspace').hidden=true;else void checkVisible()});
+function focusedMapNode(){const current=document.activeElement;return current?.matches('#map-graph button')?current.dataset.nodeId:undefined}
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){pendingMapFocus=focusedMapNode()??pendingMapFocus;$('workspace').hidden=true;}
+  else{refreshRequested=true;void checkVisible();}
+});
 setInterval(checkVisible,10000);
 void action(async()=>{
   try{await listMore(true);await projectMore(true);

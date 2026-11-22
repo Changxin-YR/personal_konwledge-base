@@ -518,10 +518,15 @@ async function layoutAndRestart(outline,map,src,initial,before,deep){
   await capture(map.page,'t02-vertical-desktop.png')
   const staleLayout=await reject(map,id,path+'/layout','PATCH',{actor_id:map.user,expected_revision:0,direction:'horizontal'},409,'LAYOUT_CONFLICT')
   assert.equal(await outline.page.locator('#node-body').inputValue(),newBody)
+  await button(map,deep).focus()
+  await map.page.waitForFunction(id=>document.activeElement?.dataset.nodeId===id,deep)
   await foreground(outline)
   const content=await paired(outline,map,id,before.n.revision,'#node-save',{action:'edit',node_id:deep,body:newBody})
   edited(before,content,deep,newBody);assert.deepEqual(content.n.layout,vertical.n.layout)
   assert.deepEqual(content.db.layout,vertical.db.layout)
+  await foreground(map)
+  await map.page.waitForFunction(id=>document.activeElement?.dataset.nodeId===id,deep)
+  pass('MAP_FOCUS_RESTORED_AFTER_SYNC',{node_id:deep,real_two_tabs:true})
   const turnedBack=await changeDirection(map,outline,id,content,'horizontal'),horizontalGeometry=await geometry(map,turnedBack)
   assert.deepEqual(horizontalGeometry,horizontal);await capture(map.page,'t02-horizontal-desktop.png')
   const persisted=await changeDirection(map,outline,id,turnedBack,'vertical')
@@ -564,6 +569,28 @@ async function layoutAndRestart(outline,map,src,initial,before,deep){
     viewport,scroll_left:scrollLeft,mobile_edit_control_operable:true,sqlite_sha256:hash(JSON.stringify(persisted.db))})
 }
 
+async function returnDuringRead(map,outline,id){
+  phase='T01 returning during an in-flight note read refreshes promptly'
+  const pattern=host.base+prefix+notePath(id),started=Promise.withResolvers(),release=Promise.withResolvers(),finished=Promise.withResolvers()
+  const pause=async route=>{
+    try{started.resolve();await release.promise;await route.continue()}
+    finally{finished.resolve()}
+  }
+  await foreground(map)
+  await map.page.route(pattern,pause,{times:1})
+  try{
+    await map.page.locator('#list button[aria-current="true"]').click()
+    await started.promise
+    await outline.page.bringToFront();await map.page.waitForFunction(()=>document.hidden)
+    await map.page.bringToFront();await map.page.waitForFunction(()=>!document.hidden)
+    assert(await map.page.locator('#workspace').isHidden(),'unverified workspace must remain hidden while the original read is pending')
+    release.resolve();await finished.promise
+    await map.page.locator('#workspace').waitFor({timeout:3000})
+    await map.page.locator('#mindmap').waitFor({timeout:3000})
+    pass('MAP_FOREGROUND_REFRESH_DRAINS_BUSY_ACTION',{visibility_transition:true,verified_workspace_restored:true})
+  }finally{release.resolve();await map.page.unroute(pattern,pause)}
+}
+
 function failure(kind,error){
   const line=String(error.stack).match(/host-mindmap\.mjs:\d+:\d+/)?.[0]
   const message=String(error.message).split(/\r?\n/,1)[0].replaceAll(password,'[redacted]')
@@ -590,6 +617,7 @@ try{
   const map={...outline,page:await newPage(outline.ctx),mode:'map'}
   await open(map,src.id)
   for(const v of [outline,map]){v.watch=watch(v,src.id);await observeSignal(v);await chromeState(v,initial)}
+  await returnDuringRead(map,outline,src.id)
   const revised=await importText(outline,'Replacement of the fixed source, which must not retarget the note.',src.doc)
   assert.equal(revised.id,src.doc.id);assert.equal(revised.version,2);assert.notEqual(revised.version_id,src.doc.version_id)
   const paths=await twoViews(outline,map,src,initial),afterConflict=await conflict(outline,map,src,paths)
