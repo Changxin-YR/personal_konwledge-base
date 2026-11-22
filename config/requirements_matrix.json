@@ -236,7 +236,8 @@
       ],
       "implementation_status": "in_progress",
       "evidence_paths": [
-        "docs/evidence/REPO-001/checkpoint.json"
+        "docs/evidence/REPO-001/checkpoint.json",
+        "docs/evidence/REPO-001/acceptance.json"
       ]
     },
     {

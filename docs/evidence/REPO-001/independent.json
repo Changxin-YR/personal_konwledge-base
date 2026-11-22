@@ -1,0 +1,33 @@
+{
+  "unit_id": "REPO-001",
+  "candidate_sha": "12afff5bc52dee947544e1010da4afdb5ef69819",
+  "tree": "b6df3fa2fe59d293bfa629f49d056526b76867a5",
+  "source_tree": "99216452bf6a73f5a31fbc1272788919ab383d0a",
+  "entry_sha256": "066430d01fee08f21ef7a6d9fc1e5db916fc67c9a6e27714da427dc7eb0c4104",
+  "build_sha256": "1ef9ade3c1d5a57c35fa797062be248639327caf2fbdd1c5a36f0e648f9e92ed",
+  "runner_sha256": "7dc38a69136f22b90338cee531d56cb1a792d14b5882226cf4c37f52a5336f78",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/repo001/host-repository.mjs 12afff5bc52dee947544e1010da4afdb5ef69819 066430d01fee08f21ef7a6d9fc1e5db916fc67c9a6e27714da427dc7eb0c4104",
+  "reviewer": "Epicurus",
+  "results": [
+    {
+      "id": "REPO-001-T01",
+      "status": "PASS",
+      "actual": "Eleven GitHub GETs succeeded. After switching refs, the first pin read the old blob SHA and matched bytes. Restart reread produced no upstream requests."
+    },
+    {
+      "id": "REPO-001-T02",
+      "status": "PASS",
+      "actual": "Account revalidation cleared stale content, ACL denials sent no upstream requests, and bounded rate-limit and malformed-content fixture probes remained inert and atomic."
+    }
+  ],
+  "raw": {
+    "path": "docs/evidence/REPO-001/runs/fixed-real-independent.json",
+    "sha256": "3c4e3974f71be269eb3594b361d09a4522c9749927b09f1d5b9a5325303ca231"
+  },
+  "findings_closed": [
+    "FOREGROUND_REVALIDATION_RETAINS_OLD_FILE",
+    "SECONDARY_LIMIT_MISCLASSIFIED"
+  ]
+}

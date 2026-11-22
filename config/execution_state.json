@@ -9,7 +9,7 @@
     "path": "CODEX_START.md",
     "sha256": "da73b65a0004bfa875d1435a61a555ba6f02d45c280aeb8ed6d2e62ab4bd39d8"
   },
-  "active_unit": "PROJECT-001",
+  "active_unit": "REPO-001",
   "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "PROJECT-001 passed T01/T02 and complete A30 on the same frozen candidate",
+  "state_reason": "REPO-001 repair candidate passed both real GitHub reruns",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,18 +127,18 @@
     }
   },
   "last_accepted_checkpoint": {
-    "unit_id": "PROJECT-001",
-    "candidate_sha": "5210b678bc50c34a5966f5d180870a33fe0268f8",
-    "tree": "b2e14afcbc17abcebaa14bc3f922bb1fe465f0c2",
-    "source_tree": "bd716ae90cb0a2c39210e90ced1ab4ea3afe079a",
-    "entry_sha256": "7362cc3dd97f3e4ae3bb0441e99e213b28eafc97965c75526deed1715593bc9e",
-    "build_sha256": "8a7a4726623020391d5d1c8fc56db771fe1ee08b6fe76824c80869b374402a4a",
-    "runner_sha256": "6fa0e5be7fcd7983bc1d3189c1ba8a33b40c6f0ddf55cf6b5c6866cf1f3aa775",
-    "base_commit": "628842baaf5425aa20848787d8aec343f78364c4",
+    "unit_id": "REPO-001",
+    "candidate_sha": "12afff5bc52dee947544e1010da4afdb5ef69819",
+    "tree": "b6df3fa2fe59d293bfa629f49d056526b76867a5",
+    "source_tree": "99216452bf6a73f5a31fbc1272788919ab383d0a",
+    "entry_sha256": "066430d01fee08f21ef7a6d9fc1e5db916fc67c9a6e27714da427dc7eb0c4104",
+    "build_sha256": "1ef9ade3c1d5a57c35fa797062be248639327caf2fbdd1c5a36f0e648f9e92ed",
+    "runner_sha256": "7dc38a69136f22b90338cee531d56cb1a792d14b5882226cf4c37f52a5336f78",
+    "base_commit": "cc6340748e79888c72fa0792a4528e5e4f361f3c",
     "completed": [
-      "Authorized project membership and assignment with current permission, immutable criteria history and personal isolation.",
-      "Independent Host/Chrome/SQLite rerun passed foreground revocation of two grants, fail-closed timeout and restart persistence.",
-      "A30 passed. P08 and A51 were not run; P08 full case requires SCORE-001."
+      "Both real GitHub reruns passed T01/T02 for the immutable public commit, tree and file workflow.",
+      "Revalidation and secondary limit findings closed. GitHub real traffic was read-only; unsupported or malformed inputs were tested using isolated fixtures.",
+      "A19 and private GitHub were not run. Full A19 requires GitLab, Gitee and the actual AI write denial path."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
@@ -146,29 +146,27 @@
       "T02": "PASS",
       "independent": "PASS",
       "affected": "PASS",
-      "A30": "PASS",
-      "A51": "NOT_RUN"
+      "A19": "NOT_RUN",
+      "private_github": "NOT_RUN"
     },
-    "evidence": "docs/evidence/PROJECT-001/acceptance.json",
+    "evidence": "docs/evidence/REPO-001/acceptance.json",
     "defects": [],
     "blocked_dependencies": [],
-    "next_task": "REPO-001",
-    "retry_basis": "Anonymous GitHub REST quota recovered; run the existing repair candidate on real GitHub before opening another unit.",
-    "retry_evidence": "docs/evidence/REPO-001/public-quota-retry-20261122.json"
+    "next_task": "PROJECT-002"
   },
   "checkpoint": {
-    "unit_id": "PROJECT-001",
-    "candidate_sha": "5210b678bc50c34a5966f5d180870a33fe0268f8",
-    "tree": "b2e14afcbc17abcebaa14bc3f922bb1fe465f0c2",
-    "source_tree": "bd716ae90cb0a2c39210e90ced1ab4ea3afe079a",
-    "entry_sha256": "7362cc3dd97f3e4ae3bb0441e99e213b28eafc97965c75526deed1715593bc9e",
-    "build_sha256": "8a7a4726623020391d5d1c8fc56db771fe1ee08b6fe76824c80869b374402a4a",
-    "runner_sha256": "6fa0e5be7fcd7983bc1d3189c1ba8a33b40c6f0ddf55cf6b5c6866cf1f3aa775",
-    "base_commit": "628842baaf5425aa20848787d8aec343f78364c4",
+    "unit_id": "REPO-001",
+    "candidate_sha": "12afff5bc52dee947544e1010da4afdb5ef69819",
+    "tree": "b6df3fa2fe59d293bfa629f49d056526b76867a5",
+    "source_tree": "99216452bf6a73f5a31fbc1272788919ab383d0a",
+    "entry_sha256": "066430d01fee08f21ef7a6d9fc1e5db916fc67c9a6e27714da427dc7eb0c4104",
+    "build_sha256": "1ef9ade3c1d5a57c35fa797062be248639327caf2fbdd1c5a36f0e648f9e92ed",
+    "runner_sha256": "7dc38a69136f22b90338cee531d56cb1a792d14b5882226cf4c37f52a5336f78",
+    "base_commit": "cc6340748e79888c72fa0792a4528e5e4f361f3c",
     "completed": [
-      "Authorized project membership and assignment with current permission, immutable criteria history and personal isolation.",
-      "Independent Host/Chrome/SQLite rerun passed foreground revocation of two grants, fail-closed timeout and restart persistence.",
-      "A30 passed. P08 and A51 were not run; P08 full case requires SCORE-001."
+      "Both real GitHub reruns passed T01/T02 for the immutable public commit, tree and file workflow.",
+      "Revalidation and secondary limit findings closed. GitHub real traffic was read-only; unsupported or malformed inputs were tested using isolated fixtures.",
+      "A19 and private GitHub were not run. Full A19 requires GitLab, Gitee and the actual AI write denial path."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
@@ -176,14 +174,12 @@
       "T02": "PASS",
       "independent": "PASS",
       "affected": "PASS",
-      "A30": "PASS",
-      "A51": "NOT_RUN"
+      "A19": "NOT_RUN",
+      "private_github": "NOT_RUN"
     },
-    "evidence": "docs/evidence/PROJECT-001/acceptance.json",
+    "evidence": "docs/evidence/REPO-001/acceptance.json",
     "defects": [],
     "blocked_dependencies": [],
-    "next_task": "REPO-001",
-    "retry_basis": "Anonymous GitHub REST quota recovered; run the existing repair candidate on real GitHub before opening another unit.",
-    "retry_evidence": "docs/evidence/REPO-001/public-quota-retry-20261122.json"
+    "next_task": "PROJECT-002"
   }
 }

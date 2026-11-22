@@ -2647,20 +2647,29 @@
       ],
       "final_acceptance_ids": [],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "blocked",
+      "status": "passed",
       "test_plan_status": "expanded_for_activation",
-      "test_result_status": "BLOCKED",
-      "independent_review_status": "NOT_RUN",
-      "retest_status": "NOT_RUN",
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "retest_status": "PASS",
       "candidate_commit": "12afff5bc52dee947544e1010da4afdb5ef69819",
-      "blocked_test_ids": [
+      "evidence_paths": [
+        "docs/evidence/REPO-001/checkpoint.json",
+        "docs/evidence/REPO-001/REPORT.md",
+        "docs/evidence/REPO-001/acceptance.json",
+        "docs/evidence/REPO-001/independent.json"
+      ],
+      "completed_test_ids": [
         "REPO-001-T01",
         "REPO-001-T02"
       ],
-      "evidence_paths": [
-        "docs/evidence/REPO-001/checkpoint.json",
-        "docs/evidence/REPO-001/REPORT.md"
-      ]
+      "open_review_items": [],
+      "closed_review_items": [
+        "FOREGROUND_REVALIDATION_RETAINS_OLD_FILE",
+        "SECONDARY_LIMIT_MISCLASSIFIED"
+      ],
+      "completed_at": "2026-11-22T13:43:59+08:00",
+      "acceptance_record": "docs/evidence/REPO-001/acceptance.json"
     },
     {
       "id": "REPO-002",

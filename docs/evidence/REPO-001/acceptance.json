@@ -1,0 +1,42 @@
+{
+  "unit_id": "REPO-001",
+  "candidate_sha": "12afff5bc52dee947544e1010da4afdb5ef69819",
+  "tree": "b6df3fa2fe59d293bfa629f49d056526b76867a5",
+  "source_tree": "99216452bf6a73f5a31fbc1272788919ab383d0a",
+  "entry_sha256": "066430d01fee08f21ef7a6d9fc1e5db916fc67c9a6e27714da427dc7eb0c4104",
+  "build_sha256": "1ef9ade3c1d5a57c35fa797062be248639327caf2fbdd1c5a36f0e648f9e92ed",
+  "runner_sha256": "7dc38a69136f22b90338cee531d56cb1a792d14b5882226cf4c37f52a5336f78",
+  "unit_acceptance": "PASS",
+  "passed_test_ids": [
+    "REPO-001-T01",
+    "REPO-001-T02"
+  ],
+  "main_command": "node scripts/repo001/host-repository.mjs 12afff5bc52dee947544e1010da4afdb5ef69819 066430d01fee08f21ef7a6d9fc1e5db916fc67c9a6e27714da427dc7eb0c4104",
+  "main_exit": 0,
+  "main_records": [
+    {
+      "path": "docs/evidence/REPO-001/runs/fixed-real-main.json",
+      "sha256": "ca17b1fe0feb2fa21b6454ae18b305774ed0c86dae94795072a60a9d3a445b35"
+    }
+  ],
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/REPO-001/independent.json",
+  "prerequisite": {
+    "path": "docs/evidence/REPO-001/public-quota-retry-20261122.json",
+    "sha256": "42796bef8d9398c90224e413fcc2ee18459e2bce152beb966ab858444b8062d2"
+  },
+  "technical_results": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "targeted_tests": 2,
+    "plan_gate_regressions": 148,
+    "fixture_regression": {
+      "path": "docs/evidence/REPO-001/runs/fixed-fixture-regression.json",
+      "sha256": "afd50226ef1aab45adae73952ebd360a53b8e3885f15765ef4eff805720f2664"
+    }
+  },
+  "complete_scenario": {
+    "A19": "NOT_RUN"
+  },
+  "private_github": "NOT_RUN"
+}
