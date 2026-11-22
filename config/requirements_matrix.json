@@ -455,7 +455,9 @@
       "implementation_status": "in_progress",
       "evidence_paths": [
         "docs/evidence/SHARE-001/acceptance.json",
-        "docs/evidence/SHARE-001/A34.json"
+        "docs/evidence/SHARE-001/A34.json",
+        "docs/evidence/PROJECT-001/acceptance.json",
+        "docs/evidence/PROJECT-001/A30.json"
       ]
     },
     {
@@ -486,8 +488,11 @@
         "A31",
         "A51"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/PROJECT-001/acceptance.json",
+        "docs/evidence/PROJECT-001/A30.json"
+      ]
     },
     {
       "id": "F34",
@@ -1360,8 +1365,12 @@
       "expected": "任务结构完整；只授权对象可操作；标准变更版本化并明确适用提交；非成员无泄露。",
       "level": "e2e",
       "evidence_required": "测试记录、关键状态与操作证据",
-      "status": "NOT_RUN",
-      "final_milestone": "M4"
+      "status": "PASS",
+      "final_milestone": "M4",
+      "evidence_paths": [
+        "docs/evidence/PROJECT-001/A30.json",
+        "docs/evidence/PROJECT-001/independent.json"
+      ]
     },
     {
       "id": "A31",

@@ -1,0 +1,45 @@
+{
+  "unit_id": "PROJECT-001",
+  "candidate_sha": "5210b678bc50c34a5966f5d180870a33fe0268f8",
+  "tree": "b2e14afcbc17abcebaa14bc3f922bb1fe465f0c2",
+  "source_tree": "bd716ae90cb0a2c39210e90ced1ab4ea3afe079a",
+  "entry_sha256": "7362cc3dd97f3e4ae3bb0441e99e213b28eafc97965c75526deed1715593bc9e",
+  "build_sha256": "8a7a4726623020391d5d1c8fc56db771fe1ee08b6fe76824c80869b374402a4a",
+  "runner_sha256": "6fa0e5be7fcd7983bc1d3189c1ba8a33b40c6f0ddf55cf6b5c6866cf1f3aa775",
+  "unit_acceptance": "PASS",
+  "passed_test_ids": [
+    "PROJECT-001-T01",
+    "PROJECT-001-T02"
+  ],
+  "main_command": "node scripts/project001/host-project-tasks.mjs 5210b678bc50c34a5966f5d180870a33fe0268f8 7362cc3dd97f3e4ae3bb0441e99e213b28eafc97965c75526deed1715593bc9e",
+  "main_exit": 0,
+  "main_records": [
+    {
+      "path": "docs/evidence/PROJECT-001/runs/main.json",
+      "sha256": "e01ef54600613ddaddefc70054ba17c4e2b3cabb7500eaa7ff73dd797a5c9b65"
+    }
+  ],
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/PROJECT-001/independent.json",
+  "technical_results": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "affected_tests": 17,
+    "command": "node --experimental-transform-types --test scripts/project001/task-policy.test.mjs scripts/project001/task-store.test.mjs scripts/share001/invitation-store.test.mjs scripts/repo001/repository.test.mjs scripts/lib005/migration.test.mjs scripts/lib004/office-migration.test.mjs scripts/read001/locator-migration.test.mjs scripts/read002/position-migration.test.mjs scripts/lib001/migration.test.mjs",
+    "exit": 0,
+    "plan_gate_regressions": 148
+  },
+  "historical_records": [
+    {
+      "path": "docs/evidence/PROJECT-001/runs/initial-expiry-failure.json",
+      "sha256": "82c1a74e804ff766bb24d182ea9279a87f6dd89ea153d8ee005c82a6f53d63ef"
+    },
+    {
+      "path": "docs/evidence/PROJECT-001/runs/previous-independent-before-foreground-fix.json",
+      "sha256": "60b146bd9ac0bc97958a35a6303d790b75bea7f6dc56b41afb435da36d274573"
+    }
+  ],
+  "final_cases": [
+    "docs/evidence/PROJECT-001/A30.json"
+  ]
+}

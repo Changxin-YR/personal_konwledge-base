@@ -10,7 +10,7 @@
     "sha256": "da73b65a0004bfa875d1435a61a555ba6f02d45c280aeb8ed6d2e62ab4bd39d8"
   },
   "active_unit": "PROJECT-001",
-  "unit_state": "in_progress",
+  "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Implement PROJECT-001 on existing membership and invitation authorization",
+  "state_reason": "PROJECT-001 passed T01/T02 and complete A30 on the same frozen candidate",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,17 +127,18 @@
     }
   },
   "last_accepted_checkpoint": {
-    "unit_id": "NOTE-003",
-    "candidate_sha": "b3ce013a9642c51b847ca6ed11324522cdd586f0",
-    "tree": "9361ae1ac430dc17db1f3a228457a549c5c9a592",
-    "source_tree": "b187fae682b98a31d01d59db4c69c3fb45d1686a",
-    "entry_sha256": "e2898a64611f795a9a9606937d461f47267939089181cb4e449941ff59d3d41b",
-    "build_sha256": "3e0a99f863216d7c6de7f1befbf691ee3985b646059616c6ce813be1390a4923",
-    "base_commit": "dae11cf7b894579cbbe919ca19ef10a43c8ad107",
+    "unit_id": "PROJECT-001",
+    "candidate_sha": "5210b678bc50c34a5966f5d180870a33fe0268f8",
+    "tree": "b2e14afcbc17abcebaa14bc3f922bb1fe465f0c2",
+    "source_tree": "bd716ae90cb0a2c39210e90ced1ab4ea3afe079a",
+    "entry_sha256": "7362cc3dd97f3e4ae3bb0441e99e213b28eafc97965c75526deed1715593bc9e",
+    "build_sha256": "8a7a4726623020391d5d1c8fc56db771fe1ee08b6fe76824c80869b374402a4a",
+    "runner_sha256": "6fa0e5be7fcd7983bc1d3189c1ba8a33b40c6f0ddf55cf6b5c6866cf1f3aa775",
+    "base_commit": "628842baaf5425aa20848787d8aec343f78364c4",
     "completed": [
-      "Outline and mind map update the same node IDs, transactions and note revision; verified cross-tab refresh preserves edited drafts.",
-      "Layout is stored separately and survives restart; A17 integrates historical NOTE-001/002 candidates with actual note, reading and source evidence.",
-      "Fixed queued foreground refresh and keyboard focus loss; verified both in main and independent run."
+      "Authorized project membership and assignment with current permission, immutable criteria history and personal isolation.",
+      "Independent Host/Chrome/SQLite rerun passed foreground revocation of two grants, fail-closed timeout and restart persistence.",
+      "A30 passed. P08 and A51 were not run; P08 full case requires SCORE-001."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
@@ -145,38 +146,44 @@
       "T02": "PASS",
       "independent": "PASS",
       "affected": "PASS",
-      "A17": "PASS"
+      "A30": "PASS",
+      "A51": "NOT_RUN"
     },
-    "evidence": "docs/evidence/NOTE-003/acceptance.json",
+    "evidence": "docs/evidence/PROJECT-001/acceptance.json",
     "defects": [],
     "blocked_dependencies": [],
-    "next_task": "REPO-001"
+    "next_task": "REPO-001",
+    "retry_basis": "Anonymous GitHub REST quota recovered; run the existing repair candidate on real GitHub before opening another unit.",
+    "retry_evidence": "docs/evidence/REPO-001/public-quota-retry-20261122.json"
   },
   "checkpoint": {
-    "unit_id": "REPO-001",
-    "candidate_sha": "12afff5bc52dee947544e1010da4afdb5ef69819",
-    "tree": "b6df3fa2fe59d293bfa629f49d056526b76867a5",
-    "source_tree": "99216452bf6a73f5a31fbc1272788919ab383d0a",
-    "entry_sha256": "066430d01fee08f21ef7a6d9fc1e5db916fc67c9a6e27714da427dc7eb0c4104",
-    "build_sha256": "1ef9ade3c1d5a57c35fa797062be248639327caf2fbdd1c5a36f0e648f9e92ed",
-    "base_commit": "cc6340748e79888c72fa0792a4528e5e4f361f3c",
+    "unit_id": "PROJECT-001",
+    "candidate_sha": "5210b678bc50c34a5966f5d180870a33fe0268f8",
+    "tree": "b2e14afcbc17abcebaa14bc3f922bb1fe465f0c2",
+    "source_tree": "bd716ae90cb0a2c39210e90ced1ab4ea3afe079a",
+    "entry_sha256": "7362cc3dd97f3e4ae3bb0441e99e213b28eafc97965c75526deed1715593bc9e",
+    "build_sha256": "8a7a4726623020391d5d1c8fc56db771fe1ee08b6fe76824c80869b374402a4a",
+    "runner_sha256": "6fa0e5be7fcd7983bc1d3189c1ba8a33b40c6f0ddf55cf6b5c6866cf1f3aa775",
+    "base_commit": "628842baaf5425aa20848787d8aec343f78364c4",
     "completed": [
-      "Immutable GitHub repository, commit tree and blob; selected blob verification and read-only egress.",
-      "First candidate real main and independent runs passed their then-existing checks, but independent review found two defects.",
-      "Fixed candidate actual isolated Host/Chrome/SQLite fixture regression passed account gating and HTTP rate classifications."
+      "Authorized project membership and assignment with current permission, immutable criteria history and personal isolation.",
+      "Independent Host/Chrome/SQLite rerun passed foreground revocation of two grants, fail-closed timeout and restart persistence.",
+      "A30 passed. P08 and A51 were not run; P08 full case requires SCORE-001."
     ],
     "test_results": {
-      "unit_acceptance": "BLOCKED",
-      "T01": "NOT_RUN",
-      "T02": "NOT_RUN",
-      "fixed_fixture_regression": "PASS",
-      "A19": "NOT_RUN"
+      "unit_acceptance": "PASS",
+      "T01": "PASS",
+      "T02": "PASS",
+      "independent": "PASS",
+      "affected": "PASS",
+      "A30": "PASS",
+      "A51": "NOT_RUN"
     },
-    "evidence": "docs/evidence/REPO-001/checkpoint.json",
+    "evidence": "docs/evidence/PROJECT-001/acceptance.json",
     "defects": [],
-    "blocked_dependencies": [
-      "Public GitHub REST quota must cover the two frozen-candidate reruns; check again at/after 2026-11-22T13:10:44+08:00."
-    ],
-    "next_task": "PROJECT-001"
+    "blocked_dependencies": [],
+    "next_task": "REPO-001",
+    "retry_basis": "Anonymous GitHub REST quota recovered; run the existing repair candidate on real GitHub before opening another unit.",
+    "retry_evidence": "docs/evidence/REPO-001/public-quota-retry-20261122.json"
   }
 }

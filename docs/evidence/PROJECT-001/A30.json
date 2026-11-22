@@ -1,0 +1,61 @@
+{
+  "unit_id": "PROJECT-001",
+  "candidate_sha": "5210b678bc50c34a5966f5d180870a33fe0268f8",
+  "tree": "b2e14afcbc17abcebaa14bc3f922bb1fe465f0c2",
+  "source_tree": "bd716ae90cb0a2c39210e90ced1ab4ea3afe079a",
+  "entry_sha256": "7362cc3dd97f3e4ae3bb0441e99e213b28eafc97965c75526deed1715593bc9e",
+  "build_sha256": "8a7a4726623020391d5d1c8fc56db771fe1ee08b6fe76824c80869b374402a4a",
+  "runner_sha256": "6fa0e5be7fcd7983bc1d3189c1ba8a33b40c6f0ddf55cf6b5c6866cf1f3aa775",
+  "case_id": "A30",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/project001/host-project-tasks.mjs 5210b678bc50c34a5966f5d180870a33fe0268f8 7362cc3dd97f3e4ae3bb0441e99e213b28eafc97965c75526deed1715593bc9e",
+  "results": [
+    {
+      "id": "authorized_assignment_and_versioning",
+      "status": "PASS",
+      "revisions": [
+        1,
+        2
+      ],
+      "forged_or_stale_writes": 0
+    },
+    {
+      "id": "remote_revocation_clears_foreground_and_both_invitation_grants",
+      "status": "PASS",
+      "visibility_changes": 0,
+      "revoked_grants": 2
+    },
+    {
+      "id": "revalidation_timeout_clears_visible_task_without_disabling_session",
+      "status": "PASS"
+    },
+    {
+      "id": "expired_and_removed_members_cannot_read_or_join_by_old_code",
+      "status": "PASS",
+      "personal_stays_private": true
+    },
+    {
+      "id": "restart_preserves_assignment_history_and_revocation",
+      "status": "PASS"
+    }
+  ],
+  "main": {
+    "path": "docs/evidence/PROJECT-001/runs/main.json",
+    "sha256": "e01ef54600613ddaddefc70054ba17c4e2b3cabb7500eaa7ff73dd797a5c9b65"
+  },
+  "independent": {
+    "path": "docs/evidence/PROJECT-001/runs/independent.json",
+    "sha256": "aac7b5bcc91db83117c18d2a87e9a4b36009c4df95fe0b29eb969e7f3743824b"
+  },
+  "screens": [
+    {
+      "path": "docs/evidence/PROJECT-001/runs/main-desktop.png",
+      "sha256": "709f2174a3008963b2918527302c3279d31990f4334356f8225f311e60a0da30"
+    },
+    {
+      "path": "docs/evidence/PROJECT-001/runs/main-mobile.png",
+      "sha256": "4001d90e5fe148d33a8a3380299f86c3205a3bcd339842866e9a613dfb76ae21"
+    }
+  ]
+}

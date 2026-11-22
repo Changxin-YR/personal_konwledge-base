@@ -3112,8 +3112,30 @@
         "A30"
       ],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "in_progress",
-      "test_plan_status": "expanded_for_activation"
+      "status": "passed",
+      "test_plan_status": "expanded_for_activation",
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "retest_status": "PASS",
+      "completed_test_ids": [
+        "PROJECT-001-T01",
+        "PROJECT-001-T02"
+      ],
+      "open_review_items": [],
+      "closed_review_items": [
+        "EXPIRY_TEST_SESSION_EXPIRED",
+        "FOREGROUND_TAB_RETAINS_REVOKED_CONTENT",
+        "LEGACY_MIGRATION_TEST_END_VERSION"
+      ],
+      "completed_at": "2026-11-22T13:37:43+08:00",
+      "candidate_commit": "5210b678bc50c34a5966f5d180870a33fe0268f8",
+      "acceptance_record": "docs/evidence/PROJECT-001/acceptance.json",
+      "evidence_paths": [
+        "docs/evidence/PROJECT-001/acceptance.json",
+        "docs/evidence/PROJECT-001/independent.json",
+        "docs/evidence/PROJECT-001/A30.json",
+        "docs/evidence/PROJECT-001/REPORT.md"
+      ]
     },
     {
       "id": "PROJECT-002",

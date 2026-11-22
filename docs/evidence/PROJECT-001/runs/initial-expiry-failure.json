@@ -1,0 +1,58 @@
+{
+  "unit_id": "PROJECT-001",
+  "candidate_sha": "adf1347c94d2c08937a923c9a77b590f7f691885",
+  "tree": "a651ff195b7ea704c827917fb94c9e74d04d9a29",
+  "source_tree": "f5088c873825d9fbe4a83367e0584e39acbce022",
+  "entry_sha256": "5434d065181260c7e379c204312b3ea688c5ba8a1c584b54b086ef0e4de4a897",
+  "build_sha256": "50818e6830b4df73d9d17d7e5a3671f6be9e90553a1905f94581ef27cc2f3e9e",
+  "runner_sha256": "0f4e6900f74bc14880c1a20b73cf13bc25ba8961a11bbb06313e04bbbabd6b0d",
+  "scope": "Isolated Host with business clock, Chrome and SQLite; no models",
+  "status": "FAIL",
+  "T01": "PASS",
+  "T02": "FAIL",
+  "A30": "NOT_RUN",
+  "A51": "NOT_RUN",
+  "checks": [
+    {
+      "id": "authorized_assignment_and_versioning",
+      "status": "PASS",
+      "revisions": [
+        1,
+        2
+      ],
+      "forged_or_stale_writes": 0
+    }
+  ],
+  "boots": [
+    117320
+  ],
+  "screens": [
+    {
+      "name": "project-task-desktop.png",
+      "sha256": "43cdef7a571c41acf9e2ce0cf1e205bd308ef0753cc6dd2749712bc86f60be8b"
+    }
+  ],
+  "binding": {
+    "candidate_sha": "adf1347c94d2c08937a923c9a77b590f7f691885",
+    "tree": "a651ff195b7ea704c827917fb94c9e74d04d9a29",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "5434d065181260c7e379c204312b3ea688c5ba8a1c584b54b086ef0e4de4a897",
+    "helpers": {
+      "business-clock": "e038a837ce4a56ef366fe809e8594c4eab79b602f9efd23fb2ec0e69ae866709",
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "5278ebf7cc64773560b3b672c9182c65b4e1d82a20b8f569328cb0765a627f10",
+      "a07-isolated-host": "f3afd20f020fb86ed245c78d246143cd687c4c4e08d954489f32249811a8cf10"
+    },
+    "parser": {
+      "pdf-extractor.js": "49fb0588ba0c37486a287a083d9bd2a032d89205d34af615845c4928b1f6745c",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "chrome": "158.0.8127.36",
+  "failure": {
+    "phase": "absolute invitation expiry and member removal",
+    "message": "GET /knowledge/v1/project-tasks/80a2740c-af5d-4339-acaf-3bc00a24d425 AUTH_REQUIRED\n\n401 !== 404\n"
+  }
+}
