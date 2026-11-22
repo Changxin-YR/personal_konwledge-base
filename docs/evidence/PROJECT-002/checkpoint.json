@@ -1,0 +1,61 @@
+{
+  "unit_id": "PROJECT-002",
+  "candidate_sha": "76fba933296077d8d68caf8b8a29f2f3f0763f20",
+  "tree": "7588fb02f5103200a6f19d485c79993f37726566",
+  "source_tree": "d379dc3a226885ac5b057a0226dc8f0e4fd17a0e",
+  "entry_sha256": "a7766dfb06cdaee77c43dacf420220314b8498e5910543ffc52a6d47ed1f2eff",
+  "build_sha256": "214cc4e0dd04e5a6c46c8ef2c023c4028ef6f0f0b10677883cd19e08142410e2",
+  "runner_sha256": "2576bb20b5863481685388616231144d7226f1ef0ed41a5819b45a90bbbbd811",
+  "base_commit": "135693f2dbd6d7c2e37be1db47bc79fd063cbe77",
+  "completed": [
+    "Added v30, append-only inline submissions, per-criterion review decisions and server-time semantics; wired HTTP and Chrome workflow.",
+    "Main and independent Host/Chrome/SQLite runs passed the inline slice; PROJECT-001 regression passed on the same commit; 23 affected and 148 plan gate checks passed."
+  ],
+  "test_results": {
+    "unit_acceptance": "NOT_RUN",
+    "inline_main": "PASS",
+    "inline_independent": "PASS",
+    "affected": "PASS",
+    "A30_regression": "PASS",
+    "A31": "NOT_RUN",
+    "P08": "NOT_RUN"
+  },
+  "evidence": "docs/evidence/PROJECT-002/checkpoint.json",
+  "defects": [
+    "Shared materials are not pinned or reauthorized yet; awaiting_material_access and recovery lack a real Host path."
+  ],
+  "blocked_dependencies": [
+    "P08 completion/score assertion requires SCORE-001; ordinary final review and administrator overrides are outside PROJECT-002."
+  ],
+  "next_task": "PROJECT-002",
+  "commands": {
+    "product": "node scripts/project002/host-workflow.mjs 76fba933296077d8d68caf8b8a29f2f3f0763f20 a7766dfb06cdaee77c43dacf420220314b8498e5910543ffc52a6d47ed1f2eff",
+    "regression": "node scripts/project001/host-project-tasks.mjs 76fba933296077d8d68caf8b8a29f2f3f0763f20 a7766dfb06cdaee77c43dacf420220314b8498e5910543ffc52a6d47ed1f2eff",
+    "technical": "node --experimental-transform-types --test scripts/project001/task-policy.test.mjs scripts/project001/task-store.test.mjs scripts/project002/workflow-policy.test.mjs scripts/project002/workflow-store.test.mjs scripts/share001/invitation-store.test.mjs scripts/repo001/repository.test.mjs scripts/lib005/migration.test.mjs scripts/lib004/office-migration.test.mjs scripts/read001/locator-migration.test.mjs scripts/read002/position-migration.test.mjs scripts/lib001/migration.test.mjs"
+  },
+  "runs": {
+    "main": {
+      "path": "docs/evidence/PROJECT-002/runs/main.json",
+      "sha256": "deb3a99bcf59d94f58ec51b7c156d3d1f70200f30f52e3d1b7e8dfd96efd66ac",
+      "exit": 0
+    },
+    "independent": {
+      "path": "docs/evidence/PROJECT-002/runs/independent.json",
+      "sha256": "b04c5d6399a871f2e8ac88f59de3f338c61b8809f29e9ab5390207c20dc84c14",
+      "exit": 0,
+      "reviewer": "Epicurus"
+    },
+    "regression": {
+      "path": "docs/evidence/PROJECT-002/runs/project001-regression.json",
+      "sha256": "0cf5b77ae2ceaf1696a0e845653f2685739771accc59884c983bd6902d97b524",
+      "exit": 0
+    }
+  },
+  "technical": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "affected_tests": 23,
+    "plan_gate_regressions": 148
+  },
+  "remaining": "Implement fixed-version shared material checks and waiting/recovery; then rerun T01/T02 and A31 independently."
+}
