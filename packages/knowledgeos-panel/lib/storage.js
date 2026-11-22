@@ -1945,8 +1945,7 @@ var InvitationStore = class {
   managed(db, a, id, now) {
     const r = db.prepare("SELECT * FROM invitations WHERE service_id=? AND id=?").get(a.serviceId, id);
     if (!r) throw unavailable();
-    this.issueTarget(a, target(r), now);
-    return r;
+    return { r, title: this.issueTarget(a, target(r), now).title };
   }
   issueSpec(a, s, now) {
     const { scope, id, permission } = s, t = { scope, id, permission };
@@ -2014,9 +2013,9 @@ var InvitationStore = class {
   }
   get(prior, expected, id) {
     return this.tx("read", (db, now) => {
-      const a = this.actor(prior, now, expected), r = this.managed(db, a, id, now);
+      const a = this.actor(prior, now, expected), { r, title } = this.managed(db, a, id, now);
       const rows = db.prepare("SELECT id,user_id,expires_at FROM invitation_redemptions WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? ORDER BY id").all(id, now);
-      return { ...receipt2(r), active: active(r, now), affected: rows, server_time: now };
+      return { ...receipt2(r), title, active: active(r, now), affected: rows, server_time: now };
     });
   }
   list(prior) {
@@ -2032,7 +2031,7 @@ var InvitationStore = class {
   }
   change(prior, expected, id, expectedRevision, event, days) {
     return this.tx("write", (db, now) => {
-      const a = this.actor(prior, now, expected), r = this.managed(db, a, id, now);
+      const a = this.actor(prior, now, expected), { r } = this.managed(db, a, id, now);
       if (!active(r, now)) throw unavailable();
       if (expectedRevision !== r.revision) throw conflict2();
       const expires_at = event === "renew" ? new Date(Date.parse(r.expires_at) + duration(days)).toISOString() : r.expires_at;

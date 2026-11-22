@@ -55,6 +55,9 @@ try{
   await http(first.ctx,'/invitations',404,'POST',{actor_id:first.user,scope:'object',target_id:doc.id,permission:'read'})
   facts.checks.push('UI issue/redeem and fixed-version reading; live edit allowed and management denied')
   phase='renew and revoke in Chrome';await owner.page.getByRole('button',{name:'管理邀请'}).click();await owner.page.locator('#managed').waitFor()
+  const title=owner.page.locator('#managed-title'),meta=owner.page.locator('#managed-meta')
+  assert.equal(await title.textContent(),issued.title);assert.match(await meta.textContent(),/剩余 7 天/)
+  assert.equal(await owner.page.locator('#affected li').count(),1)
   const manageResponses=[],pageErrors=[]
   owner.page.on('response',r=>{if(new URL(r.url()).pathname.startsWith(prefix+'/invitations'))manageResponses.push({method:r.request().method(),status:r.status()})})
   owner.page.on('pageerror',e=>pageErrors.push(e.name))
@@ -70,6 +73,7 @@ try{
       workspace_visible:await owner.page.locator('#workspace').isVisible()}
     throw e
   }
+  assert.equal(await title.textContent(),issued.title);assert.equal(await owner.page.locator('#affected li').count(),1)
   await owner.page.getByRole('button',{name:'预览撤销'}).click();await owner.page.locator('#confirm-panel').waitFor()
   const [revoked]=await Promise.all([owner.page.waitForResponse(r=>r.url().endsWith('/revoke')),owner.page.getByRole('button',{name:'确认操作'}).click()]);assert.equal(revoked.status(),200)
   await http(first.ctx,original,404);await http(first.ctx,resource,404,'PATCH',{expected_revision:edit.revision,body:'Denied write'})

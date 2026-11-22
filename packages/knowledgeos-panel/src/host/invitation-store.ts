@@ -69,7 +69,7 @@ export class InvitationStore {
   }
   private managed(db:DatabaseSync,a:SessionActor,id:string,now:string){
     const r=db.prepare('SELECT * FROM invitations WHERE service_id=? AND id=?').get(a.serviceId,id) as InvitationRow|undefined
-    if(!r)throw unavailable();this.issueTarget(a,target(r),now);return r
+    if(!r)throw unavailable();return {r,title:this.issueTarget(a,target(r),now).title}
   }
   private issueSpec(a:SessionActor,s:InvitationSpec,now:string){
     const {scope,id,permission}=s,t={scope,id,permission} as InvitationTarget
@@ -119,9 +119,9 @@ export class InvitationStore {
     return {id:grant,target:t,title:info.title,expires_at:r.expires_at,server_time:now,replayed:false}
   })}
   get(prior:SessionActor,expected:string,id:string){return this.tx('read',(db,now)=>{
-    const a=this.actor(prior,now,expected),r=this.managed(db,a,id,now)
+    const a=this.actor(prior,now,expected),{r,title}=this.managed(db,a,id,now)
     const rows=db.prepare('SELECT id,user_id,expires_at FROM invitation_redemptions WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? ORDER BY id').all(id,now)
-    return {...receipt(r),active:active(r,now),affected:rows,server_time:now}
+    return {...receipt(r),title,active:active(r,now),affected:rows,server_time:now}
   })}
   list(prior:SessionActor){return this.tx('read',(db,now)=>{
     const a=this.actor(prior,now,prior.userId)
@@ -130,7 +130,7 @@ export class InvitationStore {
     return {actor_id:a.userId,server_time:now,items}
   })}
   change(prior:SessionActor,expected:string,id:string,expectedRevision:number,event:'renew'|'revoke',days?:number){return this.tx('write',(db,now)=>{
-    const a=this.actor(prior,now,expected),r=this.managed(db,a,id,now)
+    const a=this.actor(prior,now,expected),{r}=this.managed(db,a,id,now)
     if(!active(r,now))throw unavailable()
     if(expectedRevision!==r.revision)throw conflict()
     const expires_at=event==='renew'?new Date(Date.parse(r.expires_at)+duration(days)).toISOString():r.expires_at
