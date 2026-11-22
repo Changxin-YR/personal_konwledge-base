@@ -1,0 +1,29 @@
+{
+  "unit_id": "FND-005",
+  "date": "2026-11-22",
+  "candidate_sha": "c2085283bcba865e03efe2d4ba10c51070615f5e",
+  "entry_sha256": "59c3c301de613f9302e8b77c55a384857594891c87bdcba5e7c71465e34aa7b9",
+  "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+  "transport_sha256": "9668b6fa470995bcfe65bbcd01506a4601b562bdfb248f732a1c9f7fa173d002",
+  "command": "node scripts/fnd005/native-host-egress-preflight.mjs c2085283bcba865e03efe2d4ba10c51070615f5e 59c3c301de613f9302e8b77c55a384857594891c87bdcba5e7c71465e34aa7b9",
+  "exit": 0,
+  "provider": "deepseek-official",
+  "settings_ns": "llm-deepseek",
+  "configured": false,
+  "model_count": 0,
+  "unconfigured_transport_attempts": 0,
+  "synthetic_denied_before_dispatch": {
+    "directory": 1,
+    "messages": 1,
+    "files": 1
+  },
+  "network_dispatches": 0,
+  "real_inference_requests": 0,
+  "preflight": "PASS",
+  "live_acceptance": "BLOCKED",
+  "remaining": [
+    "candidate/route/budget/body-scoped one-shot Messages allowance",
+    "native credential provisioned only in isolated authorized profile, with available model and verified existing budget",
+    "real business read/update plus independent native rerun"
+  ]
+}

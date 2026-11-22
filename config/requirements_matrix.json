@@ -234,8 +234,10 @@
       "acceptance_ids": [
         "A19"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/REPO-001/checkpoint.json"
+      ]
     },
     {
       "id": "F16",

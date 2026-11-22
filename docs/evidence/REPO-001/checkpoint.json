@@ -1,0 +1,35 @@
+{
+  "unit_id": "REPO-001",
+  "base_commit": "cc6340748e79888c72fa0792a4528e5e4f361f3c",
+  "candidate_sha": "12afff5bc52dee947544e1010da4afdb5ef69819",
+  "tree": "b6df3fa2fe59d293bfa629f49d056526b76867a5",
+  "source_tree": "99216452bf6a73f5a31fbc1272788919ab383d0a",
+  "entry_sha256": "066430d01fee08f21ef7a6d9fc1e5db916fc67c9a6e27714da427dc7eb0c4104",
+  "build_sha256": "1ef9ade3c1d5a57c35fa797062be248639327caf2fbdd1c5a36f0e648f9e92ed",
+  "unit_acceptance": "BLOCKED",
+  "T01": "NOT_RUN",
+  "T02": "NOT_RUN",
+  "A19": "NOT_RUN",
+  "private_github": "NOT_RUN",
+  "reason": "PUBLIC_GITHUB_QUOTA_BELOW_RERUN_REQUIREMENTS",
+  "quota": {
+    "observed_remaining": 7,
+    "estimated_calls_per_run": 15,
+    "reset_at": "2026-11-22T13:10:44+08:00"
+  },
+  "evidence": [
+    {
+      "path": "docs/evidence/REPO-001/runs/initial-main.json",
+      "sha256": "313bdd5ec3f045b29f1743027d46100d0adbd72363c6590b1901ae7729f62cd8"
+    },
+    {
+      "path": "docs/evidence/REPO-001/runs/initial-independent.json",
+      "sha256": "a9cf7b29c647d2ed9a2baa107a82a9a6e5f4d6a80b2bc85d75b2693b79e1c1c3"
+    },
+    {
+      "path": "docs/evidence/REPO-001/runs/fixed-fixture-regression.json",
+      "sha256": "afd50226ef1aab45adae73952ebd360a53b8e3885f15765ef4eff805720f2664"
+    }
+  ],
+  "no_model_or_remote_write": true
+}

@@ -1077,7 +1077,8 @@
         "docs/evidence/FND-005/independent/REVIEW.md",
         "docs/evidence/FND-005/build-and-gates.json",
         "docs/evidence/FND-005/delivery-safety.json",
-        "docs/evidence/FND-005/continuous/discovery-blocked.json"
+        "docs/evidence/FND-005/continuous/discovery-blocked.json",
+        "docs/evidence/FND-005/native-host-egress-20261122.json"
       ],
       "real_provider_status": "BLOCKED",
       "real_provider_evidence": "docs/evidence/FND-005/live-hs14-Oaxv9B/summary.json",
@@ -2646,8 +2647,20 @@
       ],
       "final_acceptance_ids": [],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "in_progress",
-      "test_plan_status": "planning_baseline_expand_on_activation"
+      "status": "blocked",
+      "test_plan_status": "expanded_for_activation",
+      "test_result_status": "BLOCKED",
+      "independent_review_status": "NOT_RUN",
+      "retest_status": "NOT_RUN",
+      "candidate_commit": "12afff5bc52dee947544e1010da4afdb5ef69819",
+      "blocked_test_ids": [
+        "REPO-001-T01",
+        "REPO-001-T02"
+      ],
+      "evidence_paths": [
+        "docs/evidence/REPO-001/checkpoint.json",
+        "docs/evidence/REPO-001/REPORT.md"
+      ]
     },
     {
       "id": "REPO-002",
