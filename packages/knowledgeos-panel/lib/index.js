@@ -3834,6 +3834,11 @@ CREATE TABLE note_outline_undo (
   note_id TEXT PRIMARY KEY REFERENCES notes(id), revision INTEGER NOT NULL CHECK(revision>=2),
   placements TEXT NOT NULL CHECK(json_valid(placements))
 ) STRICT;`;
+var NOTE_LAYOUT_SCHEMA = `CREATE TABLE note_map_layouts (
+  note_id TEXT PRIMARY KEY REFERENCES notes(id),
+  direction TEXT NOT NULL CHECK(direction IN ('horizontal','vertical')),
+  revision INTEGER NOT NULL CHECK(revision>=1)
+) STRICT;`;
 var rowFields = "id,title,note_kind AS kind,revision,updated_at";
 var notFound3 = () => new AssetError(404, "NOTE_NOT_FOUND");
 var invalid2 = () => new AssetError(422, "INVALID_NOTE");
@@ -3866,7 +3871,24 @@ var NoteStore = class {
     if (!root) throw Error("Note root is missing");
     const refs = db.prepare(`SELECT r.id,r.citation_id,c.asset_id,c.version_id FROM note_references r JOIN citations c ON c.id=r.citation_id
       WHERE r.node_id=? ORDER BY r.rowid`).all(root.id);
-    return { ...meta, body: String(root.body), outline: { nodes: this.nodes(db, id4), can_undo: !!this.undoRow(db, id4, meta.revision) }, references: refs.map((r) => this.canReadAsset(a, String(r.asset_id), now) ? { id: String(r.id), status: "linked", citation_id: String(r.citation_id), asset_id: String(r.asset_id), version_id: String(r.version_id) } : { id: String(r.id), status: "unavailable" }) };
+    return { ...meta, body: String(root.body), outline: { nodes: this.nodes(db, id4), can_undo: !!this.undoRow(db, id4, meta.revision) }, layout: this.layout(db, id4), references: refs.map((r) => this.canReadAsset(a, String(r.asset_id), now) ? { id: String(r.id), status: "linked", citation_id: String(r.citation_id), asset_id: String(r.asset_id), version_id: String(r.version_id) } : { id: String(r.id), status: "unavailable" }) };
+  }
+  layout(db, id4) {
+    const row = db.prepare("SELECT direction,revision FROM note_map_layouts WHERE note_id=?").get(id4);
+    return row ? { direction: row.direction, revision: row.revision } : { direction: "horizontal", revision: 0 };
+  }
+  saveLayout(session, expected, id4, revision, direction) {
+    return this.tx("write", (db, now) => {
+      const a = this.actor(session, now, expected);
+      this.owned(db, a, id4);
+      if (!Number.isSafeInteger(revision) || revision < 0 || direction !== "horizontal" && direction !== "vertical") throw invalid2();
+      const previous = this.layout(db, id4);
+      if (previous.revision !== revision) throw new AssetError(409, "LAYOUT_CONFLICT");
+      if (previous.direction === direction) return previous;
+      db.prepare(`INSERT INTO note_map_layouts VALUES(?,?,1)
+      ON CONFLICT(note_id) DO UPDATE SET direction=excluded.direction,revision=note_map_layouts.revision+1`).run(id4, direction);
+      return this.layout(db, id4);
+    });
   }
   nodes(db, id4) {
     return db.prepare(`SELECT id,parent_id,order_key,body,body_revision FROM note_nodes
@@ -4482,7 +4504,8 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 26;
+var SCHEMA_VERSION = 27;
+var MIGRATION_V27_CHECKSUM = createHash13("sha256").update(NOTE_LAYOUT_SCHEMA).digest("hex");
 var MIGRATION_V26_CHECKSUM = createHash13("sha256").update(NOTE_OUTLINE_SCHEMA).digest("hex");
 var MIGRATION_V25_CHECKSUM = createHash13("sha256").update(INVITATION_CHANGE_SCHEMA).digest("hex");
 var MIGRATION_V24_CHECKSUM = createHash13("sha256").update(INVITATION_EVENT_SCHEMA).digest("hex");
@@ -4870,6 +4893,7 @@ var ProbeStorage = class {
       if (priorVersion < 24) this.#migrateV24(db);
       if (priorVersion < 25) this.#migrateV25(db);
       if (priorVersion < 26) this.#migrateV26(db);
+      if (priorVersion < 27) this.#migrateV27(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path2);
       const pragmas = this.#readPragmas(db);
@@ -5414,9 +5438,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "note outline migration failed", false, { cause: e });
     }
   }
+  #migrateV27(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(NOTE_LAYOUT_SCHEMA);
+      this.#injectFailure("v27:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(27,?,?)").run(MIGRATION_V27_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=27; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "note map layout migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash4, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash4)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -5441,6 +5477,7 @@ var ProbeStorage = class {
       if (version >= 24) reference.exec(INVITATION_EVENT_SCHEMA);
       if (version >= 25) reference.exec(INVITATION_CHANGE_SCHEMA);
       if (version >= 26) reference.exec(NOTE_OUTLINE_SCHEMA);
+      if (version >= 27) reference.exec(NOTE_LAYOUT_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name: name2, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name2)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -8751,6 +8788,14 @@ function createNoteHandler(store, origin, actorFor) {
       if (method === "GET" && path2 === prefix + "/projects") return send(200, { data: { ...info, ...store.managedProjects(actor2, cursor()) } });
       if (method === "GET" && project) return send(200, { data: { ...info, ...store.projectRefs(actor2, id(project[1]), cursor()) } });
       if (url.search) throw invalid8();
+      const layout = /^\/knowledge\/v1\/notes\/([^/]+)\/layout$/.exec(path2);
+      if (layout && method === "PATCH") {
+        const input = await jsonBody(req);
+        keys2(input, ["actor_id", "expected_revision", "direction"]);
+        const { expected_revision: revision, direction } = input;
+        if (typeof revision !== "number" || direction !== "horizontal" && direction !== "vertical") throw invalid8();
+        return send(200, { data: { ...info, layout: store.saveLayout(actor2, id(input.actor_id), id(layout[1]), revision, direction) } });
+      }
       const outline = /^\/knowledge\/v1\/notes\/([^/]+)\/(nodes|delete-preview)$/.exec(path2);
       if (outline && (method === "PATCH" && outline[2] === "nodes" || method === "POST" && outline[2] === "delete-preview")) {
         const input = await jsonBody(req), expected = id(input.actor_id), note = id(outline[1]), revision = input.expected_revision;
@@ -10544,6 +10589,7 @@ main{padding-block:22px}h1,h2,p{margin:0}h1{font-size:25px}h2{font-size:17px}a{c
 .workspace{display:grid;grid-template-columns:minmax(12rem,1fr) minmax(0,3fr);gap:22px;margin-top:18px}.sidebar{border-right:1px solid #cfdad7;padding-right:16px;min-width:0}ul{padding:0;margin:8px 0;list-style:none}li{border-bottom:1px solid #dce6e3;padding:7px 0;overflow-wrap:anywhere}#list button{text-align:left;width:100%;border-color:transparent;overflow-wrap:anywhere}#list button[aria-current=true]{border-color:#558b83}
 label{display:grid;gap:4px;font-weight:600;min-width:0}input,select,textarea{width:100%;min-width:0}textarea{resize:vertical;min-height:16em}form,.stack{display:grid;gap:12px}fieldset{border:0;margin:0;padding:0;min-width:0}fieldset[disabled]{opacity:.7}section{border-top:1px solid #cfdad7;padding-top:14px}#status{min-height:1.6em;margin:6px 0;color:#526663}pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:6px 0;max-height:12em;overflow:auto}#conflict{border-left:3px solid #ad7542;padding-left:9px}#references li{display:flex;gap:10px;align-items:center;flex-wrap:wrap}small{color:#536866}#project-list{margin-bottom:0}[hidden]{display:none!important}
 #outline-list{max-height:21em;overflow:auto}#outline-list li{padding:2px 0;border:0}#outline-list ol{list-style:none;margin:0;padding:0}#outline-list button{text-align:left;max-width:100%;overflow-wrap:anywhere}#node-body{min-height:5em}#node-conflict,#node-delete-review{border-inline-start:3px solid #ad7542;padding-inline-start:10px}#node-target{width:min(100%,26em)}
+.view-segment{display:inline-flex;gap:1px;background:#cddbd7;border:1px solid #8a9d99;border-radius:6px;overflow:hidden}.view-segment button{border:0;border-radius:0}.view-segment button[aria-pressed=true]{background:#225f5d;color:white}.view-segment button:focus-visible{outline-offset:-3px}#map-direction{width:auto}#mindmap{overflow:auto;max-height:430px;border:1px solid #cddbd7;border-radius:6px;background:#fff;min-width:0}#map-graph{position:relative}#map-graph svg{position:absolute;inset:0;pointer-events:none}#map-graph path{stroke:#739993;stroke-width:1.5;fill:none}#map-graph button{position:absolute;width:152px;height:42px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#map-graph button[data-depth="0"]{font-weight:600;background:#eef6f2}#map-graph button[aria-current=true]{background:#d5ede4;border-color:#397871}
 @media(max-width:670px){nav,main{padding-inline:14px}.workspace{grid-template-columns:1fr;gap:14px}.sidebar{border-right:0;border-bottom:1px solid #cfdad7;padding:0 0 12px}textarea{min-height:10em}}
 </style></head><body><header><nav aria-label="业务导航"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">知识库</a><a href="/knowledgeos/notes" aria-current="page">笔记</a><a href="/knowledgeos/account">账号</a></nav></header>
 <main><h1>笔记</h1><p id="status" role="status">正在读取…</p><div id="workspace" class="workspace" hidden>
@@ -10552,8 +10598,9 @@ label{display:grid;gap:4px;font-weight:600;min-width:0}input,select,textarea{wid
 <label>类型<select id="kind"><option value="plain">普通笔记</option><option value="reading">读书笔记</option><option value="project">项目随记</option><option value="reflection">个人复盘</option></select></label>
 <label>正文<textarea id="body" maxlength="32000"></textarea></label><div class="tools"><button type="submit" id="save">保存笔记</button><small id="revision"></small></div></fieldset></form>
 <section id="conflict" hidden><h2>服务器版本</h2><p id="latest-title"></p><pre id="latest-body"></pre><button type="button" id="rebase">保留草稿并使用此修订</button></section>
-<section id="outline" class="stack" hidden aria-labelledby="outline-heading"><h2 id="outline-heading">层级大纲</h2>
+<section id="outline" class="stack" hidden aria-labelledby="outline-heading"><div class="tools"><h2 id="outline-heading">层级大纲</h2><div class="view-segment" role="group" aria-label="笔记视图"><button type="button" id="view-outline" aria-pressed="true">大纲</button><button type="button" id="view-map" aria-pressed="false">脑图</button></div></div>
 <ul id="outline-list" aria-label="大纲节点"></ul>
+<div id="map-panel" class="stack" hidden><div class="tools"><label for="map-direction">布局</label><select id="map-direction"><option value="horizontal">横向</option><option value="vertical">纵向</option></select><small id="map-layout-status" role="status"></small></div><div id="mindmap" role="region" aria-label="脑图节点" tabindex="0"><div id="map-graph"></div></div></div>
 <p id="node-detached" role="status" hidden>原节点已回收。草稿不会写入其他节点。</p>
 <fieldset id="node-controls" class="stack"><label id="node-label">节点正文<textarea id="node-body" maxlength="32000"></textarea></label>
 <div class="tools"><button id="node-add" type="button">添加子节点</button><button id="node-save" type="button">保存节点</button>
@@ -10573,13 +10620,16 @@ const uuid=s=>typeof s==='string'&&/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}
 let owner, note, rows=[], next=null, pending=null, key=null, conflict=null, projectsNext=null, linksNext=null;
 let busy=false, locked=false, checking=false;
 let selected=null,preview=null,outlineConflict=null;
+let view=q.get('view')==='map'?'map':'outline',refreshRequested=false;
+const changeChannel=typeof BroadcastChannel==='function'?new BroadcastChannel('knowledgeos-notes-change-v1'):null;
+const announceChange=()=>changeChannel?.postMessage('changed');
 const status=text=>$('status').textContent=text;
 const form=()=>({title:$('title').value,kind:$('kind').value,body:$('body').value});
 const desired=q.get('note'), citation=q.get('citation');
 function stop(message){
   locked=true;$('workspace').hidden=true;note=null;rows=[];pending=null;conflict=null;
   $('title').value=$('body').value=$('latest-title').textContent=$('latest-body').textContent='';
-  selected=null;clearOutlinePanels();$('node-body').value='';$('node-target').replaceChildren();$('outline-list').replaceChildren();$('outline').hidden=true;
+  selected=null;clearOutlinePanels();$('node-body').value='';$('node-target').replaceChildren();$('outline-list').replaceChildren();$('map-graph').replaceChildren();$('map-layout-status').textContent='';$('outline').hidden=true;
   for(const id of ['list','references','projects','project-list'])$(id).replaceChildren();status(message);
 }
 function error(code){const e=new Error(code);e.code=code;return e}
@@ -10597,25 +10647,29 @@ async function request(url,method='GET',body,extra={}){
 }
 async function checkAccount(){const current=await request('/knowledge/v1/me');if(!uuid(current?.id)||owner&&owner!==current.id){stop('账号已切换，请刷新笔记。');throw error('ACTOR_CHANGED')}owner=current.id}
 function enabled(){
-  $('fields').disabled=busy||locked;$('new').disabled=busy;$('more').disabled=busy;
-  $('save').disabled=!!(conflict||outlineConflict);$('rebase').disabled=busy;$('projects').disabled=busy;
-  $('link-project').disabled=busy||!note||!$('projects').value;$('more-projects').disabled=busy;$('more-links').disabled=busy;
-  for(const el of document.querySelectorAll('#list button,#references button,#project-list button'))el.disabled=busy;
+  const wait=busy||checking||locked;
+  $('fields').disabled=wait;$('new').disabled=wait;$('more').disabled=wait;
+  $('save').disabled=!!(conflict||outlineConflict);$('rebase').disabled=wait;$('projects').disabled=wait;
+  $('link-project').disabled=wait||!note||!$('projects').value;$('more-projects').disabled=wait;$('more-links').disabled=wait;
+  for(const el of document.querySelectorAll('#list button,#references button,#project-list button'))el.disabled=wait;
   const n=currentNode(),movable=!!n?.parent_id,peers=movable?children(n.parent_id):[],index=peers.findIndex(x=>x.id===selected);
-  const blocked=busy||checking||locked||!!conflict||!!outlineConflict;
+  const blocked=wait||!!conflict||!!outlineConflict;
   $('node-controls').disabled=blocked||!!preview;
   $('node-add').disabled=!n;$('node-save').disabled=!movable||!nodeDirty();$('node-preview').disabled=!movable;
   $('node-indent').disabled=index<=0;$('node-promote').disabled=!movable||!nodeById(n.parent_id)?.parent_id;
   $('node-up').disabled=index<=0;$('node-down').disabled=index<0||index>=peers.length-1;
   $('node-move').disabled=!movable||!$('node-target').value;$('node-undo').disabled=!note?.outline?.can_undo;
   for(const el of document.querySelectorAll('#outline-list button,#node-delete-review button'))el.disabled=blocked;
+  for(const el of document.querySelectorAll('#map-graph button'))el.disabled=blocked;
+  $('view-map').disabled=$('view-outline').disabled=busy||locked;
+  $('map-direction').disabled=wait;
   $('node-refresh').disabled=busy||checking||locked;
 }
 async function action(work){
   if(busy||locked||checking)return;busy=true;enabled();
   try{await checkAccount();await work()}catch(e){
     if(!locked)status(({SOURCE_NOT_FOUND:'引用来源不可用，草稿仍保留。',PROJECT_NOT_FOUND:'项目不可用。',NOTE_NOT_FOUND:'笔记或关联不可用。',INVALID_NOTE:'无法保存，请检查标题和内容。',INVALID_OUTLINE_TARGET:'大纲位置不可用，未修改节点。',OUTLINE_LIMIT:'已达到大纲节点上限，草稿仍保留。',OUTLINE_PREVIEW_REQUIRED:'删除预览失效，请重新预览。',OUTLINE_UNDO_UNAVAILABLE:'没有可撤销的结构改动。'})[e.code]||'没有确认操作结果，可以刷新核对；草稿仍保留。');
-  }finally{busy=false;enabled()}
+  }finally{busy=false;enabled();if(refreshRequested)void checkVisible(true)}
 }
 function item(text,onClick){const li=document.createElement('li'),button=document.createElement('button');button.type='button';button.textContent=text;button.onclick=onClick;li.append(button);return li}
 function renderList(){
@@ -10639,11 +10693,13 @@ function showConflict(latest){conflict=latest.revision;$('latest-title').textCon
 function apply(n,newCitation=null,outlineDraft=null){
   note=n;pending=newCitation;key=null;clearConflict();$('title').value=n?.title??'';$('kind').value=n?.kind??(newCitation?'reading':'plain');$('body').value=n?.body??'';
   $('revision').textContent=n?'修订 '+n.revision:'未保存';renderList();renderRefs();
+  $('map-layout-status').textContent='';
   clearOutlinePanels();chooseNode(outlineDraft?.id,outlineDraft?.body);
 }
 function dirty(){const d=form();return note?(d.title!==note.title||d.kind!==note.kind||d.body!==note.body):(d.title!==''||d.body!=='')}
 function edits(d){return Object.fromEntries(Object.entries(d).filter(([key,value])=>value!==note[key]))}
-async function open(id){if((dirty()||nodeDirty())&&!confirm('离开未保存的草稿？'))return;const n=await request(path+'/'+id);apply(n);history.replaceState(null,'','?note='+id);status('已打开笔记。')}
+function rememberView(){if(note)history.replaceState(null,'','?'+new URLSearchParams({note:note.id,...(view==='map'?{view}:{})}));}
+async function open(id){if((dirty()||nodeDirty())&&!confirm('离开未保存的草稿？'))return;const n=await request(path+'/'+id);apply(n);rememberView();status('已打开笔记。')}
 async function saveChanges(extra={},preserveDraft=false){
   if(conflict||outlineConflict)return;
   const data={actor_id:owner,...(preserveDraft?{}:form()),...extra},draft=form();if(!note&&pending)data.add_citation=pending;
@@ -10653,7 +10709,7 @@ async function saveChanges(extra={},preserveDraft=false){
     else{const digest=JSON.stringify(data);if(key?.digest!==digest)key={digest,id:crypto.randomUUID()};result=await request(path,'POST',data,{'idempotency-key':key.id})}
     rows=[result,...rows.filter(r=>r.id!==result.id)];apply(result,null,keepNodeDraft());
     if(preserveDraft){$('title').value=draft.title;$('body').value=draft.body;$('kind').value=draft.kind}
-    history.replaceState(null,'','?note='+result.id);status('笔记已保存。');
+    rememberView();announceChange();status('笔记已保存。');
   }catch(e){
     if(e.code!=='REVISION_CONFLICT'||!note)throw e;
     status('笔记已在另一处更新，草稿未覆盖服务器版本。');
@@ -10675,9 +10731,56 @@ function chooseNode(id,draft){
   $('node-body').value=draft??nodeBase(currentNode());
   renderOutline();
 }
+function selectNode(row){return action(()=>{
+  if(row.id===selected)return;
+  if(nodeDirty()&&!confirm('离开未保存的节点草稿？'))return;
+  clearPreview();chooseNode(row.id);
+  $(view==='map'?'map-graph':'outline-list').querySelector('[aria-current="true"]')?.focus();
+})}
+function showView(){
+  $('outline-list').hidden=view!=='outline';$('map-panel').hidden=view!=='map';
+  $('outline-heading').textContent=view==='map'?'笔记脑图':'层级大纲';
+  $('view-map').setAttribute('aria-pressed',String(view==='map'));$('view-outline').setAttribute('aria-pressed',String(view==='outline'));
+}
+function renderMap(){
+  const graph=$('map-graph');graph.replaceChildren();
+  const root=children(null)[0];if(!root||view!=='map')return;
+  const direction=note.layout.direction,vertical=direction==='vertical';$('map-direction').value=direction;
+  graph.dataset.direction=direction;graph.dataset.revision=String(note.layout.revision);
+  const NS='http://www.w3.org/2000/svg',drawing=document.createElementNS(NS,'svg'),points=new Map();
+  let leaf=0,maxDepth=0;
+  // Assign each subtree a contiguous band of leaves, then center its parent over the band.
+  function place(row,depth){
+    const first=leaf,childrenOfRow=children(row.id);if(childrenOfRow.length)childrenOfRow.forEach(child=>place(child,depth+1));else leaf++;
+    const center=(first+leaf-1)/2;
+    maxDepth=Math.max(maxDepth,depth);
+    points.set(row.id,{row,depth,x:12+(vertical?center*176:depth*186),y:12+(vertical?depth*76:center*60)});
+  }
+  place(root,0);
+  const width=176+(vertical?(leaf-1)*176:maxDepth*186),height=66+(vertical?maxDepth*76:(leaf-1)*60);
+  graph.style.width=width+'px';graph.style.height=height+'px';
+  drawing.setAttribute('width',String(width));drawing.setAttribute('height',String(height));drawing.setAttribute('aria-hidden','true');graph.append(drawing);
+  const order=[root.id];
+  for(let i=0;i<order.length;i++){
+    const id=order[i],{row,x,y,depth}=points.get(id),parent=points.get(row.parent_id);
+    order.push(...children(id).map(child=>child.id));
+    if(parent){
+      const edge=document.createElementNS(NS,'path');edge.dataset.childId=id;
+      const ax=parent.x+(vertical?76:152),ay=parent.y+(vertical?42:21),bx=x+(vertical?76:0),by=y+(vertical?0:21);
+      const mx=(ax+bx)/2,my=(ay+by)/2;
+      edge.setAttribute('d','M '+ax+' '+ay+' C '+(vertical?ax:mx)+' '+(vertical?my:ay)+' '+(vertical?bx:mx)+' '+(vertical?my:by)+' '+bx+' '+by);
+      drawing.append(edge);
+    }
+    const button=document.createElement('button');button.type='button';button.dataset.nodeId=id;button.dataset.parentId=row.parent_id??'';button.dataset.depth=depth;
+    button.style.left=x+'px';button.style.top=y+'px';button.textContent=nodeName(row);button.title=nodeName(row);
+    button.setAttribute('aria-current',String(selected===id));button.onclick=()=>selectNode(row);graph.append(button);
+  }
+}
+for(const mode of ['outline','map'])$('view-'+mode).onclick=()=>{view=mode;showView();renderMap();enabled();rememberView()};
 function renderOutline(){
   const list=$('outline-list'),target=$('node-target'),root=children(null)[0],n=currentNode();
   list.replaceChildren();target.replaceChildren(new Option('选择目标节点',''));$('outline').hidden=!root;
+  showView();renderMap();
   if(!root)return;
   const orphan=detached();$('node-detached').hidden=!orphan;$('node-body').readOnly=orphan;
   $('node-body').ariaLabel=orphan?'已回收节点的草稿':n?.parent_id?'节点正文':'新子节点正文';
@@ -10685,11 +10788,7 @@ function renderOutline(){
     const li=document.createElement('li'),button=document.createElement('button');
     li.dataset.depth=depth;li.dataset.parentId=row.parent_id??'';li.style.paddingInlineStart=depth>0&&depth<=5?'14px':'0';
     button.type='button';button.dataset.nodeId=row.id;button.textContent=nodeName(row);button.setAttribute('aria-current',String(row.id===selected));
-    button.onclick=()=>action(()=>{
-      if(row.id===selected)return;
-      if(nodeDirty()&&!confirm('离开未保存的节点草稿？'))return;
-      clearPreview();chooseNode(row.id);$('outline-list').querySelector('[aria-current="true"]')?.focus();
-    });
+    button.onclick=()=>selectNode(row);
     li.append(button);host.append(li);
     excluded||=row.id===selected;
     if(!excluded)target.add(new Option('　'.repeat(Math.min(depth,5))+nodeName(row),row.id));
@@ -10719,7 +10818,7 @@ async function outlineChange(op){
       draft.id=result.outline.nodes.find(x=>!oldIds.has(x.id))?.id;draft.body=undefined;
     }else if(op.action==='edit')draft.body=undefined;
     else if(op.action==='delete'&&draft.body===undefined)draft.id=currentNode()?.parent_id;
-    adoptOutline(result,draft);status('大纲已保存。');
+    adoptOutline(result,draft);announceChange();status('大纲已保存。');
   }catch(e){
     if(e.code==='OUTLINE_PREVIEW_REQUIRED')clearPreview();
     if(e.code!=='REVISION_CONFLICT')throw e;
@@ -10761,6 +10860,23 @@ $('node-refresh').onclick=()=>action(async()=>{
   const local=keepNodeDraft(),missing=!nodeById(local.id,latest);adoptOutline(latest,local);
   status(missing&&local.body!==undefined?'原节点不可用，草稿保留在节点输入框。':'已读取最新大纲。草稿未保存，结构操作未重放。');
 });
+$('map-direction').onchange=()=>{
+  const direction=$('map-direction').value;
+  void action(async()=>{
+    $('map-layout-status').textContent='正在保存布局…';
+    try{
+      const result=await request(path+'/'+note.id+'/layout','PATCH',{actor_id:owner,expected_revision:note.layout.revision,direction});
+      note={...note,layout:result.layout};renderMap();announceChange();$('map-layout-status').textContent='布局已保存。';
+    }catch(e){
+      if(locked)return;
+      $('map-direction').value=note.layout.direction;
+      if(e.code==='LAYOUT_CONFLICT'){
+        const latest=await request(path+'/'+note.id);note={...note,layout:latest.layout};renderMap();
+        $('map-layout-status').textContent='布局已在另一处更新，未覆盖。';
+      }else $('map-layout-status').textContent='布局未确认，请重新选择。';
+    }
+  });
+};
 async function listMore(reset){const data=await request(path+(reset?'':'?after='+encodeURIComponent(next)));rows=reset?data.items:[...rows,...data.items.filter(i=>!rows.some(r=>r.id===i.id))];next=data.next;renderList()}
 async function projectMore(reset){const data=await request(path+'/projects'+(reset?'':'?after='+encodeURIComponent(projectsNext)));projectsNext=data.next;
   for(const p of data.items){const o=document.createElement('option');o.value=p.id;o.textContent=p.name;$('projects').append(o)}$('project-section').hidden=$('projects').options.length===1;$('more-projects').hidden=!projectsNext;
@@ -10785,12 +10901,26 @@ $('rebase').onclick=()=>action(async()=>{
 });
 $('projects').onchange=()=>action(()=>linkList(true));
 $('link-project').onclick=()=>action(async()=>{const project=$('projects').value;if(!note||!project)return;await request(path+'/projects/'+project,'POST',{actor_id:owner,note_id:note.id});await linkList(true);status('项目引用已保存。')});
-async function checkVisible(){
-  if(document.hidden||busy||locked||checking||!owner)return;checking=true;
-  try{await checkAccount();if(note){const refreshed=await request(path+'/'+note.id);note={...note,references:refreshed.references};renderRefs()}$('workspace').hidden=false}
+async function checkVisible(allowHidden=false){
+  if(document.hidden&&!allowHidden||busy||locked||checking||!owner)return;
+  checking=true;refreshRequested=false;enabled();
+  try{
+    await checkAccount();
+    if(note){
+      const refreshed=await request(path+'/'+note.id);
+      if(refreshed.revision!==note.revision&&!dirty()&&!nodeDirty()&&!preview&&!conflict&&!outlineConflict){
+        rows=rows.map(row=>row.id===refreshed.id?refreshed:row);apply(refreshed,null,keepNodeDraft());
+      }else{
+        const reflow=refreshed.layout.revision!==note.layout.revision;
+        note={...note,layout:refreshed.layout,references:refreshed.references};renderRefs();if(reflow)renderMap();
+      }
+    }
+    $('workspace').hidden=document.hidden;
+  }
   catch{if(!locked)$('workspace').hidden=true}
-  finally{checking=false;enabled()}
+  finally{checking=false;enabled();if(refreshRequested&&!locked)void checkVisible(true)}
 }
+if(changeChannel)changeChannel.onmessage=()=>{refreshRequested=true;void checkVisible(true)};
 document.addEventListener('visibilitychange',()=>{if(document.hidden)$('workspace').hidden=true;else void checkVisible()});
 setInterval(checkVisible,10000);
 void action(async()=>{

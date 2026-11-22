@@ -37,6 +37,15 @@ CREATE TABLE note_outline_undo (
   placements TEXT NOT NULL CHECK(json_valid(placements))
 ) STRICT;`
 
+export const NOTE_LAYOUT_SCHEMA=`CREATE TABLE note_map_layouts (
+  note_id TEXT PRIMARY KEY REFERENCES notes(id),
+  direction TEXT NOT NULL CHECK(direction IN ('horizontal','vertical')),
+  revision INTEGER NOT NULL CHECK(revision>=1)
+) STRICT;`
+
+type LayoutDirection='horizontal'|'vertical'
+type NoteLayout={direction:LayoutDirection;revision:number}
+
 type NoteMeta={id:string;title:string;kind:NoteKind;revision:number;updated_at:string}
 const rowFields='id,title,note_kind AS kind,revision,updated_at'
 const notFound=()=>new AssetError(404,'NOTE_NOT_FOUND')
@@ -69,10 +78,24 @@ export class NoteStore {
     if(!root)throw Error('Note root is missing')
     const refs=db.prepare(`SELECT r.id,r.citation_id,c.asset_id,c.version_id FROM note_references r JOIN citations c ON c.id=r.citation_id
       WHERE r.node_id=? ORDER BY r.rowid`).all(root.id!)
-    return {...meta,body:String(root.body),outline:{nodes:this.nodes(db,id),can_undo:!!this.undoRow(db,id,meta.revision)},references:refs.map(r=>this.canReadAsset(a,String(r.asset_id),now)
+    return {...meta,body:String(root.body),outline:{nodes:this.nodes(db,id),can_undo:!!this.undoRow(db,id,meta.revision)},layout:this.layout(db,id),references:refs.map(r=>this.canReadAsset(a,String(r.asset_id),now)
       ?{id:String(r.id),status:'linked' as const,citation_id:String(r.citation_id),asset_id:String(r.asset_id),version_id:String(r.version_id)}
       :{id:String(r.id),status:'unavailable' as const})}
   }
+  private layout(db:DatabaseSync,id:string):NoteLayout{
+    const row=db.prepare('SELECT direction,revision FROM note_map_layouts WHERE note_id=?').get(id) as NoteLayout|undefined
+    return row?{direction:row.direction,revision:row.revision}:{direction:'horizontal',revision:0}
+  }
+  saveLayout(session:SessionActor,expected:string,id:string,revision:number,direction:LayoutDirection){return this.tx('write',(db,now)=>{
+    const a=this.actor(session,now,expected);this.owned(db,a,id)
+    if(!Number.isSafeInteger(revision)||revision<0||direction!=='horizontal'&&direction!=='vertical')throw invalid()
+    const previous=this.layout(db,id)
+    if(previous.revision!==revision)throw new AssetError(409,'LAYOUT_CONFLICT')
+    if(previous.direction===direction)return previous
+    db.prepare(`INSERT INTO note_map_layouts VALUES(?,?,1)
+      ON CONFLICT(note_id) DO UPDATE SET direction=excluded.direction,revision=note_map_layouts.revision+1`).run(id,direction)
+    return this.layout(db,id)
+  })}
   private nodes(db:DatabaseSync,id:string){
     return db.prepare(`SELECT id,parent_id,order_key,body,body_revision FROM note_nodes
       WHERE note_id=? AND archived_at IS NULL ORDER BY parent_id,order_key,id`).all(id) as OutlineNode[]

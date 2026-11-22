@@ -1561,6 +1561,11 @@ CREATE TABLE note_outline_undo (
   note_id TEXT PRIMARY KEY REFERENCES notes(id), revision INTEGER NOT NULL CHECK(revision>=2),
   placements TEXT NOT NULL CHECK(json_valid(placements))
 ) STRICT;`;
+var NOTE_LAYOUT_SCHEMA = `CREATE TABLE note_map_layouts (
+  note_id TEXT PRIMARY KEY REFERENCES notes(id),
+  direction TEXT NOT NULL CHECK(direction IN ('horizontal','vertical')),
+  revision INTEGER NOT NULL CHECK(revision>=1)
+) STRICT;`;
 var rowFields = "id,title,note_kind AS kind,revision,updated_at";
 var notFound3 = () => new AssetError(404, "NOTE_NOT_FOUND");
 var invalid2 = () => new AssetError(422, "INVALID_NOTE");
@@ -1593,7 +1598,24 @@ var NoteStore = class {
     if (!root) throw Error("Note root is missing");
     const refs = db.prepare(`SELECT r.id,r.citation_id,c.asset_id,c.version_id FROM note_references r JOIN citations c ON c.id=r.citation_id
       WHERE r.node_id=? ORDER BY r.rowid`).all(root.id);
-    return { ...meta, body: String(root.body), outline: { nodes: this.nodes(db, id), can_undo: !!this.undoRow(db, id, meta.revision) }, references: refs.map((r) => this.canReadAsset(a, String(r.asset_id), now) ? { id: String(r.id), status: "linked", citation_id: String(r.citation_id), asset_id: String(r.asset_id), version_id: String(r.version_id) } : { id: String(r.id), status: "unavailable" }) };
+    return { ...meta, body: String(root.body), outline: { nodes: this.nodes(db, id), can_undo: !!this.undoRow(db, id, meta.revision) }, layout: this.layout(db, id), references: refs.map((r) => this.canReadAsset(a, String(r.asset_id), now) ? { id: String(r.id), status: "linked", citation_id: String(r.citation_id), asset_id: String(r.asset_id), version_id: String(r.version_id) } : { id: String(r.id), status: "unavailable" }) };
+  }
+  layout(db, id) {
+    const row = db.prepare("SELECT direction,revision FROM note_map_layouts WHERE note_id=?").get(id);
+    return row ? { direction: row.direction, revision: row.revision } : { direction: "horizontal", revision: 0 };
+  }
+  saveLayout(session, expected, id, revision, direction) {
+    return this.tx("write", (db, now) => {
+      const a = this.actor(session, now, expected);
+      this.owned(db, a, id);
+      if (!Number.isSafeInteger(revision) || revision < 0 || direction !== "horizontal" && direction !== "vertical") throw invalid2();
+      const previous = this.layout(db, id);
+      if (previous.revision !== revision) throw new AssetError(409, "LAYOUT_CONFLICT");
+      if (previous.direction === direction) return previous;
+      db.prepare(`INSERT INTO note_map_layouts VALUES(?,?,1)
+      ON CONFLICT(note_id) DO UPDATE SET direction=excluded.direction,revision=note_map_layouts.revision+1`).run(id, direction);
+      return this.layout(db, id);
+    });
   }
   nodes(db, id) {
     return db.prepare(`SELECT id,parent_id,order_key,body,body_revision FROM note_nodes
@@ -2209,7 +2231,8 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 26;
+var SCHEMA_VERSION = 27;
+var MIGRATION_V27_CHECKSUM = createHash13("sha256").update(NOTE_LAYOUT_SCHEMA).digest("hex");
 var MIGRATION_V26_CHECKSUM = createHash13("sha256").update(NOTE_OUTLINE_SCHEMA).digest("hex");
 var MIGRATION_V25_CHECKSUM = createHash13("sha256").update(INVITATION_CHANGE_SCHEMA).digest("hex");
 var MIGRATION_V24_CHECKSUM = createHash13("sha256").update(INVITATION_EVENT_SCHEMA).digest("hex");
@@ -2604,6 +2627,7 @@ var ProbeStorage = class {
       if (priorVersion < 24) this.#migrateV24(db);
       if (priorVersion < 25) this.#migrateV25(db);
       if (priorVersion < 26) this.#migrateV26(db);
+      if (priorVersion < 27) this.#migrateV27(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -3148,9 +3172,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "note outline migration failed", false, { cause: e });
     }
   }
+  #migrateV27(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(NOTE_LAYOUT_SCHEMA);
+      this.#injectFailure("v27:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(27,?,?)").run(MIGRATION_V27_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=27; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "note map layout migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash2, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash2)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -3175,6 +3211,7 @@ var ProbeStorage = class {
       if (version >= 24) reference.exec(INVITATION_EVENT_SCHEMA);
       if (version >= 25) reference.exec(INVITATION_CHANGE_SCHEMA);
       if (version >= 26) reference.exec(NOTE_OUTLINE_SCHEMA);
+      if (version >= 27) reference.exec(NOTE_LAYOUT_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -3695,6 +3732,7 @@ export {
   MIGRATION_V24_CHECKSUM,
   MIGRATION_V25_CHECKSUM,
   MIGRATION_V26_CHECKSUM,
+  MIGRATION_V27_CHECKSUM,
   MIGRATION_V2_CHECKSUM,
   MIGRATION_V2_SQL,
   MIGRATION_V3,

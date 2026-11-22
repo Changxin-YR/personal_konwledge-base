@@ -513,7 +513,7 @@ try{
   assert.equal((await api(host.port,cookie.cookie,'POST',prefix+'/auth/bootstrap',{login_name:'owner',display_name:'Owner',password})).status,201)
   assert.equal((await api(host.port,'','POST',prefix+'/auth/register',{login_name:'peer',display_name:'Peer',password})).status,201)
   const schema=dbRead(rows=>rows('PRAGMA user_version')[0].user_version)
-  assert.equal(schema,26);facts.sqlite_schema=schema
+  assert.equal(schema,27);facts.sqlite_schema=schema
   const {chromium}=await import(pathToFileURL(host.playwright).href)
   browser=await chromium.launch({channel:'chrome',headless:true,args:[
     '--disable-background-networking','--disable-component-update','--disable-sync','--no-proxy-server',

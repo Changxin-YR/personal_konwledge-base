@@ -8,7 +8,7 @@ import {DatabaseSync} from 'node:sqlite'
 import {pathToFileURL} from 'node:url'
 import test from 'node:test'
 import * as lib from '../../packages/knowledgeos-panel/lib/test-support.js'
-import {MIGRATION_V23_CHECKSUM,MIGRATION_V24_CHECKSUM,MIGRATION_V25_CHECKSUM,MIGRATION_V26_CHECKSUM} from '../../packages/knowledgeos-panel/lib/storage.js'
+import {MIGRATION_V23_CHECKSUM,MIGRATION_V24_CHECKSUM,MIGRATION_V25_CHECKSUM,MIGRATION_V26_CHECKSUM,MIGRATION_V27_CHECKSUM} from '../../packages/knowledgeos-panel/lib/storage.js'
 import {decodeText} from '../../packages/knowledgeos-panel/src/host/text-document.ts'
 import {seed} from '../fnd006/independent/common.mjs'
 
@@ -109,9 +109,9 @@ test('v22 recall data and migration ledger survive v23 failure, upgrade and reop
     assert.match(s.failure.cause.message,/v23:after-schema/);s.close()
     assert.equal(version(),22);assert.deepEqual(rows('sqlite_schema'),definitions);assert.deepEqual(rows('schema_migrations'),ledger);assert.deepEqual(tables.map(rows),data)
     for(let j=0;j<2;j++){
-      s=new lib.ProbeStorage({dataDir:dir});assert(s.available,s.failure?.message);assert.equal(version(),26)
+      s=new lib.ProbeStorage({dataDir:dir});assert(s.available,s.failure?.message);assert.equal(version(),27)
       const applied=rows('schema_migrations'),last=applied.splice(22)
-      assert.deepEqual(last.map(x=>[x.version,x.checksum]),[[23,MIGRATION_V23_CHECKSUM],[24,MIGRATION_V24_CHECKSUM],[25,MIGRATION_V25_CHECKSUM],[26,MIGRATION_V26_CHECKSUM]]);assert.deepEqual(applied,ledger)
+      assert.deepEqual(last.map(x=>[x.version,x.checksum]),[[23,MIGRATION_V23_CHECKSUM],[24,MIGRATION_V24_CHECKSUM],[25,MIGRATION_V25_CHECKSUM],[26,MIGRATION_V26_CHECKSUM],[27,MIGRATION_V27_CHECKSUM]]);assert.deepEqual(applied,ledger)
       assert.deepEqual(tables.map(rows),data)
       const reopened=s.recall.get(actor,practice.material.id)
       assert.deepEqual({...reopened,material:{...reopened.material}},practice)
@@ -142,7 +142,7 @@ test('v24 failure leaves the populated v23 project and invitation history byte-f
     assert.match(storage.failure.cause.message,/v24:after-schema/);storage.close()
     assert.equal(version(),23);assert.deepEqual(rows('sqlite_schema'),schema);assert.deepEqual(rows('schema_migrations'),ledger);assert.deepEqual(tables.map(rows),oldRows)
     for(let j=0;j<2;j++){
-      storage=new lib.ProbeStorage({dataDir:dir});assert(storage.available,storage.failure?.message);assert.equal(version(),26)
+      storage=new lib.ProbeStorage({dataDir:dir});assert(storage.available,storage.failure?.message);assert.equal(version(),27)
       assert.deepEqual(tables.map(rows),oldRows);assert.deepEqual(rows('schema_migrations').slice(0,23),ledger)
       assert.deepEqual(rows('domain_events'),[]);assert.deepEqual(rows('domain_event_outbox'),[]);assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[])
       storage.close()
@@ -169,7 +169,7 @@ test('v25 receipt migration rolls back on failure and preserves v24 event identi
     assert.match(next.failure.cause.message,/v25:after-schema/);next.close()
     assert.equal(version(),24);assert.deepEqual(rows('sqlite_schema'),schema);assert.deepEqual(rows('schema_migrations'),ledger);assert.deepEqual(tables.map(rows),before)
     next=new lib.ProbeStorage({dataDir:dir});assert(next.available,next.failure?.message)
-    assert.equal(version(),26);assert.deepEqual(rows('schema_migrations').slice(-2).map(x=>[x.version,x.checksum]),[[25,MIGRATION_V25_CHECKSUM],[26,MIGRATION_V26_CHECKSUM]])
+    assert.equal(version(),27);assert.deepEqual(rows('schema_migrations').slice(-3).map(x=>[x.version,x.checksum]),[[25,MIGRATION_V25_CHECKSUM],[26,MIGRATION_V26_CHECKSUM],[27,MIGRATION_V27_CHECKSUM]])
     assert.deepEqual(rows('schema_migrations').slice(0,24),ledger);assert.deepEqual(tables.map(rows),before)
     const initial=next.invitations.get(owner,owner.userId,invitation.id),req=key()
     const renewed=next.invitations.change(owner,owner.userId,invitation.id,initial.revision,'renew',1,req)

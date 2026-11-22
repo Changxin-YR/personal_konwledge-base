@@ -79,6 +79,13 @@ export function createNoteHandler(store:NoteStore,origin:()=>string|undefined,ac
       if(method==='GET'&&path===prefix+'/projects')return send(200,{data:{...info,...store.managedProjects(actor,cursor())}})
       if(method==='GET'&&project)return send(200,{data:{...info,...store.projectRefs(actor,id(project[1]),cursor())}})
       if(url.search)throw invalid()
+      const layout=/^\/knowledge\/v1\/notes\/([^/]+)\/layout$/.exec(path)
+      if(layout&&method==='PATCH'){
+        const input=await jsonBody(req);keys(input,['actor_id','expected_revision','direction'])
+        const {expected_revision:revision,direction}=input
+        if(typeof revision!=='number'||direction!=='horizontal'&&direction!=='vertical')throw invalid()
+        return send(200,{data:{...info,layout:store.saveLayout(actor,id(input.actor_id),id(layout[1]),revision,direction)}})
+      }
       const outline=/^\/knowledge\/v1\/notes\/([^/]+)\/(nodes|delete-preview)$/.exec(path)
       if(outline&&((method==='PATCH'&&outline[2]==='nodes')||(method==='POST'&&outline[2]==='delete-preview'))){
         const input=await jsonBody(req),expected=id(input.actor_id),note=id(outline[1]),revision=input.expected_revision
