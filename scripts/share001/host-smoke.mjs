@@ -36,6 +36,12 @@ async function upload(a,name,source){
     headers:{...marker,'idempotency-key':randomUUID(),'content-type':'text/plain','x-knowledgeos-filename':name},data:Buffer.from(source)})
   assert.equal(response.status(),201);return (await response.json()).data
 }
+async function issueUi(p,doc,permission){
+  await p.locator('#workspace').waitFor();await p.locator('#assets').selectOption(doc.id);await p.locator('#permission').selectOption(permission)
+  await p.getByRole('button',{name:'预览',exact:true}).click();await p.locator('#preview').waitFor()
+  const [response]=await Promise.all([p.waitForResponse(r=>r.url().endsWith(prefix+'/invitations')&&r.request().method()==='POST'),p.getByRole('button',{name:'确认创建'}).click()])
+  assert.equal(response.status(),201);return (await response.json()).data
+}
 try{
   h=await isolate(candidate,entry,{businessClock:t0});facts.binding=h.facts
   const boot=await h.start(),cookie=await entryCookie(boot.entry)
@@ -66,9 +72,17 @@ try{
   const obj=await http(first.ctx,resource,200),edit=await http(first.ctx,resource,200,'PATCH',{expected_revision:obj.revision,body:'Synthetic authorized edit'})
   assert.equal(edit.revision,obj.revision+1);await http(first.ctx,resource,404,'DELETE')
   await http(first.ctx,'/invitations',404,'POST',{actor_id:first.user,scope:'object',target_id:doc.id,permission:'read'})
+  const readerUrl=first.page.url();await first.page.goto(h.base+'/knowledgeos/library')
+  await first.page.locator('#mode:enabled').selectOption('text');await first.page.locator('#target').selectOption(doc.id)
+  await first.page.locator('#file').setInputFiles({name:'invite-source.txt',mimeType:'text/plain',buffer:Buffer.from('Version saved through the invited editor')})
+  const [published]=await Promise.all([first.page.waitForResponse(r=>r.url().endsWith(prefix+'/imports')&&r.request().method()==='POST'),first.page.locator('#submit').click()])
+  assert.equal(published.status(),201);const v2=(await published.json()).data;assert.equal(v2.id,doc.id);assert.equal(v2.version,2)
+  await first.page.locator('#status').filter({hasText:'已接收 v2'}).waitFor();assert.equal((await http(first.ctx,original,200)).text,src)
+  const currentObject=await http(first.ctx,resource,200)
+  await first.page.goto(readerUrl)
   const query=await http(first.ctx,'/search',200,'POST',{query:'synthetic original'})
   assert(query.items.some(x=>x.asset_id===doc.id));await http(first.ctx,`/search/${query.query_id}/access`,200)
-  const readerUrl=first.page.url();await first.page.locator('#text').filter({hasText:src}).waitFor()
+  await first.page.locator('#text').filter({hasText:src}).waitFor()
   facts.checks.push('UI issue/redeem and fixed-version reading; live edit allowed and management denied')
   phase='renew and revoke in Chrome';await owner.page.getByRole('button',{name:'管理邀请'}).click();await owner.page.locator('#managed').waitFor()
   const db=dbPath(h.data),dispatch=event=>`/invitations/${issued.id}/${event}`,getManaged=()=>http(owner.ctx,'/invitations/'+issued.id,200)
@@ -112,7 +126,7 @@ try{
   const [revoked]=await Promise.all([owner.page.waitForResponse(r=>r.url().endsWith('/revoke')),owner.page.getByRole('button',{name:'确认操作'}).click()]);assert.equal(revoked.status(),200)
   const revokeReceipt=(await revoked.json()).data;assert.equal(revokeReceipt.affected_count,3)
   for(const a of [first,rival,outsider])await http(a.ctx,original,404)
-  await http(first.ctx,resource,404,'PATCH',{expected_revision:edit.revision,body:'Denied write'})
+  await http(first.ctx,resource,404,'PATCH',{expected_revision:currentObject.revision,body:'Denied write'})
   await http(first.ctx,`/search/${query.query_id}/access`,404)
   assert(!((await http(first.ctx,'/search',200,'POST',{query:'synthetic original'})).items.some(x=>x.asset_id===doc.id)))
   await first.page.bringToFront();await first.page.locator('#version').filter({hasText:doc.version_id}).waitFor({state:'hidden'});assert.equal(await first.page.locator('#text').textContent(),'')
@@ -151,14 +165,22 @@ try{
   phase='real concurrent last seat and exact cutoff'
   const draft={actor_id:owner.user,scope:'object',target_id:doc.id,permission:'read'}
   const make=()=>http(owner.ctx,'/invitations',201,'POST',draft)
-  const racing=await make(),sixth=await http(owner.ctx,'/invitations',201,'POST',{...draft,permission:'edit'}),unused=await make(),expires=Date.parse(sixth.expires_at)
+  const racing=await issueUi(owner.page,doc,'read'),sixth=await http(owner.ctx,'/invitations',201,'POST',{...draft,permission:'edit'}),unused=await make(),expires=Date.parse(sixth.expires_at)
+  assert.equal(racing.target.permission,'read');assert.equal(racing.expires_at,sixth.expires_at)
   assert.equal(Date.parse(sixth.issued_at),t0);assert.equal(expires,t0+7*day)
   const racers=[first,rival],race=await redemptionRace({h,http,db,users:racers,i:racing,mode:'last-seat',at:t0})
   facts.races=[race];const winner=race.statuses.findIndex(code=>code===201),loser=1-winner
   await http(racers[winner].ctx,original,200);await http(racers[loser].ctx,original,404)
+  await http(racers[winner].ctx,resource,404,'PATCH',{expected_revision:currentObject.revision,body:'Read-only invite cannot edit'})
   const duplicate=await make(),duplicateContext=await login('first')
   facts.races.push(await redemptionRace({h,http,db,users:[first,duplicateContext],i:duplicate,mode:'same-user',at:t0}))
   facts.checks.push('Two overlapping authenticated Host requests prove last-seat and same-user rules')
+  const durationDoc=await upload(owner,'renewed-group.txt','Renewed group source'),durationPath=`/assets/${durationDoc.id}/versions/${durationDoc.version_id}/reader?unit=1`
+  const duration=await http(owner.ctx,'/invitations',201,'POST',{...draft,target_id:durationDoc.id,max_redemptions:2})
+  for(const a of [first,rival])await http(a.ctx,'/invitations/redeem',201,'POST',{actor_id:a.user,token:duration.token})
+  const managedDuration=await http(owner.ctx,'/invitations/'+duration.id,200)
+  const renewDuration=await http(owner.ctx,`/invitations/${duration.id}/renew`,200,'POST',{actor_id:owner.user,expected_revision:managedDuration.revision,days:1})
+  assert.equal(renewDuration.affected_count,2);assert.equal(Date.parse(renewDuration.expires_at),expires+day)
   h.clock(t0+1)
   const later=await upload(owner,'split-cutoff.txt','Split-cutoff source')
   const split=await http(owner.ctx,'/invitations',201,'POST',{...draft,target_id:later.id,max_redemptions:2})
@@ -189,6 +211,7 @@ try{
   assert.equal(Date.parse(boundary.server_time),expires-1);assert.equal(Date.parse(boundary.read_expires_at),expires)
   const nearRival=await login('rival');facts.races.push(await redemptionRace({h,http,db,users:[near,nearRival],i:unused,mode:'both-expired',at:expires-1}))
   await http(near.ctx,'/me',200);await http(near.ctx,original,404)
+  for(const a of [near,nearRival])assert.equal((await http(a.ctx,durationPath,200)).text,'Renewed group source')
   await checkProject(true)
   await http(near.ctx,resource,404,'PATCH',{expected_revision:updated.revision,body:'Denied at cutoff'})
   await http(near.ctx,'/invitations/redeem',404,'POST',{actor_id:near.user,token:unused.token})
@@ -203,6 +226,16 @@ try{
   phase='SQLite failures before commit and real Host restarts'
   facts.fault_checks=[];await transactionFaults({http,db,h,owner:finalOwner,first:near,doc,faultChecks:facts.fault_checks})
   facts.checks.push('Fault at SQLite outbox insert rolls back actions, audit, and event; Host reopen and one successful retry each')
+  phase='renewed group crosses original cutoff and expires at the new one'
+  h.clock(expires+day-1);const endOwner=await login('owner'),endFirst=await login('first'),endRival=await login('rival')
+  for(const a of [endFirst,endRival])await http(a.ctx,durationPath,200)
+  h.clock(expires+day);for(const a of [endFirst,endRival]){await http(a.ctx,'/me',200);await http(a.ctx,durationPath,404)}
+  assert.equal(await http(endOwner.ctx,`/invitations/${duration.id}/renew`,404,'POST',{actor_id:endOwner.user,expected_revision:renewDuration.revision,days:1}),'INVITATION_UNAVAILABLE')
+  const oldGroup=sql(db,'SELECT * FROM invitation_redemptions WHERE invitation_id=? ORDER BY id',[duration.id])
+  const fresh=await http(endOwner.ctx,'/invitations',201,'POST',{...draft,actor_id:endOwner.user,target_id:durationDoc.id})
+  await http(endFirst.ctx,'/invitations/redeem',201,'POST',{actor_id:endFirst.user,token:fresh.token});await http(endFirst.ctx,durationPath,200)
+  assert.deepEqual(sql(db,'SELECT * FROM invitation_redemptions WHERE invitation_id=? ORDER BY id',[duration.id]),oldGroup)
+  facts.checks.push('Both renewed grants survived the original cutoff and expired at the new one; independent regrant preserves old rows')
   facts.status='PASS'
 }catch(e){facts.status='FAIL';facts.phase=phase;facts.error=String(e.stack);console.error(e);process.exitCode=1}
 finally{try{await browser?.close()}finally{try{await h?.stop()}finally{writeFileSync(join(out,'summary.json'),JSON.stringify(facts,null,2)+'\n');console.log(out)}}}
