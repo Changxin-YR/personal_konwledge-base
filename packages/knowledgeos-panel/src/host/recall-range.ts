@@ -21,12 +21,14 @@ function boundary(text:string,n:number){
 }
 
 /** Read the selected version through a single, authorized source transaction. */
-export function recallSelection(first:RecallPoint,last:RecallPoint,total:number,read:ReadUnit):RecallSegment[]{
+export function recallSelection(first:RecallPoint,last:RecallPoint,interior:readonly string[],total:number,read:ReadUnit):RecallSegment[]{
   if(![first.ordinal,last.ordinal,total].every(Number.isSafeInteger)||first.ordinal<1||last.ordinal<first.ordinal||last.ordinal>total)throw invalid()
+  if(interior.length!==Math.max(0,last.ordinal-first.ordinal-1))throw invalid()
   const segments:RecallSegment[]=[]
   for(let ordinal=first.ordinal;ordinal<=last.ordinal;ordinal++){
     const text=available(read(ordinal)), source_hash=digest(text)
-    if(ordinal===first.ordinal&&source_hash!==first.source_hash||ordinal===last.ordinal&&source_hash!==last.source_hash)throw changed()
+    if(ordinal===first.ordinal&&source_hash!==first.source_hash||ordinal===last.ordinal&&source_hash!==last.source_hash||
+      ordinal>first.ordinal&&ordinal<last.ordinal&&source_hash!==interior[ordinal-first.ordinal-1])throw changed()
     const start=ordinal===first.ordinal?first.offset:0,end=ordinal===last.ordinal?last.offset:text.length
     if(!boundary(text,start)||!boundary(text,end)||start>end)throw invalid()
     segments.push({ordinal,start,end,source_hash})

@@ -66,6 +66,21 @@ export class CitationStore {
       wordOriginal:{key:String(r.storage_key),byteLength:Number(r.byte_length),sha256:String(r.sha256),media:r.media_type}}
   }
   source(prior:SessionActor,t:ReaderTarget){return this.tx('read',(db,now)=>this.read(db,this.actor(prior,now),t,now))}
+  recallSource(db:DatabaseSync,actor:SessionActor,t:ReaderTarget,now:string){
+    const s=this.read(db,actor,t,now)
+    if(s.kind==='office'){
+      // The Word index binds page bytes to the fixed conversion, not to the latest result.
+      if(!t.conversion_id||s.conversion_id!==t.conversion_id)throw new AssetError(422,'RECALL_CONVERSION_REQUIRED')
+      const page=db.prepare(`SELECT p.text FROM office_conversions c JOIN word_search_runs r
+        ON r.conversion_id=c.id AND r.result_blob_id=c.result_blob_id JOIN word_search_pages p ON p.conversion_id=c.id
+        WHERE c.id=? AND p.page=?`).get(s.conversion_id,s.ordinal)
+      if(!page)throw new AssetError(409,'RECALL_SOURCE_NOT_READY')
+      return {...s,text:String(page.text)}
+    }
+    // Review pages may be incomplete, and can still be re-extracted in place.
+    if(s.state!=='ready')throw new AssetError(409,'RECALL_SOURCE_NOT_READY')
+    return s
+  }
   navigation(prior:SessionActor,t:ReaderTarget){return this.tx('read',(db,now)=>{
     const a=this.actor(prior,now),src=this.read(db,a,{...t,ordinal:1},now)
     return readNavigation(db,a.userId,t.version_id,p=>{

@@ -15,12 +15,12 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+var __toESM = (mod, isNodeMode, target2) => (target2 = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
   // If the importer is in node compatibility mode or this is not an ESM
   // file that has been converted to a CommonJS file using a Babel-
   // compatible transform (i.e. "__esModule" has not been set), then set
   // "default" to the CommonJS "module.exports" for node compatibility.
-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target2, "default", { value: mod, enumerable: true }) : target2,
   mod
 ));
 
@@ -557,22 +557,22 @@ var require_saxes = __commonJS({
           chunk2 = `${this.carriedFromPrevious}${chunk2}`;
           this.carriedFromPrevious = void 0;
         }
-        let limit3 = chunk2.length;
-        const lastCode = chunk2.charCodeAt(limit3 - 1);
+        let limit4 = chunk2.length;
+        const lastCode = chunk2.charCodeAt(limit4 - 1);
         if (!end && // A trailing CR or surrogate must be carried over to the next
         // chunk.
         (lastCode === CR || lastCode >= 55296 && lastCode <= 56319)) {
-          this.carriedFromPrevious = chunk2[limit3 - 1];
-          limit3--;
-          chunk2 = chunk2.slice(0, limit3);
+          this.carriedFromPrevious = chunk2[limit4 - 1];
+          limit4--;
+          chunk2 = chunk2.slice(0, limit4);
         }
         const { stateTable } = this;
         this.chunk = chunk2;
         this.i = 0;
-        while (this.i < limit3) {
+        while (this.i < limit4) {
           stateTable[this.state].call(this);
         }
-        this.chunkPosition += limit3;
+        this.chunkPosition += limit4;
         return end ? this.end() : this;
       }
       /**
@@ -1933,7 +1933,7 @@ var require_saxes = __commonJS({
 });
 
 // src/host/index.ts
-import { randomUUID as randomUUID22 } from "node:crypto";
+import { randomUUID as randomUUID23 } from "node:crypto";
 
 // src/host/status.ts
 var EXPECTED_UPSTREAM_COMMIT = "39163dd30f703a79079e2d2446545cff3c453738";
@@ -2003,8 +2003,8 @@ function createProbeRecord(port, deps, input) {
     createdAt: deps.now()
   });
 }
-function getProbeRecord(port, id2) {
-  return port.getById(id2);
+function getProbeRecord(port, id3) {
+  return port.getById(id3);
 }
 
 // src/host/http.ts
@@ -2057,7 +2057,7 @@ function recordsErrorToApi(error) {
       return new ApiError(500, "INTERNAL_ERROR", "internal error");
   }
 }
-async function readBody(req, limit3) {
+async function readBody(req, limit4) {
   return await new Promise((resolve2, reject2) => {
     let settled = false;
     let total = 0;
@@ -2071,7 +2071,7 @@ async function readBody(req, limit3) {
     req.on("data", (chunk2) => {
       if (settled) return;
       total += chunk2.length;
-      if (total > limit3) {
+      if (total > limit4) {
         fail(new ApiError(413, "PAYLOAD_TOO_LARGE", "request body exceeds the limit"));
         return;
       }
@@ -2147,7 +2147,7 @@ function parseContent(body) {
 function requestPath(req) {
   return new URL(req.url ?? "/", "http://localhost").pathname;
 }
-function createRecordsHandlers(service, basePath, log) {
+function createRecordsHandlers(service, basePath2, log) {
   const create = async (req, res) => {
     const requestId = randomUUID();
     try {
@@ -2187,15 +2187,15 @@ function createRecordsHandlers(service, basePath, log) {
         throw new ApiError(405, "METHOD_NOT_ALLOWED", "method not allowed", false, { allow: "GET" });
       }
       const path = requestPath(req);
-      const prefix2 = `${basePath}/`;
+      const prefix2 = `${basePath2}/`;
       if (!path.startsWith(prefix2) || path.slice(prefix2.length).includes("/")) {
         throw new ApiError(404, "NOT_FOUND", "record not found");
       }
-      const id2 = path.slice(prefix2.length);
-      if (!UUID_PATTERN.test(id2)) {
+      const id3 = path.slice(prefix2.length);
+      if (!UUID_PATTERN.test(id3)) {
         throw new ApiError(422, "INPUT_INVALID", "record id must be a canonical lowercase UUID");
       }
-      const record = service.get(id2);
+      const record = service.get(id3);
       if (record === void 0) throw new ApiError(404, "NOT_FOUND", "record not found");
       sendJson(res, 200, {
         data: record,
@@ -2221,7 +2221,7 @@ function createRecordsHandlers(service, basePath, log) {
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash10, randomUUID as randomUUID13 } from "node:crypto";
+import { createHash as createHash12, randomUUID as randomUUID14 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -2255,30 +2255,30 @@ var JobStore = class {
     this.revision = revision;
     this.fault = fault;
   }
-  enqueue(actor2, object, revision, key) {
+  enqueue(actor2, object2, revision, key) {
     return this.tx((db, now) => {
-      const current = this.revision(actor2.sessionId, actor2.userId, object, now);
+      const current = this.revision(actor2.sessionId, actor2.userId, object2, now);
       if (current === void 0) throw new JobError(404, "NOT_FOUND");
       const prior = db.prepare("SELECT id,object_id,expected_revision FROM jobs WHERE user_id=? AND idempotency_key=?").get(actor2.userId, key);
       if (prior) {
-        if (prior.object_id !== object || prior.expected_revision !== revision) throw new JobError(409, "IDEMPOTENCY_CONFLICT");
+        if (prior.object_id !== object2 || prior.expected_revision !== revision) throw new JobError(409, "IDEMPOTENCY_CONFLICT");
         return String(prior.id);
       }
       if (current !== revision) throw new JobError(409, "REVISION_CONFLICT");
-      const id2 = randomUUID2();
-      db.prepare("INSERT INTO jobs(id,user_id,session_id,object_id,expected_revision,idempotency_key,state,available_at) VALUES(?,?,?,?,?,?,'queued',?)").run(id2, actor2.userId, actor2.sessionId, object, revision, key, now);
-      return id2;
+      const id3 = randomUUID2();
+      db.prepare("INSERT INTO jobs(id,user_id,session_id,object_id,expected_revision,idempotency_key,state,available_at) VALUES(?,?,?,?,?,?,'queued',?)").run(id3, actor2.userId, actor2.sessionId, object2, revision, key, now);
+      return id3;
     });
   }
-  inspect(actor2, id2, cancel = false) {
+  inspect(actor2, id3, cancel = false) {
     return this.tx((db, now) => {
-      const row = db.prepare("SELECT * FROM jobs WHERE id=? AND user_id=?").get(id2, actor2.userId);
+      const row = db.prepare("SELECT * FROM jobs WHERE id=? AND user_id=?").get(id3, actor2.userId);
       if (!row || this.revision(actor2.sessionId, actor2.userId, row.object_id, now) === void 0) throw new JobError(404, "NOT_FOUND");
       if (cancel && ["succeeded", "failed"].includes(row.state)) throw new JobError(409, "JOB_TERMINAL");
       if (cancel && row.state !== "cancelled") this.end(db, row, "cancelled", "CANCELLED", now);
-      const summary = db.prepare("SELECT id,state,attempts,checkpoint,last_error,expected_revision FROM jobs WHERE id=?").get(id2);
-      const runs = db.prepare("SELECT attempt,start_checkpoint,started_at,ended_at,outcome FROM job_runs WHERE job_id=? ORDER BY attempt").all(id2);
-      const delivery = db.prepare("SELECT delivered_at,failures,retry_at,last_error FROM outbox WHERE job_id=?").get(id2);
+      const summary = db.prepare("SELECT id,state,attempts,checkpoint,last_error,expected_revision FROM jobs WHERE id=?").get(id3);
+      const runs = db.prepare("SELECT attempt,start_checkpoint,started_at,ended_at,outcome FROM job_runs WHERE job_id=? ORDER BY attempt").all(id3);
+      const delivery = db.prepare("SELECT delivered_at,failures,retry_at,last_error FROM outbox WHERE job_id=?").get(id3);
       return { ...summary, runs, delivery: delivery ?? null };
     });
   }
@@ -2382,13 +2382,13 @@ var AUTH_ACTIONS = ["read", "comment", "edit", "export", "manage_share", "delete
 function isGrantActive(grant, now) {
   return grant.revokedAt === void 0 && grant.validFrom <= now && (grant.expiresAt === void 0 || now < grant.expiresAt);
 }
-function authorize(actor2, target, action2, now, grants = [], memberships = []) {
-  if (target.status !== "active" || target.serviceId !== actor2.serviceId || target.spaceId !== actor2.personalSpaceId && target.scope === "personal") return false;
-  if (target.scope === "personal") return target.ownerUserId === actor2.userId;
-  if (target.projectId === void 0) return false;
-  const member = memberships.some((item) => item.projectId === target.projectId && item.userId === actor2.userId && isGrantActive(item, now));
+function authorize(actor2, target2, action2, now, grants = [], memberships = []) {
+  if (target2.status !== "active" || target2.serviceId !== actor2.serviceId || target2.spaceId !== actor2.personalSpaceId && target2.scope === "personal") return false;
+  if (target2.scope === "personal") return target2.ownerUserId === actor2.userId;
+  if (target2.projectId === void 0) return false;
+  const member = memberships.some((item) => item.projectId === target2.projectId && item.userId === actor2.userId && isGrantActive(item, now));
   if (!member) return false;
-  return grants.some((item) => item.subjectType === "user" && item.subjectId === actor2.userId && item.action === action2 && isGrantActive(item, now)) || grants.some((item) => item.subjectType === "project" && item.subjectId === target.projectId && item.action === action2 && isGrantActive(item, now) && member);
+  return grants.some((item) => item.subjectType === "user" && item.subjectId === actor2.userId && item.action === action2 && isGrantActive(item, now)) || grants.some((item) => item.subjectType === "project" && item.subjectId === target2.projectId && item.action === action2 && isGrantActive(item, now) && member);
 }
 
 // src/host/asset-store.ts
@@ -2427,46 +2427,46 @@ var AssetStore = class {
     if (!actor2) throw new AssetError(401, "AUTH_REQUIRED");
     return actor2;
   }
-  check(actor2, id2, action2, now) {
-    if (!this.allowed(actor2, id2, action2, now)) throw new AssetError(404, "ASSET_NOT_FOUND");
+  check(actor2, id3, action2, now) {
+    if (!this.allowed(actor2, id3, action2, now)) throw new AssetError(404, "ASSET_NOT_FOUND");
   }
   publish(prior, spec, blob, format, onPublish) {
     const text2 = format && "blocks" in format ? format : void 0;
     return this.tx("write", (db, now) => {
-      const actor2 = this.actor(prior, now), digest2 = createHash2("sha256").update(JSON.stringify([spec.title, spec.assetId ?? null, spec.expectedVersion ?? null, blob.sha256, blob.byteLength, ...text2 ? [text2.media, text2.encoding] : format ? [format.media] : []])).digest("hex");
+      const actor2 = this.actor(prior, now), digest3 = createHash2("sha256").update(JSON.stringify([spec.title, spec.assetId ?? null, spec.expectedVersion ?? null, blob.sha256, blob.byteLength, ...text2 ? [text2.media, text2.encoding] : format ? [format.media] : []])).digest("hex");
       const prev = db.prepare("SELECT id,asset_id,request_digest FROM asset_versions WHERE created_by=? AND idempotency_key=?").get(actor2.userId, spec.key);
       if (prev) {
         this.check(actor2, String(prev.asset_id), "read", now);
         this.check(actor2, String(prev.asset_id), "edit", now);
-        if (prev.request_digest !== digest2) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        if (prev.request_digest !== digest3) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
         const r = receipt(db.prepare(receiptSQL + "WHERE v.id=?").get(prev.id));
         onPublish?.(db, actor2, r);
         return { receipt: r, replayed: true };
       }
-      const id2 = spec.assetId ?? randomUUID3(), vid = randomUUID3(), bid = randomUUID3();
+      const id3 = spec.assetId ?? randomUUID3(), vid = randomUUID3(), bid = randomUUID3();
       let version = 1, parent = null;
       if (spec.assetId) {
-        this.check(actor2, id2, "read", now);
-        this.check(actor2, id2, "edit", now);
-        const last = db.prepare("SELECT id,version FROM asset_versions WHERE asset_id=? ORDER BY version DESC LIMIT 1").get(id2);
+        this.check(actor2, id3, "read", now);
+        this.check(actor2, id3, "edit", now);
+        const last = db.prepare("SELECT id,version FROM asset_versions WHERE asset_id=? ORDER BY version DESC LIMIT 1").get(id3);
         if (!last) throw new AssetError(404, "ASSET_NOT_FOUND");
         if (last.version !== spec.expectedVersion) throw new AssetError(409, "VERSION_CONFLICT");
         version = Number(last.version) + 1;
         parent = String(last.id);
-        db.prepare("UPDATE knowledge_objects SET revision=revision+1,updated_at=? WHERE id=?").run(now, id2);
+        db.prepare("UPDATE knowledge_objects SET revision=revision+1,updated_at=? WHERE id=?").run(now, id3);
         db.prepare("UPDATE office_conversions SET state='superseded',lease_token=NULL,lease_until=NULL,failure_code='SOURCE_CHANGED',updated_at=? WHERE version_id=? AND state IN ('queued','running')").run(now, parent);
       } else {
-        db.prepare(`INSERT INTO knowledge_objects (id,service_id,space_id,scope_kind,project_id,owner_user_id,object_type,title,body,status,revision,created_at,updated_at) VALUES (?,?,?,'personal',NULL,?,'asset',?,'','active',1,?,?)`).run(id2, actor2.serviceId, actor2.personalSpaceId, actor2.userId, spec.title, now, now);
-        db.prepare("INSERT INTO assets VALUES (?)").run(id2);
+        db.prepare(`INSERT INTO knowledge_objects (id,service_id,space_id,scope_kind,project_id,owner_user_id,object_type,title,body,status,revision,created_at,updated_at) VALUES (?,?,?,'personal',NULL,?,'asset',?,'','active',1,?,?)`).run(id3, actor2.serviceId, actor2.personalSpaceId, actor2.userId, spec.title, now, now);
+        db.prepare("INSERT INTO assets VALUES (?)").run(id3);
       }
       db.prepare("INSERT INTO blobs VALUES (?,?,?,?,?)").run(bid, blob.key, blob.sha256, blob.byteLength, format?.media ?? "application/pdf");
-      db.prepare("INSERT INTO asset_versions VALUES (?,?,?,?,?,?,?,?,?,?)").run(vid, id2, version, parent, bid, spec.title, actor2.userId, now, spec.key, digest2);
+      db.prepare("INSERT INTO asset_versions VALUES (?,?,?,?,?,?,?,?,?,?)").run(vid, id3, version, parent, bid, spec.title, actor2.userId, now, spec.key, digest3);
       if (text2) {
         db.prepare("INSERT INTO text_versions VALUES(?,?,?)").run(vid, text2.encoding, text2.blocks.length);
         const insert = db.prepare("INSERT INTO text_blocks VALUES(?,?,?,?,?,?,?)");
         text2.blocks.forEach((b, i) => insert.run(vid, i + 1, b.kind, b.start, b.end, b.text, b.anchor));
       }
-      const published = { id: id2, title: spec.title, version_id: vid, version, sha256: blob.sha256, byte_length: blob.byteLength, ...format ? { media_type: format.media } : {} };
+      const published = { id: id3, title: spec.title, version_id: vid, version, sha256: blob.sha256, byte_length: blob.byteLength, ...format ? { media_type: format.media } : {} };
       onPublish?.(db, actor2, published);
       return { receipt: published, replayed: false };
     });
@@ -2479,24 +2479,24 @@ var AssetStore = class {
       ORDER BY v.created_at DESC,v.version DESC,v.id`).all(actor2.userId, actor2.serviceId).filter((v) => this.allowed(actor2, String(v.id), "read", now)).map(receipt);
     });
   }
-  original(prior, id2, versionId, download) {
+  original(prior, id3, versionId, download) {
     return this.tx("read", (db, now) => {
       const actor2 = this.actor(prior, now);
-      this.check(actor2, id2, "read", now);
-      if (download) this.check(actor2, id2, "export", now);
-      const r = db.prepare("SELECT b.storage_key,b.sha256,b.byte_length,b.media_type,t.encoding FROM asset_versions v JOIN blobs b ON b.id=v.blob_id LEFT JOIN text_versions t ON t.version_id=v.id WHERE v.asset_id=? AND v.id=?").get(id2, versionId);
+      this.check(actor2, id3, "read", now);
+      if (download) this.check(actor2, id3, "export", now);
+      const r = db.prepare("SELECT b.storage_key,b.sha256,b.byte_length,b.media_type,t.encoding FROM asset_versions v JOIN blobs b ON b.id=v.blob_id LEFT JOIN text_versions t ON t.version_id=v.id WHERE v.asset_id=? AND v.id=?").get(id3, versionId);
       if (!r) throw new AssetError(404, "ASSET_NOT_FOUND");
       return { key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length), ...r.media_type === "application/pdf" ? {} : { media: String(r.media_type) }, ...typeof r.encoding === "string" ? { encoding: r.encoding } : {} };
     });
   }
-  blocks(prior, id2, v, from, limit3) {
+  blocks(prior, id3, v, from, limit4) {
     return this.tx("read", (db, now) => {
       const actor2 = this.actor(prior, now);
-      this.check(actor2, id2, "read", now);
-      if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit3) || limit3 < 1 || limit3 > 10) throw new AssetError(422, "INVALID_BLOCK_RANGE");
-      const meta = db.prepare("SELECT encoding,block_count AS total FROM text_versions t JOIN asset_versions a ON a.id=t.version_id WHERE a.asset_id=? AND a.id=?").get(id2, v);
+      this.check(actor2, id3, "read", now);
+      if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit4) || limit4 < 1 || limit4 > 10) throw new AssetError(422, "INVALID_BLOCK_RANGE");
+      const meta = db.prepare("SELECT encoding,block_count AS total FROM text_versions t JOIN asset_versions a ON a.id=t.version_id WHERE a.asset_id=? AND a.id=?").get(id3, v);
       if (!meta) throw new AssetError(404, "ASSET_NOT_FOUND");
-      return { version_id: v, ...meta, blocks: db.prepare("SELECT ordinal,kind,start,end,text,anchor FROM text_blocks WHERE version_id=? AND ordinal>=? ORDER BY ordinal LIMIT ?").all(v, from, limit3) };
+      return { version_id: v, ...meta, blocks: db.prepare("SELECT ordinal,kind,start,end,text,anchor FROM text_blocks WHERE version_id=? AND ordinal>=? ORDER BY ordinal LIMIT ?").all(v, from, limit4) };
     });
   }
 };
@@ -2591,11 +2591,11 @@ var SearchStore = class {
     if (!current) throw new AssetError(401, "AUTH_REQUIRED");
     return current;
   }
-  indexed(hash3, text2) {
-    const hit = this.cache.get(hash3);
+  indexed(hash4, text2) {
+    const hit = this.cache.get(hash4);
     if (hit) {
-      this.cache.delete(hash3);
-      this.cache.set(hash3, hit);
+      this.cache.delete(hash4);
+      this.cache.set(hash4, hit);
       return hit.index;
     }
     const index = indexSearchText(text2), weight = index.ranges.length;
@@ -2605,7 +2605,7 @@ var SearchStore = class {
       this.weight -= this.cache.get(key).weight;
       this.cache.delete(key);
     }
-    this.cache.set(hash3, { index, weight });
+    this.cache.set(hash4, { index, weight });
     this.weight += weight;
     return index;
   }
@@ -2618,7 +2618,7 @@ var SearchStore = class {
     }
     const candidates = this.tx("read", (db, now) => {
       const a = this.actor(prior, now);
-      const ids = db.prepare(`SELECT a.id FROM assets a JOIN knowledge_objects o ON a.id=o.id WHERE o.service_id=? AND o.status='active'`).all(a.serviceId).map((r) => String(r.id)).filter((id2) => this.allowed(a, id2, now));
+      const ids = db.prepare(`SELECT a.id FROM assets a JOIN knowledge_objects o ON a.id=o.id WHERE o.service_id=? AND o.status='active'`).all(a.serviceId).map((r) => String(r.id)).filter((id3) => this.allowed(a, id3, now));
       const bound = JSON.stringify(ids), results = [];
       let work = 0, sources2 = 0;
       for (const row of db.prepare(sourceSQL).iterate(bound, bound, bound)) {
@@ -2799,8 +2799,8 @@ var ZipStore = class {
     if (!a) throw new AssetError(401, "AUTH_REQUIRED");
     return a;
   }
-  owned(db, a, id2) {
-    const row = db.prepare("SELECT id,title,storage_key,sha256,byte_length FROM zip_imports WHERE id=? AND owner_id=?").get(id2, a.userId);
+  owned(db, a, id3) {
+    const row = db.prepare("SELECT id,title,storage_key,sha256,byte_length FROM zip_imports WHERE id=? AND owner_id=?").get(id3, a.userId);
     if (!row) throw notFound();
     return row;
   }
@@ -2811,68 +2811,68 @@ var ZipStore = class {
         if (old.sha256 !== blob.sha256 || old.byte_length !== blob.byteLength || old.title !== spec.title) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
         return { id: String(old.id), replayed: true };
       }
-      const id2 = randomUUID6();
-      db.prepare("INSERT INTO zip_imports VALUES(?,?,?,?,?,?,?,?)").run(id2, a.userId, spec.key, spec.title, blob.key, blob.sha256, blob.byteLength, now);
+      const id3 = randomUUID6();
+      db.prepare("INSERT INTO zip_imports VALUES(?,?,?,?,?,?,?,?)").run(id3, a.userId, spec.key, spec.title, blob.key, blob.sha256, blob.byteLength, now);
       const insert = db.prepare(`INSERT INTO zip_entries(id,import_id,ordinal,name,path,byte_length,compressed_size,media_type,reason,state,publish_key) VALUES(?,?,?,?,?,?,?,?,?,'available',?)`);
-      for (const m of members) insert.run(randomUUID6(), id2, m.ordinal, m.name, m.path, m.size, m.compressedSize, m.media, m.reason, randomUUID6());
-      return { id: id2, replayed: false };
+      for (const m of members) insert.run(randomUUID6(), id3, m.ordinal, m.name, m.path, m.size, m.compressedSize, m.media, m.reason, randomUUID6());
+      return { id: id3, replayed: false };
     });
   }
   list(prior) {
     return this.tx("read", (db, now) => db.prepare("SELECT id,title,byte_length,sha256,created_at FROM zip_imports WHERE owner_id=? ORDER BY created_at DESC,id").all(this.actor(prior, now).userId));
   }
-  source(prior, id2) {
+  source(prior, id3) {
     return this.tx("read", (db, now) => {
-      const r = this.owned(db, this.actor(prior, now), id2);
+      const r = this.owned(db, this.actor(prior, now), id3);
       return { key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length) };
     });
   }
-  manifest(prior, id2) {
+  manifest(prior, id3) {
     return this.tx("read", (db, now) => {
-      const a = this.actor(prior, now), r = this.owned(db, a, id2);
+      const a = this.actor(prior, now), r = this.owned(db, a, id3);
       const rows = db.prepare(`SELECT e.id,e.name,e.path,e.byte_length AS size,e.compressed_size,e.media_type,e.reason,e.state,e.error,
       v.asset_id,v.id AS version_id,v.version,v.original_name,b.sha256,b.byte_length FROM zip_entries e
-      LEFT JOIN asset_versions v ON v.id=e.version_id LEFT JOIN blobs b ON b.id=v.blob_id WHERE e.import_id=? ORDER BY e.ordinal`).all(id2);
+      LEFT JOIN asset_versions v ON v.id=e.version_id LEFT JOIN blobs b ON b.id=v.blob_id WHERE e.import_id=? ORDER BY e.ordinal`).all(id3);
       const entries = rows.map(({ asset_id, version_id, version, original_name, sha256, byte_length, ...e }) => {
         const receipt2 = asset_id && this.readable(a, String(asset_id), now) ? { id: asset_id, version_id, version, title: original_name, sha256, byte_length, media_type: e.media_type } : void 0;
         return { ...e, ...receipt2 ? { receipt: receipt2 } : {} };
       });
       const state = rows.some((x) => x.state === "selected") ? "selected" : rows.some((x) => x.state === "failed") ? "partial" : rows.some((x) => x.state === "imported") ? "imported" : "staged";
-      return { id: id2, title: r.title, byte_length: r.byte_length, sha256: r.sha256, state, entries };
+      return { id: id3, title: r.title, byte_length: r.byte_length, sha256: r.sha256, state, entries };
     });
   }
-  select(prior, id2, key, ids) {
+  select(prior, id3, key, ids) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now);
-      this.owned(db, a, id2);
+      this.owned(db, a, id3);
       if (!uuid.test(key) || !Array.isArray(ids) || !ids.length || ids.length > 512 || ids.some((x) => typeof x !== "string" || !uuid.test(x)) || new Set(ids).size !== ids.length) throw new AssetError(422, "INVALID_SELECTION");
-      const canonical = JSON.stringify([...ids].sort()), digest2 = createHash4("sha256").update(canonical).digest("hex");
+      const canonical = JSON.stringify([...ids].sort()), digest3 = createHash4("sha256").update(canonical).digest("hex");
       const seen = db.prepare("SELECT import_id,selection_digest FROM zip_selections WHERE owner_id=? AND request_key=?").get(a.userId, key);
-      if (seen && (seen.import_id !== id2 || seen.selection_digest !== digest2)) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+      if (seen && (seen.import_id !== id3 || seen.selection_digest !== digest3)) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
       const get = db.prepare("SELECT id,ordinal,path,media_type,reason,state,publish_key FROM zip_entries WHERE import_id=? AND id=?");
       const members = ids.map((entry) => {
-        const r = get.get(id2, entry);
+        const r = get.get(id3, entry);
         if (!r || r.reason !== null || !r.media_type) throw new AssetError(422, "INVALID_SELECTION");
         return { id: entry, ordinal: Number(r.ordinal), path: String(r.path), media: String(r.media_type), key: String(r.publish_key), imported: r.state === "imported" };
       });
-      if (!seen) db.prepare("INSERT INTO zip_selections VALUES(?,?,?,?,?,?,?)").run(randomUUID6(), id2, a.userId, key, digest2, canonical, now);
+      if (!seen) db.prepare("INSERT INTO zip_selections VALUES(?,?,?,?,?,?,?)").run(randomUUID6(), id3, a.userId, key, digest3, canonical, now);
       const mark = db.prepare("UPDATE zip_entries SET state='selected',error=NULL WHERE import_id=? AND id=? AND state IN ('available','failed')");
-      for (const entry of ids) mark.run(id2, entry);
+      for (const entry of ids) mark.run(id3, entry);
       return members.sort((a2, b) => a2.ordinal - b.ordinal);
     });
   }
-  failure(prior, id2, entry, code) {
+  failure(prior, id3, entry, code) {
     this.tx("write", (db, now) => {
-      this.owned(db, this.actor(prior, now), id2);
-      db.prepare("UPDATE zip_entries SET state='failed',error=? WHERE import_id=? AND id=? AND state='selected'").run(code, id2, entry);
+      this.owned(db, this.actor(prior, now), id3);
+      db.prepare("UPDATE zip_entries SET state='failed',error=? WHERE import_id=? AND id=? AND state='selected'").run(code, id3, entry);
     });
   }
   // Called inside AssetStore.publish's transaction; never open a nested transaction.
-  publication(id2, entry, key) {
+  publication(id3, entry, key) {
     return (db, a, r) => {
-      this.owned(db, a, id2);
+      this.owned(db, a, id3);
       const updated = db.prepare(`UPDATE zip_entries SET state='imported',version_id=?,error=NULL WHERE import_id=? AND id=? AND publish_key=?
-      AND (state='selected' OR (state='imported' AND version_id=?))`).run(r.version_id, id2, entry, key, r.version_id);
+      AND (state='selected' OR (state='imported' AND version_id=?))`).run(r.version_id, id3, entry, key, r.version_id);
       if (updated.changes !== 1) throw new AssetError(409, "SELECTION_CHANGED");
     };
   }
@@ -2927,25 +2927,25 @@ var ParseStore = class {
     this.permit = permit;
   }
   operation(actor2, v) {
-    const id2 = this.tx("read", (db, now) => {
+    const id3 = this.tx("read", (db, now) => {
       const r = db.prepare("SELECT v.asset_id FROM pdf_parse_runs r JOIN asset_versions v ON v.id=r.version_id WHERE r.version_id=?").get(v);
       if (!r || !this.permit(actor2.sessionId, actor2.userId, String(r.asset_id), false, now)) throw new AssetError(404, "ASSET_NOT_FOUND");
       return String(r.asset_id);
     });
-    return this.control(actor2, id2, v, "status");
+    return this.control(actor2, id3, v, "status");
   }
-  pages(actor2, id2, v, from, limit3) {
-    if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit3) || limit3 < 1 || limit3 > 10) throw new AssetError(422, "INVALID_PAGE_RANGE");
+  pages(actor2, id3, v, from, limit4) {
+    if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit4) || limit4 < 1 || limit4 > 10) throw new AssetError(422, "INVALID_PAGE_RANGE");
     return this.tx("read", (db, now) => {
-      if (!this.permit(actor2.sessionId, actor2.userId, id2, false, now) || !this.pdfVersion(db, id2, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
+      if (!this.permit(actor2.sessionId, actor2.userId, id3, false, now) || !this.pdfVersion(db, id3, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
       const rows = db.prepare(`SELECT page,state,chapter,error,CASE WHEN state IN ('ready','review') THEN text ELSE NULL END AS text
-        FROM pdf_pages WHERE version_id=? AND page>=? ORDER BY page LIMIT ?`).all(v, from, limit3);
+        FROM pdf_pages WHERE version_id=? AND page>=? ORDER BY page LIMIT ?`).all(v, from, limit4);
       return { version_id: v, from, pages: rows };
     });
   }
-  control(actor2, id2, v, op, page, requested) {
+  control(actor2, id3, v, op, page, requested) {
     return this.tx(op === "status" ? "read" : "write", (db, now) => {
-      if (!this.permit(actor2.sessionId, actor2.userId, id2, op !== "status", now) || !this.pdfVersion(db, id2, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
+      if (!this.permit(actor2.sessionId, actor2.userId, id3, op !== "status", now) || !this.pdfVersion(db, id3, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
       const prev = db.prepare("SELECT state,error,total FROM pdf_parse_runs WHERE version_id=?").get(v);
       const loadChapters = () => db.prepare("SELECT first_page,last_page FROM pdf_chapter_ranges WHERE version_id=? ORDER BY first_page").all(v).map((p) => [Number(p.first_page), Number(p.last_page)]);
       const plan = loadChapters();
@@ -2990,8 +2990,8 @@ var ParseStore = class {
       };
     });
   }
-  pdfVersion(db, id2, v) {
-    return db.prepare("SELECT 1 FROM asset_versions a JOIN blobs b ON b.id=a.blob_id WHERE a.asset_id=? AND a.id=? AND b.media_type='application/pdf'").get(id2, v);
+  pdfVersion(db, id3, v) {
+    return db.prepare("SELECT 1 FROM asset_versions a JOIN blobs b ON b.id=a.blob_id WHERE a.asset_id=? AND a.id=? AND b.media_type='application/pdf'").get(id3, v);
   }
   claim() {
     if (!this.tx("read", (db, now) => db.prepare("SELECT 1 FROM pdf_parse_runs WHERE state='queued' OR (state='running' AND deadline<=?) LIMIT 1").get(Date.parse(now)))) return;
@@ -3146,15 +3146,15 @@ var OfficeStore = class {
   sourceRow(db, v) {
     return db.prepare(sourceSQL2).get(v, WORD_MEDIA.doc, WORD_MEDIA.docx);
   }
-  access(db, now, a, id2, v, action2) {
-    if (!this.permit(a.sessionId, a.userId, id2, "read", now) || action2 !== "read" && !this.permit(a.sessionId, a.userId, id2, action2, now)) throw missing();
+  access(db, now, a, id3, v, action2) {
+    if (!this.permit(a.sessionId, a.userId, id3, "read", now) || action2 !== "read" && !this.permit(a.sessionId, a.userId, id3, action2, now)) throw missing();
     const row = this.sourceRow(db, v);
-    if (!row || row.asset_id !== id2) throw missing();
+    if (!row || row.asset_id !== id3) throw missing();
     return row;
   }
-  list(a, id2, v, options = {}) {
+  list(a, id3, v, options = {}) {
     return this.tx("read", (db, now) => {
-      this.access(db, now, a, id2, v, "read");
+      this.access(db, now, a, id3, v, "read");
       const { before, conversion, notes_before } = options;
       if (Object.keys(options).some((k) => !["before", "conversion", "notes_before"].includes(k)) || [before, conversion, notes_before].some((x) => x !== void 0 && (typeof x !== "string" || x.length !== 36 || !keyPattern.test(x))) || before && conversion || notes_before && !conversion) throw new AssetError(422, "INVALID_HISTORY_CURSOR");
       const seek = (sql, cursor, parent) => {
@@ -3194,9 +3194,9 @@ var OfficeStore = class {
       };
     });
   }
-  start(a, id2, v, key, available = true) {
+  start(a, id3, v, key, available2 = true) {
     return this.tx("write", (db, now) => {
-      const row = this.access(db, now, a, id2, v, "edit");
+      const row = this.access(db, now, a, id3, v, "edit");
       checkKey(key);
       const prev = db.prepare("SELECT id,version_id,state FROM office_conversions WHERE actor_id=? AND request_key=?").get(a.userId, key);
       if (prev) {
@@ -3205,16 +3205,16 @@ var OfficeStore = class {
       }
       if (!row.head) throw new AssetError(409, "SOURCE_CHANGED");
       if (db.prepare("SELECT 1 FROM office_conversions WHERE version_id=? AND state IN ('queued','running')").get(v)) throw new AssetError(409, "CONVERSION_IN_PROGRESS");
-      if (!available) throw new AssetError(503, "OFFICE_UNAVAILABLE");
+      if (!available2) throw new AssetError(503, "OFFICE_UNAVAILABLE");
       const cid = randomUUID8();
       db.prepare("INSERT INTO office_conversions(id,version_id,actor_id,request_key,state,created_at,updated_at) VALUES(?,?,?,?,'queued',?,?)").run(cid, v, a.userId, key, now, now);
       db.prepare("INSERT INTO office_authorizations VALUES(?,?)").run(cid, a.sessionId);
       return { id: cid, state: "queued", replayed: false };
     });
   }
-  cancel(a, id2, v, cid) {
+  cancel(a, id3, v, cid) {
     return this.tx("write", (db, now) => {
-      this.access(db, now, a, id2, v, "edit");
+      this.access(db, now, a, id3, v, "edit");
       const row = db.prepare("SELECT state FROM office_conversions WHERE id=? AND version_id=?").get(cid, v);
       if (!row) throw missing();
       if (row.state !== "cancelled") {
@@ -3224,17 +3224,17 @@ var OfficeStore = class {
       return { id: cid, state: "cancelled" };
     });
   }
-  result(a, id2, v, cid, download) {
+  result(a, id3, v, cid, download) {
     return this.tx("read", (db, now) => {
-      this.access(db, now, a, id2, v, download ? "export" : "read");
+      this.access(db, now, a, id3, v, download ? "export" : "read");
       const row = db.prepare("SELECT b.storage_key,b.byte_length,b.sha256 FROM office_conversions c JOIN blobs b ON b.id=c.result_blob_id WHERE c.id=? AND c.version_id=? AND c.state='ready' AND b.media_type='application/pdf'").get(cid, v);
       if (!row) throw missing();
       return { key: String(row.storage_key), byteLength: Number(row.byte_length), sha256: String(row.sha256) };
     });
   }
-  note(a, id2, v, cid, key, page, body) {
+  note(a, id3, v, cid, key, page, body) {
     return this.tx("write", (db, now) => {
-      this.access(db, now, a, id2, v, "edit");
+      this.access(db, now, a, id3, v, "edit");
       checkKey(key);
       const row = db.prepare("SELECT page_count FROM office_conversions WHERE id=? AND version_id=? AND state='ready'").get(cid, v);
       if (!row) throw missing();
@@ -3329,12 +3329,12 @@ import { createHash as createHash5 } from "node:crypto";
 function citationAnchor(text2, start, end) {
   const split = (n) => n > 0 && n < text2.length && text2.charCodeAt(n - 1) >= 55296 && text2.charCodeAt(n - 1) <= 56319 && text2.charCodeAt(n) >= 56320 && text2.charCodeAt(n) <= 57343;
   if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end <= start || end > text2.length || split(start) || split(end)) throw new AssetError(422, "INVALID_CITATION_RANGE");
-  const quote = text2.slice(start, end), hash3 = (s) => createHash5("sha256").update(s, "utf8").digest("hex");
-  return { start, end, quote_hash: hash3(quote), source_hash: hash3(text2) };
+  const quote = text2.slice(start, end), hash4 = (s) => createHash5("sha256").update(s, "utf8").digest("hex");
+  return { start, end, quote_hash: hash4(quote), source_hash: hash4(text2) };
 }
 function resolveCitationText(text2, anchor) {
-  const digest2 = createHash5("sha256").update(text2, "utf8").digest("hex");
-  if (digest2 !== anchor.source_hash) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
+  const digest3 = createHash5("sha256").update(text2, "utf8").digest("hex");
+  if (digest3 !== anchor.source_hash) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
   const actual = citationAnchor(text2, anchor.start, anchor.end);
   if (actual.quote_hash !== anchor.quote_hash) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
   return text2.slice(anchor.start, anchor.end);
@@ -3396,9 +3396,9 @@ function savePosition(db, user, version, p, expected) {
 }
 function createBookmark(db, user, version, p, title) {
   if (Number(db.prepare("SELECT count(*) AS n FROM reading_bookmarks WHERE user_id=? AND version_id=?").get(user, version)?.n) >= 200) throw new AssetError(409, "BOOKMARK_LIMIT");
-  const id2 = randomUUID9();
-  db.prepare("INSERT INTO reading_bookmarks(id,user_id,version_id,ordinal,conversion_id,source_hash,title) VALUES(?,?,?,?,?,?,?)").run(id2, user, version, p.ordinal, p.conversion_id ?? null, p.source_hash, title);
-  return { id: id2, title, ordinal: p.ordinal, source_hash: p.source_hash, ...p.conversion_id ? { conversion_id: p.conversion_id } : {} };
+  const id3 = randomUUID9();
+  db.prepare("INSERT INTO reading_bookmarks(id,user_id,version_id,ordinal,conversion_id,source_hash,title) VALUES(?,?,?,?,?,?,?)").run(id3, user, version, p.ordinal, p.conversion_id ?? null, p.source_hash, title);
+  return { id: id3, title, ordinal: p.ordinal, source_hash: p.source_hash, ...p.conversion_id ? { conversion_id: p.conversion_id } : {} };
 }
 
 // src/host/annotation-store.ts
@@ -3439,19 +3439,19 @@ function insertAnnotation(db, t, user, scope, draft, citation) {
   if (draft.visibility === "project" && !project) throw new AssetError(422, "ANNOTATION_SCOPE_UNAVAILABLE");
   const count = db.prepare(`${records.replace(/^SELECT[\s\S]*?FROM/, "SELECT count(*) AS n FROM")} WHERE ${inSource} AND a.project_id IS ?${project ? "" : " AND a.author_id=?"}`).get(...args(t), project ?? null, ...project ? [] : [user]);
   if (Number(count?.n) >= 200) throw new AssetError(409, "ANNOTATION_LIMIT");
-  const id2 = randomUUID10();
-  db.prepare("INSERT INTO reader_annotations VALUES(?,?,?,?,?,1)").run(id2, draft.citation_id, user, project ?? null, draft.body);
-  return dto({ ...citation, id: id2, citation_id: draft.citation_id, author_id: user, project_id: project ?? null, body: draft.body, revision: 1 }, user, scope);
+  const id3 = randomUUID10();
+  db.prepare("INSERT INTO reader_annotations VALUES(?,?,?,?,?,1)").run(id3, draft.citation_id, user, project ?? null, draft.body);
+  return dto({ ...citation, id: id3, citation_id: draft.citation_id, author_id: user, project_id: project ?? null, body: draft.body, revision: 1 }, user, scope);
 }
-function mutateAnnotation(db, t, user, scope, id2, revision, body) {
-  const row = db.prepare(`${records} WHERE ${inSource} AND a.id=? AND a.author_id=?`).get(...args(t), id2, user);
+function mutateAnnotation(db, t, user, scope, id3, revision, body) {
+  const row = db.prepare(`${records} WHERE ${inSource} AND a.id=? AND a.author_id=?`).get(...args(t), id3, user);
   if (!row || !visibleAnnotation(row, user, scope)) throw hidden();
   if (row.revision !== revision) throw new AssetError(409, "ANNOTATION_REVISION_CONFLICT");
   if (body === void 0) {
-    db.prepare("DELETE FROM reader_annotations WHERE id=?").run(id2);
-    return { id: id2 };
+    db.prepare("DELETE FROM reader_annotations WHERE id=?").run(id3);
+    return { id: id3 };
   }
-  db.prepare("UPDATE reader_annotations SET body=?,revision=? WHERE id=?").run(body, revision + 1, id2);
+  db.prepare("UPDATE reader_annotations SET body=?,revision=? WHERE id=?").run(body, revision + 1, id3);
   return dto({ ...row, body, revision: revision + 1 }, user, scope);
 }
 
@@ -3533,6 +3533,19 @@ var CitationStore = class {
   source(prior, t) {
     return this.tx("read", (db, now) => this.read(db, this.actor(prior, now), t, now));
   }
+  recallSource(db, actor2, t, now) {
+    const s = this.read(db, actor2, t, now);
+    if (s.kind === "office") {
+      if (!t.conversion_id || s.conversion_id !== t.conversion_id) throw new AssetError(422, "RECALL_CONVERSION_REQUIRED");
+      const page = db.prepare(`SELECT p.text FROM office_conversions c JOIN word_search_runs r
+        ON r.conversion_id=c.id AND r.result_blob_id=c.result_blob_id JOIN word_search_pages p ON p.conversion_id=c.id
+        WHERE c.id=? AND p.page=?`).get(s.conversion_id, s.ordinal);
+      if (!page) throw new AssetError(409, "RECALL_SOURCE_NOT_READY");
+      return { ...s, text: String(page.text) };
+    }
+    if (s.state !== "ready") throw new AssetError(409, "RECALL_SOURCE_NOT_READY");
+    return s;
+  }
   navigation(prior, t) {
     return this.tx("read", (db, now) => {
       const a = this.actor(prior, now), src = this.read(db, a, { ...t, ordinal: 1 }, now);
@@ -3580,13 +3593,13 @@ var CitationStore = class {
       return createBookmark(db, a.userId, t.version_id, t, title);
     });
   }
-  deleteBookmark(prior, t, id2, expectedActor) {
+  deleteBookmark(prior, t, id3, expectedActor) {
     return this.tx("write", (db, now) => {
       const a = this.writer(prior, expectedActor, now);
       this.read(db, a, t, now);
-      const del = db.prepare("DELETE FROM reading_bookmarks WHERE id=? AND user_id=? AND version_id=?").run(id2, a.userId, t.version_id);
+      const del = db.prepare("DELETE FROM reading_bookmarks WHERE id=? AND user_id=? AND version_id=?").run(id3, a.userId, t.version_id);
       if (del.changes !== 1) throw notFound2();
-      return { id: id2 };
+      return { id: id3 };
     });
   }
   annotatable(db, a, t, now, write = false) {
@@ -3609,16 +3622,16 @@ var CitationStore = class {
       return insertAnnotation(db, src, a.userId, scope, draft, dto2(row));
     });
   }
-  updateAnnotation(prior, t, id2, revision, body, expectedActor) {
+  updateAnnotation(prior, t, id3, revision, body, expectedActor) {
     return this.tx("write", (db, now) => {
       const a = this.writer(prior, expectedActor, now), { src, scope } = this.annotatable(db, a, t, now, true);
-      return mutateAnnotation(db, src, a.userId, scope, id2, revision, body);
+      return mutateAnnotation(db, src, a.userId, scope, id3, revision, body);
     });
   }
-  deleteAnnotation(prior, t, id2, revision, expectedActor) {
+  deleteAnnotation(prior, t, id3, revision, expectedActor) {
     return this.tx("write", (db, now) => {
       const a = this.writer(prior, expectedActor, now), { src, scope } = this.annotatable(db, a, t, now, true);
-      return mutateAnnotation(db, src, a.userId, scope, id2, revision);
+      return mutateAnnotation(db, src, a.userId, scope, id3, revision);
     });
   }
   access(prior, asset, version) {
@@ -3637,8 +3650,8 @@ var CitationStore = class {
     if (!w || w.conversion_id !== s.conversion_id || w.sha256 !== s.ref?.sha256 || w.ordinal !== s.ordinal) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
     return w.text;
   }
-  locator(db, id2) {
-    const r = db.prepare("SELECT snapshot FROM citation_locators WHERE citation_id=?").get(id2);
+  locator(db, id3) {
+    const r = db.prepare("SELECT snapshot FROM citation_locators WHERE citation_id=?").get(id3);
     return r ? JSON.parse(String(r.snapshot)) : null;
   }
   receipt(db, a, now, spec, key, range) {
@@ -3671,24 +3684,24 @@ var CitationStore = class {
         return r ? String(r.anchor) : null;
       };
       const locator = makeLocator(src, text2, spec.start, spec.end, { previous: neighbor(src.ordinal - 1), next: neighbor(src.ordinal + 1) }, w);
-      const id2 = randomUUID11();
-      db.prepare("INSERT INTO citations VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run(id2, a.userId, key, spec.asset_id, spec.version_id, spec.conversion_id ?? null, spec.ordinal, range.start, range.end, range.source_hash, range.quote_hash, now);
-      db.prepare("INSERT INTO citation_locators(citation_id,snapshot) VALUES(?,?)").run(id2, JSON.stringify(locator));
-      return { data: { ...spec, ...range, id: id2, locator }, replayed: false };
+      const id3 = randomUUID11();
+      db.prepare("INSERT INTO citations VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run(id3, a.userId, key, spec.asset_id, spec.version_id, spec.conversion_id ?? null, spec.ordinal, range.start, range.end, range.source_hash, range.quote_hash, now);
+      db.prepare("INSERT INTO citation_locators(citation_id,snapshot) VALUES(?,?)").run(id3, JSON.stringify(locator));
+      return { data: { ...spec, ...range, id: id3, locator }, replayed: false };
     });
   }
-  lookup(db, a, id2, now) {
-    const r = db.prepare(`SELECT ${fields} FROM citations WHERE id=?`).get(id2);
+  lookup(db, a, id3, now) {
+    const r = db.prepare(`SELECT ${fields} FROM citations WHERE id=?`).get(id3);
     if (!r || !this.allowed(a, String(r.asset_id), now)) throw notFound2();
     return dto2(r);
   }
-  target(prior, id2) {
-    return this.tx("read", (db, now) => this.lookup(db, this.actor(prior, now), id2, now));
+  target(prior, id3) {
+    return this.tx("read", (db, now) => this.lookup(db, this.actor(prior, now), id3, now));
   }
-  resolve(prior, id2, w) {
+  resolve(prior, id3, w) {
     return this.tx("read", (db, now) => {
-      const a = this.actor(prior, now), r = this.lookup(db, a, id2, now), source = this.read(db, a, r, now);
-      return { ...r, quote: resolveCitationText(this.text(source, w), r), locator: this.locator(db, id2) };
+      const a = this.actor(prior, now), r = this.lookup(db, a, id3, now), source = this.read(db, a, r, now);
+      return { ...r, quote: resolveCitationText(this.text(source, w), r), locator: this.locator(db, id3) };
     });
   }
 };
@@ -3755,22 +3768,22 @@ var NoteStore = class {
     if (expected !== void 0 && actor2.userId !== expected) throw new AssetError(409, "ACTOR_CHANGED");
     return actor2;
   }
-  owned(db, a, id2) {
-    const row = db.prepare(`SELECT ${rowFields} FROM notes WHERE id=? AND service_id=? AND owner_user_id=?`).get(id2, a.serviceId, a.userId);
+  owned(db, a, id3) {
+    const row = db.prepare(`SELECT ${rowFields} FROM notes WHERE id=? AND service_id=? AND owner_user_id=?`).get(id3, a.serviceId, a.userId);
     if (!row) throw notFound3();
     return row;
   }
-  detail(db, a, id2, now) {
-    const meta = this.owned(db, a, id2);
-    const root = db.prepare("SELECT id,body FROM note_nodes WHERE note_id=? AND parent_id IS NULL").get(id2);
+  detail(db, a, id3, now) {
+    const meta = this.owned(db, a, id3);
+    const root = db.prepare("SELECT id,body FROM note_nodes WHERE note_id=? AND parent_id IS NULL").get(id3);
     if (!root) throw Error("Note root is missing");
     const refs = db.prepare(`SELECT r.id,r.citation_id,c.asset_id,c.version_id FROM note_references r JOIN citations c ON c.id=r.citation_id
       WHERE r.node_id=? ORDER BY r.rowid`).all(root.id);
     return { ...meta, body: String(root.body), references: refs.map((r) => this.canReadAsset(a, String(r.asset_id), now) ? { id: String(r.id), status: "linked", citation_id: String(r.citation_id), asset_id: String(r.asset_id), version_id: String(r.version_id) } : { id: String(r.id), status: "unavailable" }) };
   }
-  assertCitation(db, a, id2, now) {
-    if (!noteId.test(id2)) throw invalid2();
-    const c = db.prepare("SELECT asset_id FROM citations WHERE id=?").get(id2);
+  assertCitation(db, a, id3, now) {
+    if (!noteId.test(id3)) throw invalid2();
+    const c = db.prepare("SELECT asset_id FROM citations WHERE id=?").get(id3);
     if (!c || !this.canReadAsset(a, String(c.asset_id), now)) throw new AssetError(404, "SOURCE_NOT_FOUND");
   }
   list(session, after = "") {
@@ -3781,31 +3794,31 @@ var NoteStore = class {
       return { items: rows.slice(0, 50), next: rows.length > 50 ? rows[49].id : null };
     });
   }
-  get(session, id2) {
-    return this.tx("read", (db, now) => this.detail(db, this.actor(session, now), id2, now));
+  get(session, id3) {
+    return this.tx("read", (db, now) => this.detail(db, this.actor(session, now), id3, now));
   }
   create(session, expected, key, d, citation) {
     return this.tx("write", (db, now) => {
       const a = this.actor(session, now, expected);
       draftValid(d);
       if (!noteId.test(key)) throw invalid2();
-      const digest2 = createHash9("sha256").update(JSON.stringify([d.title, d.body, d.kind, ...citation === void 0 ? [] : [citation]])).digest("hex");
+      const digest3 = createHash9("sha256").update(JSON.stringify([d.title, d.body, d.kind, ...citation === void 0 ? [] : [citation]])).digest("hex");
       const old = db.prepare("SELECT id,create_digest FROM notes WHERE service_id=? AND owner_user_id=? AND create_key=?").get(a.serviceId, a.userId, key);
       if (old) {
-        if (old.create_digest !== digest2) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        if (old.create_digest !== digest3) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
         return { data: this.detail(db, a, String(old.id), now), replayed: true };
       }
-      const id2 = randomUUID12();
+      const id3 = randomUUID12();
       if (citation !== void 0) this.assertCitation(db, a, citation, now);
-      db.prepare("INSERT INTO notes VALUES(?,?,?,?,?,?,1,?,?,?,?)").run(id2, a.serviceId, a.personalSpaceId, a.userId, d.title, d.kind, now, now, key, digest2);
-      db.prepare("INSERT INTO note_nodes VALUES(?,?,NULL,0,?,1)").run(id2, id2, d.body);
-      if (citation !== void 0) db.prepare("INSERT INTO note_references VALUES(?,?,?)").run(randomUUID12(), id2, citation);
-      return { data: this.detail(db, a, id2, now), replayed: false };
+      db.prepare("INSERT INTO notes VALUES(?,?,?,?,?,?,1,?,?,?,?)").run(id3, a.serviceId, a.personalSpaceId, a.userId, d.title, d.kind, now, now, key, digest3);
+      db.prepare("INSERT INTO note_nodes VALUES(?,?,NULL,0,?,1)").run(id3, id3, d.body);
+      if (citation !== void 0) db.prepare("INSERT INTO note_references VALUES(?,?,?)").run(randomUUID12(), id3, citation);
+      return { data: this.detail(db, a, id3, now), replayed: false };
     });
   }
-  save(session, expected, id2, revision, patch) {
+  save(session, expected, id3, revision, patch) {
     return this.tx("write", (db, now) => {
-      const a = this.actor(session, now, expected), old = this.detail(db, a, id2, now);
+      const a = this.actor(session, now, expected), old = this.detail(db, a, id3, now);
       if (!Number.isSafeInteger(revision) || revision < 1 || !Object.keys(patch).length) throw invalid2();
       if (revision !== old.revision) throw conflict();
       const d = { title: patch.title ?? old.title, kind: patch.kind ?? old.kind, body: patch.body ?? old.body };
@@ -3817,28 +3830,28 @@ var NoteStore = class {
         this.assertCitation(db, a, add, now);
         if (!old.references.some((r) => r.citation_id === add)) {
           if (old.references.length >= noteLimits.references) throw new AssetError(409, "NOTE_REFERENCE_LIMIT");
-          db.prepare("INSERT INTO note_references VALUES(?,?,?)").run(randomUUID12(), id2, add);
+          db.prepare("INSERT INTO note_references VALUES(?,?,?)").run(randomUUID12(), id3, add);
           referenceChanged = true;
         }
       } else if (remove !== void 0) {
         if (!noteId.test(remove)) throw invalid2();
-        referenceChanged = !!db.prepare("DELETE FROM note_references WHERE node_id=? AND id=?").run(id2, remove).changes;
+        referenceChanged = !!db.prepare("DELETE FROM note_references WHERE node_id=? AND id=?").run(id3, remove).changes;
         if (!referenceChanged) throw notFound3();
       }
       if (referenceChanged || d.title !== old.title || d.kind !== old.kind || d.body !== old.body) {
-        if (!db.prepare("UPDATE notes SET title=?,note_kind=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?").run(d.title, d.kind, now, id2, revision).changes) throw conflict();
-        if (d.body !== old.body) db.prepare("UPDATE note_nodes SET body=?,body_revision=body_revision+1 WHERE id=?").run(d.body, id2);
+        if (!db.prepare("UPDATE notes SET title=?,note_kind=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?").run(d.title, d.kind, now, id3, revision).changes) throw conflict();
+        if (d.body !== old.body) db.prepare("UPDATE note_nodes SET body=?,body_revision=body_revision+1 WHERE id=?").run(d.body, id3);
       }
-      return this.detail(db, a, id2, now);
+      return this.detail(db, a, id3, now);
     });
   }
-  linkProject(session, expected, project, id2) {
+  linkProject(session, expected, project, id3) {
     return this.tx("write", (db, now) => {
       const a = this.actor(session, now, expected);
-      this.owned(db, a, id2);
+      this.owned(db, a, id3);
       if (!this.projectMember(a, project, now) || !this.projectManager(a, project)) throw new AssetError(404, "PROJECT_NOT_FOUND");
-      const made = db.prepare("INSERT INTO project_note_refs VALUES(?,?,?) ON CONFLICT(project_id,note_id) DO NOTHING").run(project, id2, now);
-      return { project_id: project, note_id: id2, replayed: !made.changes };
+      const made = db.prepare("INSERT INTO project_note_refs VALUES(?,?,?) ON CONFLICT(project_id,note_id) DO NOTHING").run(project, id3, now);
+      return { project_id: project, note_id: id3, replayed: !made.changes };
     });
   }
   managedProjects(session, after = "") {
@@ -3864,25 +3877,245 @@ var NoteStore = class {
   }
 };
 
+// src/host/recall-store.ts
+import { createHash as createHash11, randomUUID as randomUUID13 } from "node:crypto";
+
+// src/host/recall-range.ts
+import { createHash as createHash10 } from "node:crypto";
+var digest = (text2) => createHash10("sha256").update(text2, "utf8").digest("hex");
+var invalid3 = () => new AssetError(422, "INVALID_RECALL_RANGE");
+var changed = () => new AssetError(409, "RECALL_SOURCE_CHANGED");
+var available = (text2) => {
+  if (text2 === void 0) throw new AssetError(409, "RECALL_SOURCE_NOT_READY");
+  return text2;
+};
+function boundary(text2, n) {
+  if (!Number.isSafeInteger(n) || n < 0 || n > text2.length) return false;
+  const a = text2.charCodeAt(n - 1), b = text2.charCodeAt(n);
+  return !(a >= 55296 && a <= 56319 && b >= 56320 && b <= 57343);
+}
+function recallSelection(first, last, interior, total, read) {
+  if (![first.ordinal, last.ordinal, total].every(Number.isSafeInteger) || first.ordinal < 1 || last.ordinal < first.ordinal || last.ordinal > total) throw invalid3();
+  if (interior.length !== Math.max(0, last.ordinal - first.ordinal - 1)) throw invalid3();
+  const segments = [];
+  for (let ordinal = first.ordinal; ordinal <= last.ordinal; ordinal++) {
+    const text2 = available(read(ordinal)), source_hash = digest(text2);
+    if (ordinal === first.ordinal && source_hash !== first.source_hash || ordinal === last.ordinal && source_hash !== last.source_hash || ordinal > first.ordinal && ordinal < last.ordinal && source_hash !== interior[ordinal - first.ordinal - 1]) throw changed();
+    const start = ordinal === first.ordinal ? first.offset : 0, end = ordinal === last.ordinal ? last.offset : text2.length;
+    if (!boundary(text2, start) || !boundary(text2, end) || start > end) throw invalid3();
+    segments.push({ ordinal, start, end, source_hash });
+  }
+  if (!segments.some((s) => s.end > s.start)) throw invalid3();
+  return segments;
+}
+function recallMasks(segments, masks, read) {
+  const byPage = new Map(segments.map((s) => [s.ordinal, s])), normalized = masks.map((m) => ({ ...m })).sort((a, b) => a.ordinal - b.ordinal || a.start - b.start || a.end - b.end);
+  let previous, text2 = "";
+  for (const m of normalized) {
+    const s = byPage.get(m.ordinal);
+    if (!s || !Number.isSafeInteger(m.group) || m.group < 1 || m.start < s.start || m.end > s.end || m.start >= m.end) throw invalid3();
+    if (previous?.ordinal !== m.ordinal) {
+      text2 = available(read(m.ordinal));
+      if (digest(text2) !== s.source_hash) throw changed();
+    } else if (m.start < previous.end) throw invalid3();
+    if (!boundary(text2, m.start) || !boundary(text2, m.end)) throw invalid3();
+    previous = m;
+  }
+  return normalized;
+}
+function recallPractice(segment, masks, revealed, text2) {
+  if (digest(text2) !== segment.source_hash) throw changed();
+  const runs = [];
+  let offset = segment.start;
+  const visible = (start, end) => {
+    if (end > start) runs.push({ kind: "text", text: text2.slice(start, end) });
+  };
+  for (const m of masks) {
+    if (m.ordinal !== segment.ordinal) continue;
+    visible(offset, m.start);
+    if (revealed.has(m.group)) visible(m.start, m.end);
+    else runs.push({ kind: "hidden", group: m.group, length: m.end - m.start });
+    offset = m.end;
+  }
+  visible(offset, segment.end);
+  return runs;
+}
+
+// src/host/recall-store.ts
+var RECALL_SCHEMA = `CREATE TABLE recall_materials (
+  id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL REFERENCES users(id), service_id TEXT NOT NULL,
+  asset_id TEXT NOT NULL REFERENCES assets(id), version_id TEXT NOT NULL REFERENCES asset_versions(id),
+  conversion_id TEXT REFERENCES office_conversions(id), title TEXT NOT NULL, created_at TEXT NOT NULL,
+  request_key TEXT NOT NULL, request_digest TEXT NOT NULL CHECK(length(request_digest)=64),
+  UNIQUE(service_id,owner_user_id,request_key)
+) STRICT;
+CREATE INDEX recall_materials_owner ON recall_materials(service_id,owner_user_id,id);
+CREATE TABLE recall_segments (
+  material_id TEXT NOT NULL REFERENCES recall_materials(id), ordinal INTEGER NOT NULL CHECK(ordinal>=1),
+  start INTEGER NOT NULL CHECK(start>=0), end INTEGER NOT NULL CHECK(end>=start),
+  source_hash TEXT NOT NULL CHECK(length(source_hash)=64), PRIMARY KEY(material_id,ordinal)
+) STRICT;
+CREATE TABLE recall_masks (
+  material_id TEXT NOT NULL, ordinal INTEGER NOT NULL, start INTEGER NOT NULL CHECK(start>=0),
+  end INTEGER NOT NULL CHECK(end>start), mask_group INTEGER NOT NULL CHECK(mask_group>=1),
+  PRIMARY KEY(material_id,ordinal,start), FOREIGN KEY(material_id,ordinal) REFERENCES recall_segments(material_id,ordinal)
+) STRICT;
+CREATE TABLE recall_attempts (
+  material_id TEXT PRIMARY KEY, active_ordinal INTEGER NOT NULL, revision INTEGER NOT NULL CHECK(revision>=1),
+  FOREIGN KEY(material_id,active_ordinal) REFERENCES recall_segments(material_id,ordinal)
+) STRICT;
+CREATE TABLE recall_events (
+  material_id TEXT NOT NULL REFERENCES recall_attempts(material_id), revision INTEGER NOT NULL CHECK(revision>=2),
+  request_key TEXT NOT NULL, request_digest TEXT NOT NULL CHECK(length(request_digest)=64), event TEXT NOT NULL,
+  value INTEGER NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(material_id,revision), UNIQUE(material_id,request_key),
+  CHECK(event IN ('move','hint','reveal','recall','rating'))
+) STRICT;
+CREATE INDEX recall_events_groups ON recall_events(material_id,event,value);`;
+var sha3 = (text2) => createHash11("sha256").update(text2).digest("hex");
+var invalid4 = () => new AssetError(422, "INVALID_RECALL");
+var notFound4 = () => new AssetError(404, "RECALL_NOT_FOUND");
+var point2 = (t, ordinal) => ({ asset_id: t.asset_id, version_id: t.version_id, ordinal, ...t.conversion_id ? { conversion_id: t.conversion_id } : {} });
+var RecallStore = class {
+  constructor(tx, current, allowed, source) {
+    this.tx = tx;
+    this.current = current;
+    this.allowed = allowed;
+    this.source = source;
+  }
+  actor(prior, now, expected) {
+    const a = this.current(prior, now);
+    if (!a) throw new AssetError(401, "AUTH_REQUIRED");
+    if (expected !== void 0 && expected !== a.userId) throw new AssetError(409, "ACTOR_CHANGED");
+    return a;
+  }
+  material(db, a, id3, now) {
+    const row = db.prepare(`SELECT id,title,asset_id,version_id,conversion_id FROM recall_materials WHERE id=? AND service_id=? AND owner_user_id=?`).get(id3, a.serviceId, a.userId);
+    if (!row || !this.allowed(a, row.asset_id, now)) throw notFound4();
+    return row;
+  }
+  practice(db, a, m, now) {
+    const attempt = db.prepare("SELECT active_ordinal,revision FROM recall_attempts WHERE material_id=?").get(m.id);
+    const ordinal = Number(attempt.active_ordinal);
+    const segment = db.prepare("SELECT ordinal,start,end,source_hash FROM recall_segments WHERE material_id=? AND ordinal=?").get(m.id, ordinal);
+    const source = this.source(db, a, point2(m, ordinal), now);
+    const masks = db.prepare('SELECT ordinal,start,end,mask_group AS "group" FROM recall_masks WHERE material_id=? AND ordinal=? ORDER BY start').all(m.id, ordinal);
+    const events = db.prepare(`SELECT event,value,count(*) AS count FROM recall_events WHERE material_id=? AND event IN ('hint','reveal','recall') GROUP BY event,value`).all(m.id);
+    const ratings = db.prepare("SELECT value FROM recall_events WHERE material_id=? AND event='rating' ORDER BY revision DESC LIMIT 1").get(m.id);
+    const revealed = new Set(events.filter((e) => e.event === "reveal").map((e) => Number(e.value)));
+    const recalled = events.filter((e) => e.event === "recall").map((e) => Number(e.value));
+    const bounds = db.prepare("SELECT min(ordinal) AS first,max(ordinal) AS last,sum(end-start) AS length FROM recall_segments WHERE material_id=?").get(m.id);
+    const head = db.prepare("SELECT id FROM asset_versions WHERE asset_id=? ORDER BY version DESC LIMIT 1").get(m.asset_id);
+    const conversion = m.conversion_id ? db.prepare("SELECT id FROM office_conversions WHERE version_id=? AND state='ready' ORDER BY rowid DESC LIMIT 1").get(m.version_id) : void 0;
+    return {
+      material: m,
+      ordinal,
+      revision: Number(attempt.revision),
+      first: Number(bounds.first),
+      last: Number(bounds.last),
+      length: Number(bounds.length),
+      source_changed: head?.id !== m.version_id || Boolean(m.conversion_id && conversion?.id !== m.conversion_id),
+      runs: recallPractice(segment, masks, revealed, source.text),
+      progress: {
+        hints: events.filter((e) => e.event === "hint").map((e) => ({ group: Number(e.value), count: Number(e.count) })),
+        revealed: [...revealed],
+        independent_recall: recalled,
+        self_rating: ratings ? Number(ratings.value) : null
+      }
+    };
+  }
+  authorPage(prior, t) {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(prior, now), s = this.source(db, a, t, now);
+      return { actor_id: a.userId, ordinal: s.ordinal, total: s.total, text: s.text, title: s.title, source_hash: sha3(s.text) };
+    });
+  }
+  list(prior, after = "") {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(prior, now), items = [];
+      for (const row of db.prepare("SELECT id,title,asset_id FROM recall_materials WHERE service_id=? AND owner_user_id=? AND id>? ORDER BY id").iterate(a.serviceId, a.userId, after)) {
+        if (!this.allowed(a, String(row.asset_id), now)) continue;
+        items.push({ id: String(row.id), title: String(row.title) });
+        if (items.length === 51) break;
+      }
+      return { items: items.slice(0, 50), next: items.length > 50 ? items[49].id : null };
+    });
+  }
+  get(prior, id3) {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(prior, now);
+      return this.practice(db, a, this.material(db, a, id3, now), now);
+    });
+  }
+  create(prior, expected, key, draft) {
+    return this.tx("write", (db, now) => {
+      const a = this.actor(prior, now, expected), digest3 = sha3(JSON.stringify(draft));
+      const old = db.prepare("SELECT id,request_digest FROM recall_materials WHERE service_id=? AND owner_user_id=? AND request_key=?").get(a.serviceId, a.userId, key);
+      if (old) {
+        const m2 = this.material(db, a, String(old.id), now);
+        if (old.request_digest !== digest3) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        return { data: this.practice(db, a, m2, now), replayed: true };
+      }
+      if (!draft.title.trim() || draft.title.length > 200 || !draft.masks.length) throw invalid4();
+      const first = this.source(db, a, point2(draft, draft.first.ordinal), now);
+      const read = (n) => n === first.ordinal ? first.text : this.source(db, a, point2(draft, n), now).text;
+      const segments = recallSelection(draft.first, draft.last, draft.interior_hashes, first.total, read), masks = recallMasks(segments, draft.masks, read), id3 = randomUUID13();
+      const m = { id: id3, title: draft.title, asset_id: draft.asset_id, version_id: draft.version_id, conversion_id: draft.conversion_id ?? null };
+      db.prepare("INSERT INTO recall_materials VALUES(?,?,?,?,?,?,?,?,?,?)").run(id3, a.userId, a.serviceId, m.asset_id, m.version_id, m.conversion_id, m.title, now, key, digest3);
+      const insert = db.prepare("INSERT INTO recall_segments VALUES(?,?,?,?,?)");
+      for (const s of segments) insert.run(id3, s.ordinal, s.start, s.end, s.source_hash);
+      const maskInsert = db.prepare("INSERT INTO recall_masks VALUES(?,?,?,?,?)");
+      for (const mask of masks) maskInsert.run(id3, mask.ordinal, mask.start, mask.end, mask.group);
+      db.prepare("INSERT INTO recall_attempts VALUES(?,?,1)").run(id3, draft.first.ordinal);
+      return { data: this.practice(db, a, m, now), replayed: false };
+    });
+  }
+  act(prior, expected, id3, key, action2) {
+    return this.tx("write", (db, now) => {
+      const a = this.actor(prior, now, expected), m = this.material(db, a, id3, now), digest3 = sha3(JSON.stringify(action2));
+      const priorEvent = db.prepare("SELECT request_digest FROM recall_events WHERE material_id=? AND request_key=?").get(id3, key);
+      if (priorEvent) {
+        if (priorEvent.request_digest !== digest3) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        return this.practice(db, a, m, now);
+      }
+      const attempt = db.prepare("SELECT active_ordinal,revision FROM recall_attempts WHERE material_id=?").get(id3);
+      if (attempt.revision !== action2.expected_revision) throw new AssetError(409, "REVISION_CONFLICT");
+      const { event, value } = action2, ordinal = event === "move" ? value : Number(attempt.active_ordinal);
+      if (!Number.isSafeInteger(value) || value < 1) throw invalid4();
+      if (event === "move") {
+        if (!db.prepare("SELECT 1 FROM recall_segments WHERE material_id=? AND ordinal=?").get(id3, ordinal)) throw invalid4();
+      } else if (event === "hint" || event === "reveal" || event === "recall") {
+        if (!db.prepare("SELECT 1 FROM recall_masks WHERE material_id=? AND ordinal=? AND mask_group=?").get(id3, ordinal, value)) throw invalid4();
+        if (event === "recall" && db.prepare("SELECT 1 FROM recall_events WHERE material_id=? AND value=? AND event IN ('hint','reveal','recall')").get(id3, value))
+          throw new AssetError(409, "RECALL_NOT_INDEPENDENT");
+      } else if (event === "rating" ? value > 5 : true) throw invalid4();
+      const revision = action2.expected_revision + 1;
+      db.prepare("UPDATE recall_attempts SET active_ordinal=?,revision=? WHERE material_id=?").run(ordinal, revision, id3);
+      db.prepare("INSERT INTO recall_events VALUES(?,?,?,?,?,?,?)").run(id3, revision, key, digest3, event, value, now);
+      return this.practice(db, a, m, now);
+    });
+  }
+};
+
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 21;
-var MIGRATION_V21_CHECKSUM = createHash10("sha256").update(NOTE_SCHEMA).digest("hex");
-var MIGRATION_V20_CHECKSUM = createHash10("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
-var MIGRATION_V19_CHECKSUM = createHash10("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V18_CHECKSUM = createHash10("sha256").update(SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V17_CHECKSUM = createHash10("sha256").update(ANNOTATION_SCHEMA).digest("hex");
-var MIGRATION_V16_CHECKSUM = createHash10("sha256").update(READING_STATE_SCHEMA).digest("hex");
-var MIGRATION_V15_CHECKSUM = createHash10("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
-var MIGRATION_V13_CHECKSUM = createHash10("sha256").update(ZIP_SCHEMA).digest("hex");
-var MIGRATION_V14_CHECKSUM = createHash10("sha256").update(CITATION_SCHEMA).digest("hex");
-var MIGRATION_V12_CHECKSUM = createHash10("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
-var MIGRATION_V11_CHECKSUM = createHash10("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
-var MIGRATION_V10_CHECKSUM = createHash10("sha256").update(OFFICE_SCHEMA).digest("hex");
-var MIGRATION_V9_CHECKSUM = createHash10("sha256").update(TEXT_SCHEMA).digest("hex");
-var MIGRATION_V8_CHECKSUM = createHash10("sha256").update(PARSE_SCHEMA).digest("hex");
-var MIGRATION_V7_CHECKSUM = createHash10("sha256").update(ASSET_SCHEMA).digest("hex");
-var MIGRATION_V6_CHECKSUM = createHash10("sha256").update(JOB_SCHEMA).digest("hex");
+var SCHEMA_VERSION = 22;
+var MIGRATION_V22_CHECKSUM = createHash12("sha256").update(RECALL_SCHEMA).digest("hex");
+var MIGRATION_V21_CHECKSUM = createHash12("sha256").update(NOTE_SCHEMA).digest("hex");
+var MIGRATION_V20_CHECKSUM = createHash12("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
+var MIGRATION_V19_CHECKSUM = createHash12("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V18_CHECKSUM = createHash12("sha256").update(SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V17_CHECKSUM = createHash12("sha256").update(ANNOTATION_SCHEMA).digest("hex");
+var MIGRATION_V16_CHECKSUM = createHash12("sha256").update(READING_STATE_SCHEMA).digest("hex");
+var MIGRATION_V15_CHECKSUM = createHash12("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
+var MIGRATION_V13_CHECKSUM = createHash12("sha256").update(ZIP_SCHEMA).digest("hex");
+var MIGRATION_V14_CHECKSUM = createHash12("sha256").update(CITATION_SCHEMA).digest("hex");
+var MIGRATION_V12_CHECKSUM = createHash12("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
+var MIGRATION_V11_CHECKSUM = createHash12("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
+var MIGRATION_V10_CHECKSUM = createHash12("sha256").update(OFFICE_SCHEMA).digest("hex");
+var MIGRATION_V9_CHECKSUM = createHash12("sha256").update(TEXT_SCHEMA).digest("hex");
+var MIGRATION_V8_CHECKSUM = createHash12("sha256").update(PARSE_SCHEMA).digest("hex");
+var MIGRATION_V7_CHECKSUM = createHash12("sha256").update(ASSET_SCHEMA).digest("hex");
+var MIGRATION_V6_CHECKSUM = createHash12("sha256").update(JOB_SCHEMA).digest("hex");
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
 var MIGRATION_V1_SQL = `CREATE TABLE schema_migrations (
@@ -3898,7 +4131,7 @@ CREATE TABLE storage_probe_records (
   created_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V1_CHECKSUM = createHash10("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
+var MIGRATION_V1_CHECKSUM = createHash12("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
 var MIGRATION_V2_SQL = `CREATE TABLE password_credentials (
   id TEXT PRIMARY KEY,
   algorithm TEXT NOT NULL,
@@ -3952,7 +4185,7 @@ CREATE TABLE spaces (
   updated_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V2_CHECKSUM = createHash10("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
+var MIGRATION_V2_CHECKSUM = createHash12("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
 var MIGRATION_V3_SQL = `CREATE TABLE knowledge_projects (
   id TEXT PRIMARY KEY,
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
@@ -4002,7 +4235,7 @@ CREATE TABLE resource_grants (
   UNIQUE (resource_id, subject_type, subject_id, action)
 ) STRICT;
 `;
-var MIGRATION_V3_CHECKSUM = createHash10("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
+var MIGRATION_V3_CHECKSUM = createHash12("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
 var MIGRATION_V4_SQL = `ALTER TABLE resource_grants RENAME TO resource_grants_v3;
 CREATE TABLE resource_grants (
   id TEXT PRIMARY KEY,
@@ -4024,7 +4257,7 @@ CREATE UNIQUE INDEX resource_grants_active_subject_action_uq
   WHERE revoked_at IS NULL;
 DROP TABLE resource_grants_v3;
 `;
-var MIGRATION_V4_CHECKSUM = createHash10("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
+var MIGRATION_V4_CHECKSUM = createHash12("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
 var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -4036,7 +4269,7 @@ var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   PRIMARY KEY (service_id, user_id, idempotency_key)
 ) STRICT;
 `;
-var MIGRATION_V5_CHECKSUM = createHash10("sha256").update(MIGRATION_V5_SQL).digest("hex");
+var MIGRATION_V5_CHECKSUM = createHash12("sha256").update(MIGRATION_V5_SQL).digest("hex");
 var PROBE_SUPPORTED_TABLES = ["schema_migrations", "storage_probe_records"];
 var IDENTITY_SUPPORTED_TABLES = [
   "auth_sessions",
@@ -4060,7 +4293,7 @@ function toRecord(row) {
   return { id: row.id, content: row.content, created_at: row.created_at };
 }
 function readSchemaObjects(db) {
-  return db.prepare("SELECT type, name FROM sqlite_master ORDER BY type, name").all().filter((object) => !object.name.startsWith("sqlite_"));
+  return db.prepare("SELECT type, name FROM sqlite_master ORDER BY type, name").all().filter((object2) => !object2.name.startsWith("sqlite_"));
 }
 function readDatabaseFacts(path) {
   const db = new DatabaseSync(path, { readOnly: true });
@@ -4068,7 +4301,7 @@ function readDatabaseFacts(path) {
     const applicationId = Number(db.prepare("PRAGMA application_id").get()?.application_id ?? 0);
     const userVersion = Number(db.prepare("PRAGMA user_version").get()?.user_version ?? 0);
     const objects = readSchemaObjects(db);
-    const tables = objects.filter((object) => object.type === "table").map((object) => object.name);
+    const tables = objects.filter((object2) => object2.type === "table").map((object2) => object2.name);
     const ledger = tables.includes("schema_migrations") ? db.prepare("SELECT version, checksum, applied_at FROM schema_migrations ORDER BY version").all() : [];
     return { applicationId, userVersion, tables, objects, ledger };
   } finally {
@@ -4123,28 +4356,34 @@ var ProbeStorage = class {
     const ref = this.#ensureReady().prepare("SELECT token_hash FROM auth_sessions WHERE id=? AND user_id=?").get(session.sessionId, session.userId);
     return ref ? this.findActor(String(ref.token_hash), now) : void 0;
   }
-  assets = new AssetStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (actor2, id2, action2, now) => Boolean(this.authorizeObject(actor2, id2, action2, now)));
+  assets = new AssetStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (actor2, id3, action2, now) => Boolean(this.authorizeObject(actor2, id3, action2, now)));
   notes = new NoteStore(
     this.#assetTx,
     (s, now) => this.#currentActor(s, now),
-    (a, id2, now) => Boolean(this.authorizeObject(a, id2, "read", now)),
+    (a, id3, now) => Boolean(this.authorizeObject(a, id3, "read", now)),
     (a, p, now) => this.canCreateProjectObject(a, p, now),
     (a, p) => this.canManageProject(a, p)
   );
-  search = new SearchStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id2, now) => Boolean(this.authorizeObject(a, id2, "read", now)));
+  search = new SearchStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id3, now) => Boolean(this.authorizeObject(a, id3, "read", now)));
   wordSearch = new WordSearchIndex(this.#assetTx);
-  archives = new ZipStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id2, now) => Boolean(this.authorizeObject(a, id2, "read", now)));
-  citations = new CitationStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id2, now) => Boolean(this.authorizeObject(a, id2, "read", now)), (a, id2, now) => {
-    const source = this.authorizeObject(a, id2, "read", now);
-    return source && { ...source.projectId ? { project_id: source.projectId } : {}, canComment: Boolean(this.authorizeObject(a, id2, "comment", now)) };
+  archives = new ZipStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id3, now) => Boolean(this.authorizeObject(a, id3, "read", now)));
+  citations = new CitationStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id3, now) => Boolean(this.authorizeObject(a, id3, "read", now)), (a, id3, now) => {
+    const source = this.authorizeObject(a, id3, "read", now);
+    return source && { ...source.projectId ? { project_id: source.projectId } : {}, canComment: Boolean(this.authorizeObject(a, id3, "comment", now)) };
   });
-  office = new OfficeStore(this.#assetTx, (sessionId, userId, id2, action2, now) => {
+  recall = new RecallStore(
+    this.#assetTx,
+    (s, now) => this.#currentActor(s, now),
+    (a, id3, now) => Boolean(this.authorizeObject(a, id3, "read", now)),
+    (db, a, t, now) => this.citations.recallSource(db, a, t, now)
+  );
+  office = new OfficeStore(this.#assetTx, (sessionId, userId, id3, action2, now) => {
     const actor2 = this.#currentActor({ sessionId, userId }, now);
-    return !!actor2 && !!this.authorizeObject(actor2, id2, action2, now);
+    return !!actor2 && !!this.authorizeObject(actor2, id3, action2, now);
   });
-  parses = new ParseStore(this.#assetTx, (sessionId, userId, id2, write, now) => {
+  parses = new ParseStore(this.#assetTx, (sessionId, userId, id3, write, now) => {
     const a = this.#currentActor({ sessionId, userId }, now);
-    return Boolean(a && this.authorizeObject(a, id2, "read", now) && (!write || this.authorizeObject(a, id2, "edit", now)));
+    return Boolean(a && this.authorizeObject(a, id3, "read", now) && (!write || this.authorizeObject(a, id3, "edit", now)));
   });
   jobs = new JobStore((op) => {
     const db = this.#ensureReady();
@@ -4161,12 +4400,12 @@ var ProbeStorage = class {
       if (!this.#rollback(db)) throw this.#failure;
       throw err instanceof JobError ? err : this.#mapError(err);
     }
-  }, (session, user, object, ms) => {
+  }, (session, user, object2, ms) => {
     const now = new Date(ms).toISOString();
     const ref = this.#ensureReady().prepare("SELECT token_hash FROM auth_sessions WHERE id=? AND user_id=?").get(session, user);
     const actor2 = ref && this.findActor(String(ref.token_hash), now);
-    return actor2 && this.authorizeObject(actor2, object, "read", now)?.revision;
-  }, (point2) => this.#injectFailure(point2));
+    return actor2 && this.authorizeObject(actor2, object2, "read", now)?.revision;
+  }, (point4) => this.#injectFailure(point4));
   constructor(options) {
     this.#dataDir = options.dataDir;
     this.#log = options.log ?? (() => {
@@ -4175,8 +4414,8 @@ var ProbeStorage = class {
     this.#failureAt = options.failureAt;
     this.#open();
   }
-  #injectFailure(point2) {
-    if (this.#failureAt === point2) throw new Error(`controlled storage failure at ${point2}`);
+  #injectFailure(point4) {
+    if (this.#failureAt === point4) throw new Error(`controlled storage failure at ${point4}`);
   }
   get available() {
     return this.#state === "ready";
@@ -4230,6 +4469,7 @@ var ProbeStorage = class {
       if (priorVersion < 19) this.#migrateV19(db);
       if (priorVersion < 20) this.#migrateV20(db);
       if (priorVersion < 21) this.#migrateV21(db);
+      if (priorVersion < 22) this.#migrateV22(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -4297,36 +4537,37 @@ var ProbeStorage = class {
       }
       return "v5";
     }
-    if (facts.userVersion === 6 || facts.userVersion === 7 || facts.userVersion === 8 || facts.userVersion === 9 || facts.userVersion === 10 || facts.userVersion === 11 || facts.userVersion === 12 || facts.userVersion === 13 || facts.userVersion === 14 || facts.userVersion === 15 || facts.userVersion === 16 || facts.userVersion === 17 || facts.userVersion === 18 || facts.userVersion === 19 || facts.userVersion === 20 || facts.userVersion === 21) {
+    if (facts.userVersion >= 6 && facts.userVersion <= SCHEMA_VERSION && Number.isInteger(facts.userVersion)) {
       const db = new DatabaseSync(path, { readOnly: true });
+      const version = facts.userVersion;
       try {
-        this.#verify(db, facts.userVersion);
+        this.#verify(db, version);
       } finally {
         db.close();
       }
-      return `v${facts.userVersion}`;
+      return `v${version}`;
     }
     throw new RecordsError("STORAGE_INCOMPATIBLE", "database schema version is not supported");
   }
   #assertV1Schema(facts) {
     const expected = [...PROBE_SUPPORTED_TABLES].sort();
-    const actual = facts.objects.filter((object) => object.type === "table").map((object) => object.name).sort();
-    if (facts.objects.some((object) => object.type !== "table") || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v1 schema");
+    const actual = facts.objects.filter((object2) => object2.type === "table").map((object2) => object2.name).sort();
+    if (facts.objects.some((object2) => object2.type !== "table") || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v1 schema");
     const entry = facts.ledger[0];
     if (facts.ledger.length !== 1 || entry?.version !== 1 || entry.checksum !== MIGRATION_V1_CHECKSUM) throw new RecordsError("STORAGE_INCOMPATIBLE", "v1 migration ledger does not match this build");
   }
   #assertV2Schema(facts) {
     const expected = ["auth_sessions", "password_credentials", "schema_migrations", "service_identity", "spaces", "storage_probe_records", "users"].sort();
-    const actual = facts.objects.filter((object) => object.type === "table").map((object) => object.name).sort();
-    if (facts.objects.some((object) => object.type !== "table") || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v2 schema");
+    const actual = facts.objects.filter((object2) => object2.type === "table").map((object2) => object2.name).sort();
+    if (facts.objects.some((object2) => object2.type !== "table") || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v2 schema");
     const v1 = facts.ledger.find((entry) => entry.version === 1);
     const v2 = facts.ledger.find((entry) => entry.version === 2);
     if (facts.ledger.length !== 2 || v1?.checksum !== MIGRATION_V1_CHECKSUM || v2?.checksum !== MIGRATION_V2_CHECKSUM) throw new RecordsError("STORAGE_INCOMPATIBLE", "v2 migration ledger does not match this build");
   }
   #assertV3Schema(facts) {
     const expected = [...IDENTITY_SUPPORTED_TABLES].sort();
-    const actual = facts.objects.filter((object) => object.type === "table").map((object) => object.name).sort();
-    if (facts.objects.some((object) => object.type !== "table") || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v3 schema");
+    const actual = facts.objects.filter((object2) => object2.type === "table").map((object2) => object2.name).sort();
+    if (facts.objects.some((object2) => object2.type !== "table") || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v3 schema");
     const v1 = facts.ledger.find((entry) => entry.version === 1);
     const v2 = facts.ledger.find((entry) => entry.version === 2);
     const v3 = facts.ledger.find((entry) => entry.version === 3);
@@ -4334,8 +4575,8 @@ var ProbeStorage = class {
   }
   #assertV4Schema(facts) {
     const expected = [...IDENTITY_SUPPORTED_TABLES].sort();
-    const actual = facts.objects.filter((object) => object.type === "table").map((object) => object.name).sort();
-    const unexpected = facts.objects.filter((object) => object.type !== "table" && !(object.type === "index" && object.name === "resource_grants_active_subject_action_uq"));
+    const actual = facts.objects.filter((object2) => object2.type === "table").map((object2) => object2.name).sort();
+    const unexpected = facts.objects.filter((object2) => object2.type !== "table" && !(object2.type === "index" && object2.name === "resource_grants_active_subject_action_uq"));
     if (unexpected.length !== 0 || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v4 schema");
     const v1 = facts.ledger.find((entry) => entry.version === 1);
     const v2 = facts.ledger.find((entry) => entry.version === 2);
@@ -4455,7 +4696,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID13());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID14());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -4713,10 +4954,22 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "independent note migration failed", false, { cause: e });
     }
   }
+  #migrateV22(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(RECALL_SCHEMA);
+      this.#injectFailure("v22:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(22,?,?)").run(MIGRATION_V22_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=22; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "recall migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM].slice(0, version - 5);
-    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash3, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash3)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM].slice(0, version - 5);
+    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash4, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash4)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
       reference.exec(JOB_SCHEMA);
@@ -4735,6 +4988,7 @@ var ProbeStorage = class {
       if (version >= 19) reference.exec(WORD_SEARCH_SCHEMA);
       if (version >= 20) reference.exec(PDF_CHAPTER_SCHEMA);
       if (version >= 21) reference.exec(NOTE_SCHEMA);
+      if (version >= 22) reference.exec(RECALL_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name: name2, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name2)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -4805,10 +5059,10 @@ var ProbeStorage = class {
       throw this.#mapError(error);
     }
   }
-  getById(id2) {
+  getById(id3) {
     const db = this.#ensureReady();
     try {
-      const row = db.prepare("SELECT id, idempotency_key, request_digest, content, created_at FROM storage_probe_records WHERE id = ?").get(id2);
+      const row = db.prepare("SELECT id, idempotency_key, request_digest, content, created_at FROM storage_probe_records WHERE id = ?").get(id3);
       return row === void 0 ? void 0 : toRecord(row);
     } catch (error) {
       throw this.#mapError(error);
@@ -4837,9 +5091,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID13();
-      const spaceId = randomUUID13();
-      const credentialId = randomUUID13();
+      const userId = randomUUID14();
+      const spaceId = randomUUID14();
+      const credentialId = randomUUID14();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -4873,9 +5127,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID13();
-      const spaceId = randomUUID13();
-      const credentialId = randomUUID13();
+      const userId = randomUUID14();
+      const spaceId = randomUUID14();
+      const credentialId = randomUUID14();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -4976,21 +5230,21 @@ var ProbeStorage = class {
   #memberships(db, projectId) {
     return db.prepare("SELECT project_id, user_id, role, valid_from, expires_at, revoked_at FROM project_memberships WHERE project_id = ?").all(projectId).map((row) => ({ projectId: String(row.project_id), userId: String(row.user_id), role: String(row.role), validFrom: String(row.valid_from), expiresAt: row.expires_at == null ? void 0 : String(row.expires_at), revokedAt: row.revoked_at == null ? void 0 : String(row.revoked_at) }));
   }
-  #loadObject(id2) {
-    const row = this.#ensureReady().prepare("SELECT id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at FROM knowledge_objects WHERE id = ?").get(id2);
+  #loadObject(id3) {
+    const row = this.#ensureReady().prepare("SELECT id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at FROM knowledge_objects WHERE id = ?").get(id3);
     return row === void 0 ? void 0 : this.#objectRow(row);
   }
   authorizeObject(actor2, objectId, action2, now) {
     const db = this.#ensureReady();
-    const object = this.#loadObject(objectId);
-    if (object === void 0) return void 0;
-    const allowed = authorize(actor2, this.#objectTarget(object), action2, now, this.#grants(db, object.id), object.projectId === void 0 ? [] : this.#memberships(db, object.projectId));
-    return allowed ? object : void 0;
+    const object2 = this.#loadObject(objectId);
+    if (object2 === void 0) return void 0;
+    const allowed = authorize(actor2, this.#objectTarget(object2), action2, now, this.#grants(db, object2.id), object2.projectId === void 0 ? [] : this.#memberships(db, object2.projectId));
+    return allowed ? object2 : void 0;
   }
   listObjects(actor2, action2, now) {
     const db = this.#ensureReady();
     const rows = db.prepare("SELECT id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at FROM knowledge_objects WHERE service_id = ? AND status = 'active' ORDER BY created_at, id").all(actor2.serviceId);
-    return rows.map((row) => this.#objectRow(row)).filter((object) => authorize(actor2, this.#objectTarget(object), action2, now, this.#grants(db, object.id), object.projectId === void 0 ? [] : this.#memberships(db, object.projectId)));
+    return rows.map((row) => this.#objectRow(row)).filter((object2) => authorize(actor2, this.#objectTarget(object2), action2, now, this.#grants(db, object2.id), object2.projectId === void 0 ? [] : this.#memberships(db, object2.projectId)));
   }
   createProject(input) {
     const db = this.#ensureReady();
@@ -5040,7 +5294,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action2 of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID13(), input.serviceId, input.id, input.ownerUserId, action2, input.now, input.now);
+        for (const action2 of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID14(), input.serviceId, input.id, input.ownerUserId, action2, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -5088,27 +5342,27 @@ var ProbeStorage = class {
       const receipt2 = db.prepare("SELECT request_digest, result_json FROM ai_tool_mutations WHERE service_id = ? AND user_id = ? AND idempotency_key = ?").get(actor2.serviceId, actor2.userId, input.key);
       if (receipt2 !== void 0) return finish(receipt2.request_digest === input.digest ? { kind: "replayed", object: JSON.parse(receipt2.result_json) } : { kind: "idempotency_conflict" });
       if (current.revision !== input.expectedRevision) return finish({ kind: "conflict" });
-      const changed = db.prepare("UPDATE knowledge_objects SET title = ?, body = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ? AND status = 'active'").run(input.title ?? current.title, input.body ?? current.body, now, input.objectId, input.expectedRevision);
-      if (Number(changed.changes) !== 1) return finish({ kind: "conflict" });
+      const changed2 = db.prepare("UPDATE knowledge_objects SET title = ?, body = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ? AND status = 'active'").run(input.title ?? current.title, input.body ?? current.body, now, input.objectId, input.expectedRevision);
+      if (Number(changed2.changes) !== 1) return finish({ kind: "conflict" });
       this.#injectFailure("ai:after-update");
-      const object = this.#loadObject(input.objectId);
-      db.prepare("INSERT INTO ai_tool_mutations (service_id, user_id, idempotency_key, request_digest, object_id, result_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(actor2.serviceId, actor2.userId, input.key, input.digest, input.objectId, JSON.stringify(object), now);
-      return finish({ kind: "updated", object });
+      const object2 = this.#loadObject(input.objectId);
+      db.prepare("INSERT INTO ai_tool_mutations (service_id, user_id, idempotency_key, request_digest, object_id, result_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(actor2.serviceId, actor2.userId, input.key, input.digest, input.objectId, JSON.stringify(object2), now);
+      return finish({ kind: "updated", object: object2 });
     } catch (error) {
       if (tx && !this.#rollback(db)) throw new RecordsError("STORAGE_UNAVAILABLE", "storage transaction state is unknown", false, { cause: error });
       throw this.#mapError(error);
     }
   }
   deleteObject(actor2, objectId, now) {
-    const object = this.authorizeObject(actor2, objectId, "delete", now);
-    if (object === void 0) return false;
+    const object2 = this.authorizeObject(actor2, objectId, "delete", now);
+    if (object2 === void 0) return false;
     const result = this.#ensureReady().prepare("UPDATE knowledge_objects SET status = 'deleted', revision = revision + 1, updated_at = ? WHERE id = ? AND status = 'active'").run(now, objectId);
     return Number(result.changes) === 1;
   }
   grantObject(actor2, input) {
     const db = this.#ensureReady();
-    const object = this.authorizeObject(actor2, input.objectId, "manage_share", input.now);
-    if (object === void 0 || input.serviceId !== actor2.serviceId) return void 0;
+    const object2 = this.authorizeObject(actor2, input.objectId, "manage_share", input.now);
+    if (object2 === void 0 || input.serviceId !== actor2.serviceId) return void 0;
     if (input.subjectType === "project") {
       const project = db.prepare("SELECT service_id, status FROM knowledge_projects WHERE id = ?").get(input.subjectId);
       if (project === void 0 || String(project.service_id) !== actor2.serviceId || String(project.status) !== "active") return void 0;
@@ -5137,8 +5391,8 @@ var ProbeStorage = class {
     let primaryCode;
     let failed = false;
     try {
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash10("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash10("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash12("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash12("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
     } catch (error) {
       failed = true;
       primaryCode = primarySqliteCode(error);
@@ -5196,7 +5450,7 @@ var ProbeStorage = class {
 };
 
 // src/host/identity.ts
-import { createHash as createHash11, randomBytes, randomUUID as randomUUID14, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
+import { createHash as createHash13, randomBytes, randomUUID as randomUUID15, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
 var DOMAINS = ["software_engineering", "system_architecture", "hardware_engineering", "ai_development"];
 var LEARNING_TRACKS = ["engineering_practice", "architecture_exam", "knowledge_accumulation"];
 var DEFAULT_TIMEZONE = "Asia/Shanghai";
@@ -5272,7 +5526,7 @@ function validateExpectedRevision(value) {
   return Number(value);
 }
 function tokenHash(token2) {
-  return createHash11("sha256").update(token2, "utf8").digest("hex");
+  return createHash13("sha256").update(token2, "utf8").digest("hex");
 }
 function makeToken() {
   return randomBytes(32).toString("base64url");
@@ -5477,7 +5731,7 @@ var IdentityService = class {
     const token2 = makeToken();
     const createdAt = /* @__PURE__ */ new Date();
     const expiresAt = new Date(createdAt.getTime() + SESSION_TTL_MS).toISOString();
-    this.#store.createSession({ sessionId: randomUUID14(), userId: lookup.userId, tokenHash: tokenHash(token2), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
+    this.#store.createSession({ sessionId: randomUUID15(), userId: lookup.userId, tokenHash: tokenHash(token2), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
     const user = this.#store.getProfile(lookup.userId);
     if (user === void 0) throw new IdentityError("STORAGE_UNAVAILABLE", "user profile unavailable");
     return { user, token: token2, expiresAt };
@@ -5505,7 +5759,7 @@ var IdentityService = class {
 };
 
 // src/host/identity-http.ts
-import { createHash as createHash12, randomUUID as randomUUID15 } from "node:crypto";
+import { createHash as createHash14, randomUUID as randomUUID16 } from "node:crypto";
 import { isIP } from "node:net";
 var HttpError = class extends Error {
   constructor(status, code, message, retryable = false, headers = {}) {
@@ -5582,7 +5836,7 @@ function isIdentityRuntimeAvailable(facts) {
   }
 }
 function businessCookieName(serviceId, origin) {
-  return `kos_session_${createHash12("sha256").update(`${serviceId}|${origin}`).digest("hex").slice(0, 16)}`;
+  return `kos_session_${createHash14("sha256").update(`${serviceId}|${origin}`).digest("hex").slice(0, 16)}`;
 }
 function readCookie(req, name2) {
   const raw = req.headers.cookie;
@@ -5712,7 +5966,7 @@ function createIdentityHandlers(options) {
     return actor2;
   };
   const dispatch = async (req, res, action2) => {
-    const requestId = randomUUID15();
+    const requestId = randomUUID16();
     try {
       assertAvailable();
       assertNoQuery(req);
@@ -5741,7 +5995,7 @@ function createIdentityHandlers(options) {
     requireMethod(req, "GET");
     assertTrust(req, false);
     const state = service.setupState;
-    sendJson2(res, 200, withMeta(randomUUID15(), { setup_required: !state.initialized, available: true }));
+    sendJson2(res, 200, withMeta(randomUUID16(), { setup_required: !state.initialized, available: true }));
   });
   const bootstrap = async (req, res, peer) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -5752,7 +6006,7 @@ function createIdentityHandlers(options) {
     const body = bodyObject(await readBody2(req));
     assertKeys(body, ["login_name", "password", "display_name", "timezone"]);
     const user = await service.bootstrap({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, source: requestSource(req), signal });
-    sendJson2(res, 201, withMeta(randomUUID15(), safeProfile(user)));
+    sendJson2(res, 201, withMeta(randomUUID16(), safeProfile(user)));
   });
   const register = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -5762,7 +6016,7 @@ function createIdentityHandlers(options) {
     const body = bodyObject(await readBody2(req));
     assertKeys(body, ["login_name", "password", "display_name", "timezone"]);
     const user = await service.register({ loginName: body.login_name, password: body.password, displayName: body.display_name, timezone: body.timezone, source: requestSource(req), signal });
-    sendJson2(res, 201, withMeta(randomUUID15(), safeProfile(user)));
+    sendJson2(res, 201, withMeta(randomUUID16(), safeProfile(user)));
   });
   const login = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -5777,7 +6031,7 @@ function createIdentityHandlers(options) {
     const state = service.setupState;
     const name2 = businessCookieName(state.serviceId, origin);
     const maxAge = Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1e3);
-    sendJson2(res, 200, withMeta(randomUUID15(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin, options.protocol(), maxAge) });
+    sendJson2(res, 200, withMeta(randomUUID16(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin, options.protocol(), maxAge) });
   });
   const logout = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -5798,7 +6052,7 @@ function createIdentityHandlers(options) {
     const actor2 = requireActor(req);
     const profile = service.profile(actor2.userId);
     if (profile === void 0) throw new HttpError(401, "SESSION_EXPIRED", "business session is required");
-    sendJson2(res, 200, withMeta(randomUUID15(), safeProfile(profile)));
+    sendJson2(res, 200, withMeta(randomUUID16(), safeProfile(profile)));
   });
   const preferences = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "PATCH");
@@ -5815,14 +6069,14 @@ function createIdentityHandlers(options) {
     if (body.learning_tracks !== void 0) patch.learningTracks = validateLearningTracks(body.learning_tracks);
     if (body.goal_text !== void 0) patch.goalText = validateGoalText(body.goal_text);
     if (Object.keys(patch).length === 0) throw new HttpError(422, "INPUT_INVALID", "at least one preference is required");
-    sendJson2(res, 200, withMeta(randomUUID15(), safeProfile(service.preferences(actor2.userId, expectedRevision, patch))));
+    sendJson2(res, 200, withMeta(randomUUID16(), safeProfile(service.preferences(actor2.userId, expectedRevision, patch))));
   });
   const spaces = async (req, res) => dispatch(req, res, () => {
     requireMethod(req, "GET");
     assertTrust(req, false);
     const actor2 = requireActor(req);
     const data = service.spaces(actor2.userId).map((space) => ({ id: space.id, service_id: space.serviceId, kind: space.kind, owner_user_id: space.ownerUserId, status: space.status, revision: space.revision, created_at: space.createdAt, updated_at: space.updatedAt }));
-    sendJson2(res, 200, withMeta(randomUUID15(), data));
+    sendJson2(res, 200, withMeta(randomUUID16(), data));
   });
   return { status, bootstrap, register, login, logout, me, preferences, spaces };
 }
@@ -5839,7 +6093,7 @@ function buildSetupHtml() {
 }
 
 // src/host/objects-http.ts
-import { randomUUID as randomUUID16 } from "node:crypto";
+import { randomUUID as randomUUID17 } from "node:crypto";
 var ObjectHttpError = class extends Error {
   constructor(status, code, message) {
     super(message);
@@ -5855,7 +6109,7 @@ var json = (res, status, data) => {
   res.end(JSON.stringify(data));
 };
 var pathOf = (req) => new URL(req.url ?? "/", "http://localhost").pathname;
-var safeObject = (object, includeBody = true) => ({ id: object.id, service_id: object.serviceId, space_id: object.spaceId, scope: object.scope, project_id: object.projectId, owner_user_id: object.ownerUserId, object_type: object.objectType, title: object.title, ...includeBody ? { body: object.body } : {}, status: object.status, revision: object.revision, created_at: object.createdAt, updated_at: object.updatedAt });
+var safeObject = (object2, includeBody = true) => ({ id: object2.id, service_id: object2.serviceId, space_id: object2.spaceId, scope: object2.scope, project_id: object2.projectId, owner_user_id: object2.ownerUserId, object_type: object2.objectType, title: object2.title, ...includeBody ? { body: object2.body } : {}, status: object2.status, revision: object2.revision, created_at: object2.createdAt, updated_at: object2.updatedAt });
 var readBody3 = async (req) => await new Promise((resolve2, reject2) => {
   const chunks = [];
   let size = 0;
@@ -5902,7 +6156,7 @@ function actor(options, req) {
 }
 function createObjectHandlers(options) {
   return async (req, res) => {
-    const requestId = randomUUID16();
+    const requestId = randomUUID17();
     try {
       const path = pathOf(req);
       const segments = path.split("/").filter(Boolean);
@@ -5914,8 +6168,8 @@ function createObjectHandlers(options) {
           const body = await readBody3(req);
           keys(body, ["object_id", "expected_revision", "idempotency_key"]);
           if (!Number.isSafeInteger(body.expected_revision) || Number(body.expected_revision) < 1) throw new JobError(422, "INPUT_INVALID");
-          const id2 = options.storage.jobs.enqueue(current, text(body.object_id, "object_id", 80), Number(body.expected_revision), text(body.idempotency_key, "idempotency_key", 128));
-          json(res, 202, { data: { id: id2 } });
+          const id3 = options.storage.jobs.enqueue(current, text(body.object_id, "object_id", 80), Number(body.expected_revision), text(body.idempotency_key, "idempotency_key", 128));
+          json(res, 202, { data: { id: id3 } });
           return;
         }
         const cancel = segments.length === 5 && segments[4] === "cancel" && req.method === "POST";
@@ -5927,7 +6181,7 @@ function createObjectHandlers(options) {
       if (segments[2] === "projects" && segments.length === 3 && req.method === "POST") {
         const body = await readBody3(req);
         keys(body, ["name"]);
-        const project = options.storage.createProject({ id: randomUUID16(), serviceId: current.serviceId, ownerUserId: current.userId, name: text(body.name, "name", 200), now });
+        const project = options.storage.createProject({ id: randomUUID17(), serviceId: current.serviceId, ownerUserId: current.userId, name: text(body.name, "name", 200), now });
         json(res, 201, { data: project, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
         return;
       }
@@ -5957,16 +6211,16 @@ function createObjectHandlers(options) {
           if (scope === "project" && !options.storage.canCreateProjectObject(current, projectId, now)) throw new ObjectHttpError(404, "NOT_FOUND", "project not found");
           const title = text(body.title, "title", 200);
           const content = text(body.body, "body", 1e5);
-          const object = options.storage.createObject({ id: randomUUID16(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId, ownerUserId: current.userId, objectType: body.object_type === void 0 ? "note" : text(body.object_type, "object_type", 80), title, body: content, now });
-          json(res, 201, { data: safeObject(object), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
+          const object2 = options.storage.createObject({ id: randomUUID17(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId, ownerUserId: current.userId, objectType: body.object_type === void 0 ? "note" : text(body.object_type, "object_type", 80), title, body: content, now });
+          json(res, 201, { data: safeObject(object2), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
           return;
         }
         const objectId = segments[3];
         if (objectId === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
         if (segments.length === 4 && req.method === "GET") {
-          const object = options.storage.authorizeObject(current, objectId, "read", now);
-          if (object === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
-          json(res, 200, { data: safeObject(object), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
+          const object2 = options.storage.authorizeObject(current, objectId, "read", now);
+          if (object2 === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
+          json(res, 200, { data: safeObject(object2), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
           return;
         }
         if (segments.length === 4 && req.method === "PATCH") {
@@ -5998,7 +6252,7 @@ function createObjectHandlers(options) {
         const body = await readBody3(req);
         keys(body, ["object_id", "subject_type", "subject_id", "action", "valid_from", "expires_at"]);
         if (body.subject_type !== "user" && body.subject_type !== "project") throw new ObjectHttpError(422, "INPUT_INVALID", "subject_type is invalid");
-        const grant = options.storage.grantObject(current, { id: randomUUID16(), objectId: text(body.object_id, "object_id", 80), serviceId: current.serviceId, subjectType: body.subject_type, subjectId: text(body.subject_id, "subject_id", 80), action: action(body.action), validFrom: body.valid_from === void 0 ? now : text(body.valid_from, "valid_from", 40), expiresAt: body.expires_at === void 0 ? void 0 : text(body.expires_at, "expires_at", 40), now });
+        const grant = options.storage.grantObject(current, { id: randomUUID17(), objectId: text(body.object_id, "object_id", 80), serviceId: current.serviceId, subjectType: body.subject_type, subjectId: text(body.subject_id, "subject_id", 80), action: action(body.action), validFrom: body.valid_from === void 0 ? now : text(body.valid_from, "valid_from", 40), expiresAt: body.expires_at === void 0 ? void 0 : text(body.expires_at, "expires_at", 40), now });
         if (grant === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
         json(res, 201, { data: grant, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
         return;
@@ -6033,11 +6287,11 @@ function createObjectHandlers(options) {
 }
 
 // src/host/ai-service.ts
-import { randomUUID as randomUUID17 } from "node:crypto";
+import { randomUUID as randomUUID18 } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 // src/host/ai-tools.ts
-import { createHash as createHash13 } from "node:crypto";
+import { createHash as createHash15 } from "node:crypto";
 var AiError = class extends Error {
   constructor(status, code) {
     super(code);
@@ -6076,13 +6330,13 @@ function toolArguments(call) {
   return { object_id, expected_revision: Number(args2.expected_revision), ...args2.title === void 0 ? {} : { title: aiText(args2.title, 200) }, ...args2.body === void 0 ? {} : { body: aiText(args2.body, 2e3, true) } };
 }
 function toolDigest(name2, input) {
-  return createHash13("sha256").update(JSON.stringify([name2, input.object_id, input.expected_revision ?? null, input.title ?? null, input.body ?? null])).digest("hex");
+  return createHash15("sha256").update(JSON.stringify([name2, input.object_id, input.expected_revision ?? null, input.title ?? null, input.body ?? null])).digest("hex");
 }
 function runBusinessTool(store, actor2, call, key, now) {
   const input = toolArguments(call);
   if (call.name === TOOL_NAMES[0]) {
-    const object = store.authorizeObject(actor2, input.object_id, "read", now);
-    return object === void 0 ? { ok: false, status: 404, code: "NOT_FOUND" } : { ok: true, status: 200, code: "READ", object };
+    const object2 = store.authorizeObject(actor2, input.object_id, "read", now);
+    return object2 === void 0 ? { ok: false, status: 404, code: "NOT_FOUND" } : { ok: true, status: 200, code: "READ", object: object2 };
   }
   const result = store.mutateObjectOnce(actor2, { objectId: input.object_id, expectedRevision: input.expected_revision, title: input.title, body: input.body, key, digest: toolDigest(call.name, input) }, now);
   if (result.kind === "updated" || result.kind === "replayed") return { ok: true, status: 200, code: result.kind === "updated" ? "UPDATED" : "REPLAYED", object: result.object, replayed: result.kind === "replayed" };
@@ -6115,8 +6369,8 @@ var AiService = class {
     this.config = config;
     this.llm = llm;
     this.tools = tools;
-    for (const [value, min, max2, integer] of [[config.maxCalls ?? 1, 1, Number.MAX_SAFE_INTEGER, true], [config.timeoutMs ?? 3e4, 100, 6e4, true], [config.budgetUsd ?? 0, 0, Number.MAX_VALUE, false]]) {
-      if (!Number.isFinite(value) || value < min || value > max2 || integer && !Number.isSafeInteger(value)) throw new AiError(503, "AI_CONFIG_INVALID");
+    for (const [value, min, max2, integer2] of [[config.maxCalls ?? 1, 1, Number.MAX_SAFE_INTEGER, true], [config.timeoutMs ?? 3e4, 100, 6e4, true], [config.budgetUsd ?? 0, 0, Number.MAX_VALUE, false]]) {
+      if (!Number.isFinite(value) || value < min || value > max2 || integer2 && !Number.isSafeInteger(value)) throw new AiError(503, "AI_CONFIG_INVALID");
     }
     if (tools !== void 0) for (const schema of TOOL_SCHEMAS) this.#dispose.push(tools.register({
       ...schema,
@@ -6157,7 +6411,7 @@ var AiService = class {
     return { provider: this.config.provider ?? null, model: this.config.model ?? null, configured: Boolean(this.routeAllowed && this.llm && this.tools), attempts: this.#calls, timeout_ms: this.config.timeoutMs ?? 3e4, budget_usd: this.config.budgetUsd ?? null, known_estimated_usd: this.#estimatedUsd, unknown_cost_calls: this.#unknownCostCalls, reported_input_tokens: this.#inputTokens, reported_output_tokens: this.#outputTokens, budget_warning: this.config.budgetUsd !== void 0 && this.#estimatedUsd > this.config.budgetUsd || this.config.maxCalls !== void 0 && this.#calls > this.config.maxCalls, state: this.#closed ? "stopped" : "ready" };
   }
   #sweep() {
-    for (const [id2, item] of this.#prepared) if (Date.now() >= item.expiresAt && item.state !== "executing") this.#prepared.delete(id2);
+    for (const [id3, item] of this.#prepared) if (Date.now() >= item.expiresAt && item.state !== "executing") this.#prepared.delete(id3);
   }
   async prepare(actor2, raw, signal) {
     onlyKeys(raw, ["request_id", "instruction", "object_id", "expected_revision", "idempotency_key"]);
@@ -6176,8 +6430,8 @@ var AiService = class {
     let usage;
     let attempted = false;
     try {
-      const available = this.llm.listProviders().some((p) => p.id === this.config.provider);
-      if (!available) throw new AiError(503, "MODEL_NOT_CONFIGURED");
+      const available2 = this.llm.listProviders().some((p) => p.id === this.config.provider);
+      if (!available2) throw new AiError(503, "MODEL_NOT_CONFIGURED");
       const catalog = await this.#abortable(this.llm.listModels(this.config.provider), controller.signal);
       if (catalog.length > 0 && !catalog.some((m) => m.id === this.config.model)) throw new AiError(404, "MODEL_NOT_FOUND");
       const userText = JSON.stringify({ instruction, target_object_id: objectId, expected_revision: raw.expected_revision });
@@ -6213,7 +6467,7 @@ var AiService = class {
       if (finish !== "tool-calls" || calls.length !== 1) throw new AiError(502, "MODEL_OUTPUT_INVALID");
       const call = calls[0], args2 = toolArguments(call);
       if (args2.object_id !== objectId || call.name === TOOL_NAMES[1] && args2.expected_revision !== raw.expected_revision) throw new AiError(422, "MODEL_TARGET_MISMATCH");
-      const prepared = { id: randomUUID17(), requestId, actor: actor2, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
+      const prepared = { id: randomUUID18(), requestId, actor: actor2, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
       this.#prepared.set(prepared.id, prepared);
       return { ...this.#view(prepared), usage: usage ?? null };
     } catch (error) {
@@ -6259,9 +6513,9 @@ var AiService = class {
       }
     }
   }
-  async execute(actor2, actorNow, id2, signal) {
+  async execute(actor2, actorNow, id3, signal) {
     this.#sweep();
-    const item = this.#prepared.get(id2);
+    const item = this.#prepared.get(id3);
     if (this.#closed || !item || item.actor.sessionId !== actor2.sessionId || item.actor.userId !== actor2.userId) throw new AiError(404, "PREPARED_NOT_FOUND");
     if (signal.aborted) throw new AiError(409, "CANCELLED");
     if (item.state === "executing") throw new AiError(409, "REQUEST_IN_PROGRESS");
@@ -6315,10 +6569,10 @@ var AiService = class {
 };
 
 // src/host/ai-http.ts
-import { randomUUID as randomUUID18 } from "node:crypto";
+import { randomUUID as randomUUID19 } from "node:crypto";
 function createAiHandler(options) {
   return async (req, res) => {
-    const requestId = randomUUID18(), controller = new AbortController();
+    const requestId = randomUUID19(), controller = new AbortController();
     const disconnect = () => {
       if (!res.writableEnded) controller.abort();
     };
@@ -6402,7 +6656,7 @@ body{margin:0;background:#f4f8f8;color:#23333a;font:15px/1.65 "Segoe UI","Micros
 import { join as join3 } from "node:path";
 
 // src/host/pdf-originals.ts
-import { createHash as createHash14, randomUUID as randomUUID19 } from "node:crypto";
+import { createHash as createHash16, randomUUID as randomUUID20 } from "node:crypto";
 import { constants } from "node:fs";
 import fs from "node:fs/promises";
 import { dirname, join as join2, resolve } from "node:path";
@@ -6415,47 +6669,47 @@ var WordInputError = class extends Error {
     super("INVALID_WORD");
   }
 };
-var invalid3 = () => {
+var invalid5 = () => {
   throw new WordInputError();
 };
 var isWordMedia = (media) => media === WORD_MEDIA.docx || media === WORD_MEDIA.doc;
 function checkWordEnvelope(b, media) {
   if (media === WORD_MEDIA.doc) {
-    if (b.length < 512 || b.subarray(0, 8).toString("hex") !== "d0cf11e0a1b11ae1" || b.readUInt16LE(28) !== 65534 || ![9, 12].includes(b.readUInt16LE(30))) invalid3();
+    if (b.length < 512 || b.subarray(0, 8).toString("hex") !== "d0cf11e0a1b11ae1" || b.readUInt16LE(28) !== 65534 || ![9, 12].includes(b.readUInt16LE(30))) invalid5();
     return [];
   }
-  if (b.length < 22 || b.readUInt32LE(0) !== 67324752) invalid3();
+  if (b.length < 22 || b.readUInt32LE(0) !== 67324752) invalid5();
   let e = b.length - 22;
   const floor = Math.max(0, e - 65535);
   while (e >= floor && (b.readUInt32LE(e) !== 101010256 || e + 22 + b.readUInt16LE(e + 20) !== b.length)) e--;
-  if (e < floor || b.readUInt32LE(e + 4) !== 0) invalid3();
+  if (e < floor || b.readUInt32LE(e + 4) !== 0) invalid5();
   const entries = b.readUInt16LE(e + 10), length = b.readUInt32LE(e + 12);
   let pos = b.readUInt32LE(e + 16), expanded = 0;
-  if (!entries || entries > 8192 || entries !== b.readUInt16LE(e + 8) || pos + length !== e) invalid3();
+  if (!entries || entries > 8192 || entries !== b.readUInt16LE(e + 8) || pos + length !== e) invalid5();
   const central = pos, names = /* @__PURE__ */ new Set(), members = [];
   for (let i = 0; i < entries; i++) {
-    if (pos + 46 > e || b.readUInt32LE(pos) !== 33639248) invalid3();
+    if (pos + 46 > e || b.readUInt32LE(pos) !== 33639248) invalid5();
     const n = b.readUInt16LE(pos + 28), next = pos + 46 + n + b.readUInt16LE(pos + 30) + b.readUInt16LE(pos + 32), local = b.readUInt32LE(pos + 42);
-    if (!n || next > e || local + 30 > central || b.readUInt32LE(local) !== 67324752 || b.readUInt16LE(pos + 34) !== 0) invalid3();
+    if (!n || next > e || local + 30 > central || b.readUInt32LE(local) !== 67324752 || b.readUInt16LE(pos + 34) !== 0) invalid5();
     const name2 = b.subarray(pos + 46, pos + 46 + n), key = name2.toString("utf8"), start = local + 30 + b.readUInt16LE(local + 26) + b.readUInt16LE(local + 28);
-    if (b.readUInt16LE(local + 26) !== n || !name2.equals(b.subarray(local + 30, local + 30 + n)) || names.has(key) || start + b.readUInt32LE(pos + 20) > central) invalid3();
-    if (b.readUInt16LE(pos + 8) & 1 || b.readUInt16LE(local + 6) & 1 || ![0, 8].includes(b.readUInt16LE(pos + 10)) || b.readUInt16LE(local + 8) !== b.readUInt16LE(pos + 10)) invalid3();
+    if (b.readUInt16LE(local + 26) !== n || !name2.equals(b.subarray(local + 30, local + 30 + n)) || names.has(key) || start + b.readUInt32LE(pos + 20) > central) invalid5();
+    if (b.readUInt16LE(pos + 8) & 1 || b.readUInt16LE(local + 6) & 1 || ![0, 8].includes(b.readUInt16LE(pos + 10)) || b.readUInt16LE(local + 8) !== b.readUInt16LE(pos + 10)) invalid5();
     expanded += b.readUInt32LE(pos + 24);
-    if (expanded > 256 * 1024 * 1024) invalid3();
+    if (expanded > 256 * 1024 * 1024) invalid5();
     members.push({ name: key, start, packed: b.readUInt32LE(pos + 20), size: b.readUInt32LE(pos + 24), method: b.readUInt16LE(pos + 10), crc: b.readUInt32LE(pos + 16) });
     names.add(key);
     pos = next;
   }
-  if (pos !== e || !["[Content_Types].xml", "_rels/.rels", "word/document.xml"].every((k) => names.has(k))) invalid3();
+  if (pos !== e || !["[Content_Types].xml", "_rels/.rels", "word/document.xml"].every((k) => names.has(k))) invalid5();
   return members;
 }
 var inflate = promisify(inflateRaw);
 async function wordBodyXml(bytes) {
   const m = checkWordEnvelope(bytes, WORD_MEDIA.docx).find((m2) => m2.name === "word/document.xml");
-  if (!m || m.size < 1 || m.size > 4 * 1024 * 1024) return invalid3();
+  if (!m || m.size < 1 || m.size > 4 * 1024 * 1024) return invalid5();
   const packed = bytes.subarray(m.start, m.start + m.packed);
   const body = m.method ? await inflate(packed, { maxOutputLength: m.size }) : packed;
-  if (body.length !== m.size || crc32(body) !== m.crc) return invalid3();
+  if (body.length !== m.size || crc32(body) !== m.crc) return invalid5();
   return new TextDecoder("utf-8", { fatal: true }).decode(body);
 }
 async function verifyWordBytes(b, media) {
@@ -6464,7 +6718,7 @@ async function verifyWordBytes(b, media) {
   for (const m of members) {
     const packed = b.subarray(m.start, m.start + m.packed);
     if (!m.method) {
-      if (m.packed !== m.size || m.size > remaining || crc32(packed) !== m.crc) invalid3();
+      if (m.packed !== m.size || m.size > remaining || crc32(packed) !== m.crc) invalid5();
       remaining -= m.size;
       continue;
     }
@@ -6475,12 +6729,12 @@ async function verifyWordBytes(b, media) {
       for await (const chunk2 of decoder) {
         actual += chunk2.length;
         remaining -= chunk2.length;
-        if (actual > m.size || remaining < 0) invalid3();
+        if (actual > m.size || remaining < 0) invalid5();
         crc = crc32(chunk2, crc);
       }
-      if (actual !== m.size || crc !== m.crc || decoder.bytesWritten !== m.packed) invalid3();
+      if (actual !== m.size || crc !== m.crc || decoder.bytesWritten !== m.packed) invalid5();
     } catch {
-      invalid3();
+      invalid5();
     } finally {
       decoder.destroy();
     }
@@ -6490,7 +6744,7 @@ async function verifyWordBytes(b, media) {
 // src/host/pdf-originals.ts
 var MAX = 64 * 1024 * 1024;
 var KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:pdf|txt|docx?|zip)$/;
-var digest = (b) => createHash14("sha256").update(b).digest("hex");
+var digest2 = (b) => createHash16("sha256").update(b).digest("hex");
 var PdfInputError = class extends Error {
   code = "PDF_INVALID_INPUT";
   constructor() {
@@ -6507,7 +6761,7 @@ var PdfStorageError = class extends Error {
     this.stack = `${this.name}: ${this.message}`;
   }
 };
-var invalid4 = () => new PdfInputError();
+var invalid6 = () => new PdfInputError();
 var unavailable = () => new PdfStorageError();
 function xrefStream(head) {
   const obj = /^[1-9]\d*[ \t\r\n]+\d+[ \t\r\n]+obj[ \t\r\n]*<</.exec(head);
@@ -6539,15 +6793,15 @@ function xrefStream(head) {
   return false;
 }
 function checkEnvelope(b) {
-  if (!/^%PDF-(?:1\.[0-7]|2\.0)[\r\n]/.test(b.toString("latin1", 0, 10))) throw invalid4();
+  if (!/^%PDF-(?:1\.[0-7]|2\.0)[\r\n]/.test(b.toString("latin1", 0, 10))) throw invalid6();
   const tail = Math.max(0, b.length - 4096);
   const footer = /[\r\n]startxref[ \t]*[\r\n]+[ \t]*(\d{1,16})[ \t]*[\r\n]+%%EOF[\x00\t\n\f\r ]*$/.exec(b.toString("latin1", tail));
-  if (!footer) throw invalid4();
+  if (!footer) throw invalid6();
   const offset = Number(footer[1]), end = tail + footer.index;
-  if (offset < 9 || offset >= end || !/[\x00\t\n\f\r ]/.test(String.fromCharCode(b[offset - 1]))) throw invalid4();
+  if (offset < 9 || offset >= end || !/[\x00\t\n\f\r ]/.test(String.fromCharCode(b[offset - 1]))) throw invalid6();
   const head = b.toString("latin1", offset, Math.min(end, offset + 16384));
   if (/^xref[ \t\r\n]+\d+[ \t]+[1-9]\d*[ \t]*[\r\n]+\d{10} \d{5} [nf](?=[ \t\r\n])/.test(head)) return;
-  if (!xrefStream(head)) throw invalid4();
+  if (!xrefStream(head)) throw invalid6();
 }
 var statOpts = { bigint: true };
 var same = (a, b) => a.ino !== 0n && a.ino === b.ino && a.dev === b.dev && a.birthtimeNs === b.birthtimeNs;
@@ -6600,14 +6854,14 @@ var PdfOriginals = class {
     if (!stat.isFile() || stat.ino === 0n || await fs.realpath(path) !== path) throw unavailable();
     return stat;
   }
-  async #unlinkOwned(path, id2, stillOwned = () => true) {
+  async #unlinkOwned(path, id3, stillOwned = () => true) {
     await this.#directory();
     const stat = await this.#file(path);
-    if (!same(id2, stat)) throw unavailable();
+    if (!same(id3, stat)) throw unavailable();
     if (stillOwned()) await fs.unlink(path);
   }
   async put(bytes) {
-    if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX) throw invalid4();
+    if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX) throw invalid6();
     const data = Buffer.from(bytes);
     checkEnvelope(data);
     try {
@@ -6643,36 +6897,36 @@ var PdfOriginals = class {
     }
   }
   async #write(data, extension) {
-    const sha256 = digest(data);
+    const sha256 = digest2(data);
     await this.#directory(true);
-    const stage = join2(this.#root, `.${randomUUID19()}.pending`);
-    const key = `${randomUUID19()}.${extension}`, final = join2(this.#root, key);
+    const stage = join2(this.#root, `.${randomUUID20()}.pending`);
+    const key = `${randomUUID20()}.${extension}`, final = join2(this.#root, key);
     const file = await fs.open(stage, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | noFollow, 384);
-    let id2, staged = true, linked = false;
+    let id3, staged = true, linked = false;
     try {
       try {
-        id2 = await file.stat(statOpts);
+        id3 = await file.stat(statOpts);
         await file.writeFile(data);
         if ((await file.stat(statOpts)).size !== BigInt(data.length)) throw unavailable();
         await file.sync();
         await this.#directory();
-        if (!same(id2, await this.#file(stage))) throw unavailable();
+        if (!same(id3, await this.#file(stage))) throw unavailable();
         await fs.link(stage, final);
         linked = true;
-        await this.#unlinkOwned(stage, id2);
+        await this.#unlinkOwned(stage, id3);
         staged = false;
         await file.sync();
         const published = await this.#file(final);
-        if (!same(id2, published) || published.nlink !== 1n || published.size !== BigInt(data.length)) throw unavailable();
+        if (!same(id3, published) || published.nlink !== 1n || published.size !== BigInt(data.length)) throw unavailable();
       } finally {
         await file.close();
       }
       await syncDirectory(this.#root);
-      this.#pending.set(key, { id: id2, discarding: false });
+      this.#pending.set(key, { id: id3, discarding: false });
       return { key, sha256, byteLength: data.length };
     } catch (failure) {
-      if (id2 && linked) await this.#unlinkOwned(final, id2);
-      if (id2 && staged) await this.#unlinkOwned(stage, id2);
+      if (id3 && linked) await this.#unlinkOwned(final, id3);
+      if (id3 && staged) await this.#unlinkOwned(stage, id3);
       throw failure;
     }
   }
@@ -6694,7 +6948,7 @@ var PdfOriginals = class {
         }
         await this.#directory();
         const after = await this.#file(path);
-        if (!same(stat, after) || after.size !== stat.size || after.nlink !== 1n || digest(data) !== expectedSha) throw unavailable();
+        if (!same(stat, after) || after.size !== stat.size || after.nlink !== 1n || digest2(data) !== expectedSha) throw unavailable();
         if (key.endsWith(".pdf")) checkEnvelope(data);
         return data;
       } finally {
@@ -6725,10 +6979,10 @@ var PdfOriginals = class {
 };
 
 // src/host/library-http.ts
-import { randomUUID as randomUUID20 } from "node:crypto";
+import { randomUUID as randomUUID21 } from "node:crypto";
 
 // src/host/text-document.ts
-import { createHash as createHash15 } from "node:crypto";
+import { createHash as createHash17 } from "node:crypto";
 var MAX_BYTES = 8 * 1024 * 1024;
 var MAX_BLOCKS = 16384;
 var messages = {
@@ -6770,7 +7024,7 @@ function indexBlocks(source, markdown) {
     if (!pending) return;
     if (blocks.length >= MAX_BLOCKS) throw new TextInputError("TEXT_TOO_LARGE");
     const text2 = source.slice(start, end);
-    const anchor = createHash15("sha256").update(text2, "utf8").digest("hex");
+    const anchor = createHash17("sha256").update(text2, "utf8").digest("hex");
     blocks.push({ kind: pending, start, end, text: text2, anchor });
     start = end;
     pending = void 0;
@@ -6831,50 +7085,50 @@ function decodeText(bytes, media, requestedEncoding) {
 }
 
 // src/host/reader-http.ts
-import { createHash as createHash17 } from "node:crypto";
+import { createHash as createHash19 } from "node:crypto";
 
 // src/host/word-locator.ts
 var import_saxes = __toESM(require_saxes(), 1);
-import { createHash as createHash16 } from "node:crypto";
-var sha3 = (text2) => createHash16("sha256").update(text2, "utf8").digest("hex");
+import { createHash as createHash18 } from "node:crypto";
+var sha4 = (text2) => createHash18("sha256").update(text2, "utf8").digest("hex");
 var wordNs = /* @__PURE__ */ new Set(["http://schemas.openxmlformats.org/wordprocessingml/2006/main", "http://purl.oclc.org/ooxml/wordprocessingml/main"]);
 var bodyLimit = 1e6;
 var wordPageLimit = 512;
 async function wordParagraphs(bytes) {
   const xml = await wordBodyXml(bytes), p = new import_saxes.SaxesParser({ xmlns: true }), stack = [], paragraphs = [];
   let ns = "", body = 0, paragraph = 0, runText = 0, omitted = 0, text2 = "", count = 0;
-  const invalid6 = () => {
+  const invalid9 = () => {
     throw new Error("Unsupported Word structure");
   };
   const add = (s) => {
     count += s.length;
-    if (count > bodyLimit) invalid6();
+    if (count > bodyLimit) invalid9();
     text2 += s;
   };
-  p.on("doctype", invalid6);
+  p.on("doctype", invalid9);
   p.on("opentag", (tag) => {
     stack.push(tag.uri === ns ? tag.local : "");
     const depth = stack.length;
-    if (depth > 128) invalid6();
+    if (depth > 128) invalid9();
     if (depth === 1) {
-      if (!wordNs.has(tag.uri) || tag.local !== "document") invalid6();
+      if (!wordNs.has(tag.uri) || tag.local !== "document") invalid9();
       ns = tag.uri;
       return;
     }
     if (depth === 2 && tag.uri === ns && tag.local === "body") {
-      if (body || paragraphs.length) invalid6();
+      if (body || paragraphs.length) invalid9();
       body = depth;
       return;
     }
     if (!body || omitted) return;
-    if (tag.local === "AlternateContent" || tag.uri === ns && ["altChunk", "txbxContent", "headerReference", "footerReference"].includes(tag.local)) invalid6();
+    if (tag.local === "AlternateContent" || tag.uri === ns && ["altChunk", "txbxContent", "headerReference", "footerReference"].includes(tag.local)) invalid9();
     if (tag.uri !== ns) return;
     if (["del", "moveFrom"].includes(tag.local)) {
       omitted = depth;
       return;
     }
     if (tag.local === "p") {
-      if (paragraph || paragraphs.length >= 32768) invalid6();
+      if (paragraph || paragraphs.length >= 32768) invalid9();
       paragraph = depth;
       text2 = "";
       return;
@@ -6936,14 +7190,14 @@ async function alignWordSelection(paragraphs, version, sourceSha, ordinal, text2
     const source = offsets(paragraphs[i]), ordinal2 = i + 1;
     const previous = paragraphs[i - 1], next = paragraphs[i + 1];
     blocks.push({
-      block_id: sha3(JSON.stringify(["word-paragraph-v1", version, sourceSha, ordinal2])),
+      block_id: sha4(JSON.stringify(["word-paragraph-v1", version, sourceSha, ordinal2])),
       ordinal: ordinal2,
       start: source[Math.max(lo, startAt) - startAt],
       end: source[Math.min(hi, cursor) - startAt - 1] + 1,
       page_start: pageOffsets[Math.max(0, startAt - pageStart)],
       page_end: pageOffsets[Math.min(pageOffsets.length, cursor - pageStart) - 1] + 1,
-      previous: previous === void 0 ? null : sha3(previous),
-      next: next === void 0 ? null : sha3(next)
+      previous: previous === void 0 ? null : sha4(previous),
+      next: next === void 0 ? null : sha4(next)
     });
     if (blocks.length > 1024) return;
   }
@@ -7001,11 +7255,11 @@ function glyphRect(api, page, tp, index, width, height, ptr) {
   if (api.FPDFText_IsGenerated(tp, index) !== 0 || !api.FPDFText_GetCharBox(tp, index, ptr, ptr + 8, ptr + 16, ptr + 24)) return;
   const [left, right, bottom, top] = new Float64Array(api.memory.buffer, ptr, 4);
   if (![left, right, bottom, top].every(Number.isFinite)) return;
-  const point2 = (x2, y2) => {
+  const point4 = (x2, y2) => {
     if (!api.FPDF_PageToDevice(page, 0, 0, width, height, 0, x2, y2, ptr, ptr + 4)) return;
     return Array.from(new Int32Array(api.memory.buffer, ptr, 2));
   };
-  const a = point2(left, bottom), b = point2(right, top);
+  const a = point4(left, bottom), b = point4(right, top);
   if (!a || !b) return;
   const x = Math.max(0, Math.min(a[0], b[0])), y = Math.max(0, Math.min(a[1], b[1]));
   const w = Math.min(width, Math.max(a[0], b[0])) - x, h = Math.min(height, Math.max(a[1], b[1])) - y;
@@ -7052,7 +7306,7 @@ function imagePng(api, page, width, height) {
 
 // src/host/reader-http.ts
 var uuid3 = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
-var hash2 = (s) => createHash17("sha256").update(s, "utf8").digest("hex");
+var hash2 = (s) => createHash19("sha256").update(s, "utf8").digest("hex");
 var ReaderService = class {
   constructor(store, originals, render2, wordPages, legacyWord) {
     this.store = store;
@@ -7073,8 +7327,8 @@ var ReaderService = class {
   addBookmark(current, t, title, a) {
     return this.store.addBookmark(current(), t, title, a);
   }
-  deleteBookmark(current, t, id2, a) {
-    return this.store.deleteBookmark(current(), t, id2, a);
+  deleteBookmark(current, t, id3, a) {
+    return this.store.deleteBookmark(current(), t, id3, a);
   }
   listAnnotations(current, t) {
     return this.store.listAnnotations(current(), t);
@@ -7082,11 +7336,11 @@ var ReaderService = class {
   addAnnotation(current, t, draft, a) {
     return this.store.addAnnotation(current(), t, draft, a);
   }
-  updateAnnotation(current, t, id2, r, body, a) {
-    return this.store.updateAnnotation(current(), t, id2, r, body, a);
+  updateAnnotation(current, t, id3, r, body, a) {
+    return this.store.updateAnnotation(current(), t, id3, r, body, a);
   }
-  deleteAnnotation(current, t, id2, r, a) {
-    return this.store.deleteAnnotation(current(), t, id2, r, a);
+  deleteAnnotation(current, t, id3, r, a) {
+    return this.store.deleteAnnotation(current(), t, id3, r, a);
   }
   async outline(current, t, signal) {
     const { actor_id, source, items } = this.store.outline(current(), t);
@@ -7197,22 +7451,22 @@ var ReaderService = class {
     }
     return this.store.create(current(), spec, key, w);
   }
-  async resolve(current, id2, signal) {
-    const t = this.store.target(current(), id2), w = t.conversion_id ? await this.witness(current, t, signal) : void 0;
-    return this.store.resolve(current(), id2, w);
+  async resolve(current, id3, signal) {
+    const t = this.store.target(current(), id3), w = t.conversion_id ? await this.witness(current, t, signal) : void 0;
+    return this.store.resolve(current(), id3, w);
   }
 };
 async function readerRoute(req, url, service, current, signal, body, reserve, send) {
   const annotations = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/reader-annotations(?:\/([a-f0-9-]+))?$/.exec(url.pathname);
   if (annotations && uuid3.test(annotations[1]) && uuid3.test(annotations[2]) && (!annotations[3] || uuid3.test(annotations[3]))) {
-    const p = url.searchParams, keys3 = [...p.keys()], n = p.get("unit") ?? "1", cv = p.get("conversion"), id2 = annotations[3], m = req.method;
+    const p = url.searchParams, keys3 = [...p.keys()], n = p.get("unit") ?? "1", cv = p.get("conversion"), id3 = annotations[3], m = req.method;
     if (keys3.some((k) => k !== "unit" && k !== "conversion") || new Set(keys3).size !== keys3.length || !/^\d{1,9}$/.test(n) || Number(n) < 1 || cv && !uuid3.test(cv) || cv === "") throw new AssetError(422, "INVALID_READER_UNIT");
     const t = { asset_id: annotations[1], version_id: annotations[2], ordinal: Number(n), ...cv ? { conversion_id: cv } : {} };
-    if (m === "GET" && !id2) {
+    if (m === "GET" && !id3) {
       send(200, service.listAnnotations(current, t));
       return true;
     }
-    if (m === "POST" && !id2 || id2 && (m === "PATCH" || m === "DELETE")) {
+    if (m === "POST" && !id3 || id3 && (m === "PATCH" || m === "DELETE")) {
       const a = req.headers["x-knowledgeos-reader-actor"];
       if (typeof a !== "string" || !uuid3.test(a)) throw new AssetError(422, "INVALID_READER_ACTOR");
       if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
@@ -7229,32 +7483,32 @@ async function readerRoute(req, url, service, current, signal, body, reserve, se
       if (m === "POST") {
         if (typeof v.citation_id !== "string" || !uuid3.test(v.citation_id) || !["private", "project"].includes(v.visibility)) throw new AssetError(422, "INVALID_ANNOTATION");
         send(201, service.addAnnotation(current, t, v, a));
-      } else if (id2) {
+      } else if (id3) {
         const r = v.expected_revision;
         if (!Number.isSafeInteger(r) || r < 1 || r >= Number.MAX_SAFE_INTEGER) throw new AssetError(422, "INVALID_ANNOTATION_REVISION");
-        send(200, m === "PATCH" ? service.updateAnnotation(current, t, id2, r, v.body, a) : service.deleteAnnotation(current, t, id2, r, a));
+        send(200, m === "PATCH" ? service.updateAnnotation(current, t, id3, r, v.body, a) : service.deleteAnnotation(current, t, id3, r, a));
       }
       return true;
     }
   }
   const reading = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/reader-(state|outline|bookmarks)(?:\/([a-f0-9-]+))?$/.exec(url.pathname);
   if (reading && uuid3.test(reading[1]) && uuid3.test(reading[2]) && !url.search) {
-    const t = { asset_id: reading[1], version_id: reading[2], ordinal: 1 }, kind = reading[3], id2 = reading[4], method = req.method;
-    if (method === "GET" && !id2 && kind === "state") {
+    const t = { asset_id: reading[1], version_id: reading[2], ordinal: 1 }, kind = reading[3], id3 = reading[4], method = req.method;
+    if (method === "GET" && !id3 && kind === "state") {
       send(200, service.navigation(current, t));
       return true;
     }
-    if (method === "GET" && !id2 && kind === "outline") {
+    if (method === "GET" && !id3 && kind === "outline") {
       reserve();
       send(200, await service.outline(current, t, signal));
       return true;
     }
-    const save = kind === "state" && method === "PUT" && !id2, add = kind === "bookmarks" && method === "POST" && !id2, del = kind === "bookmarks" && method === "DELETE" && id2 && uuid3.test(id2);
+    const save = kind === "state" && method === "PUT" && !id3, add = kind === "bookmarks" && method === "POST" && !id3, del = kind === "bookmarks" && method === "DELETE" && id3 && uuid3.test(id3);
     if (save || add || del) {
       const a = req.headers["x-knowledgeos-reader-actor"];
       if (typeof a !== "string" || !uuid3.test(a)) throw new AssetError(422, "INVALID_READER_ACTOR");
-      if (del && id2) {
-        send(200, service.deleteBookmark(current, t, id2, a));
+      if (del && id3) {
+        send(200, service.deleteBookmark(current, t, id3, a));
         return true;
       }
       if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
@@ -7557,15 +7811,15 @@ async function processInput(req) {
   if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((k) => !["version_id", "page"].includes(k)) || typeof value.version_id !== "string" || !uuid4.test(value.version_id) || "page" in value && (!Number.isSafeInteger(value.page) || value.page < 1 || value.page > 1e4)) throw new AssetError(422, "INVALID_PROCESS");
   return value;
 }
-async function receive(req, emptyCode, limit3) {
+async function receive(req, emptyCode, limit4) {
   const declared = req.headers["content-length"];
-  if (declared !== void 0 && (!/^\d+$/.test(declared) || Number(declared) > limit3)) throw new AssetError(413, "FILE_TOO_LARGE");
+  if (declared !== void 0 && (!/^\d+$/.test(declared) || Number(declared) > limit4)) throw new AssetError(413, "FILE_TOO_LARGE");
   const chunks = [];
   let count = 0;
   for await (const chunk2 of req) {
     const b = Buffer.isBuffer(chunk2) ? chunk2 : Buffer.from(chunk2);
     count += b.length;
-    if (count > limit3) throw new AssetError(413, "FILE_TOO_LARGE");
+    if (count > limit4) throw new AssetError(413, "FILE_TOO_LARGE");
     chunks.push(b);
   }
   if (!count) throw new AssetError(422, emptyCode);
@@ -7615,11 +7869,11 @@ async function publishInput(store, originals, current, spec, bytes, media, encod
 function libraryHandler(store, originals, origin, actorFor, parses, office, officeAvailable = () => true, archives, reader, search) {
   let transfers = 0;
   return async (req, res) => {
-    const requestId = randomUUID20();
+    const requestId = randomUUID21();
     let transfer = false, handlerDone = false, responseDone = false;
     res.setHeader("cache-control", "no-store");
     res.setHeader("x-content-type-options", "nosniff");
-    const json2 = (status, payload) => {
+    const json3 = (status, payload) => {
       if (!res.destroyed) {
         res.statusCode = status;
         res.setHeader("content-type", "application/json; charset=utf-8");
@@ -7660,7 +7914,7 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
       if (url.origin !== host) throw new AssetError(403, "CSRF_REJECTED");
       const replay = /^\/knowledge\/v1\/search\/([a-f0-9-]+)\/access$/.exec(url.pathname);
       if (search && replay && uuid4.test(replay[1]) && req.method === "GET" && !url.search) {
-        json2(200, { data: search.revalidate(current(), replay[1]), request_id: requestId });
+        json3(200, { data: search.revalidate(current(), replay[1]), request_id: requestId });
         return;
       }
       if (search && url.pathname === "/knowledge/v1/search" && req.method === "POST" && !url.search) {
@@ -7673,7 +7927,7 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
           throw new AssetError(422, "INVALID_SEARCH_QUERY");
         }
         if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length !== 1 || typeof value.query !== "string") throw new AssetError(422, "INVALID_SEARCH_QUERY");
-        json2(200, { data: search.search(current(), value.query), request_id: requestId });
+        json3(200, { data: search.search(current(), value.query), request_id: requestId });
         return;
       }
       if (reader && (/\/reader(?:-access|-state|-outline|-(?:bookmarks|annotations)(?:\/[a-f0-9-]+)?)?$/.test(url.pathname) || url.pathname.startsWith("/knowledge/v1/citations"))) {
@@ -7681,32 +7935,32 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
         res.once("close", stop);
         if (res.destroyed) stop();
         try {
-          if (await readerRoute(req, url, reader, current, ac.signal, receive, reserve, (code, data) => json2(code, { data, request_id: requestId }))) return;
+          if (await readerRoute(req, url, reader, current, ac.signal, receive, reserve, (code, data) => json3(code, { data, request_id: requestId }))) return;
         } finally {
           res.off("close", stop);
         }
       }
       if (req.method === "GET" && url.pathname === "/knowledge/v1/assets" && !url.search) {
-        json2(200, { data: { items: store.list(actor2) }, request_id: requestId });
+        json3(200, { data: { items: store.list(actor2) }, request_id: requestId });
         return;
       }
       const op = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/office(?:\/(start)|\/([a-f0-9-]+)\/(cancel|notes|pdf))?$/.exec(url.pathname);
       if (office && op && uuid4.test(op[1]) && uuid4.test(op[2]) && (!op[4] || uuid4.test(op[4]))) {
-        const id2 = op[1], v = op[2], cid = op[4], command = op[3] ?? op[5], key = req.headers["idempotency-key"];
-        const send = (status, data) => json2(status, { data, request_id: requestId });
+        const id3 = op[1], v = op[2], cid = op[4], command = op[3] ?? op[5], key = req.headers["idempotency-key"];
+        const send = (status, data) => json3(status, { data, request_id: requestId });
         if (req.method === "GET" && !command) {
           const keys3 = [...url.searchParams.keys()];
           if (new Set(keys3).size !== keys3.length) throw new AssetError(422, "INVALID_HISTORY_CURSOR");
-          send(200, office.list(current(), id2, v, Object.fromEntries(url.searchParams)));
+          send(200, office.list(current(), id3, v, Object.fromEntries(url.searchParams)));
           return;
         }
         if (req.method === "POST" && command === "start" && !url.search) {
-          const r = office.start(current(), id2, v, typeof key === "string" ? key : "", officeAvailable());
+          const r = office.start(current(), id3, v, typeof key === "string" ? key : "", officeAvailable());
           send(r.replayed ? 200 : 202, r);
           return;
         }
         if (req.method === "POST" && command === "cancel" && !url.search) {
-          send(200, office.cancel(current(), id2, v, cid));
+          send(200, office.cancel(current(), id3, v, cid));
           return;
         }
         if (req.method === "POST" && command === "notes" && !url.search) {
@@ -7719,13 +7973,13 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
             throw new AssetError(422, "INVALID_QUALITY_NOTE");
           }
           if (!input || typeof input !== "object" || Array.isArray(input) || Object.keys(input).some((k) => !["body", "page"].includes(k))) throw new AssetError(422, "INVALID_QUALITY_NOTE");
-          const r = office.note(current(), id2, v, cid, typeof key === "string" ? key : "", input.page, input.body);
+          const r = office.note(current(), id3, v, cid, typeof key === "string" ? key : "", input.page, input.body);
           send(r.replayed ? 200 : 201, r);
           return;
         }
         if (req.method === "GET" && command === "pdf" && (!url.search || url.search === "?download=1")) {
           reserve();
-          const download = !!url.search, result = () => office.result(current(), id2, v, cid, download), ref = result();
+          const download = !!url.search, result = () => office.result(current(), id3, v, cid, download), ref = result();
           const bytes = await originals.read(ref.key, ref.sha256, ref.byteLength);
           result();
           res.setHeader("content-type", "application/pdf");
@@ -7739,13 +7993,13 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
       if (archives && !url.search) {
         const archive = /^\/knowledge\/v1\/imports\/([a-f0-9-]+)\/(entries|selection)$/.exec(url.pathname);
         if (req.method === "GET" && url.pathname === "/knowledge/v1/imports") {
-          json2(200, { data: { items: archives.list(current()) }, request_id: requestId });
+          json3(200, { data: { items: archives.list(current()) }, request_id: requestId });
           return;
         }
         if (archive && uuid4.test(archive[1])) {
-          const id2 = archive[1];
+          const id3 = archive[1];
           if (req.method === "GET" && archive[2] === "entries") {
-            json2(200, { data: archives.manifest(current(), id2), request_id: requestId });
+            json3(200, { data: archives.manifest(current(), id3), request_id: requestId });
             return;
           }
           if (req.method === "POST" && archive[2] === "selection") {
@@ -7761,32 +8015,32 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
               throw new AssetError(422, "INVALID_SELECTION");
             }
             if (!input || typeof input !== "object" || Object.keys(input).length !== 1 || !Array.isArray(input.entry_ids)) throw new AssetError(422, "INVALID_SELECTION");
-            const ref = archives.source(current(), id2), items = archives.select(current(), id2, key, input.entry_ids), pending = items.filter((e) => !e.imported);
+            const ref = archives.source(current(), id3), items = archives.select(current(), id3, key, input.entry_ids), pending = items.filter((e) => !e.imported);
             if (pending.length) {
               const bytes = await originals.read(ref.key, ref.sha256, ref.byteLength);
               try {
                 await preflightZipSelection(bytes, pending.map((e) => e.ordinal));
               } catch (e) {
-                if (e instanceof ZipInputError) for (const m of pending) archives.failure(current(), id2, m.id, e.code);
+                if (e instanceof ZipInputError) for (const m of pending) archives.failure(current(), id3, m.id, e.code);
                 throw e;
               }
               for (const m of pending) {
                 current();
                 const content = await readZipMember(bytes, m.ordinal), title = m.path.split("/").at(-1);
                 if (title.length > 200) {
-                  archives.failure(current(), id2, m.id, "INVALID_FILENAME");
+                  archives.failure(current(), id3, m.id, "INVALID_FILENAME");
                   continue;
                 }
                 try {
-                  await publishInput(store, originals, current, { title, key: m.key }, content, m.media, void 0, archives.publication(id2, m.id, m.key));
+                  await publishInput(store, originals, current, { title, key: m.key }, content, m.media, void 0, archives.publication(id3, m.id, m.key));
                 } catch (e) {
-                  const invalid6 = inputError(e);
-                  if (!invalid6) throw e;
-                  archives.failure(current(), id2, m.id, invalid6.code);
+                  const invalid9 = inputError(e);
+                  if (!invalid9) throw e;
+                  archives.failure(current(), id3, m.id, invalid9.code);
                 }
               }
             }
-            json2(200, { data: archives.manifest(current(), id2), request_id: requestId });
+            json3(200, { data: archives.manifest(current(), id3), request_id: requestId });
             return;
           }
         }
@@ -7813,7 +8067,7 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
             const ref = archives.source(current(), staged.id);
             await originals.read(ref.key, ref.sha256, ref.byteLength);
           } else originals.retain(blob.key);
-          json2(staged.replayed ? 200 : 201, { data: archives.manifest(current(), staged.id), request_id: requestId });
+          json3(staged.replayed ? 200 : 201, { data: archives.manifest(current(), staged.id), request_id: requestId });
           return;
         }
         const word = isWordMedia(media), isText = media === "text/plain" || media === "text/markdown";
@@ -7825,7 +8079,7 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
         const bytes = await receive(req, isText ? "TEXT_INVALID_INPUT" : word ? "INVALID_WORD" : "INVALID_PDF", isText ? MAX_BYTES : max);
         current();
         const result = await publishInput(store, originals, current, spec, bytes, media, encoding);
-        json2(result.replayed ? 200 : 201, { data: result.receipt, request_id: requestId });
+        json3(result.replayed ? 200 : 201, { data: result.receipt, request_id: requestId });
         return;
       }
       const parse3 = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/parse(?:\/(start|cancel|chapters|retry\/([1-9]\d{0,4})))?$/.exec(url.pathname);
@@ -7836,13 +8090,13 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
       if (blockPath && req.method === "GET" && uuid4.test(blockPath[1]) && uuid4.test(blockPath[2])) {
         const keys3 = [...url.searchParams.keys()];
         if (keys3.some((k) => !["from", "limit"].includes(k)) || new Set(keys3).size !== keys3.length) throw new AssetError(422, "INVALID_BLOCK_RANGE");
-        json2(200, { data: store.blocks(current(), blockPath[1], blockPath[2], Number(url.searchParams.get("from") ?? 1), Number(url.searchParams.get("limit") ?? 5)), request_id: requestId });
+        json3(200, { data: store.blocks(current(), blockPath[1], blockPath[2], Number(url.searchParams.get("from") ?? 1), Number(url.searchParams.get("limit") ?? 5)), request_id: requestId });
         return;
       }
       const respond = (v, data, asyncRequest) => {
         const active3 = ["queued", "running"].includes(String(data.state)), location = "/knowledge/v1/operations/" + v;
         if (asyncRequest && active3) res.setHeader("location", location);
-        json2(asyncRequest && active3 ? 202 : 200, { data: { ...data, operation_id: v, status_url: location, cancellable: active3 }, request_id: requestId });
+        json3(asyncRequest && active3 ? 202 : 200, { data: { ...data, operation_id: v, status_url: location, cancellable: active3 }, request_id: requestId });
       };
       if (operation && parses && req.method === "GET" && !url.search && uuid4.test(operation[1])) {
         respond(operation[1], parses.operation(current(), operation[1]), false);
@@ -7856,8 +8110,8 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
       if (pagesPath && parses && req.method === "GET" && uuid4.test(pagesPath[1]) && uuid4.test(pagesPath[2])) {
         const keys3 = [...url.searchParams.keys()];
         if (keys3.some((k) => !["from", "limit"].includes(k)) || new Set(keys3).size !== keys3.length) throw new AssetError(422, "INVALID_PAGE_RANGE");
-        const from = Number(url.searchParams.get("from") ?? 1), limit3 = Number(url.searchParams.get("limit") ?? 5);
-        json2(200, { data: parses.pages(current(), pagesPath[1], pagesPath[2], from, limit3), request_id: requestId });
+        const from = Number(url.searchParams.get("from") ?? 1), limit4 = Number(url.searchParams.get("limit") ?? 5);
+        json3(200, { data: parses.pages(current(), pagesPath[1], pagesPath[2], from, limit4), request_id: requestId });
         return;
       }
       if (parse3 && parses && !url.search && uuid4.test(parse3[1]) && uuid4.test(parse3[2]) && req.method === (parse3[3] ? "POST" : "GET")) {
@@ -7896,7 +8150,7 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
       throw new AssetError(404, "NOT_FOUND");
     } catch (e) {
       const error = e instanceof AssetError ? e : inputError(e) ?? new AssetError(503, "ORIGINAL_UNAVAILABLE");
-      json2(error.status, { code: error.code, message: error.code, request_id: requestId });
+      json3(error.status, { code: error.code, message: error.code, request_id: requestId });
     } finally {
       handlerDone = true;
       release();
@@ -7907,13 +8161,13 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
 // src/host/note-http.ts
 var prefix = "/knowledge/v1/notes";
 var limit2 = 2e5;
-var invalid5 = () => new AssetError(422, "INVALID_NOTE");
+var invalid7 = () => new AssetError(422, "INVALID_NOTE");
 var id = (value) => {
-  if (typeof value !== "string" || !noteId.test(value)) throw invalid5();
+  if (typeof value !== "string" || !noteId.test(value)) throw invalid7();
   return value;
 };
 var keys2 = (body, allowed) => {
-  if (Object.keys(body).some((k) => !allowed.includes(k))) throw invalid5();
+  if (Object.keys(body).some((k) => !allowed.includes(k))) throw invalid7();
 };
 async function jsonBody(req) {
   if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
@@ -7933,23 +8187,23 @@ async function jsonBody(req) {
   try {
     body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(parts, size)));
   } catch {
-    throw invalid5();
+    throw invalid7();
   }
-  if (!body || typeof body !== "object" || Array.isArray(body)) throw invalid5();
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw invalid7();
   return body;
 }
 function fields2(input, all) {
   const patch = {};
   if (all || "title" in input) {
-    if (!noteText(input.title, noteLimits.title)) throw invalid5();
+    if (!noteText(input.title, noteLimits.title)) throw invalid7();
     patch.title = input.title;
   }
   if (all || "body" in input) {
-    if (!noteText(input.body, noteLimits.body)) throw invalid5();
+    if (!noteText(input.body, noteLimits.body)) throw invalid7();
     patch.body = input.body;
   }
   if (all || "kind" in input) {
-    if (!noteKinds.includes(input.kind)) throw invalid5();
+    if (!noteKinds.includes(input.kind)) throw invalid7();
     patch.kind = input.kind;
   }
   return patch;
@@ -7971,13 +8225,13 @@ function createNoteHandler(store, origin, actorFor) {
       const info = { actor_id: actor2.userId }, row = /^\/knowledge\/v1\/notes\/([^/]+)$/.exec(path), project = /^\/knowledge\/v1\/notes\/projects\/([^/]+)$/.exec(path);
       const cursor = () => {
         if ([...url.searchParams].length === 0) return "";
-        if ([...url.searchParams].length !== 1 || !url.searchParams.has("after")) throw invalid5();
+        if ([...url.searchParams].length !== 1 || !url.searchParams.has("after")) throw invalid7();
         return id(url.searchParams.get("after"));
       };
       if (method === "GET" && path === prefix) return send(200, { data: { ...info, ...store.list(actor2, cursor()) } });
       if (method === "GET" && path === prefix + "/projects") return send(200, { data: { ...info, ...store.managedProjects(actor2, cursor()) } });
       if (method === "GET" && project) return send(200, { data: { ...info, ...store.projectRefs(actor2, id(project[1]), cursor()) } });
-      if (url.search) throw invalid5();
+      if (url.search) throw invalid7();
       if (method === "GET" && row) return send(200, { data: { ...info, ...store.get(actor2, id(row[1])) } });
       if (method === "POST" && path === prefix) {
         const input = await jsonBody(req);
@@ -7991,7 +8245,7 @@ function createNoteHandler(store, origin, actorFor) {
         const patch = fields2(input, false);
         if ("add_citation" in input) patch.add_citation = id(input.add_citation);
         if ("remove_reference" in input) patch.remove_reference = id(input.remove_reference);
-        if (typeof input.expected_revision !== "number") throw invalid5();
+        if (typeof input.expected_revision !== "number") throw invalid7();
         return send(200, { data: { ...info, ...store.save(actor2, id(input.actor_id), id(row[1]), input.expected_revision, patch) } });
       }
       if (method === "POST" && project) {
@@ -7999,6 +8253,106 @@ function createNoteHandler(store, origin, actorFor) {
         keys2(input, ["actor_id", "note_id"]);
         const result = store.linkProject(actor2, id(input.actor_id), id(project[1]), id(input.note_id));
         return send(result.replayed ? 200 : 201, { data: { ...info, ...result } });
+      }
+      throw new AssetError(404, "NOT_FOUND");
+    } catch (e) {
+      send(e instanceof AssetError ? e.status : 503, { code: e instanceof AssetError ? e.code : "STORAGE_UNAVAILABLE" });
+    }
+  };
+}
+
+// src/host/recall-http.ts
+var basePath = "/knowledge/v1/recall";
+var uuid5 = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
+var limit3 = 2 * 1024 * 1024;
+var invalid8 = () => new AssetError(422, "INVALID_RECALL");
+function id2(x) {
+  if (typeof x !== "string" || !uuid5.test(x)) throw invalid8();
+  return x;
+}
+function integer(x, min = 1) {
+  if (typeof x !== "number" || !Number.isSafeInteger(x) || x < min || x >= Number.MAX_SAFE_INTEGER) throw invalid8();
+  return x;
+}
+function object(x, keys3) {
+  if (!x || typeof x !== "object" || Array.isArray(x) || Object.keys(x).some((k) => !keys3.includes(k))) throw invalid8();
+  return x;
+}
+function hash3(h) {
+  if (typeof h !== "string" || !/^[a-f0-9]{64}$/.test(h)) throw invalid8();
+  return h;
+}
+function point3(value) {
+  const v = object(value, ["ordinal", "offset", "source_hash"]);
+  return { ordinal: integer(v.ordinal), offset: integer(v.offset, 0), source_hash: hash3(v.source_hash) };
+}
+function target(v) {
+  return { asset_id: id2(v.asset_id), version_id: id2(v.version_id), ..."conversion_id" in v ? { conversion_id: id2(v.conversion_id) } : {} };
+}
+async function json2(req) {
+  if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
+  if (Number(req.headers["content-length"]) > limit3) throw new AssetError(413, "BODY_TOO_LARGE");
+  const chunks = [];
+  let size = 0;
+  for await (const chunk2 of req.iterator({ destroyOnReturn: false })) {
+    const b = Buffer.from(chunk2);
+    size += b.length;
+    if (size > limit3) {
+      req.resume();
+      throw new AssetError(413, "BODY_TOO_LARGE");
+    }
+    chunks.push(b);
+  }
+  try {
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks, size)));
+  } catch {
+    throw invalid8();
+  }
+}
+function createRecallHandler(store, origin, actorFor) {
+  return async (req, res) => {
+    const send = (http, data) => {
+      if (!res.destroyed) {
+        res.writeHead(http, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" });
+        res.end(JSON.stringify(data));
+      }
+    };
+    try {
+      const base = origin(), method = req.method;
+      if (!base || req.headers.host !== new URL(base).host || req.headers["sec-fetch-site"] === "cross-site" || req.headers.origin !== void 0 && req.headers.origin !== base || method !== "GET" && req.headers["x-knowledgeos-request"] !== "1") throw new AssetError(403, "CSRF_REJECTED");
+      const url = new URL(req.url ?? "/", base);
+      if (url.origin !== base) throw new AssetError(403, "CSRF_REJECTED");
+      const actor2 = actorFor(req);
+      if (!actor2) throw new AssetError(401, "AUTH_REQUIRED");
+      const path = url.pathname, q = url.searchParams, info = { actor_id: actor2.userId };
+      if (new Set(q.keys()).size !== q.size) throw invalid8();
+      if (method === "GET" && path === basePath + "/source") {
+        const fields3 = object(Object.fromEntries(q), ["asset_id", "version_id", "conversion_id", "ordinal"]), n = q.get("ordinal");
+        if (n === null || !/^\d+$/.test(n)) throw invalid8();
+        return send(200, { data: store.authorPage(actor2, { ...target(fields3), ordinal: integer(Number(n)) }) });
+      }
+      if (method === "GET" && path === basePath) {
+        if ([...q.keys()].some((k) => k !== "after")) throw invalid8();
+        return send(200, { data: { ...info, ...store.list(actor2, q.has("after") ? id2(q.get("after")) : "") } });
+      }
+      if (q.size) throw invalid8();
+      if (method === "POST" && path === basePath) {
+        const v = object(await json2(req), ["actor_id", "asset_id", "version_id", "conversion_id", "title", "first", "last", "interior_hashes", "masks"]);
+        if (typeof v.title !== "string" || v.title.includes("\0") || !Array.isArray(v.masks) || !Array.isArray(v.interior_hashes)) throw invalid8();
+        const masks = v.masks.map((raw) => {
+          const m = object(raw, ["ordinal", "start", "end", "group"]);
+          return { ordinal: integer(m.ordinal), start: integer(m.start, 0), end: integer(m.end), group: integer(m.group) };
+        });
+        const saved = store.create(actor2, id2(v.actor_id), id2(req.headers["idempotency-key"]), { ...target(v), title: v.title.trim(), first: point3(v.first), last: point3(v.last), interior_hashes: v.interior_hashes.map(hash3), masks });
+        return send(saved.replayed ? 200 : 201, { data: { ...info, ...saved.data } });
+      }
+      const row = /^\/knowledge\/v1\/recall\/([^/]+)$/.exec(path);
+      if (row && method === "GET") return send(200, { data: { ...info, ...store.get(actor2, id2(row[1])) } });
+      if (row && method === "PATCH") {
+        const v = object(await json2(req), ["actor_id", "event", "value", "expected_revision"]), event = v.event;
+        if (event !== "move" && event !== "hint" && event !== "reveal" && event !== "recall" && event !== "rating") throw invalid8();
+        const action2 = { event, value: integer(v.value), expected_revision: integer(v.expected_revision) };
+        return send(200, { data: { ...info, ...store.act(actor2, id2(v.actor_id), id2(row[1]), id2(req.headers["idempotency-key"]), action2) } });
       }
       throw new AssetError(404, "NOT_FOUND");
     } catch (e) {
@@ -8157,8 +8511,8 @@ async function loadEngine() {
     emscripten_resize_heap: (size) => {
       const old = api.memory.buffer.byteLength;
       if (size >>> 0 > MAX_MEMORY) throw new Error("PDF parser memory limit");
-      const target = Math.min(MAX_MEMORY, Math.max(size >>> 0, old + 8 * MiB2));
-      api.memory.grow(Math.ceil((target - old) / 65536));
+      const target2 = Math.min(MAX_MEMORY, Math.max(size >>> 0, old + 8 * MiB2));
+      api.memory.grow(Math.ceil((target2 - old) / 65536));
       return 1;
     }
   };
@@ -8482,12 +8836,12 @@ function startOfficeWorker(store, originals, kit, openPdf2, log) {
 }
 
 // src/host/legacy-word-source.ts
-import { randomUUID as randomUUID21 } from "node:crypto";
+import { randomUUID as randomUUID22 } from "node:crypto";
 import { open as open2, unlink } from "node:fs/promises";
 function legacyWordSource(kit, originals) {
   return async (source, check, signal) => {
     if (!kit.convertTo) throw new Error("Office structure conversion unavailable");
-    const result = await kit.convertTo({ extension: "doc", format: "docx", output: { owner: randomUUID21(), name: "structure.docx" }, source: {
+    const result = await kit.convertTo({ extension: "doc", format: "docx", output: { owner: randomUUID22(), name: "structure.docx" }, source: {
       key: `knowledgeos-word-structure:${source.sha256}`,
       version: source.sha256,
       bytes: source.byteLength,
@@ -8534,7 +8888,7 @@ function buildLibraryHtml() {
 #zip{overflow-wrap:anywhere}#zip-resume{max-width:36rem}#zip-entries{list-style:none;padding:0}#zip-entries li{border-bottom:1px solid #dde5e2;padding:8px 0}#zip-entries label{display:flex;align-items:center;gap:8px}#zip-entries input{width:18px;height:18px;flex:none}#zip-entries small{display:block}
 #search-form{grid-template-columns:minmax(0,1fr) auto}#search-results{list-style:none;padding:0;margin:4px 0;overflow-wrap:anywhere}#search-results li{padding:8px 0;border-bottom:1px solid #dde5e2}#search-results small{margin-inline-start:8px}#search-results p{white-space:pre-wrap}#search-status{min-height:1.55em;margin-top:6px;color:#536866}
 </style></head><body>
-<header><div><strong>KnowledgeOS</strong><nav aria-label="业务导航"><a href="/knowledgeos/notes">笔记</a><a href="/knowledgeos/account">账号与登录</a><a href="/knowledgeos/ai">AI 工具</a></nav></div></header>
+<header><div><strong>KnowledgeOS</strong><nav aria-label="业务导航"><a href="/knowledgeos/notes">笔记</a><a href="/knowledgeos/recall">遮挡背诵</a><a href="/knowledgeos/account">账号与登录</a><a href="/knowledgeos/ai">AI 工具</a></nav></div></header>
 <main><div class="bar"><h1>PDF 资料库</h1><span id="who" class="muted"></span></div>
 <section aria-labelledby="search-heading"><h2 id="search-heading">全文检索</h2>
 <form id="search-form"><label>关键词<input id="search-query" type="search" maxlength="128" disabled required></label><button id="search-submit" type="submit" disabled>检索</button></form>
@@ -9149,7 +9503,7 @@ function buildReaderHtml() {
 </style></head><body><header><strong>KnowledgeOS</strong><a href="/knowledgeos/library">资料库</a><a href="/knowledgeos/account">账号与登录</a></header><main>
 <h1 id="title">版本阅读</h1><p id="version"></p><div class="tools"><button id="refresh">刷新</button><form id="jump"><button type="button" id="prev" aria-label="上一位置">←</button><input type="number" min="1" step="1" required id="number" aria-label="跳转位置"><button>跳转</button><button type="button" id="next" aria-label="下一位置">→</button></form><span id="count"></span></div><p id="status" role="status"></p>
 <section id="continuity" aria-label="阅读导航" hidden><details id="toc-details" open><summary>目录</summary><ul id="toc"></ul></details><details id="bookmarks-details" open><summary>我的书签</summary><ul id="bookmarks"></ul><form id="bookmark-form"><input id="bookmark-title" maxlength="120" required placeholder="书签名称" aria-label="书签名称"><button id="bookmark-add">添加书签</button></form></details><p id="reading-status" role="status"></p></section>
-<div class="layout"><nav id="rail" aria-label="页与文本块" hidden><div id="window"></div></nav><article><h2 id="anchor"></h2><div class="modes" id="modes" hidden><button id="paper">原页</button><button id="structured">结构文本</button><button id="cite" disabled>生成引用链接</button><button id="annotate" disabled>选区批注</button><button id="annotations-toggle" aria-controls="annotations" aria-expanded="false">本处批注</button><a id="link" hidden>打开引用</a><a id="note-link" hidden>记笔记</a></div><div id="original" hidden></div><pre id="text" hidden></pre><section id="annotations" aria-label="本处批注" hidden><p id="annotation-status" role="status"></p><ul id="annotation-items"></ul><form id="annotation-form" hidden><label for="annotation-body">批注正文</label><textarea id="annotation-body" maxlength="4000" required></textarea><label id="annotation-scope">可见范围 <select id="annotation-visibility"><option value="private">仅本人</option><option value="project">当前项目</option></select></label><div class="annotation-buttons"><button id="annotation-submit">保存批注</button><button type="button" id="annotation-rebase" hidden>读取最新版本并保留草稿</button><button type="button" id="annotation-cancel">取消</button></div></form></section></article></div></main><script>
+<div class="layout"><nav id="rail" aria-label="页与文本块" hidden><div id="window"></div></nav><article><h2 id="anchor"></h2><div class="modes" id="modes" hidden><button id="paper">原页</button><button id="structured">结构文本</button><button id="cite" disabled>生成引用链接</button><button id="annotate" disabled>选区批注</button><button id="annotations-toggle" aria-controls="annotations" aria-expanded="false">本处批注</button><a id="link" hidden>打开引用</a><a id="note-link" hidden>记笔记</a><a id="recall-link" hidden>制作遮挡练习</a></div><div id="original" hidden></div><pre id="text" hidden></pre><section id="annotations" aria-label="本处批注" hidden><p id="annotation-status" role="status"></p><ul id="annotation-items"></ul><form id="annotation-form" hidden><label for="annotation-body">批注正文</label><textarea id="annotation-body" maxlength="4000" required></textarea><label id="annotation-scope">可见范围 <select id="annotation-visibility"><option value="private">仅本人</option><option value="project">当前项目</option></select></label><div class="annotation-buttons"><button id="annotation-submit">保存批注</button><button type="button" id="annotation-rebase" hidden>读取最新版本并保留草稿</button><button type="button" id="annotation-cancel">取消</button></div></form></section></article></div></main><script>
 'use strict';
 const $=id=>document.getElementById(id), q=new URLSearchParams(location.search), asset=q.get('asset'), version=q.get('version'), cid=q.get('citation');
 const requestedUnit=q.get('unit')??'1', requestedConversion=q.get('conversion');
@@ -9183,6 +9537,7 @@ function clearPage(){
   for(const id of ['text','original','anchor'])$(id).replaceChildren();
   for(const id of ['text','original','modes','link'])$(id).hidden=true;
   $('link').removeAttribute('href');$('note-link').hidden=true;$('note-link').removeAttribute('href');$('cite').disabled=true;
+  $('recall-link').hidden=true;$('recall-link').removeAttribute('href');
   clearAnnotations();
 }
 function lock(message,keepDraft=false){
@@ -9370,6 +9725,7 @@ function draw(){
     if(s){const mark=document.createElement('mark');mark.textContent=d.text.slice(s.start,s.end);text.append(d.text.slice(0,s.start),mark,d.text.slice(s.end))}else text.textContent=d.text;
   }
   $('cite').disabled=!available||!s||posting;
+  if(available){$('recall-link').href='/knowledgeos/recall?'+new URLSearchParams({asset,version,unit:String(d.ordinal),...(d.conversion_id?{conversion:d.conversion_id}:{})});$('recall-link').hidden=false}
   $('annotate').disabled=!available||!s||posting||annotationBusy;$('annotations-toggle').disabled=!available;
   const states={failed:'本处解析失败。',empty:'此版本没有可阅读的文本块。',unconverted:'此版本尚无已完成的转换。',review:'本页解析结果待复核。'};
   const layout=d.kind==='pdf'&&available&&!showOriginal?' 提取文本不等同于原页版式。':'';
@@ -9690,6 +10046,138 @@ void action(async()=>{
 </script></body></html>`;
 }
 
+// src/host/recall-page.ts
+function buildRecallHtml() {
+  return String.raw`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>遮挡背诵 · KnowledgeOS</title>
+<style>
+*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:#f8faf9;color:#223638;font:15px/1.55 "Segoe UI","Microsoft YaHei UI",sans-serif}header{background:#fff;border-bottom:1px solid #cedbd7}header nav,main{max-width:1040px;margin:auto;padding:0 20px}nav,.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}nav{min-height:54px}nav strong{font-size:18px;color:#18565a;margin-right:6px}main{padding-block:20px}h1,h2,h3,p{margin:0}h1{font-size:25px}h2{font-size:18px}h3{font-size:15px}a{color:#176166;text-underline-offset:3px}button,input,select{font:inherit;color:inherit;padding:5px 9px;border:1px solid #8a9d99;border-radius:5px;background:#fff}button{cursor:pointer}button:disabled{opacity:.55;cursor:default}button.primary{color:#fff;background:#226461}button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #176d92;outline-offset:2px}#status,#practice-meta,#selection-meta{color:#516667;min-height:1.6em;margin:6px 0}section{margin-top:15px}#author-tools{position:sticky;top:0;z-index:1;background:#f8faf9;border-block:1px solid #cedbd7;padding:8px 0}#pages article{border-bottom:1px solid #cedbd7;padding:11px 0}#pages h3{color:#346465}pre,.practice-text{font:inherit;white-space:pre-wrap;overflow-wrap:anywhere;margin:6px 0;line-height:1.65}pre{user-select:text}input{max-width:100%}ul{padding:0;list-style:none;margin:8px 0}li{padding:6px 0;border-bottom:1px solid #dce6e3;overflow-wrap:anywhere}#groups li{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.masked{background:#dbe9e3;color:#244b48;font-weight:600;padding:0 4px;border-bottom:2px solid #92ada4}.warn{color:#8c521d}.muted{color:#536866}label{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap}.progress{margin:8px 0}
+@media(max-width:620px){header nav,main{padding-inline:12px}#author-tools{position:static}.bar{gap:6px}}
+</style></head><body><header><nav aria-label="业务导航"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">知识库</a><a href="/knowledgeos/recall" aria-current="page">遮挡背诵</a><a href="/knowledgeos/account">账号</a></nav></header>
+<main><h1>遮挡背诵</h1><p id="status" role="status">正在读取…</p>
+<section id="collection" hidden><h2>我的练习</h2><ul id="materials"></ul><button id="more" hidden>更多练习</button></section>
+<section id="author" hidden><h2 id="source-title"></h2><div id="author-tools"><div class="bar"><button id="range">设为练习范围</button><button id="mask" disabled>添加为遮挡组</button><button id="clear-masks" disabled>清除分组</button><span id="selection-meta" aria-live="polite"></span></div><div class="bar"><label>练习名称 <input id="title" maxlength="200"></label><button id="create" class="primary" disabled>保存并练习</button></div></div>
+<button id="prev-page" hidden>加载上一页</button><div id="pages"></div><button id="next-page" hidden>加载下一页</button></section>
+<section id="practice" hidden><h2 id="practice-title"></h2><div class="bar"><button id="prev" aria-label="上一练习页">←</button><span id="practice-meta"></span><button id="next" aria-label="下一练习页">→</button><a id="original" target="_blank" rel="noopener noreferrer">固定版本原文</a><a href="/knowledgeos/recall">我的练习</a></div>
+<p id="version-warning" class="warn" hidden>来源已有变化；保留旧练习，未迁移选区。</p><div id="practice-text" class="practice-text"></div><ul id="groups"></ul>
+<p id="progress" class="progress muted"></p><div class="bar"><label>自评 <select id="rating"><option value="">未评分</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></label><button id="rate">保存自评</button></div></section></main>
+<script>
+const $=id=>document.getElementById(id),api='/knowledge/v1/recall',q=new URL(location.href).searchParams;
+const uuid=s=>typeof s==='string'&&/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(s);
+const source={asset_id:q.get('asset'),version_id:q.get('version'),...(q.has('conversion')?{conversion_id:q.get('conversion')}:{})}, starting=Math.max(1,Number(q.get('unit'))||1);
+let owner=null,view=null,busy=false,locked=false,loaded=new Map(),total=0,range=null,masks=[],nextGroup=1,attempt=null,cursor=null,materialId=q.get('material'),pending=null;
+const status=text=>$('status').textContent=text;
+function fail(code){const e=new Error(code);e.code=code;throw e}
+function conceal(){for(const section of ['collection','author','practice'])$(section).hidden=true}
+function clear(){conceal();pending=null;attempt=null;range=null;masks=[];loaded.clear();for(const id of ['materials','pages','practice-text','groups','progress','practice-title','source-title'])$(id).replaceChildren();$('original').removeAttribute('href');$('title').value='';getSelection().removeAllRanges()}
+async function raw(path,init){const r=await fetch(path,{cache:'no-store',redirect:'error',credentials:'same-origin',...init});const j=await r.json();if(!r.ok)fail(j.code);return j.data}
+async function checkActor(){const a=await raw('/knowledge/v1/me');if(!uuid(a?.id)||owner&&a.id!==owner)fail('ACTOR_CHANGED');owner=a.id}
+async function call(path,method='GET',body,key){
+  const data=await raw(path,body?{method,headers:{'content-type':'application/json','x-knowledgeos-request':'1','idempotency-key':key},body:JSON.stringify({actor_id:owner,...body})}:{});
+  await checkActor();if(data.actor_id!==owner)fail('ACTOR_CHANGED');return data;
+}
+const errors={AUTH_REQUIRED:'请重新登录后刷新。',ACTOR_CHANGED:'账号已切换，请刷新页面。',SOURCE_NOT_FOUND:'来源不可用。',RECALL_NOT_FOUND:'练习或来源不可用。',RECALL_SOURCE_NOT_READY:'此页暂未提供已解析文本。',RECALL_SOURCE_CHANGED:'来源与保存的页段不一致。',RECALL_CONVERSION_REQUIRED:'请在固定转换版本的阅读器打开。',REVISION_CONFLICT:'已有更新，已重新读取进度。',INVALID_RECALL_RANGE:'范围无效，请核对选区及遮挡重叠。',RECALL_NOT_INDEPENDENT:'已使用提示或揭示，不能记为独立回忆。'};
+const restricted=new Set(['AUTH_REQUIRED','ACTOR_CHANGED','SOURCE_NOT_FOUND','RECALL_NOT_FOUND','RECALL_SOURCE_CHANGED','CSRF_REJECTED']);
+async function action(fn,{background=false}={}){
+  if(busy||locked)return;busy=true;try{await checkActor();await fn();if(!document.hidden&&view)$(view).hidden=false}catch(e){
+    if(restricted.has(e.code)){clear();locked=true}
+    else if(background)conceal();
+    status(errors[e.code]||'操作失败，未确认的提交可以重试。');
+  }finally{busy=false}
+}
+function item(text,click){const node=document.createElement('button');node.type='button';node.textContent=text;node.onclick=click;return node}
+function list(reset){return call(api+(reset?'':'?after='+encodeURIComponent(cursor))).then(data=>{
+  if(reset)$('materials').replaceChildren();for(const m of data.items){const li=document.createElement('li'),a=document.createElement('a');a.href='?material='+encodeURIComponent(m.id);a.textContent=m.title;li.append(a);$('materials').append(li)}
+  cursor=data.next;$('more').hidden=!cursor;view='collection';status($('materials').children.length?'':'暂无练习。');
+})}
+async function addPage(n){
+  if(n<1||total&&n>total||loaded.has(n))return;
+  const payload=await call(api+'/source?'+new URLSearchParams({...source,ordinal:String(n)}));if(payload.ordinal!==n||total&&payload.total!==total)fail('RECALL_SOURCE_CHANGED');total=payload.total;
+  const section=document.createElement('article'),h=document.createElement('h3'),text=document.createElement('pre');h.textContent='页段 '+n+' / '+total;text.dataset.ordinal=String(n);text.textContent=payload.text;
+  if(!payload.text)text.setAttribute('aria-label','空白页');section.append(h,text);
+  const next=[...$('pages').children].find(e=>Number(e.lastChild.dataset.ordinal)>n);$('pages').insertBefore(section,next||null);
+  if(next)next.scrollIntoView({block:'start'});
+  loaded.set(n,payload);$('source-title').textContent=payload.title;if(!$('title').value)$('title').value=payload.title;
+  $('prev-page').hidden=Math.min(...loaded.keys())<=1;$('next-page').hidden=Math.max(...loaded.keys())>=total;view='author';status('');
+}
+function selected(){
+  const s=getSelection();if(!s.rangeCount||s.isCollapsed)fail('INVALID_RECALL_RANGE');const r=s.getRangeAt(0);
+  function edge(node,offset){const el=node.parentElement,ordinal=Number(el?.dataset.ordinal),part=loaded.get(ordinal);if(node.nodeType!==3||!part||!$('pages').contains(el))fail('INVALID_RECALL_RANGE');return {ordinal,offset,source_hash:part.source_hash}}
+  return {first:edge(r.startContainer,r.startOffset),last:edge(r.endContainer,r.endOffset)};
+}
+function updateAuthor(){
+  $('mask').disabled=!range;$('clear-masks').disabled=!masks.length;$('create').disabled=!masks.length;
+  $('selection-meta').textContent=range?'页段 '+range.first.ordinal+'–'+range.last.ordinal+' · '+new Set(masks.map(x=>x.group)).size+' 组':'';
+}
+function useRange(){
+  const {first,last}=selected(),interior_hashes=[];
+  for(let n=first.ordinal+1;n<last.ordinal;n++){
+    const part=loaded.get(n);if(!part)fail('RECALL_SOURCE_NOT_READY');interior_hashes.push(part.source_hash);
+  }
+  range={first,last,interior_hashes};masks=[];nextGroup=1;updateAuthor();status('练习范围已选定。');
+}
+function useMask(){
+  const {first,last}=selected(),group=nextGroup,parts=[];
+  for(let n=first.ordinal;n<=last.ordinal;n++){
+    const part=loaded.get(n);if(!part||n<range.first.ordinal||n>range.last.ordinal)fail('INVALID_RECALL_RANGE');
+    const start=n===first.ordinal?first.offset:0,end=n===last.ordinal?last.offset:part.text.length;
+    if(start<(n===range.first.ordinal?range.first.offset:0)||end>(n===range.last.ordinal?range.last.offset:part.text.length))fail('INVALID_RECALL_RANGE');
+    if(end>start)parts.push({ordinal:n,start,end,group});
+  }
+  if(!parts.length||parts.some(p=>masks.some(m=>m.ordinal===p.ordinal&&m.start<p.end&&p.start<m.end)))fail('INVALID_RECALL_RANGE');
+  masks.push(...parts);nextGroup++;updateAuthor();status('已添加遮挡组 '+group+'。');
+}
+function keyFor(body){const digest=JSON.stringify(body);if(pending?.digest!==digest)pending={digest,key:crypto.randomUUID()};return pending.key}
+async function save(){
+  const title=$('title').value.trim();if(!title){$('title').focus();status('请输入练习名称。');return}
+  const body={...source,title,...range,masks};const saved=await call(api,'POST',body,keyFor(body));
+  clear();materialId=saved.material.id;history.replaceState(null,'','?material='+encodeURIComponent(materialId));draw(saved);status('练习已保存。');
+}
+function draw(data){
+  attempt=data;view='practice';const {material:m,ordinal,first,last,length,progress:r}=data;
+  $('practice-title').textContent=m.title;$('practice-meta').textContent='页段 '+ordinal+' / '+last+' · '+length+' 个 UTF-16 单元';
+  $('original').href='/knowledgeos/reader?'+new URLSearchParams({asset:m.asset_id,version:m.version_id,unit:String(ordinal),...(m.conversion_id?{conversion:m.conversion_id}:{})});
+  $('version-warning').hidden=!data.source_changed;$('prev').disabled=ordinal<=first;$('next').disabled=ordinal>=last;
+  $('practice-text').replaceChildren();$('groups').replaceChildren();const groups=new Map();
+  for(const part of data.runs){if(part.kind==='text')$('practice-text').append(document.createTextNode(part.text));else{
+    const span=document.createElement('span');span.className='masked';span.textContent='［组 '+part.group+'］';$('practice-text').append(span);groups.set(part.group,(groups.get(part.group)||0)+part.length);
+  }}
+  for(const [g,len] of groups){const li=document.createElement('li'),hint=r.hints.find(x=>x.group===g);
+    const label=document.createElement('span');label.textContent='组 '+g+(hint?' · 本页 '+len+' 个 UTF-16 单元':'');li.append(label,item('提示 '+g,()=>action(()=>act('hint',g))),item('揭示 '+g,()=>action(()=>act('reveal',g))));
+    const recall=item('独立回忆 '+g,()=>action(()=>act('recall',g)));recall.disabled=!!hint||r.independent_recall.includes(g);li.append(recall);$('groups').append(li);
+  }
+  $('rating').value=r.self_rating??'';$('progress').textContent='提示 '+r.hints.reduce((n,h)=>n+h.count,0)+' · 已揭示 '+r.revealed.length+' 组 · 独立回忆 '+r.independent_recall.length+' 组 · 自评 '+(r.self_rating??'未评分');
+}
+async function act(event,value){
+  if(!attempt||!value)return;const body={event,value,expected_revision:attempt.revision};
+  try{draw(await call(api+'/'+materialId,'PATCH',body,keyFor(body)));pending=null;status('进度已保存。')}
+  catch(e){if(e.code==='REVISION_CONFLICT'){pending=null;draw(await call(api+'/'+materialId))}throw e}
+}
+async function refresh(){
+  if(view==='collection'){await list(true);return}
+  if(view==='practice'){
+    const next=await call(api+'/'+materialId);
+    if(next.revision===attempt.revision&&next.source_changed===attempt.source_changed)return;
+    const rating=$('rating').value,unsaved=rating!==String(attempt.progress.self_rating??''),focused=document.activeElement?.textContent;
+    const hadGroupFocus=$('groups').contains(document.activeElement);draw(next);if(unsaved)$('rating').value=rating;
+    if(hadGroupFocus)([...$('groups').querySelectorAll('button:not(:disabled)')].find(b=>b.textContent===focused)||$('original')).focus({preventScroll:true});
+    return;
+  }
+  if(view==='author'&&loaded.size){const n=loaded.keys().next().value,p=await call(api+'/source?'+new URLSearchParams({...source,ordinal:String(n)}));if(p.source_hash!==loaded.get(n).source_hash)fail('RECALL_SOURCE_CHANGED')}
+}
+for(const id of ['range','mask'])$(id).onmousedown=e=>e.preventDefault();
+$('range').onclick=()=>{try{useRange()}catch(e){status(errors[e.code])}};$('mask').onclick=()=>{try{useMask()}catch(e){status(errors[e.code])}};
+$('clear-masks').onclick=()=>{masks=[];nextGroup=1;updateAuthor()};$('create').onclick=()=>action(save);
+$('prev-page').onclick=()=>action(()=>addPage(Math.min(...loaded.keys())-1));$('next-page').onclick=()=>action(()=>addPage(Math.max(...loaded.keys())+1));
+$('more').onclick=()=>action(()=>list(false));$('prev').onclick=()=>action(()=>act('move',attempt.ordinal-1));$('next').onclick=()=>action(()=>act('move',attempt.ordinal+1));$('rate').onclick=()=>action(()=>act('rating',Number($('rating').value)));
+document.addEventListener('visibilitychange',()=>{conceal();if(!document.hidden)void action(refresh,{background:true})});
+window.addEventListener('pagehide',conceal);window.addEventListener('pageshow',e=>{if(e.persisted)void action(refresh,{background:true})});
+setInterval(()=>{if(!document.hidden)void action(refresh,{background:true})},10000);
+void action(async()=>{if(uuid(materialId)){draw(await call(api+'/'+materialId));status('')}
+  else if(uuid(source.asset_id)&&uuid(source.version_id)){await addPage(starting)}else await list(true);
+});
+</script></body></html>`;
+}
+
 // src/host/index.ts
 var name = "knowledgeos-panel";
 var inject = ["webServer", "clientModules", "connection", "connection.authentication"];
@@ -9751,14 +10239,14 @@ function apply(ctx, config = {}) {
       if (closing) throw new RecordsError("STORAGE_CLOSED", "storage is closing");
       if (storage === void 0) throw new RecordsError("STORAGE_UNAVAILABLE", "storage is not configured");
       return createProbeRecord(storage, {
-        newId: () => randomUUID22(),
+        newId: () => randomUUID23(),
         now: () => (/* @__PURE__ */ new Date()).toISOString()
       }, { idempotencyKey, content });
     },
-    get(id2) {
+    get(id3) {
       if (closing) throw new RecordsError("STORAGE_CLOSED", "storage is closing");
       if (storage === void 0) throw new RecordsError("STORAGE_UNAVAILABLE", "storage is not configured");
-      return getProbeRecord(storage, id2);
+      return getProbeRecord(storage, id3);
     }
   };
   const handlers = createRecordsHandlers(service, RECORDS_PATH, log);
@@ -9816,7 +10304,7 @@ function apply(ctx, config = {}) {
     res.statusCode = 503;
     res.setHeader("content-type", "application/json; charset=utf-8");
     res.setHeader("cache-control", "no-store");
-    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID22(), retryable: true, safe_details: {} }));
+    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID23(), retryable: true, safe_details: {} }));
   };
   const registerIdentityRoutes = (identityContext) => {
     const identityAvailable = () => {
@@ -9942,6 +10430,16 @@ function apply(ctx, config = {}) {
         };
         const handler = libraryHandler(storage.assets, originals, actualOrigin, sessionFor, storage.parses, storage.office, () => !!officeMount, storage.archives, reader, storage.search);
         const notes = createNoteHandler(storage.notes, actualOrigin, sessionFor);
+        disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/recall", auth: "anonymous", handler: withPeer(createRecallHandler(storage.recall, actualOrigin, sessionFor)) }));
+        disposers.push(identityContext.webServer.register({ kind: "exact", path: "/knowledgeos/recall", auth: "anonymous", handler: (req, res) => {
+          if (req.method !== "GET") {
+            res.statusCode = 405;
+            res.end();
+            return;
+          }
+          res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "referrer-policy": "no-referrer" });
+          res.end(buildRecallHtml());
+        } }));
         disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/notes", auth: "anonymous", handler: withPeer(notes) }));
         disposers.push(identityContext.webServer.register({ kind: "exact", path: "/knowledgeos/notes", auth: "anonymous", handler: (req, res) => {
           if (req.method !== "GET") {
