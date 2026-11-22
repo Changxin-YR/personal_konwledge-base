@@ -7,7 +7,7 @@ import {join} from 'node:path'
 import {pathToFileURL} from 'node:url'
 import {randomUUID} from 'node:crypto'
 import {DatabaseSync} from 'node:sqlite'
-import {ProbeStorage,MIGRATION_V7_CHECKSUM,MIGRATION_V8_CHECKSUM,MIGRATION_V9_CHECKSUM} from '../../packages/knowledgeos-panel/lib/storage.js'
+import {ProbeStorage,SCHEMA_VERSION,MIGRATION_V7_CHECKSUM,MIGRATION_V8_CHECKSUM,MIGRATION_V9_CHECKSUM} from '../../packages/knowledgeos-panel/lib/storage.js'
 import {seed} from '../fnd006/independent/common.mjs'
 
 test('data-bearing v6 rolls back, upgrades, reopens; publication preserves old bytes and idempotency',async()=>{
@@ -17,8 +17,9 @@ test('data-bearing v6 rolls back, upgrades, reopens; publication preserves old b
   function facts(){const db=new DatabaseSync(join(dir,'knowledgeos.sqlite'),{readOnly:true});try{return {v:db.prepare('PRAGMA user_version').get().user_version,ledger:db.prepare('SELECT * FROM schema_migrations ORDER BY version').all(),objects:db.prepare('SELECT * FROM knowledge_objects ORDER BY id').all(),assets:db.prepare("SELECT name FROM sqlite_master WHERE name IN ('assets','asset_versions','blobs') ORDER BY name").all()}}finally{db.close()}}
   const before=facts();assert.equal(before.v,6);assert.equal(before.objects[0].id,object.id)
   const failed=new ProbeStorage({dataDir:dir,failureAt:'v7:after-schema'});assert.equal(failed.available,false);failed.close();assert.deepEqual(facts(),before)
-  let store=new ProbeStorage({dataDir:dir});assert(store.available,store.failure?.message);const after=facts();assert.equal(after.v,9);assert.equal(after.assets.length,3);assert.deepEqual(after.ledger.slice(0,6),before.ledger);assert.deepEqual(after.objects,before.objects)
-  assert.deepEqual(after.ledger.slice(6).map(r=>[r.version,r.checksum]),[[7,MIGRATION_V7_CHECKSUM],[8,MIGRATION_V8_CHECKSUM],[9,MIGRATION_V9_CHECKSUM]])
+  let store=new ProbeStorage({dataDir:dir});assert(store.available,store.failure?.message);const after=facts();assert.equal(after.v,SCHEMA_VERSION);assert.equal(after.assets.length,3);assert.deepEqual(after.ledger.slice(0,6),before.ledger);assert.deepEqual(after.objects,before.objects)
+  assert.deepEqual(after.ledger.slice(6,9).map(r=>[r.version,r.checksum]),[[7,MIGRATION_V7_CHECKSUM],[8,MIGRATION_V8_CHECKSUM],[9,MIGRATION_V9_CHECKSUM]])
+  assert.deepEqual(after.ledger.slice(6).map(r=>r.version),Array.from({length:SCHEMA_VERSION-6},(_,i)=>7+i))
   const first={title:'第一版.pdf',key:randomUUID()},blob={key:randomUUID()+'.pdf',sha256:'1'.repeat(64),byteLength:130}
   let r;try{r=store.assets.publish(actor,first,blob);assert(!r.replayed);assert.equal(r.receipt.version,1)}finally{store.close()}
   store=new ProbeStorage({dataDir:dir});try{
