@@ -101,7 +101,7 @@ export async function projectPolicy({http,upload,db,owner,first,rival,outsider,l
   }
 }
 
-export async function transactionFaults({http,db,h,login,owner,first,doc}){
+export async function transactionFaults({http,db,h,owner,first,doc,faultChecks}){
   const i=await issue(http,owner,'object',doc.id,'read')
   for(const event of ['redeem','renew','revoke']){
     const before=snapshot(db,i),current=await manage(http,owner,i)
@@ -111,13 +111,15 @@ export async function transactionFaults({http,db,h,login,owner,first,doc}){
     if(event==='redeem')await redeem(http,first,503,i)
     else await change(http,owner,current,event,503,event==='renew'?{days:1}:{})
     assert.deepEqual(snapshot(db,i),before)
-    await h.stop();await h.start();assert.deepEqual(snapshot(db,i),before)
+    await h.stop()
     const cleanup=new DatabaseSync(db)
     try{cleanup.exec('DROP TRIGGER share_test_failure')}finally{cleanup.close()}
-    owner=await login('owner');first=await login('first')
+    await h.start();assert.deepEqual(snapshot(db,i),before)
+    await http(owner.ctx,'/me',200);await http(first.ctx,'/me',200)
     if(event==='redeem')await redeem(http,first,201,i)
     else await change(http,owner,current,event,200,event==='renew'?{days:1}:{})
     assert.equal(sql(db,'SELECT count(*) n FROM invitation_audit WHERE invitation_id=? AND event=?',[i.id,event])[0].n,1)
+    faultChecks.push({event,failure_http:503,snapshot_unchanged_after_reopen:true,successful_audit_rows_after_retry:1})
   }
   const stored=snapshot(db,i)
   assert.equal(stored[0][0].token_hash,createHash('sha256').update(i.token).digest('hex'))

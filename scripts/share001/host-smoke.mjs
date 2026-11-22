@@ -7,6 +7,7 @@ import {join} from 'node:path'
 import {fileURLToPath,pathToFileURL} from 'node:url'
 import {api,dbPath,entryCookie,sql} from '../fnd004/harness.mjs'
 import {isolate} from '../lib002/a07-isolated-host.mjs'
+import {candidateFacts} from '../integrated-case-proof.mjs'
 import {projectPolicy,transactionFaults} from './host-policy-checks.mjs'
 
 const [candidate,entry,parent='.cache/share001-smoke']=process.argv.slice(2)
@@ -17,7 +18,8 @@ const helper='scripts/share001/host-policy-checks.mjs',policyHash=sha(readFileSy
 assert.equal(policyHash,sha(execFileSync('git',['show',candidate+':'+helper],{cwd:root})))
 mkdirSync(parent,{recursive:true});const out=mkdtempSync(join(parent,'run-')),prefix='/knowledge/v1',marker={'x-knowledgeos-request':'1'},password=randomUUID()
 const t0=Date.now(),day=86_400_000
-const facts={candidate_sha:candidate,entry_sha256:entry,runner_sha256:runner,policy_helper_sha256:policyHash,status:'NOT_RUN',scope:'checkpoint_smoke_clock_policy_and_faults',T01:'NOT_RUN',T02:'NOT_RUN',A34:'NOT_RUN',checks:[]}
+const {tree,source_tree,entry_sha256,build_sha256}=candidateFacts(root,candidate);assert.equal(entry_sha256,entry)
+const facts={candidate_sha:candidate,tree,source_tree,entry_sha256,build_sha256,runner_sha256:runner,policy_helper_sha256:policyHash,status:'NOT_RUN',scope:'checkpoint_smoke_clock_policy_and_faults',T01:'NOT_RUN',T02:'NOT_RUN',A34:'NOT_RUN',checks:[]}
 let h,browser,phase='bind and boot'
 async function http(ctx,path,code,method='GET',data){
   const r=await ctx.request.fetch(h.base+prefix+path,{method,headers:{...marker,'idempotency-key':randomUUID()},data,maxRedirects:0})
@@ -141,7 +143,7 @@ try{
   facts.clock_boundary={issued_at:new Date(t0).toISOString(),expires_at:new Date(expires).toISOString(),read_offsets_ms:[-1,0,1],allowed:[true,false,false],day_six_remaining_ms:day}
   facts.checks.push('Live project membership expires while object invitation remains active; document, reader, object list and assets list all deny')
   phase='SQLite failures before commit and real Host restarts'
-  await transactionFaults({http,db,h,login,owner:finalOwner,first:near,doc})
+  facts.fault_checks=[];await transactionFaults({http,db,h,owner:finalOwner,first:near,doc,faultChecks:facts.fault_checks})
   facts.checks.push('Real SQLite audit insert failure rolls back redemption, renewal and revocation; Host reopen and one successful retry each')
   facts.status='PASS'
 }catch(e){facts.status='FAIL';facts.phase=phase;facts.error=String(e.stack);console.error(e);process.exitCode=1}
