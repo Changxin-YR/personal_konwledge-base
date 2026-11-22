@@ -311,7 +311,8 @@
       ],
       "implementation_status": "in_progress",
       "evidence_paths": [
-        "docs/evidence/NOTE-001/acceptance.json"
+        "docs/evidence/NOTE-001/acceptance.json",
+        "docs/evidence/NOTE-002/acceptance.json"
       ]
     },
     {

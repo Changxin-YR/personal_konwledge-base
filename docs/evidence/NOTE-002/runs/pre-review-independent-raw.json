@@ -1,0 +1,206 @@
+{
+  "candidate_sha": "78fb044d3abbe3ac5594f64418bc0e43726b46f8",
+  "tree": "fce1111baf5a333f6ece0d7172491b2cc7bea1f8",
+  "source_tree": "ab02cebef3d68ba0bc17609693e30d68821dd235",
+  "entry_sha256": "c4894e2743c9c51c7675c94b5cd45c11918ab713d507676d5d2590f564904ac5",
+  "build_sha256": "bff8f675804f64e23884c7be5f0d370b315177546d9f579cb476ec5eabd813d5",
+  "runner_sha256": "7a21d0456234a24704fe60908fa57b33df30a7757075981a86f0bbce03e7c48a",
+  "scope": "NOTE-002 Host/Chrome/SQLite; v25 upgrade and affected regressions run separately",
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "A17": "NOT_RUN",
+  "checks": [
+    {
+      "id": "T01_INVALID_MOVES_AND_ROOT_REJECTED",
+      "status": "PASS",
+      "details": {
+        "http": [
+          422,
+          422,
+          422,
+          422,
+          422,
+          422,
+          422,
+          422
+        ],
+        "unchanged": true,
+        "foreign_keys": true
+      }
+    },
+    {
+      "id": "T01_CHROME_MOVES_AND_UNDO",
+      "status": "PASS",
+      "details": {
+        "id": "a7b34f99-7efa-4636-998b-ec147041431d",
+        "root_id": "a7b34f99-7efa-4636-998b-ec147041431d",
+        "depth": 3,
+        "node_ids": [
+          "a7b34f99-7efa-4636-998b-ec147041431d",
+          "02508ac2-8ea6-43c6-a014-668cb8c8c0b7",
+          "c4e55616-f361-43de-88ea-81560ebcd8b8",
+          "c23b07c0-1c08-4131-96fa-fe22226298dc",
+          "59562d9b-4a4e-490e-9f02-02cbc8b2eafa",
+          "6384a54c-8525-46e7-a81e-681ac172e770",
+          "38a19135-93a0-4be5-883c-b5ebbec50f92",
+          "534d6e01-57a3-4019-b052-3f158fcb263f"
+        ],
+        "revision": 14,
+        "sibling_order_restored": true,
+        "content_and_body_revisions_unchanged": true,
+        "fixed_references_unchanged": true
+      }
+    },
+    {
+      "id": "T01_OBSOLETE_UNDO_REJECTED",
+      "status": "PASS",
+      "details": {
+        "stale": 409,
+        "current": 409,
+        "edited_body_preserved": true
+      }
+    },
+    {
+      "id": "T01_RESTART_PRESERVES_IDS_TREE_AND_REFERENCE",
+      "status": "PASS",
+      "details": {
+        "revision": 16,
+        "note_state_sha256": "b0d9b583ba172a0e6623737ccff4e8cfdc759e503d6ad86485e19abb5736b001",
+        "root_id": "a7b34f99-7efa-4636-998b-ec147041431d",
+        "nodes": 8,
+        "source_version": "35cfadbe-7cc6-4566-8494-11e0de58b73c"
+      }
+    },
+    {
+      "id": "T02_PREVIEW_CANCEL_AND_TOKEN_BINDING",
+      "status": "PASS",
+      "details": {
+        "direct_children": 2,
+        "descendants": 3,
+        "cancel_writes": 0,
+        "missing": 422,
+        "mismatch": 409
+      }
+    },
+    {
+      "id": "T02_PROMOTE_DELETION",
+      "status": "PASS",
+      "details": {
+        "archived": [
+          "78427238-abe7-4f01-a3b5-db5c4b1788c4"
+        ],
+        "child_order": [
+          "8a60d508-cf6a-4f66-828a-47ffc32d4e80",
+          "c1a6dee6-97c3-460c-b2d4-f66b36cf5469"
+        ],
+        "deeper_node_retained": "4493b06b-03cb-4d47-99c0-8c273c734981",
+        "undo_restored": true
+      }
+    },
+    {
+      "id": "T02_SUBTREE_SOFT_DELETION",
+      "status": "PASS",
+      "details": {
+        "archived": [
+          "197be8e0-f566-4606-81dc-4571f759d1b3",
+          "60faa34a-e35d-4b2f-adda-0c3bcd1970aa",
+          "9ecc4f74-c861-43b4-bca1-0d2cae3f3660"
+        ],
+        "unrelated_branch_preserved": true,
+        "undo_restored": true
+      }
+    },
+    {
+      "id": "T02_PRIVATE_OUTLINE_ACL",
+      "status": "PASS",
+      "details": {
+        "peer_has_own_note": true,
+        "peer_responses": [
+          404,
+          404,
+          404,
+          404,
+          404,
+          404,
+          404
+        ],
+        "forged_actor": 409,
+        "forged_preview_actor": 409,
+        "no_disclosure_or_writes": true
+      }
+    },
+    {
+      "id": "T02_STALE_DELETE_AND_TWO_TAB_MOVE",
+      "status": "PASS",
+      "details": {
+        "stale_revision": 14,
+        "winning_revision": 15,
+        "stale_confirm": 409,
+        "stale_token_using_head_revision": 409,
+        "stale_preview": 409,
+        "stale_move": 409,
+        "server_body_preserved": true,
+        "ui_draft_preserved": true,
+        "refresh_mutations": 0,
+        "note_state_sha256": "009384441eb01ef520894bb2044eb330bc1aec71912a39ac2db6648418a4e1df"
+      }
+    }
+  ],
+  "screens": [
+    {
+      "name": "t01-moved-branch.png",
+      "sha256": "226dab66bc0fcf2f489f01292bd3bca72d63be0d65f8c7f4d19fddc9738cb50d"
+    },
+    {
+      "name": "t01-restored.png",
+      "sha256": "3f2e8cc12c4bc36669c17fe373a290cbaf68b96b0aaceb4cfa81d207c2f235e4"
+    },
+    {
+      "name": "t02-promote-preview.png",
+      "sha256": "368b560449716d99ee45dce23960196dd0eace3d5dd29e7355a78764d4c62971"
+    },
+    {
+      "name": "t02-subtree-preview.png",
+      "sha256": "7d14569cefcca8fff67aee8bb3871ae3d0bd3ddf164eba45da587777d4a48c04"
+    },
+    {
+      "name": "t02-conflict.png",
+      "sha256": "2e19bf39b71f4c8e0e87c4ef680f866fc0a37805babcf7139653615d2c00cfe3"
+    },
+    {
+      "name": "t02-refreshed-draft.png",
+      "sha256": "19647bc3052440eccbccb2ef0320aaa2027f461ec243d1e785fe125cdecbc563"
+    }
+  ],
+  "boots": [
+    125592,
+    91696
+  ],
+  "binding": {
+    "candidate_sha": "78fb044d3abbe3ac5594f64418bc0e43726b46f8",
+    "tree": "fce1111baf5a333f6ece0d7172491b2cc7bea1f8",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "c4894e2743c9c51c7675c94b5cd45c11918ab713d507676d5d2590f564904ac5",
+    "helpers": {
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "5278ebf7cc64773560b3b672c9182c65b4e1d82a20b8f569328cb0765a627f10",
+      "a07-isolated-host": "cc10ed55ce3dfffc31e4d777e171147ab901b37b7c65614adb68a4f6731712ad"
+    },
+    "parser": {
+      "pdf-extractor.js": "49fb0588ba0c37486a287a083d9bd2a032d89205d34af615845c4928b1f6745c",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "sqlite_schema": 26,
+  "chrome": "158.0.8127.36",
+  "last_host_exit": {
+    "pid": 91696,
+    "hard": false,
+    "code": null,
+    "signal": "SIGTERM"
+  },
+  "exit": 0
+}

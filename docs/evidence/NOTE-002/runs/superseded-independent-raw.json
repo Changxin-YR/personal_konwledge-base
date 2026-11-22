@@ -1,0 +1,193 @@
+{
+  "candidate_sha": "f918db1c2ca1657b77c055c257509d00fb35156d",
+  "tree": "cac6aec3ed584aaf0d2e144ee7033fa29463628d",
+  "source_tree": "ab02cebef3d68ba0bc17609693e30d68821dd235",
+  "entry_sha256": "c4894e2743c9c51c7675c94b5cd45c11918ab713d507676d5d2590f564904ac5",
+  "build_sha256": "bff8f675804f64e23884c7be5f0d370b315177546d9f579cb476ec5eabd813d5",
+  "runner_sha256": "c30d9a2b60a647bc02a9b9e93c38962ecd1b27bb15f5b6ca3e5e39f0d727ca89",
+  "scope": "NOTE-002 Host/Chrome/SQLite; v25 upgrade and affected regressions run separately",
+  "status": "FAIL",
+  "T01": "PASS",
+  "T02": "FAIL",
+  "A17": "NOT_RUN",
+  "checks": [
+    {
+      "id": "T01_INVALID_MOVES_AND_ROOT_REJECTED",
+      "status": "PASS",
+      "details": {
+        "http": [
+          422,
+          422,
+          422,
+          422,
+          422,
+          422,
+          422,
+          422
+        ],
+        "unchanged": true,
+        "foreign_keys": true
+      }
+    },
+    {
+      "id": "T01_CHROME_MOVES_AND_UNDO",
+      "status": "PASS",
+      "details": {
+        "id": "5aa6e5c9-9f4a-4fbe-8c48-927133ffefbf",
+        "root_id": "5aa6e5c9-9f4a-4fbe-8c48-927133ffefbf",
+        "depth": 3,
+        "node_ids": [
+          "5aa6e5c9-9f4a-4fbe-8c48-927133ffefbf",
+          "bf0675d7-08f0-40b7-aa96-baedf4370f28",
+          "d342ced3-2aba-4f20-87d7-3d121496ba3e",
+          "119a6759-549c-43e1-887f-e765aa97bad0",
+          "8f9a1399-06cc-4081-aceb-1c9112e72b80",
+          "61c0e44e-1952-43d9-a34e-afe599b69128",
+          "aa2ba067-af9c-4097-a7b9-42e56b3deb28",
+          "8f90f23a-3dab-484b-8cb6-e56ddd6942ba"
+        ],
+        "revision": 14,
+        "sibling_order_restored": true,
+        "content_and_body_revisions_unchanged": true,
+        "fixed_references_unchanged": true
+      }
+    },
+    {
+      "id": "T01_OBSOLETE_UNDO_REJECTED",
+      "status": "PASS",
+      "details": {
+        "stale": 409,
+        "current": 409,
+        "edited_body_preserved": true
+      }
+    },
+    {
+      "id": "T01_RESTART_PRESERVES_IDS_TREE_AND_REFERENCE",
+      "status": "PASS",
+      "details": {
+        "revision": 16,
+        "note_state_sha256": "4f99fc63e8621d6240f2b41d651c7ba5c8c84cd2def189e2d70f1ce1c780d451",
+        "root_id": "5aa6e5c9-9f4a-4fbe-8c48-927133ffefbf",
+        "nodes": 8,
+        "source_version": "bd475c2f-d956-4e88-bbce-3e0a1dbd1ed1"
+      }
+    },
+    {
+      "id": "T02_PREVIEW_CANCEL_AND_TOKEN_BINDING",
+      "status": "PASS",
+      "details": {
+        "direct_children": 2,
+        "descendants": 3,
+        "cancel_writes": 0,
+        "missing": 422,
+        "mismatch": 409
+      }
+    },
+    {
+      "id": "T02_PROMOTE_DELETION",
+      "status": "PASS",
+      "details": {
+        "archived": [
+          "28c13c28-c71e-45f3-8dbb-9208676f5d24"
+        ],
+        "child_order": [
+          "aaa96b87-0bbd-41cb-95a2-fc6082b6eab2",
+          "d9f3483c-ab1a-4e9d-94bd-e8f4baec2190"
+        ],
+        "deeper_node_retained": "f9a44479-a15c-490d-9b1e-462a7e07fa80",
+        "undo_restored": true
+      }
+    },
+    {
+      "id": "T02_SUBTREE_SOFT_DELETION",
+      "status": "PASS",
+      "details": {
+        "archived": [
+          "c52ad2e9-d2fd-4a0b-badd-5c0a758bad58",
+          "1bc67ee0-13a6-40a0-bf9e-604338c4911d",
+          "68db540e-933e-4616-9e7c-768b2cd88181"
+        ],
+        "unrelated_branch_preserved": true,
+        "undo_restored": true
+      }
+    },
+    {
+      "id": "T02_PRIVATE_OUTLINE_ACL",
+      "status": "PASS",
+      "details": {
+        "peer_has_own_note": true,
+        "peer_responses": [
+          404,
+          404,
+          404,
+          404,
+          404,
+          404,
+          404
+        ],
+        "forged_actor": 409,
+        "forged_preview_actor": 409,
+        "no_disclosure_or_writes": true
+      }
+    }
+  ],
+  "screens": [
+    {
+      "name": "t01-moved-branch.png",
+      "sha256": "226dab66bc0fcf2f489f01292bd3bca72d63be0d65f8c7f4d19fddc9738cb50d"
+    },
+    {
+      "name": "t01-restored.png",
+      "sha256": "40bba1754b61e2aee55f49e2d9411fef0d3fc67f0b915e180aa91ab0eacb0318"
+    },
+    {
+      "name": "t02-promote-preview.png",
+      "sha256": "f4fc98c018008054c72bccf2b27083370ca949cdb63d3c434b51773c6e7c5e1f"
+    },
+    {
+      "name": "t02-subtree-preview.png",
+      "sha256": "188c4c07cc5ef7fb90ee546736799ad1cbe466ab67766ad3a0a47e618b45d0ed"
+    },
+    {
+      "name": "t02-conflict.png",
+      "sha256": "2faa7a0c949b79017abd16b879e10b6120e464a48e6f477430fdd5f506043125"
+    }
+  ],
+  "boots": [
+    107584,
+    121104
+  ],
+  "binding": {
+    "candidate_sha": "f918db1c2ca1657b77c055c257509d00fb35156d",
+    "tree": "cac6aec3ed584aaf0d2e144ee7033fa29463628d",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "c4894e2743c9c51c7675c94b5cd45c11918ab713d507676d5d2590f564904ac5",
+    "helpers": {
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "5278ebf7cc64773560b3b672c9182c65b4e1d82a20b8f569328cb0765a627f10",
+      "a07-isolated-host": "cc10ed55ce3dfffc31e4d777e171147ab901b37b7c65614adb68a4f6731712ad"
+    },
+    "parser": {
+      "pdf-extractor.js": "49fb0588ba0c37486a287a083d9bd2a032d89205d34af615845c4928b1f6745c",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "sqlite_schema": 26,
+  "chrome": "158.0.8127.36",
+  "failure": {
+    "phase": "T02 stale move and explicit refresh without replay",
+    "kind": "assertion_or_runtime",
+    "type": "AssertionError",
+    "line": "host-outline.mjs:465:51",
+    "message": "Expected values to be strictly equal:"
+  },
+  "last_host_exit": {
+    "pid": 121104,
+    "hard": false,
+    "code": null,
+    "signal": "SIGTERM"
+  },
+  "exit": 1
+}

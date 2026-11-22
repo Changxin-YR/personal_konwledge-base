@@ -2069,8 +2069,28 @@
       ],
       "final_acceptance_ids": [],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "in_progress",
-      "test_plan_status": "planning_baseline_expand_on_activation"
+      "status": "passed",
+      "test_plan_status": "detailed_completed",
+      "test_plan_path": "scripts/note002/acceptance-plan.md",
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "retest_status": "PASS",
+      "completed_test_ids": [
+        "NOTE-002-T01",
+        "NOTE-002-T02"
+      ],
+      "open_review_items": [],
+      "closed_review_items": [
+        "DRAFT_NODE_IDENTITY"
+      ],
+      "completed_at": "2026-11-22T11:19:56+08:00",
+      "candidate_commit": "ac7fe69bd3bb55ea4c09e86e5c97858a239046e1",
+      "acceptance_record": "docs/evidence/NOTE-002/acceptance.json",
+      "evidence_paths": [
+        "docs/evidence/NOTE-002/acceptance.json",
+        "docs/evidence/NOTE-002/independent.json",
+        "docs/evidence/NOTE-002/REPORT.md"
+      ]
     },
     {
       "id": "NOTE-003",

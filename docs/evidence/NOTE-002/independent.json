@@ -1,0 +1,30 @@
+{
+  "unit_id": "NOTE-002",
+  "candidate_sha": "ac7fe69bd3bb55ea4c09e86e5c97858a239046e1",
+  "tree": "3df683f95c93d43a29d983e8c7df03d17936b90d",
+  "source_tree": "63cefa98c9d70ad4054839bf7dc30e7950262ddd",
+  "entry_sha256": "992c92dfd441912ebd483f4a1fb86153a6b6f8be27fd9a582bc058d31b6e32d3",
+  "build_sha256": "00cdb09a9ee3eb5aafce19254c84c086a6798d3af1c669fe740e7abc72c67d19",
+  "runner_sha256": "2c52532edf361edfe2cd59367ee89c024f88dc83efe559500caa282a1bad02a3",
+  "status": "PASS",
+  "exit": 0,
+  "reviewer": "Epicurus",
+  "command": "node scripts/note002/host-outline.mjs ac7fe69bd3bb55ea4c09e86e5c97858a239046e1 992c92dfd441912ebd483f4a1fb86153a6b6f8be27fd9a582bc058d31b6e32d3 .cache/note002-v26-final-independent",
+  "passed_test_ids": [
+    "NOTE-002-T01",
+    "NOTE-002-T02"
+  ],
+  "findings_closed": [
+    "DRAFT_NODE_IDENTITY"
+  ],
+  "open_findings": [],
+  "results": [
+    {"id": "NOTE-002-T01", "status": "PASS"},
+    {"id": "NOTE-002-T02", "status": "PASS"}
+  ],
+  "A17": "NOT_RUN",
+  "raw": {
+    "path": "docs/evidence/NOTE-002/runs/independent-raw.json",
+    "sha256": "4400f338f13cc65d9e80af797915a4bb41ba267ae65b4625a3abdd9242dcbd9c"
+  }
+}
