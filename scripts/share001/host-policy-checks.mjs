@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
-import {createHash} from 'node:crypto'
+import {createHash,randomBytes,randomUUID} from 'node:crypto'
+import {request} from 'node:http'
 import {DatabaseSync} from 'node:sqlite'
 import {sql} from '../fnd004/harness.mjs'
+import {until} from '../lib002/a07-isolated-host.mjs'
 
 const action=(id,action)=>({object_id:id,action})
 const grantSpec=(id,user,permission)=>({...action(id,permission),subject_type:'user',subject_id:user})
@@ -17,6 +19,60 @@ const revoke=(http,a,g)=>http(a.ctx,'/grants/revoke',204,'POST',{grant_id:g.id})
 function snapshot(db,i){return [sql(db,'SELECT * FROM invitations WHERE id=?',[i.id]),
   sql(db,'SELECT * FROM invitation_redemptions WHERE invitation_id=? ORDER BY id',[i.id]),
   sql(db,'SELECT * FROM invitation_audit WHERE invitation_id=? ORDER BY revision',[i.id])]}
+
+async function stagedRedeem(h,a,i,key=randomUUID()){
+  const label=randomBytes(16).toString('hex'),cookies=await a.ctx.cookies(h.base)
+  const body=JSON.stringify({actor_id:a.user,token:i.token})
+  let req
+  const outcome=new Promise((ok,no)=>{
+    req=request(h.base+'/knowledge/v1/invitations/redeem',{method:'POST',timeout:15000,headers:{
+      cookie:cookies.map(c=>c.name+'='+c.value).join('; '),'x-knowledgeos-request':'1','content-type':'application/json',
+      'content-length':Buffer.byteLength(body),'idempotency-key':key,'x-kos-test-arrival':label}},res=>{
+        const parts=[];res.on('data',c=>parts.push(c));res.on('error',no);res.on('end',()=>{
+          try{ok({status:res.statusCode,data:JSON.parse(Buffer.concat(parts).toString('utf8')).data})}catch(e){no(e)}
+        })
+      })
+    req.on('error',no);req.on('timeout',()=>req.destroy(Error('isolated redemption timed out')))
+    req.write(body.slice(0,10))
+  })
+  void outcome.catch(()=>{})
+  return {label,outcome,finish:()=>req.end(body.slice(10)),close:()=>req.destroy()}
+}
+
+export async function redemptionRace({h,http,db,users,i,mode,at}){
+  assert(['last-seat','same-user','both-expired','split-cutoff'].includes(mode));assert.equal(users.length,2)
+  const sameUser=mode==='same-user';assert.equal(users[0].user===users[1].user,sameUser)
+  const pending=[]
+  try{
+    const key=randomUUID()
+    for(const user of users)pending.push(await stagedRedeem(h,user,i,sameUser?key:undefined))
+    const labels=pending.map(p=>p.label),trace=()=>h.invitationArrivals().filter(x=>labels.includes(x.label))
+    await until(()=>trace().length===2,'both redeem bodies entered the authenticated Host')
+    assert.deepEqual(trace().map(x=>[x.event,x.at]),[['entered',at],['entered',at]])
+    const edge=Date.parse(i.expires_at)
+    if(mode==='split-cutoff'){
+      assert.equal(at,edge-1);pending[0].finish();assert.equal((await pending[0].outcome).status,201)
+      assert.equal(sql(db,'SELECT redeemed_count FROM invitations WHERE id=?',[i.id])[0].redeemed_count,1)
+    }
+    if(mode==='both-expired'||mode==='split-cutoff'){assert.equal(at,edge-1);h.clock(edge)}
+    for(const [idx,p] of pending.entries())if(mode!=='split-cutoff'||idx!==0)p.finish()
+    const results=await Promise.all(pending.map(p=>p.outcome)),statuses=results.map(r=>r.status)
+    if(mode==='last-seat')assert.deepEqual(statuses.toSorted(),[201,409])
+    if(mode==='same-user'){
+      assert.deepEqual(statuses.toSorted(),[200,201]);assert.equal(results[0].data.id,results[1].data.id)
+      const replay=await redeem(http,users[0],200,i);assert.equal(replay.id,results[0].data.id);assert.equal(replay.replayed,true)
+    }
+    if(mode==='both-expired')assert.deepEqual(statuses,[404,404])
+    if(mode==='split-cutoff')assert.deepEqual(statuses,[201,404])
+    const [codes,grants,audit]=snapshot(db,i),winners=results.flatMap((r,idx)=>r.status===201?[users[idx].user]:[])
+    assert.equal(codes[0].redeemed_count,winners.length);assert.deepEqual(grants.map(g=>g.user_id),winners)
+    assert.deepEqual(audit.map(a=>a.event),winners.length?['issue','redeem']:['issue'])
+    if(winners.length)assert.equal(grants[0].expires_at,i.expires_at)
+    assert.deepEqual(trace().slice(2).map(x=>[x.event,x.at]),[
+      ['completed',mode==='both-expired'?edge:at],['completed',mode==='both-expired'||mode==='split-cutoff'?edge:at]])
+    return {mode,statuses,entered_offsets_ms:[at-edge,at-edge],body_completion_offsets_ms:trace().slice(2).map(x=>x.at-edge),successful_grants:grants.length}
+  }finally{for(const p of pending)p.close()}
+}
 
 export async function projectPolicy({http,upload,db,owner,first,rival,outsider,login}){
   const p=await http(owner.ctx,'/projects',201,'POST',{name:'Invitation policy project'})

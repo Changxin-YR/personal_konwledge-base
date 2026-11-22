@@ -8,7 +8,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url'
 import {api,dbPath,entryCookie,sql} from '../fnd004/harness.mjs'
 import {isolate} from '../lib002/a07-isolated-host.mjs'
 import {candidateFacts} from '../integrated-case-proof.mjs'
-import {projectPolicy,transactionFaults} from './host-policy-checks.mjs'
+import {projectPolicy,redemptionRace,transactionFaults} from './host-policy-checks.mjs'
 
 const [candidate,entry,parent='.cache/share001-smoke']=process.argv.slice(2)
 const root=fileURLToPath(new URL('../../',import.meta.url)),self='scripts/share001/host-smoke.mjs'
@@ -102,12 +102,16 @@ try{
   const make=()=>http(owner.ctx,'/invitations',201,'POST',draft)
   const racing=await make(),sixth=await http(owner.ctx,'/invitations',201,'POST',{...draft,permission:'edit'}),unused=await make(),expires=Date.parse(sixth.expires_at)
   assert.equal(Date.parse(sixth.issued_at),t0);assert.equal(expires,t0+7*day)
-  const racers=[first,rival],race=await Promise.all(racers.map(a=>a.ctx.request.post(h.base+prefix+'/invitations/redeem',{
-    headers:marker,data:{actor_id:a.user,token:racing.token}})))
-  assert.deepEqual(race.map(r=>r.status()).sort(),[201,409]);const winner=race.findIndex(r=>r.status()===201),loser=1-winner
-  assert.equal(sql(db,'SELECT count(*) n FROM invitation_redemptions WHERE invitation_id=?',[racing.id])[0].n,1)
+  const racers=[first,rival],race=await redemptionRace({h,http,db,users:racers,i:racing,mode:'last-seat',at:t0})
+  facts.races=[race];const winner=race.statuses.findIndex(code=>code===201),loser=1-winner
   await http(racers[winner].ctx,original,200);await http(racers[loser].ctx,original,404)
-  facts.checks.push('Two concurrent client requests for one seat: only winner received permission')
+  const duplicate=await make(),duplicateContext=await login('first')
+  facts.races.push(await redemptionRace({h,http,db,users:[first,duplicateContext],i:duplicate,mode:'same-user',at:t0}))
+  facts.checks.push('Two overlapping authenticated Host requests prove last-seat and same-user rules')
+  h.clock(t0+1)
+  const later=await upload(owner,'split-cutoff.txt','Split-cutoff source')
+  const split=await http(owner.ctx,'/invitations',201,'POST',{...draft,target_id:later.id,max_redemptions:2})
+  assert.equal(Date.parse(split.expires_at),expires+1)
   h.clock(t0+6*day);const daySix=await login('first')
   await daySix.page.goto(h.base+'/knowledgeos/invitations');await daySix.page.locator('#workspace').waitFor()
   await daySix.page.locator('#token').fill(sixth.token)
@@ -132,11 +136,14 @@ try{
   const pre=await http(near.ctx,resource,200),updated=await http(near.ctx,resource,200,'PATCH',{expected_revision:pre.revision,body:'Allowed before invitation cutoff'})
   const access=original.replace('/reader?unit=1','/reader-access'),boundary=await http(near.ctx,access,200)
   assert.equal(Date.parse(boundary.server_time),expires-1);assert.equal(Date.parse(boundary.read_expires_at),expires)
-  h.clock(expires);await http(near.ctx,'/me',200);await http(near.ctx,original,404)
+  const nearRival=await login('rival');facts.races.push(await redemptionRace({h,http,db,users:[near,nearRival],i:unused,mode:'both-expired',at:expires-1}))
+  await http(near.ctx,'/me',200);await http(near.ctx,original,404)
   await checkProject(true)
   await http(near.ctx,resource,404,'PATCH',{expected_revision:updated.revision,body:'Denied at cutoff'})
   await http(near.ctx,'/invitations/redeem',404,'POST',{actor_id:near.user,token:unused.token})
-  h.clock(expires+1);await http(near.ctx,'/me',200);await http(near.ctx,original,404)
+  facts.races.push(await redemptionRace({h,http,db,users:[near,nearRival],i:split,mode:'split-cutoff',at:expires}))
+  await http(near.ctx,'/me',200);await http(near.ctx,original,404)
+  await http(near.ctx,`/assets/${later.id}/versions/${later.version_id}/reader?unit=1`,404)
   await http(near.ctx,resource,404,'PATCH',{expected_revision:updated.revision,body:'Denied after cutoff'})
   const finalOwner=await login('owner');assert.equal((await http(finalOwner.ctx,original,200)).text,src)
   facts.checks.push('Real isolated Host day-six redemption; E-1ms allowed, E and E+1ms denied with current session; offline reader hid locally')

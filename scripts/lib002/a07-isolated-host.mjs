@@ -54,6 +54,11 @@ export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrie
     const f=join(trace,'boundary.jsonl');if(!existsSync(f))return []
     return readFileSync(f,'utf8').split('\n').slice(0,-1).map(s=>JSON.parse(s))
   }
+  function invitationArrivals(){
+    assert(businessClock!==undefined)
+    const f=join(trace,'invite-arrivals.jsonl');if(!existsSync(f))return []
+    return readFileSync(f,'utf8').split('\n').slice(0,-1).map(s=>JSON.parse(s))
+  }
   async function start(flags=[],{holdPage}={}){
     assert(!host);trace=join(dir,'boot-'+ ++seq);mkdirSync(trace)
     for(const f of flags){assert(['hold3','fail4'].includes(f));writeFileSync(join(trace,f),'')}
@@ -81,6 +86,6 @@ export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrie
   const officeFlag=name=>{assert(officeBarrier&&['hold-cancel','release-cancel','hold-stale','release-stale','fail-result'].includes(name));writeFileSync(join(trace,name),'',{flag:'wx'})}
   const gateSearch=data=>{assert(searchBarrier&&host);writeFileSync(join(trace,'hold-search-scan.json'),JSON.stringify(data),{flag:'wx'})}
   const searchGateFacts=()=>JSON.parse(readFileSync(join(trace,'hold-search-scan.json.observed'),'utf8'))
-  return {base,port,data,start,stop,events,officeFlag,gateSearch,searchGateFacts,clock,release:()=>writeFileSync(join(trace,'release3'),'',{flag:'wx'}),
+  return {base,port,data,start,stop,events,officeFlag,gateSearch,searchGateFacts,clock,invitationArrivals,release:()=>writeFileSync(join(trace,'release3'),'',{flag:'wx'}),
     facts:{...bound.facts,helpers,parser},playwright:bound.playwright}
 }
