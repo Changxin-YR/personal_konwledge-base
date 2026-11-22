@@ -1,4 +1,4 @@
-// Checkpoint smoke only. This does not replace A34, exact-clock or independent acceptance.
+// Checkpoint smoke with clock boundaries, not full A34 or independent acceptance.
 import assert from 'node:assert/strict'
 import {execFileSync} from 'node:child_process'
 import {createHash,randomUUID} from 'node:crypto'
@@ -55,11 +55,21 @@ try{
   await http(first.ctx,'/invitations',404,'POST',{actor_id:first.user,scope:'object',target_id:doc.id,permission:'read'})
   facts.checks.push('UI issue/redeem and fixed-version reading; live edit allowed and management denied')
   phase='renew and revoke in Chrome';await owner.page.getByRole('button',{name:'管理邀请'}).click();await owner.page.locator('#managed').waitFor()
+  const manageResponses=[],pageErrors=[]
+  owner.page.on('response',r=>{if(new URL(r.url()).pathname.startsWith(prefix+'/invitations'))manageResponses.push({method:r.request().method(),status:r.status()})})
+  owner.page.on('pageerror',e=>pageErrors.push(e.name))
   await owner.page.getByRole('button',{name:'预览整组续期'}).click();await owner.page.locator('#confirm-panel').waitFor()
   const [renewed]=await Promise.all([owner.page.waitForResponse(r=>r.url().endsWith('/renew')),owner.page.getByRole('button',{name:'确认操作'}).click()]);assert.equal(renewed.status(),200)
   const extended=(await renewed.json()).data
   assert.equal(extended.affected_count,1);assert.equal(Date.parse(extended.expires_at)-Date.parse(issued.expires_at),7*day)
-  await owner.page.locator('#managed-meta').filter({hasText:'14 天'}).waitFor()
+  try{await owner.page.locator('#managed-meta').filter({hasText:'14 天'}).waitFor({timeout:5000})}
+  catch(e){
+    const d=await http(owner.ctx,'/invitations/'+issued.id,200)
+    facts.renewal_diagnostic={manageResponses,pageErrors,server_time:d.server_time,expires_at:d.expires_at,extended_server_time:extended.server_time,
+      meta:await owner.page.locator('#managed-meta').textContent(),status:await owner.page.locator('#status').textContent(),
+      workspace_visible:await owner.page.locator('#workspace').isVisible()}
+    throw e
+  }
   await owner.page.getByRole('button',{name:'预览撤销'}).click();await owner.page.locator('#confirm-panel').waitFor()
   const [revoked]=await Promise.all([owner.page.waitForResponse(r=>r.url().endsWith('/revoke')),owner.page.getByRole('button',{name:'确认操作'}).click()]);assert.equal(revoked.status(),200)
   await http(first.ctx,original,404);await http(first.ctx,resource,404,'PATCH',{expected_revision:edit.revision,body:'Denied write'})
