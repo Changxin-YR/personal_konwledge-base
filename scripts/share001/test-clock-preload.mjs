@@ -26,7 +26,8 @@ const observedLabel=req=>{
 const observe=(label,event)=>appendFileSync(join(process.env.KO_RUN,'invite-arrivals.jsonl'),JSON.stringify({label,event,at:current()})+'\n')
 IncomingMessage.prototype.iterator=function(options){
   const stream=iterator.call(this,options),label=observedLabel(this)
-  if(this.method!=='POST'||this.url!=='/knowledge/v1/invitations/redeem'||!label)return stream
+  if(this.method!=='POST'||!label||(this.url!=='/knowledge/v1/invitations/redeem'&&
+    !/^\/knowledge\/v1\/project-tasks\/[a-f0-9-]{36}\/reviews$/.test(this.url)))return stream
   return (async function*(){
     let first=true
     for await(const chunk of stream){if(first){observe(label,'entered');first=false}yield chunk}
