@@ -1,0 +1,166 @@
+{
+  "candidate_sha": "cdd78498785c229d18d82662b732722cb3c5409c",
+  "tree": "fe481cc02f54ccabba820f33ed1ac4ae6c239f65",
+  "source_tree": "4fef2c64730948ce7439d3204345b82b574e5569",
+  "entry_sha256": "7e77776556f88dcef98ce48536984cbbf679e8f4be0c1cbd02e0f1f8f6578b89",
+  "build_sha256": "926eafeba6477b3b30446b084a2ed39b529f77d7695e586de991f3553803e952",
+  "runner_sha256": "86ac7ee5bf1438e42bb82d9a25463590011529b6b94cccbca053c82ad485fecd",
+  "policy_helper_sha256": "f317b6a2854d2e30d5b3bdbec301985a568613959d459f441737ed2b6d8f4bca",
+  "status": "PASS",
+  "scope": "checkpoint_smoke_clock_policy_and_faults",
+  "T01": "NOT_RUN",
+  "T02": "NOT_RUN",
+  "A34": "NOT_RUN",
+  "checks": [
+    "UI issue/redeem and fixed-version reading; live edit allowed and management denied",
+    "UI renews two grants, third redeems to the new cutoff; cancel does not write; revoke hides open, history and reloaded reader plus search; one audit per successful action",
+    "Member and object invitations require distinct grants; issuer loses management or edit independently; action denials and source composition",
+    "Two overlapping authenticated Host requests prove last-seat and same-user rules",
+    "Real isolated Host day-six redemption; E-1ms allowed, E and E+1ms denied with current session; offline reader hid locally",
+    "Live project membership expires while object invitation remains active; document, reader, object list and assets list all deny",
+    "Fault at SQLite outbox insert rolls back actions, audit, and event; Host reopen and one successful retry each",
+    "Both renewed grants survived the original cutoff and expired at the new one; independent regrant preserves old rows"
+  ],
+  "binding": {
+    "candidate_sha": "cdd78498785c229d18d82662b732722cb3c5409c",
+    "tree": "fe481cc02f54ccabba820f33ed1ac4ae6c239f65",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "7e77776556f88dcef98ce48536984cbbf679e8f4be0c1cbd02e0f1f8f6578b89",
+    "helpers": {
+      "business-clock": "e038a837ce4a56ef366fe809e8594c4eab79b602f9efd23fb2ec0e69ae866709",
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "5278ebf7cc64773560b3b672c9182c65b4e1d82a20b8f569328cb0765a627f10",
+      "a07-isolated-host": "cc10ed55ce3dfffc31e4d777e171147ab901b37b7c65614adb68a4f6731712ad"
+    },
+    "parser": {
+      "pdf-extractor.js": "49fb0588ba0c37486a287a083d9bd2a032d89205d34af615845c4928b1f6745c",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "chrome": "158.0.8127.36",
+  "event_outbox": {
+    "queued": 6,
+    "matched_browser_correlations": 3,
+    "affected_counts": [
+      2,
+      3
+    ]
+  },
+  "change_receipts": {
+    "count": 2,
+    "exact_retry": "PASS",
+    "changed_parameters": "PASS",
+    "cross_command_key": "PASS"
+  },
+  "screenshot_sha256": "2bb47b47c9a652f821067582000153dbf3de96fefff1791aac13aac6925440e4",
+  "races": [
+    {
+      "mode": "last-seat",
+      "statuses": [
+        201,
+        409
+      ],
+      "entered_offsets_ms": [
+        -604800000,
+        -604800000
+      ],
+      "body_completion_offsets_ms": [
+        -604800000,
+        -604800000
+      ],
+      "successful_grants": 1
+    },
+    {
+      "mode": "same-user",
+      "statuses": [
+        201,
+        200
+      ],
+      "entered_offsets_ms": [
+        -604800000,
+        -604800000
+      ],
+      "body_completion_offsets_ms": [
+        -604800000,
+        -604800000
+      ],
+      "successful_grants": 1
+    },
+    {
+      "mode": "both-expired",
+      "statuses": [
+        404,
+        404
+      ],
+      "entered_offsets_ms": [
+        -1,
+        -1
+      ],
+      "body_completion_offsets_ms": [
+        0,
+        0
+      ],
+      "successful_grants": 0
+    },
+    {
+      "mode": "split-cutoff",
+      "statuses": [
+        201,
+        404
+      ],
+      "entered_offsets_ms": [
+        -1,
+        -1
+      ],
+      "body_completion_offsets_ms": [
+        -1,
+        0
+      ],
+      "successful_grants": 1
+    }
+  ],
+  "straddling_edit": {
+    "entered_offset_ms": -1,
+    "completed_offset_ms": 0,
+    "http": 404,
+    "before_revision": 4,
+    "after_revision": 4
+  },
+  "clock_boundary": {
+    "issued_at": "2026-11-22T02:25:26.234Z",
+    "expires_at": "2026-11-29T02:25:26.234Z",
+    "read_offsets_ms": [
+      -1,
+      0,
+      1
+    ],
+    "allowed": [
+      true,
+      false,
+      false
+    ],
+    "day_six_remaining_ms": 86400000
+  },
+  "fault_checks": [
+    {
+      "event": "redeem",
+      "failure_http": 503,
+      "snapshot_unchanged_after_reopen": true,
+      "successful_audit_and_outbox_rows_after_retry": 1
+    },
+    {
+      "event": "renew",
+      "failure_http": 503,
+      "snapshot_unchanged_after_reopen": true,
+      "successful_audit_and_outbox_rows_after_retry": 1
+    },
+    {
+      "event": "revoke",
+      "failure_http": 503,
+      "snapshot_unchanged_after_reopen": true,
+      "successful_audit_and_outbox_rows_after_retry": 1
+    }
+  ]
+}

@@ -10,7 +10,7 @@
     "sha256": "da73b65a0004bfa875d1435a61a555ba6f02d45c280aeb8ed6d2e62ab4bd39d8"
   },
   "active_unit": "SHARE-001",
-  "unit_state": "in_progress",
+  "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Invitation transaction, ACL integration and Host UI under verification",
+  "state_reason": "SHARE-001 T01/T02 and A34 passed on the frozen v25 candidate",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,57 +127,55 @@
     }
   },
   "last_accepted_checkpoint": {
-    "unit_id": "LEARN-004",
-    "candidate_sha": "1e567853a5c6fd23330246d4f35990328a96326d",
-    "tree": "a23ebce188d53dc1f01cf7d5c5c5d0a9c6accb41",
-    "source_tree": "e13542ad55cae8c50ff6aa7a9849ba73322db037",
-    "entry_sha256": "4d94a4a04971094f2f4d48138f6c78bc9bdb6810c77904ce56a4044a14edf7d0",
-    "build_sha256": "7e00e498adedb54653505171710b6a51fbf46693529ff6aa96760d76fe852462",
-    "base_commit": "8ed6d200e435a2f70df234ef1ab753b087f5a8d6",
+    "unit_id": "SHARE-001",
+    "candidate_sha": "cdd78498785c229d18d82662b732722cb3c5409c",
+    "tree": "fe481cc02f54ccabba820f33ed1ac4ae6c239f65",
+    "source_tree": "4fef2c64730948ce7439d3204345b82b574e5569",
+    "entry_sha256": "7e77776556f88dcef98ce48536984cbbf679e8f4be0c1cbd02e0f1f8f6578b89",
+    "build_sha256": "926eafeba6477b3b30446b084a2ed39b529f77d7695e586de991f3553803e952",
+    "base_commit": "7811cbb8649bea67f1a3be03ef97dda232d9f514",
     "completed": [
-      "Fixed-source contiguous UTF-16 selection and private server-side masking.",
-      "v21→v22 transactional migration, source verification, and progress persistence.",
-      "T01/T02 and P04 real Host and Chrome main/independent recordings; A07 and 31 affected tests passed."
+      "Project/member and object invitations; absolute expiry and independently merged ACL sources.",
+      "Chrome issue/redeem, fixed-version edit, group renewal/revoke and cache clearance.",
+      "SQLite v23–v25 append-only migrations, audit/outbox/idempotent receipts; real rollback and independently repeated T01/T02/A34."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
       "T01": "PASS",
       "T02": "PASS",
-      "P04": "PASS",
+      "A34": "PASS",
       "independent": "PASS",
-      "affected": "PASS",
-      "A07": "PASS"
+      "affected": "PASS"
     },
-    "evidence": "docs/evidence/LEARN-004/acceptance.json",
+    "evidence": "docs/evidence/SHARE-001/acceptance.json",
     "defects": [],
     "blocked_dependencies": [],
-    "next_task": "SHARE-001"
+    "next_task": "NOTE-002"
   },
   "checkpoint": {
-    "unit_id": "LEARN-004",
-    "candidate_sha": "1e567853a5c6fd23330246d4f35990328a96326d",
-    "tree": "a23ebce188d53dc1f01cf7d5c5c5d0a9c6accb41",
-    "source_tree": "e13542ad55cae8c50ff6aa7a9849ba73322db037",
-    "entry_sha256": "4d94a4a04971094f2f4d48138f6c78bc9bdb6810c77904ce56a4044a14edf7d0",
-    "build_sha256": "7e00e498adedb54653505171710b6a51fbf46693529ff6aa96760d76fe852462",
-    "base_commit": "8ed6d200e435a2f70df234ef1ab753b087f5a8d6",
+    "unit_id": "SHARE-001",
+    "candidate_sha": "cdd78498785c229d18d82662b732722cb3c5409c",
+    "tree": "fe481cc02f54ccabba820f33ed1ac4ae6c239f65",
+    "source_tree": "4fef2c64730948ce7439d3204345b82b574e5569",
+    "entry_sha256": "7e77776556f88dcef98ce48536984cbbf679e8f4be0c1cbd02e0f1f8f6578b89",
+    "build_sha256": "926eafeba6477b3b30446b084a2ed39b529f77d7695e586de991f3553803e952",
+    "base_commit": "7811cbb8649bea67f1a3be03ef97dda232d9f514",
     "completed": [
-      "Fixed-source contiguous UTF-16 selection and private server-side masking.",
-      "v21→v22 transactional migration, source verification, and progress persistence.",
-      "T01/T02 and P04 real Host and Chrome main/independent recordings; A07 and 31 affected tests passed."
+      "Project/member and object invitations; absolute expiry and independently merged ACL sources.",
+      "Chrome issue/redeem, fixed-version edit, group renewal/revoke and cache clearance.",
+      "SQLite v23–v25 append-only migrations, audit/outbox/idempotent receipts; real rollback and independently repeated T01/T02/A34."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
       "T01": "PASS",
       "T02": "PASS",
-      "P04": "PASS",
+      "A34": "PASS",
       "independent": "PASS",
-      "affected": "PASS",
-      "A07": "PASS"
+      "affected": "PASS"
     },
-    "evidence": "docs/evidence/LEARN-004/acceptance.json",
+    "evidence": "docs/evidence/SHARE-001/acceptance.json",
     "defects": [],
     "blocked_dependencies": [],
-    "next_task": "SHARE-001"
+    "next_task": "NOTE-002"
   }
 }

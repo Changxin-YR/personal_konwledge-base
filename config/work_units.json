@@ -1941,9 +1941,30 @@
         "A34"
       ],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "in_progress",
-      "test_plan_status": "detailed_in_progress",
-      "test_plan_path": "scripts/share001/acceptance-plan.md"
+      "status": "passed",
+      "test_plan_status": "detailed_completed",
+      "test_plan_path": "scripts/share001/acceptance-plan.md",
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "retest_status": "PASS",
+      "completed_test_ids": [
+        "SHARE-001-T01",
+        "SHARE-001-T02"
+      ],
+      "open_review_items": [],
+      "closed_review_items": [
+        "STRADDLING_EDIT",
+        "CHANGE_RECEIPTS"
+      ],
+      "completed_at": "2026-11-22T10:28:00+08:00",
+      "candidate_commit": "cdd78498785c229d18d82662b732722cb3c5409c",
+      "acceptance_record": "docs/evidence/SHARE-001/acceptance.json",
+      "evidence_paths": [
+        "docs/evidence/SHARE-001/acceptance.json",
+        "docs/evidence/SHARE-001/independent.json",
+        "docs/evidence/SHARE-001/A34.json",
+        "docs/evidence/SHARE-001/REPORT.md"
+      ]
     },
     {
       "id": "NOTE-001",

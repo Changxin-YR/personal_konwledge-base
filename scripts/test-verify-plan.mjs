@@ -116,7 +116,7 @@ function initializeFixtureHistory() {
   outside = fixtureCommit('candidate outside branch HEAD');
   laterIntegration = advance('another integrated candidate');
 }
-const late = new Map([['A09','READ-003'],['P03','LEARN-003'],['P08','SCORE-001'],['A16','LIFE-001'],['A46','EXPORT-001']]);
+const late = new Map([['A09','READ-003'],['P03','LEARN-003'],['P08','SCORE-001'],['A16','LIFE-001'],['A34','SEARCH-001'],['A46','EXPORT-001']]);
 function certifyIntegrated(ctx, id, candidate = integrated) {
   const policy = integrationCases.get(id);
   const owner = ctx.catalog.units.find(u => u.final_acceptance_ids.includes(id));

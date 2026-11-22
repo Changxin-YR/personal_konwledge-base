@@ -1,0 +1,44 @@
+{
+  "schema": "integrated-case-v1",
+  "unit_id": "SHARE-001",
+  "candidate_sha": "cdd78498785c229d18d82662b732722cb3c5409c",
+  "tree": "fe481cc02f54ccabba820f33ed1ac4ae6c239f65",
+  "source_tree": "4fef2c64730948ce7439d3204345b82b574e5569",
+  "entry_sha256": "7e77776556f88dcef98ce48536984cbbf679e8f4be0c1cbd02e0f1f8f6578b89",
+  "build_sha256": "926eafeba6477b3b30446b084a2ed39b529f77d7695e586de991f3553803e952",
+  "case_id": "A34",
+  "participants": [
+    {
+      "unit_id": "FND-004",
+      "candidate_sha": "3c78f1f1379a033c20a193cc091f873e0573e0c1"
+    },
+    {
+      "unit_id": "LIB-001",
+      "candidate_sha": "5d9dc58866d518c496677b3e85ba60c217323291"
+    },
+    {
+      "unit_id": "READ-001",
+      "candidate_sha": "fdac3b02fc5ac42eabef72374aee9b7050c942e3"
+    },
+    {
+      "unit_id": "SEARCH-001",
+      "candidate_sha": "5483832b337004717da9af2ff7702a7f13bc31a3"
+    },
+    {
+      "unit_id": "SHARE-001",
+      "candidate_sha": "cdd78498785c229d18d82662b732722cb3c5409c"
+    }
+  ],
+  "main": {
+    "path": "docs/evidence/SHARE-001/runs/main.json",
+    "sha256": "a0048b50114683898deb459420b2c46b98ee43cc1399b49706aba79cc775d40d"
+  },
+  "independent": {
+    "path": "docs/evidence/SHARE-001/runs/independent.json",
+    "sha256": "2a741022cc935e1824fe1241d9909f56598184895c069a03e723cd88fe4b176c"
+  },
+  "regression": {
+    "path": "docs/evidence/SHARE-001/runs/regression.json",
+    "sha256": "19992539ec0ad45a08875c3f985c031ee72e6e53144890c0bf6cf1a666255625"
+  }
+}

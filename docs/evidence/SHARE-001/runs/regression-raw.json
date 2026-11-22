@@ -1,0 +1,96 @@
+{
+  "candidate_sha": "cdd78498785c229d18d82662b732722cb3c5409c",
+  "entry_sha256": "7e77776556f88dcef98ce48536984cbbf679e8f4be0c1cbd02e0f1f8f6578b89",
+  "runner_sha256": "480fa774fd831775e996aeea3f9fd582aae58ce8436c1e5df45747032684721b",
+  "status": "PASS",
+  "cases": [
+    {
+      "name": "revoke-paper",
+      "source": "real-host-chrome",
+      "status": "PASS",
+      "screens": [
+        {
+          "file": "paper-before.png",
+          "sha256": "d41f7be521a47bb2acd7dcfaeb849009b286c7be1c69c160b15c8f40fbfef488"
+        },
+        {
+          "file": "paper-locked.png",
+          "sha256": "e029e1a62cf6b7cf4e0d1c6677b68a303a56913787bcde535b67fd1a29b79d22"
+        }
+      ],
+      "revoked": 204,
+      "content_after": 404,
+      "access_responses": [
+        {
+          "at": 1795314082754,
+          "status": 200
+        },
+        {
+          "at": 1795314084540,
+          "status": 404
+        }
+      ],
+      "clear_ms": 1786
+    },
+    {
+      "name": "revoke-text",
+      "source": "real-host-chrome",
+      "status": "PASS",
+      "screens": [
+        {
+          "file": "text-before.png",
+          "sha256": "602a8cf6cbda94038b5aea14c7186f5c28c2b1b65fd1c73930d85df586f96560"
+        },
+        {
+          "file": "text-locked.png",
+          "sha256": "e029e1a62cf6b7cf4e0d1c6677b68a303a56913787bcde535b67fd1a29b79d22"
+        }
+      ],
+      "revoked": 204,
+      "content_after": 404,
+      "access_responses": [
+        {
+          "at": 1795314087790,
+          "status": 200
+        },
+        {
+          "at": 1795314089566,
+          "status": 404
+        }
+      ],
+      "clear_ms": 1778
+    },
+    {
+      "name": "reader-access contract",
+      "source": "real-host",
+      "status": "PASS"
+    },
+    {
+      "name": "switch-allow",
+      "source": "controlled-chrome-network / real-host",
+      "status": "PASS",
+      "poll_gap_ms": 1734,
+      "switch_request_ms": 24,
+      "upstream_status": 200
+    },
+    {
+      "name": "switch-timeout",
+      "source": "controlled-chrome-network / real-host",
+      "status": "PASS",
+      "poll_gap_ms": 1734,
+      "switch_request_ms": 20,
+      "upstream_status": 200,
+      "lock_ms": 2020
+    },
+    {
+      "name": "switch-failure",
+      "source": "controlled-chrome-network / real-host",
+      "status": "PASS",
+      "poll_gap_ms": 1718,
+      "switch_request_ms": 16,
+      "lock_ms": 23
+    }
+  ],
+  "host_pid": 89400,
+  "chrome": "158.0.8127.36"
+}

@@ -1,0 +1,107 @@
+{
+  "candidate_sha": "28dbfadc91bd2e56a3c78651bab160b428a0ff24",
+  "tree": "62c35a3f6610269f371e1a01f8c09747e7bae469",
+  "source_tree": "d3998e62b56b38c8353bcf30439cdeb7ea67a329",
+  "entry_sha256": "306c2d6127a541892d66b7ec1ecbe5047a7e9ee9b64ee8b3ed3c71fe3e99e69a",
+  "build_sha256": "23759b8cb27b276803725009cd94d95e636d9f31a281c9f96469ffdc63c87b6e",
+  "runner_sha256": "16a2fc97b9c95512c97c8872a9b2d6620c37e3d5fd537c9345891509ba622bdd",
+  "policy_helper_sha256": "21603aea1078282fda70896b9deef59c27a4d4429628d620391ae2437d8dc688",
+  "status": "FAIL",
+  "scope": "checkpoint_smoke_clock_policy_and_faults",
+  "T01": "NOT_RUN",
+  "T02": "NOT_RUN",
+  "A34": "NOT_RUN",
+  "checks": [
+    "UI issue/redeem and fixed-version reading; live edit allowed and management denied",
+    "UI renews two grants, third redeems to the new cutoff; cancel does not write; revoke hides open, history and reloaded reader plus search; one audit per successful action",
+    "Member and object invitations require distinct grants; issuer loses management or edit independently; action denials and source composition",
+    "Two overlapping authenticated Host requests prove last-seat and same-user rules"
+  ],
+  "binding": {
+    "candidate_sha": "28dbfadc91bd2e56a3c78651bab160b428a0ff24",
+    "tree": "62c35a3f6610269f371e1a01f8c09747e7bae469",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "306c2d6127a541892d66b7ec1ecbe5047a7e9ee9b64ee8b3ed3c71fe3e99e69a",
+    "helpers": {
+      "business-clock": "e038a837ce4a56ef366fe809e8594c4eab79b602f9efd23fb2ec0e69ae866709",
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "5278ebf7cc64773560b3b672c9182c65b4e1d82a20b8f569328cb0765a627f10",
+      "a07-isolated-host": "cc10ed55ce3dfffc31e4d777e171147ab901b37b7c65614adb68a4f6731712ad"
+    },
+    "parser": {
+      "pdf-extractor.js": "49fb0588ba0c37486a287a083d9bd2a032d89205d34af615845c4928b1f6745c",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "chrome": "158.0.8127.36",
+  "event_outbox": {
+    "queued": 6,
+    "matched_browser_correlations": 3,
+    "affected_counts": [
+      2,
+      3
+    ]
+  },
+  "screenshot_sha256": "2bb47b47c9a652f821067582000153dbf3de96fefff1791aac13aac6925440e4",
+  "races": [
+    {
+      "mode": "last-seat",
+      "statuses": [
+        201,
+        409
+      ],
+      "entered_offsets_ms": [
+        -604800000,
+        -604800000
+      ],
+      "body_completion_offsets_ms": [
+        -604800000,
+        -604800000
+      ],
+      "successful_grants": 1
+    },
+    {
+      "mode": "same-user",
+      "statuses": [
+        201,
+        200
+      ],
+      "entered_offsets_ms": [
+        -604800000,
+        -604800000
+      ],
+      "body_completion_offsets_ms": [
+        -604800000,
+        -604800000
+      ],
+      "successful_grants": 1
+    },
+    {
+      "mode": "both-expired",
+      "statuses": [
+        404,
+        404
+      ],
+      "entered_offsets_ms": [
+        -1,
+        -1
+      ],
+      "body_completion_offsets_ms": [
+        0,
+        0
+      ],
+      "successful_grants": 0
+    }
+  ],
+  "straddling_edit": {
+    "entered_offset_ms": -1,
+    "completed_offset_ms": 0,
+    "http": 200,
+    "before_revision": 4,
+    "after_revision": 5
+  },
+  "phase": "server cutoff before at and after",
+  "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n200 !== 404"
+}

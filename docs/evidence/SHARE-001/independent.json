@@ -1,0 +1,36 @@
+{
+  "unit_id": "SHARE-001",
+  "candidate_sha": "cdd78498785c229d18d82662b732722cb3c5409c",
+  "tree": "fe481cc02f54ccabba820f33ed1ac4ae6c239f65",
+  "source_tree": "4fef2c64730948ce7439d3204345b82b574e5569",
+  "entry_sha256": "7e77776556f88dcef98ce48536984cbbf679e8f4be0c1cbd02e0f1f8f6578b89",
+  "build_sha256": "926eafeba6477b3b30446b084a2ed39b529f77d7695e586de991f3553803e952",
+  "status": "PASS",
+  "exit": 0,
+  "reviewer": "Epicurus",
+  "command": "node scripts/share001/host-smoke.mjs cdd78498785c229d18d82662b732722cb3c5409c 7e77776556f88dcef98ce48536984cbbf679e8f4be0c1cbd02e0f1f8f6578b89 .cache/share001-v25-independent",
+  "results": [
+    {
+      "id": "SHARE-001-T01",
+      "status": "PASS",
+      "actual": "第六天兑换后剩 24 小时，E−1 ms/ E / E+1 ms 读写结果为允许/拒绝/拒绝。跨截止 PATCH 返回 404，SQLite 修订及内容保持不变。"
+    },
+    {
+      "id": "SHARE-001-T02",
+      "status": "PASS",
+      "actual": "真实 Chrome 发出只读和编辑邀请；编辑者写入 v2，v1 保留。删除、改范围、导出和再授权被拒；并发最后一席和同用户重试均只占一席。"
+    }
+  ],
+  "complete_scenario_review": {
+    "id": "A34",
+    "status": "PASS"
+  },
+  "raw": {
+    "path": "docs/evidence/SHARE-001/runs/independent-raw.json",
+    "sha256": "9f41d4f37dc438e22db8d7f3e3f2666ead1ac5d098e2028c8d7f2e8f219738ad"
+  },
+  "findings_closed": [
+    "Stale clock on in-flight object edit",
+    "No same-key replay or conflict check on invitation changes"
+  ]
+}

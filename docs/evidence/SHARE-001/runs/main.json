@@ -1,0 +1,67 @@
+{
+  "unit_id": "SHARE-001",
+  "candidate_sha": "cdd78498785c229d18d82662b732722cb3c5409c",
+  "tree": "fe481cc02f54ccabba820f33ed1ac4ae6c239f65",
+  "source_tree": "4fef2c64730948ce7439d3204345b82b574e5569",
+  "entry_sha256": "7e77776556f88dcef98ce48536984cbbf679e8f4be0c1cbd02e0f1f8f6578b89",
+  "build_sha256": "926eafeba6477b3b30446b084a2ed39b529f77d7695e586de991f3553803e952",
+  "case_id": "A34",
+  "participants": [
+    {
+      "unit_id": "FND-004",
+      "candidate_sha": "3c78f1f1379a033c20a193cc091f873e0573e0c1"
+    },
+    {
+      "unit_id": "LIB-001",
+      "candidate_sha": "5d9dc58866d518c496677b3e85ba60c217323291"
+    },
+    {
+      "unit_id": "READ-001",
+      "candidate_sha": "fdac3b02fc5ac42eabef72374aee9b7050c942e3"
+    },
+    {
+      "unit_id": "SEARCH-001",
+      "candidate_sha": "5483832b337004717da9af2ff7702a7f13bc31a3"
+    },
+    {
+      "unit_id": "SHARE-001",
+      "candidate_sha": "cdd78498785c229d18d82662b732722cb3c5409c"
+    }
+  ],
+  "kind": "main",
+  "runner": "Codex",
+  "run_id": "run-MDsGht",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/share001/host-smoke.mjs cdd78498785c229d18d82662b732722cb3c5409c 7e77776556f88dcef98ce48536984cbbf679e8f4be0c1cbd02e0f1f8f6578b89 .cache/share001-v25",
+  "environment": "Windows; pinned DSH 39163dd30f703a79079e2d2446545cff3c453738; Chrome 158.0.8127.36; isolated SQLite",
+  "inputs": "Four separate synthetic identities, text versions, minimal project-version association, controlled business/Chrome clocks, real request bodies and SQLite outbox fault",
+  "results": [
+    {
+      "id": "SEVEN_DAY_CUTOFF_AND_STRADDLING_EDIT",
+      "status": "PASS",
+      "actual": "第六天兑换后剩 24 小时，E−1 ms/ E / E+1 ms 读写结果为允许/拒绝/拒绝。跨截止 PATCH 返回 404，SQLite 修订及内容保持不变。"
+    },
+    {
+      "id": "EDIT_WITHOUT_MANAGEMENT",
+      "status": "PASS",
+      "actual": "真实 Chrome 发出只读和编辑邀请；编辑者写入 v2，v1 保留。删除、改范围、导出和再授权被拒；并发最后一席和同用户重试均只占一席。"
+    },
+    {
+      "id": "REVOKE_BLOCKS_READER_AND_SEARCH",
+      "status": "PASS",
+      "actual": "撤销后原会话无法读取、写入或重放搜索回执；Chrome 重聚焦、历史返回和刷新均不恢复正文。离线到期时清除受控正文。"
+    },
+    {
+      "id": "GROUP_RENEWAL_AND_TRANSACTIONAL_RECEIPTS",
+      "status": "PASS",
+      "actual": "两份授权同时续期，第三份采用新截止；新/旧截止实测。相同请求键回放原回执，改参和跨命令拒绝，出箱故障使所有事务行回滚且同键重试只提交一次。"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/SHARE-001/runs/main-raw.json",
+      "sha256": "5b93092416384b489ac19ff541c4a2e64dae52b485844526dd838edb2f08a52c"
+    }
+  ]
+}

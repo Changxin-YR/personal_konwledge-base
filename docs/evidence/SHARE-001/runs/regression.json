@@ -1,0 +1,77 @@
+{
+  "unit_id": "SHARE-001",
+  "candidate_sha": "cdd78498785c229d18d82662b732722cb3c5409c",
+  "tree": "fe481cc02f54ccabba820f33ed1ac4ae6c239f65",
+  "source_tree": "4fef2c64730948ce7439d3204345b82b574e5569",
+  "entry_sha256": "7e77776556f88dcef98ce48536984cbbf679e8f4be0c1cbd02e0f1f8f6578b89",
+  "build_sha256": "926eafeba6477b3b30446b084a2ed39b529f77d7695e586de991f3553803e952",
+  "case_id": "A34",
+  "participants": [
+    {
+      "unit_id": "FND-004",
+      "candidate_sha": "3c78f1f1379a033c20a193cc091f873e0573e0c1"
+    },
+    {
+      "unit_id": "LIB-001",
+      "candidate_sha": "5d9dc58866d518c496677b3e85ba60c217323291"
+    },
+    {
+      "unit_id": "READ-001",
+      "candidate_sha": "fdac3b02fc5ac42eabef72374aee9b7050c942e3"
+    },
+    {
+      "unit_id": "SEARCH-001",
+      "candidate_sha": "5483832b337004717da9af2ff7702a7f13bc31a3"
+    },
+    {
+      "unit_id": "SHARE-001",
+      "candidate_sha": "cdd78498785c229d18d82662b732722cb3c5409c"
+    }
+  ],
+  "kind": "regression",
+  "runner": "Codex",
+  "run_id": "read001-open-tab-CMskJG",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/read001/host-open-tab.mjs cdd78498785c229d18d82662b732722cb3c5409c 7e77776556f88dcef98ce48536984cbbf679e8f4be0c1cbd02e0f1f8f6578b89 .cache/share001-v25-affected",
+  "environment": "Windows; pinned DSH 39163dd30f703a79079e2d2446545cff3c453738; Chrome 158.0.8127.36; isolated SQLite",
+  "inputs": "Known synthetic PDF, direct project grant and separate authenticated identities",
+  "results": [
+    {
+      "id": "revoke-paper",
+      "status": "PASS",
+      "actual": "real-host-chrome; tested on frozen candidate"
+    },
+    {
+      "id": "revoke-text",
+      "status": "PASS",
+      "actual": "real-host-chrome; tested on frozen candidate"
+    },
+    {
+      "id": "reader-access contract",
+      "status": "PASS",
+      "actual": "real-host; tested on frozen candidate"
+    },
+    {
+      "id": "switch-allow",
+      "status": "PASS",
+      "actual": "controlled-chrome-network / real-host; tested on frozen candidate"
+    },
+    {
+      "id": "switch-timeout",
+      "status": "PASS",
+      "actual": "controlled-chrome-network / real-host; tested on frozen candidate"
+    },
+    {
+      "id": "switch-failure",
+      "status": "PASS",
+      "actual": "controlled-chrome-network / real-host; tested on frozen candidate"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/SHARE-001/runs/regression-raw.json",
+      "sha256": "81909c848b73bf8c35aa5e2b5d09cdc743c75cf7c66d51757abf36c5becbfb76"
+    }
+  ]
+}

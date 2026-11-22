@@ -447,8 +447,11 @@
         "A34",
         "A51"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/SHARE-001/acceptance.json",
+        "docs/evidence/SHARE-001/A34.json"
+      ]
     },
     {
       "id": "F32",
@@ -461,8 +464,11 @@
         "A34",
         "A46"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/SHARE-001/acceptance.json",
+        "docs/evidence/SHARE-001/A34.json"
+      ]
     },
     {
       "id": "F33",
@@ -1408,8 +1414,11 @@
       "expected": "剩余期限明确；原第七天统一到期；编辑不含管理；撤销立即作用于后续请求与缓存。",
       "level": "integration",
       "evidence_required": "测试记录、关键状态与操作证据",
-      "status": "NOT_RUN",
-      "final_milestone": "M1"
+      "status": "PASS",
+      "final_milestone": "M1",
+      "evidence_paths": [
+        "docs/evidence/SHARE-001/A34.json"
+      ]
     },
     {
       "id": "A35",

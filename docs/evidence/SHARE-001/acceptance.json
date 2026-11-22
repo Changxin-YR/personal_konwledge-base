@@ -1,0 +1,36 @@
+{
+  "unit_id": "SHARE-001",
+  "candidate_sha": "cdd78498785c229d18d82662b732722cb3c5409c",
+  "tree": "fe481cc02f54ccabba820f33ed1ac4ae6c239f65",
+  "source_tree": "4fef2c64730948ce7439d3204345b82b574e5569",
+  "entry_sha256": "7e77776556f88dcef98ce48536984cbbf679e8f4be0c1cbd02e0f1f8f6578b89",
+  "build_sha256": "926eafeba6477b3b30446b084a2ed39b529f77d7695e586de991f3553803e952",
+  "unit_acceptance": "PASS",
+  "passed_test_ids": [
+    "SHARE-001-T01",
+    "SHARE-001-T02"
+  ],
+  "main_command": "node scripts/share001/host-smoke.mjs cdd78498785c229d18d82662b732722cb3c5409c 7e77776556f88dcef98ce48536984cbbf679e8f4be0c1cbd02e0f1f8f6578b89 .cache/share001-v25",
+  "main_exit": 0,
+  "main_records": [
+    {
+      "path": "docs/evidence/SHARE-001/runs/main-raw.json",
+      "sha256": "5b93092416384b489ac19ff541c4a2e64dae52b485844526dd838edb2f08a52c"
+    }
+  ],
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/SHARE-001/independent.json",
+  "technical_results": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "affected_tests": 43,
+    "real_reader_open_tab_cases": 6,
+    "regression_record": {
+      "path": "docs/evidence/SHARE-001/runs/regression-raw.json",
+      "sha256": "81909c848b73bf8c35aa5e2b5d09cdc743c75cf7c66d51757abf36c5becbfb76"
+    }
+  },
+  "final_cases": [
+    "docs/evidence/SHARE-001/A34.json"
+  ]
+}
