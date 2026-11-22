@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawn,execFileSync } from 'node:child_process'
-import { existsSync,mkdirSync,mkdtempSync,readFileSync,realpathSync,symlinkSync,writeFileSync } from 'node:fs'
+import { existsSync,mkdirSync,mkdtempSync,readFileSync,realpathSync,renameSync,symlinkSync,writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname,join,resolve } from 'node:path'
@@ -14,12 +14,15 @@ export async function until(fn,label,ms=15000){
   throw Error('timeout: '+label)
 }
 const git=(...args)=>execFileSync('git',['--no-optional-locks',...args],{cwd:root})
-export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrier=false}={}){
+export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrier=false,businessClock}={}){
   const bound=binding(commit,resolve(process.env.KO_TEST_CACHE??join(root,'.cache')))
   assert.equal(bound.facts.entry_sha256,entryHash)
   const scopes=['scripts/lib002','scripts/fnd003','scripts/fnd004']
   assert.equal(git('status','--porcelain','--untracked-files=all','--',...scopes).toString().trim(),'')
   const helpers={}
+  if(businessClock!==undefined){
+    const path='scripts/share001/test-clock-preload.mjs';helpers['business-clock']=sha(readFileSync(join(root,path)));assert.equal(helpers['business-clock'],sha(git('show',commit+':'+path)))
+  }
   if(searchBarrier){
     const path='scripts/search001/scan-barrier.mjs';helpers['search-barrier']=sha(readFileSync(join(root,path)));assert.equal(helpers['search-barrier'],sha(git('show',commit+':'+path)))
   }
@@ -31,6 +34,9 @@ export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrie
     assert.equal(helpers[name],sha(git('show',commit+':'+path)))
   }
   const dir=mkdtempSync(join(realpathSync(tmpdir()),'kos-a07-')),home=join(dir,'home'),data=join(dir,'data')
+  const clockFile=join(dir,'test-clock-ms');let simulated=businessClock
+  function clock(at){assert(Number.isSafeInteger(simulated)&&Number.isSafeInteger(at)&&at>=simulated);writeFileSync(clockFile+'.tmp',String(at));renameSync(clockFile+'.tmp',clockFile);simulated=at}
+  if(businessClock!==undefined)clock(businessClock)
   const profile='a07-isolated',profileDir=join(home,'profiles',profile),product=join(profileDir,'node_modules/knowledgeos-panel')
   mkdirSync(data)
   for(const path of git('ls-files','--',pkg+'/package.json',pkg+'/cordis.patch.yml',pkg+'/lib').toString().trim().split(/\r?\n/)){
@@ -58,6 +64,7 @@ export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrie
     if(officeBarrier)env.KO_OFFICE_ORIGINALS=join(data,'originals')
     const extra=officeBarrier?['--import',new URL('../lib004/office-barrier-preload.mjs',import.meta.url).href]:[]
     if(searchBarrier)extra.push('--import',new URL('../search001/scan-barrier.mjs',import.meta.url).href)
+    if(businessClock!==undefined){env.KO_TEST_BUSINESS_CLOCK=clockFile;extra.push('--import',new URL('../share001/test-clock-preload.mjs',import.meta.url).href)}
     const child=spawn(process.execPath,['--import',new URL('../fnd005/candidate-live-trace.mjs',import.meta.url).href,'--import',new URL('a07-extractor-preload.mjs',import.meta.url).href,...extra,'--import','tsx/esm','apps/cli/src/bin.ts','--profile',profile,'--host','127.0.0.1','--port',String(port),'--no-open'],{cwd:bound.runtime,env,stdio:['ignore','pipe','pipe'],windowsHide:true})
     let ended=false,tail='';const done=new Promise(ok=>{child.once('close',(code,signal)=>{ended=true;ok({code,signal})});child.once('error',()=>{ended=true;ok({spawnError:true})})});host={child,done}
     for(const s of [child.stdout,child.stderr])s.on('data',chunk=>{tail=(tail+chunk).slice(-32000)})
@@ -74,6 +81,6 @@ export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrie
   const officeFlag=name=>{assert(officeBarrier&&['hold-cancel','release-cancel','hold-stale','release-stale','fail-result'].includes(name));writeFileSync(join(trace,name),'',{flag:'wx'})}
   const gateSearch=data=>{assert(searchBarrier&&host);writeFileSync(join(trace,'hold-search-scan.json'),JSON.stringify(data),{flag:'wx'})}
   const searchGateFacts=()=>JSON.parse(readFileSync(join(trace,'hold-search-scan.json.observed'),'utf8'))
-  return {base,port,data,start,stop,events,officeFlag,gateSearch,searchGateFacts,release:()=>writeFileSync(join(trace,'release3'),'',{flag:'wx'}),
+  return {base,port,data,start,stop,events,officeFlag,gateSearch,searchGateFacts,clock,release:()=>writeFileSync(join(trace,'release3'),'',{flag:'wx'}),
     facts:{...bound.facts,helpers,parser},playwright:bound.playwright}
 }

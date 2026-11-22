@@ -452,14 +452,30 @@ var AUTH_ACTIONS = ["read", "comment", "edit", "export", "manage_share", "delete
 function isGrantActive(grant, now) {
   return grant.revokedAt === void 0 && grant.validFrom <= now && (grant.expiresAt === void 0 || now < grant.expiresAt);
 }
-function authorize(actor, target2, action, now, grants = [], memberships = [], documentInvitations = []) {
-  if (target2.status !== "active" || target2.serviceId !== actor.serviceId) return false;
-  const invited = (action === "read" || action === "edit") && documentInvitations.some((item) => item.subjectType === "user" && item.subjectId === actor.userId && item.action === action && isGrantActive(item, now));
-  if (target2.scope === "personal") return target2.spaceId === actor.personalSpaceId && target2.ownerUserId === actor.userId || invited;
-  if (target2.projectId === void 0) return false;
-  const member = memberships.some((item) => item.projectId === target2.projectId && item.userId === actor.userId && isGrantActive(item, now));
-  if (!member) return false;
-  return invited || grants.some((item) => item.subjectType === "user" && item.subjectId === actor.userId && item.action === action && isGrantActive(item, now)) || grants.some((item) => item.subjectType === "project" && item.subjectId === target2.projectId && item.action === action && isGrantActive(item, now) && member);
+function horizon(rows, now) {
+  let latest;
+  for (const row of rows) {
+    if (!isGrantActive(row, now)) continue;
+    if (row.expiresAt === void 0) return null;
+    if (latest === void 0 || row.expiresAt > latest) latest = row.expiresAt;
+  }
+  return latest;
+}
+function authorizationHorizon(actor, target2, action, now, grants = [], memberships = [], documentInvitations = []) {
+  if (target2.status !== "active" || target2.serviceId !== actor.serviceId) return;
+  const invited = action === "read" || action === "edit" ? documentInvitations.filter((item) => item.subjectType === "user" && item.subjectId === actor.userId && item.action === action) : [];
+  if (target2.scope === "personal") return target2.spaceId === actor.personalSpaceId && target2.ownerUserId === actor.userId ? null : horizon(invited, now);
+  if (target2.projectId === void 0) return;
+  const member = horizon(memberships.filter((item) => item.projectId === target2.projectId && item.userId === actor.userId), now);
+  if (member === void 0) return;
+  const grant = horizon([...invited, ...grants.filter((item) => item.action === action && (item.subjectType === "user" && item.subjectId === actor.userId || item.subjectType === "project" && item.subjectId === target2.projectId))], now);
+  if (grant === void 0) return;
+  if (member === null) return grant;
+  if (grant === null) return member;
+  return grant < member ? grant : member;
+}
+function authorize(...args2) {
+  return authorizationHorizon(...args2) !== void 0;
 }
 
 // src/host/asset-store.ts
@@ -1511,11 +1527,12 @@ function dto2(row) {
   return { ...rest, ...conversion_id ? { conversion_id } : {} };
 }
 var CitationStore = class {
-  constructor(tx, current, allowed, annotationAccess) {
+  constructor(tx, current, allowed, annotationAccess, readHorizon) {
     this.tx = tx;
     this.current = current;
     this.allowed = allowed;
     this.annotationAccess = annotationAccess;
+    this.readHorizon = readHorizon;
   }
   actor(prior, now) {
     const a = this.current(prior, now);
@@ -1675,12 +1692,12 @@ var CitationStore = class {
   }
   access(prior, asset, version) {
     return this.tx("read", (db, now) => {
-      const actor = this.actor(prior, now);
-      if (!this.allowed(actor, asset, now)) throw notFound2();
+      const actor = this.actor(prior, now), expires = this.readHorizon ? this.readHorizon(actor, asset, now) : this.allowed(actor, asset, now) ? null : void 0;
+      if (expires === void 0) throw notFound2();
       const row = db.prepare(`SELECT v.version,NOT EXISTS(SELECT 1 FROM asset_versions n WHERE n.asset_id=v.asset_id AND n.version>v.version) AS latest
       FROM asset_versions v WHERE v.asset_id=? AND v.id=?`).get(asset, version);
       if (!row) throw notFound2();
-      return { actor_id: actor.userId, asset_id: asset, version_id: version, version: Number(row.version), is_latest: !!row.latest };
+      return { actor_id: actor.userId, asset_id: asset, version_id: version, version: Number(row.version), is_latest: !!row.latest, server_time: now, read_expires_at: expires };
     });
   }
   text(s, w) {
@@ -2606,6 +2623,9 @@ var ProbeStorage = class {
   citations = new CitationStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id, now) => Boolean(this.authorizeObject(a, id, "read", now)), (a, id, now) => {
     const source = this.authorizeObject(a, id, "read", now);
     return source && { ...source.projectId ? { project_id: source.projectId } : {}, canComment: Boolean(this.authorizeObject(a, id, "comment", now)) };
+  }, (a, id, now) => {
+    const object = this.#loadObject(id);
+    return object && this.#authorizationHorizon(a, object, "read", now);
   });
   recall = new RecallStore(
     this.#assetTx,
@@ -3510,12 +3530,21 @@ var ProbeStorage = class {
     const row = this.#ensureReady().prepare("SELECT id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at FROM knowledge_objects WHERE id = ?").get(id);
     return row === void 0 ? void 0 : this.#objectRow(row);
   }
-  authorizeObject(actor, objectId, action, now) {
+  #authorizationHorizon(actor, object, action, now) {
     const db = this.#ensureReady();
+    return authorizationHorizon(
+      actor,
+      this.#objectTarget(object),
+      action,
+      now,
+      this.#grants(db, object.id),
+      object.projectId === void 0 ? [] : this.#memberships(db, object.projectId),
+      this.#invitedActions(db, actor, object, action, now)
+    );
+  }
+  authorizeObject(actor, objectId, action, now) {
     const object = this.#loadObject(objectId);
-    if (object === void 0) return void 0;
-    const allowed = authorize(actor, this.#objectTarget(object), action, now, this.#grants(db, object.id), object.projectId === void 0 ? [] : this.#memberships(db, object.projectId), this.#invitedActions(db, actor, object, action, now));
-    return allowed ? object : void 0;
+    return object && this.#authorizationHorizon(actor, object, action, now) !== void 0 ? object : void 0;
   }
   listObjects(actor, action, now) {
     const db = this.#ensureReady();

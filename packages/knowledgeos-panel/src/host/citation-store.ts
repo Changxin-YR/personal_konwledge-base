@@ -34,7 +34,8 @@ function dto(row:Record<string,unknown>){const {conversion_id,...rest}=row;retur
 export class CitationStore {
   constructor(private tx:ParseTx,private current:(a:SessionActor,now:string)=>SessionActor|undefined,
     private allowed:(a:SessionActor,id:string,now:string)=>boolean,
-    private annotationAccess?:(a:SessionActor,id:string,now:string)=>AnnotationAccess|undefined){}
+    private annotationAccess?:(a:SessionActor,id:string,now:string)=>AnnotationAccess|undefined,
+    private readHorizon?:(a:SessionActor,id:string,now:string)=>string|null|undefined){}
   private actor(prior:SessionActor,now:string){const a=this.current(prior,now);if(!a)throw new AssetError(401,'AUTH_REQUIRED');return a}
   private read(db:DatabaseSync,a:SessionActor,t:ReaderTarget,now:string):ReaderSource {
     if(!this.allowed(a,t.asset_id,now))throw notFound()
@@ -147,11 +148,12 @@ export class CitationStore {
     return mutateAnnotation(db,src,a.userId,scope,id,revision)
   })}
   access(prior:SessionActor,asset:string,version:string){return this.tx('read',(db,now)=>{
-    const actor=this.actor(prior,now);if(!this.allowed(actor,asset,now))throw notFound()
+    const actor=this.actor(prior,now),expires=this.readHorizon?this.readHorizon(actor,asset,now):this.allowed(actor,asset,now)?null:undefined
+    if(expires===undefined)throw notFound()
     const row=db.prepare(`SELECT v.version,NOT EXISTS(SELECT 1 FROM asset_versions n WHERE n.asset_id=v.asset_id AND n.version>v.version) AS latest
       FROM asset_versions v WHERE v.asset_id=? AND v.id=?`).get(asset,version)
     if(!row)throw notFound()
-    return {actor_id:actor.userId,asset_id:asset,version_id:version,version:Number(row.version),is_latest:!!row.latest}
+    return {actor_id:actor.userId,asset_id:asset,version_id:version,version:Number(row.version),is_latest:!!row.latest,server_time:now,read_expires_at:expires}
   })}
   private text(s:ReaderSource,w?:RenderWitness){
     if(s.state!=='ready'&&s.state!=='review')throw new AssetError(409,'SOURCE_NOT_READY')

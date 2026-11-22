@@ -21,6 +21,7 @@ let pendingMatchSave=followMatch;
 const readerPath='assets/'+asset+'/versions/'+version+'/reader';
 let continuity=null, outlineLoaded=false, busy=false;
 let annotationPanel=false, annotationDraft=null, annotationBusy=false, annotationSequence=0, suspendedDraft=null;
+let expirationTimer=null;
 const readingStatus=s=>{$('reading-status').textContent=s};
 async function api(path,options){
   const r=await fetch('/knowledge/v1/'+path,{credentials:'same-origin',cache:'no-store',redirect:'error',...options});
@@ -29,10 +30,17 @@ async function api(path,options){
 async function access(g){
   if(g!==gen||document.hidden)return false;
   try{
+    const sent=performance.now();
     const m=await api('assets/'+asset+'/versions/'+version+'/reader-access',{signal:AbortSignal.timeout(2000)});
     if(g!==gen||document.hidden)return false;
     if(!m||typeof m.actor_id!=='string'||!m.actor_id||m.asset_id!==asset||m.version_id!==version||!integer(m.version)||m.version<1||typeof m.is_latest!=='boolean')throw invalid();
     if(owner!==null && owner!==m.actor_id){lock('账号已切换，请刷新以重新检查资料权限。');return false}
+    clearTimeout(expirationTimer);expirationTimer=null;
+    if(m.read_expires_at!=null){
+      const limit=sent+Date.parse(m.read_expires_at)-Date.parse(m.server_time);if(!Number.isFinite(limit))throw invalid();
+      const check=()=>{if(g!==gen)return;const remaining=limit-performance.now();if(remaining<=0)lock('读取授权已到期，请重新核对权限。');else expirationTimer=setTimeout(check,Math.min(Math.ceil(remaining),2147483647))};
+      check();if(g!==gen)return false;
+    }
     owner=m.actor_id;versionLabel=(m.is_latest?'固定版本':'旧版本')+' v'+m.version;return true;
   }catch(e){failure(e,g);return false}
 }
@@ -45,6 +53,7 @@ function clearPage(){
   clearAnnotations();
 }
 function lock(message,keepDraft=false){
+  clearTimeout(expirationTimer);expirationTimer=null;
   if(!keepDraft)suspendedDraft=null;
   ++gen;owner=null;total=0;conversion=null;resolved=null;pending=null;ordinal=1;versionLabel='';mode=null;clearPage();
   followCitation=!!cid;

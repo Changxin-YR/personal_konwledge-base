@@ -42,7 +42,17 @@ export function isGrantActive(grant: Pick<AuthorizationGrant, 'validFrom' | 'exp
  * server generated actor, the service/object target and the current server
  * time. Missing or stale grants are denied by default.
  */
-export function authorize(
+function horizon(rows:readonly Pick<AuthorizationGrant,'validFrom'|'expiresAt'|'revokedAt'>[],now:string):string|null|undefined {
+  let latest:string|undefined
+  for(const row of rows){
+    if(!isGrantActive(row,now))continue
+    if(row.expiresAt===undefined)return null
+    if(latest===undefined||row.expiresAt>latest)latest=row.expiresAt
+  }
+  return latest
+}
+
+export function authorizationHorizon(
   actor: AuthorizationPrincipal,
   target: AuthorizationTarget,
   action: AuthorizationAction,
@@ -50,14 +60,20 @@ export function authorize(
   grants: readonly AuthorizationGrant[] = [],
   memberships: readonly ProjectMembership[] = [],
   documentInvitations: readonly AuthorizationGrant[] = [],
-): boolean {
-  if (target.status !== 'active' || target.serviceId !== actor.serviceId) return false
-  const invited = (action === 'read' || action === 'edit') && documentInvitations.some(item =>
-    item.subjectType === 'user' && item.subjectId === actor.userId && item.action === action && isGrantActive(item, now))
-  if (target.scope === 'personal') return (target.spaceId === actor.personalSpaceId && target.ownerUserId === actor.userId) || invited
-  if (target.projectId === undefined) return false
-  const member = memberships.some(item => item.projectId === target.projectId && item.userId === actor.userId && isGrantActive(item, now))
-  if (!member) return false
-  return invited || grants.some(item => item.subjectType === 'user' && item.subjectId === actor.userId && item.action === action && isGrantActive(item, now))
-    || grants.some(item => item.subjectType === 'project' && item.subjectId === target.projectId && item.action === action && isGrantActive(item, now) && member)
+): string|null|undefined {
+  if (target.status !== 'active' || target.serviceId !== actor.serviceId) return
+  const invited = action === 'read' || action === 'edit' ? documentInvitations.filter(item =>
+    item.subjectType === 'user' && item.subjectId === actor.userId && item.action === action) : []
+  if (target.scope === 'personal') return target.spaceId === actor.personalSpaceId && target.ownerUserId === actor.userId ? null : horizon(invited,now)
+  if (target.projectId === undefined) return
+  const member = horizon(memberships.filter(item => item.projectId === target.projectId && item.userId === actor.userId),now)
+  if (member === undefined) return
+  const grant = horizon([...invited,...grants.filter(item=>item.action===action&&
+    (item.subjectType === 'user' && item.subjectId === actor.userId || item.subjectType === 'project' && item.subjectId === target.projectId))],now)
+  if(grant===undefined)return
+  if(member===null)return grant
+  if(grant===null)return member
+  return grant<member?grant:member
 }
+
+export function authorize(...args:Parameters<typeof authorizationHorizon>):boolean {return authorizationHorizon(...args)!==undefined}

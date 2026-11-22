@@ -22,7 +22,7 @@ import type {
   UserCreateInput,
   UserRecord,
 } from './identity.ts'
-import { authorize, isGrantActive, type AuthorizationAction, type AuthorizationGrant, type AuthorizationPrincipal, type AuthorizationTarget, type ProjectMembership, type ResourceScope } from './authorization.ts'
+import { authorize, authorizationHorizon, isGrantActive, type AuthorizationAction, type AuthorizationGrant, type AuthorizationPrincipal, type AuthorizationTarget, type ProjectMembership, type ResourceScope } from './authorization.ts'
 import type { CreateOutcome, ProbeRecord, ProbeStorePort } from './records.ts'
 import { RecordsError } from './records.ts'
 import {ASSET_SCHEMA, AssetStore, AssetError} from './asset-store.ts'
@@ -403,7 +403,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
   readonly citations = new CitationStore(this.#assetTx,(s,now)=>this.#currentActor(s,now),(a,id,now)=>Boolean(this.authorizeObject(a,id,'read',now)),(a,id,now)=>{
     const source=this.authorizeObject(a,id,'read',now)
     return source&&{...(source.projectId?{project_id:source.projectId}:{}),canComment:Boolean(this.authorizeObject(a,id,'comment',now))}
-  })
+  },(a,id,now)=>{const object=this.#loadObject(id);return object&&this.#authorizationHorizon(a,object,'read',now)})
   readonly recall = new RecallStore(this.#assetTx,(s,now)=>this.#currentActor(s,now),(a,id,now)=>Boolean(this.authorizeObject(a,id,'read',now)),
     (db,a,t,now)=>this.citations.recallSource(db,a,t,now))
   readonly invitations = new InvitationStore(this.#assetTx,(s,now)=>this.#currentActor(s,now),(db,user,service)=>{
@@ -1207,11 +1207,15 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     return row === undefined ? undefined : this.#objectRow(row)
   }
 
+  #authorizationHorizon(actor:AuthorizationPrincipal,object:KnowledgeObjectRecord,action:AuthorizationAction,now:string){
+    const db=this.#ensureReady()
+    return authorizationHorizon(actor,this.#objectTarget(object),action,now,this.#grants(db,object.id),
+      object.projectId===undefined?[]:this.#memberships(db,object.projectId),this.#invitedActions(db,actor,object,action,now))
+  }
+
   authorizeObject(actor: AuthorizationPrincipal, objectId: string, action: AuthorizationAction, now: string): KnowledgeObjectRecord | undefined {
-    const db = this.#ensureReady(); const object = this.#loadObject(objectId)
-    if (object === undefined) return undefined
-    const allowed = authorize(actor, this.#objectTarget(object), action, now, this.#grants(db, object.id), object.projectId === undefined ? [] : this.#memberships(db, object.projectId),this.#invitedActions(db,actor,object,action,now))
-    return allowed ? object : undefined
+    const object=this.#loadObject(objectId)
+    return object&&this.#authorizationHorizon(actor,object,action,now)!==undefined?object:undefined
   }
 
   listObjects(actor: SessionActor, action: AuthorizationAction, now: string): KnowledgeObjectRecord[] {

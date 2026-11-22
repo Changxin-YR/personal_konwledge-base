@@ -105,7 +105,9 @@ async function realRevoke(f,mode,c) {
   } catch(e){await snap(p,mode+'-failure',c); throw e} finally {await p.close()}
 }
 async function accessContract(f) {
-  assert.deepEqual(await send(member,f.access,200),{actor_id:readerId,asset_id:f.id,version_id:f.version,version:1,is_latest:true})
+  const {server_time,read_expires_at,...data}=await send(member,f.access,200)
+  assert.deepEqual(data,{actor_id:readerId,asset_id:f.id,version_id:f.version,version:1,is_latest:true})
+  assert(Number.isFinite(Date.parse(server_time)));assert.equal(read_expires_at,null)
   await send('',f.access,401)
 }
 // Hold an actual Host allow response or abort at Chrome's network boundary.

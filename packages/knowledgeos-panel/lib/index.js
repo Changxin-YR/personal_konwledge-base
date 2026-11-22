@@ -2382,14 +2382,30 @@ var AUTH_ACTIONS = ["read", "comment", "edit", "export", "manage_share", "delete
 function isGrantActive(grant, now) {
   return grant.revokedAt === void 0 && grant.validFrom <= now && (grant.expiresAt === void 0 || now < grant.expiresAt);
 }
-function authorize(actor2, target3, action2, now, grants = [], memberships = [], documentInvitations = []) {
-  if (target3.status !== "active" || target3.serviceId !== actor2.serviceId) return false;
-  const invited = (action2 === "read" || action2 === "edit") && documentInvitations.some((item) => item.subjectType === "user" && item.subjectId === actor2.userId && item.action === action2 && isGrantActive(item, now));
-  if (target3.scope === "personal") return target3.spaceId === actor2.personalSpaceId && target3.ownerUserId === actor2.userId || invited;
-  if (target3.projectId === void 0) return false;
-  const member = memberships.some((item) => item.projectId === target3.projectId && item.userId === actor2.userId && isGrantActive(item, now));
-  if (!member) return false;
-  return invited || grants.some((item) => item.subjectType === "user" && item.subjectId === actor2.userId && item.action === action2 && isGrantActive(item, now)) || grants.some((item) => item.subjectType === "project" && item.subjectId === target3.projectId && item.action === action2 && isGrantActive(item, now) && member);
+function horizon(rows, now) {
+  let latest;
+  for (const row of rows) {
+    if (!isGrantActive(row, now)) continue;
+    if (row.expiresAt === void 0) return null;
+    if (latest === void 0 || row.expiresAt > latest) latest = row.expiresAt;
+  }
+  return latest;
+}
+function authorizationHorizon(actor2, target3, action2, now, grants = [], memberships = [], documentInvitations = []) {
+  if (target3.status !== "active" || target3.serviceId !== actor2.serviceId) return;
+  const invited = action2 === "read" || action2 === "edit" ? documentInvitations.filter((item) => item.subjectType === "user" && item.subjectId === actor2.userId && item.action === action2) : [];
+  if (target3.scope === "personal") return target3.spaceId === actor2.personalSpaceId && target3.ownerUserId === actor2.userId ? null : horizon(invited, now);
+  if (target3.projectId === void 0) return;
+  const member = horizon(memberships.filter((item) => item.projectId === target3.projectId && item.userId === actor2.userId), now);
+  if (member === void 0) return;
+  const grant = horizon([...invited, ...grants.filter((item) => item.action === action2 && (item.subjectType === "user" && item.subjectId === actor2.userId || item.subjectType === "project" && item.subjectId === target3.projectId))], now);
+  if (grant === void 0) return;
+  if (member === null) return grant;
+  if (grant === null) return member;
+  return grant < member ? grant : member;
+}
+function authorize(...args2) {
+  return authorizationHorizon(...args2) !== void 0;
 }
 
 // src/host/asset-store.ts
@@ -3486,11 +3502,12 @@ function dto2(row) {
   return { ...rest, ...conversion_id ? { conversion_id } : {} };
 }
 var CitationStore = class {
-  constructor(tx, current, allowed, annotationAccess) {
+  constructor(tx, current, allowed, annotationAccess, readHorizon) {
     this.tx = tx;
     this.current = current;
     this.allowed = allowed;
     this.annotationAccess = annotationAccess;
+    this.readHorizon = readHorizon;
   }
   actor(prior, now) {
     const a = this.current(prior, now);
@@ -3650,12 +3667,12 @@ var CitationStore = class {
   }
   access(prior, asset, version) {
     return this.tx("read", (db, now) => {
-      const actor2 = this.actor(prior, now);
-      if (!this.allowed(actor2, asset, now)) throw notFound2();
+      const actor2 = this.actor(prior, now), expires = this.readHorizon ? this.readHorizon(actor2, asset, now) : this.allowed(actor2, asset, now) ? null : void 0;
+      if (expires === void 0) throw notFound2();
       const row = db.prepare(`SELECT v.version,NOT EXISTS(SELECT 1 FROM asset_versions n WHERE n.asset_id=v.asset_id AND n.version>v.version) AS latest
       FROM asset_versions v WHERE v.asset_id=? AND v.id=?`).get(asset, version);
       if (!row) throw notFound2();
-      return { actor_id: actor2.userId, asset_id: asset, version_id: version, version: Number(row.version), is_latest: !!row.latest };
+      return { actor_id: actor2.userId, asset_id: asset, version_id: version, version: Number(row.version), is_latest: !!row.latest, server_time: now, read_expires_at: expires };
     });
   }
   text(s, w) {
@@ -4576,6 +4593,9 @@ var ProbeStorage = class {
   citations = new CitationStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id4, now) => Boolean(this.authorizeObject(a, id4, "read", now)), (a, id4, now) => {
     const source = this.authorizeObject(a, id4, "read", now);
     return source && { ...source.projectId ? { project_id: source.projectId } : {}, canComment: Boolean(this.authorizeObject(a, id4, "comment", now)) };
+  }, (a, id4, now) => {
+    const object2 = this.#loadObject(id4);
+    return object2 && this.#authorizationHorizon(a, object2, "read", now);
   });
   recall = new RecallStore(
     this.#assetTx,
@@ -5480,12 +5500,21 @@ var ProbeStorage = class {
     const row = this.#ensureReady().prepare("SELECT id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at FROM knowledge_objects WHERE id = ?").get(id4);
     return row === void 0 ? void 0 : this.#objectRow(row);
   }
-  authorizeObject(actor2, objectId, action2, now) {
+  #authorizationHorizon(actor2, object2, action2, now) {
     const db = this.#ensureReady();
+    return authorizationHorizon(
+      actor2,
+      this.#objectTarget(object2),
+      action2,
+      now,
+      this.#grants(db, object2.id),
+      object2.projectId === void 0 ? [] : this.#memberships(db, object2.projectId),
+      this.#invitedActions(db, actor2, object2, action2, now)
+    );
+  }
+  authorizeObject(actor2, objectId, action2, now) {
     const object2 = this.#loadObject(objectId);
-    if (object2 === void 0) return void 0;
-    const allowed = authorize(actor2, this.#objectTarget(object2), action2, now, this.#grants(db, object2.id), object2.projectId === void 0 ? [] : this.#memberships(db, object2.projectId), this.#invitedActions(db, actor2, object2, action2, now));
-    return allowed ? object2 : void 0;
+    return object2 && this.#authorizationHorizon(actor2, object2, action2, now) !== void 0 ? object2 : void 0;
   }
   listObjects(actor2, action2, now) {
     const db = this.#ensureReady();
@@ -9862,6 +9891,7 @@ let pendingMatchSave=followMatch;
 const readerPath='assets/'+asset+'/versions/'+version+'/reader';
 let continuity=null, outlineLoaded=false, busy=false;
 let annotationPanel=false, annotationDraft=null, annotationBusy=false, annotationSequence=0, suspendedDraft=null;
+let expirationTimer=null;
 const readingStatus=s=>{$('reading-status').textContent=s};
 async function api(path,options){
   const r=await fetch('/knowledge/v1/'+path,{credentials:'same-origin',cache:'no-store',redirect:'error',...options});
@@ -9870,10 +9900,17 @@ async function api(path,options){
 async function access(g){
   if(g!==gen||document.hidden)return false;
   try{
+    const sent=performance.now();
     const m=await api('assets/'+asset+'/versions/'+version+'/reader-access',{signal:AbortSignal.timeout(2000)});
     if(g!==gen||document.hidden)return false;
     if(!m||typeof m.actor_id!=='string'||!m.actor_id||m.asset_id!==asset||m.version_id!==version||!integer(m.version)||m.version<1||typeof m.is_latest!=='boolean')throw invalid();
     if(owner!==null && owner!==m.actor_id){lock('账号已切换，请刷新以重新检查资料权限。');return false}
+    clearTimeout(expirationTimer);expirationTimer=null;
+    if(m.read_expires_at!=null){
+      const limit=sent+Date.parse(m.read_expires_at)-Date.parse(m.server_time);if(!Number.isFinite(limit))throw invalid();
+      const check=()=>{if(g!==gen)return;const remaining=limit-performance.now();if(remaining<=0)lock('读取授权已到期，请重新核对权限。');else expirationTimer=setTimeout(check,Math.min(Math.ceil(remaining),2147483647))};
+      check();if(g!==gen)return false;
+    }
     owner=m.actor_id;versionLabel=(m.is_latest?'固定版本':'旧版本')+' v'+m.version;return true;
   }catch(e){failure(e,g);return false}
 }
@@ -9886,6 +9923,7 @@ function clearPage(){
   clearAnnotations();
 }
 function lock(message,keepDraft=false){
+  clearTimeout(expirationTimer);expirationTimer=null;
   if(!keepDraft)suspendedDraft=null;
   ++gen;owner=null;total=0;conversion=null;resolved=null;pending=null;ordinal=1;versionLabel='';mode=null;clearPage();
   followCitation=!!cid;

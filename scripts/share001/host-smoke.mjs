@@ -13,7 +13,8 @@ const root=fileURLToPath(new URL('../../',import.meta.url)),self='scripts/share0
 const sha=x=>createHash('sha256').update(x).digest('hex'),runner=sha(readFileSync(join(root,self)))
 assert.equal(runner,sha(execFileSync('git',['show',candidate+':'+self],{cwd:root})))
 mkdirSync(parent,{recursive:true});const out=mkdtempSync(join(parent,'run-')),prefix='/knowledge/v1',marker={'x-knowledgeos-request':'1'},password=randomUUID()
-const facts={candidate_sha:candidate,entry_sha256:entry,runner_sha256:runner,status:'NOT_RUN',scope:'checkpoint_smoke',T01:'NOT_RUN',T02:'NOT_RUN',A34:'NOT_RUN',checks:[]}
+const t0=Date.now(),day=86_400_000
+const facts={candidate_sha:candidate,entry_sha256:entry,runner_sha256:runner,status:'NOT_RUN',scope:'checkpoint_smoke_and_clock_boundaries',T01:'NOT_RUN',T02:'NOT_RUN',A34:'NOT_RUN',checks:[]}
 let h,browser,phase='bind and boot'
 async function http(ctx,path,code,method='GET',data){
   const r=await ctx.request.fetch(h.base+prefix+path,{method,headers:{...marker,'idempotency-key':randomUUID()},data,maxRedirects:0})
@@ -26,7 +27,7 @@ async function login(name,viewport){
   return {ctx,page,user:(await http(ctx,'/me',200)).id}
 }
 try{
-  h=await isolate(candidate,entry);facts.binding=h.facts
+  h=await isolate(candidate,entry,{businessClock:t0});facts.binding=h.facts
   const boot=await h.start(),cookie=await entryCookie(boot.entry)
   assert.equal((await api(h.port,cookie.cookie,'POST',prefix+'/auth/bootstrap',{login_name:'owner',display_name:'Owner',password})).status,201)
   for(const name of ['first','rival'])assert.equal((await api(h.port,'','POST',prefix+'/auth/register',{login_name:name,display_name:name,password})).status,201)
@@ -56,9 +57,9 @@ try{
   phase='renew and revoke in Chrome';await owner.page.getByRole('button',{name:'管理邀请'}).click();await owner.page.locator('#managed').waitFor()
   await owner.page.getByRole('button',{name:'预览整组续期'}).click();await owner.page.locator('#confirm-panel').waitFor()
   const [renewed]=await Promise.all([owner.page.waitForResponse(r=>r.url().endsWith('/renew')),owner.page.getByRole('button',{name:'确认操作'}).click()]);assert.equal(renewed.status(),200)
-  assert.equal((await renewed.json()).data.affected_count,1);await owner.page.locator('#managed-meta').filter({hasText:'14 天'}).waitFor().catch(async()=>{
-    const d=await http(owner.ctx,'/invitations/'+issued.id,200);assert.equal(Date.parse(d.expires_at)-Date.parse(issued.expires_at),7*86400000)
-  })
+  const extended=(await renewed.json()).data
+  assert.equal(extended.affected_count,1);assert.equal(Date.parse(extended.expires_at)-Date.parse(issued.expires_at),7*day)
+  await owner.page.locator('#managed-meta').filter({hasText:'14 天'}).waitFor()
   await owner.page.getByRole('button',{name:'预览撤销'}).click();await owner.page.locator('#confirm-panel').waitFor()
   const [revoked]=await Promise.all([owner.page.waitForResponse(r=>r.url().endsWith('/revoke')),owner.page.getByRole('button',{name:'确认操作'}).click()]);assert.equal(revoked.status(),200)
   await http(first.ctx,original,404);await http(first.ctx,resource,404,'PATCH',{expected_revision:edit.revision,body:'Denied write'})
@@ -69,6 +70,42 @@ try{
   facts.checks.push('UI group renewal and revoke; live reads/writes denied after revoke; source and audit preserved')
   await owner.page.reload();await owner.page.locator('#workspace').waitFor();assert.equal(await owner.page.locator('#issued-code').textContent(),'')
   const png=await owner.page.screenshot({path:join(out,'management-after-reload.png')});facts.screenshot_sha256=sha(png)
+
+  phase='real concurrent last seat and exact cutoff'
+  const draft={actor_id:owner.user,scope:'object',target_id:doc.id,permission:'read'}
+  const make=()=>http(owner.ctx,'/invitations',201,'POST',draft)
+  const racing=await make(),sixth=await make(),unused=await make(),expires=Date.parse(sixth.expires_at)
+  assert.equal(Date.parse(sixth.issued_at),t0);assert.equal(expires,t0+7*day)
+  const racers=[first,rival],race=await Promise.all(racers.map(a=>a.ctx.request.post(h.base+prefix+'/invitations/redeem',{
+    headers:marker,data:{actor_id:a.user,token:racing.token}})))
+  assert.deepEqual(race.map(r=>r.status()).sort(),[201,409]);const winner=race.findIndex(r=>r.status()===201),loser=1-winner
+  assert.equal(sql(db,'SELECT count(*) n FROM invitation_redemptions WHERE invitation_id=?',[racing.id])[0].n,1)
+  await http(racers[winner].ctx,original,200);await http(racers[loser].ctx,original,404)
+  facts.checks.push('Two concurrent client requests for one seat: only winner received permission')
+  h.clock(t0+6*day);const daySix=await login('first')
+  const converted=await http(daySix.ctx,'/invitations/redeem',201,'POST',{actor_id:daySix.user,token:sixth.token})
+  assert.equal(Date.parse(converted.expires_at)-Date.parse(converted.server_time),day)
+
+  phase='known deadline clears an offline reader'
+  h.clock(expires-1000);const near=await login('first'),reader=near.page
+  const u=h.base+'/knowledgeos/reader?'+new URLSearchParams({asset:doc.id,version:doc.version_id,unit:'1'})
+  await reader.clock.install({time:new Date(expires-1000)});await reader.clock.pauseAt(new Date(expires-1000+250))
+  await reader.goto(u);await reader.locator('#text').filter({hasText:src}).waitFor()
+  await near.ctx.setOffline(true);await reader.clock.runFor(1005)
+  assert.match(await reader.locator('#status').textContent(),/读取授权已到期/);assert.equal(await reader.locator('#text').textContent(),'')
+  await near.ctx.setOffline(false)
+
+  phase='server cutoff before at and after'
+  h.clock(expires-1)
+  assert.equal((await http(near.ctx,original,200)).text,src)
+  const access=original.replace('/reader?unit=1','/reader-access'),boundary=await http(near.ctx,access,200)
+  assert.equal(Date.parse(boundary.server_time),expires-1);assert.equal(Date.parse(boundary.read_expires_at),expires)
+  h.clock(expires);await http(near.ctx,'/me',200);await http(near.ctx,original,404)
+  await http(near.ctx,'/invitations/redeem',404,'POST',{actor_id:near.user,token:unused.token})
+  h.clock(expires+1);await http(near.ctx,'/me',200);await http(near.ctx,original,404)
+  const finalOwner=await login('owner');assert.equal((await http(finalOwner.ctx,original,200)).text,src)
+  facts.checks.push('Real isolated Host day-six redemption; E-1ms allowed, E and E+1ms denied with current session; offline reader hid locally')
+  facts.clock_boundary={issued_at:new Date(t0).toISOString(),expires_at:new Date(expires).toISOString(),read_offsets_ms:[-1,0,1],allowed:[true,false,false],day_six_remaining_ms:day}
   facts.status='PASS'
 }catch(e){facts.status='FAIL';facts.phase=phase;facts.error=String(e.stack);console.error(e);process.exitCode=1}
 finally{try{await browser?.close()}finally{try{await h?.stop()}finally{writeFileSync(join(out,'summary.json'),JSON.stringify(facts,null,2)+'\n');console.log(out)}}}
