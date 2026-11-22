@@ -569,26 +569,39 @@ async function layoutAndRestart(outline,map,src,initial,before,deep){
     viewport,scroll_left:scrollLeft,mobile_edit_control_operable:true,sqlite_sha256:hash(JSON.stringify(persisted.db))})
 }
 
-async function returnDuringRead(map,outline,id){
-  phase='T01 returning during an in-flight note read refreshes promptly'
+async function returnDuringRead(map,id){
+  phase='foreground visibility handler drains an in-flight note read'
   const pattern=host.base+prefix+notePath(id),started=Promise.withResolvers(),release=Promise.withResolvers(),finished=Promise.withResolvers()
+  let intercepting=false,routeError,timer
   const pause=async route=>{
-    try{started.resolve();await release.promise;await route.continue()}
+    intercepting=true
+    try{
+      const response=await route.fetch({timeout})
+      assert.equal(response.status(),200);started.resolve();await release.promise;await route.fulfill({response})
+    }catch(error){routeError=error;started.resolve()}
     finally{finished.resolve()}
   }
   await foreground(map)
   await map.page.route(pattern,pause,{times:1})
   try{
     await map.page.locator('#list button[aria-current="true"]').click()
-    await started.promise
-    await outline.page.bringToFront();await map.page.waitForFunction(()=>document.hidden)
-    await map.page.bringToFront();await map.page.waitForFunction(()=>!document.hidden)
+    await Promise.race([started.promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('note read did not reach the gate')),timeout)})])
+    assert.ifError(routeError)
+    // Chrome headless versions differ in whether bringToFront changes Page Visibility.
+    // This targeted check drives the handler with synthetic state; A17 uses both live tabs separately.
+    await map.page.evaluate(()=>{
+      Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'))
+      delete document.hidden;document.dispatchEvent(new Event('visibilitychange'))
+    })
     assert(await map.page.locator('#workspace').isHidden(),'unverified workspace must remain hidden while the original read is pending')
-    release.resolve();await finished.promise
+    release.resolve();await finished.promise;assert.ifError(routeError)
     await map.page.locator('#workspace').waitFor({timeout:3000})
     await map.page.locator('#mindmap').waitFor({timeout:3000})
-    pass('MAP_FOREGROUND_REFRESH_DRAINS_BUSY_ACTION',{visibility_transition:true,verified_workspace_restored:true})
-  }finally{release.resolve();await map.page.unroute(pattern,pause)}
+    pass('MAP_FOREGROUND_REFRESH_DRAINS_BUSY_ACTION',{injected_visibility_event:true,real_paused_http_read:true,verified_workspace_restored:true})
+  }finally{
+    clearTimeout(timer);release.resolve();if(intercepting)await finished.promise
+    await map.page.unroute(pattern,pause)
+  }
 }
 
 function failure(kind,error){
@@ -617,7 +630,7 @@ try{
   const map={...outline,page:await newPage(outline.ctx),mode:'map'}
   await open(map,src.id)
   for(const v of [outline,map]){v.watch=watch(v,src.id);await observeSignal(v);await chromeState(v,initial)}
-  await returnDuringRead(map,outline,src.id)
+  await returnDuringRead(map,src.id)
   const revised=await importText(outline,'Replacement of the fixed source, which must not retarget the note.',src.doc)
   assert.equal(revised.id,src.doc.id);assert.equal(revised.version,2);assert.notEqual(revised.version_id,src.doc.version_id)
   const paths=await twoViews(outline,map,src,initial),afterConflict=await conflict(outline,map,src,paths)
