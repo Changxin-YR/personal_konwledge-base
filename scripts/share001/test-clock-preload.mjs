@@ -20,13 +20,26 @@ globalThis.Date=new Proxy(RealDate,{
 // holds its final bytes; no code in this hook changes the request or its time.
 assert(process.env.KO_RUN&&isAbsolute(process.env.KO_RUN))
 const iterator=IncomingMessage.prototype.iterator
+const observedLabel=req=>{
+  const label=req.headers['x-kos-test-arrival'];return typeof label==='string'&&/^[a-f0-9]{32}$/.test(label)?label:undefined
+}
+const observe=(label,event)=>appendFileSync(join(process.env.KO_RUN,'invite-arrivals.jsonl'),JSON.stringify({label,event,at:current()})+'\n')
 IncomingMessage.prototype.iterator=function(options){
-  const stream=iterator.call(this,options),label=this.headers['x-kos-test-arrival']
-  if(this.method!=='POST'||this.url!=='/knowledge/v1/invitations/redeem'||typeof label!=='string'||!/^[a-f0-9]{32}$/.test(label))return stream
-  const observe=event=>appendFileSync(join(process.env.KO_RUN,'invite-arrivals.jsonl'),JSON.stringify({label,event,at:current()})+'\n')
+  const stream=iterator.call(this,options),label=observedLabel(this)
+  if(this.method!=='POST'||this.url!=='/knowledge/v1/invitations/redeem'||!label)return stream
   return (async function*(){
     let first=true
-    for await(const chunk of stream){if(first){observe('entered');first=false}yield chunk}
-    observe('completed')
+    for await(const chunk of stream){if(first){observe(label,'entered');first=false}yield chunk}
+    observe(label,'completed')
   })()
+}
+const add=IncomingMessage.prototype.on
+IncomingMessage.prototype.on=function(event,listener){
+  const label=this.method==='PATCH'&&/^\/knowledge\/v1\/objects\/[a-f0-9-]{36}$/.test(this.url)&&observedLabel(this)
+  if(!label||event!=='data'&&event!=='end')return add.call(this,event,listener)
+  let first=true
+  return add.call(this,event,function(...args){
+    if(first){observe(label,event==='data'?'entered':'completed');first=false}
+    return listener.apply(this,args)
+  })
 }

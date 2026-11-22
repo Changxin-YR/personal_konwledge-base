@@ -8,7 +8,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url'
 import {api,dbPath,entryCookie,sql} from '../fnd004/harness.mjs'
 import {isolate} from '../lib002/a07-isolated-host.mjs'
 import {candidateFacts} from '../integrated-case-proof.mjs'
-import {projectPolicy,redemptionRace,transactionFaults} from './host-policy-checks.mjs'
+import {projectPolicy,redemptionRace,straddlingEdit,transactionFaults} from './host-policy-checks.mjs'
 
 const [candidate,entry,parent='.cache/share001-smoke']=process.argv.slice(2)
 const root=fileURLToPath(new URL('../../',import.meta.url)),self='scripts/share001/host-smoke.mjs'
@@ -209,7 +209,10 @@ try{
   const pre=await http(near.ctx,resource,200),updated=await http(near.ctx,resource,200,'PATCH',{expected_revision:pre.revision,body:'Allowed before invitation cutoff'})
   const access=original.replace('/reader?unit=1','/reader-access'),boundary=await http(near.ctx,access,200)
   assert.equal(Date.parse(boundary.server_time),expires-1);assert.equal(Date.parse(boundary.read_expires_at),expires)
-  const nearRival=await login('rival');facts.races.push(await redemptionRace({h,http,db,users:[near,nearRival],i:unused,mode:'both-expired',at:expires-1}))
+  const nearRival=await login('rival');facts.straddling_edit={}
+  await straddlingEdit({h,db,actor:near,doc,revision:updated.revision,edge:expires,facts:facts.straddling_edit,advance:async()=>{
+    facts.races.push(await redemptionRace({h,http,db,users:[near,nearRival],i:unused,mode:'both-expired',at:expires-1}))
+  }})
   await http(near.ctx,'/me',200);await http(near.ctx,original,404)
   for(const a of [near,nearRival])assert.equal((await http(a.ctx,durationPath,200)).text,'Renewed group source')
   await checkProject(true)

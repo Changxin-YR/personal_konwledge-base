@@ -22,13 +22,13 @@ function snapshot(db,i){return [sql(db,'SELECT * FROM invitations WHERE id=?',[i
   sql(db,`SELECT e.*,o.created_at AS queued_at FROM domain_events e LEFT JOIN domain_event_outbox o USING(event_id)
           WHERE aggregate_type='invitation' AND aggregate_id=? ORDER BY aggregate_revision`,[i.id])]}
 
-async function stagedRedeem(h,a,i,key=randomUUID()){
-  const url=h.base+'/knowledge/v1/invitations/redeem',label=randomBytes(16).toString('hex'),cookies=await a.ctx.cookies(url)
+async function stagedRequest(h,a,path,method,data,key=randomUUID()){
+  const url=h.base+'/knowledge/v1'+path,label=randomBytes(16).toString('hex'),cookies=await a.ctx.cookies(url)
   assert.equal(cookies.filter(c=>/^kos_session_[a-f0-9]+$/.test(c.name)).length,1,'one scoped business cookie expected')
-  const body=JSON.stringify({actor_id:a.user,token:i.token})
+  const body=JSON.stringify(data)
   let req
   const outcome=new Promise((ok,no)=>{
-    req=request(url,{method:'POST',timeout:20000,headers:{
+    req=request(url,{method,timeout:20000,headers:{
       cookie:cookies.map(c=>c.name+'='+c.value).join('; '),'x-knowledgeos-request':'1','content-type':'application/json',
       'content-length':Buffer.byteLength(body),'idempotency-key':key,'x-kos-test-arrival':label}},res=>{
         const parts=[];res.on('data',c=>parts.push(c));res.on('error',no);res.on('end',()=>{
@@ -48,7 +48,7 @@ export async function redemptionRace({h,http,db,users,i,mode,at}){
   const pending=[]
   try{
     const key=randomUUID()
-    for(const user of users)pending.push(await stagedRedeem(h,user,i,sameUser?key:undefined))
+    for(const user of users)pending.push(await stagedRequest(h,user,'/invitations/redeem','POST',{actor_id:user.user,token:i.token},sameUser?key:undefined))
     const labels=pending.map(p=>p.label),trace=()=>h.invitationArrivals().filter(x=>labels.includes(x.label))
     const premature=p=>p.outcome.then(r=>assert.fail(`redemption returned ${r.status} before the barrier released it`))
     await Promise.race([until(()=>trace().length===2,'both redeem bodies entered the authenticated Host'),...pending.map(premature)])
@@ -77,6 +77,23 @@ export async function redemptionRace({h,http,db,users,i,mode,at}){
       ['completed',mode==='both-expired'?edge:at],['completed',mode==='both-expired'||mode==='split-cutoff'?edge:at]])
     return {mode,statuses,entered_offsets_ms:[at-edge,at-edge],body_completion_offsets_ms:trace().slice(2).map(x=>x.at-edge),successful_grants:grants.length}
   }finally{for(const p of pending)p.close()}
+}
+
+export async function straddlingEdit({h,db,actor,doc,revision,edge,advance,facts}){
+  const pending=await stagedRequest(h,actor,object(doc.id),'PATCH',{expected_revision:revision,body:'Write held across the share deadline'})
+  const trace=()=>h.invitationArrivals().filter(x=>x.label===pending.label).map(x=>[x.event,x.at])
+  const read=()=>sql(db,'SELECT body,revision,updated_at FROM knowledge_objects WHERE id=?',[doc.id])
+  const before=read()
+  try{
+    await Promise.race([until(()=>trace().length===1,'slow PATCH enters the authenticated Host'),
+      pending.outcome.then(r=>assert.fail(`PATCH returned ${r.status} before request body completion`))])
+    assert.deepEqual(trace(),[['entered',edge-1]])
+    await advance();pending.finish();const response=await pending.outcome
+    assert.deepEqual(trace(),[['entered',edge-1],['completed',edge]])
+    const after=read()
+    Object.assign(facts,{entered_offset_ms:-1,completed_offset_ms:0,http:response.status,before_revision:before[0].revision,after_revision:after[0].revision})
+    assert.equal(response.status,404);assert.deepEqual(after,before)
+  }finally{pending.close()}
 }
 
 export async function projectPolicy({http,upload,db,owner,first,rival,outsider,login}){
