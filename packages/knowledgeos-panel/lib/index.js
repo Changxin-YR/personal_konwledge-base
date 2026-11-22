@@ -1933,7 +1933,7 @@ var require_saxes = __commonJS({
 });
 
 // src/host/index.ts
-import { randomUUID as randomUUID25 } from "node:crypto";
+import { randomUUID as randomUUID26 } from "node:crypto";
 
 // src/host/status.ts
 var EXPECTED_UPSTREAM_COMMIT = "39163dd30f703a79079e2d2446545cff3c453738";
@@ -1963,6 +1963,7 @@ import { isAbsolute } from "node:path";
 import Schema from "@deepseek-ai/schemastery";
 var Config = Schema.object({
   dataDir: Schema.string(),
+  repositoryCredentials: Schema.array(Schema.object({ actorId: Schema.string().required(), repository: Schema.string().required(), alias: Schema.string().required(), credentialRef: Schema.string().required() })),
   ai: Schema.object({ provider: Schema.string(), model: Schema.string(), maxCalls: Schema.number().min(1), timeoutMs: Schema.number().min(20).max(6e4), budgetUsd: Schema.number().min(0), inputUsdPerMillion: Schema.number().min(0), outputUsdPerMillion: Schema.number().min(0) })
 });
 function resolveDataDir(config) {
@@ -2003,8 +2004,8 @@ function createProbeRecord(port, deps, input) {
     createdAt: deps.now()
   });
 }
-function getProbeRecord(port, id4) {
-  return port.getById(id4);
+function getProbeRecord(port, id5) {
+  return port.getById(id5);
 }
 
 // src/host/http.ts
@@ -2027,13 +2028,13 @@ var ApiError = class extends Error {
 };
 function sendJson(res, status, payload, extraHeaders = {}) {
   if (res.writableEnded || res.destroyed) return;
-  const body2 = JSON.stringify(payload);
+  const body3 = JSON.stringify(payload);
   res.statusCode = status;
   res.setHeader("content-type", "application/json; charset=utf-8");
   res.setHeader("cache-control", "no-store");
   res.setHeader("x-content-type-options", "nosniff");
   for (const [name2, value] of Object.entries(extraHeaders)) res.setHeader(name2, value);
-  res.end(body2);
+  res.end(body3);
 }
 function sendApiError(res, requestId, error) {
   sendJson(res, error.status, {
@@ -2111,10 +2112,10 @@ function requireIdempotencyKey(req) {
   }
   return raw;
 }
-function parseContent(body2) {
+function parseContent(body3) {
   let text2;
   try {
-    text2 = new TextDecoder("utf-8", { fatal: true }).decode(body2);
+    text2 = new TextDecoder("utf-8", { fatal: true }).decode(body3);
   } catch {
     throw new ApiError(400, "INVALID_JSON", "request body is not valid UTF-8");
   }
@@ -2156,8 +2157,8 @@ function createRecordsHandlers(service, basePath2, log) {
       }
       requireJsonMediaType(req);
       const key = requireIdempotencyKey(req);
-      const body2 = await readBody(req, MAX_REQUEST_BODY_BYTES);
-      const content = parseContent(body2);
+      const body3 = await readBody(req, MAX_REQUEST_BODY_BYTES);
+      const content = parseContent(body3);
       const result = service.create(key, content);
       if (result.kind === "conflict") {
         throw new ApiError(409, "IDEMPOTENCY_CONFLICT", "idempotency key was used with different content");
@@ -2191,11 +2192,11 @@ function createRecordsHandlers(service, basePath2, log) {
       if (!path2.startsWith(prefix2) || path2.slice(prefix2.length).includes("/")) {
         throw new ApiError(404, "NOT_FOUND", "record not found");
       }
-      const id4 = path2.slice(prefix2.length);
-      if (!UUID_PATTERN.test(id4)) {
+      const id5 = path2.slice(prefix2.length);
+      if (!UUID_PATTERN.test(id5)) {
         throw new ApiError(422, "INPUT_INVALID", "record id must be a canonical lowercase UUID");
       }
-      const record = service.get(id4);
+      const record = service.get(id5);
       if (record === void 0) throw new ApiError(404, "NOT_FOUND", "record not found");
       sendJson(res, 200, {
         data: record,
@@ -2221,7 +2222,7 @@ function createRecordsHandlers(service, basePath2, log) {
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash13, randomUUID as randomUUID15 } from "node:crypto";
+import { createHash as createHash14, randomUUID as randomUUID16 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -2255,30 +2256,30 @@ var JobStore = class {
     this.revision = revision;
     this.fault = fault;
   }
-  enqueue(actor2, object2, revision, key) {
+  enqueue(actor2, object3, revision, key) {
     return this.tx((db, now) => {
-      const current = this.revision(actor2.sessionId, actor2.userId, object2, now);
+      const current = this.revision(actor2.sessionId, actor2.userId, object3, now);
       if (current === void 0) throw new JobError(404, "NOT_FOUND");
       const prior = db.prepare("SELECT id,object_id,expected_revision FROM jobs WHERE user_id=? AND idempotency_key=?").get(actor2.userId, key);
       if (prior) {
-        if (prior.object_id !== object2 || prior.expected_revision !== revision) throw new JobError(409, "IDEMPOTENCY_CONFLICT");
+        if (prior.object_id !== object3 || prior.expected_revision !== revision) throw new JobError(409, "IDEMPOTENCY_CONFLICT");
         return String(prior.id);
       }
       if (current !== revision) throw new JobError(409, "REVISION_CONFLICT");
-      const id4 = randomUUID2();
-      db.prepare("INSERT INTO jobs(id,user_id,session_id,object_id,expected_revision,idempotency_key,state,available_at) VALUES(?,?,?,?,?,?,'queued',?)").run(id4, actor2.userId, actor2.sessionId, object2, revision, key, now);
-      return id4;
+      const id5 = randomUUID2();
+      db.prepare("INSERT INTO jobs(id,user_id,session_id,object_id,expected_revision,idempotency_key,state,available_at) VALUES(?,?,?,?,?,?,'queued',?)").run(id5, actor2.userId, actor2.sessionId, object3, revision, key, now);
+      return id5;
     });
   }
-  inspect(actor2, id4, cancel = false) {
+  inspect(actor2, id5, cancel = false) {
     return this.tx((db, now) => {
-      const row = db.prepare("SELECT * FROM jobs WHERE id=? AND user_id=?").get(id4, actor2.userId);
+      const row = db.prepare("SELECT * FROM jobs WHERE id=? AND user_id=?").get(id5, actor2.userId);
       if (!row || this.revision(actor2.sessionId, actor2.userId, row.object_id, now) === void 0) throw new JobError(404, "NOT_FOUND");
       if (cancel && ["succeeded", "failed"].includes(row.state)) throw new JobError(409, "JOB_TERMINAL");
       if (cancel && row.state !== "cancelled") this.end(db, row, "cancelled", "CANCELLED", now);
-      const summary = db.prepare("SELECT id,state,attempts,checkpoint,last_error,expected_revision FROM jobs WHERE id=?").get(id4);
-      const runs = db.prepare("SELECT attempt,start_checkpoint,started_at,ended_at,outcome FROM job_runs WHERE job_id=? ORDER BY attempt").all(id4);
-      const delivery = db.prepare("SELECT delivered_at,failures,retry_at,last_error FROM outbox WHERE job_id=?").get(id4);
+      const summary = db.prepare("SELECT id,state,attempts,checkpoint,last_error,expected_revision FROM jobs WHERE id=?").get(id5);
+      const runs = db.prepare("SELECT attempt,start_checkpoint,started_at,ended_at,outcome FROM job_runs WHERE job_id=? ORDER BY attempt").all(id5);
+      const delivery = db.prepare("SELECT delivered_at,failures,retry_at,last_error FROM outbox WHERE job_id=?").get(id5);
       return { ...summary, runs, delivery: delivery ?? null };
     });
   }
@@ -2444,8 +2445,8 @@ var AssetStore = class {
     if (!actor2) throw new AssetError(401, "AUTH_REQUIRED");
     return actor2;
   }
-  check(actor2, id4, action2, now) {
-    if (!this.allowed(actor2, id4, action2, now)) throw new AssetError(404, "ASSET_NOT_FOUND");
+  check(actor2, id5, action2, now) {
+    if (!this.allowed(actor2, id5, action2, now)) throw new AssetError(404, "ASSET_NOT_FOUND");
   }
   publish(prior, spec2, blob, format, onPublish) {
     const text2 = format && "blocks" in format ? format : void 0;
@@ -2460,30 +2461,30 @@ var AssetStore = class {
         onPublish?.(db, actor2, r);
         return { receipt: r, replayed: true };
       }
-      const id4 = spec2.assetId ?? randomUUID3(), vid = randomUUID3(), bid = randomUUID3();
+      const id5 = spec2.assetId ?? randomUUID3(), vid = randomUUID3(), bid = randomUUID3();
       let version = 1, parent = null;
       if (spec2.assetId) {
-        this.check(actor2, id4, "read", now);
-        this.check(actor2, id4, "edit", now);
-        const last = db.prepare("SELECT id,version FROM asset_versions WHERE asset_id=? ORDER BY version DESC LIMIT 1").get(id4);
+        this.check(actor2, id5, "read", now);
+        this.check(actor2, id5, "edit", now);
+        const last = db.prepare("SELECT id,version FROM asset_versions WHERE asset_id=? ORDER BY version DESC LIMIT 1").get(id5);
         if (!last) throw new AssetError(404, "ASSET_NOT_FOUND");
         if (last.version !== spec2.expectedVersion) throw new AssetError(409, "VERSION_CONFLICT");
         version = Number(last.version) + 1;
         parent = String(last.id);
-        db.prepare("UPDATE knowledge_objects SET revision=revision+1,updated_at=? WHERE id=?").run(now, id4);
+        db.prepare("UPDATE knowledge_objects SET revision=revision+1,updated_at=? WHERE id=?").run(now, id5);
         db.prepare("UPDATE office_conversions SET state='superseded',lease_token=NULL,lease_until=NULL,failure_code='SOURCE_CHANGED',updated_at=? WHERE version_id=? AND state IN ('queued','running')").run(now, parent);
       } else {
-        db.prepare(`INSERT INTO knowledge_objects (id,service_id,space_id,scope_kind,project_id,owner_user_id,object_type,title,body,status,revision,created_at,updated_at) VALUES (?,?,?,'personal',NULL,?,'asset',?,'','active',1,?,?)`).run(id4, actor2.serviceId, actor2.personalSpaceId, actor2.userId, spec2.title, now, now);
-        db.prepare("INSERT INTO assets VALUES (?)").run(id4);
+        db.prepare(`INSERT INTO knowledge_objects (id,service_id,space_id,scope_kind,project_id,owner_user_id,object_type,title,body,status,revision,created_at,updated_at) VALUES (?,?,?,'personal',NULL,?,'asset',?,'','active',1,?,?)`).run(id5, actor2.serviceId, actor2.personalSpaceId, actor2.userId, spec2.title, now, now);
+        db.prepare("INSERT INTO assets VALUES (?)").run(id5);
       }
       db.prepare("INSERT INTO blobs VALUES (?,?,?,?,?)").run(bid, blob.key, blob.sha256, blob.byteLength, format?.media ?? "application/pdf");
-      db.prepare("INSERT INTO asset_versions VALUES (?,?,?,?,?,?,?,?,?,?)").run(vid, id4, version, parent, bid, spec2.title, actor2.userId, now, spec2.key, digest4);
+      db.prepare("INSERT INTO asset_versions VALUES (?,?,?,?,?,?,?,?,?,?)").run(vid, id5, version, parent, bid, spec2.title, actor2.userId, now, spec2.key, digest4);
       if (text2) {
         db.prepare("INSERT INTO text_versions VALUES(?,?,?)").run(vid, text2.encoding, text2.blocks.length);
         const insert = db.prepare("INSERT INTO text_blocks VALUES(?,?,?,?,?,?,?)");
         text2.blocks.forEach((b, i) => insert.run(vid, i + 1, b.kind, b.start, b.end, b.text, b.anchor));
       }
-      const published = { id: id4, title: spec2.title, version_id: vid, version, sha256: blob.sha256, byte_length: blob.byteLength, ...format ? { media_type: format.media } : {} };
+      const published = { id: id5, title: spec2.title, version_id: vid, version, sha256: blob.sha256, byte_length: blob.byteLength, ...format ? { media_type: format.media } : {} };
       onPublish?.(db, actor2, published);
       return { receipt: published, replayed: false };
     });
@@ -2499,22 +2500,22 @@ var AssetStore = class {
       ORDER BY v.created_at DESC,v.version DESC,v.id`).all(actor2.serviceId, actor2.userId, actor2.userId, now).filter((v) => this.allowed(actor2, String(v.id), "read", now)).map(receipt);
     });
   }
-  original(prior, id4, versionId, download) {
+  original(prior, id5, versionId, download) {
     return this.tx("read", (db, now) => {
       const actor2 = this.actor(prior, now);
-      this.check(actor2, id4, "read", now);
-      if (download) this.check(actor2, id4, "export", now);
-      const r = db.prepare("SELECT b.storage_key,b.sha256,b.byte_length,b.media_type,t.encoding FROM asset_versions v JOIN blobs b ON b.id=v.blob_id LEFT JOIN text_versions t ON t.version_id=v.id WHERE v.asset_id=? AND v.id=?").get(id4, versionId);
+      this.check(actor2, id5, "read", now);
+      if (download) this.check(actor2, id5, "export", now);
+      const r = db.prepare("SELECT b.storage_key,b.sha256,b.byte_length,b.media_type,t.encoding FROM asset_versions v JOIN blobs b ON b.id=v.blob_id LEFT JOIN text_versions t ON t.version_id=v.id WHERE v.asset_id=? AND v.id=?").get(id5, versionId);
       if (!r) throw new AssetError(404, "ASSET_NOT_FOUND");
       return { key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length), ...r.media_type === "application/pdf" ? {} : { media: String(r.media_type) }, ...typeof r.encoding === "string" ? { encoding: r.encoding } : {} };
     });
   }
-  blocks(prior, id4, v, from, limit4) {
+  blocks(prior, id5, v, from, limit4) {
     return this.tx("read", (db, now) => {
       const actor2 = this.actor(prior, now);
-      this.check(actor2, id4, "read", now);
+      this.check(actor2, id5, "read", now);
       if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit4) || limit4 < 1 || limit4 > 10) throw new AssetError(422, "INVALID_BLOCK_RANGE");
-      const meta = db.prepare("SELECT encoding,block_count AS total FROM text_versions t JOIN asset_versions a ON a.id=t.version_id WHERE a.asset_id=? AND a.id=?").get(id4, v);
+      const meta = db.prepare("SELECT encoding,block_count AS total FROM text_versions t JOIN asset_versions a ON a.id=t.version_id WHERE a.asset_id=? AND a.id=?").get(id5, v);
       if (!meta) throw new AssetError(404, "ASSET_NOT_FOUND");
       return { version_id: v, ...meta, blocks: db.prepare("SELECT ordinal,kind,start,end,text,anchor FROM text_blocks WHERE version_id=? AND ordinal>=? ORDER BY ordinal LIMIT ?").all(v, from, limit4) };
     });
@@ -2638,7 +2639,7 @@ var SearchStore = class {
     }
     const candidates = this.tx("read", (db, now) => {
       const a = this.actor(prior, now);
-      const ids = db.prepare(`SELECT a.id FROM assets a JOIN knowledge_objects o ON a.id=o.id WHERE o.service_id=? AND o.status='active'`).all(a.serviceId).map((r) => String(r.id)).filter((id4) => this.allowed(a, id4, now));
+      const ids = db.prepare(`SELECT a.id FROM assets a JOIN knowledge_objects o ON a.id=o.id WHERE o.service_id=? AND o.status='active'`).all(a.serviceId).map((r) => String(r.id)).filter((id5) => this.allowed(a, id5, now));
       const bound = JSON.stringify(ids), results = [];
       let work = 0, sources2 = 0;
       for (const row of db.prepare(sourceSQL).iterate(bound, bound, bound)) {
@@ -2824,8 +2825,8 @@ var ZipStore = class {
     if (!a) throw new AssetError(401, "AUTH_REQUIRED");
     return a;
   }
-  owned(db, a, id4) {
-    const row = db.prepare("SELECT id,title,storage_key,sha256,byte_length FROM zip_imports WHERE id=? AND owner_id=?").get(id4, a.userId);
+  owned(db, a, id5) {
+    const row = db.prepare("SELECT id,title,storage_key,sha256,byte_length FROM zip_imports WHERE id=? AND owner_id=?").get(id5, a.userId);
     if (!row) throw notFound();
     return row;
   }
@@ -2836,68 +2837,68 @@ var ZipStore = class {
         if (old.sha256 !== blob.sha256 || old.byte_length !== blob.byteLength || old.title !== spec2.title) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
         return { id: String(old.id), replayed: true };
       }
-      const id4 = randomUUID6();
-      db.prepare("INSERT INTO zip_imports VALUES(?,?,?,?,?,?,?,?)").run(id4, a.userId, spec2.key, spec2.title, blob.key, blob.sha256, blob.byteLength, now);
+      const id5 = randomUUID6();
+      db.prepare("INSERT INTO zip_imports VALUES(?,?,?,?,?,?,?,?)").run(id5, a.userId, spec2.key, spec2.title, blob.key, blob.sha256, blob.byteLength, now);
       const insert = db.prepare(`INSERT INTO zip_entries(id,import_id,ordinal,name,path,byte_length,compressed_size,media_type,reason,state,publish_key) VALUES(?,?,?,?,?,?,?,?,?,'available',?)`);
-      for (const m of members) insert.run(randomUUID6(), id4, m.ordinal, m.name, m.path, m.size, m.compressedSize, m.media, m.reason, randomUUID6());
-      return { id: id4, replayed: false };
+      for (const m of members) insert.run(randomUUID6(), id5, m.ordinal, m.name, m.path, m.size, m.compressedSize, m.media, m.reason, randomUUID6());
+      return { id: id5, replayed: false };
     });
   }
   list(prior) {
     return this.tx("read", (db, now) => db.prepare("SELECT id,title,byte_length,sha256,created_at FROM zip_imports WHERE owner_id=? ORDER BY created_at DESC,id").all(this.actor(prior, now).userId));
   }
-  source(prior, id4) {
+  source(prior, id5) {
     return this.tx("read", (db, now) => {
-      const r = this.owned(db, this.actor(prior, now), id4);
+      const r = this.owned(db, this.actor(prior, now), id5);
       return { key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length) };
     });
   }
-  manifest(prior, id4) {
+  manifest(prior, id5) {
     return this.tx("read", (db, now) => {
-      const a = this.actor(prior, now), r = this.owned(db, a, id4);
+      const a = this.actor(prior, now), r = this.owned(db, a, id5);
       const rows = db.prepare(`SELECT e.id,e.name,e.path,e.byte_length AS size,e.compressed_size,e.media_type,e.reason,e.state,e.error,
       v.asset_id,v.id AS version_id,v.version,v.original_name,b.sha256,b.byte_length FROM zip_entries e
-      LEFT JOIN asset_versions v ON v.id=e.version_id LEFT JOIN blobs b ON b.id=v.blob_id WHERE e.import_id=? ORDER BY e.ordinal`).all(id4);
+      LEFT JOIN asset_versions v ON v.id=e.version_id LEFT JOIN blobs b ON b.id=v.blob_id WHERE e.import_id=? ORDER BY e.ordinal`).all(id5);
       const entries = rows.map(({ asset_id, version_id, version, original_name, sha256, byte_length, ...e }) => {
         const receipt3 = asset_id && this.readable(a, String(asset_id), now) ? { id: asset_id, version_id, version, title: original_name, sha256, byte_length, media_type: e.media_type } : void 0;
         return { ...e, ...receipt3 ? { receipt: receipt3 } : {} };
       });
       const state = rows.some((x) => x.state === "selected") ? "selected" : rows.some((x) => x.state === "failed") ? "partial" : rows.some((x) => x.state === "imported") ? "imported" : "staged";
-      return { id: id4, title: r.title, byte_length: r.byte_length, sha256: r.sha256, state, entries };
+      return { id: id5, title: r.title, byte_length: r.byte_length, sha256: r.sha256, state, entries };
     });
   }
-  select(prior, id4, key, ids) {
+  select(prior, id5, key, ids) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now);
-      this.owned(db, a, id4);
+      this.owned(db, a, id5);
       if (!uuid.test(key) || !Array.isArray(ids) || !ids.length || ids.length > 512 || ids.some((x) => typeof x !== "string" || !uuid.test(x)) || new Set(ids).size !== ids.length) throw new AssetError(422, "INVALID_SELECTION");
       const canonical = JSON.stringify([...ids].sort()), digest4 = createHash4("sha256").update(canonical).digest("hex");
       const seen = db.prepare("SELECT import_id,selection_digest FROM zip_selections WHERE owner_id=? AND request_key=?").get(a.userId, key);
-      if (seen && (seen.import_id !== id4 || seen.selection_digest !== digest4)) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+      if (seen && (seen.import_id !== id5 || seen.selection_digest !== digest4)) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
       const get = db.prepare("SELECT id,ordinal,path,media_type,reason,state,publish_key FROM zip_entries WHERE import_id=? AND id=?");
       const members = ids.map((entry) => {
-        const r = get.get(id4, entry);
+        const r = get.get(id5, entry);
         if (!r || r.reason !== null || !r.media_type) throw new AssetError(422, "INVALID_SELECTION");
         return { id: entry, ordinal: Number(r.ordinal), path: String(r.path), media: String(r.media_type), key: String(r.publish_key), imported: r.state === "imported" };
       });
-      if (!seen) db.prepare("INSERT INTO zip_selections VALUES(?,?,?,?,?,?,?)").run(randomUUID6(), id4, a.userId, key, digest4, canonical, now);
+      if (!seen) db.prepare("INSERT INTO zip_selections VALUES(?,?,?,?,?,?,?)").run(randomUUID6(), id5, a.userId, key, digest4, canonical, now);
       const mark = db.prepare("UPDATE zip_entries SET state='selected',error=NULL WHERE import_id=? AND id=? AND state IN ('available','failed')");
-      for (const entry of ids) mark.run(id4, entry);
+      for (const entry of ids) mark.run(id5, entry);
       return members.sort((a2, b) => a2.ordinal - b.ordinal);
     });
   }
-  failure(prior, id4, entry, code) {
+  failure(prior, id5, entry, code) {
     this.tx("write", (db, now) => {
-      this.owned(db, this.actor(prior, now), id4);
-      db.prepare("UPDATE zip_entries SET state='failed',error=? WHERE import_id=? AND id=? AND state='selected'").run(code, id4, entry);
+      this.owned(db, this.actor(prior, now), id5);
+      db.prepare("UPDATE zip_entries SET state='failed',error=? WHERE import_id=? AND id=? AND state='selected'").run(code, id5, entry);
     });
   }
   // Called inside AssetStore.publish's transaction; never open a nested transaction.
-  publication(id4, entry, key) {
+  publication(id5, entry, key) {
     return (db, a, r) => {
-      this.owned(db, a, id4);
+      this.owned(db, a, id5);
       const updated = db.prepare(`UPDATE zip_entries SET state='imported',version_id=?,error=NULL WHERE import_id=? AND id=? AND publish_key=?
-      AND (state='selected' OR (state='imported' AND version_id=?))`).run(r.version_id, id4, entry, key, r.version_id);
+      AND (state='selected' OR (state='imported' AND version_id=?))`).run(r.version_id, id5, entry, key, r.version_id);
       if (updated.changes !== 1) throw new AssetError(409, "SELECTION_CHANGED");
     };
   }
@@ -2952,25 +2953,25 @@ var ParseStore = class {
     this.permit = permit;
   }
   operation(actor2, v) {
-    const id4 = this.tx("read", (db, now) => {
+    const id5 = this.tx("read", (db, now) => {
       const r = db.prepare("SELECT v.asset_id FROM pdf_parse_runs r JOIN asset_versions v ON v.id=r.version_id WHERE r.version_id=?").get(v);
       if (!r || !this.permit(actor2.sessionId, actor2.userId, String(r.asset_id), false, now)) throw new AssetError(404, "ASSET_NOT_FOUND");
       return String(r.asset_id);
     });
-    return this.control(actor2, id4, v, "status");
+    return this.control(actor2, id5, v, "status");
   }
-  pages(actor2, id4, v, from, limit4) {
+  pages(actor2, id5, v, from, limit4) {
     if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit4) || limit4 < 1 || limit4 > 10) throw new AssetError(422, "INVALID_PAGE_RANGE");
     return this.tx("read", (db, now) => {
-      if (!this.permit(actor2.sessionId, actor2.userId, id4, false, now) || !this.pdfVersion(db, id4, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
+      if (!this.permit(actor2.sessionId, actor2.userId, id5, false, now) || !this.pdfVersion(db, id5, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
       const rows = db.prepare(`SELECT page,state,chapter,error,CASE WHEN state IN ('ready','review') THEN text ELSE NULL END AS text
         FROM pdf_pages WHERE version_id=? AND page>=? ORDER BY page LIMIT ?`).all(v, from, limit4);
       return { version_id: v, from, pages: rows };
     });
   }
-  control(actor2, id4, v, op, page, requested) {
+  control(actor2, id5, v, op, page, requested) {
     return this.tx(op === "status" ? "read" : "write", (db, now) => {
-      if (!this.permit(actor2.sessionId, actor2.userId, id4, op !== "status", now) || !this.pdfVersion(db, id4, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
+      if (!this.permit(actor2.sessionId, actor2.userId, id5, op !== "status", now) || !this.pdfVersion(db, id5, v)) throw new AssetError(404, "ASSET_NOT_FOUND");
       const prev = db.prepare("SELECT state,error,total FROM pdf_parse_runs WHERE version_id=?").get(v);
       const loadChapters = () => db.prepare("SELECT first_page,last_page FROM pdf_chapter_ranges WHERE version_id=? ORDER BY first_page").all(v).map((p) => [Number(p.first_page), Number(p.last_page)]);
       const plan = loadChapters();
@@ -3015,8 +3016,8 @@ var ParseStore = class {
       };
     });
   }
-  pdfVersion(db, id4, v) {
-    return db.prepare("SELECT 1 FROM asset_versions a JOIN blobs b ON b.id=a.blob_id WHERE a.asset_id=? AND a.id=? AND b.media_type='application/pdf'").get(id4, v);
+  pdfVersion(db, id5, v) {
+    return db.prepare("SELECT 1 FROM asset_versions a JOIN blobs b ON b.id=a.blob_id WHERE a.asset_id=? AND a.id=? AND b.media_type='application/pdf'").get(id5, v);
   }
   claim() {
     if (!this.tx("read", (db, now) => db.prepare("SELECT 1 FROM pdf_parse_runs WHERE state='queued' OR (state='running' AND deadline<=?) LIMIT 1").get(Date.parse(now)))) return;
@@ -3174,15 +3175,15 @@ var OfficeStore = class {
   sourceRow(db, v) {
     return db.prepare(sourceSQL2).get(v, WORD_MEDIA.doc, WORD_MEDIA.docx);
   }
-  access(db, now, a, id4, v, action2) {
-    if (!this.permit(a.sessionId, a.userId, id4, "read", now) || action2 !== "read" && !this.permit(a.sessionId, a.userId, id4, action2, now)) throw missing();
+  access(db, now, a, id5, v, action2) {
+    if (!this.permit(a.sessionId, a.userId, id5, "read", now) || action2 !== "read" && !this.permit(a.sessionId, a.userId, id5, action2, now)) throw missing();
     const row = this.sourceRow(db, v);
-    if (!row || row.asset_id !== id4) throw missing();
+    if (!row || row.asset_id !== id5) throw missing();
     return row;
   }
-  list(a, id4, v, options = {}) {
+  list(a, id5, v, options = {}) {
     return this.tx("read", (db, now) => {
-      this.access(db, now, a, id4, v, "read");
+      this.access(db, now, a, id5, v, "read");
       const { before, conversion, notes_before } = options;
       if (Object.keys(options).some((k) => !["before", "conversion", "notes_before"].includes(k)) || [before, conversion, notes_before].some((x) => x !== void 0 && (typeof x !== "string" || x.length !== 36 || !keyPattern.test(x))) || before && conversion || notes_before && !conversion) throw new AssetError(422, "INVALID_HISTORY_CURSOR");
       const seek = (sql, cursor, parent) => {
@@ -3222,9 +3223,9 @@ var OfficeStore = class {
       };
     });
   }
-  start(a, id4, v, key, available2 = true) {
+  start(a, id5, v, key, available2 = true) {
     return this.tx("write", (db, now) => {
-      const row = this.access(db, now, a, id4, v, "edit");
+      const row = this.access(db, now, a, id5, v, "edit");
       checkKey(key);
       const prev = db.prepare("SELECT id,version_id,state FROM office_conversions WHERE actor_id=? AND request_key=?").get(a.userId, key);
       if (prev) {
@@ -3240,9 +3241,9 @@ var OfficeStore = class {
       return { id: cid, state: "queued", replayed: false };
     });
   }
-  cancel(a, id4, v, cid) {
+  cancel(a, id5, v, cid) {
     return this.tx("write", (db, now) => {
-      this.access(db, now, a, id4, v, "edit");
+      this.access(db, now, a, id5, v, "edit");
       const row = db.prepare("SELECT state FROM office_conversions WHERE id=? AND version_id=?").get(cid, v);
       if (!row) throw missing();
       if (row.state !== "cancelled") {
@@ -3252,28 +3253,28 @@ var OfficeStore = class {
       return { id: cid, state: "cancelled" };
     });
   }
-  result(a, id4, v, cid, download) {
+  result(a, id5, v, cid, download) {
     return this.tx("read", (db, now) => {
-      this.access(db, now, a, id4, v, download ? "export" : "read");
+      this.access(db, now, a, id5, v, download ? "export" : "read");
       const row = db.prepare("SELECT b.storage_key,b.byte_length,b.sha256 FROM office_conversions c JOIN blobs b ON b.id=c.result_blob_id WHERE c.id=? AND c.version_id=? AND c.state='ready' AND b.media_type='application/pdf'").get(cid, v);
       if (!row) throw missing();
       return { key: String(row.storage_key), byteLength: Number(row.byte_length), sha256: String(row.sha256) };
     });
   }
-  note(a, id4, v, cid, key, page, body2) {
+  note(a, id5, v, cid, key, page, body3) {
     return this.tx("write", (db, now) => {
-      this.access(db, now, a, id4, v, "edit");
+      this.access(db, now, a, id5, v, "edit");
       checkKey(key);
       const row = db.prepare("SELECT page_count FROM office_conversions WHERE id=? AND version_id=? AND state='ready'").get(cid, v);
       if (!row) throw missing();
-      if (!Number.isSafeInteger(page) || page < 1 || page > Number(row.page_count) || typeof body2 !== "string" || !body2.trim() || body2.length > 2e3 || body2.includes("\0")) throw new AssetError(422, "INVALID_QUALITY_NOTE");
+      if (!Number.isSafeInteger(page) || page < 1 || page > Number(row.page_count) || typeof body3 !== "string" || !body3.trim() || body3.length > 2e3 || body3.includes("\0")) throw new AssetError(422, "INVALID_QUALITY_NOTE");
       const prev = db.prepare("SELECT id,conversion_id,page,body FROM office_quality_notes WHERE author_id=? AND request_key=?").get(a.userId, key);
       if (prev) {
-        if (prev.conversion_id !== cid || prev.page !== page || prev.body !== body2) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        if (prev.conversion_id !== cid || prev.page !== page || prev.body !== body3) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
         return { id: String(prev.id), replayed: true };
       }
       const note = randomUUID8();
-      db.prepare("INSERT INTO office_quality_notes VALUES(?,?,?,?,?,?,?)").run(note, cid, a.userId, page, body2, now, key);
+      db.prepare("INSERT INTO office_quality_notes VALUES(?,?,?,?,?,?,?)").run(note, cid, a.userId, page, body3, now, key);
       return { id: note, replayed: false };
     });
   }
@@ -3424,9 +3425,9 @@ function savePosition(db, user, version, p, expected) {
 }
 function createBookmark(db, user, version, p, title) {
   if (Number(db.prepare("SELECT count(*) AS n FROM reading_bookmarks WHERE user_id=? AND version_id=?").get(user, version)?.n) >= 200) throw new AssetError(409, "BOOKMARK_LIMIT");
-  const id4 = randomUUID9();
-  db.prepare("INSERT INTO reading_bookmarks(id,user_id,version_id,ordinal,conversion_id,source_hash,title) VALUES(?,?,?,?,?,?,?)").run(id4, user, version, p.ordinal, p.conversion_id ?? null, p.source_hash, title);
-  return { id: id4, title, ordinal: p.ordinal, source_hash: p.source_hash, ...p.conversion_id ? { conversion_id: p.conversion_id } : {} };
+  const id5 = randomUUID9();
+  db.prepare("INSERT INTO reading_bookmarks(id,user_id,version_id,ordinal,conversion_id,source_hash,title) VALUES(?,?,?,?,?,?,?)").run(id5, user, version, p.ordinal, p.conversion_id ?? null, p.source_hash, title);
+  return { id: id5, title, ordinal: p.ordinal, source_hash: p.source_hash, ...p.conversion_id ? { conversion_id: p.conversion_id } : {} };
 }
 
 // src/host/annotation-store.ts
@@ -3467,20 +3468,20 @@ function insertAnnotation(db, t, user, scope, draft, citation) {
   if (draft.visibility === "project" && !project) throw new AssetError(422, "ANNOTATION_SCOPE_UNAVAILABLE");
   const count = db.prepare(`${records.replace(/^SELECT[\s\S]*?FROM/, "SELECT count(*) AS n FROM")} WHERE ${inSource} AND a.project_id IS ?${project ? "" : " AND a.author_id=?"}`).get(...args(t), project ?? null, ...project ? [] : [user]);
   if (Number(count?.n) >= 200) throw new AssetError(409, "ANNOTATION_LIMIT");
-  const id4 = randomUUID10();
-  db.prepare("INSERT INTO reader_annotations VALUES(?,?,?,?,?,1)").run(id4, draft.citation_id, user, project ?? null, draft.body);
-  return dto({ ...citation, id: id4, citation_id: draft.citation_id, author_id: user, project_id: project ?? null, body: draft.body, revision: 1 }, user, scope);
+  const id5 = randomUUID10();
+  db.prepare("INSERT INTO reader_annotations VALUES(?,?,?,?,?,1)").run(id5, draft.citation_id, user, project ?? null, draft.body);
+  return dto({ ...citation, id: id5, citation_id: draft.citation_id, author_id: user, project_id: project ?? null, body: draft.body, revision: 1 }, user, scope);
 }
-function mutateAnnotation(db, t, user, scope, id4, revision, body2) {
-  const row = db.prepare(`${records} WHERE ${inSource} AND a.id=? AND a.author_id=?`).get(...args(t), id4, user);
+function mutateAnnotation(db, t, user, scope, id5, revision, body3) {
+  const row = db.prepare(`${records} WHERE ${inSource} AND a.id=? AND a.author_id=?`).get(...args(t), id5, user);
   if (!row || !visibleAnnotation(row, user, scope)) throw hidden();
   if (row.revision !== revision) throw new AssetError(409, "ANNOTATION_REVISION_CONFLICT");
-  if (body2 === void 0) {
-    db.prepare("DELETE FROM reader_annotations WHERE id=?").run(id4);
-    return { id: id4 };
+  if (body3 === void 0) {
+    db.prepare("DELETE FROM reader_annotations WHERE id=?").run(id5);
+    return { id: id5 };
   }
-  db.prepare("UPDATE reader_annotations SET body=?,revision=? WHERE id=?").run(body2, revision + 1, id4);
-  return dto({ ...row, body: body2, revision: revision + 1 }, user, scope);
+  db.prepare("UPDATE reader_annotations SET body=?,revision=? WHERE id=?").run(body3, revision + 1, id5);
+  return dto({ ...row, body: body3, revision: revision + 1 }, user, scope);
 }
 
 // src/host/citation-store.ts
@@ -3624,13 +3625,13 @@ var CitationStore = class {
       return createBookmark(db, a.userId, t.version_id, t, title);
     });
   }
-  deleteBookmark(prior, t, id4, expectedActor) {
+  deleteBookmark(prior, t, id5, expectedActor) {
     return this.tx("write", (db, now) => {
       const a = this.writer(prior, expectedActor, now);
       this.read(db, a, t, now);
-      const del = db.prepare("DELETE FROM reading_bookmarks WHERE id=? AND user_id=? AND version_id=?").run(id4, a.userId, t.version_id);
+      const del = db.prepare("DELETE FROM reading_bookmarks WHERE id=? AND user_id=? AND version_id=?").run(id5, a.userId, t.version_id);
       if (del.changes !== 1) throw notFound2();
-      return { id: id4 };
+      return { id: id5 };
     });
   }
   annotatable(db, a, t, now, write = false) {
@@ -3653,16 +3654,16 @@ var CitationStore = class {
       return insertAnnotation(db, src, a.userId, scope, draft, dto2(row));
     });
   }
-  updateAnnotation(prior, t, id4, revision, body2, expectedActor) {
+  updateAnnotation(prior, t, id5, revision, body3, expectedActor) {
     return this.tx("write", (db, now) => {
       const a = this.writer(prior, expectedActor, now), { src, scope } = this.annotatable(db, a, t, now, true);
-      return mutateAnnotation(db, src, a.userId, scope, id4, revision, body2);
+      return mutateAnnotation(db, src, a.userId, scope, id5, revision, body3);
     });
   }
-  deleteAnnotation(prior, t, id4, revision, expectedActor) {
+  deleteAnnotation(prior, t, id5, revision, expectedActor) {
     return this.tx("write", (db, now) => {
       const a = this.writer(prior, expectedActor, now), { src, scope } = this.annotatable(db, a, t, now, true);
-      return mutateAnnotation(db, src, a.userId, scope, id4, revision);
+      return mutateAnnotation(db, src, a.userId, scope, id5, revision);
     });
   }
   access(prior, asset, version) {
@@ -3681,8 +3682,8 @@ var CitationStore = class {
     if (!w || w.conversion_id !== s.conversion_id || w.sha256 !== s.ref?.sha256 || w.ordinal !== s.ordinal) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
     return w.text;
   }
-  locator(db, id4) {
-    const r = db.prepare("SELECT snapshot FROM citation_locators WHERE citation_id=?").get(id4);
+  locator(db, id5) {
+    const r = db.prepare("SELECT snapshot FROM citation_locators WHERE citation_id=?").get(id5);
     return r ? JSON.parse(String(r.snapshot)) : null;
   }
   receipt(db, a, now, spec2, key, range) {
@@ -3715,24 +3716,24 @@ var CitationStore = class {
         return r ? String(r.anchor) : null;
       };
       const locator = makeLocator(src, text2, spec2.start, spec2.end, { previous: neighbor(src.ordinal - 1), next: neighbor(src.ordinal + 1) }, w);
-      const id4 = randomUUID11();
-      db.prepare("INSERT INTO citations VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run(id4, a.userId, key, spec2.asset_id, spec2.version_id, spec2.conversion_id ?? null, spec2.ordinal, range.start, range.end, range.source_hash, range.quote_hash, now);
-      db.prepare("INSERT INTO citation_locators(citation_id,snapshot) VALUES(?,?)").run(id4, JSON.stringify(locator));
-      return { data: { ...spec2, ...range, id: id4, locator }, replayed: false };
+      const id5 = randomUUID11();
+      db.prepare("INSERT INTO citations VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run(id5, a.userId, key, spec2.asset_id, spec2.version_id, spec2.conversion_id ?? null, spec2.ordinal, range.start, range.end, range.source_hash, range.quote_hash, now);
+      db.prepare("INSERT INTO citation_locators(citation_id,snapshot) VALUES(?,?)").run(id5, JSON.stringify(locator));
+      return { data: { ...spec2, ...range, id: id5, locator }, replayed: false };
     });
   }
-  lookup(db, a, id4, now) {
-    const r = db.prepare(`SELECT ${fields} FROM citations WHERE id=?`).get(id4);
+  lookup(db, a, id5, now) {
+    const r = db.prepare(`SELECT ${fields} FROM citations WHERE id=?`).get(id5);
     if (!r || !this.allowed(a, String(r.asset_id), now)) throw notFound2();
     return dto2(r);
   }
-  target(prior, id4) {
-    return this.tx("read", (db, now) => this.lookup(db, this.actor(prior, now), id4, now));
+  target(prior, id5) {
+    return this.tx("read", (db, now) => this.lookup(db, this.actor(prior, now), id5, now));
   }
-  resolve(prior, id4, w) {
+  resolve(prior, id5, w) {
     return this.tx("read", (db, now) => {
-      const a = this.actor(prior, now), r = this.lookup(db, a, id4, now), source = this.read(db, a, r, now);
-      return { ...r, quote: resolveCitationText(this.text(source, w), r), locator: this.locator(db, id4) };
+      const a = this.actor(prior, now), r = this.lookup(db, a, id5, now), source = this.read(db, a, r, now);
+      return { ...r, quote: resolveCitationText(this.text(source, w), r), locator: this.locator(db, id5) };
     });
   }
 };
@@ -3769,11 +3770,11 @@ var Outline = class {
     }
     for (const list of this.byParent.values()) list.sort((a, b) => a.order_key - b.order_key);
   }
-  children(id4) {
-    return this.byParent.get(id4) ?? [];
+  children(id5) {
+    return this.byParent.get(id5) ?? [];
   }
-  descendants(id4) {
-    const out = [], stack = [...this.children(id4)].reverse(), seen = /* @__PURE__ */ new Set([id4]);
+  descendants(id5) {
+    const out = [], stack = [...this.children(id5)].reverse(), seen = /* @__PURE__ */ new Set([id5]);
     while (stack.length) {
       const n = stack.pop();
       if (seen.has(n.id)) throw new Error("Outline has a cycle");
@@ -3786,20 +3787,20 @@ var Outline = class {
   slots(parent, nodes) {
     return nodes.flatMap((n, order_key) => n.parent_id === parent && n.order_key === order_key ? [] : [{ id: n.id, parent_id: parent, order_key, archived: false }]);
   }
-  move(id4, parent, index) {
-    const n = this.byId.get(id4), target3 = this.byId.get(parent);
-    if (!n?.parent_id || !target3 || id4 === parent || this.descendants(id4).some((x) => x.id === parent)) return;
-    const destination = this.children(parent).filter((x) => x.id !== id4);
+  move(id5, parent, index) {
+    const n = this.byId.get(id5), target3 = this.byId.get(parent);
+    if (!n?.parent_id || !target3 || id5 === parent || this.descendants(id5).some((x) => x.id === parent)) return;
+    const destination = this.children(parent).filter((x) => x.id !== id5);
     if (!Number.isSafeInteger(index) || index < 0 || index > destination.length) return;
     destination.splice(index, 0, n);
-    const source = n.parent_id === parent ? [] : this.slots(n.parent_id, this.children(n.parent_id).filter((x) => x.id !== id4));
+    const source = n.parent_id === parent ? [] : this.slots(n.parent_id, this.children(n.parent_id).filter((x) => x.id !== id5));
     return [...this.slots(parent, destination), ...source];
   }
-  remove(id4, mode) {
-    const n = this.byId.get(id4);
+  remove(id5, mode) {
+    const n = this.byId.get(id5);
     if (!n?.parent_id) return;
-    const kept = this.children(n.parent_id).flatMap((x) => x.id === id4 ? mode === "promote" ? this.children(id4) : [] : [x]);
-    const removed = mode === "subtree" ? [n, ...this.descendants(id4)] : [n];
+    const kept = this.children(n.parent_id).flatMap((x) => x.id === id5 ? mode === "promote" ? this.children(id5) : [] : [x]);
+    const removed = mode === "subtree" ? [n, ...this.descendants(id5)] : [n];
     return [...this.slots(n.parent_id, kept), ...removed.map((x) => ({ id: x.id, parent_id: x.parent_id, order_key: x.order_key, archived: true }))];
   }
 };
@@ -3860,87 +3861,87 @@ var NoteStore = class {
     if (expected !== void 0 && actor2.userId !== expected) throw new AssetError(409, "ACTOR_CHANGED");
     return actor2;
   }
-  owned(db, a, id4) {
-    const row = db.prepare(`SELECT ${rowFields} FROM notes WHERE id=? AND service_id=? AND owner_user_id=?`).get(id4, a.serviceId, a.userId);
+  owned(db, a, id5) {
+    const row = db.prepare(`SELECT ${rowFields} FROM notes WHERE id=? AND service_id=? AND owner_user_id=?`).get(id5, a.serviceId, a.userId);
     if (!row) throw notFound3();
     return row;
   }
-  detail(db, a, id4, now) {
-    const meta = this.owned(db, a, id4);
-    const root = db.prepare("SELECT id,body FROM note_nodes WHERE note_id=? AND parent_id IS NULL").get(id4);
+  detail(db, a, id5, now) {
+    const meta = this.owned(db, a, id5);
+    const root = db.prepare("SELECT id,body FROM note_nodes WHERE note_id=? AND parent_id IS NULL").get(id5);
     if (!root) throw Error("Note root is missing");
     const refs = db.prepare(`SELECT r.id,r.citation_id,c.asset_id,c.version_id FROM note_references r JOIN citations c ON c.id=r.citation_id
       WHERE r.node_id=? ORDER BY r.rowid`).all(root.id);
-    return { ...meta, body: String(root.body), outline: { nodes: this.nodes(db, id4), can_undo: !!this.undoRow(db, id4, meta.revision) }, layout: this.layout(db, id4), references: refs.map((r) => this.canReadAsset(a, String(r.asset_id), now) ? { id: String(r.id), status: "linked", citation_id: String(r.citation_id), asset_id: String(r.asset_id), version_id: String(r.version_id) } : { id: String(r.id), status: "unavailable" }) };
+    return { ...meta, body: String(root.body), outline: { nodes: this.nodes(db, id5), can_undo: !!this.undoRow(db, id5, meta.revision) }, layout: this.layout(db, id5), references: refs.map((r) => this.canReadAsset(a, String(r.asset_id), now) ? { id: String(r.id), status: "linked", citation_id: String(r.citation_id), asset_id: String(r.asset_id), version_id: String(r.version_id) } : { id: String(r.id), status: "unavailable" }) };
   }
-  layout(db, id4) {
-    const row = db.prepare("SELECT direction,revision FROM note_map_layouts WHERE note_id=?").get(id4);
+  layout(db, id5) {
+    const row = db.prepare("SELECT direction,revision FROM note_map_layouts WHERE note_id=?").get(id5);
     return row ? { direction: row.direction, revision: row.revision } : { direction: "horizontal", revision: 0 };
   }
-  saveLayout(session, expected, id4, revision, direction) {
+  saveLayout(session, expected, id5, revision, direction) {
     return this.tx("write", (db, now) => {
       const a = this.actor(session, now, expected);
-      this.owned(db, a, id4);
+      this.owned(db, a, id5);
       if (!Number.isSafeInteger(revision) || revision < 0 || direction !== "horizontal" && direction !== "vertical") throw invalid2();
-      const previous = this.layout(db, id4);
+      const previous = this.layout(db, id5);
       if (previous.revision !== revision) throw new AssetError(409, "LAYOUT_CONFLICT");
       if (previous.direction === direction) return previous;
       db.prepare(`INSERT INTO note_map_layouts VALUES(?,?,1)
-      ON CONFLICT(note_id) DO UPDATE SET direction=excluded.direction,revision=note_map_layouts.revision+1`).run(id4, direction);
-      return this.layout(db, id4);
+      ON CONFLICT(note_id) DO UPDATE SET direction=excluded.direction,revision=note_map_layouts.revision+1`).run(id5, direction);
+      return this.layout(db, id5);
     });
   }
-  nodes(db, id4) {
+  nodes(db, id5) {
     return db.prepare(`SELECT id,parent_id,order_key,body,body_revision FROM note_nodes
-      WHERE note_id=? AND archived_at IS NULL ORDER BY parent_id,order_key,id`).all(id4);
+      WHERE note_id=? AND archived_at IS NULL ORDER BY parent_id,order_key,id`).all(id5);
   }
-  undoRow(db, id4, revision) {
-    return db.prepare("SELECT placements FROM note_outline_undo WHERE note_id=? AND revision=?").get(id4, revision);
+  undoRow(db, id5, revision) {
+    return db.prepare("SELECT placements FROM note_outline_undo WHERE note_id=? AND revision=?").get(id5, revision);
   }
   assertRevision(expected, current) {
     if (!Number.isSafeInteger(expected) || expected < 1) throw invalid2();
     if (expected !== current) throw conflict();
   }
-  deleteImpact(outline, id4, revision, node) {
+  deleteImpact(outline, id5, revision, node) {
     if (!outline.byId.get(node)?.parent_id) throw new AssetError(422, "INVALID_OUTLINE_TARGET");
     const child_ids = outline.children(node).map((n) => n.id), descendant_ids = outline.descendants(node).map((n) => n.id);
-    const preview_token = createHash9("sha256").update(JSON.stringify([id4, revision, node, child_ids, descendant_ids])).digest("hex");
+    const preview_token = createHash9("sha256").update(JSON.stringify([id5, revision, node, child_ids, descendant_ids])).digest("hex");
     return { preview_token, child_ids, descendant_ids };
   }
-  previewDelete(session, expected, id4, revision, node) {
+  previewDelete(session, expected, id5, revision, node) {
     return this.tx("read", (db, now) => {
-      const a = this.actor(session, now, expected), meta = this.owned(db, a, id4);
+      const a = this.actor(session, now, expected), meta = this.owned(db, a, id5);
       this.assertRevision(revision, meta.revision);
-      return this.deleteImpact(new Outline(this.nodes(db, id4)), id4, revision, node);
+      return this.deleteImpact(new Outline(this.nodes(db, id5)), id5, revision, node);
     });
   }
-  changeOutline(session, expected, id4, revision, op) {
+  changeOutline(session, expected, id5, revision, op) {
     return this.tx("write", (db, now) => {
-      const a = this.actor(session, now, expected), meta = this.owned(db, a, id4);
+      const a = this.actor(session, now, expected), meta = this.owned(db, a, id5);
       this.assertRevision(revision, meta.revision);
-      const outline = new Outline(this.nodes(db, id4)), badTarget = () => new AssetError(422, "INVALID_OUTLINE_TARGET");
+      const outline = new Outline(this.nodes(db, id5)), badTarget = () => new AssetError(422, "INVALID_OUTLINE_TARGET");
       let placements;
       if (op.action === "add") {
         if (!outline.byId.has(op.parent_id)) throw badTarget();
         if (!noteText(op.body, noteLimits.body)) throw invalid2();
         if (outline.byId.size >= outlineLimit) throw new AssetError(409, "OUTLINE_LIMIT");
-        db.prepare("INSERT INTO note_nodes(id,note_id,parent_id,order_key,body,body_revision) VALUES(?,?,?,?,?,1)").run(randomUUID12(), id4, op.parent_id, outline.children(op.parent_id).length, op.body);
+        db.prepare("INSERT INTO note_nodes(id,note_id,parent_id,order_key,body,body_revision) VALUES(?,?,?,?,?,1)").run(randomUUID12(), id5, op.parent_id, outline.children(op.parent_id).length, op.body);
       } else if (op.action === "edit") {
         const existing = outline.byId.get(op.node_id);
         if (!existing) throw badTarget();
         if (!noteText(op.body, noteLimits.body)) throw invalid2();
-        if (existing.body === op.body) return this.detail(db, a, id4, now);
-        db.prepare("UPDATE note_nodes SET body=?,body_revision=body_revision+1 WHERE note_id=? AND id=?").run(op.body, id4, op.node_id);
+        if (existing.body === op.body) return this.detail(db, a, id5, now);
+        db.prepare("UPDATE note_nodes SET body=?,body_revision=body_revision+1 WHERE note_id=? AND id=?").run(op.body, id5, op.node_id);
       } else if (op.action === "undo") {
-        const previous = this.undoRow(db, id4, revision);
+        const previous = this.undoRow(db, id5, revision);
         if (!previous) throw new AssetError(409, "OUTLINE_UNDO_UNAVAILABLE");
         placements = JSON.parse(String(previous.placements));
       } else if (op.action === "move") {
         placements = outline.move(op.node_id, op.parent_id, op.index);
         if (!placements) throw badTarget();
-        if (!placements.length) return this.detail(db, a, id4, now);
+        if (!placements.length) return this.detail(db, a, id5, now);
       } else {
-        const impact = this.deleteImpact(outline, id4, revision, op.node_id);
+        const impact = this.deleteImpact(outline, id5, revision, op.node_id);
         if (op.preview_token !== impact.preview_token) throw new AssetError(409, "OUTLINE_PREVIEW_REQUIRED");
         if (op.mode !== "subtree" && op.mode !== "promote") throw invalid2();
         placements = outline.remove(op.node_id, op.mode);
@@ -3952,19 +3953,19 @@ var NoteStore = class {
           return { id: n.id, parent_id: n.parent_id, order_key: n.order_key, archived: false };
         });
         db.prepare(`INSERT INTO note_outline_undo VALUES(?,?,?)
-        ON CONFLICT(note_id) DO UPDATE SET revision=excluded.revision,placements=excluded.placements`).run(id4, revision + 1, JSON.stringify(before));
-      } else db.prepare("DELETE FROM note_outline_undo WHERE note_id=?").run(id4);
+        ON CONFLICT(note_id) DO UPDATE SET revision=excluded.revision,placements=excluded.placements`).run(id5, revision + 1, JSON.stringify(before));
+      } else db.prepare("DELETE FROM note_outline_undo WHERE note_id=?").run(id5);
       if (placements) {
         const update = db.prepare("UPDATE note_nodes SET parent_id=?,order_key=?,archived_at=? WHERE note_id=? AND id=? AND parent_id IS NOT NULL");
-        for (const p of placements) if (!update.run(p.parent_id, p.order_key, p.archived ? now : null, id4, p.id).changes) throw new Error("Missing outline placement");
+        for (const p of placements) if (!update.run(p.parent_id, p.order_key, p.archived ? now : null, id5, p.id).changes) throw new Error("Missing outline placement");
       }
-      if (!db.prepare("UPDATE notes SET revision=revision+1,updated_at=? WHERE id=? AND revision=?").run(now, id4, revision).changes) throw conflict();
-      return this.detail(db, a, id4, now);
+      if (!db.prepare("UPDATE notes SET revision=revision+1,updated_at=? WHERE id=? AND revision=?").run(now, id5, revision).changes) throw conflict();
+      return this.detail(db, a, id5, now);
     });
   }
-  assertCitation(db, a, id4, now) {
-    if (!noteId.test(id4)) throw invalid2();
-    const c = db.prepare("SELECT asset_id FROM citations WHERE id=?").get(id4);
+  assertCitation(db, a, id5, now) {
+    if (!noteId.test(id5)) throw invalid2();
+    const c = db.prepare("SELECT asset_id FROM citations WHERE id=?").get(id5);
     if (!c || !this.canReadAsset(a, String(c.asset_id), now)) throw new AssetError(404, "SOURCE_NOT_FOUND");
   }
   list(session, after = "") {
@@ -3975,8 +3976,8 @@ var NoteStore = class {
       return { items: rows.slice(0, 50), next: rows.length > 50 ? rows[49].id : null };
     });
   }
-  get(session, id4) {
-    return this.tx("read", (db, now) => this.detail(db, this.actor(session, now), id4, now));
+  get(session, id5) {
+    return this.tx("read", (db, now) => this.detail(db, this.actor(session, now), id5, now));
   }
   create(session, expected, key, d, citation) {
     return this.tx("write", (db, now) => {
@@ -3989,17 +3990,17 @@ var NoteStore = class {
         if (old.create_digest !== digest4) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
         return { data: this.detail(db, a, String(old.id), now), replayed: true };
       }
-      const id4 = randomUUID12();
+      const id5 = randomUUID12();
       if (citation !== void 0) this.assertCitation(db, a, citation, now);
-      db.prepare("INSERT INTO notes VALUES(?,?,?,?,?,?,1,?,?,?,?)").run(id4, a.serviceId, a.personalSpaceId, a.userId, d.title, d.kind, now, now, key, digest4);
-      db.prepare("INSERT INTO note_nodes(id,note_id,parent_id,order_key,body,body_revision) VALUES(?,?,NULL,0,?,1)").run(id4, id4, d.body);
-      if (citation !== void 0) db.prepare("INSERT INTO note_references VALUES(?,?,?)").run(randomUUID12(), id4, citation);
-      return { data: this.detail(db, a, id4, now), replayed: false };
+      db.prepare("INSERT INTO notes VALUES(?,?,?,?,?,?,1,?,?,?,?)").run(id5, a.serviceId, a.personalSpaceId, a.userId, d.title, d.kind, now, now, key, digest4);
+      db.prepare("INSERT INTO note_nodes(id,note_id,parent_id,order_key,body,body_revision) VALUES(?,?,NULL,0,?,1)").run(id5, id5, d.body);
+      if (citation !== void 0) db.prepare("INSERT INTO note_references VALUES(?,?,?)").run(randomUUID12(), id5, citation);
+      return { data: this.detail(db, a, id5, now), replayed: false };
     });
   }
-  save(session, expected, id4, revision, patch) {
+  save(session, expected, id5, revision, patch) {
     return this.tx("write", (db, now) => {
-      const a = this.actor(session, now, expected), old = this.detail(db, a, id4, now);
+      const a = this.actor(session, now, expected), old = this.detail(db, a, id5, now);
       if (!Number.isSafeInteger(revision) || revision < 1 || !Object.keys(patch).length) throw invalid2();
       if (revision !== old.revision) throw conflict();
       const d = { title: patch.title ?? old.title, kind: patch.kind ?? old.kind, body: patch.body ?? old.body };
@@ -4011,29 +4012,29 @@ var NoteStore = class {
         this.assertCitation(db, a, add, now);
         if (!old.references.some((r) => r.citation_id === add)) {
           if (old.references.length >= noteLimits.references) throw new AssetError(409, "NOTE_REFERENCE_LIMIT");
-          db.prepare("INSERT INTO note_references VALUES(?,?,?)").run(randomUUID12(), id4, add);
+          db.prepare("INSERT INTO note_references VALUES(?,?,?)").run(randomUUID12(), id5, add);
           referenceChanged = true;
         }
       } else if (remove !== void 0) {
         if (!noteId.test(remove)) throw invalid2();
-        referenceChanged = !!db.prepare("DELETE FROM note_references WHERE node_id=? AND id=?").run(id4, remove).changes;
+        referenceChanged = !!db.prepare("DELETE FROM note_references WHERE node_id=? AND id=?").run(id5, remove).changes;
         if (!referenceChanged) throw notFound3();
       }
       if (referenceChanged || d.title !== old.title || d.kind !== old.kind || d.body !== old.body) {
-        if (!db.prepare("UPDATE notes SET title=?,note_kind=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?").run(d.title, d.kind, now, id4, revision).changes) throw conflict();
-        db.prepare("DELETE FROM note_outline_undo WHERE note_id=?").run(id4);
-        if (d.body !== old.body) db.prepare("UPDATE note_nodes SET body=?,body_revision=body_revision+1 WHERE id=?").run(d.body, id4);
+        if (!db.prepare("UPDATE notes SET title=?,note_kind=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?").run(d.title, d.kind, now, id5, revision).changes) throw conflict();
+        db.prepare("DELETE FROM note_outline_undo WHERE note_id=?").run(id5);
+        if (d.body !== old.body) db.prepare("UPDATE note_nodes SET body=?,body_revision=body_revision+1 WHERE id=?").run(d.body, id5);
       }
-      return this.detail(db, a, id4, now);
+      return this.detail(db, a, id5, now);
     });
   }
-  linkProject(session, expected, project, id4) {
+  linkProject(session, expected, project, id5) {
     return this.tx("write", (db, now) => {
       const a = this.actor(session, now, expected);
-      this.owned(db, a, id4);
+      this.owned(db, a, id5);
       if (!this.projectMember(a, project, now) || !this.projectManager(a, project)) throw new AssetError(404, "PROJECT_NOT_FOUND");
-      const made = db.prepare("INSERT INTO project_note_refs VALUES(?,?,?) ON CONFLICT(project_id,note_id) DO NOTHING").run(project, id4, now);
-      return { project_id: project, note_id: id4, replayed: !made.changes };
+      const made = db.prepare("INSERT INTO project_note_refs VALUES(?,?,?) ON CONFLICT(project_id,note_id) DO NOTHING").run(project, id5, now);
+      return { project_id: project, note_id: id5, replayed: !made.changes };
     });
   }
   managedProjects(session, after = "") {
@@ -4059,12 +4060,384 @@ var NoteStore = class {
   }
 };
 
+// src/host/repository-store.ts
+import { randomUUID as randomUUID13 } from "node:crypto";
+
+// src/host/github-repository.ts
+import { createHash as createHash10 } from "node:crypto";
+var repositoryLimits = { files: 5e3, blob: 512 * 1024, tree: 2 * 1024 * 1024 };
+var badRepository = () => new AssetError(422, "INVALID_REPOSITORY_INPUT");
+var invalidRemote = () => new AssetError(502, "REPOSITORY_INVALID_RESPONSE");
+var oversized = () => new AssetError(413, "REPOSITORY_LIMIT_EXCEEDED");
+var unavailable = () => new AssetError(503, "REPOSITORY_UNAVAILABLE");
+var sha40 = /^[a-f0-9]{40}$/;
+var ownerPattern = /^[a-z0-9](?:[a-z0-9-]{0,37}[a-z0-9])?$/i;
+var repoPattern = /^[a-z0-9_.-]{1,100}$/i;
+var forbiddenPath = /[\p{Cc}\p{Cf}\p{Cs}\\]/u;
+function repositoryName(value) {
+  if (typeof value !== "string" || value.length > 160) throw badRepository();
+  const pieces = value.replace(/^https:\/\/github\.com\//i, "").split("/");
+  const [owner, name2] = pieces;
+  if (pieces.length !== 2 || !owner || !name2 || !ownerPattern.test(owner) || !repoPattern.test(name2) || name2 === "." || name2 === "..") throw badRepository();
+  return { owner, name: name2 };
+}
+function repositoryRef(kind, value) {
+  if (typeof value !== "string" || !value || value.length > 200) throw badRepository();
+  if (kind === "commit" && sha40.test(value)) return { kind, value };
+  if ((kind === "branch" || kind === "tag") && /^[A-Za-z0-9_./-]+$/.test(value) && !value.includes("..") && !value.endsWith(".") && !value.split("/").some((part) => !part || part.startsWith(".") || part.endsWith(".lock"))) return { kind, value };
+  throw badRepository();
+}
+function isRepositoryPath(value) {
+  return typeof value === "string" && !!value.length && Buffer.byteLength(value) <= 1024 && !forbiddenPath.test(value) && value.split("/").every((part) => part && part !== "." && part !== "..");
+}
+var object = (value) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw invalidRemote();
+  return value;
+};
+var remoteSha = (value) => {
+  if (typeof value !== "string" || !sha40.test(value)) throw invalidRemote();
+  return value;
+};
+var repositorySlug = (repo) => repo.owner + "/" + repo.name;
+var repoPath = (repo) => "/repos/" + encodeURIComponent(repo.owner) + "/" + encodeURIComponent(repo.name);
+var GitHubRepository = class {
+  constructor(operation, token2, transport = fetch) {
+    this.operation = operation;
+    this.token = token2;
+    this.transport = transport;
+  }
+  async get(path2, limit4) {
+    const signal = AbortSignal.any([this.operation, AbortSignal.timeout(12e3)]);
+    let reader;
+    try {
+      signal.throwIfAborted();
+      const headers = { accept: "application/vnd.github+json", "x-github-api-version": "2022-11-28", "user-agent": "KnowledgeOS" };
+      if (this.token) headers.authorization = "Bearer " + this.token;
+      const response = await this.transport("https://api.github.com" + path2, { method: "GET", redirect: "manual", cache: "no-store", signal, headers });
+      reader = response.body?.getReader();
+      if (response.status >= 300 && response.status < 400) throw new AssetError(502, "REPOSITORY_REDIRECT_REJECTED");
+      if (response.status === 429 || response.status === 403 && response.headers.get("x-ratelimit-remaining") === "0") throw new AssetError(429, "REPOSITORY_RATE_LIMIT");
+      if ([401, 403, 404].includes(response.status)) throw new AssetError(404, "REMOTE_REPOSITORY_NOT_FOUND");
+      if (!response.ok || !reader) throw unavailable();
+      if (Number(response.headers.get("content-length")) > limit4) throw oversized();
+      let size = 0;
+      const parts = [];
+      while (true) {
+        signal.throwIfAborted();
+        const treePart = await reader.read();
+        if (treePart.done) break;
+        size += treePart.value.length;
+        if (size > limit4) throw oversized();
+        parts.push(treePart.value);
+      }
+      signal.throwIfAborted();
+      try {
+        return object(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(parts, size))));
+      } catch {
+        throw invalidRemote();
+      }
+    } catch (error) {
+      if (this.operation.aborted) throw new AssetError(409, "REPOSITORY_CANCELLED");
+      if (signal.aborted) throw new AssetError(504, "REPOSITORY_TIMEOUT");
+      if (error instanceof AssetError) throw error;
+      throw unavailable();
+    } finally {
+      if (reader) void reader.cancel().catch(() => {
+      });
+    }
+  }
+  async resolveRepository(name2) {
+    const row = await this.get(repoPath(name2), 128 * 1024);
+    if (typeof row.id !== "number" || !Number.isSafeInteger(row.id) || row.id <= 0 || typeof row.private !== "boolean") throw invalidRemote();
+    if (!this.token && (row.private || row.visibility !== "public")) throw new AssetError(404, "REMOTE_REPOSITORY_NOT_FOUND");
+    let canonical;
+    try {
+      canonical = repositoryName(row.full_name);
+    } catch {
+      throw invalidRemote();
+    }
+    if (row.full_name !== repositorySlug(canonical) || repositorySlug(canonical).toLowerCase() !== repositorySlug(name2).toLowerCase()) throw invalidRemote();
+    return { ...canonical, id: row.id, private: row.private };
+  }
+  async resolveRef(repo, ref) {
+    const spec2 = ref.kind === "commit" ? ref.value : "refs/" + (ref.kind === "branch" ? "heads/" : "tags/") + ref.value;
+    const row = await this.get(repoPath(repo) + "/commits/" + encodeURIComponent(spec2), 2 * 1024 * 1024);
+    const commit = remoteSha(row.sha);
+    if (ref.kind === "commit" && commit !== ref.value) throw invalidRemote();
+    return { commit, tree: remoteSha(object(object(row.commit).tree).sha) };
+  }
+  async readTree(repo, sha5) {
+    const row = await this.get(repoPath(repo) + "/git/trees/" + remoteSha(sha5) + "?recursive=1", repositoryLimits.tree);
+    if (row.sha !== sha5 || !Array.isArray(row.tree) || typeof row.truncated !== "boolean") throw invalidRemote();
+    if (row.truncated || row.tree.length > repositoryLimits.files) throw oversized();
+    const seen = /* @__PURE__ */ new Map();
+    const entries = row.tree.map((candidate) => {
+      const { path: path2, sha: sha6, mode, type, size } = object(candidate);
+      if (!isRepositoryPath(path2) || seen.has(path2)) throw invalidRemote();
+      const kind = type === "tree" && mode === "040000" ? "directory" : type === "commit" && mode === "160000" ? "submodule" : type === "blob" && mode === "120000" ? "symlink" : type === "blob" && (mode === "100644" || mode === "100755") ? "file" : void 0;
+      if (!kind || kind === "file" && (typeof size !== "number" || !Number.isSafeInteger(size) || size < 0)) throw invalidRemote();
+      seen.set(path2, kind);
+      return { path: path2, sha: remoteSha(sha6), kind, size: kind === "file" ? size : null };
+    });
+    for (const { path: path2 } of entries) {
+      const separator = path2.lastIndexOf("/");
+      if (separator >= 0 && seen.get(path2.slice(0, separator)) !== "directory") throw invalidRemote();
+    }
+    return entries;
+  }
+  async readBlob(repo, entry) {
+    if (entry.kind !== "file" || entry.size === null) throw new AssetError(422, "REPOSITORY_NOT_REGULAR_FILE");
+    if (entry.size > repositoryLimits.blob) throw oversized();
+    const row = await this.get(repoPath(repo) + "/git/blobs/" + remoteSha(entry.sha), 800 * 1024);
+    if (row.sha !== entry.sha || row.size !== entry.size || row.encoding !== "base64" || typeof row.content !== "string") throw invalidRemote();
+    const encoded = row.content.replace(/\r?\n/g, "");
+    const bytes = Buffer.from(encoded, "base64");
+    if (bytes.toString("base64") !== encoded || bytes.length !== entry.size || createHash10("sha1").update("blob " + bytes.length + "\0").update(bytes).digest("hex") !== entry.sha) throw invalidRemote();
+    return bytes;
+  }
+};
+
+// src/host/repository-store.ts
+var REPOSITORY_SCHEMA = `
+CREATE TABLE repository_snapshots (
+  id TEXT PRIMARY KEY, service_id TEXT NOT NULL, owner_id TEXT NOT NULL REFERENCES users(id),
+  remote_id INTEGER NOT NULL, owner_name TEXT NOT NULL, repository_name TEXT NOT NULL,
+  is_private INTEGER NOT NULL CHECK(is_private IN (0,1)), credential_ref TEXT NOT NULL,
+  ref_kind TEXT NOT NULL CHECK(ref_kind IN ('branch','tag','commit')), ref_value TEXT NOT NULL,
+  commit_sha TEXT NOT NULL CHECK(length(commit_sha)=40), tree_sha TEXT NOT NULL CHECK(length(tree_sha)=40),
+  tree_json TEXT NOT NULL, created_at TEXT NOT NULL,
+  UNIQUE(service_id,owner_id,remote_id,is_private,credential_ref,commit_sha)
+) STRICT;
+CREATE TABLE repository_files (
+  snapshot_id TEXT NOT NULL REFERENCES repository_snapshots(id), path TEXT NOT NULL,
+  blob_sha TEXT NOT NULL CHECK(length(blob_sha)=40), payload BLOB NOT NULL,
+  PRIMARY KEY(snapshot_id,path)
+) STRICT;
+`;
+var credentialAlias = /^github_[a-z0-9_]{1,48}$/;
+var summaryColumns = "id,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,created_at";
+var hidden2 = () => new AssetError(404, "NOT_FOUND");
+var checkSignal = (signal) => {
+  if (signal.aborted) throw new AssetError(409, "REPOSITORY_CANCELLED");
+};
+var summarize = (row) => ({
+  id: row.id,
+  platform: "github",
+  repository: row.owner_name + "/" + row.repository_name,
+  private: !!row.is_private,
+  credential_ref: row.credential_ref || null,
+  ref_kind: row.ref_kind,
+  ref_value: row.ref_value,
+  commit: row.commit_sha,
+  tree: row.tree_sha,
+  created_at: row.created_at,
+  source_url: "https://github.com/" + row.owner_name + "/" + row.repository_name + "/tree/" + row.commit_sha
+});
+var fileView = (row, path2, sha5, bytes) => {
+  let text2 = null;
+  if (!bytes.includes(0)) {
+    try {
+      text2 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
+    } catch {
+    }
+  }
+  return {
+    path: path2,
+    sha: sha5,
+    size: bytes.length,
+    text: text2,
+    source_url: "https://github.com/" + row.owner_name + "/" + row.repository_name + "/blob/" + row.commit_sha + "/" + path2.split("/").map(encodeURIComponent).join("/")
+  };
+};
+var RepositoryStore = class {
+  constructor(tx, currentActor) {
+    this.tx = tx;
+    this.currentActor = currentActor;
+  }
+  check(session, expected = session.userId) {
+    return this.tx("read", (_, now) => this.actor(session, now, expected));
+  }
+  actor(session, now, expected = session.userId) {
+    const actor2 = this.currentActor(session, now);
+    if (!actor2) throw new AssetError(401, "AUTH_REQUIRED");
+    if (expected !== actor2.userId) throw new AssetError(409, "ACTOR_MISMATCH");
+    return actor2;
+  }
+  list(session) {
+    return this.tx("read", (db, now) => {
+      const actor2 = this.actor(session, now);
+      return db.prepare("SELECT " + summaryColumns + " FROM repository_snapshots WHERE service_id=? AND owner_id=? ORDER BY created_at DESC,id DESC").all(actor2.serviceId, actor2.userId).map(summarize);
+    });
+  }
+  row(db, actor2, id5) {
+    const row = db.prepare("SELECT * FROM repository_snapshots WHERE service_id=? AND owner_id=? AND id=?").get(actor2.serviceId, actor2.userId, id5);
+    if (!row) throw hidden2();
+    return row;
+  }
+  detail(session, id5) {
+    return this.tx("read", (db, now) => {
+      const row = this.row(db, this.actor(session, now), id5);
+      const entries = JSON.parse(row.tree_json);
+      const files = db.prepare("SELECT path FROM repository_files WHERE snapshot_id=? ORDER BY path").all(id5).map((row2) => String(row2.path));
+      return { snapshot: summarize(row), entries, files };
+    });
+  }
+  file(session, id5, path2) {
+    return this.tx("read", (db, now) => {
+      const row = this.row(db, this.actor(session, now), id5);
+      const saved = db.prepare("SELECT blob_sha,payload FROM repository_files WHERE snapshot_id=? AND path=?").get(id5, path2);
+      if (!saved) throw hidden2();
+      return fileView(row, path2, String(saved.blob_sha), saved.payload);
+    });
+  }
+  pendingFile(session, expected, id5, path2) {
+    return this.tx("read", (db, now) => {
+      const row = this.row(db, this.actor(session, now, expected), id5);
+      const entry = JSON.parse(row.tree_json).find((candidate) => candidate.path === path2);
+      if (!entry) throw hidden2();
+      return { row, entry };
+    });
+  }
+  saveSnapshot(session, expected, remote, ref, alias, revision, entries, signal, pinned) {
+    return this.tx("write", (db, now) => {
+      checkSignal(signal);
+      const { userId, serviceId } = this.actor(session, now, expected);
+      const existing = db.prepare("SELECT * FROM repository_snapshots WHERE service_id=? AND owner_id=? AND remote_id=? AND is_private=? AND credential_ref=? AND commit_sha=?").get(serviceId, userId, remote.id, Number(remote.private), alias, revision.commit);
+      if (existing) {
+        if (existing.tree_sha !== revision.tree) throw new AssetError(502, "REPOSITORY_INVALID_RESPONSE");
+        if (pinned) this.insertFile(db, { userId, serviceId }, existing, pinned.entry, pinned.bytes);
+        return { snapshot: summarize(existing), replayed: true };
+      }
+      if (Number(db.prepare("SELECT count(*) AS total FROM repository_snapshots WHERE service_id=? AND owner_id=?").get(serviceId, userId)?.total) >= 25)
+        throw new AssetError(409, "REPOSITORY_SNAPSHOT_QUOTA");
+      const row = {
+        id: randomUUID13(),
+        remote_id: remote.id,
+        owner_name: remote.owner,
+        repository_name: remote.name,
+        is_private: Number(remote.private),
+        credential_ref: alias,
+        ref_kind: ref.kind,
+        ref_value: ref.value,
+        commit_sha: revision.commit,
+        tree_sha: revision.tree,
+        tree_json: JSON.stringify(entries),
+        created_at: now
+      };
+      db.prepare("INSERT INTO repository_snapshots(id,service_id,owner_id,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,tree_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(
+        row.id,
+        serviceId,
+        userId,
+        row.remote_id,
+        row.owner_name,
+        row.repository_name,
+        row.is_private,
+        alias,
+        row.ref_kind,
+        row.ref_value,
+        row.commit_sha,
+        row.tree_sha,
+        row.tree_json,
+        now
+      );
+      if (pinned) this.insertFile(db, { userId, serviceId }, row, pinned.entry, pinned.bytes);
+      return { snapshot: summarize(row), replayed: false };
+    });
+  }
+  saveFile(session, expected, id5, entry, bytes, signal) {
+    return this.tx("write", (db, now) => {
+      checkSignal(signal);
+      const actor2 = this.actor(session, now, expected), row = this.row(db, actor2, id5);
+      this.insertFile(db, actor2, row, entry, bytes);
+      return fileView(row, entry.path, entry.sha, bytes);
+    });
+  }
+  insertFile(db, actor2, row, entry, bytes) {
+    const treeEntry = JSON.parse(row.tree_json).find((candidate) => candidate.path === entry.path);
+    if (!treeEntry || treeEntry.kind !== "file" || treeEntry.sha !== entry.sha || treeEntry.size !== bytes.length) throw new AssetError(502, "REPOSITORY_INVALID_RESPONSE");
+    if (db.prepare("SELECT 1 FROM repository_files WHERE snapshot_id=? AND path=?").get(row.id, entry.path)) return;
+    const count = Number(db.prepare("SELECT count(*) AS total FROM repository_files WHERE snapshot_id=?").get(row.id)?.total);
+    const used = Number(db.prepare("SELECT coalesce(sum(length(f.payload)),0) AS total FROM repository_files f JOIN repository_snapshots s ON s.id=f.snapshot_id WHERE s.service_id=? AND s.owner_id=?").get(actor2.serviceId, actor2.userId)?.total);
+    if (count >= 32 || used + bytes.length > 32 * 1024 * 1024) throw new AssetError(409, "REPOSITORY_FILE_QUOTA");
+    db.prepare("INSERT INTO repository_files VALUES(?,?,?,?)").run(row.id, entry.path, entry.sha, bytes);
+  }
+};
+var RepositoryService = class {
+  constructor(store, bindings, resolve2) {
+    this.store = store;
+    this.bindings = bindings;
+    this.resolve = resolve2;
+  }
+  busy = /* @__PURE__ */ new Set();
+  async client(actor2, name2, alias, signal) {
+    if (!alias) return new GitHubRepository(signal);
+    const allowed = this.bindings.filter((binding) => binding.actorId === actor2.userId && binding.alias === alias && typeof binding.repository === "string" && binding.repository.toLowerCase() === repositorySlug(name2).toLowerCase());
+    if (allowed.length !== 1) throw hidden2();
+    const ref = allowed[0].credentialRef;
+    if (!/^KO_GITHUB_[A-Z0-9_]{1,64}$/.test(ref)) throw new AssetError(503, "REPOSITORY_CREDENTIAL_UNCONFIGURED");
+    let token2;
+    try {
+      token2 = await this.resolve(ref);
+    } catch {
+    }
+    if (!token2 || !/^(?:github_pat_|ghp_)[A-Za-z0-9_]{16,250}$/.test(token2)) throw new AssetError(503, "REPOSITORY_CREDENTIAL_UNCONFIGURED");
+    return new GitHubRepository(signal, token2);
+  }
+  async run(session, expected, operation) {
+    const actor2 = this.store.check(session, expected);
+    const key = actor2.serviceId + ":" + actor2.userId;
+    if (this.busy.has(key) || this.busy.size >= 8) throw new AssetError(429, "REPOSITORY_BUSY");
+    this.busy.add(key);
+    try {
+      return await operation(actor2);
+    } finally {
+      this.busy.delete(key);
+    }
+  }
+  connect(session, expected, name2, ref, alias, signal, path2) {
+    return this.run(session, expected, async (actor2) => {
+      const source = await this.client(actor2, name2, alias, signal);
+      this.store.check(session, expected);
+      const repository = await source.resolveRepository(name2);
+      const revision = await source.resolveRef(repository, ref);
+      const entries = await source.readTree(repository, revision.tree);
+      let pinned;
+      if (path2 !== void 0) {
+        const entry = entries.find((candidate) => candidate.path === path2);
+        if (!entry) throw hidden2();
+        pinned = { entry, bytes: await source.readBlob(repository, entry) };
+      }
+      const confirmed = await source.resolveRepository(repository);
+      if (confirmed.id !== repository.id || confirmed.private !== repository.private) throw new AssetError(409, "REPOSITORY_CHANGED");
+      return this.store.saveSnapshot(session, expected, repository, ref, alias, revision, entries, signal, pinned);
+    });
+  }
+  pin(session, expected, id5, path2, signal) {
+    return this.run(session, expected, async (actor2) => {
+      const { row, entry } = this.store.pendingFile(session, expected, id5, path2);
+      if (entry.kind !== "file") throw new AssetError(422, "REPOSITORY_NOT_REGULAR_FILE");
+      try {
+        return this.store.file(session, id5, path2);
+      } catch (error) {
+        if (!(error instanceof AssetError) || error.status !== 404) throw error;
+      }
+      const name2 = { owner: row.owner_name, name: row.repository_name };
+      const source = await this.client(actor2, name2, row.credential_ref, signal);
+      this.store.check(session, expected);
+      const repository = await source.resolveRepository(name2);
+      if (repository.id !== row.remote_id || Number(repository.private) !== row.is_private) throw new AssetError(409, "REPOSITORY_CHANGED");
+      const bytes = await source.readBlob(repository, entry);
+      return this.store.saveFile(session, expected, id5, entry, bytes, signal);
+    });
+  }
+};
+
 // src/host/recall-store.ts
-import { createHash as createHash11, randomUUID as randomUUID13 } from "node:crypto";
+import { createHash as createHash12, randomUUID as randomUUID14 } from "node:crypto";
 
 // src/host/recall-range.ts
-import { createHash as createHash10 } from "node:crypto";
-var digest = (text2) => createHash10("sha256").update(text2, "utf8").digest("hex");
+import { createHash as createHash11 } from "node:crypto";
+var digest = (text2) => createHash11("sha256").update(text2, "utf8").digest("hex");
 var invalid3 = () => new AssetError(422, "INVALID_RECALL_RANGE");
 var changed = () => new AssetError(409, "RECALL_SOURCE_CHANGED");
 var available = (text2) => {
@@ -4162,7 +4535,7 @@ CREATE TABLE recall_events (
   CHECK(event IN ('move','hint','reveal','recall','rating'))
 ) STRICT;
 CREATE INDEX recall_events_groups ON recall_events(material_id,event,value);`;
-var sha3 = (text2) => createHash11("sha256").update(text2).digest("hex");
+var sha3 = (text2) => createHash12("sha256").update(text2).digest("hex");
 var invalid4 = () => new AssetError(422, "INVALID_RECALL");
 var notFound4 = () => new AssetError(404, "RECALL_NOT_FOUND");
 var point2 = (t, ordinal) => ({ asset_id: t.asset_id, version_id: t.version_id, ordinal, ...t.conversion_id ? { conversion_id: t.conversion_id } : {} });
@@ -4179,8 +4552,8 @@ var RecallStore = class {
     if (expected !== void 0 && expected !== a.userId) throw new AssetError(409, "ACTOR_CHANGED");
     return a;
   }
-  material(db, a, id4, now) {
-    const row = db.prepare(`SELECT id,title,asset_id,version_id,conversion_id FROM recall_materials WHERE id=? AND service_id=? AND owner_user_id=?`).get(id4, a.serviceId, a.userId);
+  material(db, a, id5, now) {
+    const row = db.prepare(`SELECT id,title,asset_id,version_id,conversion_id FROM recall_materials WHERE id=? AND service_id=? AND owner_user_id=?`).get(id5, a.serviceId, a.userId);
     if (!row || !this.allowed(a, row.asset_id, now)) throw notFound4();
     return row;
   }
@@ -4232,10 +4605,10 @@ var RecallStore = class {
       return { items: items.slice(0, 50), next: items.length > 50 ? items[49].id : null };
     });
   }
-  get(prior, id4) {
+  get(prior, id5) {
     return this.tx("read", (db, now) => {
       const a = this.actor(prior, now);
-      return this.practice(db, a, this.material(db, a, id4, now), now);
+      return this.practice(db, a, this.material(db, a, id5, now), now);
     });
   }
   create(prior, expected, key, draft) {
@@ -4250,46 +4623,46 @@ var RecallStore = class {
       if (!draft.title.trim() || draft.title.length > 200 || !draft.masks.length) throw invalid4();
       const first = this.source(db, a, point2(draft, draft.first.ordinal), now);
       const read = (n) => n === first.ordinal ? first.text : this.source(db, a, point2(draft, n), now).text;
-      const segments = recallSelection(draft.first, draft.last, draft.interior_hashes, first.total, read), masks = recallMasks(segments, draft.masks, read), id4 = randomUUID13();
-      const m = { id: id4, title: draft.title, asset_id: draft.asset_id, version_id: draft.version_id, conversion_id: draft.conversion_id ?? null };
-      db.prepare("INSERT INTO recall_materials VALUES(?,?,?,?,?,?,?,?,?,?)").run(id4, a.userId, a.serviceId, m.asset_id, m.version_id, m.conversion_id, m.title, now, key, digest4);
+      const segments = recallSelection(draft.first, draft.last, draft.interior_hashes, first.total, read), masks = recallMasks(segments, draft.masks, read), id5 = randomUUID14();
+      const m = { id: id5, title: draft.title, asset_id: draft.asset_id, version_id: draft.version_id, conversion_id: draft.conversion_id ?? null };
+      db.prepare("INSERT INTO recall_materials VALUES(?,?,?,?,?,?,?,?,?,?)").run(id5, a.userId, a.serviceId, m.asset_id, m.version_id, m.conversion_id, m.title, now, key, digest4);
       const insert = db.prepare("INSERT INTO recall_segments VALUES(?,?,?,?,?)");
-      for (const s of segments) insert.run(id4, s.ordinal, s.start, s.end, s.source_hash);
+      for (const s of segments) insert.run(id5, s.ordinal, s.start, s.end, s.source_hash);
       const maskInsert = db.prepare("INSERT INTO recall_masks VALUES(?,?,?,?,?)");
-      for (const mask of masks) maskInsert.run(id4, mask.ordinal, mask.start, mask.end, mask.group);
-      db.prepare("INSERT INTO recall_attempts VALUES(?,?,1)").run(id4, draft.first.ordinal);
+      for (const mask of masks) maskInsert.run(id5, mask.ordinal, mask.start, mask.end, mask.group);
+      db.prepare("INSERT INTO recall_attempts VALUES(?,?,1)").run(id5, draft.first.ordinal);
       return { data: this.practice(db, a, m, now), replayed: false };
     });
   }
-  act(prior, expected, id4, key, action2) {
+  act(prior, expected, id5, key, action2) {
     return this.tx("write", (db, now) => {
-      const a = this.actor(prior, now, expected), m = this.material(db, a, id4, now), digest4 = sha3(JSON.stringify(action2));
-      const priorEvent = db.prepare("SELECT request_digest FROM recall_events WHERE material_id=? AND request_key=?").get(id4, key);
+      const a = this.actor(prior, now, expected), m = this.material(db, a, id5, now), digest4 = sha3(JSON.stringify(action2));
+      const priorEvent = db.prepare("SELECT request_digest FROM recall_events WHERE material_id=? AND request_key=?").get(id5, key);
       if (priorEvent) {
         if (priorEvent.request_digest !== digest4) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
         return this.practice(db, a, m, now);
       }
-      const attempt = db.prepare("SELECT active_ordinal,revision FROM recall_attempts WHERE material_id=?").get(id4);
+      const attempt = db.prepare("SELECT active_ordinal,revision FROM recall_attempts WHERE material_id=?").get(id5);
       if (attempt.revision !== action2.expected_revision) throw new AssetError(409, "REVISION_CONFLICT");
       const { event, value } = action2, ordinal = event === "move" ? value : Number(attempt.active_ordinal);
       if (!Number.isSafeInteger(value) || value < 1) throw invalid4();
       if (event === "move") {
-        if (!db.prepare("SELECT 1 FROM recall_segments WHERE material_id=? AND ordinal=?").get(id4, ordinal)) throw invalid4();
+        if (!db.prepare("SELECT 1 FROM recall_segments WHERE material_id=? AND ordinal=?").get(id5, ordinal)) throw invalid4();
       } else if (event === "hint" || event === "reveal" || event === "recall") {
-        if (!db.prepare("SELECT 1 FROM recall_masks WHERE material_id=? AND ordinal=? AND mask_group=?").get(id4, ordinal, value)) throw invalid4();
-        if (event === "recall" && db.prepare("SELECT 1 FROM recall_events WHERE material_id=? AND value=? AND event IN ('hint','reveal','recall')").get(id4, value))
+        if (!db.prepare("SELECT 1 FROM recall_masks WHERE material_id=? AND ordinal=? AND mask_group=?").get(id5, ordinal, value)) throw invalid4();
+        if (event === "recall" && db.prepare("SELECT 1 FROM recall_events WHERE material_id=? AND value=? AND event IN ('hint','reveal','recall')").get(id5, value))
           throw new AssetError(409, "RECALL_NOT_INDEPENDENT");
       } else if (event === "rating" ? value > 5 : true) throw invalid4();
       const revision = action2.expected_revision + 1;
-      db.prepare("UPDATE recall_attempts SET active_ordinal=?,revision=? WHERE material_id=?").run(ordinal, revision, id4);
-      db.prepare("INSERT INTO recall_events VALUES(?,?,?,?,?,?,?)").run(id4, revision, key, digest4, event, value, now);
+      db.prepare("UPDATE recall_attempts SET active_ordinal=?,revision=? WHERE material_id=?").run(ordinal, revision, id5);
+      db.prepare("INSERT INTO recall_events VALUES(?,?,?,?,?,?,?)").run(id5, revision, key, digest4, event, value, now);
       return this.practice(db, a, m, now);
     });
   }
 };
 
 // src/host/invitation-store.ts
-import { createHash as createHash12, randomBytes, randomUUID as randomUUID14 } from "node:crypto";
+import { createHash as createHash13, randomBytes, randomUUID as randomUUID15 } from "node:crypto";
 var INVITATION_SCHEMA = `CREATE TABLE invitations (
   id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE CHECK(length(token_hash)=64),
   service_id TEXT NOT NULL, issuer_id TEXT NOT NULL REFERENCES users(id),
@@ -4334,9 +4707,9 @@ var INVITATION_CHANGE_SCHEMA = `CREATE TABLE invitation_change_receipts (
   result_json TEXT NOT NULL CHECK(json_valid(result_json)), PRIMARY KEY(service_id,actor_id,request_key)
 ) STRICT;`;
 var day = 864e5;
-var digest2 = (value) => createHash12("sha256").update(value).digest("hex");
+var digest2 = (value) => createHash13("sha256").update(value).digest("hex");
 var invalid5 = () => new AssetError(422, "INVALID_INVITATION");
-var unavailable = () => new AssetError(404, "INVITATION_UNAVAILABLE");
+var unavailable2 = () => new AssetError(404, "INVITATION_UNAVAILABLE");
 var conflict2 = () => new AssetError(409, "INVITATION_CHANGED");
 var target = (r) => r.project_id ? { scope: "project", id: r.project_id, permission: "member" } : { scope: "object", id: r.object_id, permission: r.permission };
 function duration(days = 7) {
@@ -4362,7 +4735,7 @@ function receipt2(r) {
 var active = (r, now) => r.revoked_at === null && now < r.expires_at;
 function recordEvent(db, r, a, event, now, before, affected, correlation) {
   db.prepare("INSERT INTO invitation_audit VALUES(?,?,?,?,?,?,?,?)").run(r.id, r.revision, a.userId, event, now, before, r.expires_at, affected.length);
-  const eventId = randomUUID14(), payload = JSON.stringify({
+  const eventId = randomUUID15(), payload = JSON.stringify({
     target: target(r),
     prior_expires_at: before,
     expires_at: r.expires_at,
@@ -4389,16 +4762,16 @@ var InvitationStore = class {
   }
   issueTarget(a, t, now) {
     const scope = this.canIssue(a, t, now);
-    if (!scope) throw unavailable();
+    if (!scope) throw unavailable2();
     return scope;
   }
-  managed(db, a, id4, now) {
-    const r = db.prepare("SELECT * FROM invitations WHERE service_id=? AND id=?").get(a.serviceId, id4);
-    if (!r) throw unavailable();
+  managed(db, a, id5, now) {
+    const r = db.prepare("SELECT * FROM invitations WHERE service_id=? AND id=?").get(a.serviceId, id5);
+    if (!r) throw unavailable2();
     return { r, title: this.issueTarget(a, target(r), now).title };
   }
   issueSpec(a, s, now) {
-    const { scope, id: id4, permission } = s, t = { scope, id: id4, permission };
+    const { scope, id: id5, permission } = s, t = { scope, id: id5, permission };
     const info = this.issueTarget(a, t, now), expires_at = new Date(Date.parse(now) + duration(s.days)).toISOString();
     return { target: t, title: info.title, expires_at, max_redemptions: cap(s.max_redemptions), server_time: now };
   }
@@ -4407,7 +4780,7 @@ var InvitationStore = class {
       return this.issueSpec(this.actor(prior, now, expected), s, now);
     });
   }
-  create(prior, expected, s, key, correlation = randomUUID14()) {
+  create(prior, expected, s, key, correlation = randomUUID15()) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now, expected), p = this.issueSpec(a, s, now);
       const req = digest2(JSON.stringify([p.target, s.days ?? 7, p.max_redemptions]));
@@ -4418,7 +4791,7 @@ var InvitationStore = class {
       }
       const token2 = randomBytes(32).toString("base64url");
       const r = {
-        id: randomUUID14(),
+        id: randomUUID15(),
         service_id: a.serviceId,
         issuer_id: a.userId,
         object_id: s.scope === "object" ? s.id : null,
@@ -4437,23 +4810,23 @@ var InvitationStore = class {
       return { ...receipt2(r), title: p.title, token: token2, server_time: now, replayed: false };
     });
   }
-  redeem(prior, expected, token2, correlation = randomUUID14()) {
+  redeem(prior, expected, token2, correlation = randomUUID15()) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now, expected);
-      if (!/^[a-zA-Z0-9_-]{43}$/.test(token2)) throw unavailable();
+      if (!/^[a-zA-Z0-9_-]{43}$/.test(token2)) throw unavailable2();
       const r = db.prepare("SELECT * FROM invitations WHERE service_id=? AND token_hash=?").get(a.serviceId, digest2(token2));
-      if (!r || !active(r, now)) throw unavailable();
+      if (!r || !active(r, now)) throw unavailable2();
       const t = target(r), issuer = this.principal(db, r.issuer_id, a.serviceId);
-      if (!issuer || issuer.userId === a.userId) throw unavailable();
+      if (!issuer || issuer.userId === a.userId) throw unavailable2();
       const info = this.issueTarget(issuer, t, now);
-      if (t.scope === "object" && info.project_id && !this.isMember(a, info.project_id, now)) throw unavailable();
+      if (t.scope === "object" && info.project_id && !this.isMember(a, info.project_id, now)) throw unavailable2();
       const priorRedemption = db.prepare("SELECT id,redeemed_at,expires_at,revoked_at FROM invitation_redemptions WHERE invitation_id=? AND user_id=?").get(r.id, a.userId);
       if (priorRedemption) {
-        if (!active(priorRedemption, now)) throw unavailable();
+        if (!active(priorRedemption, now)) throw unavailable2();
         return { id: priorRedemption.id, target: t, title: info.title, expires_at: priorRedemption.expires_at, server_time: now, replayed: true };
       }
       if (r.redeemed_count >= r.max_redemptions) throw new AssetError(409, "INVITATION_FULL");
-      const grant = randomUUID14();
+      const grant = randomUUID15();
       db.prepare("INSERT INTO invitation_redemptions VALUES(?,?,?,?,?,NULL)").run(grant, r.id, a.userId, now, r.expires_at);
       const change = db.prepare("UPDATE invitations SET redeemed_count=redeemed_count+1,revision=revision+1 WHERE id=? AND revision=? AND redeemed_count<max_redemptions").run(r.id, r.revision);
       if (change.changes !== 1) throw conflict2();
@@ -4461,10 +4834,10 @@ var InvitationStore = class {
       return { id: grant, target: t, title: info.title, expires_at: r.expires_at, server_time: now, replayed: false };
     });
   }
-  get(prior, expected, id4) {
+  get(prior, expected, id5) {
     return this.tx("read", (db, now) => {
-      const a = this.actor(prior, now, expected), { r, title } = this.managed(db, a, id4, now);
-      const rows = db.prepare("SELECT id,user_id,expires_at FROM invitation_redemptions WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? ORDER BY id").all(id4, now);
+      const a = this.actor(prior, now, expected), { r, title } = this.managed(db, a, id5, now);
+      const rows = db.prepare("SELECT id,user_id,expires_at FROM invitation_redemptions WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? ORDER BY id").all(id5, now);
       return { ...receipt2(r), title, active: active(r, now), affected: rows, server_time: now };
     });
   }
@@ -4479,23 +4852,23 @@ var InvitationStore = class {
       return { actor_id: a.userId, server_time: now, items };
     });
   }
-  change(prior, expected, id4, expectedRevision, event, days, key = randomUUID14(), correlation = randomUUID14()) {
+  change(prior, expected, id5, expectedRevision, event, days, key = randomUUID15(), correlation = randomUUID15()) {
     return this.tx("write", (db, now) => {
-      const a = this.actor(prior, now, expected), { r } = this.managed(db, a, id4, now);
-      const extension = event === "renew" ? duration(days) : 0, req = digest2(JSON.stringify([id4, expectedRevision, event, extension]));
+      const a = this.actor(prior, now, expected), { r } = this.managed(db, a, id5, now);
+      const extension = event === "renew" ? duration(days) : 0, req = digest2(JSON.stringify([id5, expectedRevision, event, extension]));
       const priorReceipt = db.prepare("SELECT request_digest,result_json FROM invitation_change_receipts WHERE service_id=? AND actor_id=? AND request_key=?").get(a.serviceId, a.userId, key);
       if (priorReceipt) {
         if (priorReceipt.request_digest !== req) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
         return { ...JSON.parse(String(priorReceipt.result_json)), replayed: true };
       }
-      if (!active(r, now)) throw unavailable();
+      if (!active(r, now)) throw unavailable2();
       if (expectedRevision !== r.revision) throw conflict2();
       const expires_at = event === "renew" ? new Date(Date.parse(r.expires_at) + extension).toISOString() : r.expires_at;
-      const changed2 = (event === "renew" ? db.prepare("UPDATE invitation_redemptions SET expires_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? RETURNING id").all(expires_at, id4, now) : db.prepare("UPDATE invitation_redemptions SET revoked_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? RETURNING id").all(now, id4, now)).map((r2) => String(r2.id));
+      const changed2 = (event === "renew" ? db.prepare("UPDATE invitation_redemptions SET expires_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? RETURNING id").all(expires_at, id5, now) : db.prepare("UPDATE invitation_redemptions SET revoked_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? RETURNING id").all(now, id5, now)).map((r2) => String(r2.id));
       const next = { ...r, expires_at, revoked_at: event === "revoke" ? now : null, revision: r.revision + 1 };
-      db.prepare("UPDATE invitations SET expires_at=?,revoked_at=?,revision=? WHERE id=?").run(expires_at, next.revoked_at, next.revision, id4);
+      db.prepare("UPDATE invitations SET expires_at=?,revoked_at=?,revision=? WHERE id=?").run(expires_at, next.revoked_at, next.revision, id5);
       const result = { ...receipt2(next), affected_count: changed2.length, server_time: now };
-      db.prepare("INSERT INTO invitation_change_receipts VALUES(?,?,?,?,?,?)").run(a.serviceId, a.userId, key, id4, req, JSON.stringify(result));
+      db.prepare("INSERT INTO invitation_change_receipts VALUES(?,?,?,?,?,?)").run(a.serviceId, a.userId, key, id5, req, JSON.stringify(result));
       recordEvent(db, next, a, event, now, r.expires_at, changed2, correlation);
       return { ...result, replayed: false };
     });
@@ -4504,29 +4877,30 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 27;
-var MIGRATION_V27_CHECKSUM = createHash13("sha256").update(NOTE_LAYOUT_SCHEMA).digest("hex");
-var MIGRATION_V26_CHECKSUM = createHash13("sha256").update(NOTE_OUTLINE_SCHEMA).digest("hex");
-var MIGRATION_V25_CHECKSUM = createHash13("sha256").update(INVITATION_CHANGE_SCHEMA).digest("hex");
-var MIGRATION_V24_CHECKSUM = createHash13("sha256").update(INVITATION_EVENT_SCHEMA).digest("hex");
-var MIGRATION_V23_CHECKSUM = createHash13("sha256").update(INVITATION_SCHEMA).digest("hex");
-var MIGRATION_V22_CHECKSUM = createHash13("sha256").update(RECALL_SCHEMA).digest("hex");
-var MIGRATION_V21_CHECKSUM = createHash13("sha256").update(NOTE_SCHEMA).digest("hex");
-var MIGRATION_V20_CHECKSUM = createHash13("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
-var MIGRATION_V19_CHECKSUM = createHash13("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V18_CHECKSUM = createHash13("sha256").update(SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V17_CHECKSUM = createHash13("sha256").update(ANNOTATION_SCHEMA).digest("hex");
-var MIGRATION_V16_CHECKSUM = createHash13("sha256").update(READING_STATE_SCHEMA).digest("hex");
-var MIGRATION_V15_CHECKSUM = createHash13("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
-var MIGRATION_V13_CHECKSUM = createHash13("sha256").update(ZIP_SCHEMA).digest("hex");
-var MIGRATION_V14_CHECKSUM = createHash13("sha256").update(CITATION_SCHEMA).digest("hex");
-var MIGRATION_V12_CHECKSUM = createHash13("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
-var MIGRATION_V11_CHECKSUM = createHash13("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
-var MIGRATION_V10_CHECKSUM = createHash13("sha256").update(OFFICE_SCHEMA).digest("hex");
-var MIGRATION_V9_CHECKSUM = createHash13("sha256").update(TEXT_SCHEMA).digest("hex");
-var MIGRATION_V8_CHECKSUM = createHash13("sha256").update(PARSE_SCHEMA).digest("hex");
-var MIGRATION_V7_CHECKSUM = createHash13("sha256").update(ASSET_SCHEMA).digest("hex");
-var MIGRATION_V6_CHECKSUM = createHash13("sha256").update(JOB_SCHEMA).digest("hex");
+var SCHEMA_VERSION = 28;
+var MIGRATION_V28_CHECKSUM = createHash14("sha256").update(REPOSITORY_SCHEMA).digest("hex");
+var MIGRATION_V27_CHECKSUM = createHash14("sha256").update(NOTE_LAYOUT_SCHEMA).digest("hex");
+var MIGRATION_V26_CHECKSUM = createHash14("sha256").update(NOTE_OUTLINE_SCHEMA).digest("hex");
+var MIGRATION_V25_CHECKSUM = createHash14("sha256").update(INVITATION_CHANGE_SCHEMA).digest("hex");
+var MIGRATION_V24_CHECKSUM = createHash14("sha256").update(INVITATION_EVENT_SCHEMA).digest("hex");
+var MIGRATION_V23_CHECKSUM = createHash14("sha256").update(INVITATION_SCHEMA).digest("hex");
+var MIGRATION_V22_CHECKSUM = createHash14("sha256").update(RECALL_SCHEMA).digest("hex");
+var MIGRATION_V21_CHECKSUM = createHash14("sha256").update(NOTE_SCHEMA).digest("hex");
+var MIGRATION_V20_CHECKSUM = createHash14("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
+var MIGRATION_V19_CHECKSUM = createHash14("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V18_CHECKSUM = createHash14("sha256").update(SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V17_CHECKSUM = createHash14("sha256").update(ANNOTATION_SCHEMA).digest("hex");
+var MIGRATION_V16_CHECKSUM = createHash14("sha256").update(READING_STATE_SCHEMA).digest("hex");
+var MIGRATION_V15_CHECKSUM = createHash14("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
+var MIGRATION_V13_CHECKSUM = createHash14("sha256").update(ZIP_SCHEMA).digest("hex");
+var MIGRATION_V14_CHECKSUM = createHash14("sha256").update(CITATION_SCHEMA).digest("hex");
+var MIGRATION_V12_CHECKSUM = createHash14("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
+var MIGRATION_V11_CHECKSUM = createHash14("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
+var MIGRATION_V10_CHECKSUM = createHash14("sha256").update(OFFICE_SCHEMA).digest("hex");
+var MIGRATION_V9_CHECKSUM = createHash14("sha256").update(TEXT_SCHEMA).digest("hex");
+var MIGRATION_V8_CHECKSUM = createHash14("sha256").update(PARSE_SCHEMA).digest("hex");
+var MIGRATION_V7_CHECKSUM = createHash14("sha256").update(ASSET_SCHEMA).digest("hex");
+var MIGRATION_V6_CHECKSUM = createHash14("sha256").update(JOB_SCHEMA).digest("hex");
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
 var MIGRATION_V1_SQL = `CREATE TABLE schema_migrations (
@@ -4542,7 +4916,7 @@ CREATE TABLE storage_probe_records (
   created_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V1_CHECKSUM = createHash13("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
+var MIGRATION_V1_CHECKSUM = createHash14("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
 var MIGRATION_V2_SQL = `CREATE TABLE password_credentials (
   id TEXT PRIMARY KEY,
   algorithm TEXT NOT NULL,
@@ -4596,7 +4970,7 @@ CREATE TABLE spaces (
   updated_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V2_CHECKSUM = createHash13("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
+var MIGRATION_V2_CHECKSUM = createHash14("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
 var MIGRATION_V3_SQL = `CREATE TABLE knowledge_projects (
   id TEXT PRIMARY KEY,
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
@@ -4646,7 +5020,7 @@ CREATE TABLE resource_grants (
   UNIQUE (resource_id, subject_type, subject_id, action)
 ) STRICT;
 `;
-var MIGRATION_V3_CHECKSUM = createHash13("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
+var MIGRATION_V3_CHECKSUM = createHash14("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
 var MIGRATION_V4_SQL = `ALTER TABLE resource_grants RENAME TO resource_grants_v3;
 CREATE TABLE resource_grants (
   id TEXT PRIMARY KEY,
@@ -4668,7 +5042,7 @@ CREATE UNIQUE INDEX resource_grants_active_subject_action_uq
   WHERE revoked_at IS NULL;
 DROP TABLE resource_grants_v3;
 `;
-var MIGRATION_V4_CHECKSUM = createHash13("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
+var MIGRATION_V4_CHECKSUM = createHash14("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
 var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -4680,7 +5054,7 @@ var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   PRIMARY KEY (service_id, user_id, idempotency_key)
 ) STRICT;
 `;
-var MIGRATION_V5_CHECKSUM = createHash13("sha256").update(MIGRATION_V5_SQL).digest("hex");
+var MIGRATION_V5_CHECKSUM = createHash14("sha256").update(MIGRATION_V5_SQL).digest("hex");
 var PROBE_SUPPORTED_TABLES = ["schema_migrations", "storage_probe_records"];
 var IDENTITY_SUPPORTED_TABLES = [
   "auth_sessions",
@@ -4704,7 +5078,7 @@ function toRecord(row) {
   return { id: row.id, content: row.content, created_at: row.created_at };
 }
 function readSchemaObjects(db) {
-  return db.prepare("SELECT type, name FROM sqlite_master ORDER BY type, name").all().filter((object2) => !object2.name.startsWith("sqlite_"));
+  return db.prepare("SELECT type, name FROM sqlite_master ORDER BY type, name").all().filter((object3) => !object3.name.startsWith("sqlite_"));
 }
 function readDatabaseFacts(path2) {
   const db = new DatabaseSync(path2, { readOnly: true });
@@ -4712,7 +5086,7 @@ function readDatabaseFacts(path2) {
     const applicationId = Number(db.prepare("PRAGMA application_id").get()?.application_id ?? 0);
     const userVersion = Number(db.prepare("PRAGMA user_version").get()?.user_version ?? 0);
     const objects = readSchemaObjects(db);
-    const tables = objects.filter((object2) => object2.type === "table").map((object2) => object2.name);
+    const tables = objects.filter((object3) => object3.type === "table").map((object3) => object3.name);
     const ledger = tables.includes("schema_migrations") ? db.prepare("SELECT version, checksum, applied_at FROM schema_migrations ORDER BY version").all() : [];
     return { applicationId, userVersion, tables, objects, ledger };
   } finally {
@@ -4767,28 +5141,29 @@ var ProbeStorage = class {
     const ref = this.#ensureReady().prepare("SELECT token_hash FROM auth_sessions WHERE id=? AND user_id=?").get(session.sessionId, session.userId);
     return ref ? this.findActor(String(ref.token_hash), now) : void 0;
   }
-  assets = new AssetStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (actor2, id4, action2, now) => Boolean(this.authorizeObject(actor2, id4, action2, now)));
+  assets = new AssetStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (actor2, id5, action2, now) => Boolean(this.authorizeObject(actor2, id5, action2, now)));
+  repositories = new RepositoryStore(this.#assetTx, (s, now) => this.#currentActor(s, now));
   notes = new NoteStore(
     this.#assetTx,
     (s, now) => this.#currentActor(s, now),
-    (a, id4, now) => Boolean(this.authorizeObject(a, id4, "read", now)),
+    (a, id5, now) => Boolean(this.authorizeObject(a, id5, "read", now)),
     (a, p, now) => this.canCreateProjectObject(a, p, now),
     (a, p) => this.canManageProject(a, p)
   );
-  search = new SearchStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id4, now) => Boolean(this.authorizeObject(a, id4, "read", now)));
+  search = new SearchStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id5, now) => Boolean(this.authorizeObject(a, id5, "read", now)));
   wordSearch = new WordSearchIndex(this.#assetTx);
-  archives = new ZipStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id4, now) => Boolean(this.authorizeObject(a, id4, "read", now)));
-  citations = new CitationStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id4, now) => Boolean(this.authorizeObject(a, id4, "read", now)), (a, id4, now) => {
-    const source = this.authorizeObject(a, id4, "read", now);
-    return source && { ...source.projectId ? { project_id: source.projectId } : {}, canComment: Boolean(this.authorizeObject(a, id4, "comment", now)) };
-  }, (a, id4, now) => {
-    const object2 = this.#loadObject(id4);
-    return object2 && this.#authorizationHorizon(a, object2, "read", now);
+  archives = new ZipStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id5, now) => Boolean(this.authorizeObject(a, id5, "read", now)));
+  citations = new CitationStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, id5, now) => Boolean(this.authorizeObject(a, id5, "read", now)), (a, id5, now) => {
+    const source = this.authorizeObject(a, id5, "read", now);
+    return source && { ...source.projectId ? { project_id: source.projectId } : {}, canComment: Boolean(this.authorizeObject(a, id5, "comment", now)) };
+  }, (a, id5, now) => {
+    const object3 = this.#loadObject(id5);
+    return object3 && this.#authorizationHorizon(a, object3, "read", now);
   });
   recall = new RecallStore(
     this.#assetTx,
     (s, now) => this.#currentActor(s, now),
-    (a, id4, now) => Boolean(this.authorizeObject(a, id4, "read", now)),
+    (a, id5, now) => Boolean(this.authorizeObject(a, id5, "read", now)),
     (db, a, t, now) => this.citations.recallSource(db, a, t, now)
   );
   invitations = new InvitationStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (db, user, service) => {
@@ -4796,13 +5171,13 @@ var ProbeStorage = class {
       WHERE u.id=? AND u.planning_home_service_id=? AND u.status='active' AND p.status='active' AND p.service_id=?`).get(user, service, service);
     return row && { userId: user, serviceId: service, personalSpaceId: String(row.id) };
   }, (a, t, now) => this.#canIssue(a, t, now), (a, p, now) => this.canCreateProjectObject(a, p, now));
-  office = new OfficeStore(this.#assetTx, (sessionId, userId, id4, action2, now) => {
+  office = new OfficeStore(this.#assetTx, (sessionId, userId, id5, action2, now) => {
     const actor2 = this.#currentActor({ sessionId, userId }, now);
-    return !!actor2 && !!this.authorizeObject(actor2, id4, action2, now);
+    return !!actor2 && !!this.authorizeObject(actor2, id5, action2, now);
   });
-  parses = new ParseStore(this.#assetTx, (sessionId, userId, id4, write, now) => {
+  parses = new ParseStore(this.#assetTx, (sessionId, userId, id5, write, now) => {
     const a = this.#currentActor({ sessionId, userId }, now);
-    return Boolean(a && this.authorizeObject(a, id4, "read", now) && (!write || this.authorizeObject(a, id4, "edit", now)));
+    return Boolean(a && this.authorizeObject(a, id5, "read", now) && (!write || this.authorizeObject(a, id5, "edit", now)));
   });
   jobs = new JobStore((op) => {
     const db = this.#ensureReady();
@@ -4819,11 +5194,11 @@ var ProbeStorage = class {
       if (!this.#rollback(db)) throw this.#failure;
       throw err instanceof JobError ? err : this.#mapError(err);
     }
-  }, (session, user, object2, ms) => {
+  }, (session, user, object3, ms) => {
     const now = new Date(ms).toISOString();
     const ref = this.#ensureReady().prepare("SELECT token_hash FROM auth_sessions WHERE id=? AND user_id=?").get(session, user);
     const actor2 = ref && this.findActor(String(ref.token_hash), now);
-    return actor2 && this.authorizeObject(actor2, object2, "read", now)?.revision;
+    return actor2 && this.authorizeObject(actor2, object3, "read", now)?.revision;
   }, (point4) => this.#injectFailure(point4));
   constructor(options) {
     this.#dataDir = options.dataDir;
@@ -4894,6 +5269,7 @@ var ProbeStorage = class {
       if (priorVersion < 25) this.#migrateV25(db);
       if (priorVersion < 26) this.#migrateV26(db);
       if (priorVersion < 27) this.#migrateV27(db);
+      if (priorVersion < 28) this.#migrateV28(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path2);
       const pragmas = this.#readPragmas(db);
@@ -4975,23 +5351,23 @@ var ProbeStorage = class {
   }
   #assertV1Schema(facts) {
     const expected = [...PROBE_SUPPORTED_TABLES].sort();
-    const actual = facts.objects.filter((object2) => object2.type === "table").map((object2) => object2.name).sort();
-    if (facts.objects.some((object2) => object2.type !== "table") || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v1 schema");
+    const actual = facts.objects.filter((object3) => object3.type === "table").map((object3) => object3.name).sort();
+    if (facts.objects.some((object3) => object3.type !== "table") || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v1 schema");
     const entry = facts.ledger[0];
     if (facts.ledger.length !== 1 || entry?.version !== 1 || entry.checksum !== MIGRATION_V1_CHECKSUM) throw new RecordsError("STORAGE_INCOMPATIBLE", "v1 migration ledger does not match this build");
   }
   #assertV2Schema(facts) {
     const expected = ["auth_sessions", "password_credentials", "schema_migrations", "service_identity", "spaces", "storage_probe_records", "users"].sort();
-    const actual = facts.objects.filter((object2) => object2.type === "table").map((object2) => object2.name).sort();
-    if (facts.objects.some((object2) => object2.type !== "table") || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v2 schema");
+    const actual = facts.objects.filter((object3) => object3.type === "table").map((object3) => object3.name).sort();
+    if (facts.objects.some((object3) => object3.type !== "table") || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v2 schema");
     const v1 = facts.ledger.find((entry) => entry.version === 1);
     const v2 = facts.ledger.find((entry) => entry.version === 2);
     if (facts.ledger.length !== 2 || v1?.checksum !== MIGRATION_V1_CHECKSUM || v2?.checksum !== MIGRATION_V2_CHECKSUM) throw new RecordsError("STORAGE_INCOMPATIBLE", "v2 migration ledger does not match this build");
   }
   #assertV3Schema(facts) {
     const expected = [...IDENTITY_SUPPORTED_TABLES].sort();
-    const actual = facts.objects.filter((object2) => object2.type === "table").map((object2) => object2.name).sort();
-    if (facts.objects.some((object2) => object2.type !== "table") || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v3 schema");
+    const actual = facts.objects.filter((object3) => object3.type === "table").map((object3) => object3.name).sort();
+    if (facts.objects.some((object3) => object3.type !== "table") || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v3 schema");
     const v1 = facts.ledger.find((entry) => entry.version === 1);
     const v2 = facts.ledger.find((entry) => entry.version === 2);
     const v3 = facts.ledger.find((entry) => entry.version === 3);
@@ -4999,8 +5375,8 @@ var ProbeStorage = class {
   }
   #assertV4Schema(facts) {
     const expected = [...IDENTITY_SUPPORTED_TABLES].sort();
-    const actual = facts.objects.filter((object2) => object2.type === "table").map((object2) => object2.name).sort();
-    const unexpected = facts.objects.filter((object2) => object2.type !== "table" && !(object2.type === "index" && object2.name === "resource_grants_active_subject_action_uq"));
+    const actual = facts.objects.filter((object3) => object3.type === "table").map((object3) => object3.name).sort();
+    const unexpected = facts.objects.filter((object3) => object3.type !== "table" && !(object3.type === "index" && object3.name === "resource_grants_active_subject_action_uq"));
     if (unexpected.length !== 0 || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v4 schema");
     const v1 = facts.ledger.find((entry) => entry.version === 1);
     const v2 = facts.ledger.find((entry) => entry.version === 2);
@@ -5120,7 +5496,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID15());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID16());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -5450,9 +5826,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "note map layout migration failed", false, { cause: e });
     }
   }
+  #migrateV28(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(REPOSITORY_SCHEMA);
+      this.#injectFailure("v28:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(28,?,?)").run(MIGRATION_V28_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=28; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "repository migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash4, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash4)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -5478,6 +5866,7 @@ var ProbeStorage = class {
       if (version >= 25) reference.exec(INVITATION_CHANGE_SCHEMA);
       if (version >= 26) reference.exec(NOTE_OUTLINE_SCHEMA);
       if (version >= 27) reference.exec(NOTE_LAYOUT_SCHEMA);
+      if (version >= 28) reference.exec(REPOSITORY_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name: name2, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name2)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -5548,10 +5937,10 @@ var ProbeStorage = class {
       throw this.#mapError(error);
     }
   }
-  getById(id4) {
+  getById(id5) {
     const db = this.#ensureReady();
     try {
-      const row = db.prepare("SELECT id, idempotency_key, request_digest, content, created_at FROM storage_probe_records WHERE id = ?").get(id4);
+      const row = db.prepare("SELECT id, idempotency_key, request_digest, content, created_at FROM storage_probe_records WHERE id = ?").get(id5);
       return row === void 0 ? void 0 : toRecord(row);
     } catch (error) {
       throw this.#mapError(error);
@@ -5580,9 +5969,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID15();
-      const spaceId = randomUUID15();
-      const credentialId = randomUUID15();
+      const userId = randomUUID16();
+      const spaceId = randomUUID16();
+      const credentialId = randomUUID16();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -5616,9 +6005,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID15();
-      const spaceId = randomUUID15();
-      const credentialId = randomUUID15();
+      const userId = randomUUID16();
+      const spaceId = randomUUID16();
+      const credentialId = randomUUID16();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -5723,11 +6112,11 @@ var ProbeStorage = class {
       JOIN knowledge_projects p ON p.id=i.project_id AND p.service_id=i.service_id AND p.status='active'
       WHERE i.project_id=? AND i.permission='member' AND i.revoked_at IS NULL AND r.expires_at=i.expires_at`).all(projectId, projectId).map((row) => ({ projectId: String(row.project_id), userId: String(row.user_id), role: String(row.role), validFrom: String(row.valid_from), expiresAt: row.expires_at == null ? void 0 : String(row.expires_at), revokedAt: row.revoked_at == null ? void 0 : String(row.revoked_at) }));
   }
-  #invitedActions(db, actor2, object2, action2, now) {
-    if (action2 !== "read" && action2 !== "edit" || object2.objectType !== "asset") return [];
+  #invitedActions(db, actor2, object3, action2, now) {
+    if (action2 !== "read" && action2 !== "edit" || object3.objectType !== "asset") return [];
     return db.prepare(`SELECT r.redeemed_at,r.expires_at FROM invitations i JOIN invitation_redemptions r ON r.invitation_id=i.id
       WHERE i.object_id=? AND i.service_id=? AND r.user_id=? AND r.revoked_at IS NULL AND i.revoked_at IS NULL
-      AND i.expires_at=r.expires_at AND r.expires_at>? AND (i.permission='edit' OR i.permission=?)`).all(object2.id, actor2.serviceId, actor2.userId, now, action2).map((r) => ({ subjectType: "user", subjectId: actor2.userId, action: action2, validFrom: String(r.redeemed_at), expiresAt: String(r.expires_at) }));
+      AND i.expires_at=r.expires_at AND r.expires_at>? AND (i.permission='edit' OR i.permission=?)`).all(object3.id, actor2.serviceId, actor2.userId, now, action2).map((r) => ({ subjectType: "user", subjectId: actor2.userId, action: action2, validFrom: String(r.redeemed_at), expiresAt: String(r.expires_at) }));
   }
   #canIssue(actor2, t, now) {
     if (t.scope === "project") {
@@ -5736,34 +6125,34 @@ var ProbeStorage = class {
       return row && { title: String(row.name) };
     }
     if (t.permission !== "read" && t.permission !== "edit") return;
-    const object2 = this.authorizeObject(actor2, t.id, "manage_share", now);
-    if (object2?.objectType !== "asset" || !this.authorizeObject(actor2, t.id, "read", now) || t.permission === "edit" && !this.authorizeObject(actor2, t.id, "edit", now)) return;
-    return { title: object2.title, project_id: object2.projectId };
+    const object3 = this.authorizeObject(actor2, t.id, "manage_share", now);
+    if (object3?.objectType !== "asset" || !this.authorizeObject(actor2, t.id, "read", now) || t.permission === "edit" && !this.authorizeObject(actor2, t.id, "edit", now)) return;
+    return { title: object3.title, project_id: object3.projectId };
   }
-  #loadObject(id4) {
-    const row = this.#ensureReady().prepare("SELECT id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at FROM knowledge_objects WHERE id = ?").get(id4);
+  #loadObject(id5) {
+    const row = this.#ensureReady().prepare("SELECT id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at FROM knowledge_objects WHERE id = ?").get(id5);
     return row === void 0 ? void 0 : this.#objectRow(row);
   }
-  #authorizationHorizon(actor2, object2, action2, now) {
+  #authorizationHorizon(actor2, object3, action2, now) {
     const db = this.#ensureReady();
     return authorizationHorizon(
       actor2,
-      this.#objectTarget(object2),
+      this.#objectTarget(object3),
       action2,
       now,
-      this.#grants(db, object2.id),
-      object2.projectId === void 0 ? [] : this.#memberships(db, object2.projectId),
-      this.#invitedActions(db, actor2, object2, action2, now)
+      this.#grants(db, object3.id),
+      object3.projectId === void 0 ? [] : this.#memberships(db, object3.projectId),
+      this.#invitedActions(db, actor2, object3, action2, now)
     );
   }
   authorizeObject(actor2, objectId, action2, now) {
-    const object2 = this.#loadObject(objectId);
-    return object2 && this.#authorizationHorizon(actor2, object2, action2, now) !== void 0 ? object2 : void 0;
+    const object3 = this.#loadObject(objectId);
+    return object3 && this.#authorizationHorizon(actor2, object3, action2, now) !== void 0 ? object3 : void 0;
   }
   listObjects(actor2, action2, now) {
     const db = this.#ensureReady();
     const rows = db.prepare("SELECT id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at FROM knowledge_objects WHERE service_id = ? AND status = 'active' ORDER BY created_at, id").all(actor2.serviceId);
-    return rows.map((row) => this.#objectRow(row)).filter((object2) => authorize(actor2, this.#objectTarget(object2), action2, now, this.#grants(db, object2.id), object2.projectId === void 0 ? [] : this.#memberships(db, object2.projectId), this.#invitedActions(db, actor2, object2, action2, now)));
+    return rows.map((row) => this.#objectRow(row)).filter((object3) => authorize(actor2, this.#objectTarget(object3), action2, now, this.#grants(db, object3.id), object3.projectId === void 0 ? [] : this.#memberships(db, object3.projectId), this.#invitedActions(db, actor2, object3, action2, now)));
   }
   createProject(input) {
     const db = this.#ensureReady();
@@ -5816,7 +6205,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action2 of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID15(), input.serviceId, input.id, input.ownerUserId, action2, input.now, input.now);
+        for (const action2 of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID16(), input.serviceId, input.id, input.ownerUserId, action2, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -5869,24 +6258,24 @@ var ProbeStorage = class {
       const changed2 = db.prepare("UPDATE knowledge_objects SET title = ?, body = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ? AND status = 'active'").run(input.title ?? current.title, input.body ?? current.body, now, input.objectId, input.expectedRevision);
       if (Number(changed2.changes) !== 1) return finish({ kind: "conflict" });
       this.#injectFailure("ai:after-update");
-      const object2 = this.#loadObject(input.objectId);
-      db.prepare("INSERT INTO ai_tool_mutations (service_id, user_id, idempotency_key, request_digest, object_id, result_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(actor2.serviceId, actor2.userId, input.key, input.digest, input.objectId, JSON.stringify(object2), now);
-      return finish({ kind: "updated", object: object2 });
+      const object3 = this.#loadObject(input.objectId);
+      db.prepare("INSERT INTO ai_tool_mutations (service_id, user_id, idempotency_key, request_digest, object_id, result_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(actor2.serviceId, actor2.userId, input.key, input.digest, input.objectId, JSON.stringify(object3), now);
+      return finish({ kind: "updated", object: object3 });
     } catch (error) {
       if (tx && !this.#rollback(db)) throw new RecordsError("STORAGE_UNAVAILABLE", "storage transaction state is unknown", false, { cause: error });
       throw this.#mapError(error);
     }
   }
   deleteObject(actor2, objectId, now) {
-    const object2 = this.authorizeObject(actor2, objectId, "delete", now);
-    if (object2 === void 0) return false;
+    const object3 = this.authorizeObject(actor2, objectId, "delete", now);
+    if (object3 === void 0) return false;
     const result = this.#ensureReady().prepare("UPDATE knowledge_objects SET status = 'deleted', revision = revision + 1, updated_at = ? WHERE id = ? AND status = 'active'").run(now, objectId);
     return Number(result.changes) === 1;
   }
   grantObject(actor2, input) {
     const db = this.#ensureReady();
-    const object2 = this.authorizeObject(actor2, input.objectId, "manage_share", input.now);
-    if (object2 === void 0 || input.serviceId !== actor2.serviceId) return void 0;
+    const object3 = this.authorizeObject(actor2, input.objectId, "manage_share", input.now);
+    if (object3 === void 0 || input.serviceId !== actor2.serviceId) return void 0;
     if (input.subjectType === "project") {
       const project = db.prepare("SELECT service_id, status FROM knowledge_projects WHERE id = ?").get(input.subjectId);
       if (project === void 0 || String(project.service_id) !== actor2.serviceId || String(project.status) !== "active") return void 0;
@@ -5915,8 +6304,8 @@ var ProbeStorage = class {
     let primaryCode;
     let failed = false;
     try {
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash13("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash13("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash14("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash14("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
     } catch (error) {
       failed = true;
       primaryCode = primarySqliteCode(error);
@@ -5974,7 +6363,7 @@ var ProbeStorage = class {
 };
 
 // src/host/identity.ts
-import { createHash as createHash14, randomBytes as randomBytes2, randomUUID as randomUUID16, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
+import { createHash as createHash15, randomBytes as randomBytes2, randomUUID as randomUUID17, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
 var DOMAINS = ["software_engineering", "system_architecture", "hardware_engineering", "ai_development"];
 var LEARNING_TRACKS = ["engineering_practice", "architecture_exam", "knowledge_accumulation"];
 var DEFAULT_TIMEZONE = "Asia/Shanghai";
@@ -6050,7 +6439,7 @@ function validateExpectedRevision(value) {
   return Number(value);
 }
 function tokenHash(token2) {
-  return createHash14("sha256").update(token2, "utf8").digest("hex");
+  return createHash15("sha256").update(token2, "utf8").digest("hex");
 }
 function makeToken() {
   return randomBytes2(32).toString("base64url");
@@ -6255,7 +6644,7 @@ var IdentityService = class {
     const token2 = makeToken();
     const createdAt = /* @__PURE__ */ new Date();
     const expiresAt = new Date(createdAt.getTime() + SESSION_TTL_MS).toISOString();
-    this.#store.createSession({ sessionId: randomUUID16(), userId: lookup.userId, tokenHash: tokenHash(token2), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
+    this.#store.createSession({ sessionId: randomUUID17(), userId: lookup.userId, tokenHash: tokenHash(token2), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
     const user = this.#store.getProfile(lookup.userId);
     if (user === void 0) throw new IdentityError("STORAGE_UNAVAILABLE", "user profile unavailable");
     return { user, token: token2, expiresAt };
@@ -6283,7 +6672,7 @@ var IdentityService = class {
 };
 
 // src/host/identity-http.ts
-import { createHash as createHash15, randomUUID as randomUUID17 } from "node:crypto";
+import { createHash as createHash16, randomUUID as randomUUID18 } from "node:crypto";
 import { isIP } from "node:net";
 var HttpError = class extends Error {
   constructor(status, code, message, retryable = false, headers = {}) {
@@ -6360,7 +6749,7 @@ function isIdentityRuntimeAvailable(facts) {
   }
 }
 function businessCookieName(serviceId, origin) {
-  return `kos_session_${createHash15("sha256").update(`${serviceId}|${origin}`).digest("hex").slice(0, 16)}`;
+  return `kos_session_${createHash16("sha256").update(`${serviceId}|${origin}`).digest("hex").slice(0, 16)}`;
 }
 function readCookie(req, name2) {
   const raw = req.headers.cookie;
@@ -6490,7 +6879,7 @@ function createIdentityHandlers(options) {
     return actor2;
   };
   const dispatch = async (req, res, action2) => {
-    const requestId = randomUUID17();
+    const requestId = randomUUID18();
     try {
       assertAvailable();
       assertNoQuery(req);
@@ -6519,7 +6908,7 @@ function createIdentityHandlers(options) {
     requireMethod(req, "GET");
     assertTrust(req, false);
     const state = service.setupState;
-    sendJson2(res, 200, withMeta(randomUUID17(), { setup_required: !state.initialized, available: true }));
+    sendJson2(res, 200, withMeta(randomUUID18(), { setup_required: !state.initialized, available: true }));
   });
   const bootstrap = async (req, res, peer) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -6527,42 +6916,42 @@ function createIdentityHandlers(options) {
     if (!isLoopbackAddress(req.socket?.remoteAddress) || !isLoopbackAddress(options.host()) || peer?.principal?.kind !== "owner") throw new HttpError(403, "FORBIDDEN", "owner loopback admission is required");
     const signal = requestSignal(req, res);
     requireJson(req);
-    const body2 = bodyObject(await readBody2(req));
-    assertKeys(body2, ["login_name", "password", "display_name", "timezone"]);
-    const user = await service.bootstrap({ loginName: body2.login_name, password: body2.password, displayName: body2.display_name, timezone: body2.timezone, source: requestSource(req), signal });
-    sendJson2(res, 201, withMeta(randomUUID17(), safeProfile(user)));
+    const body3 = bodyObject(await readBody2(req));
+    assertKeys(body3, ["login_name", "password", "display_name", "timezone"]);
+    const user = await service.bootstrap({ loginName: body3.login_name, password: body3.password, displayName: body3.display_name, timezone: body3.timezone, source: requestSource(req), signal });
+    sendJson2(res, 201, withMeta(randomUUID18(), safeProfile(user)));
   });
   const register = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
     assertTrust(req, true);
     const signal = requestSignal(req, res);
     requireJson(req);
-    const body2 = bodyObject(await readBody2(req));
-    assertKeys(body2, ["login_name", "password", "display_name", "timezone"]);
-    const user = await service.register({ loginName: body2.login_name, password: body2.password, displayName: body2.display_name, timezone: body2.timezone, source: requestSource(req), signal });
-    sendJson2(res, 201, withMeta(randomUUID17(), safeProfile(user)));
+    const body3 = bodyObject(await readBody2(req));
+    assertKeys(body3, ["login_name", "password", "display_name", "timezone"]);
+    const user = await service.register({ loginName: body3.login_name, password: body3.password, displayName: body3.display_name, timezone: body3.timezone, source: requestSource(req), signal });
+    sendJson2(res, 201, withMeta(randomUUID18(), safeProfile(user)));
   });
   const login = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
     assertTrust(req, true);
     const signal = requestSignal(req, res);
     requireJson(req);
-    const body2 = bodyObject(await readBody2(req));
-    assertKeys(body2, ["login_name", "password"]);
-    const result = await service.login({ loginName: body2.login_name, password: body2.password, oldToken: tokenFor(req), source: requestSource(req), signal });
+    const body3 = bodyObject(await readBody2(req));
+    assertKeys(body3, ["login_name", "password"]);
+    const result = await service.login({ loginName: body3.login_name, password: body3.password, oldToken: tokenFor(req), source: requestSource(req), signal });
     const origin = options.origin();
     if (origin === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
     const state = service.setupState;
     const name2 = businessCookieName(state.serviceId, origin);
     const maxAge = Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1e3);
-    sendJson2(res, 200, withMeta(randomUUID17(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin, options.protocol(), maxAge) });
+    sendJson2(res, 200, withMeta(randomUUID18(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin, options.protocol(), maxAge) });
   });
   const logout = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
     assertTrust(req, true);
     requireJson(req);
-    const body2 = bodyObject(await readBody2(req));
-    assertKeys(body2, []);
+    const body3 = bodyObject(await readBody2(req));
+    assertKeys(body3, []);
     service.logout(tokenFor(req));
     const origin = options.origin();
     if (origin === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
@@ -6576,31 +6965,31 @@ function createIdentityHandlers(options) {
     const actor2 = requireActor(req);
     const profile = service.profile(actor2.userId);
     if (profile === void 0) throw new HttpError(401, "SESSION_EXPIRED", "business session is required");
-    sendJson2(res, 200, withMeta(randomUUID17(), safeProfile(profile)));
+    sendJson2(res, 200, withMeta(randomUUID18(), safeProfile(profile)));
   });
   const preferences = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "PATCH");
     assertTrust(req, true);
     const actor2 = requireActor(req);
     requireJson(req);
-    const body2 = bodyObject(await readBody2(req));
-    assertKeys(body2, ["expected_revision", "display_name", "timezone", "domains", "learning_tracks", "goal_text"]);
-    const expectedRevision = validateExpectedRevision(body2.expected_revision);
+    const body3 = bodyObject(await readBody2(req));
+    assertKeys(body3, ["expected_revision", "display_name", "timezone", "domains", "learning_tracks", "goal_text"]);
+    const expectedRevision = validateExpectedRevision(body3.expected_revision);
     const patch = {};
-    if (body2.display_name !== void 0) patch.displayName = validateDisplayName(body2.display_name);
-    if (body2.timezone !== void 0) patch.timezone = validateTimezone(body2.timezone);
-    if (body2.domains !== void 0) patch.domains = validateDomains(body2.domains);
-    if (body2.learning_tracks !== void 0) patch.learningTracks = validateLearningTracks(body2.learning_tracks);
-    if (body2.goal_text !== void 0) patch.goalText = validateGoalText(body2.goal_text);
+    if (body3.display_name !== void 0) patch.displayName = validateDisplayName(body3.display_name);
+    if (body3.timezone !== void 0) patch.timezone = validateTimezone(body3.timezone);
+    if (body3.domains !== void 0) patch.domains = validateDomains(body3.domains);
+    if (body3.learning_tracks !== void 0) patch.learningTracks = validateLearningTracks(body3.learning_tracks);
+    if (body3.goal_text !== void 0) patch.goalText = validateGoalText(body3.goal_text);
     if (Object.keys(patch).length === 0) throw new HttpError(422, "INPUT_INVALID", "at least one preference is required");
-    sendJson2(res, 200, withMeta(randomUUID17(), safeProfile(service.preferences(actor2.userId, expectedRevision, patch))));
+    sendJson2(res, 200, withMeta(randomUUID18(), safeProfile(service.preferences(actor2.userId, expectedRevision, patch))));
   });
   const spaces = async (req, res) => dispatch(req, res, () => {
     requireMethod(req, "GET");
     assertTrust(req, false);
     const actor2 = requireActor(req);
     const data = service.spaces(actor2.userId).map((space) => ({ id: space.id, service_id: space.serviceId, kind: space.kind, owner_user_id: space.ownerUserId, status: space.status, revision: space.revision, created_at: space.createdAt, updated_at: space.updatedAt }));
-    sendJson2(res, 200, withMeta(randomUUID17(), data));
+    sendJson2(res, 200, withMeta(randomUUID18(), data));
   });
   return { status, bootstrap, register, login, logout, me, preferences, spaces };
 }
@@ -6617,7 +7006,7 @@ function buildSetupHtml() {
 }
 
 // src/host/objects-http.ts
-import { randomUUID as randomUUID18 } from "node:crypto";
+import { randomUUID as randomUUID19 } from "node:crypto";
 var ObjectHttpError = class extends Error {
   constructor(status, code, message) {
     super(message);
@@ -6633,7 +7022,7 @@ var json = (res, status, data) => {
   res.end(JSON.stringify(data));
 };
 var pathOf = (req) => new URL(req.url ?? "/", "http://localhost").pathname;
-var safeObject = (object2, includeBody = true) => ({ id: object2.id, service_id: object2.serviceId, space_id: object2.spaceId, scope: object2.scope, project_id: object2.projectId, owner_user_id: object2.ownerUserId, object_type: object2.objectType, title: object2.title, ...includeBody ? { body: object2.body } : {}, status: object2.status, revision: object2.revision, created_at: object2.createdAt, updated_at: object2.updatedAt });
+var safeObject = (object3, includeBody = true) => ({ id: object3.id, service_id: object3.serviceId, space_id: object3.spaceId, scope: object3.scope, project_id: object3.projectId, owner_user_id: object3.ownerUserId, object_type: object3.objectType, title: object3.title, ...includeBody ? { body: object3.body } : {}, status: object3.status, revision: object3.revision, created_at: object3.createdAt, updated_at: object3.updatedAt });
 var readBody3 = async (req) => await new Promise((resolve2, reject2) => {
   const chunks = [];
   let size = 0;
@@ -6655,8 +7044,8 @@ var readBody3 = async (req) => await new Promise((resolve2, reject2) => {
   });
   req.on("error", () => reject2(new ObjectHttpError(400, "INVALID_JSON", "request body could not be read")));
 });
-var keys = (body2, allowed) => {
-  if (Object.keys(body2).some((key) => !allowed.includes(key))) throw new ObjectHttpError(422, "INPUT_INVALID", "body contains an unsupported field");
+var keys = (body3, allowed) => {
+  if (Object.keys(body3).some((key) => !allowed.includes(key))) throw new ObjectHttpError(422, "INPUT_INVALID", "body contains an unsupported field");
 };
 var action = (value) => {
   if (typeof value !== "string" || !AUTH_ACTIONS.includes(value)) throw new ObjectHttpError(422, "INPUT_INVALID", "action is invalid");
@@ -6680,7 +7069,7 @@ function actor(options, req) {
 }
 function createObjectHandlers(options) {
   return async (req, res) => {
-    const requestId = randomUUID18();
+    const requestId = randomUUID19();
     try {
       const path2 = pathOf(req);
       const segments = path2.split("/").filter(Boolean);
@@ -6689,11 +7078,11 @@ function createObjectHandlers(options) {
       const now = (/* @__PURE__ */ new Date()).toISOString();
       if (segments[2] === "jobs") {
         if (segments.length === 3 && req.method === "POST") {
-          const body2 = await readBody3(req);
-          keys(body2, ["object_id", "expected_revision", "idempotency_key"]);
-          if (!Number.isSafeInteger(body2.expected_revision) || Number(body2.expected_revision) < 1) throw new JobError(422, "INPUT_INVALID");
-          const id4 = options.storage.jobs.enqueue(current, text(body2.object_id, "object_id", 80), Number(body2.expected_revision), text(body2.idempotency_key, "idempotency_key", 128));
-          json(res, 202, { data: { id: id4 } });
+          const body3 = await readBody3(req);
+          keys(body3, ["object_id", "expected_revision", "idempotency_key"]);
+          if (!Number.isSafeInteger(body3.expected_revision) || Number(body3.expected_revision) < 1) throw new JobError(422, "INPUT_INVALID");
+          const id5 = options.storage.jobs.enqueue(current, text(body3.object_id, "object_id", 80), Number(body3.expected_revision), text(body3.idempotency_key, "idempotency_key", 128));
+          json(res, 202, { data: { id: id5 } });
           return;
         }
         const cancel = segments.length === 5 && segments[4] === "cancel" && req.method === "POST";
@@ -6707,18 +7096,18 @@ function createObjectHandlers(options) {
         return;
       }
       if (segments[2] === "projects" && segments.length === 3 && req.method === "POST") {
-        const body2 = await readBody3(req);
-        keys(body2, ["name"]);
-        const project = options.storage.createProject({ id: randomUUID18(), serviceId: current.serviceId, ownerUserId: current.userId, name: text(body2.name, "name", 200), now });
+        const body3 = await readBody3(req);
+        keys(body3, ["name"]);
+        const project = options.storage.createProject({ id: randomUUID19(), serviceId: current.serviceId, ownerUserId: current.userId, name: text(body3.name, "name", 200), now });
         json(res, 201, { data: project, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
         return;
       }
       if (segments[2] === "projects" && segments.length === 5 && segments[4] === "memberships" && req.method === "POST") {
-        const body2 = await readBody3(req);
-        keys(body2, ["user_id", "role", "valid_from", "expires_at"]);
+        const body3 = await readBody3(req);
+        keys(body3, ["user_id", "role", "valid_from", "expires_at"]);
         const projectId = segments[3];
         if (!options.storage.canManageProject(current, projectId)) throw new ObjectHttpError(404, "NOT_FOUND", "project not found");
-        options.storage.addProjectMembership({ projectId, userId: text(body2.user_id, "user_id", 80), role: body2.role === void 0 ? "member" : text(body2.role, "role", 20), validFrom: body2.valid_from === void 0 ? now : text(body2.valid_from, "valid_from", 40), expiresAt: body2.expires_at === void 0 ? void 0 : text(body2.expires_at, "expires_at", 40) });
+        options.storage.addProjectMembership({ projectId, userId: text(body3.user_id, "user_id", 80), role: body3.role === void 0 ? "member" : text(body3.role, "role", 20), validFrom: body3.valid_from === void 0 ? now : text(body3.valid_from, "valid_from", 40), expiresAt: body3.expires_at === void 0 ? void 0 : text(body3.expires_at, "expires_at", 40) });
         res.statusCode = 204;
         res.end();
         return;
@@ -6729,33 +7118,33 @@ function createObjectHandlers(options) {
           return;
         }
         if (segments.length === 3 && req.method === "POST") {
-          const body2 = await readBody3(req);
-          keys(body2, ["title", "body", "object_type", "scope", "project_id"]);
-          const scope = body2.scope ?? "personal";
+          const body3 = await readBody3(req);
+          keys(body3, ["title", "body", "object_type", "scope", "project_id"]);
+          const scope = body3.scope ?? "personal";
           if (scope !== "personal" && scope !== "project") throw new ObjectHttpError(422, "INPUT_INVALID", "scope is invalid");
-          const projectId = body2.project_id === void 0 ? void 0 : text(body2.project_id, "project_id", 80);
+          const projectId = body3.project_id === void 0 ? void 0 : text(body3.project_id, "project_id", 80);
           if (scope === "project" && projectId === void 0) throw new ObjectHttpError(422, "INPUT_INVALID", "project_id is required for project objects");
           if (scope === "personal" && projectId !== void 0) throw new ObjectHttpError(422, "INPUT_INVALID", "project_id is not allowed for personal objects");
           if (scope === "project" && !options.storage.canCreateProjectObject(current, projectId, now)) throw new ObjectHttpError(404, "NOT_FOUND", "project not found");
-          const title = text(body2.title, "title", 200);
-          const content = text(body2.body, "body", 1e5);
-          const object2 = options.storage.createObject({ id: randomUUID18(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId, ownerUserId: current.userId, objectType: body2.object_type === void 0 ? "note" : text(body2.object_type, "object_type", 80), title, body: content, now });
-          json(res, 201, { data: safeObject(object2), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
+          const title = text(body3.title, "title", 200);
+          const content = text(body3.body, "body", 1e5);
+          const object3 = options.storage.createObject({ id: randomUUID19(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId, ownerUserId: current.userId, objectType: body3.object_type === void 0 ? "note" : text(body3.object_type, "object_type", 80), title, body: content, now });
+          json(res, 201, { data: safeObject(object3), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
           return;
         }
         const objectId = segments[3];
         if (objectId === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
         if (segments.length === 4 && req.method === "GET") {
-          const object2 = options.storage.authorizeObject(current, objectId, "read", now);
-          if (object2 === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
-          json(res, 200, { data: safeObject(object2), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
+          const object3 = options.storage.authorizeObject(current, objectId, "read", now);
+          if (object3 === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
+          json(res, 200, { data: safeObject(object3), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
           return;
         }
         if (segments.length === 4 && req.method === "PATCH") {
-          const body2 = await readBody3(req);
-          keys(body2, ["expected_revision", "title", "body"]);
-          if (!Number.isInteger(body2.expected_revision) || Number(body2.expected_revision) < 1) throw new ObjectHttpError(422, "INPUT_INVALID", "expected_revision is invalid");
-          const result = options.storage.updateObject(current, objectId, Number(body2.expected_revision), { title: body2.title === void 0 ? void 0 : text(body2.title, "title", 200), body: body2.body === void 0 ? void 0 : text(body2.body, "body", 1e5) });
+          const body3 = await readBody3(req);
+          keys(body3, ["expected_revision", "title", "body"]);
+          if (!Number.isInteger(body3.expected_revision) || Number(body3.expected_revision) < 1) throw new ObjectHttpError(422, "INPUT_INVALID", "expected_revision is invalid");
+          const result = options.storage.updateObject(current, objectId, Number(body3.expected_revision), { title: body3.title === void 0 ? void 0 : text(body3.title, "title", 200), body: body3.body === void 0 ? void 0 : text(body3.body, "body", 1e5) });
           if (result.kind === "session_expired") throw new ObjectHttpError(401, "SESSION_EXPIRED", "business session is required");
           if (result.kind === "not_found") throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
           if (result.kind === "conflict") throw new ObjectHttpError(409, "REVISION_CONFLICT", "object revision has changed");
@@ -6769,27 +7158,27 @@ function createObjectHandlers(options) {
           return;
         }
         if (segments.length === 5 && segments[4] === "action" && req.method === "POST") {
-          const body2 = await readBody3(req);
-          keys(body2, ["action"]);
-          const wanted = action(body2.action);
+          const body3 = await readBody3(req);
+          keys(body3, ["action"]);
+          const wanted = action(body3.action);
           if (options.storage.authorizeObject(current, objectId, wanted, now) === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
           json(res, 200, { data: { allowed: true, action: wanted, object_id: objectId }, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
           return;
         }
       }
       if (segments[2] === "grants" && segments.length === 3 && req.method === "POST") {
-        const body2 = await readBody3(req);
-        keys(body2, ["object_id", "subject_type", "subject_id", "action", "valid_from", "expires_at"]);
-        if (body2.subject_type !== "user" && body2.subject_type !== "project") throw new ObjectHttpError(422, "INPUT_INVALID", "subject_type is invalid");
-        const grant = options.storage.grantObject(current, { id: randomUUID18(), objectId: text(body2.object_id, "object_id", 80), serviceId: current.serviceId, subjectType: body2.subject_type, subjectId: text(body2.subject_id, "subject_id", 80), action: action(body2.action), validFrom: body2.valid_from === void 0 ? now : text(body2.valid_from, "valid_from", 40), expiresAt: body2.expires_at === void 0 ? void 0 : text(body2.expires_at, "expires_at", 40), now });
+        const body3 = await readBody3(req);
+        keys(body3, ["object_id", "subject_type", "subject_id", "action", "valid_from", "expires_at"]);
+        if (body3.subject_type !== "user" && body3.subject_type !== "project") throw new ObjectHttpError(422, "INPUT_INVALID", "subject_type is invalid");
+        const grant = options.storage.grantObject(current, { id: randomUUID19(), objectId: text(body3.object_id, "object_id", 80), serviceId: current.serviceId, subjectType: body3.subject_type, subjectId: text(body3.subject_id, "subject_id", 80), action: action(body3.action), validFrom: body3.valid_from === void 0 ? now : text(body3.valid_from, "valid_from", 40), expiresAt: body3.expires_at === void 0 ? void 0 : text(body3.expires_at, "expires_at", 40), now });
         if (grant === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
         json(res, 201, { data: grant, meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
         return;
       }
       if (segments[2] === "grants" && segments.length === 4 && segments[3] === "revoke" && req.method === "POST") {
-        const body2 = await readBody3(req);
-        keys(body2, ["grant_id", "id"]);
-        const grantId = body2.grant_id ?? body2.id;
+        const body3 = await readBody3(req);
+        keys(body3, ["grant_id", "id"]);
+        const grantId = body3.grant_id ?? body3.id;
         if (grantId === void 0) throw new ObjectHttpError(422, "INPUT_INVALID", "grant_id is required");
         if (!options.storage.revokeGrant(current, text(grantId, "grant_id", 80), now)) throw new ObjectHttpError(404, "NOT_FOUND", "grant not found");
         res.statusCode = 204;
@@ -6816,11 +7205,11 @@ function createObjectHandlers(options) {
 }
 
 // src/host/ai-service.ts
-import { randomUUID as randomUUID19 } from "node:crypto";
+import { randomUUID as randomUUID20 } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 // src/host/ai-tools.ts
-import { createHash as createHash16 } from "node:crypto";
+import { createHash as createHash17 } from "node:crypto";
 var AiError = class extends Error {
   constructor(status, code) {
     super(code);
@@ -6859,13 +7248,13 @@ function toolArguments(call) {
   return { object_id, expected_revision: Number(args2.expected_revision), ...args2.title === void 0 ? {} : { title: aiText(args2.title, 200) }, ...args2.body === void 0 ? {} : { body: aiText(args2.body, 2e3, true) } };
 }
 function toolDigest(name2, input) {
-  return createHash16("sha256").update(JSON.stringify([name2, input.object_id, input.expected_revision ?? null, input.title ?? null, input.body ?? null])).digest("hex");
+  return createHash17("sha256").update(JSON.stringify([name2, input.object_id, input.expected_revision ?? null, input.title ?? null, input.body ?? null])).digest("hex");
 }
 function runBusinessTool(store, actor2, call, key, now) {
   const input = toolArguments(call);
   if (call.name === TOOL_NAMES[0]) {
-    const object2 = store.authorizeObject(actor2, input.object_id, "read", now);
-    return object2 === void 0 ? { ok: false, status: 404, code: "NOT_FOUND" } : { ok: true, status: 200, code: "READ", object: object2 };
+    const object3 = store.authorizeObject(actor2, input.object_id, "read", now);
+    return object3 === void 0 ? { ok: false, status: 404, code: "NOT_FOUND" } : { ok: true, status: 200, code: "READ", object: object3 };
   }
   const result = store.mutateObjectOnce(actor2, { objectId: input.object_id, expectedRevision: input.expected_revision, title: input.title, body: input.body, key, digest: toolDigest(call.name, input) }, now);
   if (result.kind === "updated" || result.kind === "replayed") return { ok: true, status: 200, code: result.kind === "updated" ? "UPDATED" : "REPLAYED", object: result.object, replayed: result.kind === "replayed" };
@@ -6940,7 +7329,7 @@ var AiService = class {
     return { provider: this.config.provider ?? null, model: this.config.model ?? null, configured: Boolean(this.routeAllowed && this.llm && this.tools), attempts: this.#calls, timeout_ms: this.config.timeoutMs ?? 3e4, budget_usd: this.config.budgetUsd ?? null, known_estimated_usd: this.#estimatedUsd, unknown_cost_calls: this.#unknownCostCalls, reported_input_tokens: this.#inputTokens, reported_output_tokens: this.#outputTokens, budget_warning: this.config.budgetUsd !== void 0 && this.#estimatedUsd > this.config.budgetUsd || this.config.maxCalls !== void 0 && this.#calls > this.config.maxCalls, state: this.#closed ? "stopped" : "ready" };
   }
   #sweep() {
-    for (const [id4, item] of this.#prepared) if (Date.now() >= item.expiresAt && item.state !== "executing") this.#prepared.delete(id4);
+    for (const [id5, item] of this.#prepared) if (Date.now() >= item.expiresAt && item.state !== "executing") this.#prepared.delete(id5);
   }
   async prepare(actor2, raw, signal) {
     onlyKeys(raw, ["request_id", "instruction", "object_id", "expected_revision", "idempotency_key"]);
@@ -6996,7 +7385,7 @@ var AiService = class {
       if (finish !== "tool-calls" || calls.length !== 1) throw new AiError(502, "MODEL_OUTPUT_INVALID");
       const call = calls[0], args2 = toolArguments(call);
       if (args2.object_id !== objectId || call.name === TOOL_NAMES[1] && args2.expected_revision !== raw.expected_revision) throw new AiError(422, "MODEL_TARGET_MISMATCH");
-      const prepared = { id: randomUUID19(), requestId, actor: actor2, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
+      const prepared = { id: randomUUID20(), requestId, actor: actor2, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
       this.#prepared.set(prepared.id, prepared);
       return { ...this.#view(prepared), usage: usage ?? null };
     } catch (error) {
@@ -7042,9 +7431,9 @@ var AiService = class {
       }
     }
   }
-  async execute(actor2, actorNow, id4, signal) {
+  async execute(actor2, actorNow, id5, signal) {
     this.#sweep();
-    const item = this.#prepared.get(id4);
+    const item = this.#prepared.get(id5);
     if (this.#closed || !item || item.actor.sessionId !== actor2.sessionId || item.actor.userId !== actor2.userId) throw new AiError(404, "PREPARED_NOT_FOUND");
     if (signal.aborted) throw new AiError(409, "CANCELLED");
     if (item.state === "executing") throw new AiError(409, "REQUEST_IN_PROGRESS");
@@ -7098,10 +7487,10 @@ var AiService = class {
 };
 
 // src/host/ai-http.ts
-import { randomUUID as randomUUID20 } from "node:crypto";
+import { randomUUID as randomUUID21 } from "node:crypto";
 function createAiHandler(options) {
   return async (req, res) => {
-    const requestId = randomUUID20(), controller = new AbortController();
+    const requestId = randomUUID21(), controller = new AbortController();
     const disconnect = () => {
       if (!res.writableEnded) controller.abort();
     };
@@ -7138,27 +7527,27 @@ function createAiHandler(options) {
         if (bytes > 16384) throw new AiError(413, "PAYLOAD_TOO_LARGE");
         chunks.push(chunk2);
       }
-      let body2;
+      let body3;
       try {
         const value = JSON.parse(Buffer.concat(chunks).toString("utf8"));
         if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error();
-        body2 = value;
+        body3 = value;
       } catch {
         throw new AiError(400, "INVALID_JSON");
       }
       const current = actorNow();
       if (!current || current.sessionId !== actor2.sessionId) throw new AiError(401, "AUTH_REQUIRED");
       if (url.pathname.endsWith("/prepare")) {
-        send(200, { data: await service.prepare(current, body2, controller.signal), meta: { request_id: requestId } });
+        send(200, { data: await service.prepare(current, body3, controller.signal), meta: { request_id: requestId } });
         return;
       }
       if (url.pathname.endsWith("/execute")) {
-        onlyKeys(body2, ["prepared_id"]);
-        send(200, { data: await service.execute(current, actorNow, aiText(body2.prepared_id, 80), controller.signal), meta: { request_id: requestId } });
+        onlyKeys(body3, ["prepared_id"]);
+        send(200, { data: await service.execute(current, actorNow, aiText(body3.prepared_id, 80), controller.signal), meta: { request_id: requestId } });
         return;
       }
-      onlyKeys(body2, ["request_id"]);
-      service.cancel(current, aiText(body2.request_id, 80));
+      onlyKeys(body3, ["request_id"]);
+      service.cancel(current, aiText(body3.request_id, 80));
       send(200, { data: { state: "cancelled" }, meta: { request_id: requestId } });
     } catch (error) {
       const safe = error instanceof AiError ? error : error instanceof RecordsError ? new AiError(503, error.code) : new AiError(500, "INTERNAL_ERROR");
@@ -7185,7 +7574,7 @@ body{margin:0;background:#f4f8f8;color:#23333a;font:15px/1.65 "Segoe UI","Micros
 import { join as join3 } from "node:path";
 
 // src/host/pdf-originals.ts
-import { createHash as createHash17, randomUUID as randomUUID21 } from "node:crypto";
+import { createHash as createHash18, randomUUID as randomUUID22 } from "node:crypto";
 import { constants } from "node:fs";
 import fs from "node:fs/promises";
 import { dirname, join as join2, resolve } from "node:path";
@@ -7237,9 +7626,9 @@ async function wordBodyXml(bytes) {
   const m = checkWordEnvelope(bytes, WORD_MEDIA.docx).find((m2) => m2.name === "word/document.xml");
   if (!m || m.size < 1 || m.size > 4 * 1024 * 1024) return invalid6();
   const packed = bytes.subarray(m.start, m.start + m.packed);
-  const body2 = m.method ? await inflate(packed, { maxOutputLength: m.size }) : packed;
-  if (body2.length !== m.size || crc32(body2) !== m.crc) return invalid6();
-  return new TextDecoder("utf-8", { fatal: true }).decode(body2);
+  const body3 = m.method ? await inflate(packed, { maxOutputLength: m.size }) : packed;
+  if (body3.length !== m.size || crc32(body3) !== m.crc) return invalid6();
+  return new TextDecoder("utf-8", { fatal: true }).decode(body3);
 }
 async function verifyWordBytes(b, media) {
   const members = checkWordEnvelope(b, media);
@@ -7273,7 +7662,7 @@ async function verifyWordBytes(b, media) {
 // src/host/pdf-originals.ts
 var MAX = 64 * 1024 * 1024;
 var KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:pdf|txt|docx?|zip)$/;
-var digest3 = (b) => createHash17("sha256").update(b).digest("hex");
+var digest3 = (b) => createHash18("sha256").update(b).digest("hex");
 var PdfInputError = class extends Error {
   code = "PDF_INVALID_INPUT";
   constructor() {
@@ -7291,7 +7680,7 @@ var PdfStorageError = class extends Error {
   }
 };
 var invalid7 = () => new PdfInputError();
-var unavailable2 = () => new PdfStorageError();
+var unavailable3 = () => new PdfStorageError();
 function xrefStream(head) {
   const obj = /^[1-9]\d*[ \t\r\n]+\d+[ \t\r\n]+obj[ \t\r\n]*<</.exec(head);
   if (!obj) return false;
@@ -7361,7 +7750,7 @@ async function checkedDirectory(path2, create) {
     await syncDirectory(parent);
     stat = await fs.lstat(path2, statOpts);
   }
-  if (!stat.isDirectory() || stat.ino === 0n || await fs.realpath(path2) !== path2) throw unavailable2();
+  if (!stat.isDirectory() || stat.ino === 0n || await fs.realpath(path2) !== path2) throw unavailable3();
   return stat;
 }
 var PdfOriginals = class {
@@ -7369,24 +7758,24 @@ var PdfOriginals = class {
   #rootId;
   #pending = /* @__PURE__ */ new Map();
   constructor(rootDir) {
-    if (typeof rootDir !== "string" || !rootDir) throw unavailable2();
+    if (typeof rootDir !== "string" || !rootDir) throw unavailable3();
     this.#root = resolve(rootDir);
-    if (process.platform === "win32" && !/^[A-Za-z]:\\/.test(this.#root)) throw unavailable2();
+    if (process.platform === "win32" && !/^[A-Za-z]:\\/.test(this.#root)) throw unavailable3();
   }
   async #directory(create = false) {
     const stat = await checkedDirectory(this.#root, create && !this.#rootId);
-    if (this.#rootId && !same(this.#rootId, stat)) throw unavailable2();
+    if (this.#rootId && !same(this.#rootId, stat)) throw unavailable3();
     this.#rootId = stat;
   }
   async #file(path2) {
     const stat = await fs.lstat(path2, statOpts);
-    if (!stat.isFile() || stat.ino === 0n || await fs.realpath(path2) !== path2) throw unavailable2();
+    if (!stat.isFile() || stat.ino === 0n || await fs.realpath(path2) !== path2) throw unavailable3();
     return stat;
   }
-  async #unlinkOwned(path2, id4, stillOwned = () => true) {
+  async #unlinkOwned(path2, id5, stillOwned = () => true) {
     await this.#directory();
     const stat = await this.#file(path2);
-    if (!same(id4, stat)) throw unavailable2();
+    if (!same(id5, stat)) throw unavailable3();
     if (stillOwned()) await fs.unlink(path2);
   }
   async put(bytes) {
@@ -7396,95 +7785,95 @@ var PdfOriginals = class {
     try {
       return await this.#write(data, "pdf");
     } catch {
-      throw unavailable2();
+      throw unavailable3();
     }
   }
   async putText(bytes) {
-    if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX) throw unavailable2();
+    if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX) throw unavailable3();
     try {
       return await this.#write(Buffer.from(bytes), "txt");
     } catch {
-      throw unavailable2();
+      throw unavailable3();
     }
   }
   async putWord(bytes, media) {
-    if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX) throw unavailable2();
+    if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX) throw unavailable3();
     const data = Buffer.from(bytes);
     await verifyWordBytes(data, media);
     try {
       return await this.#write(data, media === WORD_MEDIA.doc ? "doc" : "docx");
     } catch {
-      throw unavailable2();
+      throw unavailable3();
     }
   }
   async putArchive(bytes) {
-    if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX) throw unavailable2();
+    if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX) throw unavailable3();
     try {
       return await this.#write(Buffer.from(bytes), "zip");
     } catch {
-      throw unavailable2();
+      throw unavailable3();
     }
   }
   async #write(data, extension) {
     const sha256 = digest3(data);
     await this.#directory(true);
-    const stage = join2(this.#root, `.${randomUUID21()}.pending`);
-    const key = `${randomUUID21()}.${extension}`, final = join2(this.#root, key);
+    const stage = join2(this.#root, `.${randomUUID22()}.pending`);
+    const key = `${randomUUID22()}.${extension}`, final = join2(this.#root, key);
     const file = await fs.open(stage, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | noFollow, 384);
-    let id4, staged = true, linked = false;
+    let id5, staged = true, linked = false;
     try {
       try {
-        id4 = await file.stat(statOpts);
+        id5 = await file.stat(statOpts);
         await file.writeFile(data);
-        if ((await file.stat(statOpts)).size !== BigInt(data.length)) throw unavailable2();
+        if ((await file.stat(statOpts)).size !== BigInt(data.length)) throw unavailable3();
         await file.sync();
         await this.#directory();
-        if (!same(id4, await this.#file(stage))) throw unavailable2();
+        if (!same(id5, await this.#file(stage))) throw unavailable3();
         await fs.link(stage, final);
         linked = true;
-        await this.#unlinkOwned(stage, id4);
+        await this.#unlinkOwned(stage, id5);
         staged = false;
         await file.sync();
         const published = await this.#file(final);
-        if (!same(id4, published) || published.nlink !== 1n || published.size !== BigInt(data.length)) throw unavailable2();
+        if (!same(id5, published) || published.nlink !== 1n || published.size !== BigInt(data.length)) throw unavailable3();
       } finally {
         await file.close();
       }
       await syncDirectory(this.#root);
-      this.#pending.set(key, { id: id4, discarding: false });
+      this.#pending.set(key, { id: id5, discarding: false });
       return { key, sha256, byteLength: data.length };
     } catch (failure) {
-      if (id4 && linked) await this.#unlinkOwned(final, id4);
-      if (id4 && staged) await this.#unlinkOwned(stage, id4);
+      if (id5 && linked) await this.#unlinkOwned(final, id5);
+      if (id5 && staged) await this.#unlinkOwned(stage, id5);
       throw failure;
     }
   }
   async read(key, expectedSha, expectedSize) {
     try {
-      if (typeof key !== "string" || key.length !== (key.endsWith(".docx") ? 41 : 40) || !KEY.test(key) || typeof expectedSha !== "string" || expectedSha.length !== 64 || !/^[0-9a-f]+$/.test(expectedSha) || !Number.isSafeInteger(expectedSize) || expectedSize <= 0 || expectedSize > MAX) throw unavailable2();
+      if (typeof key !== "string" || key.length !== (key.endsWith(".docx") ? 41 : 40) || !KEY.test(key) || typeof expectedSha !== "string" || expectedSha.length !== 64 || !/^[0-9a-f]+$/.test(expectedSha) || !Number.isSafeInteger(expectedSize) || expectedSize <= 0 || expectedSize > MAX) throw unavailable3();
       await this.#directory();
       const path2 = join2(this.#root, key), before = await this.#file(path2);
-      if (before.nlink !== 1n || before.size !== BigInt(expectedSize)) throw unavailable2();
+      if (before.nlink !== 1n || before.size !== BigInt(expectedSize)) throw unavailable3();
       const file = await fs.open(path2, constants.O_RDONLY | noFollow | (constants.O_NONBLOCK ?? 0));
       try {
         const stat = await file.stat(statOpts);
-        if (!same(before, stat) || stat.size !== before.size || stat.nlink !== 1n) throw unavailable2();
+        if (!same(before, stat) || stat.size !== before.size || stat.nlink !== 1n) throw unavailable3();
         const data = Buffer.allocUnsafe(expectedSize);
         for (let pos = 0; pos < expectedSize; ) {
           const { bytesRead } = await file.read(data, pos, expectedSize - pos, pos);
-          if (!bytesRead) throw unavailable2();
+          if (!bytesRead) throw unavailable3();
           pos += bytesRead;
         }
         await this.#directory();
         const after = await this.#file(path2);
-        if (!same(stat, after) || after.size !== stat.size || after.nlink !== 1n || digest3(data) !== expectedSha) throw unavailable2();
+        if (!same(stat, after) || after.size !== stat.size || after.nlink !== 1n || digest3(data) !== expectedSha) throw unavailable3();
         if (key.endsWith(".pdf")) checkEnvelope(data);
         return data;
       } finally {
         await file.close();
       }
     } catch {
-      throw unavailable2();
+      throw unavailable3();
     }
   }
   /** Surrender this instance's rollback permission. No I/O and safe to repeat. */
@@ -7499,7 +7888,7 @@ var PdfOriginals = class {
       await this.#unlinkOwned(join2(this.#root, key), entry.id, () => this.#pending.get(key) === entry);
       await syncDirectory(this.#root);
     } catch (e) {
-      if (!hasCode(e, "ENOENT")) throw unavailable2();
+      if (!hasCode(e, "ENOENT")) throw unavailable3();
     } finally {
       entry.discarding = false;
     }
@@ -7508,10 +7897,10 @@ var PdfOriginals = class {
 };
 
 // src/host/library-http.ts
-import { randomUUID as randomUUID22 } from "node:crypto";
+import { randomUUID as randomUUID23 } from "node:crypto";
 
 // src/host/text-document.ts
-import { createHash as createHash18 } from "node:crypto";
+import { createHash as createHash19 } from "node:crypto";
 var MAX_BYTES = 8 * 1024 * 1024;
 var MAX_BLOCKS = 16384;
 var messages = {
@@ -7553,7 +7942,7 @@ function indexBlocks(source, markdown) {
     if (!pending) return;
     if (blocks.length >= MAX_BLOCKS) throw new TextInputError("TEXT_TOO_LARGE");
     const text2 = source.slice(start, end);
-    const anchor = createHash18("sha256").update(text2, "utf8").digest("hex");
+    const anchor = createHash19("sha256").update(text2, "utf8").digest("hex");
     blocks.push({ kind: pending, start, end, text: text2, anchor });
     start = end;
     pending = void 0;
@@ -7614,18 +8003,18 @@ function decodeText(bytes, media, requestedEncoding) {
 }
 
 // src/host/reader-http.ts
-import { createHash as createHash20 } from "node:crypto";
+import { createHash as createHash21 } from "node:crypto";
 
 // src/host/word-locator.ts
 var import_saxes = __toESM(require_saxes(), 1);
-import { createHash as createHash19 } from "node:crypto";
-var sha4 = (text2) => createHash19("sha256").update(text2, "utf8").digest("hex");
+import { createHash as createHash20 } from "node:crypto";
+var sha4 = (text2) => createHash20("sha256").update(text2, "utf8").digest("hex");
 var wordNs = /* @__PURE__ */ new Set(["http://schemas.openxmlformats.org/wordprocessingml/2006/main", "http://purl.oclc.org/ooxml/wordprocessingml/main"]);
 var bodyLimit = 1e6;
 var wordPageLimit = 512;
 async function wordParagraphs(bytes) {
   const xml = await wordBodyXml(bytes), p = new import_saxes.SaxesParser({ xmlns: true }), stack = [], paragraphs = [];
-  let ns = "", body2 = 0, paragraph = 0, runText = 0, omitted = 0, text2 = "", count = 0;
+  let ns = "", body3 = 0, paragraph = 0, runText = 0, omitted = 0, text2 = "", count = 0;
   const invalid11 = () => {
     throw new Error("Unsupported Word structure");
   };
@@ -7645,11 +8034,11 @@ async function wordParagraphs(bytes) {
       return;
     }
     if (depth === 2 && tag.uri === ns && tag.local === "body") {
-      if (body2 || paragraphs.length) invalid11();
-      body2 = depth;
+      if (body3 || paragraphs.length) invalid11();
+      body3 = depth;
       return;
     }
-    if (!body2 || omitted) return;
+    if (!body3 || omitted) return;
     if (tag.local === "AlternateContent" || tag.uri === ns && ["altChunk", "txbxContent", "headerReference", "footerReference"].includes(tag.local)) invalid11();
     if (tag.uri !== ns) return;
     if (["del", "moveFrom"].includes(tag.local)) {
@@ -7681,7 +8070,7 @@ async function wordParagraphs(bytes) {
       paragraphs.push(text2);
       paragraph = 0;
     }
-    if (depth === body2) body2 = 0;
+    if (depth === body3) body3 = 0;
     stack.pop();
   });
   p.write(xml).close();
@@ -7695,16 +8084,16 @@ function offsets(s) {
 }
 async function alignWordSelection(paragraphs, version, sourceSha, ordinal, text2, start, end, pageCount, page) {
   if (pageCount > wordPageLimit || ordinal > pageCount) return;
-  const parts = paragraphs.map(compact), body2 = parts.join("");
-  if (!body2 || body2.length > bodyLimit) return;
+  const parts = paragraphs.map(compact), body3 = parts.join("");
+  if (!body3 || body3.length > bodyLimit) return;
   let pageStart = 0, cursor = 0;
   for (let n = 1; n <= pageCount; n++) {
     const pageText = await page(n), part = compact(pageText);
-    if (!body2.startsWith(part, cursor) || n === ordinal && pageText !== text2) return;
+    if (!body3.startsWith(part, cursor) || n === ordinal && pageText !== text2) return;
     if (n === ordinal) pageStart = cursor;
     cursor += part.length;
   }
-  if (cursor !== body2.length) return;
+  if (cursor !== body3.length) return;
   const pageOffsets = offsets(text2), first = pageOffsets.findIndex((i) => i >= start);
   if (first < 0 || pageOffsets[first] >= end) return;
   let last = first;
@@ -7835,7 +8224,7 @@ function imagePng(api, page, width, height) {
 
 // src/host/reader-http.ts
 var uuid3 = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
-var hash2 = (s) => createHash20("sha256").update(s, "utf8").digest("hex");
+var hash2 = (s) => createHash21("sha256").update(s, "utf8").digest("hex");
 var ReaderService = class {
   constructor(store, originals, render2, wordPages, legacyWord) {
     this.store = store;
@@ -7856,8 +8245,8 @@ var ReaderService = class {
   addBookmark(current, t, title, a) {
     return this.store.addBookmark(current(), t, title, a);
   }
-  deleteBookmark(current, t, id4, a) {
-    return this.store.deleteBookmark(current(), t, id4, a);
+  deleteBookmark(current, t, id5, a) {
+    return this.store.deleteBookmark(current(), t, id5, a);
   }
   listAnnotations(current, t) {
     return this.store.listAnnotations(current(), t);
@@ -7865,11 +8254,11 @@ var ReaderService = class {
   addAnnotation(current, t, draft, a) {
     return this.store.addAnnotation(current(), t, draft, a);
   }
-  updateAnnotation(current, t, id4, r, body2, a) {
-    return this.store.updateAnnotation(current(), t, id4, r, body2, a);
+  updateAnnotation(current, t, id5, r, body3, a) {
+    return this.store.updateAnnotation(current(), t, id5, r, body3, a);
   }
-  deleteAnnotation(current, t, id4, r, a) {
-    return this.store.deleteAnnotation(current(), t, id4, r, a);
+  deleteAnnotation(current, t, id5, r, a) {
+    return this.store.deleteAnnotation(current(), t, id5, r, a);
   }
   async outline(current, t, signal) {
     const { actor_id, source, items } = this.store.outline(current(), t);
@@ -7980,27 +8369,27 @@ var ReaderService = class {
     }
     return this.store.create(current(), spec2, key, w);
   }
-  async resolve(current, id4, signal) {
-    const t = this.store.target(current(), id4), w = t.conversion_id ? await this.witness(current, t, signal) : void 0;
-    return this.store.resolve(current(), id4, w);
+  async resolve(current, id5, signal) {
+    const t = this.store.target(current(), id5), w = t.conversion_id ? await this.witness(current, t, signal) : void 0;
+    return this.store.resolve(current(), id5, w);
   }
 };
-async function readerRoute(req, url, service, current, signal, body2, reserve, send) {
+async function readerRoute(req, url, service, current, signal, body3, reserve, send) {
   const annotations = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/reader-annotations(?:\/([a-f0-9-]+))?$/.exec(url.pathname);
   if (annotations && uuid3.test(annotations[1]) && uuid3.test(annotations[2]) && (!annotations[3] || uuid3.test(annotations[3]))) {
-    const p = url.searchParams, keys4 = [...p.keys()], n = p.get("unit") ?? "1", cv = p.get("conversion"), id4 = annotations[3], m = req.method;
+    const p = url.searchParams, keys4 = [...p.keys()], n = p.get("unit") ?? "1", cv = p.get("conversion"), id5 = annotations[3], m = req.method;
     if (keys4.some((k) => k !== "unit" && k !== "conversion") || new Set(keys4).size !== keys4.length || !/^\d{1,9}$/.test(n) || Number(n) < 1 || cv && !uuid3.test(cv) || cv === "") throw new AssetError(422, "INVALID_READER_UNIT");
     const t = { asset_id: annotations[1], version_id: annotations[2], ordinal: Number(n), ...cv ? { conversion_id: cv } : {} };
-    if (m === "GET" && !id4) {
+    if (m === "GET" && !id5) {
       send(200, service.listAnnotations(current, t));
       return true;
     }
-    if (m === "POST" && !id4 || id4 && (m === "PATCH" || m === "DELETE")) {
+    if (m === "POST" && !id5 || id5 && (m === "PATCH" || m === "DELETE")) {
       const a = req.headers["x-knowledgeos-reader-actor"];
       if (typeof a !== "string" || !uuid3.test(a)) throw new AssetError(422, "INVALID_READER_ACTOR");
       if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
       reserve();
-      const b = await body2(req, "INVALID_ANNOTATION", 26e3);
+      const b = await body3(req, "INVALID_ANNOTATION", 26e3);
       let v;
       try {
         v = JSON.parse(b.toString("utf8"));
@@ -8012,37 +8401,37 @@ async function readerRoute(req, url, service, current, signal, body2, reserve, s
       if (m === "POST") {
         if (typeof v.citation_id !== "string" || !uuid3.test(v.citation_id) || !["private", "project"].includes(v.visibility)) throw new AssetError(422, "INVALID_ANNOTATION");
         send(201, service.addAnnotation(current, t, v, a));
-      } else if (id4) {
+      } else if (id5) {
         const r = v.expected_revision;
         if (!Number.isSafeInteger(r) || r < 1 || r >= Number.MAX_SAFE_INTEGER) throw new AssetError(422, "INVALID_ANNOTATION_REVISION");
-        send(200, m === "PATCH" ? service.updateAnnotation(current, t, id4, r, v.body, a) : service.deleteAnnotation(current, t, id4, r, a));
+        send(200, m === "PATCH" ? service.updateAnnotation(current, t, id5, r, v.body, a) : service.deleteAnnotation(current, t, id5, r, a));
       }
       return true;
     }
   }
   const reading = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/reader-(state|outline|bookmarks)(?:\/([a-f0-9-]+))?$/.exec(url.pathname);
   if (reading && uuid3.test(reading[1]) && uuid3.test(reading[2]) && !url.search) {
-    const t = { asset_id: reading[1], version_id: reading[2], ordinal: 1 }, kind = reading[3], id4 = reading[4], method = req.method;
-    if (method === "GET" && !id4 && kind === "state") {
+    const t = { asset_id: reading[1], version_id: reading[2], ordinal: 1 }, kind = reading[3], id5 = reading[4], method = req.method;
+    if (method === "GET" && !id5 && kind === "state") {
       send(200, service.navigation(current, t));
       return true;
     }
-    if (method === "GET" && !id4 && kind === "outline") {
+    if (method === "GET" && !id5 && kind === "outline") {
       reserve();
       send(200, await service.outline(current, t, signal));
       return true;
     }
-    const save = kind === "state" && method === "PUT" && !id4, add = kind === "bookmarks" && method === "POST" && !id4, del = kind === "bookmarks" && method === "DELETE" && id4 && uuid3.test(id4);
+    const save = kind === "state" && method === "PUT" && !id5, add = kind === "bookmarks" && method === "POST" && !id5, del = kind === "bookmarks" && method === "DELETE" && id5 && uuid3.test(id5);
     if (save || add || del) {
       const a = req.headers["x-knowledgeos-reader-actor"];
       if (typeof a !== "string" || !uuid3.test(a)) throw new AssetError(422, "INVALID_READER_ACTOR");
-      if (del && id4) {
-        send(200, service.deleteBookmark(current, t, id4, a));
+      if (del && id5) {
+        send(200, service.deleteBookmark(current, t, id5, a));
         return true;
       }
       if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
       reserve();
-      const b = await body2(req, "INVALID_READING_POINT", 2048);
+      const b = await body3(req, "INVALID_READING_POINT", 2048);
       let v;
       try {
         v = JSON.parse(b.toString("utf8"));
@@ -8085,7 +8474,7 @@ async function readerRoute(req, url, service, current, signal, body2, reserve, s
     const key = req.headers["idempotency-key"];
     if (typeof key !== "string" || !uuid3.test(key)) throw new AssetError(422, "INVALID_CITATION_KEY");
     reserve();
-    const b = await body2(req, "INVALID_CITATION", 2048);
+    const b = await body3(req, "INVALID_CITATION", 2048);
     let v;
     try {
       v = JSON.parse(b.toString("utf8"));
@@ -8398,7 +8787,7 @@ async function publishInput(store, originals, current, spec2, bytes, media, enco
 function libraryHandler(store, originals, origin, actorFor, parses, office, officeAvailable = () => true, archives, reader, search) {
   let transfers = 0;
   return async (req, res) => {
-    const requestId = randomUUID22();
+    const requestId = randomUUID23();
     let transfer = false, handlerDone = false, responseDone = false;
     res.setHeader("cache-control", "no-store");
     res.setHeader("x-content-type-options", "nosniff");
@@ -8475,21 +8864,21 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
       }
       const op = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/office(?:\/(start)|\/([a-f0-9-]+)\/(cancel|notes|pdf))?$/.exec(url.pathname);
       if (office && op && uuid4.test(op[1]) && uuid4.test(op[2]) && (!op[4] || uuid4.test(op[4]))) {
-        const id4 = op[1], v = op[2], cid = op[4], command = op[3] ?? op[5], key = req.headers["idempotency-key"];
+        const id5 = op[1], v = op[2], cid = op[4], command = op[3] ?? op[5], key = req.headers["idempotency-key"];
         const send = (status, data) => json3(status, { data, request_id: requestId });
         if (req.method === "GET" && !command) {
           const keys4 = [...url.searchParams.keys()];
           if (new Set(keys4).size !== keys4.length) throw new AssetError(422, "INVALID_HISTORY_CURSOR");
-          send(200, office.list(current(), id4, v, Object.fromEntries(url.searchParams)));
+          send(200, office.list(current(), id5, v, Object.fromEntries(url.searchParams)));
           return;
         }
         if (req.method === "POST" && command === "start" && !url.search) {
-          const r = office.start(current(), id4, v, typeof key === "string" ? key : "", officeAvailable());
+          const r = office.start(current(), id5, v, typeof key === "string" ? key : "", officeAvailable());
           send(r.replayed ? 200 : 202, r);
           return;
         }
         if (req.method === "POST" && command === "cancel" && !url.search) {
-          send(200, office.cancel(current(), id4, v, cid));
+          send(200, office.cancel(current(), id5, v, cid));
           return;
         }
         if (req.method === "POST" && command === "notes" && !url.search) {
@@ -8502,13 +8891,13 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
             throw new AssetError(422, "INVALID_QUALITY_NOTE");
           }
           if (!input || typeof input !== "object" || Array.isArray(input) || Object.keys(input).some((k) => !["body", "page"].includes(k))) throw new AssetError(422, "INVALID_QUALITY_NOTE");
-          const r = office.note(current(), id4, v, cid, typeof key === "string" ? key : "", input.page, input.body);
+          const r = office.note(current(), id5, v, cid, typeof key === "string" ? key : "", input.page, input.body);
           send(r.replayed ? 200 : 201, r);
           return;
         }
         if (req.method === "GET" && command === "pdf" && (!url.search || url.search === "?download=1")) {
           reserve();
-          const download = !!url.search, result = () => office.result(current(), id4, v, cid, download), ref = result();
+          const download = !!url.search, result = () => office.result(current(), id5, v, cid, download), ref = result();
           const bytes = await originals.read(ref.key, ref.sha256, ref.byteLength);
           result();
           res.setHeader("content-type", "application/pdf");
@@ -8526,9 +8915,9 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
           return;
         }
         if (archive && uuid4.test(archive[1])) {
-          const id4 = archive[1];
+          const id5 = archive[1];
           if (req.method === "GET" && archive[2] === "entries") {
-            json3(200, { data: archives.manifest(current(), id4), request_id: requestId });
+            json3(200, { data: archives.manifest(current(), id5), request_id: requestId });
             return;
           }
           if (req.method === "POST" && archive[2] === "selection") {
@@ -8536,40 +8925,40 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
             if (typeof key !== "string" || !uuid4.test(key)) throw new AssetError(422, "INVALID_SELECTION");
             if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
             reserve();
-            const body2 = await receive(req, "INVALID_SELECTION", 24 * 1024);
+            const body3 = await receive(req, "INVALID_SELECTION", 24 * 1024);
             let input;
             try {
-              input = JSON.parse(body2.toString("utf8"));
+              input = JSON.parse(body3.toString("utf8"));
             } catch {
               throw new AssetError(422, "INVALID_SELECTION");
             }
             if (!input || typeof input !== "object" || Object.keys(input).length !== 1 || !Array.isArray(input.entry_ids)) throw new AssetError(422, "INVALID_SELECTION");
-            const ref = archives.source(current(), id4), items = archives.select(current(), id4, key, input.entry_ids), pending = items.filter((e) => !e.imported);
+            const ref = archives.source(current(), id5), items = archives.select(current(), id5, key, input.entry_ids), pending = items.filter((e) => !e.imported);
             if (pending.length) {
               const bytes = await originals.read(ref.key, ref.sha256, ref.byteLength);
               try {
                 await preflightZipSelection(bytes, pending.map((e) => e.ordinal));
               } catch (e) {
-                if (e instanceof ZipInputError) for (const m of pending) archives.failure(current(), id4, m.id, e.code);
+                if (e instanceof ZipInputError) for (const m of pending) archives.failure(current(), id5, m.id, e.code);
                 throw e;
               }
               for (const m of pending) {
                 current();
                 const content = await readZipMember(bytes, m.ordinal), title = m.path.split("/").at(-1);
                 if (title.length > 200) {
-                  archives.failure(current(), id4, m.id, "INVALID_FILENAME");
+                  archives.failure(current(), id5, m.id, "INVALID_FILENAME");
                   continue;
                 }
                 try {
-                  await publishInput(store, originals, current, { title, key: m.key }, content, m.media, void 0, archives.publication(id4, m.id, m.key));
+                  await publishInput(store, originals, current, { title, key: m.key }, content, m.media, void 0, archives.publication(id5, m.id, m.key));
                 } catch (e) {
                   const invalid11 = inputError(e);
                   if (!invalid11) throw e;
-                  archives.failure(current(), id4, m.id, invalid11.code);
+                  archives.failure(current(), id5, m.id, invalid11.code);
                 }
               }
             }
-            json3(200, { data: archives.manifest(current(), id4), request_id: requestId });
+            json3(200, { data: archives.manifest(current(), id5), request_id: requestId });
             return;
           }
         }
@@ -8695,8 +9084,8 @@ var id = (value) => {
   if (typeof value !== "string" || !noteId.test(value)) throw invalid8();
   return value;
 };
-var keys2 = (body2, allowed) => {
-  if (Object.keys(body2).some((k) => !allowed.includes(k))) throw invalid8();
+var keys2 = (body3, allowed) => {
+  if (Object.keys(body3).some((k) => !allowed.includes(k))) throw invalid8();
 };
 async function jsonBody(req) {
   if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
@@ -8712,14 +9101,14 @@ async function jsonBody(req) {
     }
     parts.push(part);
   }
-  let body2;
+  let body3;
   try {
-    body2 = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(parts, size)));
+    body3 = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(parts, size)));
   } catch {
     throw invalid8();
   }
-  if (!body2 || typeof body2 !== "object" || Array.isArray(body2)) throw invalid8();
-  return body2;
+  if (!body3 || typeof body3 !== "object" || Array.isArray(body3)) throw invalid8();
+  return body3;
 }
 function fields2(input, all) {
   const patch = {};
@@ -8745,8 +9134,8 @@ function outlineAction(input) {
       const action2 = input.action, target3 = action2 === "add" ? "parent_id" : "node_id";
       keys2(input, [...common, target3, "body"]);
       if (!noteText(input.body, noteLimits.body)) throw invalid8();
-      const body2 = input.body;
-      return action2 === "add" ? { action: action2, parent_id: id(input[target3]), body: body2 } : { action: action2, node_id: id(input[target3]), body: body2 };
+      const body3 = input.body;
+      return action2 === "add" ? { action: action2, parent_id: id(input[target3]), body: body3 } : { action: action2, node_id: id(input[target3]), body: body3 };
     }
     case "move":
       keys2(input, [...common, "node_id", "parent_id", "index"]);
@@ -8846,7 +9235,7 @@ function integer(x, min = 1) {
   if (typeof x !== "number" || !Number.isSafeInteger(x) || x < min || x >= Number.MAX_SAFE_INTEGER) throw invalid9();
   return x;
 }
-function object(x, keys4) {
+function object2(x, keys4) {
   if (!x || typeof x !== "object" || Array.isArray(x) || Object.keys(x).some((k) => !keys4.includes(k))) throw invalid9();
   return x;
 }
@@ -8855,7 +9244,7 @@ function hash3(h) {
   return h;
 }
 function point3(value) {
-  const v = object(value, ["ordinal", "offset", "source_hash"]);
+  const v = object2(value, ["ordinal", "offset", "source_hash"]);
   return { ordinal: integer(v.ordinal), offset: integer(v.offset, 0), source_hash: hash3(v.source_hash) };
 }
 function target2(v) {
@@ -8899,7 +9288,7 @@ function createRecallHandler(store, origin, actorFor) {
       const path2 = url.pathname, q = url.searchParams, info = { actor_id: actor2.userId };
       if (new Set(q.keys()).size !== q.size) throw invalid9();
       if (method === "GET" && path2 === basePath + "/source") {
-        const fields3 = object(Object.fromEntries(q), ["asset_id", "version_id", "conversion_id", "ordinal"]), n = q.get("ordinal");
+        const fields3 = object2(Object.fromEntries(q), ["asset_id", "version_id", "conversion_id", "ordinal"]), n = q.get("ordinal");
         if (n === null || !/^\d+$/.test(n)) throw invalid9();
         return send(200, { data: store.authorPage(actor2, { ...target2(fields3), ordinal: integer(Number(n)) }) });
       }
@@ -8909,10 +9298,10 @@ function createRecallHandler(store, origin, actorFor) {
       }
       if (q.size) throw invalid9();
       if (method === "POST" && path2 === basePath) {
-        const v = object(await json2(req), ["actor_id", "asset_id", "version_id", "conversion_id", "title", "first", "last", "interior_hashes", "masks"]);
+        const v = object2(await json2(req), ["actor_id", "asset_id", "version_id", "conversion_id", "title", "first", "last", "interior_hashes", "masks"]);
         if (typeof v.title !== "string" || v.title.includes("\0") || !Array.isArray(v.masks) || !Array.isArray(v.interior_hashes)) throw invalid9();
         const masks = v.masks.map((raw) => {
-          const m = object(raw, ["ordinal", "start", "end", "group"]);
+          const m = object2(raw, ["ordinal", "start", "end", "group"]);
           return { ordinal: integer(m.ordinal), start: integer(m.start, 0), end: integer(m.end), group: integer(m.group) };
         });
         const saved = store.create(actor2, id2(v.actor_id), id2(req.headers["idempotency-key"]), { ...target2(v), title: v.title.trim(), first: point3(v.first), last: point3(v.last), interior_hashes: v.interior_hashes.map(hash3), masks });
@@ -8921,7 +9310,7 @@ function createRecallHandler(store, origin, actorFor) {
       const row = /^\/knowledge\/v1\/recall\/([^/]+)$/.exec(path2);
       if (row && method === "GET") return send(200, { data: { ...info, ...store.get(actor2, id2(row[1])) } });
       if (row && method === "PATCH") {
-        const v = object(await json2(req), ["actor_id", "event", "value", "expected_revision"]), event = v.event;
+        const v = object2(await json2(req), ["actor_id", "event", "value", "expected_revision"]), event = v.event;
         if (event !== "move" && event !== "hint" && event !== "reveal" && event !== "recall" && event !== "rating") throw invalid9();
         const action2 = { event, value: integer(v.value), expected_revision: integer(v.expected_revision) };
         return send(200, { data: { ...info, ...store.act(actor2, id2(v.actor_id), id2(row[1]), id2(req.headers["idempotency-key"]), action2) } });
@@ -8934,7 +9323,7 @@ function createRecallHandler(store, origin, actorFor) {
 }
 
 // src/host/invitation-http.ts
-import { randomUUID as randomUUID23 } from "node:crypto";
+import { randomUUID as randomUUID24 } from "node:crypto";
 var path = "/knowledge/v1/invitations";
 var uuid6 = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 var invalid10 = () => new AssetError(422, "INVALID_INVITATION");
@@ -8983,7 +9372,7 @@ async function body(req) {
 }
 function createInvitationHandler(store, origin, actorFor) {
   return async (req, res) => {
-    const correlation = randomUUID23();
+    const correlation = randomUUID24();
     const send = (status, data) => {
       if (!res.destroyed) {
         res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", "referrer-policy": "no-referrer", "x-knowledgeos-request-id": correlation });
@@ -9502,12 +9891,12 @@ function startOfficeWorker(store, originals, kit, openPdf2, log) {
 }
 
 // src/host/legacy-word-source.ts
-import { randomUUID as randomUUID24 } from "node:crypto";
+import { randomUUID as randomUUID25 } from "node:crypto";
 import { open as open2, unlink } from "node:fs/promises";
 function legacyWordSource(kit, originals) {
   return async (source, check, signal) => {
     if (!kit.convertTo) throw new Error("Office structure conversion unavailable");
-    const result = await kit.convertTo({ extension: "doc", format: "docx", output: { owner: randomUUID24(), name: "structure.docx" }, source: {
+    const result = await kit.convertTo({ extension: "doc", format: "docx", output: { owner: randomUUID25(), name: "structure.docx" }, source: {
       key: `knowledgeos-word-structure:${source.sha256}`,
       version: source.sha256,
       bytes: source.byteLength,
@@ -9554,7 +9943,7 @@ function buildLibraryHtml() {
 #zip{overflow-wrap:anywhere}#zip-resume{max-width:36rem}#zip-entries{list-style:none;padding:0}#zip-entries li{border-bottom:1px solid #dde5e2;padding:8px 0}#zip-entries label{display:flex;align-items:center;gap:8px}#zip-entries input{width:18px;height:18px;flex:none}#zip-entries small{display:block}
 #search-form{grid-template-columns:minmax(0,1fr) auto}#search-results{list-style:none;padding:0;margin:4px 0;overflow-wrap:anywhere}#search-results li{padding:8px 0;border-bottom:1px solid #dde5e2}#search-results small{margin-inline-start:8px}#search-results p{white-space:pre-wrap}#search-status{min-height:1.55em;margin-top:6px;color:#536866}
 </style></head><body>
-<header><div><strong>KnowledgeOS</strong><nav aria-label="业务导航"><a href="/knowledgeos/notes">笔记</a><a href="/knowledgeos/recall">遮挡背诵</a><a href="/knowledgeos/invitations">邀请码</a><a href="/knowledgeos/account">账号与登录</a><a href="/knowledgeos/ai">AI 工具</a></nav></div></header>
+<header><div><strong>KnowledgeOS</strong><nav aria-label="业务导航"><a href="/knowledgeos/notes">笔记</a><a href="/knowledgeos/recall">遮挡背诵</a><a href="/knowledgeos/repositories">仓库与代码</a><a href="/knowledgeos/invitations">邀请码</a><a href="/knowledgeos/account">账号与登录</a><a href="/knowledgeos/ai">AI 工具</a></nav></div></header>
 <main><div class="bar"><h1>PDF 资料库</h1><span id="who" class="muted"></span></div>
 <section aria-labelledby="search-heading"><h2 id="search-heading">全文检索</h2>
 <form id="search-form"><label>关键词<input id="search-query" type="search" maxlength="128" disabled required></label><button id="search-submit" type="submit" disabled>检索</button></form>
@@ -11143,6 +11532,161 @@ void run(load);
 </script></body></html>`;
 }
 
+// src/host/repository-http.ts
+var repositoryApi = "/knowledge/v1/repositories";
+var maximumBody = 4096;
+async function body2(req, fields3) {
+  if (req.headers["content-type"]?.split(";")[0] !== "application/json") throw new AssetError(415, "JSON_REQUIRED");
+  if (Number(req.headers["content-length"]) > maximumBody) throw new AssetError(413, "BODY_TOO_LARGE");
+  const chunks = [];
+  let size = 0;
+  for await (const chunk2 of req.iterator({ destroyOnReturn: false })) {
+    size += chunk2.length;
+    if (size > maximumBody) {
+      req.resume();
+      throw new AssetError(413, "BODY_TOO_LARGE");
+    }
+    chunks.push(chunk2);
+  }
+  let decoded;
+  try {
+    decoded = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks, size)));
+  } catch {
+    throw badRepository();
+  }
+  if (!decoded || typeof decoded !== "object" || Array.isArray(decoded) || Object.keys(decoded).some((key) => !fields3.includes(key))) throw badRepository();
+  return decoded;
+}
+var id4 = (value) => {
+  if (typeof value !== "string" || !UUID_PATTERN.test(value)) throw badRepository();
+  return value;
+};
+var pathValue = (value) => {
+  if (!isRepositoryPath(value)) throw badRepository();
+  return value;
+};
+function createRepositoryHandler(service, origin, actorFor, hostSignal) {
+  return async (req, res, peer) => {
+    const disconnected = new AbortController();
+    const close = () => {
+      if (!res.writableFinished) disconnected.abort();
+    };
+    res.once("close", close);
+    const signal = AbortSignal.any([hostSignal, disconnected.signal, ...peer?.signal ? [peer.signal] : []]);
+    const send = (status, data) => {
+      if (res.destroyed) return;
+      res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" });
+      res.end(JSON.stringify(data));
+    };
+    try {
+      const base = origin(), method = req.method;
+      if (!base || req.headers.host !== new URL(base).host || req.headers["sec-fetch-site"] === "cross-site" || req.headers.origin !== void 0 && req.headers.origin !== base || method !== "GET" && req.headers["x-knowledgeos-request"] !== "1")
+        throw new AssetError(403, "CSRF_REJECTED");
+      const url = new URL(req.url ?? "/", base);
+      if (url.origin !== base) throw new AssetError(403, "CSRF_REJECTED");
+      const actor2 = actorFor(req);
+      if (!actor2) throw new AssetError(401, "AUTH_REQUIRED");
+      const result = (status, output) => send(status, { data: { actor_id: actor2.userId, ...output } });
+      const parts = url.pathname.slice(repositoryApi.length).split("/");
+      if (url.pathname === repositoryApi) {
+        if (url.search) throw badRepository();
+        if (method === "GET") return result(200, { snapshots: service.store.list(actor2) });
+        if (method === "POST") {
+          const input = await body2(req, ["actor_id", "repository", "ref_kind", "ref_value", "credential_ref", "path"]);
+          const alias = "credential_ref" in input ? input.credential_ref : "";
+          if (typeof alias !== "string" || alias && !credentialAlias.test(alias)) throw badRepository();
+          const saved = await service.connect(
+            actor2,
+            id4(input.actor_id),
+            repositoryName(input.repository),
+            repositoryRef(input.ref_kind, input.ref_value),
+            alias,
+            signal,
+            "path" in input ? pathValue(input.path) : void 0
+          );
+          return result(saved.replayed ? 200 : 201, saved);
+        }
+      } else if (url.pathname.startsWith(repositoryApi + "/") && (parts.length === 2 || parts.length === 3 && parts[2] === "files")) {
+        const snapshot = id4(parts[1]);
+        if (method === "GET" && parts.length === 2 && !url.search) return result(200, service.store.detail(actor2, snapshot));
+        if (parts.length === 3 && method === "GET" && url.searchParams.size === 1 && url.searchParams.has("path"))
+          return result(200, { file: service.store.file(actor2, snapshot, pathValue(url.searchParams.get("path"))) });
+        if (parts.length === 3 && method === "POST" && !url.search) {
+          const input = await body2(req, ["actor_id", "path"]);
+          return result(200, { file: await service.pin(actor2, id4(input.actor_id), snapshot, pathValue(input.path), signal) });
+        }
+      }
+      throw new AssetError(404, "NOT_FOUND");
+    } catch (error) {
+      send(error instanceof AssetError ? error.status : 503, { code: error instanceof AssetError ? error.code : "REPOSITORY_UNAVAILABLE" });
+    } finally {
+      res.off("close", close);
+    }
+  };
+}
+
+// src/host/repository-page.ts
+function buildRepositoryHtml(nonce) {
+  return `<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>\u4ED3\u5E93\u4E0E\u4EE3\u7801 \xB7 KnowledgeOS</title>
+<style nonce="${nonce}">
+:root{font:15px/1.55 "Segoe UI","Microsoft YaHei UI",sans-serif;color:#233835;background:#f5f8f7}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}header{background:#fff;border-bottom:1px solid #d5e0dc}nav,main{max-width:1260px;margin:auto;padding:16px 24px}nav{display:flex;flex-wrap:wrap;align-items:center;gap:18px}nav strong{color:#184d44}a{color:#135f51;text-underline-offset:3px}h1{font-size:25px;margin:6px 0 10px}h2{font-size:17px;margin:0 0 8px}h3{font-size:15px;margin:0 0 8px}p{margin:0 0 8px}.badge{font-size:13px;color:#3b635a}#status{min-height:24px;color:#3b514c}.workspace{display:grid;grid-template-columns:minmax(215px,280px) minmax(0,1fr);gap:24px}.side,.content{min-width:0}.side{padding-right:18px;border-right:1px solid #d5e0dc}.section{margin:0 0 18px;padding:12px 0;border-bottom:1px solid #d5e0dc}.fields{border:0;padding:0;margin:0 0 8px;display:grid;grid-template-columns:minmax(0,2fr) minmax(90px,1fr) minmax(0,2fr);gap:10px;min-width:0}label{display:grid;gap:4px}input,select,button{font:inherit;color:inherit;border:1px solid #aabbaf;border-radius:5px;background:#fff;padding:6px 9px;max-width:100%}button{cursor:pointer;text-align:left}button:disabled{cursor:default;color:#63756f}button[type=submit]{background:#215f52;color:white;border-color:#215f52}button[aria-current=true]{background:#ddece7;border-color:#5c867a}summary{cursor:pointer;color:#3b635a}summary+div{display:grid;gap:6px;grid-template-columns:1fr 1fr;margin:8px 0}ul{list-style:none;padding:0;margin:5px 0}li{margin-bottom:4px;overflow-wrap:anywhere}li button{width:100%;white-space:normal}code,pre{font:13px/1.55 ui-monospace,Consolas,monospace;overflow-wrap:anywhere}pre{white-space:pre-wrap;background:#fff;border:1px solid #d5e0dc;border-radius:5px;padding:12px;max-height:520px;overflow:auto;margin:8px 0}.tree{max-height:420px;overflow:auto}.tree li{display:grid;grid-template-columns:minmax(0,1fr) minmax(75px,auto);gap:8px;align-items:center}.tree span:last-child{font-size:12px;color:#3b635a;white-space:nowrap}.snapshot-row small{display:block;overflow-wrap:anywhere}#commit{display:block;margin-bottom:6px}.file-facts{display:flex;flex-wrap:wrap;gap:8px 16px}
+@media(max-width:700px){nav,main{padding:12px 16px}.workspace,.fields{grid-template-columns:minmax(0,1fr)}.side{border:0;padding:0}.tree{max-height:280px}}
+</style></head><body>
+<header><nav aria-label="\u4E1A\u52A1\u5BFC\u822A"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">\u77E5\u8BC6\u5E93</a><a href="/knowledgeos/repositories" aria-current="page">\u4ED3\u5E93\u4E0E\u4EE3\u7801</a><a href="/knowledgeos/account">\u8D26\u53F7</a></nav></header>
+<main><h1>\u4ED3\u5E93\u4E0E\u4EE3\u7801</h1><p class="badge">GitHub \xB7 \u53EA\u8BFB</p><p id="status" role="status">\u6B63\u5728\u8BFB\u53D6\u2026</p><a id="login" href="/knowledgeos/account" hidden>\u767B\u5F55</a>
+<div class="workspace" id="workspace" hidden>
+<aside class="side"><h2>\u56FA\u5B9A\u5FEB\u7167</h2><ul id="snapshots"></ul></aside>
+<div class="content"><section class="section"><h2>\u8FDE\u63A5\u4ED3\u5E93</h2><form id="connect">
+<fieldset class="fields" id="connect-fields"><label>GitHub \u4ED3\u5E93<input id="repository" placeholder="owner/repository" maxlength="160" required></label>
+<label>\u5F15\u7528\u7C7B\u578B<select id="ref-kind"><option value="branch">\u5206\u652F</option><option value="tag">\u6807\u7B7E</option><option value="commit">\u5B8C\u6574 SHA</option></select></label>
+<label>\u5F15\u7528<input id="ref" placeholder="main" maxlength="200" required></label></fieldset>
+<details><summary>\u53EF\u9009\u8BBE\u7F6E</summary><div><label>\u539F\u751F GitHub \u51ED\u636E\u522B\u540D<input id="credential" maxlength="55" placeholder="github_example" autocomplete="off"></label><label>\u540C\u65F6\u4FDD\u5B58\u6587\u4EF6<input id="initial-path" maxlength="1024" placeholder="README.md"></label></div></details>
+<button id="save" type="submit">\u4FDD\u5B58\u56FA\u5B9A\u5FEB\u7167</button></form></section>
+<section class="section" id="detail" hidden><h2 id="title"></h2><code id="commit"></code><p><a id="tree-link" target="_blank" rel="noopener noreferrer">GitHub \u56FA\u5B9A\u63D0\u4EA4</a></p><p class="badge" id="ref-facts"></p>
+<label>\u7B5B\u9009\u8DEF\u5F84<input id="filter" type="search" maxlength="160"></label><ul class="tree" id="tree" aria-label="\u4ED3\u5E93\u6587\u4EF6"></ul></section>
+<section class="section" id="file" hidden><h3 id="file-path"></h3><p class="file-facts"><code id="blob"></code><a id="blob-link" target="_blank" rel="noopener noreferrer">GitHub \u56FA\u5B9A\u6587\u4EF6</a></p><pre id="file-text"></pre></section>
+</div></div></main>
+<script nonce="${nonce}">
+'use strict';
+const $=id=>document.getElementById(id), api='/knowledge/v1/repositories', status=text=>$('status').textContent=text;
+const errors={ACTOR_MISMATCH:'\u8D26\u53F7\u5DF2\u53D8\u66F4\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00\u9875\u9762\u3002',NOT_FOUND:'\u672A\u627E\u5230\u5FEB\u7167\u6216\u6587\u4EF6\u3002',REMOTE_REPOSITORY_NOT_FOUND:'\u4ED3\u5E93\u6216\u5F15\u7528\u4E0D\u5B58\u5728\uFF0C\u6216\u5165\u53E3\u65E0\u6743\u8BBF\u95EE\u3002',REPOSITORY_REDIRECT_REJECTED:'GitHub \u8FD4\u56DE\u4E86\u91CD\u5B9A\u5411\uFF0C\u672A\u8BFB\u53D6\u3002',REPOSITORY_RATE_LIMIT:'\u5DF2\u8FBE\u5230 GitHub \u8BF7\u6C42\u4E0A\u9650\u3002',REPOSITORY_LIMIT_EXCEEDED:'\u4ED3\u5E93\u6811\u6216\u6587\u4EF6\u8D85\u8FC7\u8BFB\u53D6\u4E0A\u9650\u3002',REPOSITORY_CREDENTIAL_UNCONFIGURED:'\u6307\u5B9A\u7684\u539F\u751F GitHub \u51ED\u636E\u672A\u914D\u7F6E\u3002',INVALID_REPOSITORY_INPUT:'\u68C0\u67E5\u4ED3\u5E93\u3001\u5F15\u7528\u3001\u6587\u4EF6\u8DEF\u5F84\u548C\u51ED\u636E\u522B\u540D\u3002',REPOSITORY_TIMEOUT:'GitHub \u8BFB\u53D6\u8D85\u65F6\u3002',REPOSITORY_CHANGED:'\u8FDC\u7AEF\u4ED3\u5E93\u8EAB\u4EFD\u53D1\u751F\u53D8\u5316\uFF0C\u672A\u4FDD\u5B58\u3002',REPOSITORY_INVALID_RESPONSE:'GitHub \u8FD4\u56DE\u7684\u5BF9\u8C61\u65E0\u6CD5\u9A8C\u8BC1\u3002',REPOSITORY_BUSY:'\u5DF2\u6709\u4ED3\u5E93\u8BF7\u6C42\u6B63\u5728\u6267\u884C\u3002',REPOSITORY_FILE_QUOTA:'\u5DF2\u8FBE\u5230\u672C\u5730\u6587\u4EF6\u5FEB\u7167\u4E0A\u9650\u3002',REPOSITORY_SNAPSHOT_QUOTA:'\u5DF2\u8FBE\u5230\u672C\u5730\u4ED3\u5E93\u5FEB\u7167\u4E0A\u9650\u3002'};
+const kinds={directory:'\u76EE\u5F55',symlink:'\u7B26\u53F7\u94FE\u63A5',submodule:'\u5B50\u6A21\u5757',file:'\u6587\u4EF6'};
+let actor, rows=[], selected, entries=[], files=[], busy=false, generation=0, controller=new AbortController();
+function clear(){generation++;controller.abort();controller=new AbortController();actor=selected=undefined;rows=[];entries=[];files=[];busy=false;$('connect').reset();$('save').disabled=false;$('filter').value='';$('workspace').hidden=$('detail').hidden=$('file').hidden=true;
+ for(const id of ['snapshots','title','commit','ref-facts','tree','file-path','blob','file-text'])$(id).textContent='';for(const id of ['tree-link','blob-link'])$(id).removeAttribute('href');}
+function noAccess(){clear();$('login').hidden=false;status('\u767B\u5F55\u540E\u8BFB\u53D6\u4ED3\u5E93\u5FEB\u7167\u3002');}
+async function request(url,method='GET',payload){const current=generation, response=await fetch(url,{method,redirect:'error',cache:'no-store',signal:controller.signal,headers:method==='GET'?{}:{'content-type':'application/json','x-knowledgeos-request':'1'},body:payload===undefined?undefined:JSON.stringify(payload)});
+ if(current!==generation)throw Error('STALE');const result=await response.json();if(response.status===401||response.status===403||result.code==='ACTOR_MISMATCH'){noAccess();throw Error('STALE');}if(!response.ok)throw Error(result.code);
+ if(actor&&actor!==result.data.actor_id){noAccess();throw Error('STALE');}return result.data;}
+function button(parent,text,index,callback){const b=document.createElement('button');b.type='button';b.textContent=text;if(index)b.setAttribute('aria-current','true');b.addEventListener('click',callback);parent.append(b);return b;}
+function snapshots(){const ul=$('snapshots');ul.replaceChildren();if(!rows.length){const li=document.createElement('li');li.textContent='\u6CA1\u6709\u5FEB\u7167';ul.append(li);return;}
+ for(const s of rows){const li=document.createElement('li');li.className='snapshot-row';const b=button(li,s.repository,s.id===selected,()=>operation(()=>open(s.id)));const small=document.createElement('small');small.textContent=s.commit.slice(0,12)+' \xB7 '+s.ref_value;b.append(small);ul.append(li);}}
+function tree(){const raw=$('filter').value.toLowerCase(), ul=$('tree');ul.replaceChildren();for(const e of entries){if(raw&&!e.path.toLowerCase().includes(raw))continue;
+ const li=document.createElement('li');if(e.kind==='file'&&e.size<=524288)button(li,e.path,false,()=>operation(()=>show(e.path)));else{const label=document.createElement('span');label.textContent=e.path;li.append(label);}
+ const tag=document.createElement('span');tag.textContent=files.includes(e.path)?'\u5DF2\u4FDD\u5B58':(e.kind==='file'&&e.size>524288?'\u8D85\u51FA\u4E0A\u9650':kinds[e.kind]);li.append(tag);ul.append(li);}}
+async function list(){const data=await request(api);actor=data.actor_id;rows=data.snapshots;$('workspace').hidden=false;$('login').hidden=true;snapshots();}
+async function open(id){const data=await request(api+'/'+id); selected=id;entries=data.entries;files=data.files;const s=data.snapshot;
+ $('detail').hidden=false;$('file').hidden=true;$('file-text').textContent='';$('blob-link').removeAttribute('href');$('title').textContent=s.repository;$('commit').textContent=s.commit;$('tree-link').href=s.source_url;
+ $('ref-facts').textContent=s.ref_kind+' \xB7 '+s.ref_value+(s.credential_ref?' \xB7 '+s.credential_ref:' \xB7 \u533F\u540D\u8BFB\u53D6');$('filter').value='';snapshots();tree();status('\u5DF2\u8BFB\u53D6\u56FA\u5B9A\u5FEB\u7167\u3002');}
+async function show(path){const base=api+'/'+selected+'/files';const data=files.includes(path)?await request(base+'?path='+encodeURIComponent(path)):await request(base,'POST',{actor_id:actor,path});
+ if(!files.includes(path)){files.push(path);const line=[...$('tree').children].find(li=>li.firstElementChild.textContent===path);if(line)line.lastElementChild.textContent='\u5DF2\u4FDD\u5B58';}
+ const f=data.file;$('file-path').textContent=f.path;$('blob').textContent=f.sha+' \xB7 '+f.size+' \u5B57\u8282';$('blob-link').href=f.source_url;
+ $('file-text').textContent=f.text===null?'\u4E8C\u8FDB\u5236\u6587\u4EF6\uFF0C\u4E0D\u9884\u89C8\u3002':f.text;$('file').hidden=false;status('\u5DF2\u8BFB\u53D6\u56FA\u5B9A\u6587\u4EF6\u3002');}
+async function operation(work){if(busy)return;busy=true;const current=generation;$('save').disabled=true;
+ try{await work();}catch(e){if(current===generation&&e.message!=='STALE')status(errors[e.message]||'\u5F53\u524D\u65E0\u6CD5\u8BFB\u53D6\u4ED3\u5E93\u3002');}
+ finally{if(current===generation){busy=false;$('save').disabled=false;}}}
+$('filter').addEventListener('input',tree);$('connect').addEventListener('submit',event=>{event.preventDefault();void operation(async()=>{status('\u6B63\u5728\u6821\u9A8C\u5E76\u4FDD\u5B58\u5FEB\u7167\u2026');
+ const body={actor_id:actor,repository:$('repository').value.trim(),ref_kind:$('ref-kind').value,ref_value:$('ref').value.trim()};
+ if($('credential').value)body.credential_ref=$('credential').value;if($('initial-path').value)body.path=$('initial-path').value;
+ const data=await request(api,'POST',body);await list();await open(data.snapshot.id);if(body.path)await show(body.path);
+});});
+addEventListener('pagehide',clear);addEventListener('pageshow',()=>void operation(async()=>{await list();status('');}));
+let recheck=false;document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){recheck=true;return;}if(recheck){recheck=false;if(actor){const expected=actor;fetch(api,{cache:'no-store',redirect:'error',signal:controller.signal}).then(async r=>{if(actor===expected&&(!r.ok||(await r.json()).data.actor_id!==expected))noAccess();}).catch(()=>{});}}});
+</script></body></html>`;
+}
+
 // src/host/index.ts
 var name = "knowledgeos-panel";
 var inject = ["webServer", "clientModules", "connection", "connection.authentication"];
@@ -11204,14 +11748,14 @@ function apply(ctx, config = {}) {
       if (closing) throw new RecordsError("STORAGE_CLOSED", "storage is closing");
       if (storage === void 0) throw new RecordsError("STORAGE_UNAVAILABLE", "storage is not configured");
       return createProbeRecord(storage, {
-        newId: () => randomUUID25(),
+        newId: () => randomUUID26(),
         now: () => (/* @__PURE__ */ new Date()).toISOString()
       }, { idempotencyKey, content });
     },
-    get(id4) {
+    get(id5) {
       if (closing) throw new RecordsError("STORAGE_CLOSED", "storage is closing");
       if (storage === void 0) throw new RecordsError("STORAGE_UNAVAILABLE", "storage is not configured");
-      return getProbeRecord(storage, id4);
+      return getProbeRecord(storage, id5);
     }
   };
   const handlers = createRecordsHandlers(service, RECORDS_PATH, log);
@@ -11269,7 +11813,7 @@ function apply(ctx, config = {}) {
     res.statusCode = 503;
     res.setHeader("content-type", "application/json; charset=utf-8");
     res.setHeader("cache-control", "no-store");
-    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID25(), retryable: true, safe_details: {} }));
+    res.end(JSON.stringify({ code: "STORAGE_UNAVAILABLE", message: "storage is not configured", request_id: randomUUID26(), retryable: true, safe_details: {} }));
   };
   const registerIdentityRoutes = (identityContext) => {
     const identityAvailable = () => {
@@ -11395,6 +11939,31 @@ function apply(ctx, config = {}) {
         };
         const handler = libraryHandler(storage.assets, originals, actualOrigin, sessionFor, storage.parses, storage.office, () => !!officeMount, storage.archives, reader, storage.search);
         const notes = createNoteHandler(storage.notes, actualOrigin, sessionFor);
+        const repositoryScope = new AbortController();
+        const repositories = new RepositoryService(storage.repositories, config.repositoryCredentials ?? [], async (ref) => (await ctx.get("credentials")?.resolve(ref))?.value);
+        disposers.push(() => repositoryScope.abort());
+        disposers.push(identityContext.webServer.register({
+          kind: "prefix",
+          path: repositoryApi,
+          auth: "anonymous",
+          handler: withPeer(createRepositoryHandler(repositories, actualOrigin, sessionFor, repositoryScope.signal))
+        }));
+        disposers.push(identityContext.webServer.register({ kind: "exact", path: "/knowledgeos/repositories", auth: "anonymous", handler: (req, res) => {
+          if (req.method !== "GET") {
+            res.writeHead(405, { allow: "GET" });
+            res.end();
+            return;
+          }
+          const nonce = randomUUID26();
+          res.writeHead(200, {
+            "content-type": "text/html; charset=utf-8",
+            "cache-control": "no-store",
+            "referrer-policy": "no-referrer",
+            "x-content-type-options": "nosniff",
+            "content-security-policy": "default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; connect-src 'self'; script-src 'nonce-" + nonce + "'; style-src 'nonce-" + nonce + "'"
+          });
+          res.end(buildRepositoryHtml(nonce));
+        } }));
         disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/invitations", auth: "anonymous", handler: withPeer(createInvitationHandler(storage.invitations, actualOrigin, sessionFor)) }));
         disposers.push(identityContext.webServer.register({ kind: "exact", path: "/knowledgeos/invitations", auth: "anonymous", handler: (req, res) => {
           if (req.method !== "GET") {

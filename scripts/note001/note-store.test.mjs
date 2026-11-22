@@ -8,7 +8,7 @@ import {DatabaseSync} from 'node:sqlite'
 import test from 'node:test'
 import {pathToFileURL} from 'node:url'
 import {ProbeStorage,IdentityService} from '../../packages/knowledgeos-panel/lib/test-support.js'
-import {MIGRATION_V21_CHECKSUM,MIGRATION_V26_CHECKSUM,MIGRATION_V27_CHECKSUM} from '../../packages/knowledgeos-panel/lib/storage.js'
+import {MIGRATION_V21_CHECKSUM,MIGRATION_V26_CHECKSUM,MIGRATION_V27_CHECKSUM,MIGRATION_V28_CHECKSUM} from '../../packages/knowledgeos-panel/lib/storage.js'
 import {seed} from '../fnd006/independent/common.mjs'
 import {decodeText} from '../../packages/knowledgeos-panel/src/host/text-document.ts'
 
@@ -41,8 +41,8 @@ test('v20 rollback then v21 append preserves actual citation, project and prior 
   try{
     assert.equal(version(),20);s=new ProbeStorage({dataDir:dir,failureAt:'v21:after-schema'});assert.equal(s.available,false);s.close()
     assert.equal(version(),20);assert.deepEqual(snapshot(),prev);assert.equal(db.prepare("SELECT 1 FROM sqlite_schema WHERE name='notes'").get(),undefined)
-    s=new ProbeStorage({dataDir:dir});assert(s.available,s.failure?.message);assert.equal(version(),27)
-    const now=snapshot();assert.equal(now.schema_migrations.pop().checksum,MIGRATION_V27_CHECKSUM);assert.equal(now.schema_migrations.pop().checksum,MIGRATION_V26_CHECKSUM);assert.equal(now.schema_migrations.pop().version,25);assert.equal(now.schema_migrations.pop().version,24);assert.equal(now.schema_migrations.pop().version,23);assert.equal(now.schema_migrations.pop().version,22);assert.deepEqual(now.schema_migrations.pop().checksum,MIGRATION_V21_CHECKSUM);assert.deepEqual(now,prev)
+    s=new ProbeStorage({dataDir:dir});assert(s.available,s.failure?.message);assert.equal(version(),28)
+    const now=snapshot();assert.equal(now.schema_migrations.pop().checksum,MIGRATION_V28_CHECKSUM);assert.equal(now.schema_migrations.pop().checksum,MIGRATION_V27_CHECKSUM);assert.equal(now.schema_migrations.pop().checksum,MIGRATION_V26_CHECKSUM);assert.equal(now.schema_migrations.pop().version,25);assert.equal(now.schema_migrations.pop().version,24);assert.equal(now.schema_migrations.pop().version,23);assert.equal(now.schema_migrations.pop().version,22);assert.deepEqual(now.schema_migrations.pop().checksum,MIGRATION_V21_CHECKSUM);assert.deepEqual(now,prev)
     assert.equal(s.citations.resolve(actor,citation.id).quote,'immutable text');assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[])
   }finally{s?.close();db.close()}
 })

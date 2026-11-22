@@ -15,12 +15,15 @@ export async function until(fn,label,ms=15000){
   throw Error('timeout: '+label)
 }
 const git=(...args)=>execFileSync('git',['--no-optional-locks',...args],{cwd:root})
-export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrier=false,businessClock,nativeEgressProbe=false}={}){
+export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrier=false,businessClock,nativeEgressProbe=false,repositoryTraffic=false}={}){
   const bound=binding(commit,resolve(process.env.KO_TEST_CACHE??join(root,'.cache')))
   assert.equal(bound.facts.entry_sha256,entryHash)
   const scopes=['scripts/lib002','scripts/fnd003','scripts/fnd004']
   assert.equal(git('status','--porcelain','--untracked-files=all','--',...scopes).toString().trim(),'')
   const helpers={}
+  if(repositoryTraffic){
+    const path='scripts/repo001/egress-preload.mjs';helpers['repository-egress']=sha(readFileSync(join(root,path)));assert.equal(helpers['repository-egress'],sha(git('show',commit+':'+path)))
+  }
   if(businessClock!==undefined){
     const path='scripts/share001/test-clock-preload.mjs';helpers['business-clock']=sha(readFileSync(join(root,path)));assert.equal(helpers['business-clock'],sha(git('show',commit+':'+path)))
   }
@@ -80,6 +83,7 @@ export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrie
     if(searchBarrier)extra.push('--import',new URL('../search001/scan-barrier.mjs',import.meta.url).href)
     if(businessClock!==undefined){env.KO_TEST_BUSINESS_CLOCK=clockFile;extra.push('--import',new URL('../share001/test-clock-preload.mjs',import.meta.url).href)}
     if(nativeEgressProbe){env.KO_TEST_LOOPBACK=base;extra.unshift('--import',new URL('../fnd005/native-host-egress-preload.mjs',import.meta.url).href)}
+    if(repositoryTraffic){env.KO_TEST_LOOPBACK=base;extra.unshift('--import',new URL('../repo001/egress-preload.mjs',import.meta.url).href)}
     const child=spawn(process.execPath,['--import',new URL('../fnd005/candidate-live-trace.mjs',import.meta.url).href,'--import',new URL('a07-extractor-preload.mjs',import.meta.url).href,...extra,'--import','tsx/esm','apps/cli/src/bin.ts','--profile',profile,'--host','127.0.0.1','--port',String(port),'--no-open'],{cwd:bound.runtime,env,stdio:['ignore','pipe','pipe'],windowsHide:true})
     let ended=false,tail='';const done=new Promise(ok=>{child.once('close',(code,signal)=>{ended=true;ok({code,signal})});child.once('error',()=>{ended=true;ok({spawnError:true})})});host={child,done}
     for(const s of [child.stdout,child.stderr])s.on('data',chunk=>{tail=(tail+chunk).slice(-32000)})
@@ -97,6 +101,7 @@ export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrie
   const gateSearch=data=>{assert(searchBarrier&&host);writeFileSync(join(trace,'hold-search-scan.json'),JSON.stringify(data),{flag:'wx'})}
   const searchGateFacts=()=>JSON.parse(readFileSync(join(trace,'hold-search-scan.json.observed'),'utf8'))
   return {base,port,data,start,stop,events,officeFlag,gateSearch,searchGateFacts,clock,invitationArrivals,release:()=>writeFileSync(join(trace,'release3'),'',{flag:'wx'}),
+    repositoryEvents:()=>{assert(repositoryTraffic);const path=join(trace,'repository-egress.jsonl');return existsSync(path)?readFileSync(path,'utf8').trim().split('\n').map(JSON.parse):[]},
     nativeResult:()=>{assert(nativeEgressProbe);const path=join(trace,'native-egress.json');return existsSync(path)?JSON.parse(readFileSync(path,'utf8')):undefined},
     facts:{...bound.facts,helpers,parser},playwright:bound.playwright}
 }

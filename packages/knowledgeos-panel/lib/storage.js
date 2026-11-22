@@ -1,7 +1,7 @@
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash13, randomUUID as randomUUID14 } from "node:crypto";
+import { createHash as createHash14, randomUUID as randomUUID15 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -1786,12 +1786,184 @@ var NoteStore = class {
   }
 };
 
+// src/host/repository-store.ts
+import { randomUUID as randomUUID12 } from "node:crypto";
+
+// src/host/github-repository.ts
+import { createHash as createHash10 } from "node:crypto";
+var repositoryLimits = { files: 5e3, blob: 512 * 1024, tree: 2 * 1024 * 1024 };
+
+// src/host/repository-store.ts
+var REPOSITORY_SCHEMA = `
+CREATE TABLE repository_snapshots (
+  id TEXT PRIMARY KEY, service_id TEXT NOT NULL, owner_id TEXT NOT NULL REFERENCES users(id),
+  remote_id INTEGER NOT NULL, owner_name TEXT NOT NULL, repository_name TEXT NOT NULL,
+  is_private INTEGER NOT NULL CHECK(is_private IN (0,1)), credential_ref TEXT NOT NULL,
+  ref_kind TEXT NOT NULL CHECK(ref_kind IN ('branch','tag','commit')), ref_value TEXT NOT NULL,
+  commit_sha TEXT NOT NULL CHECK(length(commit_sha)=40), tree_sha TEXT NOT NULL CHECK(length(tree_sha)=40),
+  tree_json TEXT NOT NULL, created_at TEXT NOT NULL,
+  UNIQUE(service_id,owner_id,remote_id,is_private,credential_ref,commit_sha)
+) STRICT;
+CREATE TABLE repository_files (
+  snapshot_id TEXT NOT NULL REFERENCES repository_snapshots(id), path TEXT NOT NULL,
+  blob_sha TEXT NOT NULL CHECK(length(blob_sha)=40), payload BLOB NOT NULL,
+  PRIMARY KEY(snapshot_id,path)
+) STRICT;
+`;
+var summaryColumns = "id,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,created_at";
+var hidden2 = () => new AssetError(404, "NOT_FOUND");
+var checkSignal = (signal) => {
+  if (signal.aborted) throw new AssetError(409, "REPOSITORY_CANCELLED");
+};
+var summarize = (row) => ({
+  id: row.id,
+  platform: "github",
+  repository: row.owner_name + "/" + row.repository_name,
+  private: !!row.is_private,
+  credential_ref: row.credential_ref || null,
+  ref_kind: row.ref_kind,
+  ref_value: row.ref_value,
+  commit: row.commit_sha,
+  tree: row.tree_sha,
+  created_at: row.created_at,
+  source_url: "https://github.com/" + row.owner_name + "/" + row.repository_name + "/tree/" + row.commit_sha
+});
+var fileView = (row, path, sha4, bytes) => {
+  let text = null;
+  if (!bytes.includes(0)) {
+    try {
+      text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
+    } catch {
+    }
+  }
+  return {
+    path,
+    sha: sha4,
+    size: bytes.length,
+    text,
+    source_url: "https://github.com/" + row.owner_name + "/" + row.repository_name + "/blob/" + row.commit_sha + "/" + path.split("/").map(encodeURIComponent).join("/")
+  };
+};
+var RepositoryStore = class {
+  constructor(tx, currentActor) {
+    this.tx = tx;
+    this.currentActor = currentActor;
+  }
+  check(session, expected = session.userId) {
+    return this.tx("read", (_, now) => this.actor(session, now, expected));
+  }
+  actor(session, now, expected = session.userId) {
+    const actor = this.currentActor(session, now);
+    if (!actor) throw new AssetError(401, "AUTH_REQUIRED");
+    if (expected !== actor.userId) throw new AssetError(409, "ACTOR_MISMATCH");
+    return actor;
+  }
+  list(session) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(session, now);
+      return db.prepare("SELECT " + summaryColumns + " FROM repository_snapshots WHERE service_id=? AND owner_id=? ORDER BY created_at DESC,id DESC").all(actor.serviceId, actor.userId).map(summarize);
+    });
+  }
+  row(db, actor, id) {
+    const row = db.prepare("SELECT * FROM repository_snapshots WHERE service_id=? AND owner_id=? AND id=?").get(actor.serviceId, actor.userId, id);
+    if (!row) throw hidden2();
+    return row;
+  }
+  detail(session, id) {
+    return this.tx("read", (db, now) => {
+      const row = this.row(db, this.actor(session, now), id);
+      const entries = JSON.parse(row.tree_json);
+      const files = db.prepare("SELECT path FROM repository_files WHERE snapshot_id=? ORDER BY path").all(id).map((row2) => String(row2.path));
+      return { snapshot: summarize(row), entries, files };
+    });
+  }
+  file(session, id, path) {
+    return this.tx("read", (db, now) => {
+      const row = this.row(db, this.actor(session, now), id);
+      const saved = db.prepare("SELECT blob_sha,payload FROM repository_files WHERE snapshot_id=? AND path=?").get(id, path);
+      if (!saved) throw hidden2();
+      return fileView(row, path, String(saved.blob_sha), saved.payload);
+    });
+  }
+  pendingFile(session, expected, id, path) {
+    return this.tx("read", (db, now) => {
+      const row = this.row(db, this.actor(session, now, expected), id);
+      const entry = JSON.parse(row.tree_json).find((candidate) => candidate.path === path);
+      if (!entry) throw hidden2();
+      return { row, entry };
+    });
+  }
+  saveSnapshot(session, expected, remote, ref, alias, revision, entries, signal, pinned) {
+    return this.tx("write", (db, now) => {
+      checkSignal(signal);
+      const { userId, serviceId } = this.actor(session, now, expected);
+      const existing = db.prepare("SELECT * FROM repository_snapshots WHERE service_id=? AND owner_id=? AND remote_id=? AND is_private=? AND credential_ref=? AND commit_sha=?").get(serviceId, userId, remote.id, Number(remote.private), alias, revision.commit);
+      if (existing) {
+        if (existing.tree_sha !== revision.tree) throw new AssetError(502, "REPOSITORY_INVALID_RESPONSE");
+        if (pinned) this.insertFile(db, { userId, serviceId }, existing, pinned.entry, pinned.bytes);
+        return { snapshot: summarize(existing), replayed: true };
+      }
+      if (Number(db.prepare("SELECT count(*) AS total FROM repository_snapshots WHERE service_id=? AND owner_id=?").get(serviceId, userId)?.total) >= 25)
+        throw new AssetError(409, "REPOSITORY_SNAPSHOT_QUOTA");
+      const row = {
+        id: randomUUID12(),
+        remote_id: remote.id,
+        owner_name: remote.owner,
+        repository_name: remote.name,
+        is_private: Number(remote.private),
+        credential_ref: alias,
+        ref_kind: ref.kind,
+        ref_value: ref.value,
+        commit_sha: revision.commit,
+        tree_sha: revision.tree,
+        tree_json: JSON.stringify(entries),
+        created_at: now
+      };
+      db.prepare("INSERT INTO repository_snapshots(id,service_id,owner_id,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,tree_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(
+        row.id,
+        serviceId,
+        userId,
+        row.remote_id,
+        row.owner_name,
+        row.repository_name,
+        row.is_private,
+        alias,
+        row.ref_kind,
+        row.ref_value,
+        row.commit_sha,
+        row.tree_sha,
+        row.tree_json,
+        now
+      );
+      if (pinned) this.insertFile(db, { userId, serviceId }, row, pinned.entry, pinned.bytes);
+      return { snapshot: summarize(row), replayed: false };
+    });
+  }
+  saveFile(session, expected, id, entry, bytes, signal) {
+    return this.tx("write", (db, now) => {
+      checkSignal(signal);
+      const actor = this.actor(session, now, expected), row = this.row(db, actor, id);
+      this.insertFile(db, actor, row, entry, bytes);
+      return fileView(row, entry.path, entry.sha, bytes);
+    });
+  }
+  insertFile(db, actor, row, entry, bytes) {
+    const treeEntry = JSON.parse(row.tree_json).find((candidate) => candidate.path === entry.path);
+    if (!treeEntry || treeEntry.kind !== "file" || treeEntry.sha !== entry.sha || treeEntry.size !== bytes.length) throw new AssetError(502, "REPOSITORY_INVALID_RESPONSE");
+    if (db.prepare("SELECT 1 FROM repository_files WHERE snapshot_id=? AND path=?").get(row.id, entry.path)) return;
+    const count = Number(db.prepare("SELECT count(*) AS total FROM repository_files WHERE snapshot_id=?").get(row.id)?.total);
+    const used = Number(db.prepare("SELECT coalesce(sum(length(f.payload)),0) AS total FROM repository_files f JOIN repository_snapshots s ON s.id=f.snapshot_id WHERE s.service_id=? AND s.owner_id=?").get(actor.serviceId, actor.userId)?.total);
+    if (count >= 32 || used + bytes.length > 32 * 1024 * 1024) throw new AssetError(409, "REPOSITORY_FILE_QUOTA");
+    db.prepare("INSERT INTO repository_files VALUES(?,?,?,?)").run(row.id, entry.path, entry.sha, bytes);
+  }
+};
+
 // src/host/recall-store.ts
-import { createHash as createHash11, randomUUID as randomUUID12 } from "node:crypto";
+import { createHash as createHash12, randomUUID as randomUUID13 } from "node:crypto";
 
 // src/host/recall-range.ts
-import { createHash as createHash10 } from "node:crypto";
-var digest = (text) => createHash10("sha256").update(text, "utf8").digest("hex");
+import { createHash as createHash11 } from "node:crypto";
+var digest = (text) => createHash11("sha256").update(text, "utf8").digest("hex");
 var invalid3 = () => new AssetError(422, "INVALID_RECALL_RANGE");
 var changed = () => new AssetError(409, "RECALL_SOURCE_CHANGED");
 var available = (text) => {
@@ -1889,7 +2061,7 @@ CREATE TABLE recall_events (
   CHECK(event IN ('move','hint','reveal','recall','rating'))
 ) STRICT;
 CREATE INDEX recall_events_groups ON recall_events(material_id,event,value);`;
-var sha3 = (text) => createHash11("sha256").update(text).digest("hex");
+var sha3 = (text) => createHash12("sha256").update(text).digest("hex");
 var invalid4 = () => new AssetError(422, "INVALID_RECALL");
 var notFound4 = () => new AssetError(404, "RECALL_NOT_FOUND");
 var point2 = (t, ordinal) => ({ asset_id: t.asset_id, version_id: t.version_id, ordinal, ...t.conversion_id ? { conversion_id: t.conversion_id } : {} });
@@ -1977,7 +2149,7 @@ var RecallStore = class {
       if (!draft.title.trim() || draft.title.length > 200 || !draft.masks.length) throw invalid4();
       const first = this.source(db, a, point2(draft, draft.first.ordinal), now);
       const read = (n) => n === first.ordinal ? first.text : this.source(db, a, point2(draft, n), now).text;
-      const segments = recallSelection(draft.first, draft.last, draft.interior_hashes, first.total, read), masks = recallMasks(segments, draft.masks, read), id = randomUUID12();
+      const segments = recallSelection(draft.first, draft.last, draft.interior_hashes, first.total, read), masks = recallMasks(segments, draft.masks, read), id = randomUUID13();
       const m = { id, title: draft.title, asset_id: draft.asset_id, version_id: draft.version_id, conversion_id: draft.conversion_id ?? null };
       db.prepare("INSERT INTO recall_materials VALUES(?,?,?,?,?,?,?,?,?,?)").run(id, a.userId, a.serviceId, m.asset_id, m.version_id, m.conversion_id, m.title, now, key, digest3);
       const insert = db.prepare("INSERT INTO recall_segments VALUES(?,?,?,?,?)");
@@ -2016,7 +2188,7 @@ var RecallStore = class {
 };
 
 // src/host/invitation-store.ts
-import { createHash as createHash12, randomBytes, randomUUID as randomUUID13 } from "node:crypto";
+import { createHash as createHash13, randomBytes, randomUUID as randomUUID14 } from "node:crypto";
 var INVITATION_SCHEMA = `CREATE TABLE invitations (
   id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE CHECK(length(token_hash)=64),
   service_id TEXT NOT NULL, issuer_id TEXT NOT NULL REFERENCES users(id),
@@ -2061,7 +2233,7 @@ var INVITATION_CHANGE_SCHEMA = `CREATE TABLE invitation_change_receipts (
   result_json TEXT NOT NULL CHECK(json_valid(result_json)), PRIMARY KEY(service_id,actor_id,request_key)
 ) STRICT;`;
 var day = 864e5;
-var digest2 = (value) => createHash12("sha256").update(value).digest("hex");
+var digest2 = (value) => createHash13("sha256").update(value).digest("hex");
 var invalid5 = () => new AssetError(422, "INVALID_INVITATION");
 var unavailable = () => new AssetError(404, "INVITATION_UNAVAILABLE");
 var conflict2 = () => new AssetError(409, "INVITATION_CHANGED");
@@ -2089,7 +2261,7 @@ function receipt2(r) {
 var active = (r, now) => r.revoked_at === null && now < r.expires_at;
 function recordEvent(db, r, a, event, now, before, affected, correlation) {
   db.prepare("INSERT INTO invitation_audit VALUES(?,?,?,?,?,?,?,?)").run(r.id, r.revision, a.userId, event, now, before, r.expires_at, affected.length);
-  const eventId = randomUUID13(), payload = JSON.stringify({
+  const eventId = randomUUID14(), payload = JSON.stringify({
     target: target(r),
     prior_expires_at: before,
     expires_at: r.expires_at,
@@ -2134,7 +2306,7 @@ var InvitationStore = class {
       return this.issueSpec(this.actor(prior, now, expected), s, now);
     });
   }
-  create(prior, expected, s, key, correlation = randomUUID13()) {
+  create(prior, expected, s, key, correlation = randomUUID14()) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now, expected), p = this.issueSpec(a, s, now);
       const req = digest2(JSON.stringify([p.target, s.days ?? 7, p.max_redemptions]));
@@ -2145,7 +2317,7 @@ var InvitationStore = class {
       }
       const token2 = randomBytes(32).toString("base64url");
       const r = {
-        id: randomUUID13(),
+        id: randomUUID14(),
         service_id: a.serviceId,
         issuer_id: a.userId,
         object_id: s.scope === "object" ? s.id : null,
@@ -2164,7 +2336,7 @@ var InvitationStore = class {
       return { ...receipt2(r), title: p.title, token: token2, server_time: now, replayed: false };
     });
   }
-  redeem(prior, expected, token2, correlation = randomUUID13()) {
+  redeem(prior, expected, token2, correlation = randomUUID14()) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now, expected);
       if (!/^[a-zA-Z0-9_-]{43}$/.test(token2)) throw unavailable();
@@ -2180,7 +2352,7 @@ var InvitationStore = class {
         return { id: priorRedemption.id, target: t, title: info.title, expires_at: priorRedemption.expires_at, server_time: now, replayed: true };
       }
       if (r.redeemed_count >= r.max_redemptions) throw new AssetError(409, "INVITATION_FULL");
-      const grant = randomUUID13();
+      const grant = randomUUID14();
       db.prepare("INSERT INTO invitation_redemptions VALUES(?,?,?,?,?,NULL)").run(grant, r.id, a.userId, now, r.expires_at);
       const change = db.prepare("UPDATE invitations SET redeemed_count=redeemed_count+1,revision=revision+1 WHERE id=? AND revision=? AND redeemed_count<max_redemptions").run(r.id, r.revision);
       if (change.changes !== 1) throw conflict2();
@@ -2206,7 +2378,7 @@ var InvitationStore = class {
       return { actor_id: a.userId, server_time: now, items };
     });
   }
-  change(prior, expected, id, expectedRevision, event, days, key = randomUUID13(), correlation = randomUUID13()) {
+  change(prior, expected, id, expectedRevision, event, days, key = randomUUID14(), correlation = randomUUID14()) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now, expected), { r } = this.managed(db, a, id, now);
       const extension = event === "renew" ? duration(days) : 0, req = digest2(JSON.stringify([id, expectedRevision, event, extension]));
@@ -2231,31 +2403,32 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 27;
-var MIGRATION_V27_CHECKSUM = createHash13("sha256").update(NOTE_LAYOUT_SCHEMA).digest("hex");
-var MIGRATION_V26_CHECKSUM = createHash13("sha256").update(NOTE_OUTLINE_SCHEMA).digest("hex");
-var MIGRATION_V25_CHECKSUM = createHash13("sha256").update(INVITATION_CHANGE_SCHEMA).digest("hex");
-var MIGRATION_V24_CHECKSUM = createHash13("sha256").update(INVITATION_EVENT_SCHEMA).digest("hex");
-var MIGRATION_V23_CHECKSUM = createHash13("sha256").update(INVITATION_SCHEMA).digest("hex");
-var MIGRATION_V22_CHECKSUM = createHash13("sha256").update(RECALL_SCHEMA).digest("hex");
-var MIGRATION_V21_CHECKSUM = createHash13("sha256").update(NOTE_SCHEMA).digest("hex");
-var MIGRATION_V20_CHECKSUM = createHash13("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
-var MIGRATION_V19_CHECKSUM = createHash13("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V18_CHECKSUM = createHash13("sha256").update(SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V17_CHECKSUM = createHash13("sha256").update(ANNOTATION_SCHEMA).digest("hex");
-var MIGRATION_V16_CHECKSUM = createHash13("sha256").update(READING_STATE_SCHEMA).digest("hex");
-var MIGRATION_V15_CHECKSUM = createHash13("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
-var MIGRATION_V13_CHECKSUM = createHash13("sha256").update(ZIP_SCHEMA).digest("hex");
-var MIGRATION_V14_CHECKSUM = createHash13("sha256").update(CITATION_SCHEMA).digest("hex");
-var MIGRATION_V12_CHECKSUM = createHash13("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
-var MIGRATION_V11_CHECKSUM = createHash13("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
-var MIGRATION_V10_CHECKSUM = createHash13("sha256").update(OFFICE_SCHEMA).digest("hex");
-var MIGRATION_V9_CHECKSUM = createHash13("sha256").update(TEXT_SCHEMA).digest("hex");
-var MIGRATION_V8_CHECKSUM = createHash13("sha256").update(PARSE_SCHEMA).digest("hex");
+var SCHEMA_VERSION = 28;
+var MIGRATION_V28_CHECKSUM = createHash14("sha256").update(REPOSITORY_SCHEMA).digest("hex");
+var MIGRATION_V27_CHECKSUM = createHash14("sha256").update(NOTE_LAYOUT_SCHEMA).digest("hex");
+var MIGRATION_V26_CHECKSUM = createHash14("sha256").update(NOTE_OUTLINE_SCHEMA).digest("hex");
+var MIGRATION_V25_CHECKSUM = createHash14("sha256").update(INVITATION_CHANGE_SCHEMA).digest("hex");
+var MIGRATION_V24_CHECKSUM = createHash14("sha256").update(INVITATION_EVENT_SCHEMA).digest("hex");
+var MIGRATION_V23_CHECKSUM = createHash14("sha256").update(INVITATION_SCHEMA).digest("hex");
+var MIGRATION_V22_CHECKSUM = createHash14("sha256").update(RECALL_SCHEMA).digest("hex");
+var MIGRATION_V21_CHECKSUM = createHash14("sha256").update(NOTE_SCHEMA).digest("hex");
+var MIGRATION_V20_CHECKSUM = createHash14("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
+var MIGRATION_V19_CHECKSUM = createHash14("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V18_CHECKSUM = createHash14("sha256").update(SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V17_CHECKSUM = createHash14("sha256").update(ANNOTATION_SCHEMA).digest("hex");
+var MIGRATION_V16_CHECKSUM = createHash14("sha256").update(READING_STATE_SCHEMA).digest("hex");
+var MIGRATION_V15_CHECKSUM = createHash14("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
+var MIGRATION_V13_CHECKSUM = createHash14("sha256").update(ZIP_SCHEMA).digest("hex");
+var MIGRATION_V14_CHECKSUM = createHash14("sha256").update(CITATION_SCHEMA).digest("hex");
+var MIGRATION_V12_CHECKSUM = createHash14("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
+var MIGRATION_V11_CHECKSUM = createHash14("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
+var MIGRATION_V10_CHECKSUM = createHash14("sha256").update(OFFICE_SCHEMA).digest("hex");
+var MIGRATION_V9_CHECKSUM = createHash14("sha256").update(TEXT_SCHEMA).digest("hex");
+var MIGRATION_V8_CHECKSUM = createHash14("sha256").update(PARSE_SCHEMA).digest("hex");
 var MIGRATION_V7_SQL = ASSET_SCHEMA;
-var MIGRATION_V7_CHECKSUM = createHash13("sha256").update(ASSET_SCHEMA).digest("hex");
+var MIGRATION_V7_CHECKSUM = createHash14("sha256").update(ASSET_SCHEMA).digest("hex");
 var MIGRATION_V6_SQL = JOB_SCHEMA;
-var MIGRATION_V6_CHECKSUM = createHash13("sha256").update(JOB_SCHEMA).digest("hex");
+var MIGRATION_V6_CHECKSUM = createHash14("sha256").update(JOB_SCHEMA).digest("hex");
 var PROBE_SCHEMA_VERSION = 1;
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
@@ -2272,7 +2445,7 @@ CREATE TABLE storage_probe_records (
   created_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V1_CHECKSUM = createHash13("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
+var MIGRATION_V1_CHECKSUM = createHash14("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
 var MIGRATION_V2_SQL = `CREATE TABLE password_credentials (
   id TEXT PRIMARY KEY,
   algorithm TEXT NOT NULL,
@@ -2326,7 +2499,7 @@ CREATE TABLE spaces (
   updated_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V2_CHECKSUM = createHash13("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
+var MIGRATION_V2_CHECKSUM = createHash14("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
 var MIGRATION_V3_SQL = `CREATE TABLE knowledge_projects (
   id TEXT PRIMARY KEY,
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
@@ -2376,7 +2549,7 @@ CREATE TABLE resource_grants (
   UNIQUE (resource_id, subject_type, subject_id, action)
 ) STRICT;
 `;
-var MIGRATION_V3_CHECKSUM = createHash13("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
+var MIGRATION_V3_CHECKSUM = createHash14("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
 var MIGRATION_V4_SQL = `ALTER TABLE resource_grants RENAME TO resource_grants_v3;
 CREATE TABLE resource_grants (
   id TEXT PRIMARY KEY,
@@ -2398,7 +2571,7 @@ CREATE UNIQUE INDEX resource_grants_active_subject_action_uq
   WHERE revoked_at IS NULL;
 DROP TABLE resource_grants_v3;
 `;
-var MIGRATION_V4_CHECKSUM = createHash13("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
+var MIGRATION_V4_CHECKSUM = createHash14("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
 var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -2410,7 +2583,7 @@ var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   PRIMARY KEY (service_id, user_id, idempotency_key)
 ) STRICT;
 `;
-var MIGRATION_V5_CHECKSUM = createHash13("sha256").update(MIGRATION_V5_SQL).digest("hex");
+var MIGRATION_V5_CHECKSUM = createHash14("sha256").update(MIGRATION_V5_SQL).digest("hex");
 var PROBE_SUPPORTED_TABLES = ["schema_migrations", "storage_probe_records"];
 var IDENTITY_SUPPORTED_TABLES = [
   "auth_sessions",
@@ -2502,6 +2675,7 @@ var ProbeStorage = class {
     return ref ? this.findActor(String(ref.token_hash), now) : void 0;
   }
   assets = new AssetStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (actor, id, action, now) => Boolean(this.authorizeObject(actor, id, action, now)));
+  repositories = new RepositoryStore(this.#assetTx, (s, now) => this.#currentActor(s, now));
   notes = new NoteStore(
     this.#assetTx,
     (s, now) => this.#currentActor(s, now),
@@ -2628,6 +2802,7 @@ var ProbeStorage = class {
       if (priorVersion < 25) this.#migrateV25(db);
       if (priorVersion < 26) this.#migrateV26(db);
       if (priorVersion < 27) this.#migrateV27(db);
+      if (priorVersion < 28) this.#migrateV28(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -2854,7 +3029,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID14());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID15());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -3184,9 +3359,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "note map layout migration failed", false, { cause: e });
     }
   }
+  #migrateV28(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(REPOSITORY_SCHEMA);
+      this.#injectFailure("v28:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(28,?,?)").run(MIGRATION_V28_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=28; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "repository migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash2, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash2)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -3212,6 +3399,7 @@ var ProbeStorage = class {
       if (version >= 25) reference.exec(INVITATION_CHANGE_SCHEMA);
       if (version >= 26) reference.exec(NOTE_OUTLINE_SCHEMA);
       if (version >= 27) reference.exec(NOTE_LAYOUT_SCHEMA);
+      if (version >= 28) reference.exec(REPOSITORY_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -3314,9 +3502,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID14();
-      const spaceId = randomUUID14();
-      const credentialId = randomUUID14();
+      const userId = randomUUID15();
+      const spaceId = randomUUID15();
+      const credentialId = randomUUID15();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -3350,9 +3538,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID14();
-      const spaceId = randomUUID14();
-      const credentialId = randomUUID14();
+      const userId = randomUUID15();
+      const spaceId = randomUUID15();
+      const credentialId = randomUUID15();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -3550,7 +3738,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID14(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
+        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID15(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -3649,8 +3837,8 @@ var ProbeStorage = class {
     let primaryCode;
     let failed = false;
     try {
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash13("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash13("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash14("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash14("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
     } catch (error) {
       failed = true;
       primaryCode = primarySqliteCode(error);
@@ -3733,6 +3921,7 @@ export {
   MIGRATION_V25_CHECKSUM,
   MIGRATION_V26_CHECKSUM,
   MIGRATION_V27_CHECKSUM,
+  MIGRATION_V28_CHECKSUM,
   MIGRATION_V2_CHECKSUM,
   MIGRATION_V2_SQL,
   MIGRATION_V3,

@@ -6,7 +6,7 @@ import {pathToFileURL} from 'node:url'
 import {setTimeout as delay} from 'node:timers/promises'
 
 export const name='native-egress-probe',inject=['llm','credentials']
-const provider='deepseek-official',model='deepseek-flash',endpoint='https://api.deepseek.com'
+const provider='deepseek-official',model='deepseek-flash',endpoint='https://api.deepseek.com',messagesEndpoint=endpoint+'/anthropic'
 const transport='packages/llm/llm-deepseek/lib/index.js'
 const transportHash='9668b6fa470995bcfe65bbcd01506a4601b562bdfb248f732a1c9f7fa173d002'
 
@@ -39,10 +39,10 @@ export function apply(ctx){
       const source=join(process.cwd(),transport),digest=createHash('sha256').update(readFileSync(source)).digest('hex');assert.equal(digest,transportHash)
       const native=await import(pathToFileURL(source).href),signal=()=>AbortSignal.timeout(4000)
       await assert.rejects(()=>native.requestModelListing(endpoint+'/models',{},signal()))
-      const adapter=new native.DeepSeekAdapter({options:()=>native.resolveAdapterOptions({baseURL:endpoint,models:[{id:model}]}),
-        resolveAuth:async()=>({headers:{}}),resolveUserId:()=> 'offline-probe'})
-      await assert.rejects(async()=>{for await(const _ of adapter.stream({...payload,signal:signal()}))assert.fail('Unexpected transport data')})
-      const files=new native.DeepSeekFilesClient({baseURL:endpoint,headers:{}})
+      const adapter=new native.DeepSeekAdapter({options:()=>native.resolveAdapterOptions({baseURL:messagesEndpoint,models:[{id:model}]}),
+        resolveAuth:async()=>({headers:{}}),resolveUserId:()=> 'offline-probe',prepareExtensions:async()=>({fields:{},accept:async()=>{}})})
+      await assert.rejects(async()=>{for await(const _ of adapter.stream({...payload,signal:signal()}))assert.fail('Unexpected transport data')},{code:'TRANSPORT'})
+      const files=new native.DeepSeekFilesClient({baseURL:messagesEndpoint,headers:{}})
       await assert.rejects(()=>files.upload({data:Uint8Array.of(0),mediaType:'image/png',filename:'synthetic.png',expiresAfterSeconds:3600,signal:signal()}))
       assert.deepEqual(counts(),['directory','messages','files'])
       result.checks.denied_native_transports={directory:1,messages:1,files:1,transport_sha256:digest,synthetic_no_auth:true}

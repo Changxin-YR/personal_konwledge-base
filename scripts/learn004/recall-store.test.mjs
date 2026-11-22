@@ -8,7 +8,7 @@ import {DatabaseSync} from 'node:sqlite'
 import test from 'node:test'
 import {pathToFileURL} from 'node:url'
 import * as lib from '../../packages/knowledgeos-panel/lib/test-support.js'
-import {MIGRATION_V22_CHECKSUM,MIGRATION_V26_CHECKSUM,MIGRATION_V27_CHECKSUM} from '../../packages/knowledgeos-panel/lib/storage.js'
+import {MIGRATION_V22_CHECKSUM,MIGRATION_V26_CHECKSUM,MIGRATION_V27_CHECKSUM,MIGRATION_V28_CHECKSUM} from '../../packages/knowledgeos-panel/lib/storage.js'
 import {seed} from '../fnd006/independent/common.mjs'
 import {decodeText} from '../../packages/knowledgeos-panel/src/host/text-document.ts'
 
@@ -40,9 +40,9 @@ test('v21 data and exact ledger survive injected v22 rollback, append and reopen
     assert.equal(version(),21);assert.deepEqual(schema(),before);assert.deepEqual(contents(),expected);assert.deepEqual(rows('schema_migrations'),ledger)
     for(let i=0;i<2;i++){
       s=new lib.ProbeStorage({dataDir:dir});assert(s.available,s.failure?.message)
-      assert.equal(version(),27);assert.deepEqual(contents(),expected)
+      assert.equal(version(),28);assert.deepEqual(contents(),expected)
       assert.equal(db.prepare('SELECT COUNT(*) n FROM note_nodes WHERE archived_at IS NOT NULL').get().n,0)
-      const applied=rows('schema_migrations');assert.equal(applied.pop().checksum,MIGRATION_V27_CHECKSUM);assert.equal(applied.pop().checksum,MIGRATION_V26_CHECKSUM);assert.equal(applied.pop().version,25);assert.equal(applied.pop().version,24);assert.equal(applied.pop().version,23);const last=applied.pop();assert.deepEqual([last.version,last.checksum],[22,MIGRATION_V22_CHECKSUM]);assert.deepEqual(applied,ledger)
+      const applied=rows('schema_migrations');assert.equal(applied.pop().checksum,MIGRATION_V28_CHECKSUM);assert.equal(applied.pop().checksum,MIGRATION_V27_CHECKSUM);assert.equal(applied.pop().checksum,MIGRATION_V26_CHECKSUM);assert.equal(applied.pop().version,25);assert.equal(applied.pop().version,24);assert.equal(applied.pop().version,23);const last=applied.pop();assert.deepEqual([last.version,last.checksum],[22,MIGRATION_V22_CHECKSUM]);assert.deepEqual(applied,ledger)
       assert.equal(s.notes.get(actor,note.id).body,'Note body');assert.equal(s.citations.resolve(actor,citation.id).quote,text)
       assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);s.close()
     }

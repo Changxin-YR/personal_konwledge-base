@@ -54,6 +54,7 @@ declare module '@deepseek-ai/cordis' {
   /** Host plugin context subset used by this bundle's Host half. */
   export interface Context {
     get(name: 'agentDefaultModel'): { currentSelection(): {provider?: string; model?: string} } | undefined
+    get(name: 'credentials'): { resolve(ref: string): Promise<{value: string} | undefined> } | undefined
     llm: import('./host/ai-service.ts').LlmPort
     tools: import('./host/ai-service.ts').ToolsPort
     officeKit: Parameters<typeof import('./host/office-worker.ts').startOfficeWorker>[2]

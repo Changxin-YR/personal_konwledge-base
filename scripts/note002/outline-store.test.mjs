@@ -8,7 +8,7 @@ import {DatabaseSync} from 'node:sqlite'
 import test from 'node:test'
 import {pathToFileURL} from 'node:url'
 import * as lib from '../../packages/knowledgeos-panel/lib/test-support.js'
-import {MIGRATION_V26_CHECKSUM,MIGRATION_V27_CHECKSUM} from '../../packages/knowledgeos-panel/lib/storage.js'
+import {MIGRATION_V26_CHECKSUM,MIGRATION_V27_CHECKSUM,MIGRATION_V28_CHECKSUM} from '../../packages/knowledgeos-panel/lib/storage.js'
 import {decodeText} from '../../packages/knowledgeos-panel/src/host/text-document.ts'
 import {digest,seed} from '../fnd006/independent/common.mjs'
 
@@ -43,10 +43,10 @@ test('v25 to v26 fault leaves all v25 definitions, history and bytes intact; ret
     s=new lib.ProbeStorage({dataDir:dir,failureAt:'v26:after-schema'});assert.equal(s.available,false);assert.match(s.failure.cause.message,/v26:after-schema/);s.close()
     assert.equal(version(),25);assert.deepEqual(rows('schema_migrations'),ledger);assert.deepEqual(rows('sqlite_schema'),schema)
     for(const [table,value] of Object.entries(persisted))assert.deepEqual(rows(table),value)
-    s=new lib.ProbeStorage({dataDir:dir});assert(s.available,s.failure?.message);assert.equal(version(),27)
+    s=new lib.ProbeStorage({dataDir:dir});assert(s.available,s.failure?.message);assert.equal(version(),28)
     const {outline,layout,...detail}=s.notes.get(owner,note.id);assert.deepEqual(layout,{direction:'horizontal',revision:0})
     assert.deepEqual(detail,note);assert.deepEqual(outline,{nodes:[Object.assign(Object.create(null),{id:note.id,parent_id:null,order_key:0,body:draft.body,body_revision:1})],can_undo:false})
-    const applied=rows('schema_migrations');assert.equal(applied.pop().checksum,MIGRATION_V27_CHECKSUM);assert.equal(applied.pop().checksum,MIGRATION_V26_CHECKSUM);assert.deepEqual(applied,ledger)
+    const applied=rows('schema_migrations');assert.equal(applied.pop().checksum,MIGRATION_V28_CHECKSUM);assert.equal(applied.pop().checksum,MIGRATION_V27_CHECKSUM);assert.equal(applied.pop().checksum,MIGRATION_V26_CHECKSUM);assert.deepEqual(applied,ledger)
     for(const [table,value] of Object.entries(persisted))assert.deepEqual(rows(table),table==='note_nodes'?value.map(r=>Object.assign(r,{archived_at:null})):value)
     assert.equal(s.citations.resolve(owner,citation.id).quote,text);assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[])
   }finally{s?.close();db.close()}

@@ -17,11 +17,13 @@ export interface Config {
   dataDir?: string
   /** Trusted deployment route and advisory budget; never accepted from HTTP/model. */
   ai?: import('./ai-service.ts').AiConfig
+  repositoryCredentials?: import('./repository-store.ts').RepositoryCredentialBinding[]
 }
 
 /** Cordis validates the row config against this schema before `apply`. */
 export const Config: Schema<Config> = Schema.object({
   dataDir: Schema.string(),
+  repositoryCredentials: Schema.array(Schema.object({ actorId: Schema.string().required(), repository: Schema.string().required(), alias: Schema.string().required(), credentialRef: Schema.string().required() })),
   ai: Schema.object({ provider: Schema.string(), model: Schema.string(), maxCalls: Schema.number().min(1), timeoutMs: Schema.number().min(20).max(60000), budgetUsd: Schema.number().min(0), inputUsdPerMillion: Schema.number().min(0), outputUsdPerMillion: Schema.number().min(0) }),
 })
 
