@@ -83,7 +83,7 @@ export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrie
     if(searchBarrier)extra.push('--import',new URL('../search001/scan-barrier.mjs',import.meta.url).href)
     if(businessClock!==undefined){env.KO_TEST_BUSINESS_CLOCK=clockFile;extra.push('--import',new URL('../share001/test-clock-preload.mjs',import.meta.url).href)}
     if(nativeEgressProbe){env.KO_TEST_LOOPBACK=base;extra.unshift('--import',new URL('../fnd005/native-host-egress-preload.mjs',import.meta.url).href)}
-    if(repositoryTraffic){env.KO_TEST_LOOPBACK=base;extra.unshift('--import',new URL('../repo001/egress-preload.mjs',import.meta.url).href)}
+    if(repositoryTraffic){env.KO_TEST_LOOPBACK=base;env.KO_REPOSITORY_TRAFFIC=repositoryTraffic===true?'public-fixture':'fixture-only';extra.unshift('--import',new URL('../repo001/egress-preload.mjs',import.meta.url).href)}
     const child=spawn(process.execPath,['--import',new URL('../fnd005/candidate-live-trace.mjs',import.meta.url).href,'--import',new URL('a07-extractor-preload.mjs',import.meta.url).href,...extra,'--import','tsx/esm','apps/cli/src/bin.ts','--profile',profile,'--host','127.0.0.1','--port',String(port),'--no-open'],{cwd:bound.runtime,env,stdio:['ignore','pipe','pipe'],windowsHide:true})
     let ended=false,tail='';const done=new Promise(ok=>{child.once('close',(code,signal)=>{ended=true;ok({code,signal})});child.once('error',()=>{ended=true;ok({spawnError:true})})});host={child,done}
     for(const s of [child.stdout,child.stderr])s.on('data',chunk=>{tail=(tail+chunk).slice(-32000)})

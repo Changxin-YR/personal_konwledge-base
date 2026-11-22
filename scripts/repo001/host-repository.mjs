@@ -9,7 +9,9 @@ import { api, dbPath, entryCookie } from '../fnd004/harness.mjs'
 import { candidateFacts } from '../integrated-case-proof.mjs'
 import { isolate, until } from '../lib002/a07-isolated-host.mjs'
 
-const [candidate, entry] = process.argv.slice(2), root = fileURLToPath(new URL('../../', import.meta.url))
+const [candidate, entry, mode] = process.argv.slice(2), root = fileURLToPath(new URL('../../', import.meta.url))
+assert(mode === undefined || mode === '--fixture-regression')
+const fixtureOnly = mode === '--fixture-regression'
 const git = (...args) => execFileSync('git', ['--no-optional-locks', ...args], { cwd: root })
 const hash = value => createHash('sha256').update(value).digest('hex')
 const self = 'scripts/repo001/host-repository.mjs'
@@ -24,7 +26,7 @@ mkdirSync(parent, { recursive: true })
 const out = mkdtempSync(join(parent, 'run-'))
 git('check-ignore', '--', join(out, 'summary.json'))
 const facts = { unit_id: 'REPO-001', candidate_sha: candidate, tree, source_tree, entry_sha256, build_sha256, runner_sha256,
-  scope: 'real public GitHub + isolated DSH Host/Chrome/SQLite, bounded fixtures for negative cases',
+  scope: fixtureOnly ? 'isolated DSH Host/Chrome/SQLite fixtures only; not unit acceptance' : 'real public GitHub + isolated DSH Host/Chrome/SQLite, bounded fixtures for negative cases',
   status: 'NOT_RUN', T01: 'NOT_RUN', T02: 'NOT_RUN', A19: 'NOT_RUN', private_github: 'NOT_RUN', checks: [], screens: [], boots: [], traffic: [] }
 let host, browser, phase, test, origin
 const password = randomUUID(), scope = '/knowledge/v1', prefix = scope + '/repositories', pagePath = '/knowledgeos/repositories'
@@ -87,7 +89,7 @@ const files = () => read('SELECT snapshot_id,path,blob_sha,payload FROM reposito
 
 try {
   phase = 'boot and business identities'
-  host = await isolate(candidate, entry, { repositoryTraffic: true }); origin = host.base; facts.binding = host.facts
+  host = await isolate(candidate, entry, { repositoryTraffic: fixtureOnly ? 'fixture-only' : true }); origin = host.base; facts.binding = host.facts
   const start = await boot(), ownerCookie = await entryCookie(start.entry)
   assert.equal((await api(host.port, ownerCookie.cookie, 'POST', scope + '/auth/bootstrap', { login_name: 'owner', display_name: 'Owner', password })).status, 201)
   assert.equal((await api(host.port, '', 'POST', scope + '/auth/register', { login_name: 'peer', display_name: 'Peer', password })).status, 201)
@@ -96,60 +98,74 @@ try {
   browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--disable-background-networking', '--disable-component-update', '--disable-sync', '--no-proxy-server'] })
   facts.chrome = browser.version()
 
-  test = 'T01'; phase = 'library navigation and GitHub default branch snapshot'
+  phase = 'library navigation and initial snapshot'
   const owner = await login('owner'), peer = await login('peer'), { page } = owner
   await page.goto(origin + '/knowledgeos/library'); await page.getByRole('link', { name: '仓库与代码' }).click()
   await page.locator('#workspace').waitFor()
-  const first = await submit(owner, 'https://github.com/' + repo, 'master')
-  await treeButton(page, readme).click(); await page.locator('#file').waitFor()
-  const fixedFile = (await call(owner, '/' + first.id + savedFile(readme))).file
-  const meta = await compare(''), ref = await compare('/commits/refs%2Fheads%2Fmaster')
-  const fixedTree = await compare('/git/trees/' + ref.commit.tree.sha + '?recursive=1')
-  const treeEntry = fixedTree.tree.find(row => row.path === readme)
-  const upstreamBlob = await compare('/git/blobs/' + treeEntry.sha), content = Buffer.from(upstreamBlob.content, 'base64')
-  assert.equal(first.commit, ref.sha); assert.equal(first.tree, fixedTree.sha); assert.equal(fixedFile.sha, treeEntry.sha)
-  assert.equal(fixedFile.text, content.toString('utf8')); assert.equal(await page.locator('#file-text').textContent(), fixedFile.text)
-  assert.equal(await page.locator('#blob-link').getAttribute('href'), 'https://github.com/' + repo + '/blob/' + ref.sha + '/' + readme)
-  assert.equal(await page.locator('#tree-link').getAttribute('href'), 'https://github.com/' + repo + '/tree/' + ref.sha)
-  const firstRow = snapshots().find(row => row.id === first.id), firstPayload = files().find(row => row.snapshot_id === first.id)
-  assert.equal(firstRow.remote_id, meta.id); assert.equal(firstRow.is_private, 0); assert.equal(firstRow.credential_ref, ''); assert.equal(firstRow.owner_id, owner.id)
-  assert.equal(firstRow.commit_sha, ref.sha); assert.equal(firstRow.tree_sha, fixedTree.sha)
-  assert.deepEqual(JSON.parse(firstRow.tree_json).map(row => [row.path, row.sha]), fixedTree.tree.map(row => [row.path, row.sha]))
-  assert.deepEqual(Buffer.from(firstPayload.payload), content); assert.equal(firstPayload.blob_sha, upstreamBlob.sha)
-  pass('real_git_cross_read', { repository: repo, commit: ref.sha, tree: fixedTree.sha, blob: upstreamBlob.sha, path: readme, sha256: hash(content) })
-  await capture(page, 'github-desktop.png')
+  let first, restored
+  const initialPath = fixtureOnly ? 'README.md' : readme
+  if (fixtureOnly) {
+    first = await submit(owner, 'synthetic/sample', 'main', initialPath)
+    await page.locator('#file').waitFor({state:'visible'})
+    restored = owner
+  } else {
+    test = 'T01'
+    first = await submit(owner, 'https://github.com/' + repo, 'master')
+    const meta = await compare(''), ref = await compare('/commits/refs%2Fheads%2Fmaster')
+    const fixedTree = await compare('/git/trees/' + ref.commit.tree.sha + '?recursive=1')
+    const treeEntry = fixedTree.tree.find(row => row.path === readme)
+    const upstreamBlob = await compare('/git/blobs/' + treeEntry.sha), content = Buffer.from(upstreamBlob.content, 'base64')
+    assert.equal(first.commit, ref.sha); assert.equal(first.tree, fixedTree.sha)
+    assert.equal(await page.locator('#tree-link').getAttribute('href'), 'https://github.com/' + repo + '/tree/' + ref.sha)
+    const firstRow = snapshots().find(row => row.id === first.id)
+    assert.equal(firstRow.remote_id, meta.id); assert.equal(firstRow.is_private, 0); assert.equal(firstRow.credential_ref, ''); assert.equal(firstRow.owner_id, owner.id)
+    assert.equal(firstRow.commit_sha, ref.sha); assert.equal(firstRow.tree_sha, fixedTree.sha)
+    assert.deepEqual(JSON.parse(firstRow.tree_json).map(row => [row.path, row.sha]), fixedTree.tree.map(row => [row.path, row.sha]))
 
-  phase = 'different ref preserves original record'
-  await page.locator('#ref').fill('test')
-  const beforeChange = host.repositoryEvents().length
-  assert.equal(await page.locator('#commit').textContent(), first.commit)
-  assert.equal(host.repositoryEvents().length, beforeChange)
-  const next = await submit(owner, repo, 'test', 'CONTRIBUTING.md')
-  await page.waitForFunction(() => !document.getElementById('file').hidden && document.getElementById('file-path').textContent === 'CONTRIBUTING.md')
-  assert.notEqual(next.commit, first.commit); assert.notEqual(next.id, first.id)
-  assert.deepEqual(snapshots().find(row => row.id === first.id), firstRow)
-  assert.deepEqual(files().find(row => row.snapshot_id === first.id), firstPayload)
-  facts.traffic.push(...host.repositoryEvents()); await host.stop(); await boot()
-  phase = 'restart and new Chrome context proves persisted tree and bytes without remote calls'
-  const restored = await login('owner', { width: 420, height: 920 })
-  await restored.page.goto(origin + pagePath); await restored.page.locator('#workspace').waitFor()
-  await restored.page.locator('#snapshots button').filter({ hasText: first.commit.slice(0, 12) }).click()
-  await treeButton(restored.page, readme).click(); await restored.page.locator('#file').waitFor()
-  assert.equal(await restored.page.locator('#commit').textContent(), first.commit)
-  assert.equal(await restored.page.locator('#file-text').textContent(), content.toString('utf8'))
-  assert.deepEqual(host.repositoryEvents(), [])
-  assert(await restored.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'mobile horizontal overflow')
-  await capture(restored.page, 'github-mobile.png')
-  assert.equal(await restored.page.locator('#credential').getAttribute('autocomplete'), 'off')
-  pass('restart_reread', { archived_commit: first.commit, different_commit: next.commit, network_reads: 0 })
-  facts.T01 = 'PASS'
+    phase = 'different ref preserves original record'
+    await page.locator('#ref').fill('test')
+    const beforeChange = host.repositoryEvents().length
+    assert.equal(await page.locator('#commit').textContent(), first.commit)
+    assert.equal(host.repositoryEvents().length, beforeChange)
+    const next = await submit(owner, repo, 'test', 'CONTRIBUTING.md')
+    await page.waitForFunction(() => !document.getElementById('file').hidden && document.getElementById('file-path').textContent === 'CONTRIBUTING.md')
+    assert.notEqual(next.commit, first.commit); assert.notEqual(next.id, first.id)
+    assert.deepEqual(snapshots().find(row => row.id === first.id), firstRow)
+    assert.equal(files().find(row => row.snapshot_id === first.id), undefined)
+    const beforePin = host.repositoryEvents().length
+    await page.locator('#snapshots button').filter({ hasText: first.commit.slice(0, 12) }).click()
+    await treeButton(page, readme).click(); await page.locator('#file').waitFor()
+    const fixedFile = (await call(owner, '/' + first.id + savedFile(readme))).file
+    const firstPayload = files().find(row => row.snapshot_id === first.id)
+    assert.deepEqual(host.repositoryEvents().slice(beforePin).map(event => event.path), ['/repos/' + repo, '/repos/' + repo + '/git/blobs/' + treeEntry.sha])
+    assert.equal(fixedFile.sha, treeEntry.sha); assert.equal(fixedFile.text, content.toString('utf8'))
+    assert.equal(await page.locator('#file-text').textContent(), fixedFile.text)
+    assert.equal(await page.locator('#blob-link').getAttribute('href'), 'https://github.com/' + repo + '/blob/' + ref.sha + '/' + readme)
+    assert.deepEqual(Buffer.from(firstPayload.payload), content); assert.equal(firstPayload.blob_sha, upstreamBlob.sha)
+    pass('real_git_cross_read', { repository: repo, commit: ref.sha, tree: fixedTree.sha, blob: upstreamBlob.sha, path: readme, sha256: hash(content), first_pinned_after_ref_change: true })
+    await capture(page, 'github-desktop.png')
+    facts.traffic.push(...host.repositoryEvents()); await host.stop(); await boot()
+    phase = 'restart and new Chrome context proves persisted tree and bytes without remote calls'
+    restored = await login('owner', { width: 420, height: 920 })
+    await restored.page.goto(origin + pagePath); await restored.page.locator('#workspace').waitFor()
+    await restored.page.locator('#snapshots button').filter({ hasText: first.commit.slice(0, 12) }).click()
+    await treeButton(restored.page, readme).click(); await restored.page.locator('#file').waitFor()
+    assert.equal(await restored.page.locator('#commit').textContent(), first.commit)
+    assert.equal(await restored.page.locator('#file-text').textContent(), content.toString('utf8'))
+    assert.deepEqual(host.repositoryEvents(), [])
+    assert(await restored.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'mobile horizontal overflow')
+    await capture(restored.page, 'github-mobile.png')
+    assert.equal(await restored.page.locator('#credential').getAttribute('autocomplete'), 'off')
+    pass('restart_reread', { archived_commit: first.commit, different_commit: next.commit, network_reads: 0 })
+    facts.T01 = 'PASS'
+  }
 
-  test = 'T02'; phase = 'authorization, invalid upstream and atomic failures'
+  test = fixtureOnly ? undefined : 'T02'; phase = 'authorization, invalid upstream and atomic failures'
   const baseSnapshots = snapshots(), baseFiles = files(), baseline = host.repositoryEvents().length
   assert.deepEqual((await call(peer)).snapshots, [])
   await call(peer, '/' + first.id, 'GET', undefined, 404, 'NOT_FOUND')
-  await call(peer, '/' + first.id + savedFile(readme), 'GET', undefined, 404, 'NOT_FOUND')
-  await call(peer, '/' + first.id + '/files', 'POST', { actor_id: peer.id, path: readme }, 404, 'NOT_FOUND')
+  await call(peer, '/' + first.id + savedFile(initialPath), 'GET', undefined, 404, 'NOT_FOUND')
+  await call(peer, '/' + first.id + '/files', 'POST', { actor_id: peer.id, path: initialPath }, 404, 'NOT_FOUND')
   await call(peer, '', 'POST', input(owner, repo, 'master'), 409, 'ACTOR_MISMATCH')
   await call(owner, '', 'POST', input(owner, 'https://example.invalid/a/b'), 422, 'INVALID_REPOSITORY_INPUT')
   await call(owner, '', 'POST', input(owner, repo, '../refs'), 422, 'INVALID_REPOSITORY_INPUT')
@@ -161,6 +177,7 @@ try {
     ['unsafe-path', 502, 'REPOSITORY_INVALID_RESPONSE'], ['truncated', 413, 'REPOSITORY_LIMIT_EXCEEDED'],
     ['too-large', 413, 'REPOSITORY_LIMIT_EXCEEDED'], ['broken-blob', 502, 'REPOSITORY_INVALID_RESPONSE', { path: 'README.md' }],
     ['transport', 503, 'REPOSITORY_UNAVAILABLE'], ['unavailable', 503, 'REPOSITORY_UNAVAILABLE'], ['rate', 429, 'REPOSITORY_RATE_LIMIT'],
+    ['secondary-rate', 429, 'REPOSITORY_RATE_LIMIT'],
   ]) await call(owner, '', 'POST', input(owner, 'synthetic/' + name, 'main', rest), code, error)
   assert.deepEqual(snapshots(), baseSnapshots); assert.deepEqual(files(), baseFiles)
   const pending = restored.page.evaluate(async body => {
@@ -175,8 +192,8 @@ try {
   pass('authorization_and_failure_atomicity', { remote_for_acl_denials: 0 })
 
   phase = 'repository content isolation and no external browser requests'
-  const literal = await submit(restored, 'synthetic/sample', 'main')
-  await treeButton(restored.page, 'README.md').click()
+  const literal = fixtureOnly ? first : await submit(restored, 'synthetic/sample', 'main')
+  if (!fixtureOnly) await treeButton(restored.page, 'README.md').click()
   await restored.page.waitForFunction(() => document.getElementById('file-text').textContent.includes('<b>Literal Git content</b>'))
   assert.equal(await restored.page.locator('#file-text b, #file-text a, #file-text img').count(), 0)
   assert.equal(await treeButton(restored.page, 'linked').count(), 0); assert.equal(await treeButton(restored.page, 'nested').count(), 0)
@@ -185,11 +202,40 @@ try {
   assert.equal(host.repositoryEvents().length, beforeReject); assert.deepEqual(external, [])
   assert.deepEqual(read('PRAGMA foreign_key_check'), [])
   await capture(restored.page, 'literal-content.png')
+  phase = 'foreground revalidation hides and discards stale account content'
+  const visibility = (page, state) => page.evaluate(state => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: state })
+    document.dispatchEvent(new Event('visibilitychange'))
+  }, state)
+  await visibility(restored.page, 'hidden')
+  assert.equal(await restored.page.locator('#workspace').isVisible(), false)
+  await visibility(restored.page, 'visible'); await restored.page.locator('#file').waitFor({state:'visible'})
+  await visibility(restored.page, 'hidden')
+  const peerLogin = await restored.context.request.post(origin + scope + '/auth/login', {data:{login_name:'peer',password},headers:marker})
+  assert.equal(peerLogin.status(), 200)
+  const startedCheck = Promise.withResolvers(), rejectCheck = Promise.withResolvers()
+  await restored.page.route(origin + prefix, async route => {
+    startedCheck.resolve(); await rejectCheck.promise; await route.abort('failed')
+  }, {times:1})
+  await visibility(restored.page, 'visible')
+  let deadline
+  try { await Promise.race([startedCheck.promise, new Promise((_, fail) => { deadline = setTimeout(() => fail(Error('foreground revalidation did not arrive')), 8000) })]) }
+  finally { clearTimeout(deadline) }
+  assert.equal(await restored.page.locator('#workspace').isVisible(), false)
+  rejectCheck.resolve(); await restored.page.locator('#login').waitFor()
+  assert.equal(await restored.page.locator('#file-text').textContent(), '')
+  const switched = {context:restored.context,id:peer.id}
+  assert.deepEqual((await call(switched)).snapshots, [])
+  await restored.page.reload(); await restored.page.locator('#workspace').waitFor()
+  assert.equal(await restored.page.locator('#snapshots button').count(), 0)
+  pass('foreground_identity_fail_closed')
   facts.traffic.push(...host.repositoryEvents())
   const real = facts.traffic.filter(row => row.outcome === 'github')
-  assert(real.length >= 10); assert(real.every(row => row.method === 'GET' && row.status === 200)); assert(facts.traffic.every(row => row.outcome !== 'denied'))
+  assert(fixtureOnly ? real.length === 0 : real.length >= 10)
+  assert(real.every(row => row.method === 'GET' && row.status === 200)); assert(facts.traffic.every(row => row.outcome !== 'denied'))
   pass('content_inert_and_egress_allowlisted', { github_read_requests: real.length, external_browser_requests: external.length })
-  facts.T02 = 'PASS'; facts.status = 'PASS'
+  if (!fixtureOnly) facts.T02 = 'PASS'
+  facts.status = 'PASS'
 } catch (error) {
   if (test) facts[test] = 'FAIL'; facts.status = 'FAIL'; facts.failure = { phase, message: String(error.message).slice(0, 450) }
   throw error

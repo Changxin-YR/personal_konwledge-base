@@ -25,8 +25,8 @@ export function buildRepositoryHtml(nonce: string): string {
 const $=id=>document.getElementById(id), api='/knowledge/v1/repositories', status=text=>$('status').textContent=text;
 const errors={ACTOR_MISMATCH:'账号已变更，请重新打开页面。',NOT_FOUND:'未找到快照或文件。',REMOTE_REPOSITORY_NOT_FOUND:'仓库或引用不存在，或入口无权访问。',REPOSITORY_REDIRECT_REJECTED:'GitHub 返回了重定向，未读取。',REPOSITORY_RATE_LIMIT:'已达到 GitHub 请求上限。',REPOSITORY_LIMIT_EXCEEDED:'仓库树或文件超过读取上限。',REPOSITORY_CREDENTIAL_UNCONFIGURED:'指定的原生 GitHub 凭据未配置。',INVALID_REPOSITORY_INPUT:'检查仓库、引用、文件路径和凭据别名。',REPOSITORY_TIMEOUT:'GitHub 读取超时。',REPOSITORY_CHANGED:'远端仓库身份发生变化，未保存。',REPOSITORY_INVALID_RESPONSE:'GitHub 返回的对象无法验证。',REPOSITORY_BUSY:'已有仓库请求正在执行。',REPOSITORY_FILE_QUOTA:'已达到本地文件快照上限。',REPOSITORY_SNAPSHOT_QUOTA:'已达到本地仓库快照上限。'};
 const kinds={directory:'目录',symlink:'符号链接',submodule:'子模块',file:'文件'};
-let actor, rows=[], selected, entries=[], files=[], busy=false, generation=0, controller=new AbortController();
-function clear(){generation++;controller.abort();controller=new AbortController();actor=selected=undefined;rows=[];entries=[];files=[];busy=false;$('connect').reset();$('save').disabled=false;$('filter').value='';$('workspace').hidden=$('detail').hidden=$('file').hidden=true;
+let actor, rows=[], selected, entries=[], files=[], busy=false, gated=false, generation=0, focusEpoch=0, controller=new AbortController();
+function clear(){generation++;focusEpoch++;controller.abort();controller=new AbortController();actor=selected=undefined;rows=[];entries=[];files=[];busy=gated=false;$('connect').reset();$('save').disabled=false;$('filter').value='';$('workspace').hidden=$('detail').hidden=$('file').hidden=true;
  for(const id of ['snapshots','title','commit','ref-facts','tree','file-path','blob','file-text'])$(id).textContent='';for(const id of ['tree-link','blob-link'])$(id).removeAttribute('href');}
 function noAccess(){clear();$('login').hidden=false;status('登录后读取仓库快照。');}
 async function request(url,method='GET',payload){const current=generation, response=await fetch(url,{method,redirect:'error',cache:'no-store',signal:controller.signal,headers:method==='GET'?{}:{'content-type':'application/json','x-knowledgeos-request':'1'},body:payload===undefined?undefined:JSON.stringify(payload)});
@@ -38,7 +38,7 @@ function snapshots(){const ul=$('snapshots');ul.replaceChildren();if(!rows.lengt
 function tree(){const raw=$('filter').value.toLowerCase(), ul=$('tree');ul.replaceChildren();for(const e of entries){if(raw&&!e.path.toLowerCase().includes(raw))continue;
  const li=document.createElement('li');if(e.kind==='file'&&e.size<=524288)button(li,e.path,false,()=>operation(()=>show(e.path)));else{const label=document.createElement('span');label.textContent=e.path;li.append(label);}
  const tag=document.createElement('span');tag.textContent=files.includes(e.path)?'已保存':(e.kind==='file'&&e.size>524288?'超出上限':kinds[e.kind]);li.append(tag);ul.append(li);}}
-async function list(){const data=await request(api);actor=data.actor_id;rows=data.snapshots;$('workspace').hidden=false;$('login').hidden=true;snapshots();}
+async function list(){const data=await request(api);actor=data.actor_id;rows=data.snapshots;$('workspace').hidden=gated;$('login').hidden=true;snapshots();}
 async function open(id){const data=await request(api+'/'+id); selected=id;entries=data.entries;files=data.files;const s=data.snapshot;
  $('detail').hidden=false;$('file').hidden=true;$('file-text').textContent='';$('blob-link').removeAttribute('href');$('title').textContent=s.repository;$('commit').textContent=s.commit;$('tree-link').href=s.source_url;
  $('ref-facts').textContent=s.ref_kind+' · '+s.ref_value+(s.credential_ref?' · '+s.credential_ref:' · 匿名读取');$('filter').value='';snapshots();tree();status('已读取固定快照。');}
@@ -55,6 +55,12 @@ $('filter').addEventListener('input',tree);$('connect').addEventListener('submit
  const data=await request(api,'POST',body);await list();await open(data.snapshot.id);if(body.path)await show(body.path);
 });});
 addEventListener('pagehide',clear);addEventListener('pageshow',()=>void operation(async()=>{await list();status('');}));
-let recheck=false;document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){recheck=true;return;}if(recheck){recheck=false;if(actor){const expected=actor;fetch(api,{cache:'no-store',redirect:'error',signal:controller.signal}).then(async r=>{if(actor===expected&&(!r.ok||(await r.json()).data.actor_id!==expected))noAccess();}).catch(()=>{});}}});
+document.addEventListener('visibilitychange',async()=>{
+ const epoch=++focusEpoch;
+ if(document.visibilityState==='hidden'){if(actor){gated=true;$('workspace').hidden=true;}return;}
+ if(!actor||!gated)return;
+ try{await request(api);if(epoch===focusEpoch){gated=false;$('workspace').hidden=false;}}
+ catch(e){if(epoch===focusEpoch){clear();$('login').hidden=false;status('无法确认当前账号，已隐藏仓库内容。');}}
+});
 </script></body></html>`
 }

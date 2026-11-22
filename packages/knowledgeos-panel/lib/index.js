@@ -4116,7 +4116,8 @@ var GitHubRepository = class {
       const response = await this.transport("https://api.github.com" + path2, { method: "GET", redirect: "manual", cache: "no-store", signal, headers });
       reader = response.body?.getReader();
       if (response.status >= 300 && response.status < 400) throw new AssetError(502, "REPOSITORY_REDIRECT_REJECTED");
-      if (response.status === 429 || response.status === 403 && response.headers.get("x-ratelimit-remaining") === "0") throw new AssetError(429, "REPOSITORY_RATE_LIMIT");
+      if (response.status === 429 || response.status === 403 && (response.headers.get("x-ratelimit-remaining") === "0" || response.headers.has("retry-after")))
+        throw new AssetError(429, "REPOSITORY_RATE_LIMIT");
       if ([401, 403, 404].includes(response.status)) throw new AssetError(404, "REMOTE_REPOSITORY_NOT_FOUND");
       if (!response.ok || !reader) throw unavailable();
       if (Number(response.headers.get("content-length")) > limit4) throw oversized();
@@ -11653,8 +11654,8 @@ function buildRepositoryHtml(nonce) {
 const $=id=>document.getElementById(id), api='/knowledge/v1/repositories', status=text=>$('status').textContent=text;
 const errors={ACTOR_MISMATCH:'\u8D26\u53F7\u5DF2\u53D8\u66F4\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00\u9875\u9762\u3002',NOT_FOUND:'\u672A\u627E\u5230\u5FEB\u7167\u6216\u6587\u4EF6\u3002',REMOTE_REPOSITORY_NOT_FOUND:'\u4ED3\u5E93\u6216\u5F15\u7528\u4E0D\u5B58\u5728\uFF0C\u6216\u5165\u53E3\u65E0\u6743\u8BBF\u95EE\u3002',REPOSITORY_REDIRECT_REJECTED:'GitHub \u8FD4\u56DE\u4E86\u91CD\u5B9A\u5411\uFF0C\u672A\u8BFB\u53D6\u3002',REPOSITORY_RATE_LIMIT:'\u5DF2\u8FBE\u5230 GitHub \u8BF7\u6C42\u4E0A\u9650\u3002',REPOSITORY_LIMIT_EXCEEDED:'\u4ED3\u5E93\u6811\u6216\u6587\u4EF6\u8D85\u8FC7\u8BFB\u53D6\u4E0A\u9650\u3002',REPOSITORY_CREDENTIAL_UNCONFIGURED:'\u6307\u5B9A\u7684\u539F\u751F GitHub \u51ED\u636E\u672A\u914D\u7F6E\u3002',INVALID_REPOSITORY_INPUT:'\u68C0\u67E5\u4ED3\u5E93\u3001\u5F15\u7528\u3001\u6587\u4EF6\u8DEF\u5F84\u548C\u51ED\u636E\u522B\u540D\u3002',REPOSITORY_TIMEOUT:'GitHub \u8BFB\u53D6\u8D85\u65F6\u3002',REPOSITORY_CHANGED:'\u8FDC\u7AEF\u4ED3\u5E93\u8EAB\u4EFD\u53D1\u751F\u53D8\u5316\uFF0C\u672A\u4FDD\u5B58\u3002',REPOSITORY_INVALID_RESPONSE:'GitHub \u8FD4\u56DE\u7684\u5BF9\u8C61\u65E0\u6CD5\u9A8C\u8BC1\u3002',REPOSITORY_BUSY:'\u5DF2\u6709\u4ED3\u5E93\u8BF7\u6C42\u6B63\u5728\u6267\u884C\u3002',REPOSITORY_FILE_QUOTA:'\u5DF2\u8FBE\u5230\u672C\u5730\u6587\u4EF6\u5FEB\u7167\u4E0A\u9650\u3002',REPOSITORY_SNAPSHOT_QUOTA:'\u5DF2\u8FBE\u5230\u672C\u5730\u4ED3\u5E93\u5FEB\u7167\u4E0A\u9650\u3002'};
 const kinds={directory:'\u76EE\u5F55',symlink:'\u7B26\u53F7\u94FE\u63A5',submodule:'\u5B50\u6A21\u5757',file:'\u6587\u4EF6'};
-let actor, rows=[], selected, entries=[], files=[], busy=false, generation=0, controller=new AbortController();
-function clear(){generation++;controller.abort();controller=new AbortController();actor=selected=undefined;rows=[];entries=[];files=[];busy=false;$('connect').reset();$('save').disabled=false;$('filter').value='';$('workspace').hidden=$('detail').hidden=$('file').hidden=true;
+let actor, rows=[], selected, entries=[], files=[], busy=false, gated=false, generation=0, focusEpoch=0, controller=new AbortController();
+function clear(){generation++;focusEpoch++;controller.abort();controller=new AbortController();actor=selected=undefined;rows=[];entries=[];files=[];busy=gated=false;$('connect').reset();$('save').disabled=false;$('filter').value='';$('workspace').hidden=$('detail').hidden=$('file').hidden=true;
  for(const id of ['snapshots','title','commit','ref-facts','tree','file-path','blob','file-text'])$(id).textContent='';for(const id of ['tree-link','blob-link'])$(id).removeAttribute('href');}
 function noAccess(){clear();$('login').hidden=false;status('\u767B\u5F55\u540E\u8BFB\u53D6\u4ED3\u5E93\u5FEB\u7167\u3002');}
 async function request(url,method='GET',payload){const current=generation, response=await fetch(url,{method,redirect:'error',cache:'no-store',signal:controller.signal,headers:method==='GET'?{}:{'content-type':'application/json','x-knowledgeos-request':'1'},body:payload===undefined?undefined:JSON.stringify(payload)});
@@ -11666,7 +11667,7 @@ function snapshots(){const ul=$('snapshots');ul.replaceChildren();if(!rows.lengt
 function tree(){const raw=$('filter').value.toLowerCase(), ul=$('tree');ul.replaceChildren();for(const e of entries){if(raw&&!e.path.toLowerCase().includes(raw))continue;
  const li=document.createElement('li');if(e.kind==='file'&&e.size<=524288)button(li,e.path,false,()=>operation(()=>show(e.path)));else{const label=document.createElement('span');label.textContent=e.path;li.append(label);}
  const tag=document.createElement('span');tag.textContent=files.includes(e.path)?'\u5DF2\u4FDD\u5B58':(e.kind==='file'&&e.size>524288?'\u8D85\u51FA\u4E0A\u9650':kinds[e.kind]);li.append(tag);ul.append(li);}}
-async function list(){const data=await request(api);actor=data.actor_id;rows=data.snapshots;$('workspace').hidden=false;$('login').hidden=true;snapshots();}
+async function list(){const data=await request(api);actor=data.actor_id;rows=data.snapshots;$('workspace').hidden=gated;$('login').hidden=true;snapshots();}
 async function open(id){const data=await request(api+'/'+id); selected=id;entries=data.entries;files=data.files;const s=data.snapshot;
  $('detail').hidden=false;$('file').hidden=true;$('file-text').textContent='';$('blob-link').removeAttribute('href');$('title').textContent=s.repository;$('commit').textContent=s.commit;$('tree-link').href=s.source_url;
  $('ref-facts').textContent=s.ref_kind+' \xB7 '+s.ref_value+(s.credential_ref?' \xB7 '+s.credential_ref:' \xB7 \u533F\u540D\u8BFB\u53D6');$('filter').value='';snapshots();tree();status('\u5DF2\u8BFB\u53D6\u56FA\u5B9A\u5FEB\u7167\u3002');}
@@ -11683,7 +11684,13 @@ $('filter').addEventListener('input',tree);$('connect').addEventListener('submit
  const data=await request(api,'POST',body);await list();await open(data.snapshot.id);if(body.path)await show(body.path);
 });});
 addEventListener('pagehide',clear);addEventListener('pageshow',()=>void operation(async()=>{await list();status('');}));
-let recheck=false;document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){recheck=true;return;}if(recheck){recheck=false;if(actor){const expected=actor;fetch(api,{cache:'no-store',redirect:'error',signal:controller.signal}).then(async r=>{if(actor===expected&&(!r.ok||(await r.json()).data.actor_id!==expected))noAccess();}).catch(()=>{});}}});
+document.addEventListener('visibilitychange',async()=>{
+ const epoch=++focusEpoch;
+ if(document.visibilityState==='hidden'){if(actor){gated=true;$('workspace').hidden=true;}return;}
+ if(!actor||!gated)return;
+ try{await request(api);if(epoch===focusEpoch){gated=false;$('workspace').hidden=false;}}
+ catch(e){if(epoch===focusEpoch){clear();$('login').hidden=false;status('\u65E0\u6CD5\u786E\u8BA4\u5F53\u524D\u8D26\u53F7\uFF0C\u5DF2\u9690\u85CF\u4ED3\u5E93\u5185\u5BB9\u3002');}}
+});
 </script></body></html>`;
 }
 

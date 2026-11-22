@@ -9,7 +9,7 @@ const commit='a'.repeat(40),tree='b'.repeat(40),other='c'.repeat(40)
 const content='<b>Literal Git content</b>\n[external](https://example.invalid/not-loaded)\n'
 const bytes=Buffer.from(content),blob=createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex')
 const sample=/^\/repos\/octocat\/Hello-World(?:\/commits\/refs%2Fheads%2F(?:master|test)|\/git\/(?:trees|blobs)\/[a-f0-9]{40})?$/
-const mocked=/^\/repos\/synthetic\/(sample|redirect|truncated|unsafe-path|missing|broken-blob|unavailable|cancel|rate|too-large|transport)(?:\/(.*))?$/
+const mocked=/^\/repos\/synthetic\/(sample|redirect|truncated|unsafe-path|missing|broken-blob|unavailable|cancel|rate|secondary-rate|too-large|transport)(?:\/(.*))?$/
 const save=(outcome,path,status)=>appendFileSync(trace,JSON.stringify({method:'GET',outcome,path,status})+'\n')
 globalThis.fetch=async (input,init)=>{
   const url=new URL(input instanceof Request?input.url:input)
@@ -19,7 +19,7 @@ globalThis.fetch=async (input,init)=>{
   if(url.origin!=='https://api.github.com'||url.username||url.password||url.hash||!allowedTree||method!=='GET'||init?.redirect!=='manual'||init?.body||headers.has('authorization')){
     save('denied','UNEXPECTED',0);throw Error('REPO001_FETCH_DENIED')
   }
-  if(sample.test(path)){
+  if(process.env.KO_REPOSITORY_TRAFFIC==='public-fixture'&&sample.test(path)){
     const response=await real(input,{...init,redirect:'error'});save('github',path,response.status);return response
   }
   const match=mocked.exec(path)
@@ -29,6 +29,7 @@ globalThis.fetch=async (input,init)=>{
   if(repo==='redirect')return json(null,302,{location:'https://example.invalid/redirect'})
   if(repo==='missing')return json(null,404)
   if(repo==='rate')return json(null,403,{'x-ratelimit-remaining':'0'})
+  if(repo==='secondary-rate')return json(null,403,{'x-ratelimit-remaining':'50','retry-after':'60'})
   if(repo==='unavailable')return json(null,503)
   if(repo==='transport'){save('fixture',path,0);throw new TypeError('synthetic transport failure')}
   if(repo==='cancel'){save('fixture',path,0);return new Promise((_,reject)=>{
