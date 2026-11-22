@@ -309,10 +309,12 @@
         "A04",
         "A17"
       ],
-      "implementation_status": "in_progress",
+      "implementation_status": "verified",
       "evidence_paths": [
         "docs/evidence/NOTE-001/acceptance.json",
-        "docs/evidence/NOTE-002/acceptance.json"
+        "docs/evidence/NOTE-002/acceptance.json",
+        "docs/evidence/NOTE-003/acceptance.json",
+        "docs/evidence/NOTE-003/A17.json"
       ]
     },
     {
@@ -1164,8 +1166,11 @@
       "expected": "同一内容立即一致；删除展示子节点影响；无重复节点；仅导航受两级限制，笔记内容可多层。",
       "level": "e2e",
       "evidence_required": "测试记录、关键状态与操作证据",
-      "status": "NOT_RUN",
-      "final_milestone": "M2"
+      "status": "PASS",
+      "final_milestone": "M2",
+      "evidence_paths": [
+        "docs/evidence/NOTE-003/A17.json"
+      ]
     },
     {
       "id": "A18",

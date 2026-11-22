@@ -1,0 +1,36 @@
+{
+  "unit_id": "NOTE-003",
+  "candidate_sha": "b3ce013a9642c51b847ca6ed11324522cdd586f0",
+  "tree": "9361ae1ac430dc17db1f3a228457a549c5c9a592",
+  "source_tree": "b187fae682b98a31d01d59db4c69c3fb45d1686a",
+  "entry_sha256": "e2898a64611f795a9a9606937d461f47267939089181cb4e449941ff59d3d41b",
+  "build_sha256": "3e0a99f863216d7c6de7f1befbf691ee3985b646059616c6ce813be1390a4923",
+  "runner_sha256": "12f90707a10545e8c0cb0fd417221b84f73dae8794d0d7b5d21a900509e1ef81",
+  "status": "PASS",
+  "exit": 0,
+  "reviewer": "Epicurus",
+  "command": "node scripts/note003/host-mindmap.mjs b3ce013a9642c51b847ca6ed11324522cdd586f0 e2898a64611f795a9a9606937d461f47267939089181cb4e449941ff59d3d41b .cache/note003-v27-final-independent",
+  "results": [
+    {
+      "id": "NOTE-003-T01",
+      "status": "PASS"
+    },
+    {
+      "id": "NOTE-003-T02",
+      "status": "PASS"
+    }
+  ],
+  "complete_scenario_review": {
+    "id": "A17",
+    "status": "PASS"
+  },
+  "findings_closed": [
+    "MAP_FOREGROUND_QUEUE",
+    "MAP_NODE_FOCUS"
+  ],
+  "open_findings": [],
+  "raw": {
+    "path": "docs/evidence/NOTE-003/runs/independent-raw.json",
+    "sha256": "b0572ca50e4f8f2fe62e68e2bd60453aa16a5951a27e233084e5d65dd840cfe1"
+  }
+}

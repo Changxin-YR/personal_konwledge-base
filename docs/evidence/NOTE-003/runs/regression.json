@@ -1,0 +1,65 @@
+{
+  "unit_id": "NOTE-003",
+  "candidate_sha": "b3ce013a9642c51b847ca6ed11324522cdd586f0",
+  "tree": "9361ae1ac430dc17db1f3a228457a549c5c9a592",
+  "source_tree": "b187fae682b98a31d01d59db4c69c3fb45d1686a",
+  "entry_sha256": "e2898a64611f795a9a9606937d461f47267939089181cb4e449941ff59d3d41b",
+  "build_sha256": "3e0a99f863216d7c6de7f1befbf691ee3985b646059616c6ce813be1390a4923",
+  "case_id": "A17",
+  "participants": [
+    {
+      "unit_id": "FND-004",
+      "candidate_sha": "3c78f1f1379a033c20a193cc091f873e0573e0c1"
+    },
+    {
+      "unit_id": "LIB-001",
+      "candidate_sha": "5d9dc58866d518c496677b3e85ba60c217323291"
+    },
+    {
+      "unit_id": "READ-001",
+      "candidate_sha": "fdac3b02fc5ac42eabef72374aee9b7050c942e3"
+    },
+    {
+      "unit_id": "NOTE-001",
+      "candidate_sha": "7a0e482540177be4db68e977f8ba85d8bff224ec"
+    },
+    {
+      "unit_id": "NOTE-002",
+      "candidate_sha": "ac7fe69bd3bb55ea4c09e86e5c97858a239046e1"
+    },
+    {
+      "unit_id": "NOTE-003",
+      "candidate_sha": "b3ce013a9642c51b847ca6ed11324522cdd586f0"
+    }
+  ],
+  "kind": "regression",
+  "runner": "Codex",
+  "run_id": "run-TfstaC+run-EYLQTp",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/note001/host-notes.mjs b3ce013a9642c51b847ca6ed11324522cdd586f0 e2898a64611f795a9a9606937d461f47267939089181cb4e449941ff59d3d41b .cache/note003-v27-final-note001; node scripts/note002/host-outline.mjs b3ce013a9642c51b847ca6ed11324522cdd586f0 e2898a64611f795a9a9606937d461f47267939089181cb4e449941ff59d3d41b .cache/note003-v27-final-note002",
+  "environment": "Windows; pinned DSH 39163dd30f703a79079e2d2446545cff3c453738; Chrome 158.0.8127.36; isolated SQLite v27",
+  "inputs": "旧笔记固定引用、账号变化、多层大纲、撤销与冲突等路径的合成业务数据。",
+  "results": [
+    {
+      "id": "NOTE-001_BROWSER_REGRESSION",
+      "status": "PASS",
+      "actual": "8 项真实浏览器检查通过，保存、账号隔离、固定引用、原件与项目引用正常。"
+    },
+    {
+      "id": "NOTE-002_BROWSER_REGRESSION",
+      "status": "PASS",
+      "actual": "T01/T02 通过，包括移动、防环、回收、原节点草稿、撤销、越权拒绝和双标签冲突。"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/NOTE-003/runs/note001-regression-raw.json",
+      "sha256": "67994346a63311c3782a82eab3cc40e90a5d82cfaaed745f90a5ddca8fa50a22"
+    },
+    {
+      "path": "docs/evidence/NOTE-003/runs/note002-regression-raw.json",
+      "sha256": "29cad8e67d18b05652056d3f2893e72d7aa3dafa61c3131cff73ec2293795dbe"
+    }
+  ]
+}

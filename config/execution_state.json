@@ -10,7 +10,7 @@
     "sha256": "da73b65a0004bfa875d1435a61a555ba6f02d45c280aeb8ed6d2e62ab4bd39d8"
   },
   "active_unit": "NOTE-003",
-  "unit_state": "in_progress",
+  "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Selected after NOTE-002: PASS",
+  "state_reason": "NOTE-003 T01/T02 and A17 passed on the frozen v27 integration candidate; KNOW-001 awaits FND-005.",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,17 +127,17 @@
     }
   },
   "last_accepted_checkpoint": {
-    "unit_id": "NOTE-002",
-    "candidate_sha": "ac7fe69bd3bb55ea4c09e86e5c97858a239046e1",
-    "tree": "3df683f95c93d43a29d983e8c7df03d17936b90d",
-    "source_tree": "63cefa98c9d70ad4054839bf7dc30e7950262ddd",
-    "entry_sha256": "992c92dfd441912ebd483f4a1fb86153a6b6f8be27fd9a582bc058d31b6e32d3",
-    "build_sha256": "00cdb09a9ee3eb5aafce19254c84c086a6798d3af1c669fe740e7abc72c67d19",
-    "base_commit": "a72d0efb1eee62b8982eab80b803c295ad2499b1",
+    "unit_id": "NOTE-003",
+    "candidate_sha": "b3ce013a9642c51b847ca6ed11324522cdd586f0",
+    "tree": "9361ae1ac430dc17db1f3a228457a549c5c9a592",
+    "source_tree": "b187fae682b98a31d01d59db4c69c3fb45d1686a",
+    "entry_sha256": "e2898a64611f795a9a9606937d461f47267939089181cb4e449941ff59d3d41b",
+    "build_sha256": "3e0a99f863216d7c6de7f1befbf691ee3985b646059616c6ce813be1390a4923",
+    "base_commit": "dae11cf7b894579cbbe919ca19ef10a43c8ad107",
     "completed": [
-      "Private outline tree with stable node IDs, revision-fenced moves, contiguous sibling order and one durable undo.",
-      "Delete preview bound to current revision and target; promote children or soft-archive subtree atomically.",
-      "Two-tab conflicts do not replay writes; recycled draft is read-only until the same node is restored."
+      "Outline and mind map update the same node IDs, transactions and note revision; verified cross-tab refresh preserves edited drafts.",
+      "Layout is stored separately and survives restart; A17 integrates historical NOTE-001/002 candidates with actual note, reading and source evidence.",
+      "Fixed queued foreground refresh and keyboard focus loss; verified both in main and independent run."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
@@ -145,25 +145,25 @@
       "T02": "PASS",
       "independent": "PASS",
       "affected": "PASS",
-      "A17": "NOT_RUN"
+      "A17": "PASS"
     },
-    "evidence": "docs/evidence/NOTE-002/acceptance.json",
+    "evidence": "docs/evidence/NOTE-003/acceptance.json",
     "defects": [],
     "blocked_dependencies": [],
-    "next_task": "NOTE-003"
+    "next_task": "REPO-001"
   },
   "checkpoint": {
-    "unit_id": "NOTE-002",
-    "candidate_sha": "ac7fe69bd3bb55ea4c09e86e5c97858a239046e1",
-    "tree": "3df683f95c93d43a29d983e8c7df03d17936b90d",
-    "source_tree": "63cefa98c9d70ad4054839bf7dc30e7950262ddd",
-    "entry_sha256": "992c92dfd441912ebd483f4a1fb86153a6b6f8be27fd9a582bc058d31b6e32d3",
-    "build_sha256": "00cdb09a9ee3eb5aafce19254c84c086a6798d3af1c669fe740e7abc72c67d19",
-    "base_commit": "a72d0efb1eee62b8982eab80b803c295ad2499b1",
+    "unit_id": "NOTE-003",
+    "candidate_sha": "b3ce013a9642c51b847ca6ed11324522cdd586f0",
+    "tree": "9361ae1ac430dc17db1f3a228457a549c5c9a592",
+    "source_tree": "b187fae682b98a31d01d59db4c69c3fb45d1686a",
+    "entry_sha256": "e2898a64611f795a9a9606937d461f47267939089181cb4e449941ff59d3d41b",
+    "build_sha256": "3e0a99f863216d7c6de7f1befbf691ee3985b646059616c6ce813be1390a4923",
+    "base_commit": "dae11cf7b894579cbbe919ca19ef10a43c8ad107",
     "completed": [
-      "Private outline tree with stable node IDs, revision-fenced moves, contiguous sibling order and one durable undo.",
-      "Delete preview bound to current revision and target; promote children or soft-archive subtree atomically.",
-      "Two-tab conflicts do not replay writes; recycled draft is read-only until the same node is restored."
+      "Outline and mind map update the same node IDs, transactions and note revision; verified cross-tab refresh preserves edited drafts.",
+      "Layout is stored separately and survives restart; A17 integrates historical NOTE-001/002 candidates with actual note, reading and source evidence.",
+      "Fixed queued foreground refresh and keyboard focus loss; verified both in main and independent run."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
@@ -171,11 +171,11 @@
       "T02": "PASS",
       "independent": "PASS",
       "affected": "PASS",
-      "A17": "NOT_RUN"
+      "A17": "PASS"
     },
-    "evidence": "docs/evidence/NOTE-002/acceptance.json",
+    "evidence": "docs/evidence/NOTE-003/acceptance.json",
     "defects": [],
     "blocked_dependencies": [],
-    "next_task": "NOTE-003"
+    "next_task": "REPO-001"
   }
 }

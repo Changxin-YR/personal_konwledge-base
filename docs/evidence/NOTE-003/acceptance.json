@@ -1,0 +1,33 @@
+{
+  "unit_id": "NOTE-003",
+  "candidate_sha": "b3ce013a9642c51b847ca6ed11324522cdd586f0",
+  "tree": "9361ae1ac430dc17db1f3a228457a549c5c9a592",
+  "source_tree": "b187fae682b98a31d01d59db4c69c3fb45d1686a",
+  "entry_sha256": "e2898a64611f795a9a9606937d461f47267939089181cb4e449941ff59d3d41b",
+  "build_sha256": "3e0a99f863216d7c6de7f1befbf691ee3985b646059616c6ce813be1390a4923",
+  "runner_sha256": "12f90707a10545e8c0cb0fd417221b84f73dae8794d0d7b5d21a900509e1ef81",
+  "unit_acceptance": "PASS",
+  "passed_test_ids": [
+    "NOTE-003-T01",
+    "NOTE-003-T02"
+  ],
+  "main_command": "node scripts/note003/host-mindmap.mjs b3ce013a9642c51b847ca6ed11324522cdd586f0 e2898a64611f795a9a9606937d461f47267939089181cb4e449941ff59d3d41b .cache/note003-v27-final-main",
+  "main_exit": 0,
+  "main_records": [
+    {
+      "path": "docs/evidence/NOTE-003/runs/main-raw.json",
+      "sha256": "3e562634d88e1ef21f93d78107b9db1729ace30645eb753967914f3ba0dd3595"
+    }
+  ],
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/NOTE-003/independent.json",
+  "technical_results": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "affected_tests": 22,
+    "regression_record": "docs/evidence/NOTE-003/runs/regression.json"
+  },
+  "final_cases": [
+    "docs/evidence/NOTE-003/A17.json"
+  ]
+}

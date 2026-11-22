@@ -1,0 +1,517 @@
+{
+  "case_id": "A17",
+  "unit_id": "NOTE-003",
+  "candidate_sha": "74804824f40752bdbea2ab97211bc7d8fa19a096",
+  "tree": "17b07cf45531d09fd5ba367a5f6912b75b7dfcdc",
+  "source_tree": "a681f679f04f83048814cea5d2dd5b9ee9c2bdf9",
+  "entry_sha256": "66f773e44e2c7b9c4acf0de13bf62431ec8e08ae455ee5c9e8d77047e5b6d2ad",
+  "build_sha256": "912c2daafe95e2c2d0594244c33dd2c14ad1ea24772eed0952e384bc5ee83e2b",
+  "runner_sha256": "d3a0243455cee960bb07dcc541918ff300613b3820f8e7a75278addbf58f7047",
+  "scope": "Host/Chrome/SQLite raw evidence; migration, affected regressions and integrated gate recorded separately",
+  "participants": [
+    {
+      "unit_id": "NOTE-001",
+      "candidate_sha": "7a0e482540177be4db68e977f8ba85d8bff224ec"
+    },
+    {
+      "unit_id": "NOTE-002",
+      "candidate_sha": "ac7fe69bd3bb55ea4c09e86e5c97858a239046e1"
+    },
+    {
+      "unit_id": "NOTE-003",
+      "candidate_sha": "74804824f40752bdbea2ab97211bc7d8fa19a096"
+    }
+  ],
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "A17": "PASS",
+  "checks": [
+    {
+      "id": "A17_DEEP_CONTENT_WITH_TWO_LEVEL_NAVIGATION",
+      "status": "PASS",
+      "details": {
+        "max_note_depth": 3,
+        "notes_navigation": {
+          "navs": 1,
+          "maxDepth": 1,
+          "treeInsideNav": false
+        }
+      }
+    },
+    {
+      "id": "A17_BIDIRECTIONAL_SHARED_TREE",
+      "status": "PASS",
+      "details": {
+        "operations": [
+          {
+            "operation": "add",
+            "from": "outline",
+            "to": "map",
+            "revision": 2,
+            "signal": true,
+            "detail_refetched": true,
+            "reload": false
+          },
+          {
+            "operation": "add",
+            "from": "outline",
+            "to": "map",
+            "revision": 3,
+            "signal": true,
+            "detail_refetched": true,
+            "reload": false
+          },
+          {
+            "operation": "add",
+            "from": "outline",
+            "to": "map",
+            "revision": 4,
+            "signal": true,
+            "detail_refetched": true,
+            "reload": false
+          },
+          {
+            "operation": "add",
+            "from": "outline",
+            "to": "map",
+            "revision": 5,
+            "signal": true,
+            "detail_refetched": true,
+            "reload": false
+          },
+          {
+            "operation": "add",
+            "from": "outline",
+            "to": "map",
+            "revision": 6,
+            "signal": true,
+            "detail_refetched": true,
+            "reload": false
+          },
+          {
+            "operation": "add",
+            "from": "map",
+            "to": "outline",
+            "revision": 7,
+            "signal": true,
+            "detail_refetched": true,
+            "reload": false
+          },
+          {
+            "operation": "edit",
+            "from": "map",
+            "to": "outline",
+            "revision": 8,
+            "signal": true,
+            "detail_refetched": true,
+            "reload": false
+          },
+          {
+            "operation": "move",
+            "from": "map",
+            "to": "outline",
+            "revision": 9,
+            "signal": true,
+            "detail_refetched": true,
+            "reload": false
+          },
+          {
+            "operation": "edit",
+            "from": "outline",
+            "to": "map",
+            "revision": 10,
+            "signal": true,
+            "detail_refetched": true,
+            "reload": false
+          }
+        ],
+        "node_ids": [
+          "692e2598-79a2-4c56-85bd-d45e9c1365d0",
+          "b7275255-026a-4bb4-85a7-fdac94a67cb6",
+          "c5ec7ff1-313c-48c8-92b2-0c1795f68858",
+          "91c7da08-e37d-4cae-920e-f0b1145c1793",
+          "bf9d6b58-b4e2-4320-b13c-f5a1796814e9",
+          "93af5f89-cb60-4679-9e79-6be3d78d01e1",
+          "4cae5da3-2ee8-4f04-ba7e-095ae74dd4ff"
+        ],
+        "absolute_depth": 3,
+        "sql_rows": 7,
+        "cloned_nodes": 0
+      }
+    },
+    {
+      "id": "A17_MAP_PREVIEW_DELETE_OUTLINE_UNDO",
+      "status": "PASS",
+      "details": {
+        "direct_child_ids": [
+          "bf9d6b58-b4e2-4320-b13c-f5a1796814e9",
+          "93af5f89-cb60-4679-9e79-6be3d78d01e1"
+        ],
+        "descendant_ids": [
+          "bf9d6b58-b4e2-4320-b13c-f5a1796814e9",
+          "93af5f89-cb60-4679-9e79-6be3d78d01e1",
+          "4cae5da3-2ee8-4f04-ba7e-095ae74dd4ff"
+        ],
+        "cancel_writes": 0,
+        "modes": [
+          {
+            "mode": "promote",
+            "archived_ids": [
+              "91c7da08-e37d-4cae-920e-f0b1145c1793"
+            ],
+            "restored_revision": 12
+          },
+          {
+            "mode": "subtree",
+            "archived_ids": [
+              "91c7da08-e37d-4cae-920e-f0b1145c1793",
+              "bf9d6b58-b4e2-4320-b13c-f5a1796814e9",
+              "93af5f89-cb60-4679-9e79-6be3d78d01e1",
+              "4cae5da3-2ee8-4f04-ba7e-095ae74dd4ff"
+            ],
+            "restored_revision": 14
+          }
+        ],
+        "verified_live_operations": [
+          {
+            "operation": "delete",
+            "from": "map",
+            "to": "outline",
+            "revision": 11,
+            "signal": true,
+            "detail_refetched": true,
+            "reload": false
+          },
+          {
+            "operation": "undo",
+            "from": "outline",
+            "to": "map",
+            "revision": 12,
+            "signal": true,
+            "detail_refetched": true,
+            "reload": false
+          },
+          {
+            "operation": "delete",
+            "from": "map",
+            "to": "outline",
+            "revision": 13,
+            "signal": true,
+            "detail_refetched": true,
+            "reload": false
+          },
+          {
+            "operation": "undo",
+            "from": "outline",
+            "to": "map",
+            "revision": 14,
+            "signal": true,
+            "detail_refetched": true,
+            "reload": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "A17_STALE_DRAFT_PRESERVED_WITHOUT_REPLAY",
+      "status": "PASS",
+      "details": {
+        "base_revision": 14,
+        "winning_revision": 15,
+        "stale_move": "REVISION_CONFLICT",
+        "stale_save": "REVISION_CONFLICT",
+        "stale_delete": "REVISION_CONFLICT",
+        "old_preview_at_head": "OUTLINE_PREVIEW_REQUIRED",
+        "local_draft_preserved": true,
+        "winning_body_preserved": true,
+        "refresh_mutations": 0,
+        "sqlite_state_sha256": "3a2e8ac13b0c16352e983d2f63109fce791aabb30530a641132c32b14153eb5b"
+      }
+    },
+    {
+      "id": "A17_PRIVATE_PEER_DENIED",
+      "status": "PASS",
+      "details": {
+        "errors": [
+          "NOTE_NOT_FOUND",
+          "NOTE_NOT_FOUND",
+          "NOTE_NOT_FOUND",
+          "NOTE_NOT_FOUND"
+        ],
+        "browser_map": 404,
+        "original": 404,
+        "forged_actor": 409,
+        "sqlite_unchanged": true
+      }
+    },
+    {
+      "id": "A17_FIXED_REFERENCE_UNCHANGED",
+      "status": "PASS",
+      "details": {
+        "fixed_version": "a536a650-fad8-4953-9d19-1b2fed001eeb",
+        "current_version": "ef896afe-c26b-4ca1-8bef-e2c9a7865010",
+        "original_sha256": "8f3e2b048dbd43f7f5d8620ff906a4da045723e09c2997ea7ffbeed1aea58c15"
+      }
+    },
+    {
+      "id": "A17_LAYOUT_AND_CONTENT_REVISIONS_ISOLATED",
+      "status": "PASS",
+      "details": {
+        "initial": {
+          "direction": "horizontal",
+          "revision": 0
+        },
+        "vertical": {
+          "direction": "vertical",
+          "revision": 1
+        },
+        "horizontal": {
+          "direction": "horizontal",
+          "revision": 2
+        },
+        "persisted_layout": {
+          "direction": "vertical",
+          "revision": 3
+        },
+        "initial_content_revision": 15,
+        "final_content_revision": 16,
+        "stale_layout": "LAYOUT_CONFLICT",
+        "draft_retained_through_layout_change": true,
+        "vertical_geometry": {
+          "axis": "y",
+          "nodes": 7,
+          "edges": 6
+        },
+        "horizontal_geometry": {
+          "axis": "x",
+          "nodes": 7,
+          "edges": 6
+        }
+      }
+    },
+    {
+      "id": "A17_RESTART_PRESERVES_LAYOUT_TREE_AND_FIXED_SOURCE",
+      "status": "PASS",
+      "details": {
+        "layout": {
+          "direction": "vertical",
+          "revision": 3
+        },
+        "revision": 16,
+        "same_node_ids": [
+          "692e2598-79a2-4c56-85bd-d45e9c1365d0",
+          "b7275255-026a-4bb4-85a7-fdac94a67cb6",
+          "c5ec7ff1-313c-48c8-92b2-0c1795f68858",
+          "91c7da08-e37d-4cae-920e-f0b1145c1793",
+          "bf9d6b58-b4e2-4320-b13c-f5a1796814e9",
+          "93af5f89-cb60-4679-9e79-6be3d78d01e1",
+          "4cae5da3-2ee8-4f04-ba7e-095ae74dd4ff"
+        ],
+        "source_version": "a536a650-fad8-4953-9d19-1b2fed001eeb",
+        "original_sha256": "8f3e2b048dbd43f7f5d8620ff906a4da045723e09c2997ea7ffbeed1aea58c15",
+        "viewport": {
+          "pageWidth": 390,
+          "viewport": 390,
+          "mapWidth": 360,
+          "drawingWidth": 528
+        },
+        "scroll_left": 168,
+        "mobile_edit_control_operable": true,
+        "sqlite_sha256": "9ed4e70a1eed570e924662506190f69e3f84ec5fc33464479cf785a4f299f690"
+      }
+    }
+  ],
+  "screens": [
+    {
+      "name": "t01-outline-synced.png",
+      "sha256": "f92caa7d423c3d5b744b4aac342e60fd8027b899ca6deeed62b5f6e7fb81919c"
+    },
+    {
+      "name": "t01-map-synced.png",
+      "sha256": "8c9d4a292708e1578a90241bc3c8ad3e66935f555a1546a3605ef31109497e15"
+    },
+    {
+      "name": "t01-map-delete-preview.png",
+      "sha256": "47b7e1d47d117cef76dbf66e64e92c5381599412cd6dc560993794e9e1298280"
+    },
+    {
+      "name": "t01-cross-view-conflict.png",
+      "sha256": "5ae63988be61dedcb88ce0f8a18cc7f6ca5373c47e1209791113669f69578612"
+    },
+    {
+      "name": "t01-refresh-retains-draft.png",
+      "sha256": "53ea996ed89090f7aa1004812fed913a341f9065696dd934c97d655a5cd88a5c"
+    },
+    {
+      "name": "t02-vertical-desktop.png",
+      "sha256": "e2689189eb859b38407cdf8ce290d0f5e9c002e2c8b6a2da9eda81f417bd5fa0"
+    },
+    {
+      "name": "t02-horizontal-desktop.png",
+      "sha256": "aceb27da4efc99456366cb22d9fdb2a417a168ac5d1418de1abc35e357a925be"
+    },
+    {
+      "name": "t02-restored-mobile.png",
+      "sha256": "7d118c9b48e2ac031872bf97a7538bfd69ae9f6076a41cd0e7aebb416e9e45ab"
+    }
+  ],
+  "boots": [
+    121524,
+    54568
+  ],
+  "binding": {
+    "candidate_sha": "74804824f40752bdbea2ab97211bc7d8fa19a096",
+    "tree": "17b07cf45531d09fd5ba367a5f6912b75b7dfcdc",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "66f773e44e2c7b9c4acf0de13bf62431ec8e08ae455ee5c9e8d77047e5b6d2ad",
+    "helpers": {
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "5278ebf7cc64773560b3b672c9182c65b4e1d82a20b8f569328cb0765a627f10",
+      "a07-isolated-host": "cc10ed55ce3dfffc31e4d777e171147ab901b37b7c65614adb68a4f6731712ad"
+    },
+    "parser": {
+      "pdf-extractor.js": "49fb0588ba0c37486a287a083d9bd2a032d89205d34af615845c4928b1f6745c",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "sqlite_schema": 27,
+  "chrome": "158.0.8127.36",
+  "last_host_exit": {
+    "pid": 54568,
+    "hard": false,
+    "code": null,
+    "signal": "SIGTERM"
+  },
+  "live_mutations": [
+    {
+      "operation": "add",
+      "from": "outline",
+      "to": "map",
+      "revision": 2,
+      "signal": true,
+      "detail_refetched": true,
+      "reload": false
+    },
+    {
+      "operation": "add",
+      "from": "outline",
+      "to": "map",
+      "revision": 3,
+      "signal": true,
+      "detail_refetched": true,
+      "reload": false
+    },
+    {
+      "operation": "add",
+      "from": "outline",
+      "to": "map",
+      "revision": 4,
+      "signal": true,
+      "detail_refetched": true,
+      "reload": false
+    },
+    {
+      "operation": "add",
+      "from": "outline",
+      "to": "map",
+      "revision": 5,
+      "signal": true,
+      "detail_refetched": true,
+      "reload": false
+    },
+    {
+      "operation": "add",
+      "from": "outline",
+      "to": "map",
+      "revision": 6,
+      "signal": true,
+      "detail_refetched": true,
+      "reload": false
+    },
+    {
+      "operation": "add",
+      "from": "map",
+      "to": "outline",
+      "revision": 7,
+      "signal": true,
+      "detail_refetched": true,
+      "reload": false
+    },
+    {
+      "operation": "edit",
+      "from": "map",
+      "to": "outline",
+      "revision": 8,
+      "signal": true,
+      "detail_refetched": true,
+      "reload": false
+    },
+    {
+      "operation": "move",
+      "from": "map",
+      "to": "outline",
+      "revision": 9,
+      "signal": true,
+      "detail_refetched": true,
+      "reload": false
+    },
+    {
+      "operation": "edit",
+      "from": "outline",
+      "to": "map",
+      "revision": 10,
+      "signal": true,
+      "detail_refetched": true,
+      "reload": false
+    },
+    {
+      "operation": "delete",
+      "from": "map",
+      "to": "outline",
+      "revision": 11,
+      "signal": true,
+      "detail_refetched": true,
+      "reload": false
+    },
+    {
+      "operation": "undo",
+      "from": "outline",
+      "to": "map",
+      "revision": 12,
+      "signal": true,
+      "detail_refetched": true,
+      "reload": false
+    },
+    {
+      "operation": "delete",
+      "from": "map",
+      "to": "outline",
+      "revision": 13,
+      "signal": true,
+      "detail_refetched": true,
+      "reload": false
+    },
+    {
+      "operation": "undo",
+      "from": "outline",
+      "to": "map",
+      "revision": 14,
+      "signal": true,
+      "detail_refetched": true,
+      "reload": false
+    },
+    {
+      "operation": "edit",
+      "from": "outline",
+      "to": "map",
+      "revision": 16,
+      "signal": true,
+      "detail_refetched": true,
+      "reload": false
+    }
+  ],
+  "exit": 0
+}

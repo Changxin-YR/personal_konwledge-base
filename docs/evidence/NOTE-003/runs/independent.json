@@ -1,0 +1,76 @@
+{
+  "unit_id": "NOTE-003",
+  "candidate_sha": "b3ce013a9642c51b847ca6ed11324522cdd586f0",
+  "tree": "9361ae1ac430dc17db1f3a228457a549c5c9a592",
+  "source_tree": "b187fae682b98a31d01d59db4c69c3fb45d1686a",
+  "entry_sha256": "e2898a64611f795a9a9606937d461f47267939089181cb4e449941ff59d3d41b",
+  "build_sha256": "3e0a99f863216d7c6de7f1befbf691ee3985b646059616c6ce813be1390a4923",
+  "case_id": "A17",
+  "participants": [
+    {
+      "unit_id": "FND-004",
+      "candidate_sha": "3c78f1f1379a033c20a193cc091f873e0573e0c1"
+    },
+    {
+      "unit_id": "LIB-001",
+      "candidate_sha": "5d9dc58866d518c496677b3e85ba60c217323291"
+    },
+    {
+      "unit_id": "READ-001",
+      "candidate_sha": "fdac3b02fc5ac42eabef72374aee9b7050c942e3"
+    },
+    {
+      "unit_id": "NOTE-001",
+      "candidate_sha": "7a0e482540177be4db68e977f8ba85d8bff224ec"
+    },
+    {
+      "unit_id": "NOTE-002",
+      "candidate_sha": "ac7fe69bd3bb55ea4c09e86e5c97858a239046e1"
+    },
+    {
+      "unit_id": "NOTE-003",
+      "candidate_sha": "b3ce013a9642c51b847ca6ed11324522cdd586f0"
+    }
+  ],
+  "kind": "independent",
+  "runner": "Epicurus",
+  "run_id": "run-9Wjntd",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/note003/host-mindmap.mjs b3ce013a9642c51b847ca6ed11324522cdd586f0 e2898a64611f795a9a9606937d461f47267939089181cb4e449941ff59d3d41b .cache/note003-v27-final-independent",
+  "environment": "Windows; pinned DSH 39163dd30f703a79079e2d2446545cff3c453738; Chrome 158.0.8127.36; isolated SQLite v27",
+  "inputs": "两个同账号 Chrome 视图和另一有效业务账号；合成资料两版本、固定引用、三级笔记、独立布局；重启、移动端检查。",
+  "results": [
+    {
+      "id": "BIDIRECTIONAL_SHARED_TREE",
+      "status": "PASS",
+      "actual": "大纲和脑图在两个 Chrome 页面轮流创建、编辑、移动并通过服务端重读自动同步；数据库节点 ID 和当前版本一致，无重复，内容深度达三级且导航仍在两级内。"
+    },
+    {
+      "id": "PREVIEW_DELETE_AND_UNDO",
+      "status": "PASS",
+      "actual": "脑图列出直接子节点及所有后代；取消不写入，分别提交提升子节点、子树回收，大纲用原 ID 撤销并恢复原父子与顺序。"
+    },
+    {
+      "id": "CONFLICT_PRESERVES_DRAFT",
+      "status": "PASS",
+      "actual": "旧标签的保存与移动、过期删除请求被拒；服务器提交和未保存草稿同时保留，重读发出零次写请求；其他真实账号无法读取或编辑。"
+    },
+    {
+      "id": "LAYOUT_RESTART_AND_FIXED_SOURCE",
+      "status": "PASS",
+      "actual": "横纵排版有独立版本且不改正文、节点或撤销记录；重启与新 Chrome 上下文恢复纵排、稳定 ID 与固定引用，源资料换版后可读原版本且原件哈希一致。"
+    },
+    {
+      "id": "UI_FOREGROUND_AND_FOCUS",
+      "status": "PASS",
+      "actual": "在真实暂缓 HTTP 读取期间注入浏览器可见性事件，前台工作区及时恢复；在真实两标签同步后恢复原节点焦点。"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/NOTE-003/runs/independent-raw.json",
+      "sha256": "b0572ca50e4f8f2fe62e68e2bd60453aa16a5951a27e233084e5d65dd840cfe1"
+    }
+  ]
+}
