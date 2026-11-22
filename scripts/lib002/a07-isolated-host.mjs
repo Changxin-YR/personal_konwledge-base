@@ -5,6 +5,7 @@ import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname,join,resolve } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
+import { fileURLToPath } from 'node:url'
 import { binding,pkg,root } from '../fnd005/candidate-live-binding.mjs'
 import { sha } from '../fnd005/candidate-live-guards.mjs'
 
