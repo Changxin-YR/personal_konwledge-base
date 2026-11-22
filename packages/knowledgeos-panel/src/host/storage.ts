@@ -40,13 +40,14 @@ import {ANNOTATION_SCHEMA} from './annotation-store.ts'
 import {CITATION_LOCATOR_SCHEMA} from './citation-locator-schema.ts'
 import {NOTE_SCHEMA,NoteStore} from './note-store.ts'
 import {RECALL_SCHEMA,RecallStore} from './recall-store.ts'
-import {INVITATION_SCHEMA,InvitationStore,type InvitationTarget} from './invitation-store.ts'
+import {INVITATION_EVENT_SCHEMA,INVITATION_SCHEMA,InvitationStore,type InvitationTarget} from './invitation-store.ts'
 
 /** Fixed application identity written to PRAGMA application_id (KOS1). */
 export const APPLICATION_ID = 0x4b4f5331
 /** Current application schema version. */
-export const SCHEMA_VERSION = 23
-type VerifiedSchema = 6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23
+export const SCHEMA_VERSION = 24
+type VerifiedSchema = 6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24
+export const MIGRATION_V24_CHECKSUM = createHash('sha256').update(INVITATION_EVENT_SCHEMA).digest('hex')
 export const MIGRATION_V23_CHECKSUM = createHash('sha256').update(INVITATION_SCHEMA).digest('hex')
 export const MIGRATION_V22_CHECKSUM = createHash('sha256').update(RECALL_SCHEMA).digest('hex')
 export const MIGRATION_V21_CHECKSUM = createHash('sha256').update(NOTE_SCHEMA).digest('hex')
@@ -279,6 +280,7 @@ export interface ProbeStorageOptions {
     | 'v21:after-schema'
     | 'v22:after-schema'
     | 'v23:after-schema'
+    | 'v24:after-schema'
 }
 
 export interface DatabaseFacts {
@@ -499,6 +501,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       if (priorVersion<21) this.#migrateV21(db)
       if (priorVersion<22) this.#migrateV22(db)
       if (priorVersion<23) this.#migrateV23(db)
+      if (priorVersion<24) this.#migrateV24(db)
       this.#verify(db,SCHEMA_VERSION)
       const facts = readDatabaseFacts(path)
       const pragmas = this.#readPragmas(db)
@@ -943,9 +946,19 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     }catch(e){if(!this.#rollback(db))throw this.#failure;throw new RecordsError('STORAGE_INCOMPATIBLE','invitation migration failed',false,{cause:e})}
   }
 
+  #migrateV24(db:DatabaseSync):void {
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      db.exec(INVITATION_EVENT_SCHEMA)
+      this.#injectFailure('v24:after-schema')
+      db.prepare('INSERT INTO schema_migrations VALUES(24,?,?)').run(MIGRATION_V24_CHECKSUM,new Date().toISOString())
+      db.exec('PRAGMA user_version=24; COMMIT')
+    }catch(e){if(!this.#rollback(db))throw this.#failure;throw new RecordsError('STORAGE_INCOMPATIBLE','invitation event migration failed',false,{cause:e})}
+  }
+
   #verify(db: DatabaseSync, version:VerifiedSchema): void {
     const facts = readDatabaseFacts(this.databasePath)
-    const checks=[MIGRATION_V6_CHECKSUM,MIGRATION_V7_CHECKSUM,MIGRATION_V8_CHECKSUM,MIGRATION_V9_CHECKSUM,MIGRATION_V10_CHECKSUM,MIGRATION_V11_CHECKSUM,MIGRATION_V12_CHECKSUM,MIGRATION_V13_CHECKSUM,MIGRATION_V14_CHECKSUM,MIGRATION_V15_CHECKSUM,MIGRATION_V16_CHECKSUM,MIGRATION_V17_CHECKSUM,MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM,MIGRATION_V20_CHECKSUM,MIGRATION_V21_CHECKSUM,MIGRATION_V22_CHECKSUM,MIGRATION_V23_CHECKSUM].slice(0,version-5)
+    const checks=[MIGRATION_V6_CHECKSUM,MIGRATION_V7_CHECKSUM,MIGRATION_V8_CHECKSUM,MIGRATION_V9_CHECKSUM,MIGRATION_V10_CHECKSUM,MIGRATION_V11_CHECKSUM,MIGRATION_V12_CHECKSUM,MIGRATION_V13_CHECKSUM,MIGRATION_V14_CHECKSUM,MIGRATION_V15_CHECKSUM,MIGRATION_V16_CHECKSUM,MIGRATION_V17_CHECKSUM,MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM,MIGRATION_V20_CHECKSUM,MIGRATION_V21_CHECKSUM,MIGRATION_V22_CHECKSUM,MIGRATION_V23_CHECKSUM,MIGRATION_V24_CHECKSUM].slice(0,version-5)
     if(facts.applicationId!==APPLICATION_ID || facts.userVersion!==version || facts.ledger.length!==version || checks.some((hash,i)=>facts.ledger[i+5]?.version!==i+6||facts.ledger[i+5]?.checksum!==hash))throw new RecordsError('STORAGE_INCOMPATIBLE','database ownership/version verification failed')
     const reference = new DatabaseSync(':memory:')
     try {
@@ -967,6 +980,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       if(version>=21)reference.exec(NOTE_SCHEMA)
       if(version>=22)reference.exec(RECALL_SCHEMA)
       if(version>=23)reference.exec(INVITATION_SCHEMA)
+      if(version>=24)reference.exec(INVITATION_EVENT_SCHEMA)
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all()
       for (const {name,sql} of definitions) {
         if (db.prepare('SELECT sql FROM sqlite_master WHERE name=?').get(name!)?.sql!==sql) throw new RecordsError('STORAGE_INCOMPATIBLE','jobs schema definition mismatch')

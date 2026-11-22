@@ -1,4 +1,5 @@
 import type {IncomingMessage,ServerResponse} from 'node:http'
+import {randomUUID} from 'node:crypto'
 import type {SessionActor} from './identity.ts'
 import type {InvitationSpec,InvitationStore} from './invitation-store.ts'
 import {AssetError} from './asset-store.ts'
@@ -29,7 +30,8 @@ async function body(req:IncomingMessage){
 
 export function createInvitationHandler(store:InvitationStore,origin:()=>string|undefined,actorFor:(req:IncomingMessage)=>SessionActor|undefined){
   return async(req:IncomingMessage,res:ServerResponse)=>{
-    const send=(status:number,data:unknown)=>{if(!res.destroyed){res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'});res.end(JSON.stringify(data))}}
+    const correlation=randomUUID()
+    const send=(status:number,data:unknown)=>{if(!res.destroyed){res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','x-knowledgeos-request-id':correlation});res.end(JSON.stringify(data))}}
     try{
       const base=origin(),method=req.method
       if(!base||req.headers.host!==new URL(base).host||req.headers['sec-fetch-site']==='cross-site'||
@@ -43,14 +45,14 @@ export function createInvitationHandler(store:InvitationStore,origin:()=>string|
       if(method==='POST'){
         const b=await body(req),expected=id(b.actor_id)
         if(p===path+'/preview')return reply(200,store.preview(a,expected,spec(b)))
-        if(p===path){const created=store.create(a,expected,spec(b),id(req.headers['idempotency-key']));return reply(created.replayed?200:201,created)}
+        if(p===path){const created=store.create(a,expected,spec(b),id(req.headers['idempotency-key']),correlation);return reply(created.replayed?200:201,created)}
         if(p===path+'/redeem'){
           keys(b,['actor_id','token']);if(typeof b.token!=='string')throw invalid()
-          const redeemed=store.redeem(a,expected,b.token);return reply(redeemed.replayed?200:201,redeemed)
+          const redeemed=store.redeem(a,expected,b.token,correlation);return reply(redeemed.replayed?200:201,redeemed)
         }
         if(row?.[2]==='renew'||row?.[2]==='revoke'){
           keys(b,row[2]==='renew'?['actor_id','expected_revision','days']:['actor_id','expected_revision'])
-          return reply(200,store.change(a,expected,id(row[1]),positive(b.expected_revision),row[2],optional(b.days)))
+          return reply(200,store.change(a,expected,id(row[1]),positive(b.expected_revision),row[2],optional(b.days),correlation))
         }
       }
       throw new AssetError(404,'NOT_FOUND')

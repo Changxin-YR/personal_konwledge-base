@@ -124,6 +124,19 @@ try{
   const auditAfter=audit();assert.deepEqual(auditAfter.map(r=>r.event),['issue','redeem','redeem','renew','redeem','revoke'])
   assert.deepEqual({...auditAfter[3]},{actor_id:owner.user,event:'renew',prior_expires_at:issued.expires_at,expires_at:extended.expires_at,affected_count:2})
   assert.deepEqual({...auditAfter[5]},{actor_id:owner.user,event:'revoke',prior_expires_at:extended.expires_at,expires_at:extended.expires_at,affected_count:3})
+  const events=sql(db,`SELECT e.*,o.created_at AS queued_at FROM domain_events e LEFT JOIN domain_event_outbox o USING(event_id)
+    WHERE aggregate_type='invitation' AND aggregate_id=? ORDER BY aggregate_revision`,[issued.id])
+  assert.deepEqual(events.map(e=>e.event_type),auditAfter.map(a=>'knowledgeos.invitation.'+a.event))
+  assert.deepEqual(events.map(e=>e.actor_id),auditAfter.map(a=>a.actor_id))
+  assert(events.every((e,index)=>e.occurred_at===e.queued_at&&e.aggregate_revision===index+1&&e.payload_schema_version===1))
+  assert.equal(events[0].correlation_id,created.headers()['x-knowledgeos-request-id'])
+  assert.equal(events[3].correlation_id,renewed.headers()['x-knowledgeos-request-id'])
+  assert.equal(events[5].correlation_id,revoked.headers()['x-knowledgeos-request-id'])
+  assert.deepEqual(JSON.parse(events[3].payload),{target:issued.target,prior_expires_at:issued.expires_at,expires_at:extended.expires_at,
+    revoked_at:null,affected_redemption_ids:beforeGrants.map(g=>g.id)})
+  assert.deepEqual(JSON.parse(events[5].payload),{target:issued.target,prior_expires_at:extended.expires_at,expires_at:extended.expires_at,
+    revoked_at:revokeReceipt.revoked_at,affected_redemption_ids:ended.map(g=>g.id)})
+  assert(!JSON.stringify(events).includes(issued.token));facts.event_outbox={queued:events.length,matched_browser_correlations:3,affected_counts:[2,3]}
   await http(owner.ctx,dispatch('revoke'),404,'POST',{actor_id:owner.user,expected_revision:revokeReceipt.revision})
   await http(first.ctx,'/invitations/redeem',404,'POST',{actor_id:first.user,token:issued.token});assert.deepEqual(audit(),auditAfter)
   assert.deepEqual(sql(db,'PRAGMA foreign_key_check'),[])
@@ -189,7 +202,7 @@ try{
   facts.checks.push('Live project membership expires while object invitation remains active; document, reader, object list and assets list all deny')
   phase='SQLite failures before commit and real Host restarts'
   facts.fault_checks=[];await transactionFaults({http,db,h,owner:finalOwner,first:near,doc,faultChecks:facts.fault_checks})
-  facts.checks.push('Real SQLite audit insert failure rolls back redemption, renewal and revocation; Host reopen and one successful retry each')
+  facts.checks.push('Fault at SQLite outbox insert rolls back actions, audit, and event; Host reopen and one successful retry each')
   facts.status='PASS'
 }catch(e){facts.status='FAIL';facts.phase=phase;facts.error=String(e.stack);console.error(e);process.exitCode=1}
 finally{try{await browser?.close()}finally{try{await h?.stop()}finally{writeFileSync(join(out,'summary.json'),JSON.stringify(facts,null,2)+'\n');console.log(out)}}}

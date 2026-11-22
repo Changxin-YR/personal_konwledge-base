@@ -18,7 +18,9 @@ const revoke=(http,a,g)=>http(a.ctx,'/grants/revoke',204,'POST',{grant_id:g.id})
 
 function snapshot(db,i){return [sql(db,'SELECT * FROM invitations WHERE id=?',[i.id]),
   sql(db,'SELECT * FROM invitation_redemptions WHERE invitation_id=? ORDER BY id',[i.id]),
-  sql(db,'SELECT * FROM invitation_audit WHERE invitation_id=? ORDER BY revision',[i.id])]}
+  sql(db,'SELECT * FROM invitation_audit WHERE invitation_id=? ORDER BY revision',[i.id]),
+  sql(db,`SELECT e.*,o.created_at AS queued_at FROM domain_events e LEFT JOIN domain_event_outbox o USING(event_id)
+          WHERE aggregate_type='invitation' AND aggregate_id=? ORDER BY aggregate_revision`,[i.id])]}
 
 async function stagedRedeem(h,a,i,key=randomUUID()){
   const url=h.base+'/knowledge/v1/invitations/redeem',label=randomBytes(16).toString('hex'),cookies=await a.ctx.cookies(url)
@@ -69,6 +71,7 @@ export async function redemptionRace({h,http,db,users,i,mode,at}){
     const [codes,grants,audit]=snapshot(db,i),winners=results.flatMap((r,idx)=>r.status===201?[users[idx].user]:[])
     assert.equal(codes[0].redeemed_count,winners.length);assert.deepEqual(grants.map(g=>g.user_id),winners)
     assert.deepEqual(audit.map(a=>a.event),winners.length?['issue','redeem']:['issue'])
+    const events=snapshot(db,i)[3];assert.equal(events.length,audit.length);assert(events.every(e=>e.queued_at===e.occurred_at))
     if(winners.length)assert.equal(grants[0].expires_at,i.expires_at)
     assert.deepEqual(trace().slice(2).map(x=>[x.event,x.at]),[
       ['completed',mode==='both-expired'?edge:at],['completed',mode==='both-expired'||mode==='split-cutoff'?edge:at]])
@@ -164,7 +167,8 @@ export async function transactionFaults({http,db,h,owner,first,doc,faultChecks})
   for(const event of ['redeem','renew','revoke']){
     const before=snapshot(db,i),current=await manage(http,owner,i)
     const conn=new DatabaseSync(db)
-    try{conn.exec(`CREATE TRIGGER share_test_failure BEFORE INSERT ON invitation_audit WHEN NEW.event='${event}'
+    try{conn.exec(`CREATE TRIGGER share_test_failure BEFORE INSERT ON domain_event_outbox
+                   WHEN (SELECT event_type FROM domain_events WHERE event_id=NEW.event_id)='knowledgeos.invitation.${event}'
                    BEGIN SELECT RAISE(ABORT,'synthetic rollback check'); END`)}finally{conn.close()}
     if(event==='redeem')await redeem(http,first,503,i)
     else await change(http,owner,current,event,503,event==='renew'?{days:1}:{})
@@ -176,8 +180,11 @@ export async function transactionFaults({http,db,h,owner,first,doc,faultChecks})
     await http(owner.ctx,'/me',200);await http(first.ctx,'/me',200)
     if(event==='redeem')await redeem(http,first,201,i)
     else await change(http,owner,current,event,200,event==='renew'?{days:1}:{})
-    assert.equal(sql(db,'SELECT count(*) n FROM invitation_audit WHERE invitation_id=? AND event=?',[i.id,event])[0].n,1)
-    faultChecks.push({event,failure_http:503,snapshot_unchanged_after_reopen:true,successful_audit_rows_after_retry:1})
+    const snapshotAfter=snapshot(db,i)
+    assert.equal(snapshotAfter[2].filter(a=>a.event===event).length,1)
+    const stored=snapshotAfter[3].filter(e=>e.event_type==='knowledgeos.invitation.'+event)
+    assert.equal(stored.length,1);assert.equal(stored[0].occurred_at,stored[0].queued_at)
+    faultChecks.push({event,failure_http:503,snapshot_unchanged_after_reopen:true,successful_audit_and_outbox_rows_after_retry:1})
   }
   const stored=snapshot(db,i)
   assert.equal(stored[0][0].token_hash,createHash('sha256').update(i.token).digest('hex'))

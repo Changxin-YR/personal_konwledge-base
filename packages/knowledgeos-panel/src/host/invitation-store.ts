@@ -32,6 +32,20 @@ CREATE TABLE invitation_audit (
   affected_count INTEGER NOT NULL CHECK(affected_count>=0), PRIMARY KEY(invitation_id,revision)
 ) STRICT;`
 
+// The existing job outbox has a mandatory job-result FK. Domain changes use a
+// separate queue so an invitation never creates a fictitious background job.
+export const INVITATION_EVENT_SCHEMA=`CREATE TABLE domain_events (
+  seq INTEGER PRIMARY KEY, event_id TEXT NOT NULL UNIQUE, aggregate_type TEXT NOT NULL, aggregate_id TEXT NOT NULL,
+  aggregate_revision INTEGER NOT NULL CHECK(aggregate_revision>=1), actor_id TEXT NOT NULL REFERENCES users(id),
+  event_type TEXT NOT NULL, payload_schema_version INTEGER NOT NULL CHECK(payload_schema_version>=1),
+  payload TEXT NOT NULL CHECK(json_valid(payload)), occurred_at TEXT NOT NULL, causation_id TEXT,
+  correlation_id TEXT NOT NULL, UNIQUE(aggregate_type,aggregate_id,aggregate_revision)
+) STRICT;
+CREATE TABLE domain_event_outbox (
+  event_id TEXT PRIMARY KEY REFERENCES domain_events(event_id), created_at TEXT NOT NULL,
+  delivered_at TEXT, failures INTEGER NOT NULL DEFAULT 0 CHECK(failures>=0), retry_at TEXT, last_error TEXT
+) STRICT;`
+
 const day=86_400_000
 const digest=(value:string)=>createHash('sha256').update(value).digest('hex')
 const invalid=()=>new AssetError(422,'INVALID_INVITATION')
@@ -51,8 +65,15 @@ function cap(n=1){if(!Number.isInteger(n)||n<1||n>100)throw invalid();return n}
 function receipt(r:InvitationRow){return {id:r.id,target:target(r),issued_at:r.issued_at,expires_at:r.expires_at,revoked_at:r.revoked_at,
   max_redemptions:r.max_redemptions,redeemed_count:r.redeemed_count,revision:r.revision}}
 const active=(r:{expires_at:string;revoked_at:string|null},now:string)=>r.revoked_at===null&&now<r.expires_at
-function audit(db:DatabaseSync,r:InvitationRow,a:SessionActor,event:string,now:string,before:string|null,count:number){
-  db.prepare('INSERT INTO invitation_audit VALUES(?,?,?,?,?,?,?,?)').run(r.id,r.revision,a.userId,event,now,before,r.expires_at,count)
+type InvitationEvent='issue'|'redeem'|'renew'|'revoke'
+function recordEvent(db:DatabaseSync,r:InvitationRow,a:SessionActor,event:InvitationEvent,now:string,before:string|null,affected:string[],correlation:string){
+  db.prepare('INSERT INTO invitation_audit VALUES(?,?,?,?,?,?,?,?)').run(r.id,r.revision,a.userId,event,now,before,r.expires_at,affected.length)
+  const eventId=randomUUID(),payload=JSON.stringify({target:target(r),prior_expires_at:before,expires_at:r.expires_at,
+    revoked_at:r.revoked_at,affected_redemption_ids:affected.toSorted()})
+  db.prepare(`INSERT INTO domain_events(event_id,aggregate_type,aggregate_id,aggregate_revision,actor_id,event_type,
+    payload_schema_version,payload,occurred_at,correlation_id) VALUES(?,'invitation',?,?,?, ?,1,?,?,?)`)
+    .run(eventId,r.id,r.revision,a.userId,'knowledgeos.invitation.'+event,payload,now,correlation)
+  db.prepare('INSERT INTO domain_event_outbox (event_id,created_at) VALUES(?,?)').run(eventId,now)
 }
 
 export class InvitationStore {
@@ -79,7 +100,7 @@ export class InvitationStore {
   preview(prior:SessionActor,expected:string,s:InvitationSpec){return this.tx('read',(_db,now)=>{
     return this.issueSpec(this.actor(prior,now,expected),s,now)
   })}
-  create(prior:SessionActor,expected:string,s:InvitationSpec,key:string){return this.tx('write',(db,now)=>{
+  create(prior:SessionActor,expected:string,s:InvitationSpec,key:string,correlation=randomUUID()){return this.tx('write',(db,now)=>{
     const a=this.actor(prior,now,expected),p=this.issueSpec(a,s,now)
     const req=digest(JSON.stringify([p.target,s.days??7,p.max_redemptions]))
     const old=db.prepare('SELECT * FROM invitations WHERE service_id=? AND issuer_id=? AND request_key=?').get(a.serviceId,a.userId,key) as (InvitationRow&{request_digest:string})|undefined
@@ -93,10 +114,10 @@ export class InvitationStore {
       max_redemptions:p.max_redemptions,redeemed_count:0,revision:1}
     db.prepare(`INSERT INTO invitations(id,token_hash,service_id,issuer_id,object_id,project_id,permission,issued_at,expires_at,max_redemptions,request_key,request_digest)
       VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`).run(r.id,digest(token),a.serviceId,a.userId,r.object_id,r.project_id,r.permission,now,r.expires_at,r.max_redemptions,key,req)
-    audit(db,r,a,'issue',now,null,0)
+    recordEvent(db,r,a,'issue',now,null,[],correlation)
     return {...receipt(r),title:p.title,token,server_time:now,replayed:false}
   })}
-  redeem(prior:SessionActor,expected:string,token:string){return this.tx('write',(db,now)=>{
+  redeem(prior:SessionActor,expected:string,token:string,correlation=randomUUID()){return this.tx('write',(db,now)=>{
     const a=this.actor(prior,now,expected)
     if(!/^[a-zA-Z0-9_-]{43}$/.test(token))throw unavailable()
     const r=db.prepare('SELECT * FROM invitations WHERE service_id=? AND token_hash=?').get(a.serviceId,digest(token)) as InvitationRow|undefined
@@ -115,7 +136,7 @@ export class InvitationStore {
     db.prepare('INSERT INTO invitation_redemptions VALUES(?,?,?,?,?,NULL)').run(grant,r.id,a.userId,now,r.expires_at)
     const change=db.prepare('UPDATE invitations SET redeemed_count=redeemed_count+1,revision=revision+1 WHERE id=? AND revision=? AND redeemed_count<max_redemptions').run(r.id,r.revision)
     if(change.changes!==1)throw conflict()
-    audit(db,{...r,revision:r.revision+1},a,'redeem',now,null,1)
+    recordEvent(db,{...r,revision:r.revision+1},a,'redeem',now,null,[grant],correlation)
     return {id:grant,target:t,title:info.title,expires_at:r.expires_at,server_time:now,replayed:false}
   })}
   get(prior:SessionActor,expected:string,id:string){return this.tx('read',(db,now)=>{
@@ -129,18 +150,18 @@ export class InvitationStore {
     const items=rows.flatMap(r=>{const scope=this.canIssue(a,target(r),now);return scope?[{...receipt(r),title:scope.title,active:active(r,now)}]:[]})
     return {actor_id:a.userId,server_time:now,items}
   })}
-  change(prior:SessionActor,expected:string,id:string,expectedRevision:number,event:'renew'|'revoke',days?:number){return this.tx('write',(db,now)=>{
+  change(prior:SessionActor,expected:string,id:string,expectedRevision:number,event:'renew'|'revoke',days?:number,correlation=randomUUID()){return this.tx('write',(db,now)=>{
     const a=this.actor(prior,now,expected),{r}=this.managed(db,a,id,now)
     if(!active(r,now))throw unavailable()
     if(expectedRevision!==r.revision)throw conflict()
     const expires_at=event==='renew'?new Date(Date.parse(r.expires_at)+duration(days)).toISOString():r.expires_at
     // Existing direct permissions and previously revoked redemptions never join this transaction.
-    const changed=event==='renew'?
-      db.prepare('UPDATE invitation_redemptions SET expires_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>?').run(expires_at,id,now):
-      db.prepare('UPDATE invitation_redemptions SET revoked_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>?').run(now,id,now)
+    const changed=(event==='renew'?
+      db.prepare('UPDATE invitation_redemptions SET expires_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? RETURNING id').all(expires_at,id,now):
+      db.prepare('UPDATE invitation_redemptions SET revoked_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? RETURNING id').all(now,id,now)).map(r=>String(r.id))
     const next={...r,expires_at,revoked_at:event==='revoke'?now:null,revision:r.revision+1}
     db.prepare('UPDATE invitations SET expires_at=?,revoked_at=?,revision=? WHERE id=?').run(expires_at,next.revoked_at,next.revision,id)
-    audit(db,next,a,event,now,r.expires_at,Number(changed.changes))
-    return {...receipt(next),affected_count:Number(changed.changes),server_time:now}
+    recordEvent(db,next,a,event,now,r.expires_at,changed,correlation)
+    return {...receipt(next),affected_count:changed.length,server_time:now}
   })}
 }

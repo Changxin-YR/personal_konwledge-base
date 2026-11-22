@@ -8,7 +8,7 @@ import {DatabaseSync} from 'node:sqlite'
 import {pathToFileURL} from 'node:url'
 import test from 'node:test'
 import * as lib from '../../packages/knowledgeos-panel/lib/test-support.js'
-import {MIGRATION_V23_CHECKSUM} from '../../packages/knowledgeos-panel/lib/storage.js'
+import {MIGRATION_V23_CHECKSUM,MIGRATION_V24_CHECKSUM} from '../../packages/knowledgeos-panel/lib/storage.js'
 import {decodeText} from '../../packages/knowledgeos-panel/src/host/text-document.ts'
 import {seed} from '../fnd006/independent/common.mjs'
 
@@ -109,12 +109,43 @@ test('v22 recall data and migration ledger survive v23 failure, upgrade and reop
     assert.match(s.failure.cause.message,/v23:after-schema/);s.close()
     assert.equal(version(),22);assert.deepEqual(rows('sqlite_schema'),definitions);assert.deepEqual(rows('schema_migrations'),ledger);assert.deepEqual(tables.map(rows),data)
     for(let j=0;j<2;j++){
-      s=new lib.ProbeStorage({dataDir:dir});assert(s.available,s.failure?.message);assert.equal(version(),23)
-      const applied=rows('schema_migrations'),last=applied.pop();assert.deepEqual([last.version,last.checksum],[23,MIGRATION_V23_CHECKSUM]);assert.deepEqual(applied,ledger)
+      s=new lib.ProbeStorage({dataDir:dir});assert(s.available,s.failure?.message);assert.equal(version(),24)
+      const applied=rows('schema_migrations'),last=applied.splice(22)
+      assert.deepEqual(last.map(x=>[x.version,x.checksum]),[[23,MIGRATION_V23_CHECKSUM],[24,MIGRATION_V24_CHECKSUM]]);assert.deepEqual(applied,ledger)
       assert.deepEqual(tables.map(rows),data)
       const reopened=s.recall.get(actor,practice.material.id)
       assert.deepEqual({...reopened,material:{...reopened.material}},practice)
       assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);s.close()
     }
   }finally{s?.close();db.close()}
+})
+
+test('v24 failure leaves the populated v23 project and invitation history byte-for-byte intact',async()=>{
+  const dir=mkdtempSync(join(tmpdir(),'kos-invitation-events-')),file=join(dir,'v23.mjs')
+  writeFileSync(file,execFileSync('git',['show','7bca95a05dd2cb0ad2ddbd91787281e019173ce0:packages/knowledgeos-panel/lib/test-support.js']))
+  const old=await import(pathToFileURL(file).href),{actor:owner}=await seed(old,dir),s=new old.ProbeStorage({dataDir:dir}),identity=new old.IdentityService(s)
+  try{
+    await identity.register(credentials('peer'));const peer=await login(identity,'peer'),at=now()
+    const p=s.createProject({id:key(),serviceId:owner.serviceId,ownerUserId:owner.userId,name:'Existing project',now:at})
+    const member=write(s,owner,{scope:'project',id:p.id,permission:'member'});redeem(s,peer,member)
+    const personal=publish(s,owner),invitation=write(s,owner,spec(personal));redeem(s,peer,invitation)
+    s.createObject({id:key(),serviceId:owner.serviceId,spaceId:owner.personalSpaceId,scope:'project',projectId:p.id,ownerUserId:owner.userId,objectType:'note',title:'Existing grant target',body:'Synthetic',now:at})
+    const target=s.listObjects(owner,'read',at).find(x=>x.projectId===p.id);assert(target)
+    assert(s.grantObject(owner,{id:key(),objectId:target.id,serviceId:owner.serviceId,subjectType:'user',subjectId:peer.userId,action:'read',now:at,validFrom:at}))
+  }finally{await identity.close();s.close()}
+  const db=new DatabaseSync(join(dir,'knowledgeos.sqlite'),{readOnly:true}),rows=table=>db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all()
+  const version=()=>db.prepare('PRAGMA user_version').get().user_version
+  const tables=['knowledge_projects','project_memberships','knowledge_objects','resource_grants','invitations','invitation_redemptions','invitation_audit','outbox']
+  const oldRows=tables.map(rows),ledger=rows('schema_migrations'),schema=rows('sqlite_schema');let storage
+  try{
+    assert.equal(version(),23);storage=new lib.ProbeStorage({dataDir:dir,failureAt:'v24:after-schema'});assert(!storage.available)
+    assert.match(storage.failure.cause.message,/v24:after-schema/);storage.close()
+    assert.equal(version(),23);assert.deepEqual(rows('sqlite_schema'),schema);assert.deepEqual(rows('schema_migrations'),ledger);assert.deepEqual(tables.map(rows),oldRows)
+    for(let j=0;j<2;j++){
+      storage=new lib.ProbeStorage({dataDir:dir});assert(storage.available,storage.failure?.message);assert.equal(version(),24)
+      assert.deepEqual(tables.map(rows),oldRows);assert.deepEqual(rows('schema_migrations').slice(0,23),ledger)
+      assert.deepEqual(rows('domain_events'),[]);assert.deepEqual(rows('domain_event_outbox'),[]);assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[])
+      storage.close()
+    }
+  }finally{storage?.close();db.close()}
 })
