@@ -10554,6 +10554,7 @@ label{display:grid;gap:4px;font-weight:600;min-width:0}input,select,textarea{wid
 <section id="conflict" hidden><h2>服务器版本</h2><p id="latest-title"></p><pre id="latest-body"></pre><button type="button" id="rebase">保留草稿并使用此修订</button></section>
 <section id="outline" class="stack" hidden aria-labelledby="outline-heading"><h2 id="outline-heading">层级大纲</h2>
 <ul id="outline-list" aria-label="大纲节点"></ul>
+<p id="node-detached" role="status" hidden>原节点已回收。草稿不会写入其他节点。</p>
 <fieldset id="node-controls" class="stack"><label id="node-label">节点正文<textarea id="node-body" maxlength="32000"></textarea></label>
 <div class="tools"><button id="node-add" type="button">添加子节点</button><button id="node-save" type="button">保存节点</button>
 <button id="node-indent" type="button" aria-label="缩进" title="缩进">⇥</button><button id="node-promote" type="button" aria-label="提升" title="提升">⇤</button>
@@ -10663,13 +10664,14 @@ const nodeById=(id,n=note)=>n?.outline?.nodes.find(x=>x.id===id);
 const currentNode=()=>nodeById(selected);
 const children=id=>(note?.outline?.nodes??[]).filter(n=>n.parent_id===id).sort((a,b)=>a.order_key-b.order_key);
 const nodeBase=n=>n?.parent_id?n.body:'';
-const nodeDirty=()=>$('node-body').value!==nodeBase(currentNode());
+const detached=()=>!!selected&&!currentNode();
+const nodeDirty=()=>detached()||$('node-body').value!==nodeBase(currentNode());
 const keepNodeDraft=()=>({id:selected,body:nodeDirty()?$('node-body').value:undefined});
 const nodeName=n=>n.parent_id===null?'正文（根节点）':(n.body.trim().slice(0,100)||'空白节点');
 function clearPreview(){preview=null;$('node-delete-review').hidden=true;$('node-delete-summary').textContent='';$('node-impact').replaceChildren()}
 function clearOutlinePanels(){clearPreview();outlineConflict=null;$('node-conflict').hidden=true;$('node-conflict-revision').textContent=$('node-latest').textContent=''}
 function chooseNode(id,draft){
-  selected=nodeById(id)?.id??children(null)[0]?.id??null;
+  selected=nodeById(id)?.id??(id&&draft!==undefined?id:children(null)[0]?.id??null);
   $('node-body').value=draft??nodeBase(currentNode());
   renderOutline();
 }
@@ -10677,7 +10679,8 @@ function renderOutline(){
   const list=$('outline-list'),target=$('node-target'),root=children(null)[0],n=currentNode();
   list.replaceChildren();target.replaceChildren(new Option('选择目标节点',''));$('outline').hidden=!root;
   if(!root)return;
-  $('node-body').ariaLabel=n?.parent_id?'节点正文':'新子节点正文';
+  const orphan=detached();$('node-detached').hidden=!orphan;$('node-body').readOnly=orphan;
+  $('node-body').ariaLabel=orphan?'已回收节点的草稿':n?.parent_id?'节点正文':'新子节点正文';
   const visit=(row,depth,host,excluded)=>{
     const li=document.createElement('li'),button=document.createElement('button');
     li.dataset.depth=depth;li.dataset.parentId=row.parent_id??'';li.style.paddingInlineStart=depth>0&&depth<=5?'14px':'0';
@@ -10715,7 +10718,7 @@ async function outlineChange(op){
     if(op.action==='add'){
       draft.id=result.outline.nodes.find(x=>!oldIds.has(x.id))?.id;draft.body=undefined;
     }else if(op.action==='edit')draft.body=undefined;
-    else if(op.action==='delete')draft.id=currentNode()?.parent_id;
+    else if(op.action==='delete'&&draft.body===undefined)draft.id=currentNode()?.parent_id;
     adoptOutline(result,draft);status('大纲已保存。');
   }catch(e){
     if(e.code==='OUTLINE_PREVIEW_REQUIRED')clearPreview();

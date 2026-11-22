@@ -396,6 +396,32 @@ async function deletionAndConflict(owner,peer){
   await undo()
   pass('T02_SUBTREE_SOFT_DELETION',{archived:[s,sc,sd],unrelated_branch_preserved:true,undo_restored:true})
 
+  phase='T02 removed-node draft is not attached to its surviving parent'
+  const childDraft='Uncommitted text for the removed child only.'
+  await nodeButton(page,c1).click()
+  await nodeButton(page,c1).and(page.locator('[aria-current="true"]')).waitFor()
+  await page.locator('#node-body').fill(childDraft)
+  const draftDelete=await previewInChrome(owner,id,rev,c1,[get(deep)],[get(deep)])
+  const afterDraftDelete=await remove(c1,'promote',draftDelete)
+  expectChildren(afterDraftDelete,p,[deep,c2]);archived(id,[get(c1)])
+  await page.locator('#node-detached').waitFor()
+  assert.equal(await page.locator('#node-body').inputValue(),childDraft)
+  assert.equal(await page.locator('#node-body').getAttribute('readonly'),'')
+  assert(await page.locator('#node-save').isDisabled())
+  assert(await page.locator('#node-add').isDisabled())
+  assert.equal(await nodeButton(page,p).getAttribute('aria-current'),'false')
+  assert.equal(afterDraftDelete.ordered.find(n=>n.id===p).body,get(p).body)
+  await capture(page,'t02-removed-node-draft.png')
+  await undo()
+  assert.equal(await nodeButton(page,c1).getAttribute('aria-current'),'true')
+  assert.equal(await page.locator('#node-body').inputValue(),childDraft)
+  assert.equal(await page.locator('#node-body').getAttribute('readonly'),null)
+  page.once('dialog',dialog=>dialog.accept())
+  await nodeButton(page,p).click()
+  await nodeButton(page,p).and(page.locator('[aria-current="true"]')).waitFor()
+  assert.equal(await page.locator('#node-body').inputValue(),get(p).body)
+  pass('T02_REMOVED_NODE_DRAFT_CANNOT_OVERWRITE_PARENT',{detached_read_only:true,parent_unchanged:true,undo_reattached_to_original:true})
+
   phase='T02 other principal with real session'
   assert.notEqual(owner.user,peer.user)
   const peerNote=await createNote(peer,'Peer control note','Peer can use own outline.')
