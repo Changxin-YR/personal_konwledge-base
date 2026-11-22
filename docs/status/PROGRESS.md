@@ -1,5 +1,15 @@
 # 实际进度
 
+2026-11-22 当前摘要（核对基线 `65eed4bad59a58ad2372f59f005f0e8d0f224880`）：**22/76 工作单元通过、11/66 完整场景通过、4/44 完整需求 verified（F05/F06/F08/F21）**。PROJECT-002 为 in_progress，FND-005 为 blocked，52 个单元 planned。本段汇总已存在的候选与证据，未新增产品验收；当前值以机器矩阵为准。
+
+- [PROJECT-001](../evidence/PROJECT-001/REPORT.md) 的 T01/T02 和 A30 已经主跑、独立复跑通过。持续打开页面的双重邀请撤销清屏、复验超时清屏、私人任务隔离及重启已留证。
+- [REPO-001](../evidence/REPO-001/REPORT.md) 修复候选 `12afff5` 已正式通过，两次实跑各 11 次真实 GitHub GET，验证切换引用后按原 blob SHA 首次读取旧快照。私库和完整 A19 未验收；GitLab、Gitee及实际 AI 写请求拒绝仍待验证。
+- [PROJECT-002 检查点](../evidence/PROJECT-002/CHECKPOINT.md) 候选 `76fba93` 仅完成内联提交/预审/退回/管理员终审切片，主跑、独立复跑及 23 项受影响回归已有证据。共享材料固定版本、失权等待与恢复仍须实现和真实验证；T01/T02 整单元与 A31 尚未收口，P08 的日评分等 SCORE-001。
+- 相较 11 月 20 日的续接起点，READ-002/003、SEARCH-001、LIB-006、SHARE-001、NOTE-001/002/003、LEARN-004、PROJECT-001、REPO-001 共 11 个单元新增通过，已经体现在工作目录及各单元证据中。
+- [FND-005 最新预检](../evidence/FND-005/native-host-egress-20261122.json) 的隔离原生 Host 零出站负例通过；真实推理为 0，正向 Messages 许可、原生凭据及真实读写独立验收仍待完成。Windows 交付未验收，CHECK-004 未开始。
+
+后续从 PROJECT-002 恢复，按[实施计划第 8 节](../plan/06_IMPLEMENTATION_PLAN.md#8-从-project-002-检查点继续推进)持续推进。以下按日期保留既有阶段记录，不作为新的激活指令。
+
 2026-11-21：LIB-006 候选 `680b868` [已验收](../evidence/LIB-006/acceptance.json)。Windows 上以真实 DSH Host、Chrome 和 SQLite，分别对 664 页 / 48,299,547 字节及 939 页 / 56,261,511 字节的 OpenStax 教材完成主跑及独立复核。整本和分章原件一致，物理页码不变；第 59 页跨页代码缩进恢复，第 67、350 页明确区分提取文本和原页版式。113 项受影响测试及 A07、A09 真实 Host 回归通过。[P02](../evidence/LIB-006/P02.json) 与 [A06](../evidence/LIB-006/A06.json) 绑定实际集成候选；F05、F06 verified，F07 仍待 A45。下一就绪单元 NOTE-001。
 
 2026-11-21：SEARCH-001 已验收，[单元](../evidence/SEARCH-001/acceptance.json)及[完整 A09](../evidence/SEARCH-001/A09.json)绑定候选 `5483832`。LIB-006 在新候选上重跑 A09，不改写历史证据。

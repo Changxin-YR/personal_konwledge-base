@@ -7,7 +7,7 @@
   "executor": "codex",
   "active_instruction": {
     "path": "CODEX_START.md",
-    "sha256": "da73b65a0004bfa875d1435a61a555ba6f02d45c280aeb8ed6d2e62ab4bd39d8"
+    "sha256": "a2e5986cfa81189aeae0c4b43ebfe4afd074aae9d5674e7ecf5e069c5d6ab530"
   },
   "active_unit": "PROJECT-002",
   "unit_state": "in_progress",
