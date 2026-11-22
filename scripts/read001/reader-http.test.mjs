@@ -28,7 +28,12 @@ test('HTTP citation is fixed to the old version and selected occurrence; no disc
     await new Promise(r=>server.listen(0,'127.0.0.1',r));origin='http://127.0.0.1:'+server.address().port
     const text='same same',r=(await json(post('notes.txt','text/plain',text),201)).data,path=`assets/${r.id}/versions/${r.version_id}/reader`
     const access=path+'-access',metadata={actor_id:identity.actor(owner).userId,asset_id:r.id,version_id:r.version_id,version:1,is_latest:true}
-    assert.deepEqual((await json(req(access),200)).data,metadata);await json(req(access,peer),404);await json(req(access,''),401)
+    const checkAccess=async isLatest=>{
+      const {server_time,read_expires_at,...data}=(await json(req(access),200)).data
+      assert.deepEqual(data,{...metadata,is_latest:isLatest});assert.equal(read_expires_at,null)
+      assert.equal(new Date(server_time).toISOString(),server_time)
+    }
+    await checkAccess(true);await json(req(access,peer),404);await json(req(access,''),401)
     await json(req(access.replace(r.version_id,randomUUID())),404)
     const window=(await json(req(path+'?unit=1'),200)).data;assert.equal(window.text,text);assert.equal(window.total,1);assert.equal(window.kind,'text');assert.equal(window.anchor,createHash('sha256').update(text).digest('hex'));assert(!('ref' in window))
     await json(req(path+'?unit=1&unit=2'),422);await json(req(path+'?unit=2'),422);await json(req(path,peer),404);await json(req(path,''),401)
@@ -37,7 +42,7 @@ test('HTTP citation is fixed to the old version and selected occurrence; no disc
     const c=(await json(create(spec),201)).data;assert.deepEqual((await json(create(spec),200)).data,c);await json(create({...spec,start:0,end:4}),409)
     const resolve=`citations/${c.id}/resolve`;await json(req(resolve,peer),404);await json(req(resolve,''),401)
     await json(post('notes.txt','text/plain','a replacement',{'x-knowledgeos-asset-id':r.id,'x-knowledgeos-expected-version':'1'}),201)
-    assert.deepEqual((await json(req(access),200)).data,{...metadata,is_latest:false})
+    await checkAccess(false)
     assert.deepEqual((await json(req(resolve),200)).data,{...c,quote:'same'})
     const pdf=(await json(post('source.pdf','application/pdf',acceptanceSamples()['a08-reference.pdf']),201)).data,version=pdf.version_id,route=`assets/${pdf.id}/versions/${version}/reader`
     const idle=(await json(req(route),200)).data;assert.equal(idle.state,'idle');assert(!Object.hasOwn(idle,'image'))
