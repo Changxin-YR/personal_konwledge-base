@@ -2293,6 +2293,51 @@ function decideAssignment(draft, issuer, projectMembers, now) {
   return { kind: issuer.role === "admin" ? "project_admin" : "project_collaboration" };
 }
 
+// src/host/project-task-workflow.ts
+var isTaskReviewAction = (action) => action === "peer_pass" || action === "peer_return" || action === "final_accept" || action === "final_return" || action === "final_fail";
+function decideTaskWorkflow(task, actor, action) {
+  if (action !== "submit" && !isTaskReviewAction(action)) return { error: "INVALID_TASK_INPUT" };
+  if (task.kind === "personal") return { error: "TASK_WORKFLOW_UNAVAILABLE" };
+  if (action === "submit") {
+    if (actor.id !== task.assignee) return { error: "NOT_FOUND" };
+    if (!["assigned", "in_progress", "returned"].includes(task.state)) return { error: "TASK_STATE_CONFLICT" };
+    return { state: "submitted", nextActor: task.peerReviewer ?? task.finalReviewer };
+  }
+  if (task.kind !== "project_admin") return { error: "TASK_WORKFLOW_UNAVAILABLE" };
+  if (action === "peer_pass" || action === "peer_return") {
+    if (actor.id !== task.peerReviewer) return { error: "NOT_FOUND" };
+    if (task.state !== "submitted") return { error: "TASK_STATE_CONFLICT" };
+    return action === "peer_pass" ? { state: "awaiting_admin_review", nextActor: task.finalReviewer } : { state: "returned", nextActor: task.assignee };
+  }
+  if (actor.id !== task.finalReviewer || actor.role !== "admin") return { error: "NOT_FOUND" };
+  if (task.state !== (task.peerReviewer ? "awaiting_admin_review" : "submitted")) return { error: "TASK_STATE_CONFLICT" };
+  switch (action) {
+    case "final_accept":
+      return { state: "accepted", nextActor: null };
+    case "final_return":
+      return { state: "returned", nextActor: task.assignee };
+    case "final_fail":
+      return { state: "failed", nextActor: null };
+  }
+}
+function submissionTiming(submittedAt, dueAt) {
+  return submittedAt <= dueAt ? "on_time" : "late";
+}
+var validText = (value, limit) => typeof value === "string" && value.trim().length > 0 && value.length <= limit && !/[\p{Cf}\p{Cs}\x00-\x08\x0b-\x1f\x7f]/u.test(value);
+var validTaskSubmission = (content) => validText(content, 16e3);
+function validTaskReview(action, criterionCount, input) {
+  if (!isTaskReviewAction(action) || !input || !Number.isSafeInteger(criterionCount) || criterionCount < 1 || criterionCount > 20 || !Array.isArray(input.results) || input.results.length !== criterionCount || !validText(input.reason, 4e3)) return false;
+  const isReturn = action === "peer_return" || action === "final_return";
+  if (isReturn ? !validText(input.requested_work, 4e3) : input.requested_work !== void 0) return false;
+  const ordinals = /* @__PURE__ */ new Set();
+  for (const result of input.results) {
+    if (!result || !Number.isSafeInteger(result.criterion) || result.criterion < 1 || result.criterion > criterionCount || ordinals.has(result.criterion) || typeof result.met !== "boolean" || !validText(result.evidence, 1e3)) return false;
+    ordinals.add(result.criterion);
+  }
+  const allMet = input.results.every((result) => result.met);
+  return allMet === (action === "peer_pass" || action === "final_accept");
+}
+
 // src/host/project-task-store.ts
 var PROJECT_TASK_SCHEMA = `
 CREATE TABLE project_membership_removals (
@@ -2325,6 +2370,49 @@ CREATE TABLE task_criteria_versions (
 `;
 var hidden3 = () => new AssetError(404, "NOT_FOUND");
 var invalid3 = () => new AssetError(422, "INVALID_TASK_INPUT");
+var submissionView = (t, r) => ({
+  id: r.id,
+  version: r.version,
+  criteria_version: r.criteria_version,
+  author_id: r.author_id,
+  content: r.content,
+  submitted_at: r.submitted_at,
+  previous_version: r.previous_version,
+  timing: submissionTiming(r.submitted_at, t.due_at)
+});
+var reviewView = (r) => ({
+  id: r.id,
+  submission_id: r.submission_id,
+  reviewer_id: r.reviewer_id,
+  stage: r.stage,
+  verdict: r.verdict,
+  criteria_results: JSON.parse(r.criteria_results),
+  reason: r.reason,
+  requested_work: r.requested_work,
+  decided_at: r.decided_at
+});
+var requestDigest = (value) => createHash12("sha256").update(JSON.stringify(value)).digest("hex");
+var workflow = (t) => ({
+  kind: t.task_kind,
+  assignee: t.assignee_id,
+  peerReviewer: t.peer_reviewer_id,
+  finalReviewer: t.final_reviewer_id,
+  state: t.current_state
+});
+var nextActor = (t) => {
+  switch (t.current_state) {
+    case "assigned":
+    case "in_progress":
+    case "returned":
+      return t.assignee_id;
+    case "submitted":
+      return t.peer_reviewer_id ?? t.final_reviewer_id;
+    case "awaiting_admin_review":
+      return t.final_reviewer_id;
+    default:
+      return null;
+  }
+};
 var taskSummary = (t) => ({
   id: t.id,
   project_id: t.project_id,
@@ -2338,7 +2426,7 @@ var taskSummary = (t) => ({
   peer_reviewer_id: t.peer_reviewer_id,
   criteria_revision: t.criteria_revision,
   state: t.current_state,
-  next_actor_id: t.assignee_id,
+  next_actor_id: nextActor(t),
   revision: t.revision,
   issued_at: t.issued_at,
   updated_at: t.updated_at
@@ -2347,6 +2435,20 @@ var taskView = (db, t) => ({ ...taskSummary(t), criteria_history: db.prepare(
   "SELECT version,acceptance_items,effective_submission_rule,created_by,created_at FROM task_criteria_versions WHERE task_id=? ORDER BY version"
 ).all(t.id).map(({ acceptance_items, ...r }) => ({ ...r, items: JSON.parse(String(acceptance_items)) })) });
 var clean = (c) => c.items.map((item) => ({ description: item.description.trim(), weight: item.weight }));
+var requireRevision = (task, expected) => {
+  if (task.revision !== expected) throw new AssetError(409, "TASK_REVISION_CONFLICT");
+};
+var validRevision = (revision) => Number.isSafeInteger(revision) && revision > 0;
+var latestSubmission = (db, id) => db.prepare("SELECT * FROM task_submissions WHERE task_id=? ORDER BY version DESC LIMIT 1").get(id);
+var advance = (db, task, state, now) => {
+  const result = db.prepare("UPDATE tasks SET current_state=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?").run(state, now, task.id, task.revision);
+  if (Number(result.changes) !== 1) throw new AssetError(409, "TASK_REVISION_CONFLICT");
+};
+var transition = (task, a, action) => {
+  const next = decideTaskWorkflow(workflow(task), { id: a.userId, role: a.role }, action);
+  if ("error" in next) throw new AssetError(next.error === "NOT_FOUND" ? 404 : next.error === "INVALID_TASK_INPUT" ? 422 : 409, next.error);
+  return next.state;
+};
 var ProjectTaskStore = class {
   constructor(tx, current, memberships) {
     this.tx = tx;
@@ -2463,7 +2565,7 @@ var ProjectTaskStore = class {
       const a = this.actor(s, now, expected), task = this.lookup(db, a, id, now);
       if (task.issuer_id !== a.userId) throw hidden3();
       if (task.revision !== revision) throw new AssetError(409, "TASK_REVISION_CONFLICT");
-      if (task.current_state !== "assigned") throw new AssetError(409, "TASK_STATE_CONFLICT");
+      if (!["assigned", "returned"].includes(task.current_state)) throw new AssetError(409, "TASK_STATE_CONFLICT");
       const prior = db.prepare("SELECT acceptance_items FROM task_criteria_versions WHERE task_id=? AND version=?").get(id, task.criteria_revision);
       if (prior?.acceptance_items === items) return taskView(db, task);
       if (task.criteria_revision >= 50) throw new AssetError(409, "TASK_CRITERIA_LIMIT");
@@ -2474,7 +2576,94 @@ var ProjectTaskStore = class {
       return taskView(db, this.lookup(db, a, id, now));
     });
   }
+  history(s, id) {
+    return this.tx("read", (db, now) => {
+      const task = this.lookup(db, this.actor(s, now), id, now);
+      const submissions = db.prepare("SELECT * FROM task_submissions WHERE task_id=? ORDER BY version").all(id);
+      const reviews = db.prepare(`SELECT d.* FROM task_review_decisions d JOIN task_submissions s ON s.id=d.submission_id
+        WHERE s.task_id=? ORDER BY s.version,CASE d.stage WHEN 'peer' THEN 0 ELSE 1 END`).all(id);
+      return { task_revision: task.revision, submissions: submissions.map((r) => submissionView(task, r)), reviews: reviews.map(reviewView) };
+    });
+  }
+  submit(s, expected, id, key, revision, content) {
+    if (!validRevision(revision) || !validTaskSubmission(content)) throw invalid3();
+    const normalized = content.trim(), digest3 = requestDigest([revision, normalized]);
+    return this.tx("write", (db, now) => {
+      const a = this.actor(s, now, expected), task = this.lookup(db, a, id, now);
+      if (task.assignee_id !== a.userId) throw hidden3();
+      const old = db.prepare("SELECT * FROM task_submissions WHERE task_id=? AND author_id=? AND request_key=?").get(id, a.userId, key);
+      if (old) {
+        if (old.request_digest !== digest3) throw new AssetError(409, "TASK_REQUEST_CONFLICT");
+        return { task: taskView(db, task), submission: submissionView(task, old), replayed: true };
+      }
+      requireRevision(task, revision);
+      const state = transition(task, a, "submit"), previous = latestSubmission(db, id);
+      const version = (previous?.version ?? 0) + 1;
+      if (version > 50) throw new AssetError(409, "TASK_SUBMISSION_LIMIT");
+      const submissionId = randomUUID14();
+      db.prepare(`INSERT INTO task_submissions(id,task_id,version,criteria_version,author_id,content,submitted_at,previous_version,request_key,request_digest)
+        VALUES(?,?,?,?,?,?,?,?,?,?)`).run(submissionId, id, version, task.criteria_revision, a.userId, normalized, now, previous?.version ?? null, key, digest3);
+      advance(db, task, state, now);
+      const saved = latestSubmission(db, id);
+      return { task: taskView(db, this.lookup(db, a, id, now)), submission: submissionView(task, saved), replayed: false };
+    });
+  }
+  review(s, expected, id, key, revision, submissionId, action, input) {
+    if (!validRevision(revision) || !isTaskReviewAction(action)) throw invalid3();
+    const stage = action.startsWith("peer_") ? "peer" : "final", verdict = action.slice(stage.length + 1);
+    return this.tx("write", (db, now) => {
+      const a = this.actor(s, now, expected), task = this.lookup(db, a, id, now);
+      if (stage === "peer" ? a.userId !== task.peer_reviewer_id : a.userId !== task.final_reviewer_id || a.role !== "admin") throw hidden3();
+      if (task.task_kind !== "project_admin") throw new AssetError(409, "TASK_WORKFLOW_UNAVAILABLE");
+      const submission = db.prepare("SELECT * FROM task_submissions WHERE task_id=? AND id=?").get(id, submissionId);
+      if (!submission) throw hidden3();
+      const { acceptance_items } = db.prepare("SELECT acceptance_items FROM task_criteria_versions WHERE task_id=? AND version=?").get(id, submission.criteria_version);
+      if (!validTaskReview(action, JSON.parse(String(acceptance_items)).length, input)) throw invalid3();
+      const results = input.results.map((r) => ({ criterion: r.criterion, met: r.met, evidence: r.evidence.trim() })).sort((l, r) => l.criterion - r.criterion);
+      const reason = input.reason.trim(), requested = input.requested_work?.trim() ?? null;
+      const digest3 = requestDigest([revision, action, results, reason, requested]);
+      const old = db.prepare("SELECT * FROM task_review_decisions WHERE submission_id=? AND reviewer_id=? AND request_key=?").get(submissionId, a.userId, key);
+      if (old) {
+        if (old.request_digest !== digest3) throw new AssetError(409, "TASK_REQUEST_CONFLICT");
+        return { task: taskView(db, task), review: reviewView(old), replayed: true };
+      }
+      requireRevision(task, revision);
+      if (latestSubmission(db, id)?.id !== submissionId) throw new AssetError(409, "TASK_SUBMISSION_CONFLICT");
+      const state = transition(task, a, action), reviewId = randomUUID14();
+      db.prepare(`INSERT INTO task_review_decisions(id,submission_id,reviewer_id,stage,verdict,criteria_results,reason,requested_work,decided_at,request_key,request_digest)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?)`).run(reviewId, submissionId, a.userId, stage, verdict, JSON.stringify(results), reason, requested, now, key, digest3);
+      advance(db, task, state, now);
+      const saved = db.prepare("SELECT * FROM task_review_decisions WHERE id=?").get(reviewId);
+      return { task: taskView(db, this.lookup(db, a, id, now)), review: reviewView(saved), replayed: false };
+    });
+  }
 };
+
+// src/host/project-task-review-schema.ts
+var PROJECT_TASK_REVIEW_SCHEMA = `
+CREATE TABLE task_submissions (
+  id TEXT NOT NULL UNIQUE, task_id TEXT NOT NULL REFERENCES tasks(id),
+  version INTEGER NOT NULL CHECK(version>0), criteria_version INTEGER NOT NULL,
+  author_id TEXT NOT NULL REFERENCES users(id), content TEXT NOT NULL CHECK(length(content) BETWEEN 1 AND 16000),
+  submitted_at TEXT NOT NULL, previous_version INTEGER,
+  request_key TEXT NOT NULL, request_digest TEXT NOT NULL CHECK(length(request_digest)=64),
+  PRIMARY KEY(task_id,version), UNIQUE(task_id,author_id,request_key),
+  FOREIGN KEY(task_id,criteria_version) REFERENCES task_criteria_versions(task_id,version),
+  FOREIGN KEY(task_id,previous_version) REFERENCES task_submissions(task_id,version),
+  CHECK((version=1 AND previous_version IS NULL) OR (version>1 AND previous_version IS NOT NULL AND previous_version=version-1))
+) STRICT;
+CREATE TABLE task_review_decisions (
+  id TEXT PRIMARY KEY, submission_id TEXT NOT NULL REFERENCES task_submissions(id),
+  reviewer_id TEXT NOT NULL REFERENCES users(id), stage TEXT NOT NULL CHECK(stage IN ('peer','final')),
+  verdict TEXT NOT NULL, criteria_results TEXT NOT NULL CHECK(json_valid(criteria_results) AND json_type(criteria_results)='array'),
+  reason TEXT NOT NULL CHECK(length(reason) BETWEEN 1 AND 4000), requested_work TEXT,
+  decided_at TEXT NOT NULL, request_key TEXT NOT NULL, request_digest TEXT NOT NULL CHECK(length(request_digest)=64),
+  UNIQUE(submission_id,stage), UNIQUE(submission_id,reviewer_id,request_key),
+  CHECK((stage='peer' AND verdict IN ('pass','return')) OR (stage='final' AND verdict IN ('accept','return','fail'))),
+  CHECK((verdict='return' AND requested_work IS NOT NULL AND length(requested_work) BETWEEN 1 AND 4000)
+    OR (verdict!='return' AND requested_work IS NULL))
+) STRICT;
+`;
 
 // src/host/recall-store.ts
 import { createHash as createHash14, randomUUID as randomUUID15 } from "node:crypto";
@@ -2922,7 +3111,8 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 29;
+var SCHEMA_VERSION = 30;
+var MIGRATION_V30_CHECKSUM = createHash16("sha256").update(PROJECT_TASK_REVIEW_SCHEMA).digest("hex");
 var MIGRATION_V29_CHECKSUM = createHash16("sha256").update(PROJECT_TASK_SCHEMA).digest("hex");
 var MIGRATION_V28_CHECKSUM = createHash16("sha256").update(REPOSITORY_SCHEMA).digest("hex");
 var MIGRATION_V27_CHECKSUM = createHash16("sha256").update(NOTE_LAYOUT_SCHEMA).digest("hex");
@@ -3323,6 +3513,7 @@ var ProbeStorage = class {
       if (priorVersion < 27) this.#migrateV27(db);
       if (priorVersion < 28) this.#migrateV28(db);
       if (priorVersion < 29) this.#migrateV29(db);
+      if (priorVersion < 30) this.#migrateV30(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -3903,9 +4094,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "project task migration failed", false, { cause: e });
     }
   }
+  #migrateV30(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(PROJECT_TASK_REVIEW_SCHEMA);
+      this.#injectFailure("v30:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(30,?,?)").run(MIGRATION_V30_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=30; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "project task review migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash2, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash2)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -3933,6 +4136,7 @@ var ProbeStorage = class {
       if (version >= 27) reference.exec(NOTE_LAYOUT_SCHEMA);
       if (version >= 28) reference.exec(REPOSITORY_SCHEMA);
       if (version >= 29) reference.exec(PROJECT_TASK_SCHEMA);
+      if (version >= 30) reference.exec(PROJECT_TASK_REVIEW_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");

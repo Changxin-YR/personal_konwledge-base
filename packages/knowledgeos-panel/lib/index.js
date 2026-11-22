@@ -4470,6 +4470,51 @@ function decideAssignment(draft, issuer, projectMembers, now) {
   return { kind: issuer.role === "admin" ? "project_admin" : "project_collaboration" };
 }
 
+// src/host/project-task-workflow.ts
+var isTaskReviewAction = (action2) => action2 === "peer_pass" || action2 === "peer_return" || action2 === "final_accept" || action2 === "final_return" || action2 === "final_fail";
+function decideTaskWorkflow(task, actor2, action2) {
+  if (action2 !== "submit" && !isTaskReviewAction(action2)) return { error: "INVALID_TASK_INPUT" };
+  if (task.kind === "personal") return { error: "TASK_WORKFLOW_UNAVAILABLE" };
+  if (action2 === "submit") {
+    if (actor2.id !== task.assignee) return { error: "NOT_FOUND" };
+    if (!["assigned", "in_progress", "returned"].includes(task.state)) return { error: "TASK_STATE_CONFLICT" };
+    return { state: "submitted", nextActor: task.peerReviewer ?? task.finalReviewer };
+  }
+  if (task.kind !== "project_admin") return { error: "TASK_WORKFLOW_UNAVAILABLE" };
+  if (action2 === "peer_pass" || action2 === "peer_return") {
+    if (actor2.id !== task.peerReviewer) return { error: "NOT_FOUND" };
+    if (task.state !== "submitted") return { error: "TASK_STATE_CONFLICT" };
+    return action2 === "peer_pass" ? { state: "awaiting_admin_review", nextActor: task.finalReviewer } : { state: "returned", nextActor: task.assignee };
+  }
+  if (actor2.id !== task.finalReviewer || actor2.role !== "admin") return { error: "NOT_FOUND" };
+  if (task.state !== (task.peerReviewer ? "awaiting_admin_review" : "submitted")) return { error: "TASK_STATE_CONFLICT" };
+  switch (action2) {
+    case "final_accept":
+      return { state: "accepted", nextActor: null };
+    case "final_return":
+      return { state: "returned", nextActor: task.assignee };
+    case "final_fail":
+      return { state: "failed", nextActor: null };
+  }
+}
+function submissionTiming(submittedAt, dueAt) {
+  return submittedAt <= dueAt ? "on_time" : "late";
+}
+var validText = (value, limit5) => typeof value === "string" && value.trim().length > 0 && value.length <= limit5 && !/[\p{Cf}\p{Cs}\x00-\x08\x0b-\x1f\x7f]/u.test(value);
+var validTaskSubmission = (content) => validText(content, 16e3);
+function validTaskReview(action2, criterionCount, input) {
+  if (!isTaskReviewAction(action2) || !input || !Number.isSafeInteger(criterionCount) || criterionCount < 1 || criterionCount > 20 || !Array.isArray(input.results) || input.results.length !== criterionCount || !validText(input.reason, 4e3)) return false;
+  const isReturn = action2 === "peer_return" || action2 === "final_return";
+  if (isReturn ? !validText(input.requested_work, 4e3) : input.requested_work !== void 0) return false;
+  const ordinals = /* @__PURE__ */ new Set();
+  for (const result of input.results) {
+    if (!result || !Number.isSafeInteger(result.criterion) || result.criterion < 1 || result.criterion > criterionCount || ordinals.has(result.criterion) || typeof result.met !== "boolean" || !validText(result.evidence, 1e3)) return false;
+    ordinals.add(result.criterion);
+  }
+  const allMet = input.results.every((result) => result.met);
+  return allMet === (action2 === "peer_pass" || action2 === "final_accept");
+}
+
 // src/host/project-task-store.ts
 var PROJECT_TASK_SCHEMA = `
 CREATE TABLE project_membership_removals (
@@ -4502,6 +4547,49 @@ CREATE TABLE task_criteria_versions (
 `;
 var hidden3 = () => new AssetError(404, "NOT_FOUND");
 var invalid3 = () => new AssetError(422, "INVALID_TASK_INPUT");
+var submissionView = (t, r) => ({
+  id: r.id,
+  version: r.version,
+  criteria_version: r.criteria_version,
+  author_id: r.author_id,
+  content: r.content,
+  submitted_at: r.submitted_at,
+  previous_version: r.previous_version,
+  timing: submissionTiming(r.submitted_at, t.due_at)
+});
+var reviewView = (r) => ({
+  id: r.id,
+  submission_id: r.submission_id,
+  reviewer_id: r.reviewer_id,
+  stage: r.stage,
+  verdict: r.verdict,
+  criteria_results: JSON.parse(r.criteria_results),
+  reason: r.reason,
+  requested_work: r.requested_work,
+  decided_at: r.decided_at
+});
+var requestDigest = (value) => createHash11("sha256").update(JSON.stringify(value)).digest("hex");
+var workflow = (t) => ({
+  kind: t.task_kind,
+  assignee: t.assignee_id,
+  peerReviewer: t.peer_reviewer_id,
+  finalReviewer: t.final_reviewer_id,
+  state: t.current_state
+});
+var nextActor = (t) => {
+  switch (t.current_state) {
+    case "assigned":
+    case "in_progress":
+    case "returned":
+      return t.assignee_id;
+    case "submitted":
+      return t.peer_reviewer_id ?? t.final_reviewer_id;
+    case "awaiting_admin_review":
+      return t.final_reviewer_id;
+    default:
+      return null;
+  }
+};
 var taskSummary = (t) => ({
   id: t.id,
   project_id: t.project_id,
@@ -4515,7 +4603,7 @@ var taskSummary = (t) => ({
   peer_reviewer_id: t.peer_reviewer_id,
   criteria_revision: t.criteria_revision,
   state: t.current_state,
-  next_actor_id: t.assignee_id,
+  next_actor_id: nextActor(t),
   revision: t.revision,
   issued_at: t.issued_at,
   updated_at: t.updated_at
@@ -4524,6 +4612,20 @@ var taskView = (db, t) => ({ ...taskSummary(t), criteria_history: db.prepare(
   "SELECT version,acceptance_items,effective_submission_rule,created_by,created_at FROM task_criteria_versions WHERE task_id=? ORDER BY version"
 ).all(t.id).map(({ acceptance_items, ...r }) => ({ ...r, items: JSON.parse(String(acceptance_items)) })) });
 var clean = (c) => c.items.map((item) => ({ description: item.description.trim(), weight: item.weight }));
+var requireRevision = (task, expected) => {
+  if (task.revision !== expected) throw new AssetError(409, "TASK_REVISION_CONFLICT");
+};
+var validRevision = (revision) => Number.isSafeInteger(revision) && revision > 0;
+var latestSubmission = (db, id6) => db.prepare("SELECT * FROM task_submissions WHERE task_id=? ORDER BY version DESC LIMIT 1").get(id6);
+var advance = (db, task, state, now) => {
+  const result = db.prepare("UPDATE tasks SET current_state=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?").run(state, now, task.id, task.revision);
+  if (Number(result.changes) !== 1) throw new AssetError(409, "TASK_REVISION_CONFLICT");
+};
+var transition = (task, a, action2) => {
+  const next = decideTaskWorkflow(workflow(task), { id: a.userId, role: a.role }, action2);
+  if ("error" in next) throw new AssetError(next.error === "NOT_FOUND" ? 404 : next.error === "INVALID_TASK_INPUT" ? 422 : 409, next.error);
+  return next.state;
+};
 var ProjectTaskStore = class {
   constructor(tx, current, memberships) {
     this.tx = tx;
@@ -4640,7 +4742,7 @@ var ProjectTaskStore = class {
       const a = this.actor(s, now, expected), task = this.lookup(db, a, id6, now);
       if (task.issuer_id !== a.userId) throw hidden3();
       if (task.revision !== revision) throw new AssetError(409, "TASK_REVISION_CONFLICT");
-      if (task.current_state !== "assigned") throw new AssetError(409, "TASK_STATE_CONFLICT");
+      if (!["assigned", "returned"].includes(task.current_state)) throw new AssetError(409, "TASK_STATE_CONFLICT");
       const prior = db.prepare("SELECT acceptance_items FROM task_criteria_versions WHERE task_id=? AND version=?").get(id6, task.criteria_revision);
       if (prior?.acceptance_items === items) return taskView(db, task);
       if (task.criteria_revision >= 50) throw new AssetError(409, "TASK_CRITERIA_LIMIT");
@@ -4651,7 +4753,94 @@ var ProjectTaskStore = class {
       return taskView(db, this.lookup(db, a, id6, now));
     });
   }
+  history(s, id6) {
+    return this.tx("read", (db, now) => {
+      const task = this.lookup(db, this.actor(s, now), id6, now);
+      const submissions = db.prepare("SELECT * FROM task_submissions WHERE task_id=? ORDER BY version").all(id6);
+      const reviews = db.prepare(`SELECT d.* FROM task_review_decisions d JOIN task_submissions s ON s.id=d.submission_id
+        WHERE s.task_id=? ORDER BY s.version,CASE d.stage WHEN 'peer' THEN 0 ELSE 1 END`).all(id6);
+      return { task_revision: task.revision, submissions: submissions.map((r) => submissionView(task, r)), reviews: reviews.map(reviewView) };
+    });
+  }
+  submit(s, expected, id6, key, revision, content) {
+    if (!validRevision(revision) || !validTaskSubmission(content)) throw invalid3();
+    const normalized = content.trim(), digest4 = requestDigest([revision, normalized]);
+    return this.tx("write", (db, now) => {
+      const a = this.actor(s, now, expected), task = this.lookup(db, a, id6, now);
+      if (task.assignee_id !== a.userId) throw hidden3();
+      const old = db.prepare("SELECT * FROM task_submissions WHERE task_id=? AND author_id=? AND request_key=?").get(id6, a.userId, key);
+      if (old) {
+        if (old.request_digest !== digest4) throw new AssetError(409, "TASK_REQUEST_CONFLICT");
+        return { task: taskView(db, task), submission: submissionView(task, old), replayed: true };
+      }
+      requireRevision(task, revision);
+      const state = transition(task, a, "submit"), previous = latestSubmission(db, id6);
+      const version = (previous?.version ?? 0) + 1;
+      if (version > 50) throw new AssetError(409, "TASK_SUBMISSION_LIMIT");
+      const submissionId = randomUUID14();
+      db.prepare(`INSERT INTO task_submissions(id,task_id,version,criteria_version,author_id,content,submitted_at,previous_version,request_key,request_digest)
+        VALUES(?,?,?,?,?,?,?,?,?,?)`).run(submissionId, id6, version, task.criteria_revision, a.userId, normalized, now, previous?.version ?? null, key, digest4);
+      advance(db, task, state, now);
+      const saved = latestSubmission(db, id6);
+      return { task: taskView(db, this.lookup(db, a, id6, now)), submission: submissionView(task, saved), replayed: false };
+    });
+  }
+  review(s, expected, id6, key, revision, submissionId, action2, input) {
+    if (!validRevision(revision) || !isTaskReviewAction(action2)) throw invalid3();
+    const stage = action2.startsWith("peer_") ? "peer" : "final", verdict = action2.slice(stage.length + 1);
+    return this.tx("write", (db, now) => {
+      const a = this.actor(s, now, expected), task = this.lookup(db, a, id6, now);
+      if (stage === "peer" ? a.userId !== task.peer_reviewer_id : a.userId !== task.final_reviewer_id || a.role !== "admin") throw hidden3();
+      if (task.task_kind !== "project_admin") throw new AssetError(409, "TASK_WORKFLOW_UNAVAILABLE");
+      const submission = db.prepare("SELECT * FROM task_submissions WHERE task_id=? AND id=?").get(id6, submissionId);
+      if (!submission) throw hidden3();
+      const { acceptance_items } = db.prepare("SELECT acceptance_items FROM task_criteria_versions WHERE task_id=? AND version=?").get(id6, submission.criteria_version);
+      if (!validTaskReview(action2, JSON.parse(String(acceptance_items)).length, input)) throw invalid3();
+      const results = input.results.map((r) => ({ criterion: r.criterion, met: r.met, evidence: r.evidence.trim() })).sort((l, r) => l.criterion - r.criterion);
+      const reason = input.reason.trim(), requested = input.requested_work?.trim() ?? null;
+      const digest4 = requestDigest([revision, action2, results, reason, requested]);
+      const old = db.prepare("SELECT * FROM task_review_decisions WHERE submission_id=? AND reviewer_id=? AND request_key=?").get(submissionId, a.userId, key);
+      if (old) {
+        if (old.request_digest !== digest4) throw new AssetError(409, "TASK_REQUEST_CONFLICT");
+        return { task: taskView(db, task), review: reviewView(old), replayed: true };
+      }
+      requireRevision(task, revision);
+      if (latestSubmission(db, id6)?.id !== submissionId) throw new AssetError(409, "TASK_SUBMISSION_CONFLICT");
+      const state = transition(task, a, action2), reviewId = randomUUID14();
+      db.prepare(`INSERT INTO task_review_decisions(id,submission_id,reviewer_id,stage,verdict,criteria_results,reason,requested_work,decided_at,request_key,request_digest)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?)`).run(reviewId, submissionId, a.userId, stage, verdict, JSON.stringify(results), reason, requested, now, key, digest4);
+      advance(db, task, state, now);
+      const saved = db.prepare("SELECT * FROM task_review_decisions WHERE id=?").get(reviewId);
+      return { task: taskView(db, this.lookup(db, a, id6, now)), review: reviewView(saved), replayed: false };
+    });
+  }
 };
+
+// src/host/project-task-review-schema.ts
+var PROJECT_TASK_REVIEW_SCHEMA = `
+CREATE TABLE task_submissions (
+  id TEXT NOT NULL UNIQUE, task_id TEXT NOT NULL REFERENCES tasks(id),
+  version INTEGER NOT NULL CHECK(version>0), criteria_version INTEGER NOT NULL,
+  author_id TEXT NOT NULL REFERENCES users(id), content TEXT NOT NULL CHECK(length(content) BETWEEN 1 AND 16000),
+  submitted_at TEXT NOT NULL, previous_version INTEGER,
+  request_key TEXT NOT NULL, request_digest TEXT NOT NULL CHECK(length(request_digest)=64),
+  PRIMARY KEY(task_id,version), UNIQUE(task_id,author_id,request_key),
+  FOREIGN KEY(task_id,criteria_version) REFERENCES task_criteria_versions(task_id,version),
+  FOREIGN KEY(task_id,previous_version) REFERENCES task_submissions(task_id,version),
+  CHECK((version=1 AND previous_version IS NULL) OR (version>1 AND previous_version IS NOT NULL AND previous_version=version-1))
+) STRICT;
+CREATE TABLE task_review_decisions (
+  id TEXT PRIMARY KEY, submission_id TEXT NOT NULL REFERENCES task_submissions(id),
+  reviewer_id TEXT NOT NULL REFERENCES users(id), stage TEXT NOT NULL CHECK(stage IN ('peer','final')),
+  verdict TEXT NOT NULL, criteria_results TEXT NOT NULL CHECK(json_valid(criteria_results) AND json_type(criteria_results)='array'),
+  reason TEXT NOT NULL CHECK(length(reason) BETWEEN 1 AND 4000), requested_work TEXT,
+  decided_at TEXT NOT NULL, request_key TEXT NOT NULL, request_digest TEXT NOT NULL CHECK(length(request_digest)=64),
+  UNIQUE(submission_id,stage), UNIQUE(submission_id,reviewer_id,request_key),
+  CHECK((stage='peer' AND verdict IN ('pass','return')) OR (stage='final' AND verdict IN ('accept','return','fail'))),
+  CHECK((verdict='return' AND requested_work IS NOT NULL AND length(requested_work) BETWEEN 1 AND 4000)
+    OR (verdict!='return' AND requested_work IS NULL))
+) STRICT;
+`;
 
 // src/host/recall-store.ts
 import { createHash as createHash13, randomUUID as randomUUID15 } from "node:crypto";
@@ -5099,7 +5288,8 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 29;
+var SCHEMA_VERSION = 30;
+var MIGRATION_V30_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_REVIEW_SCHEMA).digest("hex");
 var MIGRATION_V29_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_SCHEMA).digest("hex");
 var MIGRATION_V28_CHECKSUM = createHash15("sha256").update(REPOSITORY_SCHEMA).digest("hex");
 var MIGRATION_V27_CHECKSUM = createHash15("sha256").update(NOTE_LAYOUT_SCHEMA).digest("hex");
@@ -5495,6 +5685,7 @@ var ProbeStorage = class {
       if (priorVersion < 27) this.#migrateV27(db);
       if (priorVersion < 28) this.#migrateV28(db);
       if (priorVersion < 29) this.#migrateV29(db);
+      if (priorVersion < 30) this.#migrateV30(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path2);
       const pragmas = this.#readPragmas(db);
@@ -6075,9 +6266,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "project task migration failed", false, { cause: e });
     }
   }
+  #migrateV30(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(PROJECT_TASK_REVIEW_SCHEMA);
+      this.#injectFailure("v30:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(30,?,?)").run(MIGRATION_V30_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=30; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "project task review migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash4, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash4)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -6105,6 +6308,7 @@ var ProbeStorage = class {
       if (version >= 27) reference.exec(NOTE_LAYOUT_SCHEMA);
       if (version >= 28) reference.exec(REPOSITORY_SCHEMA);
       if (version >= 29) reference.exec(PROJECT_TASK_SCHEMA);
+      if (version >= 30) reference.exec(PROJECT_TASK_REVIEW_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name: name2, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name2)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -11977,6 +12181,16 @@ var criteria = (value) => {
     return { description: text3(row.description), weight: row.weight };
   }) };
 };
+var taskReview = (value) => {
+  if (!Array.isArray(value.results) || value.results.length > 20) throw invalid12();
+  const results = value.results.map((result) => {
+    const row = object3(result, ["criterion", "met", "evidence"]);
+    if (typeof row.criterion !== "number" || typeof row.met !== "boolean") throw invalid12();
+    return { criterion: row.criterion, met: row.met, evidence: text3(row.evidence) };
+  });
+  const reason = text3(value.reason);
+  return "requested_work" in value ? { results, reason, requested_work: text3(value.requested_work) } : { results, reason };
+};
 function createProjectTaskHandler(store, origin, actorFor) {
   return async (req, res) => {
     const send = (status, payload) => {
@@ -12029,6 +12243,23 @@ function createProjectTaskHandler(store, origin, actorFor) {
         const result = store.assign(a, id5(input.actor_id), input.project_id === null ? null : id5(input.project_id), id5(req.headers["idempotency-key"]), draft);
         return sendData(result.replayed ? 200 : 201, result);
       }
+      const workflow2 = /^\/knowledge\/v1\/project-tasks\/([^/]+)\/(submissions|reviews|history)$/.exec(path2);
+      if (workflow2) {
+        const taskId = id5(workflow2[1]), action2 = workflow2[2];
+        if (action2 === "history" && method === "GET") return sendData(200, store.history(a, taskId));
+        if (action2 === "submissions" && method === "POST") {
+          const input = await body3(req, ["actor_id", "expected_revision", "content"]);
+          if (typeof input.expected_revision !== "number") throw invalid12();
+          const result = store.submit(a, id5(input.actor_id), taskId, id5(req.headers["idempotency-key"]), input.expected_revision, text3(input.content));
+          return sendData(result.replayed ? 200 : 201, result);
+        }
+        if (action2 === "reviews" && method === "POST") {
+          const input = await body3(req, ["actor_id", "expected_revision", "submission_id", "action", "results", "reason", "requested_work"]);
+          if (typeof input.expected_revision !== "number" || !isTaskReviewAction(input.action)) throw invalid12();
+          const result = store.review(a, id5(input.actor_id), taskId, id5(req.headers["idempotency-key"]), input.expected_revision, id5(input.submission_id), input.action, taskReview(input));
+          return sendData(result.replayed ? 200 : 201, result);
+        }
+      }
       const task = /^\/knowledge\/v1\/project-tasks\/([^/]+)$/.exec(path2);
       if (task && method === "GET") return sendData(200, { task: store.get(a, id5(task[1])) });
       if (task && method === "PATCH") {
@@ -12048,6 +12279,7 @@ function buildProjectTaskHtml(nonce) {
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>\u9879\u76EE\u534F\u4F5C \xB7 KnowledgeOS</title>
 <style nonce="${nonce}">
 :root{color:#243934;background:#f5f8f7;font:15px/1.55 "Segoe UI","Microsoft YaHei UI",sans-serif}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}header{border-bottom:1px solid #cddbd6;background:#fff}nav,main{max-width:1200px;margin:auto;padding:12px 24px}nav,.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}nav strong,a{color:#195a4e}h1{font-size:25px;margin:6px 0}h2{font-size:17px;margin:0 0 8px}h3{font-size:15px;margin:0 0 6px}p{margin:0 0 8px}section{border-top:1px solid #cddbd6;padding:14px 0}#status{min-height:24px;color:#40564f}.workspace{display:grid;grid-template-columns:minmax(190px,265px) minmax(0,1fr);gap:24px}.side{border-right:1px solid #cddbd6;padding-right:16px}.side,#content,label,input,select,textarea{min-width:0}.fields{display:grid;grid-template-columns:1fr 1fr;gap:9px 16px}.wide{grid-column:1/-1}label{display:grid;gap:3px}input,select,textarea,button{font:inherit;color:inherit;background:#fff;border:1px solid #aabfb6;border-radius:5px;padding:6px 8px;max-width:100%}textarea{resize:vertical;min-height:68px}button{cursor:pointer;text-align:left}button:disabled{opacity:.6;cursor:default}button:focus-visible,a:focus-visible,textarea:focus-visible{outline:2px solid #177c84;outline-offset:2px}button[aria-current=true]{background:#dfede8;border-color:#638e80}.primary{color:white;background:#225e51;border-color:#225e51}.quiet{color:#526a60}.danger{color:#8a382b}ul{padding:0;list-style:none;margin:5px 0}li{margin-bottom:4px;overflow-wrap:anywhere}.selector button{width:100%;overflow-wrap:anywhere}.member{display:flex;align-items:center;justify-content:space-between;gap:8px}.member button{flex-shrink:0}.criteria{display:grid;grid-template-columns:minmax(0,1fr) minmax(62px,96px) auto;align-items:end;gap:8px}.history{padding:10px 0;border-top:1px solid #d6e2dc}ol{padding-left:22px;overflow-wrap:anywhere}dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 15px}dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}dialog{max-width:min(420px,92vw);border:1px solid #9db4aa;border-radius:6px;background:#fff;color:inherit}dialog::backdrop{background:#182a2660}
+#workflow{margin:14px 0;overflow-wrap:anywhere}.attempt-body,.review-evidence{white-space:pre-wrap}.checkline{display:flex;align-items:center;gap:8px}.checkline input{width:auto}.review-item{margin:8px 0;padding:8px 0;border-top:1px solid #d6e2dc}
 @media(max-width:680px){nav,main{padding-inline:13px}.workspace,.fields{grid-template-columns:minmax(0,1fr);gap:8px}.side{border:0;padding-right:0}}
 </style></head><body><header><nav aria-label="\u4E1A\u52A1\u5BFC\u822A"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">\u77E5\u8BC6\u5E93</a><a href="/knowledgeos/projects" aria-current="page">\u9879\u76EE\u534F\u4F5C</a><a href="/knowledgeos/invitations">\u9080\u8BF7\u7801</a><a href="/knowledgeos/account">\u8D26\u53F7</a></nav></header>
 <main><h1>\u9879\u76EE\u534F\u4F5C</h1><p id="status" role="status">\u6B63\u5728\u8BFB\u53D6\u2026</p><a id="login" href="/knowledgeos/account" hidden>\u767B\u5F55</a><div id="workspace" class="workspace" hidden>
@@ -12058,18 +12290,24 @@ function buildProjectTaskHtml(nonce) {
 <div class="wide"><h3>\u9A8C\u6536\u6807\u51C6</h3><ul id="criteria"></ul><button type="button" id="add-criterion">\u6DFB\u52A0\u6807\u51C6</button></div></div><button type="submit" class="primary">\u53D1\u5E03\u4EFB\u52A1</button></form></section>
 <section><h2>\u4EFB\u52A1\u5217\u8868</h2><ul id="tasks" class="selector"></ul></section>
 <section id="task-detail" hidden><h2 id="task-title"></h2><dl id="task-facts"></dl><h3>\u6807\u51C6\u5386\u53F2</h3><div id="history"></div><button type="button" id="revise" hidden>\u4FEE\u6539\u6807\u51C6</button>
-<form id="revision-form" hidden><h3>\u65B0\u7248\u672C\u9A8C\u6536\u6807\u51C6</h3><ul id="revision-criteria"></ul><div class="row"><button type="button" id="add-revision-criterion">\u6DFB\u52A0\u6807\u51C6</button><button type="submit" class="primary">\u4FDD\u5B58\u65B0\u7248\u672C</button><button type="button" id="cancel-revise">\u53D6\u6D88</button></div></form></section></div></div>
+<form id="revision-form" hidden><h3>\u65B0\u7248\u672C\u9A8C\u6536\u6807\u51C6</h3><ul id="revision-criteria"></ul><div class="row"><button type="button" id="add-revision-criterion">\u6DFB\u52A0\u6807\u51C6</button><button type="submit" class="primary">\u4FDD\u5B58\u65B0\u7248\u672C</button><button type="button" id="cancel-revise">\u53D6\u6D88</button></div></form>
+<div id="workflow" hidden><h3>\u63D0\u4EA4\u4E0E\u5BA1\u6838</h3><div id="attempts"></div><div id="workflow-action"></div></div></section></div></div>
 <dialog id="remove-dialog"><form method="dialog"><h2>\u79FB\u9664\u9879\u76EE\u6210\u5458</h2><p id="removal-name"></p><div class="row"><button value="cancel">\u53D6\u6D88</button><button value="remove" class="danger" id="remove-confirm">\u786E\u8BA4\u79FB\u9664</button></div></form></dialog></main>
 <script nonce="${nonce}">
 'use strict';
 const $=id=>document.getElementById(id), api='/knowledge/v1/project-tasks', mark={'content-type':'application/json','x-knowledgeos-request':'1'};
 const labels={NOT_FOUND:'\u5F53\u524D\u8D26\u53F7\u65E0\u6743\u8BBF\u95EE\uFF0C\u6216\u8BB0\u5F55\u5DF2\u5931\u6548\u3002',AUTH_REQUIRED:'\u8BF7\u767B\u5F55\u3002',ACTOR_MISMATCH:'\u8D26\u53F7\u5DF2\u53D8\u66F4\u3002',TASK_MEMBER_UNAVAILABLE:'\u8D1F\u8D23\u4EBA\u6216\u5BA1\u6838\u4EBA\u5DF2\u4E0D\u5728\u9879\u76EE\u4E2D\u3002',TASK_REVIEW_POLICY_REJECTED:'\u5BA1\u6838\u4EBA\u5FC5\u987B\u7B26\u5408\u5F53\u524D\u5BA1\u6838\u8DEF\u5F84\uFF0C\u5E76\u4E14\u4E0D\u540C\u4E8E\u8D1F\u8D23\u4EBA\u3002',TASK_REVISION_CONFLICT:'\u4EFB\u52A1\u6807\u51C6\u5DF2\u66F4\u65B0\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00\u67E5\u770B\u3002',INVALID_TASK_DUE:'\u8BF7\u9009\u62E9\u672A\u6765\u7684\u622A\u6B62\u65F6\u95F4\u3002',INVALID_TASK_INPUT:'\u68C0\u67E5\u5FC5\u586B\u9879\u3001\u6807\u51C6\u548C\u6743\u91CD\u3002',TASK_REQUEST_CONFLICT:'\u4E4B\u524D\u7684\u6D3E\u53D1\u8BF7\u6C42\u7ED3\u679C\u672A\u786E\u5B9A\uFF0C\u8BF7\u91CD\u65B0\u8BFB\u53D6\u4EFB\u52A1\u5217\u8868\u3002'};
 const kinds={personal:'\u4E2A\u4EBA\u4EFB\u52A1',project_admin:'\u7BA1\u7406\u5458\u7EC8\u5BA1',project_collaboration:'\u6307\u5B9A\u5BA1\u6838'};
-let actor,scope=null,project,projectRows=[],tasks=[],task,removeTarget,busy=false,epoch=0,controller=new AbortController(),pendingAssign;
+const states={assigned:'\u5DF2\u6D3E\u53D1',in_progress:'\u8FDB\u884C\u4E2D',submitted:'\u5F85\u5BA1\u6838',awaiting_admin_review:'\u5F85\u7BA1\u7406\u5458\u7EC8\u5BA1',returned:'\u5DF2\u9000\u56DE',accepted:'\u5DF2\u5B8C\u6210',failed:'\u672A\u901A\u8FC7',blocked_pending:'\u5F85\u786E\u8BA4\u53D7\u963B',blocked:'\u53D7\u963B',awaiting_material_access:'\u5F85\u6750\u6599\u6388\u6743'};
+const verdicts={pass:'\u901A\u8FC7\u9884\u5BA1',accept:'\u7EC8\u5BA1\u901A\u8FC7',return:'\u9000\u56DE',fail:'\u7EC8\u5BA1\u672A\u901A\u8FC7'};
+labels.TASK_REVISION_CONFLICT='\u4EFB\u52A1\u5DF2\u66F4\u65B0\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00\u67E5\u770B\u3002';labels.TASK_SUBMISSION_CONFLICT='\u63D0\u4EA4\u7248\u672C\u5DF2\u53D8\u66F4\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00\u4EFB\u52A1\u3002';
+labels.TASK_STATE_CONFLICT='\u5F53\u524D\u4EFB\u52A1\u72B6\u6001\u4E0D\u5141\u8BB8\u6B64\u64CD\u4F5C\u3002';labels.TASK_REQUEST_CONFLICT='\u539F\u64CD\u4F5C\u7ED3\u679C\u672A\u786E\u5B9A\uFF0C\u8BF7\u4FDD\u7559\u672C\u6B21\u5185\u5BB9\u91CD\u8BD5\u6216\u91CD\u65B0\u8BFB\u53D6\u3002';
+let actor,scope=null,project,projectRows=[],tasks=[],task,removeTarget,busy=false,epoch=0,controller=new AbortController(),pendingAssign,pendingWorkflow;
 const status=s=>$('status').textContent=s;
 const get=(k)=>$(k).value;
+function clearWorkflow(){$('workflow').hidden=true;$('attempts').replaceChildren();$('workflow-action').replaceChildren();}
 function protect(){epoch++;controller.abort();controller=new AbortController();busy=false;actor=project=task=removeTarget=pendingAssign=undefined;tasks=[];projectRows=[];$('workspace').hidden=$('task-detail').hidden=$('membership').hidden=$('revision-form').hidden=true;
- if($('remove-dialog').open)$('remove-dialog').close();for(const id of ['projects','members','tasks','history','task-title','task-facts','scope-title','removal-name','assignee','reviewer','peer'])$(id).replaceChildren();$('new-project').reset();$('task-form').reset();$('revision-criteria').replaceChildren();criterionRows('criteria',[]);}
+ pendingWorkflow=undefined;clearWorkflow();if($('remove-dialog').open)$('remove-dialog').close();for(const id of ['projects','members','tasks','history','task-title','task-facts','scope-title','removal-name','assignee','reviewer','peer'])$(id).replaceChildren();$('new-project').reset();$('task-form').reset();$('revision-criteria').replaceChildren();criterionRows('criteria',[]);}
 async function request(endpoint,method='GET',data,key){const check=epoch;const response=await fetch(endpoint,{method,cache:'no-store',redirect:'error',signal:controller.signal,
  headers:method==='GET'?{}:{...mark,...(key?{'idempotency-key':key}:{})},body:data===undefined?undefined:JSON.stringify(data)});
  const result=await response.json();if(check!==epoch)throw Error('STALE');if(response.status===401||result.code==='ACTOR_MISMATCH'||(actor&&result.data?.actor_id&&result.data.actor_id!==actor)){
@@ -12095,7 +12333,7 @@ function scopeView(){const p=project;const manage=Boolean(p?.can_manage);const p
  showProjects();showTasks();}
 async function choose(id){const next=id? (await request(api+'/projects/'+id+'/members')).project:undefined;
  const loaded=(await request(api+(id?'?project_id='+id:''))).tasks;
- if(scope!==id){$('task-form').reset();criterionRows('criteria',[]);pendingAssign=undefined;}scope=id;project=next;tasks=loaded;task=undefined;$('task-detail').hidden=true;scopeView();$('workspace').hidden=false;status('');}
+ if(scope!==id){$('task-form').reset();criterionRows('criteria',[]);pendingAssign=pendingWorkflow=undefined;}scope=id;project=next;tasks=loaded;task=undefined;clearWorkflow();$('task-detail').hidden=true;scopeView();$('workspace').hidden=false;status('');}
 async function refresh(){const data=await request(api+'/projects');actor=data.actor_id;projectRows=data.projects;$('login').hidden=true;
  const preferred=scope&&projectRows.some(p=>p.id===scope)?scope:null;await choose(preferred);}
 function addCriterion(list,value={description:'',weight:1}){if($(list).children.length>=20)return;const li=el('li');li.className='criteria';
@@ -12106,11 +12344,61 @@ function criterionRows(list,items){$(list).replaceChildren();for(const item of i
 const criteria=list=>({items:[...$(list).children].map(row=>{const [d,w]=row.querySelectorAll('input');return {description:d.value,weight:Number(w.value)};}),submission_rule:'next_submission'});
 const name=id=>project?.members.find(p=>p.id===id)?.display_name??(id===actor?'\u672C\u4EBA':'\u5F85\u6838\u9A8C');
 const date=at=>new Intl.DateTimeFormat('zh-CN',{dateStyle:'medium',timeStyle:'short'}).format(new Date(at));
-async function openTask(id){const response=await request(api+'/'+id);task=response.task;const t=task;
+async function openTask(id){const response=await request(api+'/'+id),t=response.task;
+ const timeline=t.task_kind==='personal'?null:await request(api+'/'+id+'/history');
+ if(timeline&&timeline.task_revision!==t.revision){clearWorkflow();$('task-detail').hidden=true;throw Error('TASK_REVISION_CONFLICT');}
+ task=t;
  $('task-title').textContent=t.title;$('task-facts').replaceChildren();
- for(const [key,value] of [['\u76EE\u6807',t.goal],['\u622A\u6B62\u65F6\u95F4',date(t.due_at)],['\u72B6\u6001',t.state==='assigned'?'\u5DF2\u6D3E\u53D1':t.state],['\u8D1F\u8D23\u4EBA / \u4E0B\u4E00\u5904\u7406\u4EBA',name(t.next_actor_id)],['\u5BA1\u6838\u8DEF\u5F84',kinds[t.task_kind]],['\u7EC8\u5BA1\u4EBA',name(t.final_reviewer_id)],['\u540C\u4F34\u9884\u5BA1',t.peer_reviewer_id?name(t.peer_reviewer_id):'\u65E0']])$('task-facts').append(el('dt',key),el('dd',value));
+ const shownState=t.state==='submitted'&&t.peer_reviewer_id?'\u5F85\u540C\u4F34\u9884\u5BA1':t.state==='submitted'&&t.task_kind==='project_admin'?'\u5F85\u7BA1\u7406\u5458\u7EC8\u5BA1':states[t.state]??t.state;
+ for(const [key,value] of [['\u76EE\u6807',t.goal],['\u622A\u6B62\u65F6\u95F4',date(t.due_at)],['\u72B6\u6001',shownState],['\u8D1F\u8D23\u4EBA',name(t.assignee_id)],['\u4E0B\u4E00\u5904\u7406\u4EBA',t.next_actor_id?name(t.next_actor_id):'\u65E0'],['\u5BA1\u6838\u8DEF\u5F84',kinds[t.task_kind]],['\u7EC8\u5BA1\u4EBA',name(t.final_reviewer_id)],['\u540C\u4F34\u9884\u5BA1',t.peer_reviewer_id?name(t.peer_reviewer_id):'\u65E0']])$('task-facts').append(el('dt',key),el('dd',value));
  $('history').replaceChildren();for(const version of t.criteria_history){const row=el('div');row.className='history';row.append(el('strong','\u7B2C '+version.version+' \u7248'+(t.criteria_revision===version.version?' \xB7 \u9002\u7528\u4E0B\u6B21\u63D0\u4EA4':' \xB7 \u5386\u53F2\u7248\u672C')));const ul=el('ol');for(const item of version.items)ul.append(el('li',item.description+' \xB7 \u6743\u91CD '+item.weight));row.append(ul);$('history').append(row);}
- $('revise').hidden=t.issuer_id!==actor;$('revision-form').hidden=true;$('task-detail').hidden=false;showTasks();}
+ $('revise').hidden=t.issuer_id!==actor||!['assigned','returned'].includes(t.state);$('revision-form').hidden=true;renderWorkflow(t,timeline);$('task-detail').hidden=false;showTasks();}
+function control(label,kind,max){const wrap=el('label',label),input=el(kind);input.required=true;input.maxLength=max;wrap.append(input);return [wrap,input];}
+async function workflowWrite(t,suffix,draft,done){
+ const path=api+'/'+t.id+'/'+suffix,digest=JSON.stringify([path,draft]);
+ if(pendingWorkflow?.id===t.id&&pendingWorkflow.digest!==digest)throw Error('TASK_REQUEST_CONFLICT');
+ if(!pendingWorkflow||pendingWorkflow.id!==t.id)pendingWorkflow={id:t.id,digest,key:crypto.randomUUID()};
+ try{await request(path,'POST',draft,pendingWorkflow.key);}catch(e){if(labels[e.message]&&e.message!=='TASK_REQUEST_CONFLICT')pendingWorkflow=undefined;throw e;}
+ pendingWorkflow=undefined;await openTask(t.id);status(done);
+}
+function renderWorkflow(t,timeline){clearWorkflow();if(!timeline)return;
+ $('workflow').hidden=false;const attempts=$('attempts'),actions=$('workflow-action'),current=timeline.submissions.at(-1);
+ if(!current)attempts.append(el('p','\u6682\u65E0\u63D0\u4EA4'));
+ for(const attempt of [...timeline.submissions].reverse()){
+  const row=el('article');row.className='history';row.append(el('h3','\u63D0\u4EA4\u7B2C '+attempt.version+' \u7248 \xB7 \u6807\u51C6\u7B2C '+attempt.criteria_version+' \u7248'),el('p',date(attempt.submitted_at)+' \xB7 '+(attempt.timing==='on_time'?'\u6309\u671F\u63D0\u4EA4':'\u903E\u671F\u63D0\u4EA4')));
+  const content=el('p',attempt.content);content.className='attempt-body';row.append(content);
+  for(const decision of timeline.reviews.filter(r=>r.submission_id===attempt.id)){
+   const block=el('div');block.className='review-item';block.append(el('strong',(decision.stage==='peer'?'\u540C\u4F34\u9884\u5BA1':'\u7BA1\u7406\u5458\u7EC8\u5BA1')+' \xB7 '+verdicts[decision.verdict]),el('p',name(decision.reviewer_id)+' \xB7 '+date(decision.decided_at)),el('p',decision.reason));
+   if(decision.requested_work)block.append(el('p','\u9700\u8865\u5145\uFF1A'+decision.requested_work));
+   const items=el('ol'),standard=t.criteria_history.find(v=>v.version===attempt.criteria_version);
+   for(const r of decision.criteria_results){const item=el('li',(standard?.items[r.criterion-1]?.description??'\u6807\u51C6 '+r.criterion)+' \xB7 '+(r.met?'\u8FBE\u6807':'\u672A\u8FBE\u6807')+'\uFF1A'+r.evidence);item.className='review-evidence';items.append(item);}
+   block.append(items);row.append(block);
+  }
+  attempts.append(row);
+ }
+ const form=el('form'),send=el('button');send.className='primary';send.type='submit';
+ if(t.assignee_id===actor&&['assigned','in_progress','returned'].includes(t.state)){
+  const [wrap,input]=control('\u63D0\u4EA4\u5185\u5BB9','textarea',16000);input.id='submission-content';send.textContent=t.state==='returned'?'\u91CD\u65B0\u63D0\u4EA4':'\u63D0\u4EA4\u6210\u679C';form.append(wrap,send);
+  form.onsubmit=e=>{e.preventDefault();void operation(()=>workflowWrite(t,'submissions',{actor_id:actor,expected_revision:t.revision,content:input.value},'\u6210\u679C\u5DF2\u63D0\u4EA4\u3002'));};actions.append(form);return;
+ }
+ const peer=t.task_kind==='project_admin'&&t.state==='submitted'&&t.peer_reviewer_id===actor;
+ const admin=t.task_kind==='project_admin'&&t.final_reviewer_id===actor&&project?.members.some(m=>m.id===actor&&m.role==='admin')&&
+  (t.state==='awaiting_admin_review'||t.state==='submitted'&&!t.peer_reviewer_id);
+ if(!current||!peer&&!admin)return;
+ const standard=t.criteria_history.find(v=>v.version===current.criteria_version);if(!standard)return;
+ const options=el('select');options.id='review-verdict';const selectLabel=el('label',peer?'\u9884\u5BA1\u7ED3\u8BBA':'\u7EC8\u5BA1\u7ED3\u8BBA');selectLabel.append(options);
+ for(const [id,name] of peer?[['peer_pass','\u901A\u8FC7\u9884\u5BA1'],['peer_return','\u9000\u56DE']]:[['final_accept','\u901A\u8FC7\u7EC8\u5BA1'],['final_return','\u9000\u56DE'],['final_fail','\u7EC8\u5BA1\u672A\u901A\u8FC7']])options.append(option(id,name));
+ form.append(selectLabel);
+ const inputs=standard.items.map((item,index)=>{
+  const label=el('label',item.description+' \xB7 \u6743\u91CD '+item.weight),check=el('input');check.type='checkbox';label.className='checkline';label.prepend(check);
+  const [wrap,proof]=control('\u6807\u51C6 '+(index+1)+' \u4F9D\u636E','textarea',1000);const row=el('div');row.className='review-item';row.append(label,wrap);form.append(row);return [check,proof];
+ });
+ const [why,reason]=control('\u5BA1\u6838\u7406\u7531','textarea',4000),[more,work]=control('\u9700\u8865\u5145\u5185\u5BB9','textarea',4000);
+ const selection=()=>{const returned=options.value.endsWith('_return');more.hidden=!returned;work.required=returned;};options.onchange=selection;selection();
+ send.textContent=peer?'\u4FDD\u5B58\u9884\u5BA1':'\u4FDD\u5B58\u7EC8\u5BA1';form.append(why,more,send);
+ form.onsubmit=e=>{e.preventDefault();void operation(()=>workflowWrite(t,'reviews',{actor_id:actor,expected_revision:t.revision,submission_id:current.id,action:options.value,
+  results:inputs.map(([check,proof],i)=>({criterion:i+1,met:check.checked,evidence:proof.value})),reason:reason.value,...(work.required?{requested_work:work.value}:{})},peer?'\u9884\u5BA1\u5DF2\u4FDD\u5B58\u3002':'\u7EC8\u5BA1\u5DF2\u4FDD\u5B58\u3002'));};actions.append(form);
+}
 $('new-project').addEventListener('submit',e=>{e.preventDefault();void operation(async()=>{
  const data=await request('/knowledge/v1/projects','POST',{name:get('name').trim()});$('new-project').reset();scope=data.id;await refresh();status('\u9879\u76EE\u5DF2\u521B\u5EFA\u3002');});});
 $('task-form').addEventListener('submit',e=>{e.preventDefault();void operation(async()=>{

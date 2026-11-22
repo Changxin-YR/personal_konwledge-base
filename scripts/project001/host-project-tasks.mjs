@@ -8,6 +8,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url'
 import {api,dbPath,entryCookie} from '../fnd004/harness.mjs'
 import {candidateFacts} from '../integrated-case-proof.mjs'
 import {isolate} from '../lib002/a07-isolated-host.mjs'
+import {SCHEMA_VERSION} from '../../packages/knowledgeos-panel/lib/storage.js'
 
 const [candidate,entry]=process.argv.slice(2),root=fileURLToPath(new URL('../../',import.meta.url))
 const self='scripts/project001/host-project-tasks.mjs',git=(...a)=>execFileSync('git',['--no-optional-locks',...a],{cwd:root})
@@ -69,7 +70,7 @@ try{
   const start=await boot(),cookie=await entryCookie(start.entry)
   assert.equal((await api(host.port,cookie.cookie,'POST',prefix+'/auth/bootstrap',{login_name:'owner',display_name:'Project Owner',password})).status,201)
   for(const [login_name,display_name] of [['worker','Assigned Member'],['peer','Peer Reviewer'],['outsider','Nonmember']])assert.equal((await api(host.port,'','POST',prefix+'/auth/register',{login_name,display_name,password})).status,201)
-  assert.equal(rows('PRAGMA user_version')[0].user_version,29)
+  assert.equal(rows('PRAGMA user_version')[0].user_version,SCHEMA_VERSION)
   const {chromium}=await import(pathToFileURL(host.playwright).href);browser=await chromium.launch({channel:'chrome',headless:true,args:['--disable-background-networking','--disable-component-update','--disable-sync','--no-proxy-server']});facts.chrome=browser.version()
   let owner=await login('owner'),worker=await login('worker'),peer=await login('peer')
   const outsider=await login('outsider')

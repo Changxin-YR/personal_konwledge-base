@@ -4,6 +4,7 @@ import { UUID_PATTERN } from './http.ts'
 import type { SessionActor } from './identity.ts'
 import type { TaskCriteria, TaskDraft } from './project-task-policy.ts'
 import type { ProjectTaskStore } from './project-task-store.ts'
+import { isTaskReviewAction, type TaskReview } from './project-task-workflow.ts'
 
 export const taskApi = '/knowledge/v1/project-tasks'
 const invalid = () => new AssetError(422,'INVALID_TASK_INPUT')
@@ -31,6 +32,16 @@ const criteria = (value:unknown):TaskCriteria => {
     const row=object(value,['description','weight']);if(typeof row.weight!=='number')throw invalid()
     return {description:text(row.description),weight:row.weight}
   })}
+}
+const taskReview=(value:Record<string,unknown>):TaskReview=>{
+  if(!Array.isArray(value.results)||value.results.length>20)throw invalid()
+  const results=value.results.map(result=>{
+    const row=object(result,['criterion','met','evidence'])
+    if(typeof row.criterion!=='number'||typeof row.met!=='boolean')throw invalid()
+    return {criterion:row.criterion,met:row.met,evidence:text(row.evidence)}
+  })
+  const reason=text(value.reason)
+  return 'requested_work' in value?{results,reason,requested_work:text(value.requested_work)}:{results,reason}
 }
 
 export function createProjectTaskHandler(store:ProjectTaskStore,origin:()=>string|undefined,actorFor:(req:IncomingMessage)=>SessionActor|undefined) {
@@ -71,6 +82,23 @@ export function createProjectTaskHandler(store:ProjectTaskStore,origin:()=>strin
         if('peer_reviewer_id' in input)draft.peer_reviewer_id=id(input.peer_reviewer_id)
         const result=store.assign(a,id(input.actor_id),input.project_id===null?null:id(input.project_id),id(req.headers['idempotency-key']),draft)
         return sendData(result.replayed?200:201,result)
+      }
+      const workflow=/^\/knowledge\/v1\/project-tasks\/([^/]+)\/(submissions|reviews|history)$/.exec(path)
+      if(workflow){
+        const taskId=id(workflow[1]),action=workflow[2]
+        if(action==='history'&&method==='GET')return sendData(200,store.history(a,taskId))
+        if(action==='submissions'&&method==='POST'){
+          const input=await body(req,['actor_id','expected_revision','content'])
+          if(typeof input.expected_revision!=='number')throw invalid()
+          const result=store.submit(a,id(input.actor_id),taskId,id(req.headers['idempotency-key']),input.expected_revision,text(input.content))
+          return sendData(result.replayed?200:201,result)
+        }
+        if(action==='reviews'&&method==='POST'){
+          const input=await body(req,['actor_id','expected_revision','submission_id','action','results','reason','requested_work'])
+          if(typeof input.expected_revision!=='number'||!isTaskReviewAction(input.action))throw invalid()
+          const result=store.review(a,id(input.actor_id),taskId,id(req.headers['idempotency-key']),input.expected_revision,id(input.submission_id),input.action,taskReview(input))
+          return sendData(result.replayed?200:201,result)
+        }
       }
       const task=/^\/knowledge\/v1\/project-tasks\/([^/]+)$/.exec(path)
       if(task&&method==='GET')return sendData(200,{task:store.get(a,id(task[1]))})

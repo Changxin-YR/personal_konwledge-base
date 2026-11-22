@@ -8,7 +8,7 @@ import { DatabaseSync } from 'node:sqlite'
 import test from 'node:test'
 import { pathToFileURL } from 'node:url'
 import { IdentityService, ProbeStorage } from '../../packages/knowledgeos-panel/lib/test-support.js'
-import { MIGRATION_V29_CHECKSUM } from '../../packages/knowledgeos-panel/lib/storage.js'
+import { MIGRATION_V29_CHECKSUM, SCHEMA_VERSION } from '../../packages/knowledgeos-panel/lib/storage.js'
 import { seed } from '../fnd006/independent/common.mjs'
 
 test('v29 rollback is atomic and retains v28 repository snapshots after successful append',async()=>{
@@ -27,8 +27,8 @@ test('v29 rollback is atomic and retains v28 repository snapshots after successf
     assert.equal(version(),28)
     s=new ProbeStorage({dataDir:dir,failureAt:'v29:after-schema'});assert(!s.available);assert.match(s.failure.cause.message,/v29:after-schema/);s.close()
     assert.equal(version(),28);assert.deepEqual(rows('schema_migrations'),ledger);assert.deepEqual(rows('sqlite_schema'),definitions)
-    s=new ProbeStorage({dataDir:dir});assert(s.available,s.failure?.message);assert.equal(version(),29)
-    const appended=rows('schema_migrations');assert.equal(appended.pop().checksum,MIGRATION_V29_CHECKSUM);assert.deepEqual(appended,ledger)
+    s=new ProbeStorage({dataDir:dir});assert(s.available,s.failure?.message);assert.equal(version(),SCHEMA_VERSION)
+    const appended=rows('schema_migrations');assert.equal(appended[28].checksum,MIGRATION_V29_CHECKSUM);assert.deepEqual(appended.slice(0,28),ledger)
     assert.deepEqual(rows('repository_snapshots'),imports);assert.deepEqual(s.repositories.list(actor),[snapshot])
     assert.equal(rows('tasks').length,0);assert.deepEqual(read.prepare('PRAGMA foreign_key_check').all(),[])
   } finally {s?.close();read.close()}

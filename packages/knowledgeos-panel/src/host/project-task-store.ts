@@ -5,6 +5,7 @@ import { isGrantActive, type ProjectMembership } from './authorization.ts'
 import type { SessionActor } from './identity.ts'
 import type { ParseTx } from './parse-store.ts'
 import { decideAssignment, validTaskCriteria, validTaskDraft, type TaskCriteria, type TaskDraft, type TaskKind, type TaskMember } from './project-task-policy.ts'
+import { decideTaskWorkflow, isTaskReviewAction, submissionTiming, validTaskReview, validTaskSubmission, type ReviewAction, type TaskReview } from './project-task-workflow.ts'
 
 export const PROJECT_TASK_SCHEMA = `
 CREATE TABLE project_membership_removals (
@@ -43,17 +44,55 @@ interface TaskRow {
   task_kind:TaskKind; title:string; goal:string; due_at:string; final_reviewer_id:string; peer_reviewer_id:string|null;
   criteria_revision:number; current_state:string; revision:number; issued_at:string; updated_at:string; request_digest:string
 }
+interface SubmissionRow {
+  id:string; task_id:string; version:number; criteria_version:number; author_id:string; content:string;
+  submitted_at:string; previous_version:number|null; request_digest:string
+}
+interface ReviewRow {
+  id:string; submission_id:string; reviewer_id:string; stage:string; verdict:string; criteria_results:string;
+  reason:string; requested_work:string|null; decided_at:string; request_digest:string
+}
 const hidden = () => new AssetError(404,'NOT_FOUND')
 const invalid = () => new AssetError(422,'INVALID_TASK_INPUT')
+const submissionView = (t:TaskRow,r:SubmissionRow) => ({id:r.id,version:r.version,criteria_version:r.criteria_version,
+  author_id:r.author_id,content:r.content,submitted_at:r.submitted_at,previous_version:r.previous_version,timing:submissionTiming(r.submitted_at,t.due_at)})
+const reviewView = (r:ReviewRow) => ({id:r.id,submission_id:r.submission_id,reviewer_id:r.reviewer_id,stage:r.stage,verdict:r.verdict,
+  criteria_results:JSON.parse(r.criteria_results),reason:r.reason,requested_work:r.requested_work,decided_at:r.decided_at})
+const requestDigest = (value:unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex')
+const workflow = (t:TaskRow) => ({kind:t.task_kind,assignee:t.assignee_id,peerReviewer:t.peer_reviewer_id,
+  finalReviewer:t.final_reviewer_id,state:t.current_state})
+const nextActor = (t:TaskRow) => {
+  switch(t.current_state){
+    case 'assigned':case 'in_progress':case 'returned': return t.assignee_id
+    case 'submitted': return t.peer_reviewer_id??t.final_reviewer_id
+    case 'awaiting_admin_review': return t.final_reviewer_id
+    default: return null
+  }
+}
 const taskSummary = (t:TaskRow) => ({
   id:t.id, project_id:t.project_id, task_kind:t.task_kind, title:t.title, goal:t.goal, due_at:t.due_at,
   issuer_id:t.issuer_id, assignee_id:t.assignee_id, final_reviewer_id:t.final_reviewer_id, peer_reviewer_id:t.peer_reviewer_id,
-  criteria_revision:t.criteria_revision, state:t.current_state, next_actor_id:t.assignee_id, revision:t.revision, issued_at:t.issued_at, updated_at:t.updated_at,
+  criteria_revision:t.criteria_revision, state:t.current_state, next_actor_id:nextActor(t), revision:t.revision, issued_at:t.issued_at, updated_at:t.updated_at,
 })
 const taskView = (db:DatabaseSync,t:TaskRow) => ({...taskSummary(t),criteria_history:db.prepare(
   'SELECT version,acceptance_items,effective_submission_rule,created_by,created_at FROM task_criteria_versions WHERE task_id=? ORDER BY version'
 ).all(t.id).map(({acceptance_items,...r})=>({...r,items:JSON.parse(String(acceptance_items))}))})
 const clean = (c:TaskCriteria) => c.items.map(item=>({description:item.description.trim(),weight:item.weight}))
+const requireRevision = (task:TaskRow,expected:number) => {
+  if(task.revision!==expected)throw new AssetError(409,'TASK_REVISION_CONFLICT')
+}
+const validRevision = (revision:number) => Number.isSafeInteger(revision)&&revision>0
+const latestSubmission = (db:DatabaseSync,id:string) => db.prepare('SELECT * FROM task_submissions WHERE task_id=? ORDER BY version DESC LIMIT 1')
+  .get(id) as unknown as SubmissionRow|undefined
+const advance = (db:DatabaseSync,task:TaskRow,state:string,now:string) => {
+  const result=db.prepare('UPDATE tasks SET current_state=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?').run(state,now,task.id,task.revision)
+  if(Number(result.changes)!==1)throw new AssetError(409,'TASK_REVISION_CONFLICT')
+}
+const transition = (task:TaskRow,a:SessionActor,action:'submit'|ReviewAction) => {
+  const next=decideTaskWorkflow(workflow(task),{id:a.userId,role:a.role},action)
+  if('error' in next)throw new AssetError(next.error==='NOT_FOUND'?404:next.error==='INVALID_TASK_INPUT'?422:409,next.error)
+  return next.state
+}
 
 export class ProjectTaskStore {
   constructor(private readonly tx:ParseTx,private readonly current:(s:SessionActor,now:string)=>SessionActor|undefined,
@@ -181,7 +220,7 @@ export class ProjectTaskStore {
       const a=this.actor(s,now,expected), task=this.lookup(db,a,id,now)
       if(task.issuer_id!==a.userId)throw hidden()
       if(task.revision!==revision)throw new AssetError(409,'TASK_REVISION_CONFLICT')
-      if(task.current_state!=='assigned')throw new AssetError(409,'TASK_STATE_CONFLICT')
+      if(!['assigned','returned'].includes(task.current_state))throw new AssetError(409,'TASK_STATE_CONFLICT')
       const prior=db.prepare('SELECT acceptance_items FROM task_criteria_versions WHERE task_id=? AND version=?').get(id,task.criteria_revision)
       if(prior?.acceptance_items===items)return taskView(db,task)
       if(task.criteria_revision>=50)throw new AssetError(409,'TASK_CRITERIA_LIMIT')
@@ -190,6 +229,72 @@ export class ProjectTaskStore {
       const changed=db.prepare('UPDATE tasks SET criteria_revision=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?').run(next,now,id,revision)
       if(Number(changed.changes)!==1)throw new AssetError(409,'TASK_REVISION_CONFLICT')
       return taskView(db,this.lookup(db,a,id,now))
+    })
+  }
+
+  history(s:SessionActor,id:string) {
+    return this.tx('read',(db,now)=>{
+      const task=this.lookup(db,this.actor(s,now),id,now)
+      const submissions=db.prepare('SELECT * FROM task_submissions WHERE task_id=? ORDER BY version').all(id) as unknown as SubmissionRow[]
+      const reviews=db.prepare(`SELECT d.* FROM task_review_decisions d JOIN task_submissions s ON s.id=d.submission_id
+        WHERE s.task_id=? ORDER BY s.version,CASE d.stage WHEN 'peer' THEN 0 ELSE 1 END`).all(id) as unknown as ReviewRow[]
+      return {task_revision:task.revision,submissions:submissions.map(r=>submissionView(task,r)),reviews:reviews.map(reviewView)}
+    })
+  }
+
+  submit(s:SessionActor,expected:string,id:string,key:string,revision:number,content:unknown) {
+    if(!validRevision(revision)||!validTaskSubmission(content))throw invalid()
+    const normalized=content.trim(), digest=requestDigest([revision,normalized])
+    return this.tx('write',(db,now)=>{
+      const a=this.actor(s,now,expected),task=this.lookup(db,a,id,now)
+      if(task.assignee_id!==a.userId)throw hidden()
+      const old=db.prepare('SELECT * FROM task_submissions WHERE task_id=? AND author_id=? AND request_key=?')
+        .get(id,a.userId,key) as unknown as SubmissionRow|undefined
+      if(old){
+        if(old.request_digest!==digest)throw new AssetError(409,'TASK_REQUEST_CONFLICT')
+        return {task:taskView(db,task),submission:submissionView(task,old),replayed:true}
+      }
+      requireRevision(task,revision)
+      const state=transition(task,a,'submit'), previous=latestSubmission(db,id)
+      const version=(previous?.version??0)+1
+      if(version>50)throw new AssetError(409,'TASK_SUBMISSION_LIMIT')
+      const submissionId=randomUUID()
+      db.prepare(`INSERT INTO task_submissions(id,task_id,version,criteria_version,author_id,content,submitted_at,previous_version,request_key,request_digest)
+        VALUES(?,?,?,?,?,?,?,?,?,?)`).run(submissionId,id,version,task.criteria_revision,a.userId,normalized,now,previous?.version??null,key,digest)
+      advance(db,task,state,now)
+      const saved=latestSubmission(db,id)!
+      return {task:taskView(db,this.lookup(db,a,id,now)),submission:submissionView(task,saved),replayed:false}
+    })
+  }
+
+  review(s:SessionActor,expected:string,id:string,key:string,revision:number,submissionId:string,action:ReviewAction,input:TaskReview) {
+    if(!validRevision(revision)||!isTaskReviewAction(action))throw invalid()
+    const stage=action.startsWith('peer_')?'peer':'final', verdict=action.slice(stage.length+1)
+    return this.tx('write',(db,now)=>{
+      const a=this.actor(s,now,expected),task=this.lookup(db,a,id,now)
+      if(stage==='peer'?a.userId!==task.peer_reviewer_id:a.userId!==task.final_reviewer_id||a.role!=='admin')throw hidden()
+      if(task.task_kind!=='project_admin')throw new AssetError(409,'TASK_WORKFLOW_UNAVAILABLE')
+      const submission=db.prepare('SELECT * FROM task_submissions WHERE task_id=? AND id=?').get(id,submissionId) as unknown as SubmissionRow|undefined
+      if(!submission)throw hidden()
+      const {acceptance_items}=db.prepare('SELECT acceptance_items FROM task_criteria_versions WHERE task_id=? AND version=?').get(id,submission.criteria_version)!
+      if(!validTaskReview(action,JSON.parse(String(acceptance_items)).length,input))throw invalid()
+      const results=input.results.map(r=>({criterion:r.criterion,met:r.met,evidence:r.evidence.trim()})).sort((l,r)=>l.criterion-r.criterion)
+      const reason=input.reason.trim(),requested=input.requested_work?.trim()??null
+      const digest=requestDigest([revision,action,results,reason,requested])
+      const old=db.prepare('SELECT * FROM task_review_decisions WHERE submission_id=? AND reviewer_id=? AND request_key=?')
+        .get(submissionId,a.userId,key) as unknown as ReviewRow|undefined
+      if(old){
+        if(old.request_digest!==digest)throw new AssetError(409,'TASK_REQUEST_CONFLICT')
+        return {task:taskView(db,task),review:reviewView(old),replayed:true}
+      }
+      requireRevision(task,revision)
+      if(latestSubmission(db,id)?.id!==submissionId)throw new AssetError(409,'TASK_SUBMISSION_CONFLICT')
+      const state=transition(task,a,action), reviewId=randomUUID()
+      db.prepare(`INSERT INTO task_review_decisions(id,submission_id,reviewer_id,stage,verdict,criteria_results,reason,requested_work,decided_at,request_key,request_digest)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?)`).run(reviewId,submissionId,a.userId,stage,verdict,JSON.stringify(results),reason,requested,now,key,digest)
+      advance(db,task,state,now)
+      const saved=db.prepare('SELECT * FROM task_review_decisions WHERE id=?').get(reviewId) as unknown as ReviewRow
+      return {task:taskView(db,this.lookup(db,a,id,now)),review:reviewView(saved),replayed:false}
     })
   }
 }
