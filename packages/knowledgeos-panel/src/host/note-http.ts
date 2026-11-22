@@ -2,6 +2,7 @@ import type {IncomingMessage,ServerResponse} from 'node:http'
 import {AssetError} from './asset-store.ts'
 import type {SessionActor} from './identity.ts'
 import {noteId,noteKinds,noteText,noteLimits,type NoteDraft,type NotePatch} from './note-input.ts'
+import type {OutlineAction} from './note-outline.ts'
 import type {NoteStore} from './note-store.ts'
 
 const prefix='/knowledge/v1/notes', limit=200_000
@@ -29,6 +30,32 @@ function fields(input:Record<string,unknown>,all:boolean){
   return patch
 }
 
+function outlineAction(input:Record<string,unknown>):OutlineAction{
+  const common=['actor_id','expected_revision','action']
+  switch(input.action){
+    case 'add':
+    case 'edit':{
+      const action=input.action,target=action==='add'?'parent_id':'node_id'
+      keys(input,[...common,target,'body'])
+      if(!noteText(input.body,noteLimits.body))throw invalid()
+      const body=input.body as string
+      return action==='add'?{action,parent_id:id(input[target]),body}:{action,node_id:id(input[target]),body}
+    }
+    case 'move':
+      keys(input,[...common,'node_id','parent_id','index'])
+      if(typeof input.index!=='number')throw invalid()
+      return {action:'move',node_id:id(input.node_id),parent_id:id(input.parent_id),index:input.index}
+    case 'delete':
+      keys(input,[...common,'node_id','mode','preview_token'])
+      if(input.mode!=='subtree'&&input.mode!=='promote')throw invalid()
+      if(typeof input.preview_token!=='string'||!/^[a-f0-9]{64}$/.test(input.preview_token))throw invalid()
+      return {action:'delete',node_id:id(input.node_id),mode:input.mode,preview_token:input.preview_token}
+    case 'undo':
+      keys(input,common);return {action:'undo'}
+    default:throw invalid()
+  }
+}
+
 export function createNoteHandler(store:NoteStore,origin:()=>string|undefined,actorFor:(req:IncomingMessage)=>SessionActor|undefined){
   return async (req:IncomingMessage,res:ServerResponse)=>{
     const send=(status:number,data:unknown)=>{
@@ -52,6 +79,14 @@ export function createNoteHandler(store:NoteStore,origin:()=>string|undefined,ac
       if(method==='GET'&&path===prefix+'/projects')return send(200,{data:{...info,...store.managedProjects(actor,cursor())}})
       if(method==='GET'&&project)return send(200,{data:{...info,...store.projectRefs(actor,id(project[1]),cursor())}})
       if(url.search)throw invalid()
+      const outline=/^\/knowledge\/v1\/notes\/([^/]+)\/(nodes|delete-preview)$/.exec(path)
+      if(outline&&((method==='PATCH'&&outline[2]==='nodes')||(method==='POST'&&outline[2]==='delete-preview'))){
+        const input=await jsonBody(req),expected=id(input.actor_id),note=id(outline[1]),revision=input.expected_revision
+        if(typeof revision!=='number')throw invalid()
+        if(method==='PATCH')return send(200,{data:{...info,...store.changeOutline(actor,expected,note,revision,outlineAction(input))}})
+        keys(input,['actor_id','expected_revision','node_id'])
+        return send(200,{data:{...info,...store.previewDelete(actor,expected,note,revision,id(input.node_id))}})
+      }
       if(method==='GET'&&row)return send(200,{data:{...info,...store.get(actor,id(row[1]))}})
       if(method==='POST'&&path===prefix){
         const input=await jsonBody(req);keys(input,['actor_id','title','body','kind','add_citation'])

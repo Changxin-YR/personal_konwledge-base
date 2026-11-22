@@ -186,8 +186,8 @@ try{
   assert.equal(rows('SELECT count(*) n FROM notes WHERE id=?',[id])[0].n,1)
   for(const n of kinds)assert.equal(rows('SELECT count(*) n FROM knowledge_objects WHERE id=?',[n.id])[0].n,0)
   assert.equal(rows('SELECT count(*) n FROM project_note_refs WHERE note_id=?',[id])[0].n,1)
-  assert.equal(rows('PRAGMA user_version')[0].user_version,23)
+  assert.equal(rows('PRAGMA user_version')[0].user_version,26)
   assert.deepEqual(rows('PRAGMA foreign_key_check'),[])
-  pass('ORIGINAL_UNCHANGED_AFTER_RESTART_AND_UNLINK',{sha256:sha(bytes),schema:23,project_reference_retained:true,notes_in_library:0});facts.status='PASS'
+  pass('ORIGINAL_UNCHANGED_AFTER_RESTART_AND_UNLINK',{sha256:sha(bytes),schema:26,project_reference_retained:true,notes_in_library:0});facts.status='PASS'
 }catch(e){facts.status='FAIL';facts.failure={phase,type:e.name,line:String(e.stack).match(/host-notes\.mjs:\d+/)?.[0]}}
 finally{try{await browser?.close()}finally{await host?.stop()};facts.exit=facts.status==='PASS'?0:1;writeFileSync(join(out,'summary.json'),JSON.stringify(facts,null,2)+'\n');console.log(facts.status,out,facts.failure?.phase??'');process.exitCode=facts.exit}

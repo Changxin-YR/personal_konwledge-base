@@ -3,6 +3,7 @@ import type {DatabaseSync} from 'node:sqlite'
 import {AssetError} from './asset-store.ts'
 import type {SessionActor} from './identity.ts'
 import {noteId,noteKinds,noteLimits,noteText,type NoteDraft,type NoteKind,type NotePatch} from './note-input.ts'
+import {Outline,outlineLimit,type OutlineAction,type OutlineNode,type Placement} from './note-outline.ts'
 import type {ParseTx} from './parse-store.ts'
 
 export const NOTE_SCHEMA=`CREATE TABLE notes (
@@ -27,6 +28,13 @@ CREATE TABLE note_references (
 CREATE TABLE project_note_refs (
   project_id TEXT NOT NULL REFERENCES knowledge_projects(id), note_id TEXT NOT NULL REFERENCES notes(id),
   created_at TEXT NOT NULL, PRIMARY KEY(project_id,note_id)
+) STRICT;`
+
+export const NOTE_OUTLINE_SCHEMA=`ALTER TABLE note_nodes ADD COLUMN archived_at TEXT CHECK(archived_at IS NULL OR parent_id IS NOT NULL);
+CREATE INDEX note_outline_live ON note_nodes(note_id,parent_id,order_key) WHERE archived_at IS NULL;
+CREATE TABLE note_outline_undo (
+  note_id TEXT PRIMARY KEY REFERENCES notes(id), revision INTEGER NOT NULL CHECK(revision>=2),
+  placements TEXT NOT NULL CHECK(json_valid(placements))
 ) STRICT;`
 
 type NoteMeta={id:string;title:string;kind:NoteKind;revision:number;updated_at:string}
@@ -61,10 +69,80 @@ export class NoteStore {
     if(!root)throw Error('Note root is missing')
     const refs=db.prepare(`SELECT r.id,r.citation_id,c.asset_id,c.version_id FROM note_references r JOIN citations c ON c.id=r.citation_id
       WHERE r.node_id=? ORDER BY r.rowid`).all(root.id!)
-    return {...meta,body:String(root.body),references:refs.map(r=>this.canReadAsset(a,String(r.asset_id),now)
+    return {...meta,body:String(root.body),outline:{nodes:this.nodes(db,id),can_undo:!!this.undoRow(db,id,meta.revision)},references:refs.map(r=>this.canReadAsset(a,String(r.asset_id),now)
       ?{id:String(r.id),status:'linked' as const,citation_id:String(r.citation_id),asset_id:String(r.asset_id),version_id:String(r.version_id)}
       :{id:String(r.id),status:'unavailable' as const})}
   }
+  private nodes(db:DatabaseSync,id:string){
+    return db.prepare(`SELECT id,parent_id,order_key,body,body_revision FROM note_nodes
+      WHERE note_id=? AND archived_at IS NULL ORDER BY parent_id,order_key,id`).all(id) as OutlineNode[]
+  }
+  private undoRow(db:DatabaseSync,id:string,revision:number){
+    return db.prepare('SELECT placements FROM note_outline_undo WHERE note_id=? AND revision=?').get(id,revision)
+  }
+  private assertRevision(expected:number,current:number){
+    if(!Number.isSafeInteger(expected)||expected<1)throw invalid()
+    if(expected!==current)throw conflict()
+  }
+  private deleteImpact(outline:Outline,id:string,revision:number,node:string){
+    if(!outline.byId.get(node)?.parent_id)throw new AssetError(422,'INVALID_OUTLINE_TARGET')
+    const child_ids=outline.children(node).map(n=>n.id),descendant_ids=outline.descendants(node).map(n=>n.id)
+    const preview_token=createHash('sha256').update(JSON.stringify([id,revision,node,child_ids,descendant_ids])).digest('hex')
+    return {preview_token,child_ids,descendant_ids}
+  }
+  previewDelete(session:SessionActor,expected:string,id:string,revision:number,node:string){return this.tx('read',(db,now)=>{
+    const a=this.actor(session,now,expected),meta=this.owned(db,a,id)
+    this.assertRevision(revision,meta.revision)
+    return this.deleteImpact(new Outline(this.nodes(db,id)),id,revision,node)
+  })}
+  changeOutline(session:SessionActor,expected:string,id:string,revision:number,op:OutlineAction){return this.tx('write',(db,now)=>{
+    const a=this.actor(session,now,expected),meta=this.owned(db,a,id)
+    this.assertRevision(revision,meta.revision)
+    const outline=new Outline(this.nodes(db,id)),badTarget=()=>new AssetError(422,'INVALID_OUTLINE_TARGET')
+    let placements:Placement[]|undefined
+    if(op.action==='add'){
+      if(!outline.byId.has(op.parent_id))throw badTarget()
+      if(!noteText(op.body,noteLimits.body))throw invalid()
+      if(outline.byId.size>=outlineLimit)throw new AssetError(409,'OUTLINE_LIMIT')
+      db.prepare('INSERT INTO note_nodes(id,note_id,parent_id,order_key,body,body_revision) VALUES(?,?,?,?,?,1)')
+        .run(randomUUID(),id,op.parent_id,outline.children(op.parent_id).length,op.body)
+    }else if(op.action==='edit'){
+      const existing=outline.byId.get(op.node_id)
+      if(!existing)throw badTarget()
+      if(!noteText(op.body,noteLimits.body))throw invalid()
+      if(existing.body===op.body)return this.detail(db,a,id,now)
+      db.prepare('UPDATE note_nodes SET body=?,body_revision=body_revision+1 WHERE note_id=? AND id=?').run(op.body,id,op.node_id)
+    }else if(op.action==='undo'){
+      const previous=this.undoRow(db,id,revision)
+      if(!previous)throw new AssetError(409,'OUTLINE_UNDO_UNAVAILABLE')
+      placements=JSON.parse(String(previous.placements)) as Placement[]
+    }else if(op.action==='move'){
+      placements=outline.move(op.node_id,op.parent_id,op.index)
+      if(!placements)throw badTarget()
+      if(!placements.length)return this.detail(db,a,id,now)
+    }else{
+      const impact=this.deleteImpact(outline,id,revision,op.node_id)
+      if(op.preview_token!==impact.preview_token)throw new AssetError(409,'OUTLINE_PREVIEW_REQUIRED')
+      if(op.mode!=='subtree'&&op.mode!=='promote')throw invalid()
+      placements=outline.remove(op.node_id,op.mode)
+      if(!placements)throw badTarget()
+    }
+
+    if(placements&&op.action!=='undo'){
+      const before=placements.map(p=>{
+        const n=outline.byId.get(p.id)!
+        return {id:n.id,parent_id:n.parent_id!,order_key:n.order_key,archived:false}
+      })
+      db.prepare(`INSERT INTO note_outline_undo VALUES(?,?,?)
+        ON CONFLICT(note_id) DO UPDATE SET revision=excluded.revision,placements=excluded.placements`).run(id,revision+1,JSON.stringify(before))
+    }else db.prepare('DELETE FROM note_outline_undo WHERE note_id=?').run(id)
+    if(placements){
+      const update=db.prepare('UPDATE note_nodes SET parent_id=?,order_key=?,archived_at=? WHERE note_id=? AND id=? AND parent_id IS NOT NULL')
+      for(const p of placements)if(!update.run(p.parent_id,p.order_key,p.archived?now:null,id,p.id).changes)throw new Error('Missing outline placement')
+    }
+    if(!db.prepare('UPDATE notes SET revision=revision+1,updated_at=? WHERE id=? AND revision=?').run(now,id,revision).changes)throw conflict()
+    return this.detail(db,a,id,now)
+  })}
   private assertCitation(db:DatabaseSync,a:SessionActor,id:string,now:string){
     if(!noteId.test(id))throw invalid()
     const c=db.prepare('SELECT asset_id FROM citations WHERE id=?').get(id)
@@ -84,7 +162,7 @@ export class NoteStore {
     const id=randomUUID()
     if(citation!==undefined)this.assertCitation(db,a,citation,now)
     db.prepare('INSERT INTO notes VALUES(?,?,?,?,?,?,1,?,?,?,?)').run(id,a.serviceId,a.personalSpaceId,a.userId,d.title,d.kind,now,now,key,digest)
-    db.prepare('INSERT INTO note_nodes VALUES(?,?,NULL,0,?,1)').run(id,id,d.body)
+    db.prepare('INSERT INTO note_nodes(id,note_id,parent_id,order_key,body,body_revision) VALUES(?,?,NULL,0,?,1)').run(id,id,d.body)
     if(citation!==undefined)db.prepare('INSERT INTO note_references VALUES(?,?,?)').run(randomUUID(),id,citation)
     return {data:this.detail(db,a,id,now),replayed:false}
   })}
@@ -111,6 +189,7 @@ export class NoteStore {
     if(referenceChanged||d.title!==old.title||d.kind!==old.kind||d.body!==old.body){
       if(!db.prepare('UPDATE notes SET title=?,note_kind=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?')
         .run(d.title,d.kind,now,id,revision).changes)throw conflict()
+      db.prepare('DELETE FROM note_outline_undo WHERE note_id=?').run(id)
       if(d.body!==old.body)db.prepare('UPDATE note_nodes SET body=?,body_revision=body_revision+1 WHERE id=?').run(d.body,id)
     }
     return this.detail(db,a,id,now)

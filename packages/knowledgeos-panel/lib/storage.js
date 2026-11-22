@@ -1481,6 +1481,56 @@ function noteText(value, max) {
   return typeof value === "string" && value.length <= max && value.isWellFormed() && !value.includes("\0");
 }
 
+// src/host/note-outline.ts
+var outlineLimit = 256;
+var Outline = class {
+  byId;
+  byParent = /* @__PURE__ */ new Map();
+  constructor(nodes) {
+    this.byId = new Map(nodes.map((n) => [n.id, n]));
+    for (const n of nodes) {
+      if (n.parent_id === null) continue;
+      const siblings = this.byParent.get(n.parent_id) ?? [];
+      siblings.push(n);
+      this.byParent.set(n.parent_id, siblings);
+    }
+    for (const list of this.byParent.values()) list.sort((a, b) => a.order_key - b.order_key);
+  }
+  children(id) {
+    return this.byParent.get(id) ?? [];
+  }
+  descendants(id) {
+    const out = [], stack = [...this.children(id)].reverse(), seen = /* @__PURE__ */ new Set([id]);
+    while (stack.length) {
+      const n = stack.pop();
+      if (seen.has(n.id)) throw new Error("Outline has a cycle");
+      seen.add(n.id);
+      out.push(n);
+      stack.push(...[...this.children(n.id)].reverse());
+    }
+    return out;
+  }
+  slots(parent, nodes) {
+    return nodes.flatMap((n, order_key) => n.parent_id === parent && n.order_key === order_key ? [] : [{ id: n.id, parent_id: parent, order_key, archived: false }]);
+  }
+  move(id, parent, index) {
+    const n = this.byId.get(id), target2 = this.byId.get(parent);
+    if (!n?.parent_id || !target2 || id === parent || this.descendants(id).some((x) => x.id === parent)) return;
+    const destination = this.children(parent).filter((x) => x.id !== id);
+    if (!Number.isSafeInteger(index) || index < 0 || index > destination.length) return;
+    destination.splice(index, 0, n);
+    const source = n.parent_id === parent ? [] : this.slots(n.parent_id, this.children(n.parent_id).filter((x) => x.id !== id));
+    return [...this.slots(parent, destination), ...source];
+  }
+  remove(id, mode) {
+    const n = this.byId.get(id);
+    if (!n?.parent_id) return;
+    const kept = this.children(n.parent_id).flatMap((x) => x.id === id ? mode === "promote" ? this.children(id) : [] : [x]);
+    const removed = mode === "subtree" ? [n, ...this.descendants(id)] : [n];
+    return [...this.slots(n.parent_id, kept), ...removed.map((x) => ({ id: x.id, parent_id: x.parent_id, order_key: x.order_key, archived: true }))];
+  }
+};
+
 // src/host/note-store.ts
 var NOTE_SCHEMA = `CREATE TABLE notes (
   id TEXT PRIMARY KEY, service_id TEXT NOT NULL, space_id TEXT NOT NULL REFERENCES spaces(id),
@@ -1504,6 +1554,12 @@ CREATE TABLE note_references (
 CREATE TABLE project_note_refs (
   project_id TEXT NOT NULL REFERENCES knowledge_projects(id), note_id TEXT NOT NULL REFERENCES notes(id),
   created_at TEXT NOT NULL, PRIMARY KEY(project_id,note_id)
+) STRICT;`;
+var NOTE_OUTLINE_SCHEMA = `ALTER TABLE note_nodes ADD COLUMN archived_at TEXT CHECK(archived_at IS NULL OR parent_id IS NOT NULL);
+CREATE INDEX note_outline_live ON note_nodes(note_id,parent_id,order_key) WHERE archived_at IS NULL;
+CREATE TABLE note_outline_undo (
+  note_id TEXT PRIMARY KEY REFERENCES notes(id), revision INTEGER NOT NULL CHECK(revision>=2),
+  placements TEXT NOT NULL CHECK(json_valid(placements))
 ) STRICT;`;
 var rowFields = "id,title,note_kind AS kind,revision,updated_at";
 var notFound3 = () => new AssetError(404, "NOTE_NOT_FOUND");
@@ -1537,7 +1593,79 @@ var NoteStore = class {
     if (!root) throw Error("Note root is missing");
     const refs = db.prepare(`SELECT r.id,r.citation_id,c.asset_id,c.version_id FROM note_references r JOIN citations c ON c.id=r.citation_id
       WHERE r.node_id=? ORDER BY r.rowid`).all(root.id);
-    return { ...meta, body: String(root.body), references: refs.map((r) => this.canReadAsset(a, String(r.asset_id), now) ? { id: String(r.id), status: "linked", citation_id: String(r.citation_id), asset_id: String(r.asset_id), version_id: String(r.version_id) } : { id: String(r.id), status: "unavailable" }) };
+    return { ...meta, body: String(root.body), outline: { nodes: this.nodes(db, id), can_undo: !!this.undoRow(db, id, meta.revision) }, references: refs.map((r) => this.canReadAsset(a, String(r.asset_id), now) ? { id: String(r.id), status: "linked", citation_id: String(r.citation_id), asset_id: String(r.asset_id), version_id: String(r.version_id) } : { id: String(r.id), status: "unavailable" }) };
+  }
+  nodes(db, id) {
+    return db.prepare(`SELECT id,parent_id,order_key,body,body_revision FROM note_nodes
+      WHERE note_id=? AND archived_at IS NULL ORDER BY parent_id,order_key,id`).all(id);
+  }
+  undoRow(db, id, revision) {
+    return db.prepare("SELECT placements FROM note_outline_undo WHERE note_id=? AND revision=?").get(id, revision);
+  }
+  assertRevision(expected, current) {
+    if (!Number.isSafeInteger(expected) || expected < 1) throw invalid2();
+    if (expected !== current) throw conflict();
+  }
+  deleteImpact(outline, id, revision, node) {
+    if (!outline.byId.get(node)?.parent_id) throw new AssetError(422, "INVALID_OUTLINE_TARGET");
+    const child_ids = outline.children(node).map((n) => n.id), descendant_ids = outline.descendants(node).map((n) => n.id);
+    const preview_token = createHash9("sha256").update(JSON.stringify([id, revision, node, child_ids, descendant_ids])).digest("hex");
+    return { preview_token, child_ids, descendant_ids };
+  }
+  previewDelete(session, expected, id, revision, node) {
+    return this.tx("read", (db, now) => {
+      const a = this.actor(session, now, expected), meta = this.owned(db, a, id);
+      this.assertRevision(revision, meta.revision);
+      return this.deleteImpact(new Outline(this.nodes(db, id)), id, revision, node);
+    });
+  }
+  changeOutline(session, expected, id, revision, op) {
+    return this.tx("write", (db, now) => {
+      const a = this.actor(session, now, expected), meta = this.owned(db, a, id);
+      this.assertRevision(revision, meta.revision);
+      const outline = new Outline(this.nodes(db, id)), badTarget = () => new AssetError(422, "INVALID_OUTLINE_TARGET");
+      let placements;
+      if (op.action === "add") {
+        if (!outline.byId.has(op.parent_id)) throw badTarget();
+        if (!noteText(op.body, noteLimits.body)) throw invalid2();
+        if (outline.byId.size >= outlineLimit) throw new AssetError(409, "OUTLINE_LIMIT");
+        db.prepare("INSERT INTO note_nodes(id,note_id,parent_id,order_key,body,body_revision) VALUES(?,?,?,?,?,1)").run(randomUUID11(), id, op.parent_id, outline.children(op.parent_id).length, op.body);
+      } else if (op.action === "edit") {
+        const existing = outline.byId.get(op.node_id);
+        if (!existing) throw badTarget();
+        if (!noteText(op.body, noteLimits.body)) throw invalid2();
+        if (existing.body === op.body) return this.detail(db, a, id, now);
+        db.prepare("UPDATE note_nodes SET body=?,body_revision=body_revision+1 WHERE note_id=? AND id=?").run(op.body, id, op.node_id);
+      } else if (op.action === "undo") {
+        const previous = this.undoRow(db, id, revision);
+        if (!previous) throw new AssetError(409, "OUTLINE_UNDO_UNAVAILABLE");
+        placements = JSON.parse(String(previous.placements));
+      } else if (op.action === "move") {
+        placements = outline.move(op.node_id, op.parent_id, op.index);
+        if (!placements) throw badTarget();
+        if (!placements.length) return this.detail(db, a, id, now);
+      } else {
+        const impact = this.deleteImpact(outline, id, revision, op.node_id);
+        if (op.preview_token !== impact.preview_token) throw new AssetError(409, "OUTLINE_PREVIEW_REQUIRED");
+        if (op.mode !== "subtree" && op.mode !== "promote") throw invalid2();
+        placements = outline.remove(op.node_id, op.mode);
+        if (!placements) throw badTarget();
+      }
+      if (placements && op.action !== "undo") {
+        const before = placements.map((p) => {
+          const n = outline.byId.get(p.id);
+          return { id: n.id, parent_id: n.parent_id, order_key: n.order_key, archived: false };
+        });
+        db.prepare(`INSERT INTO note_outline_undo VALUES(?,?,?)
+        ON CONFLICT(note_id) DO UPDATE SET revision=excluded.revision,placements=excluded.placements`).run(id, revision + 1, JSON.stringify(before));
+      } else db.prepare("DELETE FROM note_outline_undo WHERE note_id=?").run(id);
+      if (placements) {
+        const update = db.prepare("UPDATE note_nodes SET parent_id=?,order_key=?,archived_at=? WHERE note_id=? AND id=? AND parent_id IS NOT NULL");
+        for (const p of placements) if (!update.run(p.parent_id, p.order_key, p.archived ? now : null, id, p.id).changes) throw new Error("Missing outline placement");
+      }
+      if (!db.prepare("UPDATE notes SET revision=revision+1,updated_at=? WHERE id=? AND revision=?").run(now, id, revision).changes) throw conflict();
+      return this.detail(db, a, id, now);
+    });
   }
   assertCitation(db, a, id, now) {
     if (!noteId.test(id)) throw invalid2();
@@ -1569,7 +1697,7 @@ var NoteStore = class {
       const id = randomUUID11();
       if (citation !== void 0) this.assertCitation(db, a, citation, now);
       db.prepare("INSERT INTO notes VALUES(?,?,?,?,?,?,1,?,?,?,?)").run(id, a.serviceId, a.personalSpaceId, a.userId, d.title, d.kind, now, now, key, digest3);
-      db.prepare("INSERT INTO note_nodes VALUES(?,?,NULL,0,?,1)").run(id, id, d.body);
+      db.prepare("INSERT INTO note_nodes(id,note_id,parent_id,order_key,body,body_revision) VALUES(?,?,NULL,0,?,1)").run(id, id, d.body);
       if (citation !== void 0) db.prepare("INSERT INTO note_references VALUES(?,?,?)").run(randomUUID11(), id, citation);
       return { data: this.detail(db, a, id, now), replayed: false };
     });
@@ -1598,6 +1726,7 @@ var NoteStore = class {
       }
       if (referenceChanged || d.title !== old.title || d.kind !== old.kind || d.body !== old.body) {
         if (!db.prepare("UPDATE notes SET title=?,note_kind=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?").run(d.title, d.kind, now, id, revision).changes) throw conflict();
+        db.prepare("DELETE FROM note_outline_undo WHERE note_id=?").run(id);
         if (d.body !== old.body) db.prepare("UPDATE note_nodes SET body=?,body_revision=body_revision+1 WHERE id=?").run(d.body, id);
       }
       return this.detail(db, a, id, now);
@@ -2080,7 +2209,8 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 25;
+var SCHEMA_VERSION = 26;
+var MIGRATION_V26_CHECKSUM = createHash13("sha256").update(NOTE_OUTLINE_SCHEMA).digest("hex");
 var MIGRATION_V25_CHECKSUM = createHash13("sha256").update(INVITATION_CHANGE_SCHEMA).digest("hex");
 var MIGRATION_V24_CHECKSUM = createHash13("sha256").update(INVITATION_EVENT_SCHEMA).digest("hex");
 var MIGRATION_V23_CHECKSUM = createHash13("sha256").update(INVITATION_SCHEMA).digest("hex");
@@ -2473,6 +2603,7 @@ var ProbeStorage = class {
       if (priorVersion < 23) this.#migrateV23(db);
       if (priorVersion < 24) this.#migrateV24(db);
       if (priorVersion < 25) this.#migrateV25(db);
+      if (priorVersion < 26) this.#migrateV26(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -3005,9 +3136,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "invitation receipt migration failed", false, { cause: e });
     }
   }
+  #migrateV26(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(NOTE_OUTLINE_SCHEMA);
+      this.#injectFailure("v26:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(26,?,?)").run(MIGRATION_V26_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=26; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "note outline migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash2, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash2)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -3031,6 +3174,7 @@ var ProbeStorage = class {
       if (version >= 23) reference.exec(INVITATION_SCHEMA);
       if (version >= 24) reference.exec(INVITATION_EVENT_SCHEMA);
       if (version >= 25) reference.exec(INVITATION_CHANGE_SCHEMA);
+      if (version >= 26) reference.exec(NOTE_OUTLINE_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -3550,6 +3694,7 @@ export {
   MIGRATION_V23_CHECKSUM,
   MIGRATION_V24_CHECKSUM,
   MIGRATION_V25_CHECKSUM,
+  MIGRATION_V26_CHECKSUM,
   MIGRATION_V2_CHECKSUM,
   MIGRATION_V2_SQL,
   MIGRATION_V3,

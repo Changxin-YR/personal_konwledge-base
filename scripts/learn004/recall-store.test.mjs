@@ -8,7 +8,7 @@ import {DatabaseSync} from 'node:sqlite'
 import test from 'node:test'
 import {pathToFileURL} from 'node:url'
 import * as lib from '../../packages/knowledgeos-panel/lib/test-support.js'
-import {MIGRATION_V22_CHECKSUM} from '../../packages/knowledgeos-panel/lib/storage.js'
+import {MIGRATION_V22_CHECKSUM,MIGRATION_V26_CHECKSUM} from '../../packages/knowledgeos-panel/lib/storage.js'
 import {seed} from '../fnd006/independent/common.mjs'
 import {decodeText} from '../../packages/knowledgeos-panel/src/host/text-document.ts'
 
@@ -28,7 +28,7 @@ test('v21 data and exact ledger survive injected v22 rollback, append and reopen
   const note=prior.notes.create(actor,actor.userId,randomUUID(),{title:'Keep this note',body:'Note body',kind:'reading'},citation.id).data
   prior.close()
   const db=new DatabaseSync(join(dir,'knowledgeos.sqlite'),{readOnly:true})
-  const rows=table=>db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all()
+  const rows=table=>db.prepare(`SELECT ${table==='note_nodes'?'id,note_id,parent_id,order_key,body,body_revision':'*'} FROM ${table} ORDER BY rowid`).all()
   const version=()=>db.prepare('PRAGMA user_version').get().user_version
   const contents=()=>['notes','note_nodes','note_references','citations','citation_locators','asset_versions','blobs','text_blocks'].map(rows)
   const schema=()=>db.prepare('SELECT * FROM sqlite_schema ORDER BY name').all()
@@ -40,8 +40,9 @@ test('v21 data and exact ledger survive injected v22 rollback, append and reopen
     assert.equal(version(),21);assert.deepEqual(schema(),before);assert.deepEqual(contents(),expected);assert.deepEqual(rows('schema_migrations'),ledger)
     for(let i=0;i<2;i++){
       s=new lib.ProbeStorage({dataDir:dir});assert(s.available,s.failure?.message)
-      assert.equal(version(),25);assert.deepEqual(contents(),expected)
-      const applied=rows('schema_migrations');assert.equal(applied.pop().version,25);assert.equal(applied.pop().version,24);assert.equal(applied.pop().version,23);const last=applied.pop();assert.deepEqual([last.version,last.checksum],[22,MIGRATION_V22_CHECKSUM]);assert.deepEqual(applied,ledger)
+      assert.equal(version(),26);assert.deepEqual(contents(),expected)
+      assert.equal(db.prepare('SELECT COUNT(*) n FROM note_nodes WHERE archived_at IS NOT NULL').get().n,0)
+      const applied=rows('schema_migrations');assert.equal(applied.pop().checksum,MIGRATION_V26_CHECKSUM);assert.equal(applied.pop().version,25);assert.equal(applied.pop().version,24);assert.equal(applied.pop().version,23);const last=applied.pop();assert.deepEqual([last.version,last.checksum],[22,MIGRATION_V22_CHECKSUM]);assert.deepEqual(applied,ledger)
       assert.equal(s.notes.get(actor,note.id).body,'Note body');assert.equal(s.citations.resolve(actor,citation.id).quote,text)
       assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);s.close()
     }

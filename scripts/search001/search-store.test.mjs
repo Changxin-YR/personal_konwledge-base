@@ -7,7 +7,7 @@ import {tmpdir} from 'node:os'
 import {DatabaseSync} from 'node:sqlite'
 import {pathToFileURL} from 'node:url'
 import test from 'node:test'
-import {ProbeStorage,MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM,MIGRATION_V20_CHECKSUM,MIGRATION_V21_CHECKSUM,MIGRATION_V22_CHECKSUM,MIGRATION_V23_CHECKSUM,MIGRATION_V24_CHECKSUM,MIGRATION_V25_CHECKSUM} from '../../packages/knowledgeos-panel/src/host/storage.ts'
+import {ProbeStorage,MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM,MIGRATION_V20_CHECKSUM,MIGRATION_V21_CHECKSUM,MIGRATION_V22_CHECKSUM,MIGRATION_V23_CHECKSUM,MIGRATION_V24_CHECKSUM,MIGRATION_V25_CHECKSUM,MIGRATION_V26_CHECKSUM} from '../../packages/knowledgeos-panel/src/host/storage.ts'
 import {IdentityService} from '../../packages/knowledgeos-panel/src/host/identity.ts'
 import {decodeText} from '../../packages/knowledgeos-panel/src/host/text-document.ts'
 import {seed} from '../fnd006/independent/common.mjs'
@@ -118,9 +118,9 @@ test('v18 rollback preserves v17 content and successful upgrade indexes it witho
     const failed=new ProbeStorage({dataDir:dir,failureAt:'v18:after-schema'});assert.equal(failed.available,false);failed.close()
     assert.deepEqual(facts(),expected)
     upgraded=new ProbeStorage({dataDir:dir});assert(upgraded.available,upgraded.failure?.message)
-    const actual=facts();assert.equal(actual.version,25);assert.deepEqual(actual.ledger.slice(0,17),expected.ledger)
-    assert.deepEqual(actual.ledger.slice(17).map(x=>x.checksum),[MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM,MIGRATION_V20_CHECKSUM,MIGRATION_V21_CHECKSUM,MIGRATION_V22_CHECKSUM,MIGRATION_V23_CHECKSUM,MIGRATION_V24_CHECKSUM,MIGRATION_V25_CHECKSUM])
-    assert.deepEqual(actual.schema.filter(x=>!x.tbl_name.startsWith('recall_')&&!x.tbl_name.startsWith('invitation')&&!['search_queries','word_search_runs','word_search_pages','pdf_chapter_ranges','notes','note_nodes','note_references','project_note_refs','domain_events','domain_event_outbox','invitation_change_receipts'].includes(x.tbl_name)),expected.schema)
+    const actual=facts();assert.equal(actual.version,26);assert.deepEqual(actual.ledger.slice(0,17),expected.ledger)
+    assert.deepEqual(actual.ledger.slice(17).map(x=>x.checksum),[MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM,MIGRATION_V20_CHECKSUM,MIGRATION_V21_CHECKSUM,MIGRATION_V22_CHECKSUM,MIGRATION_V23_CHECKSUM,MIGRATION_V24_CHECKSUM,MIGRATION_V25_CHECKSUM,MIGRATION_V26_CHECKSUM])
+    assert.deepEqual(actual.schema.filter(x=>!x.tbl_name.startsWith('recall_')&&!x.tbl_name.startsWith('invitation')&&!['search_queries','word_search_runs','word_search_pages','pdf_chapter_ranges','notes','note_nodes','note_references','project_note_refs','domain_events','domain_event_outbox','invitation_change_receipts','note_outline_undo'].includes(x.tbl_name)),expected.schema)
     for(const table of ['domain_events','domain_event_outbox','invitation_change_receipts'])assert.equal(db.prepare(`SELECT count(*) n FROM ${table}`).get().n,0)
     assert.deepEqual(actual.blocks,expected.blocks)
     assert.equal(upgraded.search.search(actor,'legacy').items[0].version_id,doc.version_id)
@@ -148,7 +148,7 @@ test('v19 rollback preserves published v18 Word conversion; resumed indexing fen
     const original=snapshot(),fail=new ProbeStorage({dataDir:dir,failureAt:'v19:after-schema'});assert.equal(original.version,18)
     assert.equal(fail.available,false);assert.match(fail.failure.cause.message,/v19:after-schema/);fail.close();assert.deepEqual(snapshot(),original)
     s=new ProbeStorage({dataDir:dir});assert(s.available,s.failure?.message)
-    assert.equal(snapshot().version,25);assert.deepEqual(snapshot().office,original.office)
+    assert.equal(snapshot().version,26);assert.deepEqual(snapshot().office,original.office)
     assert.equal(s.search.search(actor,'needlestable').count,0)
     const firstLease=s.wordSearch.claim();assert.deepEqual([firstLease.key,firstLease.total,firstLease.next],[ref.key,2,1])
     assert.equal(s.wordSearch.claim(),undefined);assert.equal(s.wordSearch.publish(firstLease.token,2,'incorrect order'),false)
