@@ -348,7 +348,7 @@ async function parse(bytes) {
         text = normalizeText(raw, preserveIndent);
         if (view) return { text, ...view, boxes: normalizeBoxes(raw, source, text, preserveIndent), image: imagePng(api, p, view.width, view.height) };
         needsReview ||= !text || /[\ufffd\p{Co}\x00-\x08\x0b\x0c\x0e-\x1f]/u.test(text);
-        return { text, needsReview, chapter: labels[n] };
+        return { text, needsReview, chapter: labels[n], confirmedBlank: objects === 0 && count === 0 };
       } finally {
         api.FPDFText_ClosePage(tp);
       }

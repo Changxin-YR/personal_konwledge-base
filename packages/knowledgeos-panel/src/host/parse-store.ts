@@ -30,7 +30,7 @@ const targeted=`(NOT EXISTS(SELECT 1 FROM pdf_chapter_ranges c WHERE c.version_i
 export type ParseTx = <T>(mode:'read'|'write', op:(db:DatabaseSync, now:string)=>T)=>T
 type Permit = (session:string,user:string,id:string,write:boolean,now:string)=>boolean
 const leaseMs = 15_000
-export interface PageResult { text:string; needsReview:boolean; chapter:string }
+export interface PageResult { text:string; needsReview:boolean; chapter:string; confirmedBlank?:boolean }
 
 export class ParseStore {
   constructor(private tx:ParseTx, private permit:Permit) {}
@@ -161,7 +161,10 @@ export class ParseStore {
     const text=!result || (previous!=='' && result.text.trimStart()===previous) ? previous : result.text
     const wrote=db.prepare(`UPDATE pdf_pages SET state=?,text=?,chapter=?,error=?,generation=generation+1
       WHERE version_id=? AND page=? AND state='pending' AND ${targeted}`).run(state,text,result?.chapter??'',result?null:'PAGE_EXTRACTION_FAILED',v,page)
-    if(wrote.changes)db.prepare('UPDATE pdf_parse_runs SET losses=0 WHERE version_id=?').run(v)
+    if(wrote.changes){
+      db.prepare('UPDATE pdf_parse_runs SET losses=0 WHERE version_id=?').run(v)
+      if(result?.confirmedBlank&&!text)db.prepare('INSERT OR IGNORE INTO recall_pdf_blank_pages VALUES(?,?)').run(v,page)
+    }
     return Boolean(wrote.changes)
   })}
   fail(token:string) {return this.leased(token,(db,v)=>db.prepare("UPDATE pdf_parse_runs SET state='failed',token=NULL,deadline=NULL,error='DOCUMENT_UNAVAILABLE' WHERE version_id=?").run(v))}

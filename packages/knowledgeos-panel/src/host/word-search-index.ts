@@ -38,12 +38,15 @@ export class WordSearchIndex {
         total:Number(r.page_count),next:Number(r.next_page??1)}
     })
   }
-  publish(token:string,page:number,text:string|null){return this.tx('write',(db,now)=>{
-    const r=db.prepare(`SELECT c.id,c.page_count ${sources} JOIN word_search_runs r ON r.conversion_id=c.id
+  publish(token:string,page:number,text:string|null,quality?:'text'|'blank'){return this.tx('write',(db,now)=>{
+    const r=db.prepare(`SELECT c.id,c.page_count,c.result_blob_id ${sources} JOIN word_search_runs r ON r.conversion_id=c.id
       WHERE ${eligible} AND r.state='running' AND r.result_blob_id=c.result_blob_id AND r.token=? AND r.lease_until>? AND r.next_page=?`)
       .get(token,now,page)
     if(!r||!Number.isSafeInteger(page)||page<1||page>Number(r.page_count)||text!==null&&text.length>32000)return false
     if(text)db.prepare('INSERT INTO word_search_pages VALUES(?,?,?)').run(r.id!,page,text)
+    if(quality==='text'&&text||quality==='blank'&&text===''){
+      db.prepare('INSERT INTO recall_word_sources VALUES(?,?,?,?)').run(r.id!,page,r.result_blob_id!,Number(quality==='blank'))
+    }
     if(page===Number(r.page_count))db.prepare("UPDATE word_search_runs SET state='complete',next_page=?,attempts=0,token=NULL,lease_until=NULL WHERE token=?").run(page+1,token)
     else db.prepare('UPDATE word_search_runs SET next_page=?,attempts=0,lease_until=? WHERE token=?').run(page+1,deadline(now),token)
     return true
@@ -53,7 +56,7 @@ export class WordSearchIndex {
   })}
 }
 
-interface Extracted {numPages:number;page(n:number):Promise<{text:string}>;close():Promise<void>}
+interface Extracted {numPages:number;page(n:number):Promise<{text:string;needsReview:boolean;confirmedBlank:boolean}>;close():Promise<void>}
 const errorCode=(e:unknown)=>(e as {code?:string})?.code
 
 export function startWordSearchIndex(store:WordSearchIndex,originals:Pick<PdfOriginals,'read'>,
@@ -68,9 +71,10 @@ export function startWordSearchIndex(store:WordSearchIndex,originals:Pick<PdfOri
       const bytes=await originals.read(job.key,job.sha256,job.byteLength);signal.throwIfAborted()
       doc=await open(bytes,signal);if(doc.numPages!==job.total)throw Error('Conversion page count changed')
       for(let i=job.next;i<=doc.numPages;i++){
-        signal.throwIfAborted();let text:string|null
-        try{text=(await doc.page(i)).text}catch(e){if(errorCode(e)!=='PDF_PAGE_FAILED')throw e;text=null}
-        if(signal.aborted||!store.publish(job.token,i,text))return
+        signal.throwIfAborted();let text:string|null,quality:'text'|'blank'|undefined
+        try{const page=await doc.page(i);text=page.text;quality=page.confirmedBlank?'blank':page.needsReview?undefined:'text'}
+        catch(e){if(errorCode(e)!=='PDF_PAGE_FAILED')throw e;text=null}
+        if(signal.aborted||!store.publish(job.token,i,text,quality))return
       }
     }catch(e){if(!signal.aborted)store.defer(job.token,errorCode(e)==='PDF_BUSY')}
     finally{await doc?.close()}

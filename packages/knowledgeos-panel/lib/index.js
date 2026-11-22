@@ -2723,12 +2723,15 @@ var WordSearchIndex = class {
       };
     });
   }
-  publish(token2, page, text2) {
+  publish(token2, page, text2, quality) {
     return this.tx("write", (db, now) => {
-      const r = db.prepare(`SELECT c.id,c.page_count ${sources} JOIN word_search_runs r ON r.conversion_id=c.id
+      const r = db.prepare(`SELECT c.id,c.page_count,c.result_blob_id ${sources} JOIN word_search_runs r ON r.conversion_id=c.id
       WHERE ${eligible} AND r.state='running' AND r.result_blob_id=c.result_blob_id AND r.token=? AND r.lease_until>? AND r.next_page=?`).get(token2, now, page);
       if (!r || !Number.isSafeInteger(page) || page < 1 || page > Number(r.page_count) || text2 !== null && text2.length > 32e3) return false;
       if (text2) db.prepare("INSERT INTO word_search_pages VALUES(?,?,?)").run(r.id, page, text2);
+      if (quality === "text" && text2 || quality === "blank" && text2 === "") {
+        db.prepare("INSERT INTO recall_word_sources VALUES(?,?,?,?)").run(r.id, page, r.result_blob_id, Number(quality === "blank"));
+      }
       if (page === Number(r.page_count)) db.prepare("UPDATE word_search_runs SET state='complete',next_page=?,attempts=0,token=NULL,lease_until=NULL WHERE token=?").run(page + 1, token2);
       else db.prepare("UPDATE word_search_runs SET next_page=?,attempts=0,lease_until=? WHERE token=?").run(page + 1, deadline(now), token2);
       return true;
@@ -2756,14 +2759,16 @@ function startWordSearchIndex(store, originals, open3, log) {
       if (doc.numPages !== job.total) throw Error("Conversion page count changed");
       for (let i = job.next; i <= doc.numPages; i++) {
         signal.throwIfAborted();
-        let text2;
+        let text2, quality;
         try {
-          text2 = (await doc.page(i)).text;
+          const page = await doc.page(i);
+          text2 = page.text;
+          quality = page.confirmedBlank ? "blank" : page.needsReview ? void 0 : "text";
         } catch (e) {
           if (errorCode(e) !== "PDF_PAGE_FAILED") throw e;
           text2 = null;
         }
-        if (signal.aborted || !store.publish(job.token, i, text2)) return;
+        if (signal.aborted || !store.publish(job.token, i, text2, quality)) return;
       }
     } catch (e) {
       if (!signal.aborted) store.defer(job.token, errorCode(e) === "PDF_BUSY");
@@ -3061,7 +3066,10 @@ var ParseStore = class {
       const text2 = !result || previous !== "" && result.text.trimStart() === previous ? previous : result.text;
       const wrote = db.prepare(`UPDATE pdf_pages SET state=?,text=?,chapter=?,error=?,generation=generation+1
       WHERE version_id=? AND page=? AND state='pending' AND ${targeted}`).run(state, text2, result?.chapter ?? "", result ? null : "PAGE_EXTRACTION_FAILED", v, page);
-      if (wrote.changes) db.prepare("UPDATE pdf_parse_runs SET losses=0 WHERE version_id=?").run(v);
+      if (wrote.changes) {
+        db.prepare("UPDATE pdf_parse_runs SET losses=0 WHERE version_id=?").run(v);
+        if (result?.confirmedBlank && !text2) db.prepare("INSERT OR IGNORE INTO recall_pdf_blank_pages VALUES(?,?)").run(v, page);
+      }
       return Boolean(wrote.changes);
     });
   }
@@ -3537,12 +3545,14 @@ var CitationStore = class {
     const s = this.read(db, actor2, t, now);
     if (s.kind === "office") {
       if (!t.conversion_id || s.conversion_id !== t.conversion_id) throw new AssetError(422, "RECALL_CONVERSION_REQUIRED");
-      const page = db.prepare(`SELECT p.text FROM office_conversions c JOIN word_search_runs r
-        ON r.conversion_id=c.id AND r.result_blob_id=c.result_blob_id JOIN word_search_pages p ON p.conversion_id=c.id
-        WHERE c.id=? AND p.page=?`).get(s.conversion_id, s.ordinal);
-      if (!page) throw new AssetError(409, "RECALL_SOURCE_NOT_READY");
-      return { ...s, text: String(page.text) };
+      const page = db.prepare(`SELECT q.blank,p.text FROM office_conversions c JOIN recall_word_sources q
+        ON q.conversion_id=c.id AND q.result_blob_id=c.result_blob_id
+        LEFT JOIN word_search_pages p ON p.conversion_id=q.conversion_id AND p.page=q.page
+        WHERE c.id=? AND q.page=?`).get(s.conversion_id, s.ordinal);
+      if (!page || !page.blank && typeof page.text !== "string") throw new AssetError(409, "RECALL_SOURCE_NOT_READY");
+      return { ...s, text: page.blank ? "" : String(page.text) };
     }
+    if (s.kind === "pdf" && !s.text && db.prepare("SELECT 1 FROM recall_pdf_blank_pages WHERE version_id=? AND page=?").get(s.version_id, s.ordinal)) return s;
     if (s.state !== "ready") throw new AssetError(409, "RECALL_SOURCE_NOT_READY");
     return s;
   }
@@ -3942,7 +3952,16 @@ function recallPractice(segment, masks, revealed, text2) {
 }
 
 // src/host/recall-store.ts
-var RECALL_SCHEMA = `CREATE TABLE recall_materials (
+var RECALL_SCHEMA = `CREATE TABLE recall_pdf_blank_pages (
+  version_id TEXT NOT NULL, page INTEGER NOT NULL,
+  PRIMARY KEY(version_id,page), FOREIGN KEY(version_id,page) REFERENCES pdf_pages(version_id,page)
+) STRICT;
+CREATE TABLE recall_word_sources (
+  conversion_id TEXT NOT NULL REFERENCES word_search_runs(conversion_id), page INTEGER NOT NULL CHECK(page>=1),
+  result_blob_id TEXT NOT NULL REFERENCES blobs(id), blank INTEGER NOT NULL CHECK(blank IN (0,1)),
+  PRIMARY KEY(conversion_id,page)
+) STRICT;
+CREATE TABLE recall_materials (
   id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL REFERENCES users(id), service_id TEXT NOT NULL,
   asset_id TEXT NOT NULL REFERENCES assets(id), version_id TEXT NOT NULL REFERENCES asset_versions(id),
   conversion_id TEXT REFERENCES office_conversions(id), title TEXT NOT NULL, created_at TEXT NOT NULL,
@@ -4013,6 +4032,7 @@ var RecallStore = class {
       first: Number(bounds.first),
       last: Number(bounds.last),
       length: Number(bounds.length),
+      page_length: segment.end - segment.start,
       source_changed: head?.id !== m.version_id || Boolean(m.conversion_id && conversion?.id !== m.conversion_id),
       runs: recallPractice(segment, masks, revealed, source.text),
       progress: {
@@ -8615,7 +8635,7 @@ async function parse2(bytes) {
         text2 = normalizeText(raw, preserveIndent);
         if (view) return { text: text2, ...view, boxes: normalizeBoxes(raw, source, text2, preserveIndent), image: imagePng(api, p, view.width, view.height) };
         needsReview ||= !text2 || /[\ufffd\p{Co}\x00-\x08\x0b\x0c\x0e-\x1f]/u.test(text2);
-        return { text: text2, needsReview, chapter: labels[n] };
+        return { text: text2, needsReview, chapter: labels[n], confirmedBlank: objects === 0 && count === 0 };
       } finally {
         api.FPDFText_ClosePage(tp);
       }
@@ -10093,7 +10113,7 @@ async function addPage(n){
   if(n<1||total&&n>total||loaded.has(n))return;
   const payload=await call(api+'/source?'+new URLSearchParams({...source,ordinal:String(n)}));if(payload.ordinal!==n||total&&payload.total!==total)fail('RECALL_SOURCE_CHANGED');total=payload.total;
   const section=document.createElement('article'),h=document.createElement('h3'),text=document.createElement('pre');h.textContent='页段 '+n+' / '+total;text.dataset.ordinal=String(n);text.textContent=payload.text;
-  if(!payload.text)text.setAttribute('aria-label','空白页');section.append(h,text);
+  if(!payload.text){h.append(' · 空白页');text.setAttribute('aria-label','空白页')}section.append(h,text);
   const next=[...$('pages').children].find(e=>Number(e.lastChild.dataset.ordinal)>n);$('pages').insertBefore(section,next||null);
   if(next)next.scrollIntoView({block:'start'});
   loaded.set(n,payload);$('source-title').textContent=payload.title;if(!$('title').value)$('title').value=payload.title;
@@ -10134,7 +10154,7 @@ async function save(){
 }
 function draw(data){
   attempt=data;view='practice';const {material:m,ordinal,first,last,length,progress:r}=data;
-  $('practice-title').textContent=m.title;$('practice-meta').textContent='页段 '+ordinal+' / '+last+' · '+length+' 个 UTF-16 单元';
+  $('practice-title').textContent=m.title;$('practice-meta').textContent='页段 '+ordinal+' / '+last+' · 本页 '+data.page_length+' / 选区 '+length+' 个 UTF-16 单元';
   $('original').href='/knowledgeos/reader?'+new URLSearchParams({asset:m.asset_id,version:m.version_id,unit:String(ordinal),...(m.conversion_id?{conversion:m.conversion_id}:{})});
   $('version-warning').hidden=!data.source_changed;$('prev').disabled=ordinal<=first;$('next').disabled=ordinal>=last;
   $('practice-text').replaceChildren();$('groups').replaceChildren();const groups=new Map();

@@ -6,7 +6,16 @@ import type {SessionActor} from './identity.ts'
 import type {ParseTx} from './parse-store.ts'
 import {recallMasks,recallPractice,recallSelection,type RecallMask,type RecallPoint,type RecallSegment} from './recall-range.ts'
 
-export const RECALL_SCHEMA=`CREATE TABLE recall_materials (
+export const RECALL_SCHEMA=`CREATE TABLE recall_pdf_blank_pages (
+  version_id TEXT NOT NULL, page INTEGER NOT NULL,
+  PRIMARY KEY(version_id,page), FOREIGN KEY(version_id,page) REFERENCES pdf_pages(version_id,page)
+) STRICT;
+CREATE TABLE recall_word_sources (
+  conversion_id TEXT NOT NULL REFERENCES word_search_runs(conversion_id), page INTEGER NOT NULL CHECK(page>=1),
+  result_blob_id TEXT NOT NULL REFERENCES blobs(id), blank INTEGER NOT NULL CHECK(blank IN (0,1)),
+  PRIMARY KEY(conversion_id,page)
+) STRICT;
+CREATE TABLE recall_materials (
   id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL REFERENCES users(id), service_id TEXT NOT NULL,
   asset_id TEXT NOT NULL REFERENCES assets(id), version_id TEXT NOT NULL REFERENCES asset_versions(id),
   conversion_id TEXT REFERENCES office_conversions(id), title TEXT NOT NULL, created_at TEXT NOT NULL,
@@ -74,7 +83,7 @@ export class RecallStore {
     const bounds=db.prepare('SELECT min(ordinal) AS first,max(ordinal) AS last,sum(end-start) AS length FROM recall_segments WHERE material_id=?').get(m.id)!
     const head=db.prepare('SELECT id FROM asset_versions WHERE asset_id=? ORDER BY version DESC LIMIT 1').get(m.asset_id)
     const conversion=m.conversion_id?db.prepare("SELECT id FROM office_conversions WHERE version_id=? AND state='ready' ORDER BY rowid DESC LIMIT 1").get(m.version_id):undefined
-    return {material:m,ordinal,revision:Number(attempt.revision),first:Number(bounds.first),last:Number(bounds.last),length:Number(bounds.length),
+    return {material:m,ordinal,revision:Number(attempt.revision),first:Number(bounds.first),last:Number(bounds.last),length:Number(bounds.length),page_length:segment.end-segment.start,
       source_changed:head?.id!==m.version_id||Boolean(m.conversion_id&&conversion?.id!==m.conversion_id),runs:recallPractice(segment,masks,revealed,source.text),
       progress:{hints:events.filter(e=>e.event==='hint').map(e=>({group:Number(e.value),count:Number(e.count)})),
         revealed:[...revealed],independent_recall:recalled,self_rating:ratings?Number(ratings.value):null}}

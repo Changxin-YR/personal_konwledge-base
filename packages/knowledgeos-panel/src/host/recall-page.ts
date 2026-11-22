@@ -43,7 +43,7 @@ async function addPage(n){
   if(n<1||total&&n>total||loaded.has(n))return;
   const payload=await call(api+'/source?'+new URLSearchParams({...source,ordinal:String(n)}));if(payload.ordinal!==n||total&&payload.total!==total)fail('RECALL_SOURCE_CHANGED');total=payload.total;
   const section=document.createElement('article'),h=document.createElement('h3'),text=document.createElement('pre');h.textContent='页段 '+n+' / '+total;text.dataset.ordinal=String(n);text.textContent=payload.text;
-  if(!payload.text)text.setAttribute('aria-label','空白页');section.append(h,text);
+  if(!payload.text){h.append(' · 空白页');text.setAttribute('aria-label','空白页')}section.append(h,text);
   const next=[...$('pages').children].find(e=>Number(e.lastChild.dataset.ordinal)>n);$('pages').insertBefore(section,next||null);
   if(next)next.scrollIntoView({block:'start'});
   loaded.set(n,payload);$('source-title').textContent=payload.title;if(!$('title').value)$('title').value=payload.title;
@@ -84,7 +84,7 @@ async function save(){
 }
 function draw(data){
   attempt=data;view='practice';const {material:m,ordinal,first,last,length,progress:r}=data;
-  $('practice-title').textContent=m.title;$('practice-meta').textContent='页段 '+ordinal+' / '+last+' · '+length+' 个 UTF-16 单元';
+  $('practice-title').textContent=m.title;$('practice-meta').textContent='页段 '+ordinal+' / '+last+' · 本页 '+data.page_length+' / 选区 '+length+' 个 UTF-16 单元';
   $('original').href='/knowledgeos/reader?'+new URLSearchParams({asset:m.asset_id,version:m.version_id,unit:String(ordinal),...(m.conversion_id?{conversion:m.conversion_id}:{})});
   $('version-warning').hidden=!data.source_changed;$('prev').disabled=ordinal<=first;$('next').disabled=ordinal>=last;
   $('practice-text').replaceChildren();$('groups').replaceChildren();const groups=new Map();

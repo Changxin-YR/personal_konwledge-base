@@ -53,20 +53,39 @@ test('Word recall requires the pinned converted PDF, refuses gaps, and does not 
   try{
     const doc=publish(s,actor,'Synthetic Word bytes','application/vnd.openxmlformats-officedocument.wordprocessingml.document')
     const first=s.office.start(actor,doc.id,doc.version_id,randomUUID()),job=s.office.claim()
-    assert(s.office.complete(job.token,blob('first conversion'),3,[]))
+    assert(s.office.complete(job.token,blob('first conversion'),4,[]))
     const src={...target(doc),conversion_id:first.id},lease=s.wordSearch.claim()
     const page1='old version paired',page3='old third page'
-    assert(s.wordSearch.publish(lease.token,1,page1));assert(s.wordSearch.publish(lease.token,2,null));assert(s.wordSearch.publish(lease.token,3,page3))
+    assert(s.wordSearch.publish(lease.token,1,page1,'text'));assert(s.wordSearch.publish(lease.token,2,'','blank'));assert(s.wordSearch.publish(lease.token,3,page3,'text'))
+    assert(s.wordSearch.publish(lease.token,4,'caption from partially unextracted page'))
     assert.throws(()=>s.recall.authorPage(actor,{...target(doc),ordinal:1}),{code:'RECALL_CONVERSION_REQUIRED'})
+    assert.throws(()=>s.recall.authorPage(actor,{...src,ordinal:4}),{code:'RECALL_SOURCE_NOT_READY'})
     const masks=[{ordinal:1,start:0,end:11,group:1}],firstPoint=point(1,0,page1),key=randomUUID()
-    assert.throws(()=>s.recall.create(actor,actor.userId,key,{...src,title:'Pinned',first:firstPoint,last:point(3,page3.length,page3),interior_hashes:[sha('')],masks}),{code:'RECALL_SOURCE_NOT_READY'})
+    assert.throws(()=>s.recall.create(actor,actor.userId,key,{...src,title:'Pinned',first:firstPoint,last:point(4,5,'caption from partially unextracted page'),interior_hashes:[sha(''),sha(page3)],masks}),{code:'RECALL_SOURCE_NOT_READY'})
     assert.deepEqual(s.recall.list(actor).items,[])
-    const d=s.recall.create(actor,actor.userId,key,{...src,title:'Pinned',first:firstPoint,last:point(1,page1.length,page1),interior_hashes:[],masks}).data
+    const d=s.recall.create(actor,actor.userId,key,{...src,title:'Pinned',first:firstPoint,last:point(3,page3.length,page3),interior_hashes:[sha('')],masks}).data
     const next=s.office.start(actor,doc.id,doc.version_id,randomUUID()),second=s.office.claim();assert.notEqual(first.id,next.id)
     assert(s.office.complete(second.token,blob('second conversion'),1,[]));const index=s.wordSearch.claim()
-    assert(s.wordSearch.publish(index.token,1,'different new answer'))
+    assert(s.wordSearch.publish(index.token,1,'different new answer','text'))
     const updated=s.recall.get(actor,d.material.id)
     assert(updated.source_changed);assert.equal(updated.material.conversion_id,first.id);assert.deepEqual(updated.runs,d.runs)
     assert.equal(s.recall.authorPage(actor,{...src,ordinal:1}).text,page1)
+    const blank=s.recall.act(actor,actor.userId,d.material.id,randomUUID(),{event:'move',value:2,expected_revision:d.revision})
+    assert.equal(blank.page_length,0);assert.deepEqual(blank.runs,[])
+  }finally{s.close()}
+})
+
+test('a caption-only review page cannot become a recall source; a confirmed physical blank counts as a page',async()=>{
+  const dir=mkdtempSync(join(tmpdir(),'kos-recall-pdf-')),{actor}=await seed(lib,dir),s=new lib.ProbeStorage({dataDir:dir})
+  try{
+    const doc=publish(s,actor,'Synthetic PDF bytes','application/pdf'),src=target(doc)
+    s.parses.control(actor,doc.id,doc.version_id,'start');const job=s.parses.claim()
+    assert(s.parses.initialize(job.token,3))
+    assert(s.parses.publish(job.token,1,{text:'caption',needsReview:true,chapter:''}))
+    assert(s.parses.publish(job.token,2,{text:'',needsReview:true,confirmedBlank:true,chapter:''}))
+    assert(s.parses.publish(job.token,3,{text:'ready page',needsReview:false,chapter:''}))
+    assert.throws(()=>s.recall.authorPage(actor,{...src,ordinal:1}),{code:'RECALL_SOURCE_NOT_READY'})
+    assert.equal(s.recall.authorPage(actor,{...src,ordinal:2}).text,'')
+    assert.equal(s.recall.authorPage(actor,{...src,ordinal:3}).text,'ready page')
   }finally{s.close()}
 })

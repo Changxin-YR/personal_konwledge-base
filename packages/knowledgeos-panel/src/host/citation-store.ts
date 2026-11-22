@@ -71,13 +71,15 @@ export class CitationStore {
     if(s.kind==='office'){
       // The Word index binds page bytes to the fixed conversion, not to the latest result.
       if(!t.conversion_id||s.conversion_id!==t.conversion_id)throw new AssetError(422,'RECALL_CONVERSION_REQUIRED')
-      const page=db.prepare(`SELECT p.text FROM office_conversions c JOIN word_search_runs r
-        ON r.conversion_id=c.id AND r.result_blob_id=c.result_blob_id JOIN word_search_pages p ON p.conversion_id=c.id
-        WHERE c.id=? AND p.page=?`).get(s.conversion_id,s.ordinal)
-      if(!page)throw new AssetError(409,'RECALL_SOURCE_NOT_READY')
-      return {...s,text:String(page.text)}
+      const page=db.prepare(`SELECT q.blank,p.text FROM office_conversions c JOIN recall_word_sources q
+        ON q.conversion_id=c.id AND q.result_blob_id=c.result_blob_id
+        LEFT JOIN word_search_pages p ON p.conversion_id=q.conversion_id AND p.page=q.page
+        WHERE c.id=? AND q.page=?`).get(s.conversion_id,s.ordinal)
+      if(!page||!page.blank&&typeof page.text!=='string')throw new AssetError(409,'RECALL_SOURCE_NOT_READY')
+      return {...s,text:page.blank?'':String(page.text)}
     }
     // Review pages may be incomplete, and can still be re-extracted in place.
+    if(s.kind==='pdf'&&!s.text&&db.prepare('SELECT 1 FROM recall_pdf_blank_pages WHERE version_id=? AND page=?').get(s.version_id,s.ordinal))return s
     if(s.state!=='ready')throw new AssetError(409,'RECALL_SOURCE_NOT_READY')
     return s
   }

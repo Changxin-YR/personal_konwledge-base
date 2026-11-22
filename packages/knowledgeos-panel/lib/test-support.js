@@ -793,12 +793,15 @@ var WordSearchIndex = class {
       };
     });
   }
-  publish(token2, page, text) {
+  publish(token2, page, text, quality) {
     return this.tx("write", (db, now) => {
-      const r = db.prepare(`SELECT c.id,c.page_count ${sources} JOIN word_search_runs r ON r.conversion_id=c.id
+      const r = db.prepare(`SELECT c.id,c.page_count,c.result_blob_id ${sources} JOIN word_search_runs r ON r.conversion_id=c.id
       WHERE ${eligible} AND r.state='running' AND r.result_blob_id=c.result_blob_id AND r.token=? AND r.lease_until>? AND r.next_page=?`).get(token2, now, page);
       if (!r || !Number.isSafeInteger(page) || page < 1 || page > Number(r.page_count) || text !== null && text.length > 32e3) return false;
       if (text) db.prepare("INSERT INTO word_search_pages VALUES(?,?,?)").run(r.id, page, text);
+      if (quality === "text" && text || quality === "blank" && text === "") {
+        db.prepare("INSERT INTO recall_word_sources VALUES(?,?,?,?)").run(r.id, page, r.result_blob_id, Number(quality === "blank"));
+      }
       if (page === Number(r.page_count)) db.prepare("UPDATE word_search_runs SET state='complete',next_page=?,attempts=0,token=NULL,lease_until=NULL WHERE token=?").run(page + 1, token2);
       else db.prepare("UPDATE word_search_runs SET next_page=?,attempts=0,lease_until=? WHERE token=?").run(page + 1, deadline(now), token2);
       return true;
@@ -1088,7 +1091,10 @@ var ParseStore = class {
       const text = !result || previous !== "" && result.text.trimStart() === previous ? previous : result.text;
       const wrote = db.prepare(`UPDATE pdf_pages SET state=?,text=?,chapter=?,error=?,generation=generation+1
       WHERE version_id=? AND page=? AND state='pending' AND ${targeted}`).run(state, text, result?.chapter ?? "", result ? null : "PAGE_EXTRACTION_FAILED", v, page);
-      if (wrote.changes) db.prepare("UPDATE pdf_parse_runs SET losses=0 WHERE version_id=?").run(v);
+      if (wrote.changes) {
+        db.prepare("UPDATE pdf_parse_runs SET losses=0 WHERE version_id=?").run(v);
+        if (result?.confirmedBlank && !text) db.prepare("INSERT OR IGNORE INTO recall_pdf_blank_pages VALUES(?,?)").run(v, page);
+      }
       return Boolean(wrote.changes);
     });
   }
@@ -1564,12 +1570,14 @@ var CitationStore = class {
     const s = this.read(db, actor, t, now);
     if (s.kind === "office") {
       if (!t.conversion_id || s.conversion_id !== t.conversion_id) throw new AssetError(422, "RECALL_CONVERSION_REQUIRED");
-      const page = db.prepare(`SELECT p.text FROM office_conversions c JOIN word_search_runs r
-        ON r.conversion_id=c.id AND r.result_blob_id=c.result_blob_id JOIN word_search_pages p ON p.conversion_id=c.id
-        WHERE c.id=? AND p.page=?`).get(s.conversion_id, s.ordinal);
-      if (!page) throw new AssetError(409, "RECALL_SOURCE_NOT_READY");
-      return { ...s, text: String(page.text) };
+      const page = db.prepare(`SELECT q.blank,p.text FROM office_conversions c JOIN recall_word_sources q
+        ON q.conversion_id=c.id AND q.result_blob_id=c.result_blob_id
+        LEFT JOIN word_search_pages p ON p.conversion_id=q.conversion_id AND p.page=q.page
+        WHERE c.id=? AND q.page=?`).get(s.conversion_id, s.ordinal);
+      if (!page || !page.blank && typeof page.text !== "string") throw new AssetError(409, "RECALL_SOURCE_NOT_READY");
+      return { ...s, text: page.blank ? "" : String(page.text) };
     }
+    if (s.kind === "pdf" && !s.text && db.prepare("SELECT 1 FROM recall_pdf_blank_pages WHERE version_id=? AND page=?").get(s.version_id, s.ordinal)) return s;
     if (s.state !== "ready") throw new AssetError(409, "RECALL_SOURCE_NOT_READY");
     return s;
   }
@@ -1969,7 +1977,16 @@ function recallPractice(segment, masks, revealed, text) {
 }
 
 // src/host/recall-store.ts
-var RECALL_SCHEMA = `CREATE TABLE recall_materials (
+var RECALL_SCHEMA = `CREATE TABLE recall_pdf_blank_pages (
+  version_id TEXT NOT NULL, page INTEGER NOT NULL,
+  PRIMARY KEY(version_id,page), FOREIGN KEY(version_id,page) REFERENCES pdf_pages(version_id,page)
+) STRICT;
+CREATE TABLE recall_word_sources (
+  conversion_id TEXT NOT NULL REFERENCES word_search_runs(conversion_id), page INTEGER NOT NULL CHECK(page>=1),
+  result_blob_id TEXT NOT NULL REFERENCES blobs(id), blank INTEGER NOT NULL CHECK(blank IN (0,1)),
+  PRIMARY KEY(conversion_id,page)
+) STRICT;
+CREATE TABLE recall_materials (
   id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL REFERENCES users(id), service_id TEXT NOT NULL,
   asset_id TEXT NOT NULL REFERENCES assets(id), version_id TEXT NOT NULL REFERENCES asset_versions(id),
   conversion_id TEXT REFERENCES office_conversions(id), title TEXT NOT NULL, created_at TEXT NOT NULL,
@@ -2040,6 +2057,7 @@ var RecallStore = class {
       first: Number(bounds.first),
       last: Number(bounds.last),
       length: Number(bounds.length),
+      page_length: segment.end - segment.start,
       source_changed: head?.id !== m.version_id || Boolean(m.conversion_id && conversion?.id !== m.conversion_id),
       runs: recallPractice(segment, masks, revealed, source.text),
       progress: {

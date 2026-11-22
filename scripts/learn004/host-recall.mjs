@@ -137,7 +137,8 @@ try{
   const recalled=await clickSaved(page,'独立回忆 2');assert.deepEqual(recalled.progress.independent_recall,[2]);hidden(JSON.stringify(recalled))
   const revealed=await clickSaved(page,'揭示 3');assert(revealed.runs.some(p=>p.text?.includes(terms[2])));hidden(JSON.stringify(revealed),[terms[2]])
   await page.locator('#rating').selectOption('4');const rated=await clickSaved(page,'保存自评');assert.equal(rated.progress.self_rating,4)
-  const moved=await clickSaved(page,'下一练习页');assert.equal(moved.ordinal,2);assert(moved.runs.some(p=>p.text?.includes(terms[3])));assert.equal(moved.length,old[1].length)
+  const moved=await clickSaved(page,'下一练习页');assert.equal(moved.ordinal,2);assert(moved.runs.some(p=>p.text?.includes(terms[3])))
+  assert.equal(moved.page_length,old[1].length);assert.equal(moved.length,expected.reduce((n,p)=>n+p[2]-p[1],0))
   const req1={actor_id:user,event:'rating',value:4,expected_revision:moved.revision},req2={...req1,value:5}
   const run=(body,key)=>ctx.request.patch(h.base+prefix+path,{headers:{...marker,'idempotency-key':key},data:body})
   const pair=[{key:randomUUID(),body:req1},{key:randomUUID(),body:req2}]

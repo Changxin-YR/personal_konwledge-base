@@ -10,7 +10,7 @@ const DEADLINE_MS = 15_000, MAX_WORKERS = 2
 const role = 'knowledgeos:pdf-extractor:v1'
 const readerRole = 'knowledgeos:pdf-reader:v1'
 const indexRole = 'knowledgeos:pdf-index:v1'
-type Page = { text: string; needsReview: boolean; chapter: string }
+type Page = { text: string; needsReview: boolean; chapter: string; confirmedBlank: boolean }
 type Outline = {ordinal:number;title:string;depth:number}[]
 type Doc = { numPages: number; page(n: number): Promise<Page>; outline():Promise<Outline>; renderPage(n: number, preserveIndent?:boolean): Promise<RenderedPage>; close(): Promise<void> }
 type Input = Uint8Array<ArrayBuffer> | number | {render: number;preserveIndent:boolean} | 'outline'
@@ -237,7 +237,7 @@ async function parse(bytes: Uint8Array) {
         text = normalizeText(raw,preserveIndent)
         if (view) return {text, ...view, boxes: normalizeBoxes(raw, source, text,preserveIndent), image: imagePng(api, p, view.width, view.height)}
         needsReview ||= !text || /[\ufffd\p{Co}\x00-\x08\x0b\x0c\x0e-\x1f]/u.test(text)
-        return {text, needsReview, chapter: labels[n]}
+        return {text, needsReview, chapter: labels[n], confirmedBlank:objects===0&&count===0}
       } finally { api.FPDFText_ClosePage(tp) }
     } finally { api.FPDF_ClosePage(p) }
   }
