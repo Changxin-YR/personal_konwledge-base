@@ -2716,8 +2716,26 @@
       ],
       "final_acceptance_ids": [],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "in_progress",
-      "test_plan_status": "expanded_for_activation"
+      "status": "passed",
+      "test_plan_status": "executed_with_evidence",
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "retest_status": "PASS",
+      "completed_test_ids": [
+        "REPO-002-T01",
+        "REPO-002-T02"
+      ],
+      "open_review_items": [],
+      "closed_review_items": [],
+      "completed_at": "2026-11-26T03:01:27.545640Z",
+      "candidate_commit": "77eeaaea6546c96827a08db88f9e5927a4b993b4",
+      "acceptance_record": "docs/evidence/REPO-002/acceptance.json",
+      "evidence_paths": [
+        "docs/evidence/REPO-002/REPORT.md",
+        "docs/evidence/REPO-002/acceptance.json",
+        "docs/evidence/REPO-002/independent.json",
+        "docs/evidence/REPO-002/runs/github-regression.json"
+      ]
     },
     {
       "id": "REPO-003",

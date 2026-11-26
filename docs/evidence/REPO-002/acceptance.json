@@ -1,0 +1,47 @@
+{
+  "candidate_sha": "77eeaaea6546c96827a08db88f9e5927a4b993b4",
+  "tree": "a2c21a040d90b3300438053311e5ac304e496a3d",
+  "source_tree": "7440ba7f9c66c1a62f644e8871675d12cf934388",
+  "entry_sha256": "8383ec51f3a398bab2690c0575482e2b48a1a345113b734d0c54230465b4c0ee",
+  "build_sha256": "740c7cf0a05f21174fbae19c2f933d574e4119795dee46608aec474349241cee",
+  "unit_id": "REPO-002",
+  "unit_acceptance": "PASS",
+  "passed_test_ids": [
+    "REPO-002-T01",
+    "REPO-002-T02"
+  ],
+  "main_command": "node scripts/repo002/host-gitlab.mjs <frozen-checkout> 77eeaaea6546c96827a08db88f9e5927a4b993b4 8383ec51f3a398bab2690c0575482e2b48a1a345113b734d0c54230465b4c0ee",
+  "main_exit": 0,
+  "main_records": [
+    {
+      "path": "docs/evidence/REPO-002/runs/main.json",
+      "sha256": "0d6db0238d5e854150b63a9ea83e306f8ed49015d1e47d3e9e9326ab9ea49f6a"
+    }
+  ],
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/REPO-002/independent.json",
+  "screens": [
+    {
+      "path": "docs/evidence/REPO-002/runs/main-gitlab-old-fixed-file.png",
+      "sha256": "9b5d787956a94bf8907dca0b1431916602d17f509acdcec5b64d017b76815c31"
+    },
+    {
+      "path": "docs/evidence/REPO-002/runs/main-gitlab-restart-mobile.png",
+      "sha256": "3ef570f5b6a3f0edc1e6e951160a2ce460116f81525326771f6fa9462daee6f7"
+    }
+  ],
+  "technical_results": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "affected_tests": 9,
+    "plan_gate_regressions": 148
+  },
+  "github_regression": {
+    "path": "docs/evidence/REPO-002/runs/github-regression.json",
+    "sha256": "6edcf09d16197710158c66c52a692d85b3bb256d6d9fdb02f32302a11afd9f9a"
+  },
+  "private_gitlab": "BLOCKED",
+  "complete_scenario": {
+    "A19": "NOT_RUN"
+  }
+}

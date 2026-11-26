@@ -1,0 +1,317 @@
+{
+  "unit_id": "REPO-001",
+  "candidate_sha": "77eeaaea6546c96827a08db88f9e5927a4b993b4",
+  "tree": "a2c21a040d90b3300438053311e5ac304e496a3d",
+  "source_tree": "7440ba7f9c66c1a62f644e8871675d12cf934388",
+  "entry_sha256": "8383ec51f3a398bab2690c0575482e2b48a1a345113b734d0c54230465b4c0ee",
+  "build_sha256": "740c7cf0a05f21174fbae19c2f933d574e4119795dee46608aec474349241cee",
+  "runner_sha256": "5d3bbca2812505647376f22d06cf15b1906705014386e85d903c4c9f4b7cd009",
+  "scope": "real public GitHub + isolated DSH Host/Chrome/SQLite, bounded fixtures for negative cases",
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "A19": "NOT_RUN",
+  "private_github": "NOT_RUN",
+  "checks": [
+    {
+      "id": "real_git_cross_read",
+      "status": "PASS",
+      "repository": "octocat/Hello-World",
+      "commit": "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d",
+      "tree": "b4eecafa9be2f2006ce1b709d6857b07069b4608",
+      "blob": "980a0d5f19a64b4b30a87d4206aade58726b60e3",
+      "path": "README",
+      "sha256": "03ba204e50d126e4674c005e04d82e84c21366780af1f43bd54a37816b6ab340",
+      "first_pinned_after_ref_change": true
+    },
+    {
+      "id": "restart_reread",
+      "status": "PASS",
+      "archived_commit": "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d",
+      "different_commit": "b3cbd5bbd7e81436d2eee04537ea2b4c0cad4cdf",
+      "network_reads": 0
+    },
+    {
+      "id": "authorization_and_failure_atomicity",
+      "status": "PASS",
+      "remote_for_acl_denials": 0
+    },
+    {
+      "id": "foreground_identity_fail_closed",
+      "status": "PASS"
+    },
+    {
+      "id": "content_inert_and_egress_allowlisted",
+      "status": "PASS",
+      "github_read_requests": 11,
+      "external_browser_requests": 0
+    }
+  ],
+  "screens": [
+    {
+      "name": "github-desktop.png",
+      "sha256": "b075bd396fe2eaa8e2796c384eb0eb7449f29e82666ae3bc4bc5523c83ebae02"
+    },
+    {
+      "name": "github-mobile.png",
+      "sha256": "c8fe0ae37b4db20532b1da834bf8df0a8ad3a284a1548386bea6e01750ce85a2"
+    },
+    {
+      "name": "literal-content.png",
+      "sha256": "85772ac30ce87687e9a8357cf337f50ce014ab8ea1219f1ea4fb70cfd7c09669"
+    }
+  ],
+  "boots": [
+    139924,
+    112368
+  ],
+  "traffic": [
+    {
+      "method": "GET",
+      "outcome": "github",
+      "path": "/repos/octocat/Hello-World",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "github",
+      "path": "/repos/octocat/Hello-World/commits/refs%2Fheads%2Fmaster",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "github",
+      "path": "/repos/octocat/Hello-World/git/trees/b4eecafa9be2f2006ce1b709d6857b07069b4608",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "github",
+      "path": "/repos/octocat/Hello-World",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "github",
+      "path": "/repos/octocat/Hello-World",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "github",
+      "path": "/repos/octocat/Hello-World/commits/refs%2Fheads%2Ftest",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "github",
+      "path": "/repos/octocat/Hello-World/git/trees/a99769c0f635bfd0610ee7a6c2f2b864fa23f3dc",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "github",
+      "path": "/repos/octocat/Hello-World/git/blobs/340edab54ab5e07f0cab4f44808b3d2ee2622f02",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "github",
+      "path": "/repos/octocat/Hello-World",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "github",
+      "path": "/repos/octocat/Hello-World",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "github",
+      "path": "/repos/octocat/Hello-World/git/blobs/980a0d5f19a64b4b30a87d4206aade58726b60e3",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/missing",
+      "status": 404
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/redirect",
+      "status": 302
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/unsafe-path",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/unsafe-path/commits/refs%2Fheads%2Fmain",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/unsafe-path/git/trees/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/truncated",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/truncated/commits/refs%2Fheads%2Fmain",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/truncated/git/trees/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/too-large",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/too-large/commits/refs%2Fheads%2Fmain",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/too-large/git/trees/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/broken-blob",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/broken-blob/commits/refs%2Fheads%2Fmain",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/broken-blob/git/trees/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/broken-blob/git/blobs/bc5db6c1a67b05997dd68839056ac7bd5a80278b",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/transport",
+      "status": 0
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/unavailable",
+      "status": 503
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/rate",
+      "status": 403
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/secondary-rate",
+      "status": 403
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/cancel",
+      "status": 0
+    },
+    {
+      "method": "GET",
+      "outcome": "cancelled",
+      "path": "/repos/synthetic/cancel",
+      "status": 0
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/sample",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/sample/commits/refs%2Fheads%2Fmain",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/sample/git/trees/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/sample",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/sample",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/repos/synthetic/sample/git/blobs/bc5db6c1a67b05997dd68839056ac7bd5a80278b",
+      "status": 200
+    }
+  ],
+  "binding": {
+    "candidate_sha": "77eeaaea6546c96827a08db88f9e5927a4b993b4",
+    "tree": "a2c21a040d90b3300438053311e5ac304e496a3d",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "8383ec51f3a398bab2690c0575482e2b48a1a345113b734d0c54230465b4c0ee",
+    "helpers": {
+      "repository-egress": "4b57ec7fb5e36e3cdf32ce80fb94639e9abf0c70894c3035f9cf58a116676272",
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "5278ebf7cc64773560b3b672c9182c65b4e1d82a20b8f569328cb0765a627f10",
+      "a07-isolated-host": "87283dbd2a6000dd66f98310e501bd10bc2805323901b9de9e2948e3f256f4d9"
+    },
+    "parser": {
+      "pdf-extractor.js": "49fb0588ba0c37486a287a083d9bd2a032d89205d34af615845c4928b1f6745c",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "chrome": "158.0.8127.88"
+}
