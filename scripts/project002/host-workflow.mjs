@@ -254,30 +254,39 @@ try{
     const logout=await otherSession.context.request.post(host.base+prefix+'/auth/logout',{headers:marker,data:{}});assert.equal(logout.status(),204);
     loggedOut.finish();assert.deepEqual(await loggedOut.outcome,{status:401,code:'AUTH_REQUIRED'});assert.deepEqual(loggedOut.trace(),['entered','completed']);
   }finally{loggedOut.close();await otherSession.context.close();}
+  const unchanged=(await request(owner,mp)).task;
+  assert.equal(unchanged.state,'awaiting_admin_review');assert.equal(unchanged.revision,passed.task.revision);
+  assert.equal(rows("SELECT COUNT(*) AS n FROM task_review_decisions WHERE submission_id=? AND stage='final'",thirdMaterial.id)[0].n,0);
   const finalAccepted=await request(owner,mp+'/reviews','POST',finalThird,201,undefined,finalKey);assert.equal(finalAccepted.task.state,'accepted');
   const full=await mHistory(worker);assert.deepEqual(full.submissions,[firstMaterial,secondMaterial,thirdMaterial]);
   assert.equal(full.submissions[0].criteria_version,1);assert.equal(full.reviews[1].requested_work,'Add the new trace');
   assert.equal(rows('SELECT COUNT(*) AS n FROM task_submission_materials WHERE task_id=?',delivery.task.id)[0].n,3);
   phase='stale successful history response cannot repaint protected material';
   await open(owner,mtitle);await op.bringToFront();
-  let captured,deliver,settled;
+  const replacementLink=op.locator('a[href="'+materialUrl(targetOf(replacement))+'"]');
+  await replacementLink.waitFor();
+  let captured,deliver,settled,capturedRequest,routeFailure;
   const responseCaptured=new Promise(resolve=>{captured=resolve}),deliveryGate=new Promise(resolve=>{deliver=resolve}),deliveryDone=new Promise(resolve=>{settled=resolve});
   const historyRoute='**'+mp+'/history';
   await op.route(historyRoute,async route=>{
-    try{const safe=await route.fetch();assert.equal(safe.status(),200);assert.match(await safe.text(),/Replacement trace/);captured();
-      await deliveryGate;await route.fulfill({response:safe});}finally{settled();}
+    try{capturedRequest=route.request();const safe=await route.fetch({timeout:8000});assert.equal(safe.status(),200);assert.match(await safe.text(),/Replacement trace/);captured();
+      await deliveryGate;await route.fulfill({response:safe});}
+    catch(error){routeFailure=error;captured();}finally{settled();}
   },{times:1});
   try{
     await op.locator('#tasks').getByRole('button',{name:mtitle,exact:true}).click();
     await Promise.race([responseCaptured,until(()=>false,'capture pre-revocation history',8000)]);
+    assert.ifError(routeFailure);
     await revokeMaterial(worker,replaceOwner);
-    await op.locator('#attempts').filter({hasNotText:'Replacement trace'}).waitFor();
-    const lateResponse=op.waitForResponse(r=>r.url().endsWith(mp+'/history')&&r.status()===200);
-    deliver();await deliveryDone;await lateResponse;
+    await op.locator('#workflow').waitFor({state:'hidden'});
+    assert.equal(await op.locator('#attempts').textContent(),'');
+    assert(await op.locator('#workspace').isVisible());
+    const lateResponse=op.waitForResponse(r=>r.request()===capturedRequest&&r.status()===200);
+    deliver();await Promise.all([deliveryDone.then(()=>assert.ifError(routeFailure)),lateResponse]);
     await op.getByText('任务已更新，请重新打开查看。',{exact:true}).waitFor();
     assert.equal(await op.getByText('Replacement trace',{exact:true}).count(),0);
-    assert.equal(await op.locator('a[href="'+materialUrl(targetOf(replacement))+'"]').count(),0);
-  }finally{deliver();await op.unroute(historyRoute);}
+    assert.equal(await replacementLink.count(),0);
+  }finally{deliver();if(capturedRequest)await deliveryDone;await op.unroute(historyRoute);}
   assert(!(await mHistory(owner)).submissions.at(-1).content);
   ok('delivered_obsolete_history_cannot_repaint_material');
   await request(owner,mp+'/reviews','POST',finalThird,409,'TASK_MATERIAL_ACCESS_REQUIRED',finalKey);
