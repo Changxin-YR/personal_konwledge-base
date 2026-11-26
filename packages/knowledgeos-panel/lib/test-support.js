@@ -287,6 +287,7 @@ var AiService = class {
   }
   async explainSelection(actor, system, userText, signal, authorize2) {
     const { text: text2, calls, finish } = await this.#infer(actor, randomUUID2(), system, userText, signal, [], authorize2);
+    if (finish === "max-tokens") throw new AiError(502, "MODEL_OUTPUT_TRUNCATED");
     if (finish !== "stop" || calls.length !== 0 || !text2 || Buffer.byteLength(text2) > 12e3) throw new AiError(502, "MODEL_OUTPUT_INVALID");
     return { text: text2, provider: this.config.provider, model: this.config.model };
   }
@@ -320,7 +321,7 @@ var AiService = class {
         messages: [{ role: "user", content: [{ type: "text", text: userText }] }],
         tools,
         signal: controller.signal,
-        ...tools.length ? {} : { maxTokens: 512 }
+        ...tools.length ? {} : { maxTokens: 512, reasoningEffort: "off" }
       })[Symbol.asyncIterator]();
       try {
         while (true) {

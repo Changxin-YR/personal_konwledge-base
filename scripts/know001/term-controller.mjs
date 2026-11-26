@@ -152,7 +152,8 @@ export async function createFixture({ root, candidate, entry, out, fixtureSha256
     { id: 'knowledgeos-host', config: { dataDir: data.replaceAll('\\', '/') } },
     { id: 'llm-pi-ai', config: { providers: { [route.provider]: {
       api: 'openai-completions', baseURL: route.endpoint, apiKeyEnv: alias, transport: 'sse', cacheRetention: 'none',
-      retryPolicy: { mode: 'normal', maxRetries: 0 }, models: [{ id: route.model, name: route.model, maxTokens: 512 }],
+      compat: { thinkingFormat: 'deepseek' }, retryPolicy: { mode: 'normal', maxRetries: 0 },
+      models: [{ id: route.model, name: route.model, maxTokens: 512, reasoningEfforts: { off: null, high: 'high' } }],
     } } } },
     { id: 'agent-default-model', config: { provider: route.provider, model: route.model } },
     { insert: [{ id: 'know001-acceptance-native', name: local('term-profile-native.mjs').replaceAll('\\', '/') }] },

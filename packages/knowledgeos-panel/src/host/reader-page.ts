@@ -290,7 +290,7 @@ function termError(e,run){
   if([401,403,404].includes(e.http)&&['AUTH_REQUIRED','SOURCE_NOT_FOUND','READER_ACTOR_CHANGED','CSRF_REJECTED'].includes(e.code)){failure(e,run.g);return}
   const errors={TERM_SOURCE_INSUFFICIENT:'来源不足，无法解释这处用法。请选择包含更多语境的术语。',
     MODEL_NOT_CONFIGURED:'暂未配置术语解释模型。',CREDENTIALS_MISSING:'模型凭据未配置。',MODEL_OUTPUT_INVALID:'模型返回的解释无法核验。',
-    MODEL_TIMEOUT:'解释请求超时。',CITATION_SOURCE_CHANGED:'固定来源已变化，请重新选择。',TERM_EXPLANATION_NOT_FOUND:'临时解释已过期，请重新选择。',
+    MODEL_TIMEOUT:'解释请求超时。',MODEL_OUTPUT_TRUNCATED:'模型输出被截断，请缩小选区后重试。',CITATION_SOURCE_CHANGED:'固定来源已变化，请重新选择。',TERM_EXPLANATION_NOT_FOUND:'临时解释已过期，请重新选择。',
     TERM_QUOTA:'此版本的个人术语已达上限。',PROVIDER_RATE_LIMITED:'模型请求过多，请稍后再试。'};
   $('term-status').textContent=errors[e.code]||'当前无法读取或保存术语。';
 }

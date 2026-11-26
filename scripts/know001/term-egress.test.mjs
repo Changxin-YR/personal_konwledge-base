@@ -14,7 +14,7 @@ const database = '{"term":"索引","context":"数据库用B-tree索引查找记�
 const array = '{"term":"索引","context":"数组索引0是第一个元素。"}'
 const packet = context => ({
   model: route.model, stream: true, stream_options: { include_usage: true }, store: false,
-  max_completion_tokens: 512, messages: [{ role: 'system', content: system }, { role: 'user', content: context }],
+  max_completion_tokens: 512, thinking: { type: 'disabled' }, messages: [{ role: 'system', content: system }, { role: 'user', content: context }],
 })
 
 function supply() {

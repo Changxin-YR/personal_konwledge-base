@@ -31,6 +31,7 @@ test('text-only inference shares call accounting, checks before dispatch, and cl
       dispatched++
       assert.deepEqual(options.tools, [])
       assert.equal(options.maxTokens, 512)
+      assert.equal(options.reasoningEffort, 'off')
       assert.equal(options.system, termSystem)
       try { yield* chunks }
       finally { closed++ }
@@ -59,6 +60,8 @@ test('text-only inference shares call accounting, checks before dispatch, and cl
   ]
   await assert.rejects(invoke(), { code: 'MODEL_OUTPUT_INVALID' })
   assert.equal(runner.status().attempts, 3)
+  chunks = [{ type: 'finish', reason: { kind: 'max-tokens' } }]
+  await assert.rejects(invoke(), { code: 'MODEL_OUTPUT_TRUNCATED' })
   runner.close()
 })
 
