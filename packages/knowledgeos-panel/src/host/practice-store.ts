@@ -272,6 +272,8 @@ export class PracticeStore {
   createSession(prior: SessionActor, key: string, versions: string[], mode:'standard'|'guided'='standard', termId?: string) {
     return this.tx('write', (db, now) => {
       const actor = this.actor(prior, now)
+      if (!Array.isArray(versions) || versions.length < 1 || versions.length > 20 || new Set(versions).size !== versions.length)
+        throw new AssetError(422, 'INVALID_PRACTICE_INPUT')
       // Existing sessions keep their original receipt digest after the upgrade.
       const digest = hash(termId ? ['term', termId, mode, versions] : mode === 'standard' ? versions : [mode, versions])
       const old = db.prepare('SELECT id,started_at,request_digest,mode FROM practice_sessions WHERE service_id=? AND user_id=? AND request_key=?')

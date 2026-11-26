@@ -5145,6 +5145,8 @@ var PracticeStore = class {
   createSession(prior, key, versions, mode = "standard", termId) {
     return this.tx("write", (db, now) => {
       const actor2 = this.actor(prior, now);
+      if (!Array.isArray(versions) || versions.length < 1 || versions.length > 20 || new Set(versions).size !== versions.length)
+        throw new AssetError(422, "INVALID_PRACTICE_INPUT");
       const digest5 = hash4(termId ? ["term", termId, mode, versions] : mode === "standard" ? versions : [mode, versions]);
       const old = db.prepare("SELECT id,started_at,request_digest,mode FROM practice_sessions WHERE service_id=? AND user_id=? AND request_key=?").get(actor2.serviceId, actor2.userId, key);
       if (old) {
