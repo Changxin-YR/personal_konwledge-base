@@ -1,0 +1,78 @@
+{
+  "unit_id": "PROJECT-001",
+  "candidate_sha": "0daad20794dcf1ae2eb48d097c851dd8fd867199",
+  "tree": "ca3ce5267b0e9447b4daab4451ea22fbeaaef796",
+  "source_tree": "82bf0638cb28bc0db1d729239db8c0c097988663",
+  "entry_sha256": "641838a3a8a5d129f8799b43c08b09b8fcd36697cca8c19af39de652e2139df3",
+  "build_sha256": "8b31cae45bd81576cf409958e4c4e4f54d67dce15e32030817621159aa9c6a54",
+  "runner_sha256": "e1e7c080853f6825dc00c5dc8e08e6ee439671ae845b8745a549f34b97a22e16",
+  "scope": "Isolated Host with business clock, Chrome and SQLite; no models",
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "A30": "PASS",
+  "A51": "NOT_RUN",
+  "checks": [
+    {
+      "id": "authorized_assignment_and_versioning",
+      "status": "PASS",
+      "revisions": [
+        1,
+        2
+      ],
+      "forged_or_stale_writes": 0
+    },
+    {
+      "id": "remote_revocation_clears_foreground_and_both_invitation_grants",
+      "status": "PASS",
+      "visibility_changes": 0,
+      "revoked_grants": 2
+    },
+    {
+      "id": "revalidation_timeout_clears_visible_task_without_disabling_session",
+      "status": "PASS"
+    },
+    {
+      "id": "expired_and_removed_members_cannot_read_or_join_by_old_code",
+      "status": "PASS",
+      "personal_stays_private": true
+    },
+    {
+      "id": "restart_preserves_assignment_history_and_revocation",
+      "status": "PASS"
+    }
+  ],
+  "boots": [
+    109820,
+    129780
+  ],
+  "screens": [
+    {
+      "name": "project-task-desktop.png",
+      "sha256": "830c66ac6c4634f2cb07f10cd9083cfac8d2c99211eb2b0e6b6e52e19c812862"
+    },
+    {
+      "name": "project-task-mobile.png",
+      "sha256": "fff6cb74701945f1e8406d56df6df8bab357ff7c0ba97b69e362f05022832595"
+    }
+  ],
+  "binding": {
+    "candidate_sha": "0daad20794dcf1ae2eb48d097c851dd8fd867199",
+    "tree": "ca3ce5267b0e9447b4daab4451ea22fbeaaef796",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "641838a3a8a5d129f8799b43c08b09b8fcd36697cca8c19af39de652e2139df3",
+    "helpers": {
+      "business-clock": "311bc07497d9a5754853445814532dd6abaf37f1b91d8067dd5a3f21b866c2f2",
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "5278ebf7cc64773560b3b672c9182c65b4e1d82a20b8f569328cb0765a627f10",
+      "a07-isolated-host": "a2a4613f8e0f937bc5f2dd688a23a3087a888deb2f43925617750dcfb053b42f"
+    },
+    "parser": {
+      "pdf-extractor.js": "49fb0588ba0c37486a287a083d9bd2a032d89205d34af615845c4928b1f6745c",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "chrome": "158.0.8127.88"
+}

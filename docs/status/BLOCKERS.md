@@ -2,7 +2,7 @@
 
 ## 当前阻塞与在制缺口
 
-2026-11-26，[PROJECT-002 和 A31](../evidence/PROJECT-002/REPORT.md) 已通过，P08 等待 SCORE-001。[FND-005 和 A01](../evidence/FND-005/tokease-20261126/REPORT.md) 已通过，真实业务读写在同一冻结候选主跑及独立复跑。A41 仍待 MODEL-001 的全套配置与用量验收。下一单元 PROJECT-003 的 A32 需要 PROJECT-004 完成正式复议后再整体验收。
+2026-11-26，[PROJECT-002 和 A31](../evidence/PROJECT-002/REPORT.md) 已通过，P08 等待 SCORE-001。[FND-005 和 A01](../evidence/FND-005/tokease-20261126/REPORT.md) 已通过，A41 等 MODEL-001 的全套配置与用量验收。[PROJECT-003](../evidence/PROJECT-003/REPORT.md) 已通过指定审核和权限内改判，A32 等 PROJECT-004 的正式复议和处理完成后验收。
 
 GitLab、Gitee、真实 AI 写入拒绝及 GitHub 私库认证仍待各自验收。Windows 安装、升级、回退、卸载和 CHECK-004 未启动。
 

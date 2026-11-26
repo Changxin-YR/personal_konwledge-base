@@ -513,7 +513,8 @@
       ],
       "implementation_status": "in_progress",
       "evidence_paths": [
-        "docs/evidence/PROJECT-002/A31.json"
+        "docs/evidence/PROJECT-002/A31.json",
+        "docs/evidence/PROJECT-003/acceptance.json"
       ]
     },
     {
@@ -527,8 +528,10 @@
         "A31",
         "A32"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/PROJECT-003/acceptance.json"
+      ]
     },
     {
       "id": "F36",

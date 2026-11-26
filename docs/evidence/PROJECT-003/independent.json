@@ -1,0 +1,43 @@
+{
+  "unit_id": "PROJECT-003",
+  "candidate_sha": "0daad20794dcf1ae2eb48d097c851dd8fd867199",
+  "tree": "ca3ce5267b0e9447b4daab4451ea22fbeaaef796",
+  "source_tree": "82bf0638cb28bc0db1d729239db8c0c097988663",
+  "entry_sha256": "641838a3a8a5d129f8799b43c08b09b8fcd36697cca8c19af39de652e2139df3",
+  "build_sha256": "8b31cae45bd81576cf409958e4c4e4f54d67dce15e32030817621159aa9c6a54",
+  "runner_sha256": "e7200f7cf61a3b0221ff8eebad4b7a2de4e1284425a67738cd50418bd055874c",
+  "status": "PASS",
+  "exit": 0,
+  "reviewer": "independent Project acceptance subagent",
+  "command": "node scripts/project003/host-reviews.mjs <frozen-checkout> 0daad20794dcf1ae2eb48d097c851dd8fd867199 641838a3a8a5d129f8799b43c08b09b8fcd36697cca8c19af39de652e2139df3",
+  "results": [
+    {
+      "id": "PROJECT-003-T01",
+      "status": "PASS",
+      "actual": "Ordinary designated reviewer produced the formal verdict without modifying original submission timing or criteria."
+    },
+    {
+      "id": "PROJECT-003-T02",
+      "status": "PASS",
+      "actual": "Scoped administrator correction preserves the original and survives process restart; replay, concurrent stale writes, and project revocation verified."
+    }
+  ],
+  "raw": {
+    "path": "docs/evidence/PROJECT-003/runs/independent.json",
+    "sha256": "7cf641236db369513e73eba8b7cd93b1a44b93822eb24bd01c266e87f0aea5ed"
+  },
+  "screens": [
+    {
+      "path": "docs/evidence/PROJECT-003/runs/independent-ordinary-review-accepted.png",
+      "sha256": "41aeac707c219454c8ae78d6c515b204335a33970fe050d45e9bb4df7c8884d2"
+    },
+    {
+      "path": "docs/evidence/PROJECT-003/runs/independent-ordinary-override-history.png",
+      "sha256": "39b07e4fc3b2c3f597b3ba8ab9d7834cca0e9aef3b5a7ce7042b7fb4808905db"
+    }
+  ],
+  "independent_workflow_regression": {
+    "status": "PASS",
+    "tests": 8
+  }
+}

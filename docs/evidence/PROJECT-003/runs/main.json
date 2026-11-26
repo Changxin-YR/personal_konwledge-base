@@ -1,0 +1,64 @@
+{
+  "unit_id": "PROJECT-003",
+  "candidate_sha": "0daad20794dcf1ae2eb48d097c851dd8fd867199",
+  "tree": "ca3ce5267b0e9447b4daab4451ea22fbeaaef796",
+  "source_tree": "82bf0638cb28bc0db1d729239db8c0c097988663",
+  "entry_sha256": "641838a3a8a5d129f8799b43c08b09b8fcd36697cca8c19af39de652e2139df3",
+  "build_sha256": "8b31cae45bd81576cf409958e4c4e4f54d67dce15e32030817621159aa9c6a54",
+  "runner_sha256": "e7200f7cf61a3b0221ff8eebad4b7a2de4e1284425a67738cd50418bd055874c",
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "A32": "NOT_RUN",
+  "checks": [
+    {
+      "id": "designated_ordinary_reviewer_with_immutable_submission",
+      "status": "PASS"
+    },
+    {
+      "id": "admin_correction_immutable_history_and_exact_replay",
+      "status": "PASS"
+    },
+    {
+      "id": "parallel_writers_and_cross_project_scope",
+      "status": "PASS"
+    },
+    {
+      "id": "membership_revocation_denies_replay_and_restart_preserves_history",
+      "status": "PASS"
+    }
+  ],
+  "boots": [
+    84800,
+    132036
+  ],
+  "screens": [
+    {
+      "name": "ordinary-review-accepted.png",
+      "sha256": "41aeac707c219454c8ae78d6c515b204335a33970fe050d45e9bb4df7c8884d2"
+    },
+    {
+      "name": "ordinary-override-history.png",
+      "sha256": "39b07e4fc3b2c3f597b3ba8ab9d7834cca0e9aef3b5a7ce7042b7fb4808905db"
+    }
+  ],
+  "binding": {
+    "candidate_sha": "0daad20794dcf1ae2eb48d097c851dd8fd867199",
+    "tree": "ca3ce5267b0e9447b4daab4451ea22fbeaaef796",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "641838a3a8a5d129f8799b43c08b09b8fcd36697cca8c19af39de652e2139df3",
+    "helpers": {
+      "business-clock": "311bc07497d9a5754853445814532dd6abaf37f1b91d8067dd5a3f21b866c2f2",
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "5278ebf7cc64773560b3b672c9182c65b4e1d82a20b8f569328cb0765a627f10",
+      "a07-isolated-host": "a2a4613f8e0f937bc5f2dd688a23a3087a888deb2f43925617750dcfb053b42f"
+    },
+    "parser": {
+      "pdf-extractor.js": "49fb0588ba0c37486a287a083d9bd2a032d89205d34af615845c4928b1f6745c",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "chrome": "158.0.8127.88"
+}

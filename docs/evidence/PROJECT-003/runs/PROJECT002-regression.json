@@ -1,0 +1,102 @@
+{
+  "unit_id": "PROJECT-002",
+  "candidate_sha": "0daad20794dcf1ae2eb48d097c851dd8fd867199",
+  "tree": "ca3ce5267b0e9447b4daab4451ea22fbeaaef796",
+  "source_tree": "82bf0638cb28bc0db1d729239db8c0c097988663",
+  "entry_sha256": "641838a3a8a5d129f8799b43c08b09b8fcd36697cca8c19af39de652e2139df3",
+  "build_sha256": "8b31cae45bd81576cf409958e4c4e4f54d67dce15e32030817621159aa9c6a54",
+  "runner_sha256": "60abed88a1d56923efbdea9372155a184ebe3aee384a56569920593d631045d1",
+  "status": "PASS",
+  "scope": "Host checks for inline and fixed-material review workflow; scoring not covered",
+  "checks": [
+    {
+      "id": "cutoff_and_peer_gate",
+      "status": "PASS",
+      "server_submitted_at": "2026-11-22T06:00:20.000Z",
+      "next_state": "awaiting_admin_review"
+    },
+    {
+      "id": "late_review_does_not_rewrite_original_and_resubmission_pins_new_criteria",
+      "status": "PASS"
+    },
+    {
+      "id": "formal_failure_is_not_a_return",
+      "status": "PASS"
+    },
+    {
+      "id": "external_block_projection_is_not_material_wait_or_formal_failure",
+      "status": "PASS",
+      "setup": "isolated_sqlite_acknowledged_state_fixture"
+    },
+    {
+      "id": "fixed_version_scope_and_peer_recovery",
+      "status": "PASS"
+    },
+    {
+      "id": "final_rights_rechecked_after_preparation_and_restored_after_restart",
+      "status": "PASS"
+    },
+    {
+      "id": "delivered_obsolete_history_cannot_repaint_material",
+      "status": "PASS"
+    },
+    {
+      "id": "immutable_material_replacement_and_idempotency",
+      "status": "PASS"
+    },
+    {
+      "id": "foreground_timeout_discards_material_and_stale_access_result",
+      "status": "PASS"
+    },
+    {
+      "id": "revocation_and_durable_restart",
+      "status": "PASS"
+    }
+  ],
+  "boots": [
+    65740,
+    47856,
+    110536
+  ],
+  "screens": [
+    {
+      "name": "peer-awaiting-final.png",
+      "sha256": "bbc696cdbbb4d98b341eda2ae46c67f4570c91c6527578f19961592fec2615ed"
+    },
+    {
+      "name": "external-block-projection.png",
+      "sha256": "c057aa3f01ac4d0174641e0dd34854049a2854d0c064e62944e783d0dee16af7"
+    },
+    {
+      "name": "awaiting-material-access.png",
+      "sha256": "acfb74b99558ff580022d5b42c95262230bf5a50cbe764d2683fdee89e614fc0"
+    },
+    {
+      "name": "review-history-mobile.png",
+      "sha256": "ed0652d9c996172429b1dbcb0f9309d30a628094cfe9267aae40c26b7cdb698f"
+    }
+  ],
+  "P08": "NOT_RUN",
+  "A31": "PASS",
+  "binding": {
+    "candidate_sha": "0daad20794dcf1ae2eb48d097c851dd8fd867199",
+    "tree": "ca3ce5267b0e9447b4daab4451ea22fbeaaef796",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "641838a3a8a5d129f8799b43c08b09b8fcd36697cca8c19af39de652e2139df3",
+    "helpers": {
+      "business-clock": "311bc07497d9a5754853445814532dd6abaf37f1b91d8067dd5a3f21b866c2f2",
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "5278ebf7cc64773560b3b672c9182c65b4e1d82a20b8f569328cb0765a627f10",
+      "a07-isolated-host": "a2a4613f8e0f937bc5f2dd688a23a3087a888deb2f43925617750dcfb053b42f"
+    },
+    "parser": {
+      "pdf-extractor.js": "49fb0588ba0c37486a287a083d9bd2a032d89205d34af615845c4928b1f6745c",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "chrome": "158.0.8127.88",
+  "T02": "PASS",
+  "T01": "PASS"
+}

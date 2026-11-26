@@ -10,7 +10,7 @@
     "sha256": "a2e5986cfa81189aeae0c4b43ebfe4afd074aae9d5674e7ecf5e069c5d6ab530"
   },
   "active_unit": "PROJECT-003",
-  "unit_state": "in_progress",
+  "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Implement and verify designated review and scoped administrator corrections for ordinary project tasks",
+  "state_reason": "Scoped ordinary review and correction candidate verified",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,47 +127,61 @@
     }
   },
   "last_accepted_checkpoint": {
-    "unit_id": "FND-005",
-    "candidate_sha": "aadf13abcb37aa24010af35543062d0551c58955",
-    "tree": "a386c26cf4cc2c76498b8b5a558fbfaef663ca36",
-    "entry_sha256": "2bd4ca6ea0cf1eba6942038e2e7ef9d531a5814461e412d7e01aae329b68dd8a",
-    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
-    "base_commit": "4a41640054d6624ebf027cd633e1ba2592b089a8",
+    "unit_id": "PROJECT-003",
+    "candidate_sha": "0daad20794dcf1ae2eb48d097c851dd8fd867199",
+    "tree": "ca3ce5267b0e9447b4daab4451ea22fbeaaef796",
+    "source_tree": "82bf0638cb28bc0db1d729239db8c0c097988663",
+    "entry_sha256": "641838a3a8a5d129f8799b43c08b09b8fcd36697cca8c19af39de652e2139df3",
+    "build_sha256": "8b31cae45bd81576cf409958e4c4e4f54d67dce15e32030817621159aa9c6a54",
+    "runner_sha256": "e7200f7cf61a3b0221ff8eebad4b7a2de4e1284425a67738cd50418bd055874c",
+    "base_commit": "54189ecf88f28cef949b687dd65c34a5c75d2aa3",
     "completed": [
-      "Connected the product to the native default-model service while preserving trusted explicit configurations.",
-      "Tokease exact-route main and independent real Host / Chrome / SQLite runs each selected one read and one write in two native requests.",
-      "Validated current schema regressions, old migration checksums, tools authorization, cancellation, and bounded no-retry route dispatch."
+      "Ordinary scoped task review and append-only administrator correction, with current membership and pinned submission permissions.",
+      "Real Host, Chrome and SQLite main and independent passed. A30 and PROJECT-002 regressions passed on the same frozen build."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
-      "A01": "PASS",
-      "main_live": "PASS",
-      "independent_live": "PASS",
-      "independent_fixtures": "PASS",
-      "A41": "NOT_RUN"
+      "T01": "PASS",
+      "T02": "PASS",
+      "independent": "PASS",
+      "A32": "NOT_RUN",
+      "A30_regression": "PASS",
+      "PROJECT002_regression": "PASS"
     },
-    "evidence": "docs/evidence/FND-005/tokease-20261126/acceptance.json",
+    "evidence": "docs/evidence/PROJECT-003/acceptance.json",
     "defects": [],
-    "blocked_dependencies": [],
-    "next_task": "PROJECT-003"
+    "blocked_dependencies": [
+      "Full A32 requires PROJECT-004 formal appeal and resolution."
+    ],
+    "next_task": "PROJECT-004"
   },
   "checkpoint": {
     "unit_id": "PROJECT-003",
+    "candidate_sha": "0daad20794dcf1ae2eb48d097c851dd8fd867199",
+    "tree": "ca3ce5267b0e9447b4daab4451ea22fbeaaef796",
+    "source_tree": "82bf0638cb28bc0db1d729239db8c0c097988663",
+    "entry_sha256": "641838a3a8a5d129f8799b43c08b09b8fcd36697cca8c19af39de652e2139df3",
+    "build_sha256": "8b31cae45bd81576cf409958e4c4e4f54d67dce15e32030817621159aa9c6a54",
+    "runner_sha256": "e7200f7cf61a3b0221ff8eebad4b7a2de4e1284425a67738cd50418bd055874c",
     "base_commit": "54189ecf88f28cef949b687dd65c34a5c75d2aa3",
     "completed": [
-      "Prepared independent expectations for authorized ordinary review and append-only correction."
+      "Ordinary scoped task review and append-only administrator correction, with current membership and pinned submission permissions.",
+      "Real Host, Chrome and SQLite main and independent passed. A30 and PROJECT-002 regressions passed on the same frozen build."
     ],
     "test_results": {
-      "unit_acceptance": "NOT_RUN",
-      "T01": "NOT_RUN",
-      "T02": "NOT_RUN",
-      "A32": "NOT_RUN"
+      "unit_acceptance": "PASS",
+      "T01": "PASS",
+      "T02": "PASS",
+      "independent": "PASS",
+      "A32": "NOT_RUN",
+      "A30_regression": "PASS",
+      "PROJECT002_regression": "PASS"
     },
-    "evidence": "scripts/project003/acceptance-plan.md",
+    "evidence": "docs/evidence/PROJECT-003/acceptance.json",
     "defects": [],
     "blocked_dependencies": [
-      "Full A32 needs formal appeals in PROJECT-004."
+      "Full A32 requires PROJECT-004 formal appeal and resolution."
     ],
-    "next_task": "PROJECT-003"
+    "next_task": "PROJECT-004"
   }
 }
