@@ -1,0 +1,9 @@
+{
+  "candidate_sha": "9a6149837c97d5aae464d61657562cfe3ec35aaa",
+  "route_discovery": {"provider": "tokease", "model": "deepseek-v4.1-flash-1017"},
+  "isolated_product_status": {"http": 200, "provider": null, "model": null, "configured": false, "attempts": 0},
+  "role": "authenticated synthetic business member",
+  "remote_dispatches": 0,
+  "result": "FAIL",
+  "finding": "Native default model was visible to the provider profile but unavailable to the KnowledgeOS model binding without the Cordis service dependency."
+}

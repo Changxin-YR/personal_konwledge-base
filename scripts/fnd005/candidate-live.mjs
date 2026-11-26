@@ -43,7 +43,9 @@ async function main([mode,...a]) {
       const authorize=async()=>{assert.equal(binding(commit,cache).fingerprint,fingerprint);await price(q,r)}
       proof.phase='BROWSER';const {browserRun}=await import('./candidate-live-browser.mjs');await browserRun({bound,base,entry,run,route:r,proof,authorize,images,confined})
     });if(mode==='live'){proof.phase='FINAL_BINDING';assert.equal(binding(commit,cache).fingerprint,fingerprint);assert.equal(proof.operations.length,2);assert.equal(proof.prepare_requests,2);assert.equal(proof.successful_model_selections,2);proof.status='PASS';proof.phase='COMPLETE'}
-  }catch{if(mode==='live'&&proof.prepare_requests>0)proof.status='FAIL';process.exitCode=1;console.error('Stopped: '+proof.phase)}finally{
+  }catch(error){if(mode==='live'&&proof.prepare_requests>0)proof.status='FAIL';process.exitCode=1;
+    const detail=error instanceof Error&&/^FND005_(?:PRODUCT_ROUTE_MISMATCH|PREPARE_[1-5]\d\d_[A-Z0-9_]{1,64})$/.test(error.message)?' '+error.message:'';
+    console.error('Stopped: '+proof.phase+detail)}finally{
     if(mode==='live'){proof.native_dispatches=[1,2].filter(i=>existsSync(join(run,'consumed-'+i))).length;proof.finished_at=new Date().toISOString();const path=publishProof(run,proof,images);console.log(JSON.stringify({status:proof.status,proof:path}))}
   }
 }

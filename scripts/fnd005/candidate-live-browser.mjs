@@ -35,6 +35,8 @@ export async function browserRun({bound,base,entry,run,route,proof,authorize,ima
     const get=async path=>(await (await response(path)).json()).data
     await page.goto(base+'/knowledgeos/account');await page.locator('#login_name').fill(login);await page.locator('#login_password').fill(pass);await page.locator('#login').click();await page.locator('#profile').waitFor({state:'visible'})
     const me=await get('me');assert.equal(me.role,'member');assert.equal(me.login_name,login)
+    const configured=await get('ai/status');
+    if(!configured.configured || configured.provider!==route.provider || configured.model!==route.model)throw Error('FND005_PRODUCT_ROUTE_MISMATCH');
     const created=await page.request.post(base+'/knowledge/v1/objects',{headers,data:{title,body:bodies[0]},maxRedirects:0});assert.equal(created.status(),201)
     const id=(await created.json()).data.id;assert.match(id,uuid);await page.goto(base+'/knowledgeos/ai');await page.waitForFunction(()=>document.querySelector('#status').textContent==='就绪')
     assert.equal(await page.locator('#target').inputValue(),id);assert.equal(await page.locator('#model').innerText(),'模型：'+route.provider+' / '+route.model)
@@ -43,7 +45,9 @@ export async function browserRun({bound,base,entry,run,route,proof,authorize,ima
       await page.locator('#instruction').fill(instructionFor(i+1));await page.locator('#key').fill(randomUUID())
       await authorize();assert(!pageError);writeFileSync(join(run,'permit-'+(i+1)),confined?JSON.stringify(makePermit(bound.facts.candidate_sha,route,i+1,id)):'',{flag:'wx'});pending=true
       const wait=(path,click)=>Promise.all([page.waitForResponse(base+'/knowledge/v1/'+path,{timeout:85000}),page.locator(click).click()]).then(([r])=>r)
-      const p=await wait('ai/prepare','#prepare');assert.equal(p.status(),200);const prepared=(await p.json()).data
+      const p=await wait('ai/prepare','#prepare'), payload=await p.json();
+      if(p.status()!==200){const code=payload?.code;throw Error('FND005_PREPARE_'+p.status()+'_'+(/^[A-Z0-9_]{1,64}$/.test(code??'')?code:'FAILED'))}
+      const prepared=payload.data
       assert(existsSync(join(run,'consumed-'+(i+1))));assert.equal(proof.prepare_requests,i+1);selection(prepared,route,i,id);proof.successful_model_selections++
       await page.waitForFunction(tool=>document.querySelector('#tool').textContent.includes(tool)&&!document.querySelector('#execute').disabled,tools[i]);const e=await wait('ai/execute','#execute');assert.equal(e.status(),200);const result=(await e.json()).data.result
       await page.waitForFunction(expected=>document.querySelector('#result').textContent.includes(expected),bodies[i]);await page.locator('#read').click();await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('重新读取完成'))

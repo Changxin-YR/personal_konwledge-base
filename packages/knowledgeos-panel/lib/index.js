@@ -12772,23 +12772,24 @@ function apply(ctx, config = {}) {
       return isIdentityRuntimeAvailable({ connection, host: webFacts.host, port: webFacts.port, protocol: webFacts.protocol, origin: actualOrigin() });
     };
     const identity = new IdentityService(storage);
-    const route = () => config.ai ?? identityContext.get("agentDefaultModel")?.currentSelection() ?? {};
-    let ai = new AiService(storage, route());
-    identityContext.inject(["llm", "tools"], (aiContext) => {
+    let ai = new AiService(storage, config.ai ?? {});
+    const aiDependencies = config.ai ? ["llm", "tools"] : ["llm", "tools", "agentDefaultModel"];
+    identityContext.inject(aiDependencies, (aiContext) => {
       aiContext.effect(() => {
         ai.close();
+        const route = config.ai ?? aiContext.get("agentDefaultModel")?.currentSelection() ?? {};
         let active4;
         try {
-          active4 = new AiService(storage, route(), aiContext.llm, aiContext.tools);
+          active4 = new AiService(storage, route, aiContext.llm, aiContext.tools);
         } catch {
           console.warn("knowledgeos-ai: TOOL_REGISTRATION_FAILED");
-          ai = new AiService(storage, route());
+          ai = new AiService(storage, route);
           return () => ai.close();
         }
         ai = active4;
         return () => {
           active4.close();
-          if (ai === active4) ai = new AiService(storage, route());
+          if (ai === active4) ai = new AiService(storage, config.ai ?? {});
         };
       }, "knowledgeos-ai: controlled tools");
     });
@@ -13018,7 +13019,7 @@ function apply(ctx, config = {}) {
         { path: "/knowledge/v1/me/preferences", auth: "anonymous", handler: identityHandlers.preferences },
         { path: "/knowledge/v1/spaces", auth: "anonymous", handler: identityHandlers.spaces }
       ];
-      for (const route2 of routes) disposers.push(identityContext.webServer.register({ kind: "exact", path: route2.path, auth: route2.auth, handler: withPeer(route2.handler) }));
+      for (const route of routes) disposers.push(identityContext.webServer.register({ kind: "exact", path: route.path, auth: route.auth, handler: withPeer(route.handler) }));
       const objectHandler = createObjectHandlers({
         storage,
         actorFor: (req) => {
