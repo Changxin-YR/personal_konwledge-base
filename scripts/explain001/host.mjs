@@ -59,13 +59,8 @@ async function boot() {
   run.boots.push({ pid: first.pid }); return first
 }
 function chromeEnv() {
-  const env = Object.fromEntries(Object.entries(process.env).filter(([name]) =>
-    /^(systemroot|windir|comspec|path|pathext|programfiles.*|processor_.*|number_of_processors|systemdrive|localappdata|appdata|userprofile|home|temp|tmp|lang|display|xdg_runtime_dir)$/i.test(name)))
-  for (const key of ['HOME','USERPROFILE','LOCALAPPDATA','APPDATA','TEMP','TMP']) {
-    env[key] = join(out, 'chrome-env', key)
-    mkdirSync(env[key], { recursive: true })
-  }
-  return env
+  return Object.fromEntries(Object.entries(process.env).filter(([name]) =>
+    /^(systemroot|windir|comspec|path|pathext|programfiles.*|localappdata|appdata|userprofile|home|temp|tmp|lang|display|xdg_runtime_dir)$/i.test(name)))
 }
 async function closeBrowser() {
   if (!browser) return
