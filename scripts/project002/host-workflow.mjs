@@ -251,7 +251,7 @@ try{
   const finalThird={...finalDraft,expected_revision:passed.task.revision,submission_id:thirdMaterial.id},finalKey=key();
   const otherSession=await user('owner'),loggedOut=await holdReview(otherSession,mp+'/reviews',finalThird,finalKey);
   try{
-    const logout=await otherSession.context.request.post(host.base+prefix+'/auth/logout',{headers:marker,data:{}});assert.equal(logout.status(),200);
+    const logout=await otherSession.context.request.post(host.base+prefix+'/auth/logout',{headers:marker,data:{}});assert.equal(logout.status(),204);
     loggedOut.finish();assert.deepEqual(await loggedOut.outcome,{status:401,code:'AUTH_REQUIRED'});assert.deepEqual(loggedOut.trace(),['entered','completed']);
   }finally{loggedOut.close();await otherSession.context.close();}
   const finalAccepted=await request(owner,mp+'/reviews','POST',finalThird,201,undefined,finalKey);assert.equal(finalAccepted.task.state,'accepted');
