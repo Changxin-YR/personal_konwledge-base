@@ -89,8 +89,14 @@ export async function run(h){
   await clock(due);
   await learnerA.page.reload();
   await learnerA.page.locator('#transfer-list [data-transfer-id="'+id+'"]').click();
-  const opened=await event(learnerA,start,'#transfer-start');
-  const retest=opened.data.session;
+  const [opened]=await Promise.all([
+    learnerA.page.waitForResponse(value=>value.url()===base+start&&value.request().method()==='POST'),
+    learnerA.page.locator('#transfer-start').click(),
+  ]);
+  assert.equal(opened.status(),201);
+  await learnerA.page.waitForURL(url=>url.pathname==='/knowledgeos/practice'&&url.searchParams.has('session'));
+  const started=await state(id);
+  const retest=(await request(learnerA,api+'/'+started.started_session_id+'/questions')).session;
   assert.equal(retest.mode,'transfer');assert.notEqual(retest.id,session.id);
   await learnerA.page.locator('#practice-hint').waitFor({state:'hidden'});
   const third=await answer(retest,1);

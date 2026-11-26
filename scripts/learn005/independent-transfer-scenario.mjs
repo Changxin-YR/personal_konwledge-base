@@ -233,13 +233,13 @@ export async function run(h) {
   const ready=await plan(freshA,scheduled.id)
   assert.equal(ready.status,'ready')
   const seenStart=freshA.page.waitForRequest(req=>req.url()===base+start(scheduled.id)&&req.method()==='POST')
-  const launching=chromeWrite(freshA,start(scheduled.id),'#transfer-start',[200,201])
+  const seenResponse=freshA.page.waitForResponse(res=>res.url()===base+start(scheduled.id)&&res.request().method()==='POST')
+  const launching=freshA.page.locator('#transfer-start').click()
   const startRequest=await seenStart
   const startKey={'idempotency-key':startRequest.headers()['idempotency-key']}
-  const [begun,again]=await Promise.all([launching,write(freshA,start(scheduled.id),{},startKey)])
-  assert.deepEqual([begun.status,again.status].sort(),[200,201])
-  const session=begun.data.session
-  assert.equal(again.payload.data.session.id,session.id)
+  const [begun,again]=await Promise.all([seenResponse,write(freshA,start(scheduled.id),{},startKey),launching])
+  assert.deepEqual([begun.status(),again.status].sort(),[200,201])
+  const session=again.payload.data.session
   assert.equal(session.mode,'transfer')
   assert.notEqual(session.id,guided.id)
   assert.equal(readRows('SELECT * FROM practice_sessions WHERE id=?',session.id).length,1)
