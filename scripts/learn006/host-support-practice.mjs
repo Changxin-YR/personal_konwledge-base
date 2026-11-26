@@ -129,7 +129,7 @@ async function start(h, actor, q, guided) {
   assert.equal(session.mode, guided ? 'guided' : 'standard')
   await qButton(actor, 'practice-session-questions', q).click()
   await actor.page.locator('#practice-answer').waitFor()
-  assert.equal(await actor.page.locator('#practice-prompt-text').innerText(), q.prompt)
+  assert.equal(await actor.page.locator('#practice-prompt-text').innerText(), '选择 · ' + q.prompt)
   assert.equal(await actor.page.locator('#practice-feedback').isVisible(), false)
   const details = await h.api(actor, action(session, 'questions'))
   assert.deepEqual(versions(details.questions), [q.version_id]); assert.equal(details.questions[0].feedback, null)
