@@ -2711,8 +2711,32 @@
         "A10"
       ],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "in_progress",
-      "test_plan_status": "expanded_for_activation"
+      "status": "passed",
+      "test_plan_status": "executed_with_evidence",
+      "candidate_commit": "5b9f50b6d9acb1ecc8ccf7329b2b53aea795685c",
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "retest_status": "PASS",
+      "completed_test_ids": [
+        "LEARN-006-T01",
+        "LEARN-006-T02"
+      ],
+      "open_review_items": [],
+      "closed_review_items": [
+        "empty-session-write"
+      ],
+      "completed_at": "2026-11-26T07:16:30.331813+00:00",
+      "acceptance_record": "docs/evidence/LEARN-006/acceptance.json",
+      "evidence_paths": [
+        "docs/evidence/LEARN-006/REPORT.md",
+        "docs/evidence/LEARN-006/acceptance.json",
+        "docs/evidence/LEARN-006/independent.json",
+        "docs/evidence/LEARN-006/P03.json",
+        "docs/evidence/LEARN-006/A10.json",
+        "docs/evidence/LEARN-006/runs/v43-storage.json",
+        "docs/evidence/LEARN-006/runs/initial-observations.json",
+        "docs/evidence/LEARN-006/runs/plan-gates.json"
+      ]
     },
     {
       "id": "UI-001",

@@ -154,11 +154,13 @@
         "P03",
         "A09"
       ],
-      "implementation_status": "in_progress",
+      "implementation_status": "verified",
       "evidence_paths": [
         "docs/evidence/READ-002/acceptance.json",
         "docs/evidence/READ-003/acceptance.json",
-        "docs/evidence/SEARCH-001/acceptance.json"
+        "docs/evidence/SEARCH-001/acceptance.json",
+        "docs/evidence/LEARN-006/acceptance.json",
+        "docs/evidence/LEARN-006/P03.json"
       ]
     },
     {
@@ -173,7 +175,10 @@
       ],
       "implementation_status": "in_progress",
       "evidence_paths": [
-        "docs/evidence/KNOW-001/acceptance.json"
+        "docs/evidence/KNOW-001/acceptance.json",
+        "docs/evidence/LEARN-006/acceptance.json",
+        "docs/evidence/LEARN-006/P03.json",
+        "docs/evidence/LEARN-006/A10.json"
       ]
     },
     {
@@ -355,11 +360,13 @@
         "P03",
         "A13"
       ],
-      "implementation_status": "in_progress",
+      "implementation_status": "verified",
       "evidence_paths": [
         "docs/evidence/LEARN-001/acceptance.json",
         "docs/evidence/LEARN-002/acceptance.json",
-        "docs/evidence/LEARN-002/A13.json"
+        "docs/evidence/LEARN-002/A13.json",
+        "docs/evidence/LEARN-006/acceptance.json",
+        "docs/evidence/LEARN-006/P03.json"
       ]
     },
     {
@@ -398,7 +405,9 @@
         "docs/evidence/LEARN-001/acceptance.json",
         "docs/evidence/LEARN-003/acceptance.json",
         "docs/evidence/LEARN-003/P05.json",
-        "docs/evidence/LEARN-003/A14.json"
+        "docs/evidence/LEARN-003/A14.json",
+        "docs/evidence/LEARN-006/acceptance.json",
+        "docs/evidence/LEARN-006/P03.json"
       ]
     },
     {
@@ -776,8 +785,11 @@
       "expected": "解释与题目有来源；首次答案及辅助程度分别保存；甲乙个人表现互不影响；阅读位置恢复。",
       "level": "e2e",
       "evidence_required": "测试记录、关键状态与操作证据",
-      "status": "NOT_RUN",
-      "final_milestone": "M2"
+      "status": "PASS",
+      "final_milestone": "M2",
+      "evidence_paths": [
+        "docs/evidence/LEARN-006/P03.json"
+      ]
     },
     {
       "id": "P04",
@@ -1134,8 +1146,11 @@
       "expected": "说明匹配语境且带依据；两语境不错误合并；临时查词不强制保存；个人补充可编辑。",
       "level": "e2e",
       "evidence_required": "测试记录、关键状态与操作证据",
-      "status": "NOT_RUN",
-      "final_milestone": "M2"
+      "status": "PASS",
+      "final_milestone": "M2",
+      "evidence_paths": [
+        "docs/evidence/LEARN-006/A10.json"
+      ]
     },
     {
       "id": "A11",

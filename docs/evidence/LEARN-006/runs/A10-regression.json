@@ -1,0 +1,153 @@
+{
+  "unit_id": "LEARN-006",
+  "candidate_sha": "5b9f50b6d9acb1ecc8ccf7329b2b53aea795685c",
+  "tree": "8debf34a467d1db9676b125514ed8d2e9ccc905f",
+  "source_tree": "a302f1b724089208229dac8af077b74a03689b6d",
+  "entry_sha256": "519d9c3631869782e54af9be588db5487200dfbecad663c41e4751e65741e4ba",
+  "build_sha256": "0ec4db9f0d39d121b9c4185583f098c33fa95e339eb30761244e22cdc2985038",
+  "case_id": "A10",
+  "participants": [
+    {
+      "unit_id": "READ-002",
+      "candidate_sha": "08889f97a612b34ae205f0dfa3af6064c3585f19"
+    },
+    {
+      "unit_id": "FND-005",
+      "candidate_sha": "aadf13abcb37aa24010af35543062d0551c58955"
+    },
+    {
+      "unit_id": "KNOW-001",
+      "candidate_sha": "4d4275ded7afecc3c4ddec2612ac5006b717308f"
+    },
+    {
+      "unit_id": "LEARN-006",
+      "candidate_sha": "5b9f50b6d9acb1ecc8ccf7329b2b53aea795685c"
+    }
+  ],
+  "kind": "regression",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/learn006/v43-regression.mjs <frozen-checkout> 5b9f50b6d9acb1ecc8ccf7329b2b53aea795685c 519d9c3631869782e54af9be588db5487200dfbecad663c41e4751e65741e4ba",
+  "runner": "独立真实 SQLite 迁移和拒绝路径复跑",
+  "environment": "Windows / Node v24.22.0 / SQLite 3.53.4",
+  "inputs": "同形术语的两个合成语境、固定版本原文和共享题目、隔离的作者和两名普通成员。",
+  "run_id": "kos-learn006-v43-6MLDAe",
+  "results": [
+    {
+      "id": "bind_v42_git_artifacts",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    },
+    {
+      "id": "seed_three_synthetic_actors_terms_citations_and_practice_in_v42",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    },
+    {
+      "id": "verify_v42_fixture_rows_original_and_both_receipt_digests",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    },
+    {
+      "id": "bind_frozen_candidate_git_artifacts",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    },
+    {
+      "id": "reject_damaged_v42_checksum_and_foreign_application",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    },
+    {
+      "id": "v43_late_sqlite_ledger_abort_then_reopen_with_v42",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    },
+    {
+      "id": "v42_to_v43_additive_schema_single_checksum_no_backfill",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    },
+    {
+      "id": "restart_reject_corrupt_v43_checksum_and_v42_downgrade",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    },
+    {
+      "id": "v42_standard_guided_hint_and_attempt_receipt_replays",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    },
+    {
+      "id": "owner_revision_overlay_and_immutable_save_receipt",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    },
+    {
+      "id": "fixed_selection_catalog_and_no_write_on_wrong_or_empty_selection",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    },
+    {
+      "id": "atomic_term_session_and_origin_scoped_retry",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    },
+    {
+      "id": "sqlite_rejects_cross_owner_and_cross_service_links",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    },
+    {
+      "id": "same_asset_version_page_text_and_range_distinct_office_conversions",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    },
+    {
+      "id": "two_learners_attempts_hints_conflicts_and_late_receipt_fault",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    },
+    {
+      "id": "unfavorite_history_restore_and_original_reading_positions",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    },
+    {
+      "id": "new_session_current_question_and_pinned_authorized_replay",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    },
+    {
+      "id": "question_project_access_withdrawn_while_card_source_stays_readable",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    },
+    {
+      "id": "changed_source_hash_denies_fresh_writes_and_existing_receipt",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    },
+    {
+      "id": "restart_preserves_edits_sources_attempts_and_original_receipts",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    },
+    {
+      "id": "revocation_denies_fresh_and_replayed_writes_only_for_revoked_learner",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    },
+    {
+      "id": "reopen_revoked_store_and_verify_legacy_rows",
+      "status": "PASS",
+      "actual": "隔离 v42 → v43 SQLite 回归，核对迁移账本、数据和写入结果。"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/LEARN-006/runs/v43-storage.json",
+      "sha256": "dd911bed72c2b53ff25cb65fb45ecdcca86b23c7ea1babad9f2a0027a0e06cf8"
+    }
+  ]
+}

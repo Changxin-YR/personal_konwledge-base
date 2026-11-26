@@ -10,7 +10,7 @@
     "sha256": "a2e5986cfa81189aeae0c4b43ebfe4afd074aae9d5674e7ecf5e069c5d6ab530"
   },
   "active_unit": "LEARN-006",
-  "unit_state": "in_progress",
+  "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Connect personal contextual terms to existing versioned practice and the selected reading position.",
+  "state_reason": "Personal term cards, shared question versions, exact source navigation and private review verified.",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,45 +127,53 @@
     }
   },
   "last_accepted_checkpoint": {
-    "unit_id": "LEARN-005",
-    "candidate_sha": "8c2edfa904eac4af0c983c22489a9ba516b00278",
-    "tree": "aca29eaf1f7103f04a49e5c8ad22acde80dcfca8",
-    "source_tree": "b89ce1b13db6e7ba4dd3fd2881bf9dfbafd7b226",
-    "entry_sha256": "6195489bc7c55cc8cc06b2cda53f16fbb001cdae1b9173bba9dc327779a109a8",
-    "build_sha256": "4e72521574db10c93e0b310af8e55c87c3ceb401f5bc885bc0c3f08599b9bb61",
-    "base_commit": "0fadfc13025d3748791c1b0ad41c7883c81a3715",
+    "unit_id": "LEARN-006",
+    "candidate_sha": "5b9f50b6d9acb1ecc8ccf7329b2b53aea795685c",
+    "tree": "8debf34a467d1db9676b125514ed8d2e9ccc905f",
+    "source_tree": "a302f1b724089208229dac8af077b74a03689b6d",
+    "entry_sha256": "519d9c3631869782e54af9be588db5487200dfbecad663c41e4751e65741e4ba",
+    "build_sha256": "0ec4db9f0d39d121b9c4185583f098c33fa95e339eb30761244e22cdc2985038",
+    "base_commit": "0649220a90acdbc29b9f0853ba5a1e67a9538e4b",
     "completed": [
-      "Blind first answer, two targeted assistance levels, explicit reveal exposure and separate delayed same-band transfer verified.",
-      "Real due boundary, question/scope limits and v42 storage recovery independently passed."
+      "两名普通成员作答同一题版，甲保存独立首答、提示和辅助重答，乙保留自己的首答和阅读进度。",
+      "取消及恢复收藏、资料撤权、错误请求和服务重启后，原件、固定引用与已有作答均通过 SQLite 回读。"
     ],
     "test_results": {
       "unit_acceptance": "PASS",
       "T01": "PASS",
       "T02": "PASS",
-      "A15": "PASS",
+      "P03": "PASS",
+      "A10": "PASS",
       "independent": "PASS"
     },
-    "evidence": "docs/evidence/LEARN-005/acceptance.json",
+    "evidence": "docs/evidence/LEARN-006/acceptance.json",
     "defects": [],
     "blocked_dependencies": [],
-    "next_task": "LEARN-006"
+    "next_task": "UI-001"
   },
   "checkpoint": {
     "unit_id": "LEARN-006",
+    "candidate_sha": "5b9f50b6d9acb1ecc8ccf7329b2b53aea795685c",
+    "tree": "8debf34a467d1db9676b125514ed8d2e9ccc905f",
+    "source_tree": "a302f1b724089208229dac8af077b74a03689b6d",
+    "entry_sha256": "519d9c3631869782e54af9be588db5487200dfbecad663c41e4751e65741e4ba",
+    "build_sha256": "0ec4db9f0d39d121b9c4185583f098c33fa95e339eb30761244e22cdc2985038",
     "base_commit": "0649220a90acdbc29b9f0853ba5a1e67a9538e4b",
     "completed": [
-      "Resumed from the accepted LEARN-005 checkpoint. Recorded observable T01/T02 and integrated-case expectations before implementation."
+      "两名普通成员作答同一题版，甲保存独立首答、提示和辅助重答，乙保留自己的首答和阅读进度。",
+      "取消及恢复收藏、资料撤权、错误请求和服务重启后，原件、固定引用与已有作答均通过 SQLite 回读。"
     ],
     "test_results": {
-      "unit_acceptance": "NOT_RUN",
-      "T01": "NOT_RUN",
-      "T02": "NOT_RUN",
-      "P03": "NOT_RUN",
-      "A10": "NOT_RUN"
+      "unit_acceptance": "PASS",
+      "T01": "PASS",
+      "T02": "PASS",
+      "P03": "PASS",
+      "A10": "PASS",
+      "independent": "PASS"
     },
-    "evidence": "scripts/learn006/acceptance-plan.md",
+    "evidence": "docs/evidence/LEARN-006/acceptance.json",
     "defects": [],
     "blocked_dependencies": [],
-    "next_task": "LEARN-006"
+    "next_task": "UI-001"
   }
 }

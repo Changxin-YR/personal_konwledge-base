@@ -1,0 +1,64 @@
+[
+  {
+    "check": "host-start",
+    "candidate_sha": "d84ecbd9fa6962a25afa40bf9f22bc96d1b29c62",
+    "result": "FAIL",
+    "observed": {
+      "phase": "isolating candidate",
+      "message": "timeout: bound Host boot"
+    },
+    "real_model_requests": 0
+  },
+  {
+    "check": "reader-access-timeout",
+    "candidate_sha": "d84ecbd9fa6962a25afa40bf9f22bc96d1b29c62",
+    "result": "FAIL",
+    "observed": {
+      "phase": "T01 first range: database, temporary only",
+      "message": "page.waitForResponse: Timeout 35000ms exceeded while waiting for event \"response\""
+    },
+    "real_model_requests": 0
+  },
+  {
+    "check": "overlay-assertion",
+    "candidate_sha": "a049aa362be66a4e4d4cb3e5e50f3c9d3da2aacc",
+    "result": "FAIL",
+    "observed": {
+      "phase": "edit_reopen_and_peer_isolation",
+      "type": "assertion",
+      "source": "host-support-reader.mjs:188"
+    },
+    "real_model_requests": 0
+  },
+  {
+    "check": "empty-list-observer",
+    "candidate_sha": "6e11dfc39c1971b1317c6dc8bfd02b8726f84869",
+    "result": "FAIL",
+    "observed": {
+      "phase": "edit_reopen_and_peer_isolation",
+      "type": "timeout",
+      "source": "host-reading-chain.mjs:203"
+    },
+    "real_model_requests": 0
+  },
+  {
+    "check": "prompt-label-observer",
+    "candidate_sha": "a766cd7af83eb2098c621d1419d4d4bb029d0290",
+    "result": "FAIL",
+    "observed": {
+      "phase": "guided_and_ordinary_same_version",
+      "type": "assertion",
+      "source": "host-support-practice.mjs:132"
+    },
+    "real_model_requests": 0
+  },
+  {
+    "check": "empty-selection-regression",
+    "candidate_sha": "dab5929e0f4473c7918379188710db5bebeeb83d",
+    "result": "FAIL",
+    "observed": {
+      "message": "empty selection with no matching question changed SQLite contents"
+    },
+    "real_model_requests": 0
+  }
+]

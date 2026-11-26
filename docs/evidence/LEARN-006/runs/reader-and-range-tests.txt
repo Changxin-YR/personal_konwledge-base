@@ -1,0 +1,28 @@
+✔ exact reviewed text-only completion validates and identifies its source step (3.1744ms)
+✔ cannot replace a source passage, candidate, wire byte sequence or expiry (1.7557ms)
+✔ even a reviewed digest cannot authorize non-text tools, attachments, or oversized output (1.5926ms)
+✔ emulated fetch admits exactly two one-use text requests and disallows redirects (59.2356ms)
+✔ native hook arms in order only after the preceding permit is consumed (35.2485ms)
+(node:26184) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ text-only inference shares call accounting, checks before dispatch, and closes rejected streams (4.7693ms)
+✔ model output contains no trusted source, reference or tool fields (1.1354ms)
+✔ v36 rollback preserves v35 history and saved terms keep exact immutable UTF-16 selections (932.668ms)
+(node:43472) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a citation must contain the entire selected occurrence in UTF-16 units (1.5169ms)
+✔ page, file revision, text fingerprint and Office conversion remain independent source coordinates (0.3151ms)
+(node:5636) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ personal reading position only accepts a current source and revision (754.315ms)
+(node:45732) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v16 rollback is atomic and upgrade preserves published v15 asset, citation and locator (972.8948ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1214.0095

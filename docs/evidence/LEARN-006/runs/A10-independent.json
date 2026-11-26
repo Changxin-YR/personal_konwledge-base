@@ -1,0 +1,67 @@
+{
+  "unit_id": "LEARN-006",
+  "candidate_sha": "5b9f50b6d9acb1ecc8ccf7329b2b53aea795685c",
+  "tree": "8debf34a467d1db9676b125514ed8d2e9ccc905f",
+  "source_tree": "a302f1b724089208229dac8af077b74a03689b6d",
+  "entry_sha256": "519d9c3631869782e54af9be588db5487200dfbecad663c41e4751e65741e4ba",
+  "build_sha256": "0ec4db9f0d39d121b9c4185583f098c33fa95e339eb30761244e22cdc2985038",
+  "case_id": "A10",
+  "participants": [
+    {
+      "unit_id": "READ-002",
+      "candidate_sha": "08889f97a612b34ae205f0dfa3af6064c3585f19"
+    },
+    {
+      "unit_id": "FND-005",
+      "candidate_sha": "aadf13abcb37aa24010af35543062d0551c58955"
+    },
+    {
+      "unit_id": "KNOW-001",
+      "candidate_sha": "4d4275ded7afecc3c4ddec2612ac5006b717308f"
+    },
+    {
+      "unit_id": "LEARN-006",
+      "candidate_sha": "5b9f50b6d9acb1ecc8ccf7329b2b53aea795685c"
+    }
+  ],
+  "kind": "independent",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/learn006/host-reading-chain.mjs <frozen-checkout> 5b9f50b6d9acb1ecc8ccf7329b2b53aea795685c 519d9c3631869782e54af9be588db5487200dfbecad663c41e4751e65741e4ba independent live",
+  "runner": "独立冻结工作树浏览器运行，另用 UTF-16 字节数、SQL 分组核对及隔离账户顺序",
+  "environment": "158.0.8127.88 / Windows / DSH / SQLite v43",
+  "inputs": "同形术语的两个合成语境、固定版本原文和共享题目、隔离的作者和两名普通成员。",
+  "run_id": "099e675d-7ea2-4cc6-9140-84ede1b55ee1",
+  "results": [
+    {
+      "id": "REAL_DUAL_CONTEXT_EXPLANATIONS",
+      "status": "PASS",
+      "actual": "{\"real_inference_requests\": 2, \"wire_calibrations\": 0, \"contexts\": [{\"stage\": \"database-index\", \"plain_and_definition_match_context\": true, \"ordinal\": 5, \"start\": 97, \"end\": 99, \"source_sha256\": \"181c5be6eb73847fd821460c1e4e5dc59e0efca876a2a4bfde009b72815681de\", \"confusions\": 1, \"explanation_sha256\": \"9c2048ff8ad0a1b87edfe2b55e3f154aabf9d0fcb62f49df480e8cf113b58363\"}, {\"stage\": \"array-index\", \"plain_and_definition_match_context\": true, \"ordinal\": 9, \"start\": 73, \"end\": 75, \"source_sha256\": \"16a913b2815125c47b9e6410b93383d7564221e0f10906a57e1e66e48cfbda5f\", \"confusions\": 1, \"explanation_sha256\": \"e0e3395f7c74ac8ccb48815ddfdd21dfa4b9f50e7f8db2452781b883de9c4c3f\"}]}"
+    },
+    {
+      "id": "DISTINCT_PINNED_SELECTIONS",
+      "status": "PASS",
+      "actual": "{\"cards\": [{\"stage\": \"database-index\", \"plain_and_definition_match_context\": true, \"ordinal\": 5, \"start\": 97, \"end\": 99, \"source_sha256\": \"181c5be6eb73847fd821460c1e4e5dc59e0efca876a2a4bfde009b72815681de\", \"confusions\": 1, \"explanation_sha256\": \"9c2048ff8ad0a1b87edfe2b55e3f154aabf9d0fcb62f49df480e8cf113b58363\"}, {\"stage\": \"array-index\", \"plain_and_definition_match_context\": true, \"ordinal\": 9, \"start\": 73, \"end\": 75, \"source_sha256\": \"16a913b2815125c47b9e6410b93383d7564221e0f10906a57e1e66e48cfbda5f\", \"confusions\": 1, \"explanation_sha256\": \"e0e3395f7c74ac8ccb48815ddfdd21dfa4b9f50e7f8db2452781b883de9c4c3f\"}], \"fixed_version\": \"72931ad2b74e6bb00ba3fdb30da5e6184175b47abfe3f2859a299a92b216f3ac\"}"
+    },
+    {
+      "id": "EXPLICIT_PRIVATE_SAVES",
+      "status": "PASS",
+      "actual": "{\"saved_counts\": [0, 1, 2], \"peer_cards\": 0, \"peer_detail_and_write_denied\": true}"
+    },
+    {
+      "id": "EDIT_REOPEN_AND_REVIEW",
+      "status": "PASS",
+      "actual": "{\"saved_revision\": 0, \"edited_revision\": 1, \"restored_revision\": 3, \"preserved_explanation_sha256\": \"9c2048ff8ad0a1b87edfe2b55e3f154aabf9d0fcb62f49df480e8cf113b58363\", \"review_session\": \"cf7c6cff3f27fece5a93eb28dc718a141a7e11376af8923c7046c809b499a47e\", \"reviewed_card\": \"47cb8d77b503aad61d57062c46e6c13dd858cabc095b84d04193631b190cda51\"}"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/LEARN-006/runs/independent.json",
+      "sha256": "83ac0057ca037f0e65d8dcc74c83b8d16ea00cd94791d896b018654c27b4ef03"
+    },
+    {
+      "path": "docs/evidence/LEARN-006/runs/independent-database-index-temporary.png",
+      "sha256": "d92a9028e9bca45c4df41e1ee1fead82181438830b9ce1ff7e58833f441f3c03"
+    }
+  ]
+}

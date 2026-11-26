@@ -1,0 +1,67 @@
+{
+  "unit_id": "LEARN-006",
+  "candidate_sha": "5b9f50b6d9acb1ecc8ccf7329b2b53aea795685c",
+  "tree": "8debf34a467d1db9676b125514ed8d2e9ccc905f",
+  "source_tree": "a302f1b724089208229dac8af077b74a03689b6d",
+  "entry_sha256": "519d9c3631869782e54af9be588db5487200dfbecad663c41e4751e65741e4ba",
+  "build_sha256": "0ec4db9f0d39d121b9c4185583f098c33fa95e339eb30761244e22cdc2985038",
+  "case_id": "P03",
+  "participants": [
+    {
+      "unit_id": "READ-002",
+      "candidate_sha": "08889f97a612b34ae205f0dfa3af6064c3585f19"
+    },
+    {
+      "unit_id": "KNOW-001",
+      "candidate_sha": "4d4275ded7afecc3c4ddec2612ac5006b717308f"
+    },
+    {
+      "unit_id": "LEARN-003",
+      "candidate_sha": "dc21d5dc1875d848eaff62f24ef26575deac3443"
+    },
+    {
+      "unit_id": "LEARN-006",
+      "candidate_sha": "5b9f50b6d9acb1ecc8ccf7329b2b53aea795685c"
+    }
+  ],
+  "kind": "independent",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/learn006/host-reading-chain.mjs <frozen-checkout> 5b9f50b6d9acb1ecc8ccf7329b2b53aea795685c 519d9c3631869782e54af9be588db5487200dfbecad663c41e4751e65741e4ba independent live",
+  "runner": "独立冻结工作树浏览器运行，另用 UTF-16 字节数、SQL 分组核对及隔离账户顺序",
+  "environment": "158.0.8127.88 / Windows / DSH / SQLite v43",
+  "inputs": "同形术语的两个合成语境、固定版本原文和共享题目、隔离的作者和两名普通成员。",
+  "run_id": "099e675d-7ea2-4cc6-9140-84ede1b55ee1",
+  "results": [
+    {
+      "id": "TERM_AND_QUESTION_SOURCE",
+      "status": "PASS",
+      "actual": "{\"selected_utf16\": [97, 99], \"citation_utf16\": [94, 103], \"other_occurrence_utf16\": [43, 45], \"matching_version_sha256\": \"72931ad2b74e6bb00ba3fdb30da5e6184175b47abfe3f2859a299a92b216f3ac\", \"excluded_version_sha256\": \"7b8ad9a6ce496d4f4a06e8abe6622cd11f5852f6a5fd51c8ca1db45222109d40\", \"private_question_excluded\": true}"
+    },
+    {
+      "id": "FIRST_ANSWER_AND_ASSISTANCE",
+      "status": "PASS",
+      "actual": "{\"blind_commit_before_response_delivery\": true, \"observations\": [{\"sequence\": 1, \"grade\": \"incorrect\", \"independent\": true, \"attempt_sha256\": \"2080908b42f8608cfe4021d05decd1514c54e2fc19249dfe4cb4852c9df331de\"}, {\"sequence\": 2, \"grade\": \"correct\", \"independent\": false, \"attempt_sha256\": \"0148444956d970c899fa06bc9624611ee18e866b7cf93de8609f3addba6ee4b3\"}], \"hint_level\": 1, \"hint_for_sequence\": 2}"
+    },
+    {
+      "id": "TWO_USERS_PERSONAL_RECORDS",
+      "status": "PASS",
+      "actual": "{\"shared_question_version\": \"ecb6298f5e9654999b0af9807f64ffd575b20a2a7709c1abb1c27fd56713262b\", \"a_attempts\": 2, \"b_attempts\": 1, \"a_hints\": 1, \"b_hints\": 0}"
+    },
+    {
+      "id": "RETURN_TO_READING",
+      "status": "PASS",
+      "actual": "{\"reader_utf16\": [97, 99], \"peer_ordinal\": 9, \"source_ordinal\": 5, \"original_hash\": \"181c5be6eb73847fd821460c1e4e5dc59e0efca876a2a4bfde009b72815681de\", \"question_citation_utf16\": [94, 103]}"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/LEARN-006/runs/independent.json",
+      "sha256": "83ac0057ca037f0e65d8dcc74c83b8d16ea00cd94791d896b018654c27b4ef03"
+    },
+    {
+      "path": "docs/evidence/LEARN-006/runs/independent-database-index-temporary.png",
+      "sha256": "d92a9028e9bca45c4df41e1ee1fead82181438830b9ce1ff7e58833f441f3c03"
+    }
+  ]
+}

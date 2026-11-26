@@ -1,0 +1,787 @@
+{
+  "unit_id": "LEARN-006",
+  "scope": "INDEPENDENT_OFFLINE_V43_SQLITE",
+  "status": "PASS",
+  "v43_status": "PASS",
+  "frozen_v42": "0649220a90acdbc29b9f0853ba5a1e67a9538e4b",
+  "node": "v24.22.0",
+  "sqlite": "3.53.4",
+  "runner_sha256": "9a9563c2c32a4ade69b24b9cb1e97d729023a26428cbf56b899a49ca72b052a4",
+  "real_inference_requests": 0,
+  "results": [
+    {
+      "id": "bind_v42_git_artifacts",
+      "status": "PASS"
+    },
+    {
+      "id": "seed_three_synthetic_actors_terms_citations_and_practice_in_v42",
+      "status": "PASS"
+    },
+    {
+      "id": "verify_v42_fixture_rows_original_and_both_receipt_digests",
+      "status": "PASS",
+      "sqlite_write_checks": [
+        {
+          "operation": "baseline public API reads and replays",
+          "before_sha256": "4ab1a7be389946192ccaa2791820a278665ea2d159891794bb509c429b483515",
+          "after_sha256": "4ab1a7be389946192ccaa2791820a278665ea2d159891794bb509c429b483515",
+          "data_version": [
+            2,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bind_frozen_candidate_git_artifacts",
+      "status": "PASS"
+    },
+    {
+      "id": "reject_damaged_v42_checksum_and_foreign_application",
+      "status": "PASS",
+      "sqlite_write_checks": [
+        {
+          "operation": "rejected open",
+          "before_sha256": "2b764ade82e921aa727b9d463ddff13aa7ae9cce95483813f3b6710654a2d316",
+          "after_sha256": "2b764ade82e921aa727b9d463ddff13aa7ae9cce95483813f3b6710654a2d316",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "rejected open",
+          "before_sha256": "37ed4871b5ab561fa217d2bcb39b48eda6ef2c31ca84267525e626c45b0bc4df",
+          "after_sha256": "37ed4871b5ab561fa217d2bcb39b48eda6ef2c31ca84267525e626c45b0bc4df",
+          "data_version": [
+            2,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "v43_late_sqlite_ledger_abort_then_reopen_with_v42",
+      "status": "PASS",
+      "sqlite_write_checks": [
+        {
+          "operation": "v43 ledger insert after both tables",
+          "before_sha256": "4ab1a7be389946192ccaa2791820a278665ea2d159891794bb509c429b483515",
+          "after_sha256": "4ab1a7be389946192ccaa2791820a278665ea2d159891794bb509c429b483515",
+          "data_version": [
+            2,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "v42_to_v43_additive_schema_single_checksum_no_backfill",
+      "status": "PASS"
+    },
+    {
+      "id": "restart_reject_corrupt_v43_checksum_and_v42_downgrade",
+      "status": "PASS",
+      "sqlite_write_checks": [
+        {
+          "operation": "rejected open",
+          "before_sha256": "272990031c1d593debc964d3b4fd3a2328c1d8af4893d89a91b8851f79396ab1",
+          "after_sha256": "272990031c1d593debc964d3b4fd3a2328c1d8af4893d89a91b8851f79396ab1",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "rejected open",
+          "before_sha256": "1c73d1bacd6c0942d896dc92a39f1dc2540b1f405a655c81bc5a88762394cf52",
+          "after_sha256": "1c73d1bacd6c0942d896dc92a39f1dc2540b1f405a655c81bc5a88762394cf52",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "rejected open",
+          "before_sha256": "0bf4bc4c121754dcaa8c0f5e881c55400b3f2db6f42167c301fc6b7e6e07a616",
+          "after_sha256": "0bf4bc4c121754dcaa8c0f5e881c55400b3f2db6f42167c301fc6b7e6e07a616",
+          "data_version": [
+            2,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "v42_standard_guided_hint_and_attempt_receipt_replays",
+      "status": "PASS",
+      "sqlite_write_checks": [
+        {
+          "operation": "v42 receipts",
+          "before_sha256": "0bf4bc4c121754dcaa8c0f5e881c55400b3f2db6f42167c301fc6b7e6e07a616",
+          "after_sha256": "0bf4bc4c121754dcaa8c0f5e881c55400b3f2db6f42167c301fc6b7e6e07a616",
+          "data_version": [
+            2,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "owner_revision_overlay_and_immutable_save_receipt",
+      "status": "PASS",
+      "sqlite_write_checks": [
+        {
+          "operation": "peer reads personal term",
+          "before_sha256": "0bf4bc4c121754dcaa8c0f5e881c55400b3f2db6f42167c301fc6b7e6e07a616",
+          "after_sha256": "0bf4bc4c121754dcaa8c0f5e881c55400b3f2db6f42167c301fc6b7e6e07a616",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "peer updates other owner",
+          "before_sha256": "0bf4bc4c121754dcaa8c0f5e881c55400b3f2db6f42167c301fc6b7e6e07a616",
+          "after_sha256": "0bf4bc4c121754dcaa8c0f5e881c55400b3f2db6f42167c301fc6b7e6e07a616",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "source author reads learner term",
+          "before_sha256": "0bf4bc4c121754dcaa8c0f5e881c55400b3f2db6f42167c301fc6b7e6e07a616",
+          "after_sha256": "0bf4bc4c121754dcaa8c0f5e881c55400b3f2db6f42167c301fc6b7e6e07a616",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "term_card_preferences INSERT fault",
+          "before_sha256": "2472c3d16ace229aff6c2fe621f80638bc73cf4cbe531be70e939769c95bc652",
+          "after_sha256": "2472c3d16ace229aff6c2fe621f80638bc73cf4cbe531be70e939769c95bc652",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "stale expected_revision",
+          "before_sha256": "292eee8f9747487504b6974fefaa014fa109b93852032bbb1af2f53c16f508a9",
+          "after_sha256": "292eee8f9747487504b6974fefaa014fa109b93852032bbb1af2f53c16f508a9",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "original save receipt after edit",
+          "before_sha256": "292eee8f9747487504b6974fefaa014fa109b93852032bbb1af2f53c16f508a9",
+          "after_sha256": "292eee8f9747487504b6974fefaa014fa109b93852032bbb1af2f53c16f508a9",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "edited supplement is not original save request",
+          "before_sha256": "292eee8f9747487504b6974fefaa014fa109b93852032bbb1af2f53c16f508a9",
+          "after_sha256": "292eee8f9747487504b6974fefaa014fa109b93852032bbb1af2f53c16f508a9",
+          "data_version": [
+            2,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixed_selection_catalog_and_no_write_on_wrong_or_empty_selection",
+      "status": "PASS",
+      "sqlite_write_checks": [
+        {
+          "operation": "peer term catalog",
+          "before_sha256": "71fe8f7480412150e929e4c66a7ccbe26f4eed62fcf24c984f116dbfb8d81917",
+          "after_sha256": "71fe8f7480412150e929e4c66a7ccbe26f4eed62fcf24c984f116dbfb8d81917",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "unmatched or inaccessible question 同段的第一次索引？",
+          "before_sha256": "71fe8f7480412150e929e4c66a7ccbe26f4eed62fcf24c984f116dbfb8d81917",
+          "after_sha256": "71fe8f7480412150e929e4c66a7ccbe26f4eed62fcf24c984f116dbfb8d81917",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "unmatched or inaccessible question 完全相同的另一段？",
+          "before_sha256": "71fe8f7480412150e929e4c66a7ccbe26f4eed62fcf24c984f116dbfb8d81917",
+          "after_sha256": "71fe8f7480412150e929e4c66a7ccbe26f4eed62fcf24c984f116dbfb8d81917",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "unmatched or inaccessible question 仅新版的相同选区？",
+          "before_sha256": "71fe8f7480412150e929e4c66a7ccbe26f4eed62fcf24c984f116dbfb8d81917",
+          "after_sha256": "71fe8f7480412150e929e4c66a7ccbe26f4eed62fcf24c984f116dbfb8d81917",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "unmatched or inaccessible question 作者的私有题？",
+          "before_sha256": "71fe8f7480412150e929e4c66a7ccbe26f4eed62fcf24c984f116dbfb8d81917",
+          "after_sha256": "71fe8f7480412150e929e4c66a7ccbe26f4eed62fcf24c984f116dbfb8d81917",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "mixed matching and mismatched question versions",
+          "before_sha256": "71fe8f7480412150e929e4c66a7ccbe26f4eed62fcf24c984f116dbfb8d81917",
+          "after_sha256": "71fe8f7480412150e929e4c66a7ccbe26f4eed62fcf24c984f116dbfb8d81917",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "empty selection with no matching question",
+          "before_sha256": "71fe8f7480412150e929e4c66a7ccbe26f4eed62fcf24c984f116dbfb8d81917",
+          "after_sha256": "71fe8f7480412150e929e4c66a7ccbe26f4eed62fcf24c984f116dbfb8d81917",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "nonempty selection with no matching question",
+          "before_sha256": "71fe8f7480412150e929e4c66a7ccbe26f4eed62fcf24c984f116dbfb8d81917",
+          "after_sha256": "71fe8f7480412150e929e4c66a7ccbe26f4eed62fcf24c984f116dbfb8d81917",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "start session with another owner term",
+          "before_sha256": "71fe8f7480412150e929e4c66a7ccbe26f4eed62fcf24c984f116dbfb8d81917",
+          "after_sha256": "71fe8f7480412150e929e4c66a7ccbe26f4eed62fcf24c984f116dbfb8d81917",
+          "data_version": [
+            2,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "atomic_term_session_and_origin_scoped_retry",
+      "status": "PASS",
+      "sqlite_write_checks": [
+        {
+          "operation": "old ordinary receipt cannot acquire a term",
+          "before_sha256": "71fe8f7480412150e929e4c66a7ccbe26f4eed62fcf24c984f116dbfb8d81917",
+          "after_sha256": "71fe8f7480412150e929e4c66a7ccbe26f4eed62fcf24c984f116dbfb8d81917",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "practice_session_questions INSERT fault",
+          "before_sha256": "bf068375a90cf5256e2ac4be31dbbdfc38eb25b3330027e92cfaf995e0865975",
+          "after_sha256": "bf068375a90cf5256e2ac4be31dbbdfc38eb25b3330027e92cfaf995e0865975",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "term_practice_origins INSERT fault",
+          "before_sha256": "0fa718fc05eb9ee439937ec98d0cf9ded567af971b32d67a26b20d58e4beaddc",
+          "after_sha256": "0fa718fc05eb9ee439937ec98d0cf9ded567af971b32d67a26b20d58e4beaddc",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "identical term session retry",
+          "before_sha256": "e2e914ac45a1049ecb82e86878f9b00a1b2cbbccf1c4fae15dfb52451b4eb07b",
+          "after_sha256": "e2e914ac45a1049ecb82e86878f9b00a1b2cbbccf1c4fae15dfb52451b4eb07b",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "changed term or mode at same request key",
+          "before_sha256": "e2e914ac45a1049ecb82e86878f9b00a1b2cbbccf1c4fae15dfb52451b4eb07b",
+          "after_sha256": "e2e914ac45a1049ecb82e86878f9b00a1b2cbbccf1c4fae15dfb52451b4eb07b",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "changed term or mode at same request key",
+          "before_sha256": "e2e914ac45a1049ecb82e86878f9b00a1b2cbbccf1c4fae15dfb52451b4eb07b",
+          "after_sha256": "e2e914ac45a1049ecb82e86878f9b00a1b2cbbccf1c4fae15dfb52451b4eb07b",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "changed term or mode at same request key",
+          "before_sha256": "e2e914ac45a1049ecb82e86878f9b00a1b2cbbccf1c4fae15dfb52451b4eb07b",
+          "after_sha256": "e2e914ac45a1049ecb82e86878f9b00a1b2cbbccf1c4fae15dfb52451b4eb07b",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "peer reads linked session",
+          "before_sha256": "fd3b9ccd3fcc85090b7bc70e855e4e671b9bae442031d2589a808813f334285a",
+          "after_sha256": "fd3b9ccd3fcc85090b7bc70e855e4e671b9bae442031d2589a808813f334285a",
+          "data_version": [
+            2,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sqlite_rejects_cross_owner_and_cross_service_links",
+      "status": "PASS",
+      "sqlite_write_checks": [
+        {
+          "operation": "UPDATE term_card_preferences SET owner_id=? WHERE term_id=?",
+          "before_sha256": "fd3b9ccd3fcc85090b7bc70e855e4e671b9bae442031d2589a808813f334285a",
+          "after_sha256": "fd3b9ccd3fcc85090b7bc70e855e4e671b9bae442031d2589a808813f334285a",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "UPDATE term_card_preferences SET service_id=? WHERE term_id=?",
+          "before_sha256": "fd3b9ccd3fcc85090b7bc70e855e4e671b9bae442031d2589a808813f334285a",
+          "after_sha256": "fd3b9ccd3fcc85090b7bc70e855e4e671b9bae442031d2589a808813f334285a",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "UPDATE term_practice_origins SET term_id=? WHERE session_id=?",
+          "before_sha256": "fd3b9ccd3fcc85090b7bc70e855e4e671b9bae442031d2589a808813f334285a",
+          "after_sha256": "fd3b9ccd3fcc85090b7bc70e855e4e671b9bae442031d2589a808813f334285a",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "UPDATE term_practice_origins SET session_id=? WHERE session_id=?",
+          "before_sha256": "fd3b9ccd3fcc85090b7bc70e855e4e671b9bae442031d2589a808813f334285a",
+          "after_sha256": "fd3b9ccd3fcc85090b7bc70e855e4e671b9bae442031d2589a808813f334285a",
+          "data_version": [
+            2,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "same_asset_version_page_text_and_range_distinct_office_conversions",
+      "status": "PASS",
+      "sqlite_write_checks": [
+        {
+          "operation": "distinct conversion with identical page text",
+          "before_sha256": "fd3b9ccd3fcc85090b7bc70e855e4e671b9bae442031d2589a808813f334285a",
+          "after_sha256": "fd3b9ccd3fcc85090b7bc70e855e4e671b9bae442031d2589a808813f334285a",
+          "data_version": [
+            2,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "two_learners_attempts_hints_conflicts_and_late_receipt_fault",
+      "status": "PASS",
+      "sqlite_write_checks": [
+        {
+          "operation": "wrong version for session",
+          "before_sha256": "a4bd1d7c0b7115cbc3c37e192f8f3b91ec5afbd44a58bb0704a47f3b95bc5a6e",
+          "after_sha256": "a4bd1d7c0b7115cbc3c37e192f8f3b91ec5afbd44a58bb0704a47f3b95bc5a6e",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "non-Boolean judgment answer",
+          "before_sha256": "a4bd1d7c0b7115cbc3c37e192f8f3b91ec5afbd44a58bb0704a47f3b95bc5a6e",
+          "after_sha256": "a4bd1d7c0b7115cbc3c37e192f8f3b91ec5afbd44a58bb0704a47f3b95bc5a6e",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "peer submits to owner session",
+          "before_sha256": "a4bd1d7c0b7115cbc3c37e192f8f3b91ec5afbd44a58bb0704a47f3b95bc5a6e",
+          "after_sha256": "a4bd1d7c0b7115cbc3c37e192f8f3b91ec5afbd44a58bb0704a47f3b95bc5a6e",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "practice_attempt_receipts INSERT fault",
+          "before_sha256": "145363ab395dc756696e64b7a95bfb162d1289c6d93814ddfc0d2950d36b86e3",
+          "after_sha256": "145363ab395dc756696e64b7a95bfb162d1289c6d93814ddfc0d2950d36b86e3",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "identical first answer retry",
+          "before_sha256": "3e1e75a248632193624fbdb082f828a64cefb0c03329e553b909839d219be4b5",
+          "after_sha256": "3e1e75a248632193624fbdb082f828a64cefb0c03329e553b909839d219be4b5",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "changed answer at same key",
+          "before_sha256": "3e1e75a248632193624fbdb082f828a64cefb0c03329e553b909839d219be4b5",
+          "after_sha256": "3e1e75a248632193624fbdb082f828a64cefb0c03329e553b909839d219be4b5",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "stale answer at fresh key",
+          "before_sha256": "3e1e75a248632193624fbdb082f828a64cefb0c03329e553b909839d219be4b5",
+          "after_sha256": "3e1e75a248632193624fbdb082f828a64cefb0c03329e553b909839d219be4b5",
+          "data_version": [
+            2,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "unfavorite_history_restore_and_original_reading_positions",
+      "status": "PASS",
+      "sqlite_write_checks": [
+        {
+          "operation": "term_card_preferences UPDATE/INSERT fault",
+          "before_sha256": "984e8794359d8cc80d3fb3b9c993d1d483fdd2035e38e47fb45645b93c3edaa8",
+          "after_sha256": "984e8794359d8cc80d3fb3b9c993d1d483fdd2035e38e47fb45645b93c3edaa8",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "replay save while unfavorited",
+          "before_sha256": "3b0a3d8168e9c7a85e5680d76f4c888fc5fb52bc1fd91b4bc66ee16b8df35210",
+          "after_sha256": "3b0a3d8168e9c7a85e5680d76f4c888fc5fb52bc1fd91b4bc66ee16b8df35210",
+          "data_version": [
+            2,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "new_session_current_question_and_pinned_authorized_replay",
+      "status": "PASS",
+      "sqlite_write_checks": [
+        {
+          "operation": "fresh key with superseded question version",
+          "before_sha256": "17b8f1bb79295cedb1d1f5ff68a103aee165849ce4fece257d2378c2d98062a5",
+          "after_sha256": "17b8f1bb79295cedb1d1f5ff68a103aee165849ce4fece257d2378c2d98062a5",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "authorized historical receipt after question revision",
+          "before_sha256": "17b8f1bb79295cedb1d1f5ff68a103aee165849ce4fece257d2378c2d98062a5",
+          "after_sha256": "17b8f1bb79295cedb1d1f5ff68a103aee165849ce4fece257d2378c2d98062a5",
+          "data_version": [
+            2,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "question_project_access_withdrawn_while_card_source_stays_readable",
+      "status": "PASS",
+      "sqlite_write_checks": [
+        {
+          "operation": "fresh request after eligibility change",
+          "before_sha256": "f614fb3e8209ee08c5a496a27bbb1f5cf537887f1cb80e744af2d58e83f2eddd",
+          "after_sha256": "f614fb3e8209ee08c5a496a27bbb1f5cf537887f1cb80e744af2d58e83f2eddd",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "existing receipt with inaccessible source or question",
+          "before_sha256": "f614fb3e8209ee08c5a496a27bbb1f5cf537887f1cb80e744af2d58e83f2eddd",
+          "after_sha256": "f614fb3e8209ee08c5a496a27bbb1f5cf537887f1cb80e744af2d58e83f2eddd",
+          "data_version": [
+            2,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "changed_source_hash_denies_fresh_writes_and_existing_receipt",
+      "status": "PASS",
+      "sqlite_write_checks": [
+        {
+          "operation": "edited source rejects personal update",
+          "before_sha256": "b55b7b9401188a8ee42d21fda318c2c338979fd9ac61273bb15576b1308994a8",
+          "after_sha256": "b55b7b9401188a8ee42d21fda318c2c338979fd9ac61273bb15576b1308994a8",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "edited source rejects fresh save",
+          "before_sha256": "b55b7b9401188a8ee42d21fda318c2c338979fd9ac61273bb15576b1308994a8",
+          "after_sha256": "b55b7b9401188a8ee42d21fda318c2c338979fd9ac61273bb15576b1308994a8",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "fresh request after eligibility change",
+          "before_sha256": "b55b7b9401188a8ee42d21fda318c2c338979fd9ac61273bb15576b1308994a8",
+          "after_sha256": "b55b7b9401188a8ee42d21fda318c2c338979fd9ac61273bb15576b1308994a8",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "existing receipt with inaccessible source or question",
+          "before_sha256": "b55b7b9401188a8ee42d21fda318c2c338979fd9ac61273bb15576b1308994a8",
+          "after_sha256": "b55b7b9401188a8ee42d21fda318c2c338979fd9ac61273bb15576b1308994a8",
+          "data_version": [
+            2,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "restart_preserves_edits_sources_attempts_and_original_receipts",
+      "status": "PASS",
+      "sqlite_write_checks": [
+        {
+          "operation": "reloaded history",
+          "before_sha256": "de9e646cb0ed6697664f76351972bcdaaab82138a52e9642051996073b782844",
+          "after_sha256": "de9e646cb0ed6697664f76351972bcdaaab82138a52e9642051996073b782844",
+          "data_version": [
+            2,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "revocation_denies_fresh_and_replayed_writes_only_for_revoked_learner",
+      "status": "PASS",
+      "sqlite_write_checks": [
+        {
+          "operation": "revoked term lookup",
+          "before_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "after_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "revoked term list",
+          "before_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "after_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "revoked term catalog",
+          "before_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "after_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "revoked origin and attempt history",
+          "before_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "after_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "revoked update",
+          "before_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "after_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "revoked save receipt",
+          "before_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "after_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "revoked new save",
+          "before_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "after_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "revoked v42 session receipt",
+          "before_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "after_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "revoked term session receipt",
+          "before_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "after_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "revoked fresh term session",
+          "before_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "after_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "revoked answer receipt",
+          "before_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "after_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "data_version": [
+            2,
+            2
+          ]
+        },
+        {
+          "operation": "revoked fresh answer",
+          "before_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "after_sha256": "0e73c22af6dd6c847e0b442ee08c66d8e6d18de905ebb80236bcfe2d314ee021",
+          "data_version": [
+            2,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reopen_revoked_store_and_verify_legacy_rows",
+      "status": "PASS",
+      "sqlite_write_checks": [
+        {
+          "operation": "revoked origin after restart",
+          "before_sha256": "97ab0056882ae01cc44399dc49055740ea07ef3108c55831861a0abbce81528e",
+          "after_sha256": "97ab0056882ae01cc44399dc49055740ea07ef3108c55831861a0abbce81528e",
+          "data_version": [
+            2,
+            2
+          ]
+        }
+      ]
+    }
+  ],
+  "v42_artifacts": {
+    "entry_sha256": "6195489bc7c55cc8cc06b2cda53f16fbb001cdae1b9173bba9dc327779a109a8",
+    "support_sha256": "91affa2441856d4cb28c54c98467beb5109e1aac42b4cef04e6b98a65c7334df",
+    "storage_sha256": "0a918ac1f4ea02fd5419b4d147ea06a1d3dc879cdac81431db28f2fec8da2af1",
+    "decoder_sha256": "5e2940686a854413a126c8ea10b50ce3c9ec43039dc94757f6e18a80417e13eb"
+  },
+  "v42_counts": {
+    "saved_terms": 5,
+    "users": 3,
+    "reading_positions": 2,
+    "office_conversions": 2,
+    "question_versions": 6,
+    "practice_sessions": 2,
+    "practice_session_questions": 2,
+    "practice_attempts": 1,
+    "practice_attempt_receipts": 1,
+    "practice_hint_events": 1,
+    "personal_question_states": 1,
+    "personal_question_receipts": 1
+  },
+  "v42_ledger_sha256": "4ccd19bd6a743ab1ba771700eead2ebb143271fe79eebe69953bb5df5ada5915",
+  "v42_checksum": "f3ef8296d6aa8b4747adac8c9b9784f63f27043b91fec997ce9dd72b6241d363",
+  "candidate_sha": "5b9f50b6d9acb1ecc8ccf7329b2b53aea795685c",
+  "expected_entry_sha256": "519d9c3631869782e54af9be588db5487200dfbecad663c41e4751e65741e4ba",
+  "entry_sha256": "519d9c3631869782e54af9be588db5487200dfbecad663c41e4751e65741e4ba",
+  "candidate_artifacts": {
+    "support_sha256": "a5ec503827ac323bbb993608287c9b249cfd49671646da6889e94a863a0147eb",
+    "storage_sha256": "188abc2873a841a8fb04811e4b0585ca448c306e9187192496c5c5fd01ae0784"
+  },
+  "v43_checksum": "271ce39059321971c4d4f1d5d76d3d0f51302ff5f195891833d95e29625269a5",
+  "observed": {
+    "final_snapshot_sha256": "97ab0056882ae01cc44399dc49055740ea07ef3108c55831861a0abbce81528e",
+    "ledger_sha256": "0d857768b209bc1b755a1a62b60fbebc05654faeeb3f60ce0e334fa8bfc533d7",
+    "preferences": 2,
+    "origins": 3,
+    "attempts": 5
+  },
+  "exit_code": 0
+}
