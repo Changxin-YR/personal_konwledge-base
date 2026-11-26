@@ -153,6 +153,30 @@ export class TermStore {
     })
   }
 
+  collection(session: SessionActor, after?: string) {
+    return this.tx('read', (db, now) => {
+      const actor = this.actor(session, now)
+      const cursor = after ? this.row(db, actor, after) : undefined
+      if (after && !cursor) throw new AssetError(404, 'TERM_EXPLANATION_NOT_FOUND')
+      const sql = `SELECT t.* FROM saved_terms t LEFT JOIN term_card_preferences p ON p.term_id=t.id
+        WHERE t.service_id=? AND t.owner_id=? AND coalesce(p.favorite,1)=1
+        ${cursor ? 'AND (t.created_at,t.id)<(?,?)' : ''} ORDER BY t.created_at DESC,t.id DESC`
+      const rows = db.prepare(sql).iterate(actor.serviceId, actor.userId, ...(cursor ? [cursor.created_at, cursor.id] : []))
+      const terms: { id: string; term: string; context: string; href: string }[] = []
+      for (const record of rows) {
+        try {
+          const card = this.view(db, actor, record as unknown as StoredTerm, now)
+          terms.push({ id: card.id, term: card.term, context: card.explanation.context,
+            href: card.source.origin + '&term=' + encodeURIComponent(card.id) })
+          if (terms.length === 41) break
+        } catch (error) {
+          if (!(error instanceof AssetError && ['SOURCE_NOT_FOUND','CITATION_SOURCE_CHANGED','SOURCE_NOT_READY'].includes(error.code))) throw error
+        }
+      }
+      return { terms: terms.slice(0, 40), next: terms.length > 40 ? terms[39]!.id : null }
+    })
+  }
+
   save(session: SessionActor, card: TermCard, supplement: string, witness?: RenderWitness) {
     return this.tx('write', (db, now) => {
       const actor = this.actor(session, now), source = card.source

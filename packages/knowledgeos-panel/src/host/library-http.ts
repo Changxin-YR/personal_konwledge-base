@@ -93,7 +93,7 @@ export function libraryHandler(store:AssetStore, originals:PdfOriginals, origin:
         const ac=new AbortController(),stop=()=>ac.abort();res.once('close',stop);if(res.destroyed)stop()
         try{if(await readerRoute(req,url,reader,current,ac.signal,receive,reserve,(code,data)=>json(code,{data,request_id:requestId})))return}finally{res.off('close',stop)}
       }
-      if(req.method==='GET'&&url.pathname==='/knowledge/v1/assets'&&!url.search){json(200,{data:{items:store.list(actor)},request_id:requestId});return}
+      if(req.method==='GET'&&url.pathname==='/knowledge/v1/assets'&&!url.search){json(200,{data:{actor_id:actor.userId,items:store.list(actor)},request_id:requestId});return}
       const op=/^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/office(?:\/(start)|\/([a-f0-9-]+)\/(cancel|notes|pdf))?$/.exec(url.pathname)
       if(office&&op&&uuid.test(op[1]!)&&uuid.test(op[2]!)&&(!op[4]||uuid.test(op[4]))){
         const id=op[1]!,v=op[2]!,cid=op[4]!,command=op[3]??op[5],key=req.headers['idempotency-key']

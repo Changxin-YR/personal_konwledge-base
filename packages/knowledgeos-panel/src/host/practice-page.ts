@@ -17,8 +17,8 @@ fieldset{border:0;margin:0;padding:0;display:grid;gap:8px;min-width:0}label{disp
 #practice-prompt-text{white-space:pre-wrap}summary{cursor:pointer;font-weight:600}details form{margin-top:10px}
 :focus-visible{outline:2px solid #1d7392;outline-offset:2px}
 @media(max-width:700px){main,nav{padding:12px 14px}.layout{grid-template-columns:minmax(0,1fr)}}
-</style></head><body><header><nav aria-label="业务导航"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">知识库</a><a href="/knowledgeos/knowledge">知识条目</a><a href="/knowledgeos/practice" aria-current="page">题库与练习</a><a href="/knowledgeos/review">错题与复习</a><a href="/knowledgeos/transfer">迁移复测</a><a href="/knowledgeos/account">账号</a></nav></header>
-<main><h1>题库与练习</h1><p id="practice-status" role="status">正在读取…</p><a id="practice-login" href="/knowledgeos/account" hidden>登录</a>
+</style></head><body><header><nav aria-label="业务导航"><strong>KnowledgeOS</strong><a href="/knowledgeos/today">今日计划</a><a href="/knowledgeos/library">知识库</a><a href="/knowledgeos/knowledge">知识条目</a><a href="/knowledgeos/practice" aria-current="page">题库与练习</a><a href="/knowledgeos/review">错题与复习</a><a href="/knowledgeos/transfer">迁移复测</a><a href="/knowledgeos/account">账号</a></nav></header>
+<main><h1 id="practice-heading">题库与练习</h1><p id="practice-status" role="status">正在读取…</p><a id="practice-login" href="/knowledgeos/account" hidden>登录</a>
 <div id="practice-workspace" class="layout" hidden><aside>
 <section class="card"><h2 id="practice-catalog-title">可用题目</h2><p><a id="practice-term-reader" hidden>返回术语原文</a></p><p class="subtle" id="practice-empty">暂无可练习题目。</p><ul id="practice-questions"></ul><div class="actions"><button id="practice-start" type="button" disabled>开始练习</button><button id="practice-start-guided" type="button" disabled>开始独立与提示练习</button></div></section>
 <section class="card"><h2>我的练习</h2><p class="subtle" id="practice-no-history">暂无练习记录。</p><ul id="practice-history"></ul></section>
@@ -73,6 +73,8 @@ let practiceMode='standard';
 let epoch=0, reads=0, receipt=null, signature='', catalogSignature='', controller=null;
 const scopeLabels={paragraph:'选区段落',chapter:'当前章节',term:'术语语境'};
 let quickScope=Object.hasOwn(scopeLabels,address.searchParams.get('quick'))?address.searchParams.get('quick'):null, quickPreview=null;
+const quickTrack=address.searchParams.get('track')==='quick';
+if(quickTrack){$('practice-heading').textContent='基础快答';document.title='基础快答 · KnowledgeOS'}
 const status=value=>$('practice-status').textContent=value;
 const option=(label,value)=>{const node=document.createElement('option');node.textContent=label;node.value=value;return node};
 function button(label,key,handler){
@@ -120,6 +122,7 @@ function renderCatalog(projects){
   for(const question of versions){
     const node=button(kinds[question.kind]+' · '+question.prompt,question.version_id,()=>{
       const id=question.version_id;
+      if(quickTrack&&!termFilter){void write(api,{question_version_ids:[id]});return}
       if(picked.has(id))picked.delete(id);
       else if(picked.size<20)picked.add(id);
       else {status('每次练习最多选择 20 题。');return}
@@ -199,7 +202,7 @@ async function load(force=false){
       clearAll();status(errors.ACTOR_CHANGED);return
     }
     if(!actor)status('');
-    actor=catalog.actor_id;versions=catalog.questions;sessions=history.sessions;$('practice-login').hidden=true;$('practice-workspace').hidden=false;
+    actor=catalog.actor_id;versions=quickTrack?catalog.questions.filter(q=>q.kind==='choice'&&q.quality_state==='ready'&&!q.has_open_dispute):catalog.questions;sessions=history.sessions;$('practice-login').hidden=true;$('practice-workspace').hidden=false;
     if(checkedQuick&&checkedQuick===quickPreview&&!keepsQuick){
       quickPreview=null;controller?.abort();$('quick-coverage').textContent='';status('原文范围已不可访问。');setControls()
     }
@@ -207,10 +210,11 @@ async function load(force=false){
     if(quickScope){$('quick-scope').textContent=scopeLabels[quickScope];$('quick-units-label').hidden=quickScope!=='chapter'}
     if(citation&&validId.test(citation)){$('practice-citation').value=citation;$('practice-author').open=true;citation=null}
     const term=catalog.term_origin;
-    $('practice-catalog-title').textContent=term?'「'+term.term+'」的相关题目':'可用题目';
+    $('practice-catalog-title').textContent=term?'「'+term.term+'」的相关题目':quickTrack?'选题即答':'可用题目';
+    $('practice-start').hidden=$('practice-start-guided').hidden=$('practice-author').hidden=quickTrack;
     $('practice-term-reader').hidden=!term;
     if(term)$('practice-term-reader').href=term.origin;else $('practice-term-reader').removeAttribute('href');
-    $('practice-empty').textContent=term?'这处术语还没有可练的题目。':'暂无可练习题目。';
+    $('practice-empty').textContent=term?'这处术语还没有可练的题目。':quickTrack?'还没有可快答的选择题。可在阅读器选择原文后使用选区快答。':'暂无可练习题目。';
     renderCatalog(catalog.projects);
     if(id&&!current){
       clearDetail();active=null;receipt=null;status('练习、题目或来源已不可访问。');return

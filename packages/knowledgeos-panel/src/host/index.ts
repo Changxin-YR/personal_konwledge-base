@@ -36,6 +36,7 @@ import { openIndexPdf,openPdf,openReaderPdf } from './pdf-extractor.ts'
 import {startWordSearchIndex} from './word-search-index.ts'
 import { legacyWordSource } from './legacy-word-source.ts'
 import type { LegacyWordSource } from './reader-http.ts'
+import { buildTodayHtml, buildTermsHtml } from './learning-navigation.ts'
 import { buildLibraryHtml } from './library-page.ts'
 import { buildReaderHtml } from './reader-page.ts'
 import { buildNotesHtml } from './note-page.ts'
@@ -306,7 +307,7 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
         for (const [path, page] of [
           ['/knowledgeos/knowledge',buildKnowledgeHtml],['/knowledgeos/ontology',buildOntologyHtml],
           ['/knowledgeos/practice',buildPracticeHtml],['/knowledgeos/review',buildPracticeReviewHtml],
-          ['/knowledgeos/transfer',buildPracticeTransferHtml],
+          ['/knowledgeos/transfer',buildPracticeTransferHtml],['/knowledgeos/today',buildTodayHtml],['/knowledgeos/terms',buildTermsHtml],
         ] as const)
           disposers.push(identityContext.webServer.register({kind:'exact',path,auth:'anonymous',handler:(req,res)=>{
             if(req.method!=='GET'){res.writeHead(405,{allow:'GET'});res.end();return}

@@ -16,7 +16,7 @@ button[type=submit]{background:#225f51;color:white;border-color:#225f51}button[a
 summary{cursor:pointer;font-weight:600}details>div{margin-top:10px}
 :focus-visible{outline:2px solid #1d7392;outline-offset:2px}
 @media(max-width:700px){main,nav{padding:12px 14px}.layout{grid-template-columns:minmax(0,1fr)}}
-</style></head><body><header><nav aria-label="业务导航"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">知识库</a><a href="/knowledgeos/practice">题库与练习</a><a href="/knowledgeos/review" aria-current="page">错题与复习</a><a href="/knowledgeos/account">账号</a></nav></header>
+</style></head><body><header><nav aria-label="业务导航"><strong>KnowledgeOS</strong><a href="/knowledgeos/today">今日计划</a><a href="/knowledgeos/library">知识库</a><a href="/knowledgeos/practice">题库与练习</a><a href="/knowledgeos/review" aria-current="page">错题与复习</a><a href="/knowledgeos/account">账号</a></nav></header>
 <main><h1>错题与复习</h1><p id="review-status" role="status">正在读取…</p><a id="review-login" href="/knowledgeos/account" hidden>登录</a>
 <div class="layout" id="review-workspace" hidden><aside>
 <section class="card"><h2>我的作答分类</h2><label>筛选<select id="review-filter"><option value="">全部</option><option value="wrong">错题</option><option value="uncertain">答对但不确定</option><option value="assisted">有辅助</option><option value="disputed">待复核</option><option value="independent_correct">独立答对</option></select></label>

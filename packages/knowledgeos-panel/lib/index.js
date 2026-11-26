@@ -4230,6 +4230,33 @@ var TermStore = class {
       });
     });
   }
+  collection(session, after) {
+    return this.tx("read", (db, now) => {
+      const actor2 = this.actor(session, now);
+      const cursor = after ? this.row(db, actor2, after) : void 0;
+      if (after && !cursor) throw new AssetError(404, "TERM_EXPLANATION_NOT_FOUND");
+      const sql = `SELECT t.* FROM saved_terms t LEFT JOIN term_card_preferences p ON p.term_id=t.id
+        WHERE t.service_id=? AND t.owner_id=? AND coalesce(p.favorite,1)=1
+        ${cursor ? "AND (t.created_at,t.id)<(?,?)" : ""} ORDER BY t.created_at DESC,t.id DESC`;
+      const rows = db.prepare(sql).iterate(actor2.serviceId, actor2.userId, ...cursor ? [cursor.created_at, cursor.id] : []);
+      const terms = [];
+      for (const record2 of rows) {
+        try {
+          const card = this.view(db, actor2, record2, now);
+          terms.push({
+            id: card.id,
+            term: card.term,
+            context: card.explanation.context,
+            href: card.source.origin + "&term=" + encodeURIComponent(card.id)
+          });
+          if (terms.length === 41) break;
+        } catch (error) {
+          if (!(error instanceof AssetError && ["SOURCE_NOT_FOUND", "CITATION_SOURCE_CHANGED", "SOURCE_NOT_READY"].includes(error.code))) throw error;
+        }
+      }
+      return { terms: terms.slice(0, 40), next: terms.length > 40 ? terms[39].id : null };
+    });
+  }
   save(session, card, supplement, witness) {
     return this.tx("write", (db, now) => {
       const actor2 = this.actor(session, now), source2 = card.source;
@@ -11810,7 +11837,7 @@ function libraryHandler(store, originals, origin4, actorFor, parses, office, off
         }
       }
       if (req.method === "GET" && url.pathname === "/knowledge/v1/assets" && !url.search) {
-        json4(200, { data: { items: store.list(actor2) }, request_id: requestId });
+        json4(200, { data: { actor_id: actor2.userId, items: store.list(actor2) }, request_id: requestId });
         return;
       }
       const op = /^\/knowledge\/v1\/assets\/([a-f0-9-]+)\/versions\/([a-f0-9-]+)\/office(?:\/(start)|\/([a-f0-9-]+)\/(cancel|notes|pdf))?$/.exec(url.pathname);
@@ -12881,11 +12908,58 @@ function legacyWordSource(kit, originals) {
   };
 }
 
+// src/host/learning-navigation.ts
+var learningEntries = [
+  ["\u4E13\u4E1A\u672F\u8BED", "/knowledgeos/terms", "\u6309\u539F\u6587\u8BED\u5883\u56DE\u770B\u4E2A\u4EBA\u672F\u8BED\u5361"],
+  ["\u906E\u6321\u80CC\u8BF5", "/knowledgeos/recall", "\u7EE7\u7EED\u80CC\u8BF5\u5DF2\u4FDD\u5B58\u7684\u906E\u6321\u6BB5\u843D"],
+  ["\u57FA\u7840\u5FEB\u7B54", "/knowledgeos/practice?track=quick", "\u9009\u4E00\u9053\u9898\uFF0C\u7ACB\u5373\u4F5C\u7B54"],
+  ["\u9519\u9898\u590D\u4E60", "/knowledgeos/review", "\u67E5\u770B\u9996\u7B54\u548C\u4E2A\u4EBA\u590D\u4E60\u5B89\u6392"]
+];
+var learningStyle = `
+@media(min-width:1080px){body:has(header .workspace-nav){display:grid;grid-template-columns:196px minmax(0,1fr);align-items:start}body:has(header .workspace-nav)>header{position:sticky;top:0;height:100vh;border:0;border-right:1px solid #cbd8d5}header:has(.workspace-nav)>div{padding:24px 18px;align-items:start;flex-direction:column}.workspace-nav{width:100%}header .workspace-nav{display:grid;gap:6px}header .workspace-nav a{display:block;padding:8px 12px;border-radius:7px;text-decoration:none}header .workspace-nav [aria-current=page]{background:#e4f0ed;color:#205a58}body:has(header .workspace-nav)>main{width:100%;padding-inline:28px}}
+#learning-shortcuts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-block:14px 22px}
+#learning-shortcuts a{display:grid;align-content:start;gap:5px;min-width:0;min-height:78px;background:white;color:#20595d;border:1px solid #bad0cd;border-top:3px solid #538588;border-radius:8px;padding:12px;text-decoration:none;overflow-wrap:anywhere}
+#learning-shortcuts a:hover,#learning-shortcuts a:focus-visible{background:#edf5f3;border-color:#37747b}
+#learning-shortcuts strong{font-size:17px}#learning-shortcuts small{font-size:13px;color:#526966}.workspace-nav{display:flex;gap:14px;flex-wrap:wrap;align-items:center}.workspace-nav a{padding:5px 0}.workspace-nav [aria-current=page]{font-weight:700;text-decoration-thickness:2px}
+@media(max-width:700px){#learning-shortcuts{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:330px){#learning-shortcuts{grid-template-columns:1fr}}`;
+function learningShortcuts() {
+  return `<nav id="learning-shortcuts" aria-label="\u5B66\u4E60\u5165\u53E3">${learningEntries.map(([name2, href2, hint]) => `<a href="${href2}" aria-label="${name2}"><strong>${name2}</strong><small>${hint}</small></a>`).join("")}</nav>`;
+}
+function workspaceNav(current) {
+  return `<nav class="workspace-nav" aria-label="\u5DE5\u4F5C\u533A"><a href="/knowledgeos/today"${current === "today" ? ' aria-current="page"' : ""}>\u4ECA\u65E5\u8BA1\u5212</a><a href="/knowledgeos/library"${current === "library" ? ' aria-current="page"' : ""}>\u77E5\u8BC6\u5E93</a><a href="/knowledgeos/notes">\u7B14\u8BB0</a><a href="/knowledgeos/projects">\u9879\u76EE\u534F\u4F5C</a><a href="/knowledgeos/account">\u8D26\u53F7\u4E0E\u8BBE\u7F6E</a></nav>`;
+}
+var pageStyle = `*{box-sizing:border-box}body{margin:0;background:#f5f8f7;color:#23353a;font:15px/1.6 "Segoe UI","Microsoft YaHei UI",sans-serif}header{border-bottom:1px solid #ccdad7;background:white}header>div,main{max-width:900px;margin:auto;padding:16px 22px}header>div{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}header strong{color:#22595c;font-size:19px}main{padding-block:24px}h1{font-size:26px;margin:0 0 8px}h2{font-size:19px;margin:16px 0 8px}a{color:#1c6267;text-underline-offset:3px}ul{list-style:none;padding:0}li{padding:9px 0;border-bottom:1px solid #d2dedb;overflow-wrap:anywhere}button{font:inherit;cursor:pointer;border:1px solid #71948e;background:white;padding:6px 12px;border-radius:6px}small{display:block;color:#526966}:focus-visible{outline:3px solid #216e89;outline-offset:3px}[hidden]{display:none!important}section+section{border-top:1px solid #ccdad7;margin-top:18px}select{max-width:100%;font:inherit} @media(max-width:640px){main,header>div{padding-inline:14px}}`;
+function buildTodayHtml(nonce) {
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>\u4ECA\u65E5\u8BA1\u5212 \xB7 KnowledgeOS</title><style nonce="${nonce}">${pageStyle}${learningStyle}</style></head><body><header><div><strong>KnowledgeOS</strong>${workspaceNav("today")}</div></header><main><h1>\u4ECA\u65E5\u8BA1\u5212</h1><h2>\u5B66\u4E60\u5FEB\u6377\u5165\u53E3</h2>${learningShortcuts()}</main></body></html>`;
+}
+function buildTermsHtml(nonce) {
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>\u4E13\u4E1A\u672F\u8BED \xB7 KnowledgeOS</title><style nonce="${nonce}">${pageStyle}${learningStyle}</style></head><body><header><div><strong>KnowledgeOS</strong>${workspaceNav("library")}</div></header><main><h1>\u4E13\u4E1A\u672F\u8BED</h1><p id="term-library-status" role="status">\u6B63\u5728\u8BFB\u53D6\u2026</p><a hidden id="terms-login" href="/knowledgeos/account">\u767B\u5F55</a><div id="term-workspace" hidden><section><h2>\u6211\u6536\u85CF\u7684\u672F\u8BED</h2><ul id="personal-terms"></ul><button id="terms-more" hidden type="button">\u66F4\u591A\u672F\u8BED</button></section><section><h2>\u4ECE\u539F\u6587\u9009\u8BCD</h2><label>\u8D44\u6599\u7248\u672C <select id="term-source"></select></label> <a id="term-source-open" hidden>\u6253\u5F00\u9605\u8BFB\u5668</a><p id="term-source-empty" hidden>\u8FD8\u6CA1\u6709\u53EF\u9605\u8BFB\u7684\u8D44\u6599\u3002<a href="/knowledgeos/library#list-heading">\u53BB\u77E5\u8BC6\u5E93</a></p></section></div></main>
+<script nonce="${nonce}">
+const $=id=>document.getElementById(id), status=text=>$('term-library-status').textContent=text;
+let owner=null, cursor=null, pages=1, generation=0, pending=false, signature='';
+function clear(){generation++;pending=false;owner=null;cursor=null;pages=1;signature='';$('personal-terms').replaceChildren();$('term-source').replaceChildren();$('term-source-open').removeAttribute('href');$('term-workspace').hidden=true;$('terms-more').hidden=true;$('terms-login').hidden=true}
+async function api(path){const res=await fetch('/knowledge/v1/'+path,{credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(5000)});if(!res.ok){const error=new Error();error.status=res.status;throw error}return (await res.json()).data}
+function sourceLink(){const target=$('term-source-open'),href=$('term-source').value;target.hidden=!href;if(href)target.href=href;else target.removeAttribute('href')}
+async function refresh(){if(document.hidden||pending)return;pending=true;const g=generation;
+  try{const me=await api('me'), assets=await api('assets'), terms=[];let next=null;
+    for(let i=0;i<pages;i++){const result=await api('terms/collection'+(next?'?after='+encodeURIComponent(next):''));if(result.actor_id!==me.id)throw Error();terms.push(...result.terms);next=result.next;if(!next)break}
+    const confirmed=await api('me');if(g!==generation||document.hidden)return;
+    if(me.id!==confirmed.id||assets.actor_id!==me.id||owner&&owner!==me.id){clear();status('\u8D26\u53F7\u5DF2\u5207\u6362\u3002');return}
+    owner=me.id;cursor=next;const available=assets.items.filter(v=>v.media_type!=='application/zip');
+    const snapshot=JSON.stringify([terms,available.map(a=>[a.id,a.version_id,a.title,a.version]),next]);if(signature!==snapshot){
+      const old=$('term-source').value;const options=available.map(a=>{const o=document.createElement('option');o.value='/knowledgeos/reader?'+new URLSearchParams({asset:a.id,version:a.version_id});o.textContent=a.title+' \xB7 v'+a.version;return o});$('term-source').replaceChildren(...options);if(options.some(o=>o.value===old))$('term-source').value=old;sourceLink();$('term-source-empty').hidden=options.length>0;$('term-source').disabled=!options.length;
+      const rows=terms.map(t=>{const li=document.createElement('li'),link=document.createElement('a'),detail=document.createElement('small');link.href=t.href;link.dataset.termId=t.id;link.textContent=t.term;detail.textContent=t.context;li.append(link,detail);return li});$('personal-terms').replaceChildren(...rows);signature=snapshot}
+    $('terms-login').hidden=true;$('term-workspace').hidden=false;$('terms-more').hidden=!next;status(terms.length?'':'\u8FD8\u6CA1\u6709\u6536\u85CF\u7684\u672F\u8BED\u3002\u53EF\u4ECE\u8D44\u6599\u4E2D\u9009\u8BCD\u5E76\u4FDD\u5B58\u3002');
+  }catch(error){if(g===generation){clear();$('terms-login').hidden=error.status!==401;status(error.status===401?'\u8BF7\u5148\u767B\u5F55\u3002':'\u6682\u65F6\u65E0\u6CD5\u8BFB\u53D6\u4E2A\u4EBA\u672F\u8BED\u3002')}}finally{if(g===generation)pending=false}}
+$('term-source').onchange=sourceLink;$('terms-more').onclick=()=>{if(cursor&&!pending){pages++;void refresh()}};document.addEventListener('visibilitychange',()=>{if(document.hidden)clear();else void refresh()});addEventListener('pagehide',clear);addEventListener('pageshow',()=>void refresh());addEventListener('focus',()=>void refresh());setInterval(refresh,1800);void refresh();
+</script></body></html>`;
+}
+
 // src/host/library-page.ts
 function buildLibraryHtml() {
   return String.raw`<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PDF 资料库 · KnowledgeOS</title><style>
+<title>知识库 · KnowledgeOS</title><style>
 *{box-sizing:border-box}body{margin:0;color:#223638;background:#f8faf9;font:15px/1.55 "Segoe UI","Microsoft YaHei UI",sans-serif}header{background:#fff;border-bottom:1px solid #d2ddda}header>div,main{max-width:900px;margin:auto;padding:0 22px}header>div,nav,.bar,.links{display:flex;align-items:center;gap:18px;flex-wrap:wrap}header>div{justify-content:space-between;min-height:54px;padding-block:8px}header strong{color:#18565a;font-size:19px}a{color:#176166;text-underline-offset:3px}main{padding-block:24px}h1,h2,p,dl{margin:0}h1{font-size:26px}h2{font-size:18px}section{margin-top:20px;border-top:1px solid #cbd9d6;padding-top:16px}.bar{justify-content:space-between;gap:8px}.muted,dt,small{color:#536866}#who{overflow-wrap:anywhere}form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) auto;align-items:end;gap:12px;margin-top:12px}label{display:grid;gap:5px;font-weight:600}input,select,button{font:inherit}input,select{width:100%;min-width:0;color:inherit;background:white;border:1px solid #889f9c;border-radius:5px;padding:7px;height:42px}input::file-selector-button{border:0;border-right:1px solid #ccd8d5;background:white;color:#18565a;margin-right:8px;padding:2px 8px 2px 0}button{border:1px solid #698c88;border-radius:5px;padding:6px 12px;background:white;color:#215c5c;cursor:pointer}button[type=submit]{background:#226461;color:white;height:42px}button:disabled,input:disabled,select:disabled{opacity:.6;cursor:default}:focus-visible{outline:3px solid #176d92;outline-offset:3px}#status{margin-top:12px;border-left:3px solid #9ebcb4;padding-left:9px;color:#354d48}#status[data-error]{border-color:#ae622e;color:#794019}#receipt{border-color:#669d90}.entry{padding:12px 0;overflow-wrap:anywhere}.entry+.entry{border-top:1px solid #dde5e2}.entry strong{display:block}.entry dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:3px 12px;margin:5px 0}.entry dd{margin:0}.hash{font:13px/1.7 Consolas,monospace}.links{gap:15px;margin-top:6px}#list>p{padding-block:12px}[hidden]{display:none!important}@media(max-width:640px){header>div,main{padding-inline:14px}main{padding-top:18px}form{grid-template-columns:minmax(0,1fr)}form button{justify-self:start}nav{gap:12px}}
 #parse-picker{margin:8px 0;max-width:36rem}#parse-panel{overflow-wrap:anywhere}#parse-panel .links{gap:8px}#parse-pages{list-style:none;margin:8px 0;padding:0}#parse-pages li{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;border-top:1px solid #dde5e2;padding:6px 0}#parse-pages strong{min-width:5em}#parse-pages small{flex-basis:100%}#parse-note{color:#794019}
 #parse-plan{display:flex;flex-wrap:wrap;align-items:end;gap:8px 14px;margin-block:8px}#parse-ranges-field{flex:1 1 16rem}#parse-ranges{width:100%}#parse-chapters{display:flex;gap:6px 14px;flex-wrap:wrap;max-height:10em;overflow:auto;margin:6px 0}
@@ -12893,9 +12967,11 @@ function buildLibraryHtml() {
 #office{overflow-wrap:anywhere}#office-version{max-width:36rem}#office-notes li{white-space:pre-wrap}#office-note-form{grid-template-columns:minmax(5rem,7rem) minmax(0,1fr) auto}#office-body{font:inherit;min-width:0;width:100%;resize:vertical;padding:6px;border:1px solid #889f9c;border-radius:5px}@media(max-width:640px){#office-note-form{grid-template-columns:minmax(0,1fr)}}
 #zip{overflow-wrap:anywhere}#zip-resume{max-width:36rem}#zip-entries{list-style:none;padding:0}#zip-entries li{border-bottom:1px solid #dde5e2;padding:8px 0}#zip-entries label{display:flex;align-items:center;gap:8px}#zip-entries input{width:18px;height:18px;flex:none}#zip-entries small{display:block}
 #search-form{grid-template-columns:minmax(0,1fr) auto}#search-results{list-style:none;padding:0;margin:4px 0;overflow-wrap:anywhere}#search-results li{padding:8px 0;border-bottom:1px solid #dde5e2}#search-results small{margin-inline-start:8px}#search-results p{white-space:pre-wrap}#search-status{min-height:1.55em;margin-top:6px;color:#536866}
+${learningStyle}
 </style></head><body>
-<header><div><strong>KnowledgeOS</strong><nav aria-label="业务导航"><a href="/knowledgeos/knowledge">知识条目</a><a href="/knowledgeos/ontology">知识关系</a><a href="/knowledgeos/practice">题库与练习</a><a href="/knowledgeos/review">错题与复习</a><a href="/knowledgeos/notes">笔记</a><a href="/knowledgeos/recall">遮挡背诵</a><a href="/knowledgeos/repositories">仓库与代码</a><a href="/knowledgeos/projects">项目协作</a><a href="/knowledgeos/invitations">邀请码</a><a href="/knowledgeos/account">账号与登录</a><a href="/knowledgeos/ai">AI 工具</a></nav></div></header>
-<main><div class="bar"><h1>PDF 资料库</h1><span id="who" class="muted"></span></div>
+<header><div><strong>KnowledgeOS</strong>${workspaceNav("library")}</div></header>
+<main><div class="bar"><h1>知识库</h1><span id="who" class="muted"></span></div>${learningShortcuts()}
+<details><summary>更多知识库工具</summary><nav class="links" aria-label="知识库工具"><a href="/knowledgeos/knowledge">知识条目</a><a href="/knowledgeos/ontology">知识关系</a><a href="/knowledgeos/practice">题库与练习</a><a href="/knowledgeos/repositories">仓库与代码</a><a href="/knowledgeos/invitations">邀请码</a><a href="/knowledgeos/ai">AI 工具</a></nav></details>
 <section aria-labelledby="search-heading"><h2 id="search-heading">全文检索</h2>
 <form id="search-form"><label>关键词<input id="search-query" type="search" maxlength="128" disabled required></label><button id="search-submit" type="submit" disabled>检索</button></form>
 <p id="search-status" role="status"></p><ul id="search-results"></ul></section>
@@ -13714,6 +13790,7 @@ async function load(n,{openCitation=false,openMatch=false,restore=false,save=fal
     $('continuity').hidden=false;renderBookmarks();
     if(save||needle&&pendingMatchSave){busy=true;await remember(g,d,Boolean(needle))}
     void showOutline(g);
+    if(needle&&q.has('term')&&g===gen)void openPinnedTerm(q.get('term'),d,needle);
   }catch(e){
     if(g!==gen)return;
     if(total && (e.http===503||e.http===502||e.http===500)){
@@ -13880,6 +13957,18 @@ async function updateTerm(field){
     if(termCurrent(run))$('term-edit').disabled=$('term-favorite').disabled=false;
     termError(error,run);
   }
+}
+async function openPinnedTerm(id,d,match){
+  if(!uuid(id))return;
+  const run=openTerms('terms-open');
+  try{
+    const result=await api('terms/'+id,{signal:run.controller.signal});
+    if(!termCurrent(run)||!await access(run.g)||!termCurrent(run))return;
+    const card=result.term,s=card?.source;
+    if(result.actor_id!==run.actor||card?.id!==id||!s||s.asset_id!==asset||s.version_id!==version||s.ordinal!==d.ordinal||
+        (s.conversion_id??null)!==(d.conversion_id??null)||s.start!==Number(match[1])||s.end!==Number(match[2])||s.source_hash!==match[3])throw invalid();
+    paintTerm(card,false,run);
+  }catch(error){termError(error,run)}
 }
 async function showTerms(archived=false){
   if(!page||!owner)return;
@@ -14457,7 +14546,7 @@ function buildRecallHtml() {
 <style>
 *{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:#f8faf9;color:#223638;font:15px/1.55 "Segoe UI","Microsoft YaHei UI",sans-serif}header{background:#fff;border-bottom:1px solid #cedbd7}header nav,main{max-width:1040px;margin:auto;padding:0 20px}nav,.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}nav{min-height:54px}nav strong{font-size:18px;color:#18565a;margin-right:6px}main{padding-block:20px}h1,h2,h3,p{margin:0}h1{font-size:25px}h2{font-size:18px}h3{font-size:15px}a{color:#176166;text-underline-offset:3px}button,input,select{font:inherit;color:inherit;padding:5px 9px;border:1px solid #8a9d99;border-radius:5px;background:#fff}button{cursor:pointer}button:disabled{opacity:.55;cursor:default}button.primary{color:#fff;background:#226461}button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #176d92;outline-offset:2px}#status,#practice-meta,#selection-meta{color:#516667;min-height:1.6em;margin:6px 0}section{margin-top:15px}#author-tools{position:sticky;top:0;z-index:1;background:#f8faf9;border-block:1px solid #cedbd7;padding:8px 0}#pages article{border-bottom:1px solid #cedbd7;padding:11px 0}#pages h3{color:#346465}pre,.practice-text{font:inherit;white-space:pre-wrap;overflow-wrap:anywhere;margin:6px 0;line-height:1.65}pre{user-select:text}input{max-width:100%}ul{padding:0;list-style:none;margin:8px 0}li{padding:6px 0;border-bottom:1px solid #dce6e3;overflow-wrap:anywhere}#groups li{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.masked{background:#dbe9e3;color:#244b48;font-weight:600;padding:0 4px;border-bottom:2px solid #92ada4}.warn{color:#8c521d}.muted{color:#536866}label{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap}.progress{margin:8px 0}
 @media(max-width:620px){header nav,main{padding-inline:12px}#author-tools{position:static}.bar{gap:6px}}
-</style></head><body><header><nav aria-label="业务导航"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">知识库</a><a href="/knowledgeos/recall" aria-current="page">遮挡背诵</a><a href="/knowledgeos/account">账号</a></nav></header>
+</style></head><body><header><nav aria-label="业务导航"><strong>KnowledgeOS</strong><a href="/knowledgeos/today">今日计划</a> <a href="/knowledgeos/library">知识库</a><a href="/knowledgeos/recall" aria-current="page">遮挡背诵</a><a href="/knowledgeos/account">账号</a></nav></header>
 <main><h1>遮挡背诵</h1><p id="status" role="status">正在读取…</p>
 <section id="collection" hidden><h2>我的练习</h2><ul id="materials"></ul><button id="more" hidden>更多练习</button></section>
 <section id="author" hidden><h2 id="source-title"></h2><div id="author-tools"><div class="bar"><button id="range">设为练习范围</button><button id="mask" disabled>添加为遮挡组</button><button id="clear-masks" disabled>清除分组</button><span id="selection-meta" aria-live="polite"></span></div><div class="bar"><label>练习名称 <input id="title" maxlength="200"></label><button id="create" class="primary" disabled>保存并练习</button></div></div>
@@ -14936,6 +15025,11 @@ function createTermHandler(store, reader, ai, origin4, actorFor, stopping) {
         const asset = uuid8(url.searchParams.get("asset")), version = uuid8(url.searchParams.get("version"));
         const actor2 = current();
         return send(200, { data: { actor_id: actor2.userId, terms: store.list(actor2, asset, version, archived === "1") } });
+      }
+      if (url.pathname === termApi + "/collection" && method === "GET") {
+        if (url.search && (url.searchParams.size !== 1 || !url.searchParams.has("after"))) throw invalid12();
+        const actor2 = current(), after = url.searchParams.get("after");
+        return send(200, { data: { actor_id: actor2.userId, ...store.collection(actor2, after === null ? void 0 : uuid8(after)) } });
       }
       if (url.pathname.startsWith(termApi + "/") && method === "GET" && !url.search) {
         const key = uuid8(url.pathname.slice(termApi.length + 1)), actor2 = current();
@@ -15909,8 +16003,8 @@ fieldset{border:0;margin:0;padding:0;display:grid;gap:8px;min-width:0}label{disp
 #practice-prompt-text{white-space:pre-wrap}summary{cursor:pointer;font-weight:600}details form{margin-top:10px}
 :focus-visible{outline:2px solid #1d7392;outline-offset:2px}
 @media(max-width:700px){main,nav{padding:12px 14px}.layout{grid-template-columns:minmax(0,1fr)}}
-</style></head><body><header><nav aria-label="\u4E1A\u52A1\u5BFC\u822A"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">\u77E5\u8BC6\u5E93</a><a href="/knowledgeos/knowledge">\u77E5\u8BC6\u6761\u76EE</a><a href="/knowledgeos/practice" aria-current="page">\u9898\u5E93\u4E0E\u7EC3\u4E60</a><a href="/knowledgeos/review">\u9519\u9898\u4E0E\u590D\u4E60</a><a href="/knowledgeos/transfer">\u8FC1\u79FB\u590D\u6D4B</a><a href="/knowledgeos/account">\u8D26\u53F7</a></nav></header>
-<main><h1>\u9898\u5E93\u4E0E\u7EC3\u4E60</h1><p id="practice-status" role="status">\u6B63\u5728\u8BFB\u53D6\u2026</p><a id="practice-login" href="/knowledgeos/account" hidden>\u767B\u5F55</a>
+</style></head><body><header><nav aria-label="\u4E1A\u52A1\u5BFC\u822A"><strong>KnowledgeOS</strong><a href="/knowledgeos/today">\u4ECA\u65E5\u8BA1\u5212</a><a href="/knowledgeos/library">\u77E5\u8BC6\u5E93</a><a href="/knowledgeos/knowledge">\u77E5\u8BC6\u6761\u76EE</a><a href="/knowledgeos/practice" aria-current="page">\u9898\u5E93\u4E0E\u7EC3\u4E60</a><a href="/knowledgeos/review">\u9519\u9898\u4E0E\u590D\u4E60</a><a href="/knowledgeos/transfer">\u8FC1\u79FB\u590D\u6D4B</a><a href="/knowledgeos/account">\u8D26\u53F7</a></nav></header>
+<main><h1 id="practice-heading">\u9898\u5E93\u4E0E\u7EC3\u4E60</h1><p id="practice-status" role="status">\u6B63\u5728\u8BFB\u53D6\u2026</p><a id="practice-login" href="/knowledgeos/account" hidden>\u767B\u5F55</a>
 <div id="practice-workspace" class="layout" hidden><aside>
 <section class="card"><h2 id="practice-catalog-title">\u53EF\u7528\u9898\u76EE</h2><p><a id="practice-term-reader" hidden>\u8FD4\u56DE\u672F\u8BED\u539F\u6587</a></p><p class="subtle" id="practice-empty">\u6682\u65E0\u53EF\u7EC3\u4E60\u9898\u76EE\u3002</p><ul id="practice-questions"></ul><div class="actions"><button id="practice-start" type="button" disabled>\u5F00\u59CB\u7EC3\u4E60</button><button id="practice-start-guided" type="button" disabled>\u5F00\u59CB\u72EC\u7ACB\u4E0E\u63D0\u793A\u7EC3\u4E60</button></div></section>
 <section class="card"><h2>\u6211\u7684\u7EC3\u4E60</h2><p class="subtle" id="practice-no-history">\u6682\u65E0\u7EC3\u4E60\u8BB0\u5F55\u3002</p><ul id="practice-history"></ul></section>
@@ -15965,6 +16059,8 @@ let practiceMode='standard';
 let epoch=0, reads=0, receipt=null, signature='', catalogSignature='', controller=null;
 const scopeLabels={paragraph:'\u9009\u533A\u6BB5\u843D',chapter:'\u5F53\u524D\u7AE0\u8282',term:'\u672F\u8BED\u8BED\u5883'};
 let quickScope=Object.hasOwn(scopeLabels,address.searchParams.get('quick'))?address.searchParams.get('quick'):null, quickPreview=null;
+const quickTrack=address.searchParams.get('track')==='quick';
+if(quickTrack){$('practice-heading').textContent='\u57FA\u7840\u5FEB\u7B54';document.title='\u57FA\u7840\u5FEB\u7B54 \xB7 KnowledgeOS'}
 const status=value=>$('practice-status').textContent=value;
 const option=(label,value)=>{const node=document.createElement('option');node.textContent=label;node.value=value;return node};
 function button(label,key,handler){
@@ -16012,6 +16108,7 @@ function renderCatalog(projects){
   for(const question of versions){
     const node=button(kinds[question.kind]+' \xB7 '+question.prompt,question.version_id,()=>{
       const id=question.version_id;
+      if(quickTrack&&!termFilter){void write(api,{question_version_ids:[id]});return}
       if(picked.has(id))picked.delete(id);
       else if(picked.size<20)picked.add(id);
       else {status('\u6BCF\u6B21\u7EC3\u4E60\u6700\u591A\u9009\u62E9 20 \u9898\u3002');return}
@@ -16091,7 +16188,7 @@ async function load(force=false){
       clearAll();status(errors.ACTOR_CHANGED);return
     }
     if(!actor)status('');
-    actor=catalog.actor_id;versions=catalog.questions;sessions=history.sessions;$('practice-login').hidden=true;$('practice-workspace').hidden=false;
+    actor=catalog.actor_id;versions=quickTrack?catalog.questions.filter(q=>q.kind==='choice'&&q.quality_state==='ready'&&!q.has_open_dispute):catalog.questions;sessions=history.sessions;$('practice-login').hidden=true;$('practice-workspace').hidden=false;
     if(checkedQuick&&checkedQuick===quickPreview&&!keepsQuick){
       quickPreview=null;controller?.abort();$('quick-coverage').textContent='';status('\u539F\u6587\u8303\u56F4\u5DF2\u4E0D\u53EF\u8BBF\u95EE\u3002');setControls()
     }
@@ -16099,10 +16196,11 @@ async function load(force=false){
     if(quickScope){$('quick-scope').textContent=scopeLabels[quickScope];$('quick-units-label').hidden=quickScope!=='chapter'}
     if(citation&&validId.test(citation)){$('practice-citation').value=citation;$('practice-author').open=true;citation=null}
     const term=catalog.term_origin;
-    $('practice-catalog-title').textContent=term?'\u300C'+term.term+'\u300D\u7684\u76F8\u5173\u9898\u76EE':'\u53EF\u7528\u9898\u76EE';
+    $('practice-catalog-title').textContent=term?'\u300C'+term.term+'\u300D\u7684\u76F8\u5173\u9898\u76EE':quickTrack?'\u9009\u9898\u5373\u7B54':'\u53EF\u7528\u9898\u76EE';
+    $('practice-start').hidden=$('practice-start-guided').hidden=$('practice-author').hidden=quickTrack;
     $('practice-term-reader').hidden=!term;
     if(term)$('practice-term-reader').href=term.origin;else $('practice-term-reader').removeAttribute('href');
-    $('practice-empty').textContent=term?'\u8FD9\u5904\u672F\u8BED\u8FD8\u6CA1\u6709\u53EF\u7EC3\u7684\u9898\u76EE\u3002':'\u6682\u65E0\u53EF\u7EC3\u4E60\u9898\u76EE\u3002';
+    $('practice-empty').textContent=term?'\u8FD9\u5904\u672F\u8BED\u8FD8\u6CA1\u6709\u53EF\u7EC3\u7684\u9898\u76EE\u3002':quickTrack?'\u8FD8\u6CA1\u6709\u53EF\u5FEB\u7B54\u7684\u9009\u62E9\u9898\u3002\u53EF\u5728\u9605\u8BFB\u5668\u9009\u62E9\u539F\u6587\u540E\u4F7F\u7528\u9009\u533A\u5FEB\u7B54\u3002':'\u6682\u65E0\u53EF\u7EC3\u4E60\u9898\u76EE\u3002';
     renderCatalog(catalog.projects);
     if(id&&!current){
       clearDetail();active=null;receipt=null;status('\u7EC3\u4E60\u3001\u9898\u76EE\u6216\u6765\u6E90\u5DF2\u4E0D\u53EF\u8BBF\u95EE\u3002');return
@@ -16435,7 +16533,7 @@ button[type=submit]{background:#225f51;color:white;border-color:#225f51}button[a
 summary{cursor:pointer;font-weight:600}details>div{margin-top:10px}
 :focus-visible{outline:2px solid #1d7392;outline-offset:2px}
 @media(max-width:700px){main,nav{padding:12px 14px}.layout{grid-template-columns:minmax(0,1fr)}}
-</style></head><body><header><nav aria-label="\u4E1A\u52A1\u5BFC\u822A"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">\u77E5\u8BC6\u5E93</a><a href="/knowledgeos/practice">\u9898\u5E93\u4E0E\u7EC3\u4E60</a><a href="/knowledgeos/review" aria-current="page">\u9519\u9898\u4E0E\u590D\u4E60</a><a href="/knowledgeos/account">\u8D26\u53F7</a></nav></header>
+</style></head><body><header><nav aria-label="\u4E1A\u52A1\u5BFC\u822A"><strong>KnowledgeOS</strong><a href="/knowledgeos/today">\u4ECA\u65E5\u8BA1\u5212</a><a href="/knowledgeos/library">\u77E5\u8BC6\u5E93</a><a href="/knowledgeos/practice">\u9898\u5E93\u4E0E\u7EC3\u4E60</a><a href="/knowledgeos/review" aria-current="page">\u9519\u9898\u4E0E\u590D\u4E60</a><a href="/knowledgeos/account">\u8D26\u53F7</a></nav></header>
 <main><h1>\u9519\u9898\u4E0E\u590D\u4E60</h1><p id="review-status" role="status">\u6B63\u5728\u8BFB\u53D6\u2026</p><a id="review-login" href="/knowledgeos/account" hidden>\u767B\u5F55</a>
 <div class="layout" id="review-workspace" hidden><aside>
 <section class="card"><h2>\u6211\u7684\u4F5C\u7B54\u5206\u7C7B</h2><label>\u7B5B\u9009<select id="review-filter"><option value="">\u5168\u90E8</option><option value="wrong">\u9519\u9898</option><option value="uncertain">\u7B54\u5BF9\u4F46\u4E0D\u786E\u5B9A</option><option value="assisted">\u6709\u8F85\u52A9</option><option value="disputed">\u5F85\u590D\u6838</option><option value="independent_correct">\u72EC\u7ACB\u7B54\u5BF9</option></select></label>
@@ -17477,7 +17575,9 @@ function apply(ctx, config = {}) {
           ["/knowledgeos/ontology", buildOntologyHtml],
           ["/knowledgeos/practice", buildPracticeHtml],
           ["/knowledgeos/review", buildPracticeReviewHtml],
-          ["/knowledgeos/transfer", buildPracticeTransferHtml]
+          ["/knowledgeos/transfer", buildPracticeTransferHtml],
+          ["/knowledgeos/today", buildTodayHtml],
+          ["/knowledgeos/terms", buildTermsHtml]
         ])
           disposers.push(identityContext.webServer.register({ kind: "exact", path: path2, auth: "anonymous", handler: (req, res) => {
             if (req.method !== "GET") {

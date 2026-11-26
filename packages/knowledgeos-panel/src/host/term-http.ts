@@ -180,6 +180,11 @@ export function createTermHandler(store: TermStore, reader: ReaderService, ai: (
         const actor = current()
         return send(200, { data: { actor_id: actor.userId, terms: store.list(actor, asset, version, archived === '1') } })
       }
+      if (url.pathname === termApi + '/collection' && method === 'GET') {
+        if (url.search && (url.searchParams.size !== 1 || !url.searchParams.has('after'))) throw invalid()
+        const actor = current(), after = url.searchParams.get('after')
+        return send(200, { data: { actor_id: actor.userId, ...store.collection(actor, after === null ? undefined : uuid(after)) } })
+      }
       if (url.pathname.startsWith(termApi + '/') && method === 'GET' && !url.search) {
         const key = uuid(url.pathname.slice(termApi.length + 1)), actor = current()
         const term = store.find(actor, key)

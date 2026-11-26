@@ -212,6 +212,7 @@ async function load(n,{openCitation=false,openMatch=false,restore=false,save=fal
     $('continuity').hidden=false;renderBookmarks();
     if(save||needle&&pendingMatchSave){busy=true;await remember(g,d,Boolean(needle))}
     void showOutline(g);
+    if(needle&&q.has('term')&&g===gen)void openPinnedTerm(q.get('term'),d,needle);
   }catch(e){
     if(g!==gen)return;
     if(total && (e.http===503||e.http===502||e.http===500)){
@@ -378,6 +379,18 @@ async function updateTerm(field){
     if(termCurrent(run))$('term-edit').disabled=$('term-favorite').disabled=false;
     termError(error,run);
   }
+}
+async function openPinnedTerm(id,d,match){
+  if(!uuid(id))return;
+  const run=openTerms('terms-open');
+  try{
+    const result=await api('terms/'+id,{signal:run.controller.signal});
+    if(!termCurrent(run)||!await access(run.g)||!termCurrent(run))return;
+    const card=result.term,s=card?.source;
+    if(result.actor_id!==run.actor||card?.id!==id||!s||s.asset_id!==asset||s.version_id!==version||s.ordinal!==d.ordinal||
+        (s.conversion_id??null)!==(d.conversion_id??null)||s.start!==Number(match[1])||s.end!==Number(match[2])||s.source_hash!==match[3])throw invalid();
+    paintTerm(card,false,run);
+  }catch(error){termError(error,run)}
 }
 async function showTerms(archived=false){
   if(!page||!owner)return;
