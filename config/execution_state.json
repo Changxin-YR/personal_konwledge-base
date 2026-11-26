@@ -10,7 +10,7 @@
     "sha256": "a2e5986cfa81189aeae0c4b43ebfe4afd074aae9d5674e7ecf5e069c5d6ab530"
   },
   "active_unit": "KNOW-002",
-  "unit_state": "in_progress",
+  "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Implement formal knowledge items with immutable versions, explicit confirmation, and source authorization.",
+  "state_reason": "Formal knowledge, immutable human confirmation and source-restricted history passed.",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,48 +127,57 @@
     }
   },
   "last_accepted_checkpoint": {
-    "candidate_sha": "4d4275ded7afecc3c4ddec2612ac5006b717308f",
-    "tree": "0ace13f00590c73d0439999bc2a2e75fa1d7ec25",
-    "source_tree": "9a872b2e438f244537dafe213bc056e9cd96d8d6",
-    "entry_sha256": "cb1b53e3d3a63eb90d69ad9126e5fb9f69e45568f97f69d812506a10c578cdd9",
-    "build_sha256": "9c3f1def17f513744b6bcde3c494062af5e899d5cf2f09ada7a73b1d36e0adec",
-    "unit_id": "KNOW-001",
-    "base_commit": "0016a75c5bee1977d7bec42367b2f44133bc708c",
+    "candidate_sha": "0b2f4d6428635fad8691b8dfca0f8e9a5acf2a45",
+    "tree": "25ce3ab2a6b4f7d75aea388884afdbf1f4b98223",
+    "source_tree": "3f2a5d5637c7d00b6c993494dfb99ab5457c256c",
+    "entry_sha256": "a9c0e64eb5b0ec686a4f1dfd6ce88c20e2c9a9e8ac53fb4cba1892627fb7f289",
+    "build_sha256": "a28616b8bc4ae17ecd3c3b3766fa371d2fa38ef9baead8df9d657fb32d1cbee6",
+    "unit_id": "KNOW-002",
+    "base_commit": "d355293a4a90d41bca133c6edc039aeb4acabf23",
     "completed": [
-      "Two fixed reader selections explained with the authorized Tokease model in two isolated browser/database sessions.",
-      "Private explicit saving, interruption, scope and v36 migration verification."
+      "Versioned knowledge entries from originals, fixed citations, private notes or saved terms with explicit human confirmation.",
+      "Primary and independent Chrome/Host/SQLite verification and v37 migration/write fault regression."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
       "T01": "PASS",
       "T02": "PASS",
       "independent": "PASS",
-      "A10": "NOT_RUN",
-      "P03": "NOT_RUN"
-    },
-    "evidence": "docs/evidence/KNOW-001/acceptance.json",
-    "defects": [],
-    "blocked_dependencies": [
-      "A10 and P03 need downstream practice and return-reading integration."
-    ],
-    "next_task": "KNOW-002"
-  },
-  "checkpoint": {
-    "unit_id": "KNOW-002",
-    "base_commit": "033a20b617b479a8fd83099361aac778d425cb8f",
-    "completed": [
-      "Independent source, version and confirmation acceptance expectations prepared."
-    ],
-    "test_results": {
-      "unit_acceptance": "NOT_RUN",
-      "T01": "NOT_RUN",
-      "T02": "NOT_RUN",
       "A11": "NOT_RUN",
       "A12": "NOT_RUN"
     },
-    "evidence": "scripts/know002/acceptance-plan.md",
+    "evidence": "docs/evidence/KNOW-002/acceptance.json",
     "defects": [],
-    "blocked_dependencies": [],
-    "next_task": "KNOW-002"
+    "blocked_dependencies": [
+      "A11 requires relationship constraints and proposal review in KNOW-003. A12 requires lifecycle integration."
+    ],
+    "next_task": "KNOW-003"
+  },
+  "checkpoint": {
+    "candidate_sha": "0b2f4d6428635fad8691b8dfca0f8e9a5acf2a45",
+    "tree": "25ce3ab2a6b4f7d75aea388884afdbf1f4b98223",
+    "source_tree": "3f2a5d5637c7d00b6c993494dfb99ab5457c256c",
+    "entry_sha256": "a9c0e64eb5b0ec686a4f1dfd6ce88c20e2c9a9e8ac53fb4cba1892627fb7f289",
+    "build_sha256": "a28616b8bc4ae17ecd3c3b3766fa371d2fa38ef9baead8df9d657fb32d1cbee6",
+    "unit_id": "KNOW-002",
+    "base_commit": "d355293a4a90d41bca133c6edc039aeb4acabf23",
+    "completed": [
+      "Versioned knowledge entries from originals, fixed citations, private notes or saved terms with explicit human confirmation.",
+      "Primary and independent Chrome/Host/SQLite verification and v37 migration/write fault regression."
+    ],
+    "test_results": {
+      "unit_acceptance": "PASS",
+      "T01": "PASS",
+      "T02": "PASS",
+      "independent": "PASS",
+      "A11": "NOT_RUN",
+      "A12": "NOT_RUN"
+    },
+    "evidence": "docs/evidence/KNOW-002/acceptance.json",
+    "defects": [],
+    "blocked_dependencies": [
+      "A11 requires relationship constraints and proposal review in KNOW-003. A12 requires lifecycle integration."
+    ],
+    "next_task": "KNOW-003"
   }
 }

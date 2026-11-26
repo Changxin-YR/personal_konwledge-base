@@ -1,0 +1,56 @@
+{
+  "unit_id": "KNOW-002",
+  "candidate_sha": "0b2f4d6428635fad8691b8dfca0f8e9a5acf2a45",
+  "tree": "25ce3ab2a6b4f7d75aea388884afdbf1f4b98223",
+  "source_tree": "3f2a5d5637c7d00b6c993494dfb99ab5457c256c",
+  "entry_sha256": "a9c0e64eb5b0ec686a4f1dfd6ce88c20e2c9a9e8ac53fb4cba1892627fb7f289",
+  "build_sha256": "a28616b8bc4ae17ecd3c3b3766fa371d2fa38ef9baead8df9d657fb32d1cbee6",
+  "runner_sha256": "7b2353043014b83507b369ce33b5316dc8021196a71ba77482de775b896117c3",
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "A11": "NOT_RUN",
+  "A12": "NOT_RUN",
+  "checks": [
+    {
+      "id": "actual_creation_note_witness_owner_scope_and_explicit_human_confirmation",
+      "status": "PASS"
+    },
+    {
+      "id": "historical_witnesses_parallel_revisions_replay_foreground_revocation_and_restart",
+      "status": "PASS"
+    }
+  ],
+  "screens": [
+    {
+      "name": "knowledge-confirmed-fixed-source.png",
+      "sha256": "0db2f65cdde0170a402532d83bef2ce23d8bfa88115b94c036b18715382829ce"
+    },
+    {
+      "name": "knowledge-revoked-foreground.png",
+      "sha256": "c49ba18d7fe011c190916d18444ef0ce0c556b20a43283358f269552dc6770ae"
+    }
+  ],
+  "boots": [
+    129216,
+    49908
+  ],
+  "binding": {
+    "candidate_sha": "0b2f4d6428635fad8691b8dfca0f8e9a5acf2a45",
+    "tree": "25ce3ab2a6b4f7d75aea388884afdbf1f4b98223",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "a9c0e64eb5b0ec686a4f1dfd6ce88c20e2c9a9e8ac53fb4cba1892627fb7f289",
+    "helpers": {
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "5278ebf7cc64773560b3b672c9182c65b4e1d82a20b8f569328cb0765a627f10",
+      "a07-isolated-host": "d0a66cc846abbd105a69e715430ce091a40050940037d246910359098cae7c8c"
+    },
+    "parser": {
+      "pdf-extractor.js": "49fb0588ba0c37486a287a083d9bd2a032d89205d34af615845c4928b1f6745c",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "chrome": "158.0.8127.88"
+}

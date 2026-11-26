@@ -1,0 +1,36 @@
+{
+  "unit_id": "KNOW-002",
+  "candidate_sha": "0b2f4d6428635fad8691b8dfca0f8e9a5acf2a45",
+  "entry_sha256": "a9c0e64eb5b0ec686a4f1dfd6ce88c20e2c9a9e8ac53fb4cba1892627fb7f289",
+  "test_support_sha256": "011f2dee69345639b501f35d2da30db84829cd8653c97fbae48688bcf9c6c0c1",
+  "runner_sha256": "459df0c430e2de797c23aae9ee8f88ac8478339ef96301cb9096bea50cd8ca37",
+  "scope": "INDEPENDENT_SQLITE_V37_MIGRATION_AND_TRANSACTION_REGRESSION",
+  "status": "PASS",
+  "exit_code": 0,
+  "command": "node --experimental-transform-types scripts/know002/v37-regression.mjs <candidate worktree> --full",
+  "console_sha256": "36c63c482d4fbd451aec1deb8e0b913d0199c415d124e4b40fb0e5a152435d30",
+  "frozen_v36_ref": "033a20b617b479a8fd83099361aac778d425cb8f",
+  "v36_bundle_sha256": "371722c753b2bb0626d043cdc3b976c4ae15f634d7ad2cca1a9721776ebb8416",
+  "results": [
+    {
+      "id": "frozen_v36_production_fixture_contains_note_citation_and_saved_term",
+      "status": "PASS"
+    },
+    {
+      "id": "v37_after_schema_failure_preserves_full_v36_database",
+      "status": "PASS"
+    },
+    {
+      "id": "v37_single_migration_receipt_and_legacy_records_survive_reopen",
+      "status": "PASS"
+    },
+    {
+      "id": "failed_pointer_change_and_failed_receipt_each_rollback_full_write",
+      "status": "PASS"
+    },
+    {
+      "id": "exact_replay_precedes_stale_revision_check_and_conflicts_leave_no_rows",
+      "status": "PASS"
+    }
+  ]
+}

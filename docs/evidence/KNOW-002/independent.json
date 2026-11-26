@@ -1,0 +1,32 @@
+{
+  "candidate_sha": "0b2f4d6428635fad8691b8dfca0f8e9a5acf2a45",
+  "tree": "25ce3ab2a6b4f7d75aea388884afdbf1f4b98223",
+  "source_tree": "3f2a5d5637c7d00b6c993494dfb99ab5457c256c",
+  "entry_sha256": "a9c0e64eb5b0ec686a4f1dfd6ce88c20e2c9a9e8ac53fb4cba1892627fb7f289",
+  "build_sha256": "a28616b8bc4ae17ecd3c3b3766fa371d2fa38ef9baead8df9d657fb32d1cbee6",
+  "unit_id": "KNOW-002",
+  "status": "PASS",
+  "exit": 0,
+  "reviewer": "Independent knowledge acceptance subagent",
+  "command": "node scripts/know002/host-knowledge.mjs <frozen-checkout> 0b2f4d6428635fad8691b8dfca0f8e9a5acf2a45 a9c0e64eb5b0ec686a4f1dfd6ce88c20e2c9a9e8ac53fb4cba1892627fb7f289",
+  "results": [
+    {
+      "id": "KNOW-002-T01",
+      "status": "PASS",
+      "actual": "Real reader citation, note evidence, private owner scope and explicit human confirmation."
+    },
+    {
+      "id": "KNOW-002-T02",
+      "status": "PASS",
+      "actual": "Immutable historical versions, exact source anchors, competing requests, live source authorization, replay and restart in Chrome."
+    }
+  ],
+  "raw": {
+    "path": "docs/evidence/KNOW-002/runs/independent.json",
+    "sha256": "623c290881c38aa9b37e2bfaee7919095492d48b2ccc7edaea224f8d04fad8fd"
+  },
+  "storage_regression": {
+    "path": "docs/evidence/KNOW-002/runs/storage-regression.json",
+    "sha256": "1874be74e401288a76e504f0efc876331310e5ff49f170ee117d9b57d3d2873d"
+  }
+}

@@ -2260,8 +2260,26 @@
       ],
       "final_acceptance_ids": [],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "in_progress",
-      "test_plan_status": "expanded_for_activation"
+      "status": "passed",
+      "test_plan_status": "executed_with_evidence",
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "retest_status": "PASS",
+      "completed_test_ids": [
+        "KNOW-002-T01",
+        "KNOW-002-T02"
+      ],
+      "open_review_items": [],
+      "closed_review_items": [],
+      "completed_at": "2026-11-26T04:01:54.640777Z",
+      "candidate_commit": "0b2f4d6428635fad8691b8dfca0f8e9a5acf2a45",
+      "acceptance_record": "docs/evidence/KNOW-002/acceptance.json",
+      "evidence_paths": [
+        "docs/evidence/KNOW-002/acceptance.json",
+        "docs/evidence/KNOW-002/REPORT.md",
+        "docs/evidence/KNOW-002/independent.json",
+        "docs/evidence/KNOW-002/runs/storage-regression.json"
+      ]
     },
     {
       "id": "KNOW-003",

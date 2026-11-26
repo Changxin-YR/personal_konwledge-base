@@ -214,8 +214,10 @@
       "acceptance_ids": [
         "A11"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/KNOW-002/acceptance.json"
+      ]
     },
     {
       "id": "F14",
@@ -227,8 +229,10 @@
         "A12",
         "A45"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/KNOW-002/acceptance.json"
+      ]
     },
     {
       "id": "F15",
