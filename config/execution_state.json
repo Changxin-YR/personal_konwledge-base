@@ -9,8 +9,8 @@
     "path": "CODEX_START.md",
     "sha256": "a2e5986cfa81189aeae0c4b43ebfe4afd074aae9d5674e7ecf5e069c5d6ab530"
   },
-  "active_unit": "LEARN-001",
-  "unit_state": "passed",
+  "active_unit": "LEARN-002",
+  "unit_state": "in_progress",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Personal first answers, versioned common questions and post-commit feedback verified.",
+  "state_reason": "Connect the current Reader range to bounded, source-checked quick practice.",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -154,30 +154,21 @@
     "next_task": "LEARN-002"
   },
   "checkpoint": {
-    "unit_id": "LEARN-001",
-    "candidate_sha": "0e7c900a7d0a922be46b8b6c59fbf08375f8b91c",
-    "tree": "d9848aef174a7229ea839f4ebd330d6110e1e064",
-    "source_tree": "408a04fc8cf667353e81cc62fb1d842530bf9027",
-    "entry_sha256": "dec5881be4aa183363ae0702dd0bdca04ab8997b4003780e1576b7aec8472c91",
-    "build_sha256": "d25ecef4643c69b126424524f69f2ab1933d022299401de2b3edf1d0b73b24f5",
-    "base_commit": "2736ddcd6d5a1b20e822b270af956836fd89876f",
+    "unit_id": "LEARN-002",
+    "base_commit": "1f02fb6aaaff975ab11100582ddc73e907099220",
     "completed": [
-      "Three sourced question types, project/personal catalog visibility, private versioned sessions and immutable first/later attempts.",
-      "Actual post-commit feedback, two Chrome runs and isolated v39 migration and write fault regressions."
+      "Independent Reader scope, grading and model boundary expectations prepared."
     ],
     "test_results": {
-      "unit_acceptance": "PASS",
-      "T01": "PASS",
-      "T02": "PASS",
-      "independent": "PASS",
+      "unit_acceptance": "NOT_RUN",
+      "T01": "NOT_RUN",
+      "T02": "NOT_RUN",
       "A13": "NOT_RUN",
-      "A14": "NOT_RUN"
+      "P05": "NOT_RUN"
     },
-    "evidence": "docs/evidence/LEARN-001/acceptance.json",
+    "evidence": "scripts/learn002/acceptance-plan.md",
     "defects": [],
-    "blocked_dependencies": [
-      "A13 requires LEARN-002; A14 requires LEARN-003."
-    ],
+    "blocked_dependencies": [],
     "next_task": "LEARN-002"
   }
 }
