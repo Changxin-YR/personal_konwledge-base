@@ -440,7 +440,7 @@ try {
     if (i === 0) initializeFixtureHistory();
   }
 } finally {
-  rmSync(temporary, { recursive: true, force: true });
+  rmSync(temporary, { recursive: true, force: true, maxRetries: 8, retryDelay: 125 });
 }
 process.stdout.write(JSON.stringify({
   status: 'PASS', scope: 'plan_gate_regressions_only', started_at: startedAt,

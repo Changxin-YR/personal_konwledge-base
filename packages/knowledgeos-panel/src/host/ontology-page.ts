@@ -49,7 +49,7 @@ function child(id,text,classes){const el=document.createElement(id);el.textConte
 function listButton(list,button){const li=document.createElement('li');li.append(button);list.append(li)}
 function url(id){return api+'/relations/'+id}
 async function http(path,init={}){
-  const response=await fetch(path,{cache:'no-store',credentials:'same-origin',...init});
+  const response=await fetch(path,{cache:'no-store',credentials:'same-origin',signal:AbortSignal.timeout(5000),...init});
   const body=await response.json().catch(()=>null);
   if(!response.ok||!body?.data){const error=new Error(body?.code||'ONTOLOGY_UNAVAILABLE');error.status=response.status;throw error}
   return body.data
@@ -141,9 +141,8 @@ function paint(row){
 }
 async function open(id,revision=null){
   const g=epoch, token=++selection;
-  if(selected?.id!==id){
-    if(correction){$('relation-form').reset();typeOptions()}
-    correction=null
+  if(correction&&(selected?.id!==id||revision)){
+    correction=null;$('relation-form').reset();typeOptions()
   }
   selected={id};historical=revision;$('relation-detail').hidden=true;mark();syncControls();
   try{
@@ -161,8 +160,8 @@ async function load(quiet=false){
     if(catalog.actor_id!==list.actor_id||catalog.actor_id!==knowledge.actor_id){clear();status(errors.ACTOR_CHANGED);return}
     if(actor&&catalog.actor_id!==actor){clear();status(errors.ACTOR_CHANGED);return}
     const next=JSON.stringify([catalog.types,list.relations,list.facts,knowledge.items]);
+    if(!quiet||!actor)status('');
     actor=catalog.actor_id;$('relation-login').hidden=true;$('relation-workspace').hidden=false;
-    if(!quiet)status('');
     if(next===snapshot)return;
     snapshot=next;rules=catalog.types;rows=list.relations;facts=list.facts;
     items=knowledge.items.filter(item=>item.confirmation_state==='confirmed');
