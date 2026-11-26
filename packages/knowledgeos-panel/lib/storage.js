@@ -316,10 +316,10 @@ function compileSearchQuery(raw) {
 }
 function indexSearchText(source) {
   const parts = [], ranges = [];
-  for (const { segment, index } of segmenter.segment(source)) {
-    const value = normalize(segment);
+  for (const { segment: segment2, index } of segmenter.segment(source)) {
+    const value = normalize(segment2);
     parts.push(value);
-    const range = { start: index, end: index + segment.length };
+    const range = { start: index, end: index + segment2.length };
     for (let i = 0; i < value.length; i++) ranges.push(range);
   }
   return { normalized: parts.join(""), ranges };
@@ -1794,11 +1794,315 @@ var NoteStore = class {
 import { randomUUID as randomUUID12 } from "node:crypto";
 
 // src/host/github-repository.ts
+import { createHash as createHash11 } from "node:crypto";
+
+// src/host/repository-tree.ts
 import { createHash as createHash10 } from "node:crypto";
+function treeDigest(entries) {
+  const sorted = entries.map((entry) => {
+    const name = entry.path.slice(entry.path.lastIndexOf("/") + 1);
+    return { entry, name, order: Buffer.from(name + (entry.kind === "directory" ? "/" : "\0")) };
+  }).sort((a, b) => Buffer.compare(a.order, b.order));
+  const bytes = Buffer.concat(sorted.flatMap(({ entry, name }) => [
+    Buffer.from(entry.mode.replace(/^0/, "") + " " + name + "\0"),
+    Buffer.from(entry.sha, "hex")
+  ]));
+  return createHash10("sha1").update("tree " + bytes.length + "\0").update(bytes).digest("hex");
+}
+function validateRepositoryTree(entries) {
+  const children = /* @__PURE__ */ new Map();
+  for (const entry of entries.values()) {
+    const slash = entry.path.lastIndexOf("/");
+    const parent = slash < 0 ? "" : entry.path.slice(0, slash);
+    if (parent && entries.get(parent)?.kind !== "directory") throw new AssetError(502, "REPOSITORY_INVALID_RESPONSE");
+    const group = children.get(parent) ?? [];
+    group.push(entry);
+    children.set(parent, group);
+  }
+  for (const entry of entries.values()) {
+    if (entry.kind === "directory" && entry.sha !== treeDigest(children.get(entry.path) ?? [])) throw new AssetError(502, "REPOSITORY_INVALID_RESPONSE");
+  }
+  return treeDigest(children.get("") ?? []);
+}
+
+// src/host/github-repository.ts
 var repositoryLimits = { files: 5e3, blob: 512 * 1024, tree: 2 * 1024 * 1024 };
+var badRepository = () => new AssetError(422, "INVALID_REPOSITORY_INPUT");
+var invalidRemote = () => new AssetError(502, "REPOSITORY_INVALID_RESPONSE");
+var oversized = () => new AssetError(413, "REPOSITORY_LIMIT_EXCEEDED");
+var unavailable = () => new AssetError(503, "REPOSITORY_UNAVAILABLE");
+var sha40 = /^[a-f0-9]{40}$/;
+var ownerPattern = /^[a-z0-9](?:[a-z0-9-]{0,37}[a-z0-9])?$/i;
+var repoPattern = /^[a-z0-9_.-]{1,100}$/i;
+var forbiddenPath = /[\p{Cc}\p{Cf}\p{Cs}\\]/u;
+function repositoryName(value) {
+  if (typeof value !== "string" || value.length > 160) throw badRepository();
+  const pieces = value.replace(/^https:\/\/github\.com\//i, "").split("/");
+  const [owner, name] = pieces;
+  if (pieces.length !== 2 || !owner || !name || !ownerPattern.test(owner) || !repoPattern.test(name) || name === "." || name === "..") throw badRepository();
+  return { owner, name };
+}
+function isRepositoryPath(value) {
+  return typeof value === "string" && !!value.length && Buffer.byteLength(value) <= 1024 && !forbiddenPath.test(value) && value.split("/").every((part) => part && part !== "." && part !== "..");
+}
+var remoteObject = (value) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw invalidRemote();
+  return value;
+};
+var remoteSha = (value) => {
+  if (typeof value !== "string" || !sha40.test(value)) throw invalidRemote();
+  return value;
+};
+var repositorySlug = (repo) => repo.owner + "/" + repo.name;
+var repoPath = (repo) => "/repos/" + encodeURIComponent(repo.owner) + "/" + encodeURIComponent(repo.name);
+async function repositoryJson(url, limit, operation, headers, transport) {
+  const signal = AbortSignal.any([operation, AbortSignal.timeout(12e3)]);
+  let reader;
+  try {
+    signal.throwIfAborted();
+    const response = await transport(url, { method: "GET", redirect: "manual", cache: "no-store", signal, headers });
+    reader = response.body?.getReader();
+    if (response.status >= 300 && response.status < 400) throw new AssetError(502, "REPOSITORY_REDIRECT_REJECTED");
+    if (response.status === 429 || response.status === 403 && (response.headers.get("x-ratelimit-remaining") === "0" || response.headers.get("ratelimit-remaining") === "0" || response.headers.has("retry-after")))
+      throw new AssetError(429, "REPOSITORY_RATE_LIMIT");
+    if ([401, 403, 404].includes(response.status)) throw new AssetError(404, "REMOTE_REPOSITORY_NOT_FOUND");
+    if (!response.ok || !reader) throw unavailable();
+    if (Number(response.headers.get("content-length")) > limit) throw oversized();
+    let size = 0;
+    const parts = [];
+    while (true) {
+      signal.throwIfAborted();
+      const treePart = await reader.read();
+      if (treePart.done) break;
+      size += treePart.value.length;
+      if (size > limit) throw oversized();
+      parts.push(treePart.value);
+    }
+    signal.throwIfAborted();
+    try {
+      return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(parts, size)));
+    } catch {
+      throw invalidRemote();
+    }
+  } catch (error) {
+    if (operation.aborted) throw new AssetError(409, "REPOSITORY_CANCELLED");
+    if (signal.aborted) throw new AssetError(504, "REPOSITORY_TIMEOUT");
+    if (error instanceof AssetError) throw error;
+    throw unavailable();
+  } finally {
+    if (reader) void reader.cancel().catch(() => {
+    });
+  }
+}
+function parseRepositoryTree(row, sha4, directoryMode = "040000", verifyDigest = false) {
+  if (row.sha !== sha4 || !Array.isArray(row.tree) || typeof row.truncated !== "boolean") throw invalidRemote();
+  if (row.truncated || row.tree.length > repositoryLimits.files) throw oversized();
+  const seen = /* @__PURE__ */ new Map();
+  const entries = row.tree.map((candidate) => {
+    const { path, sha: sha5, mode, type, size } = remoteObject(candidate);
+    if (!isRepositoryPath(path) || seen.has(path)) throw invalidRemote();
+    const kind = type === "tree" && mode === directoryMode ? "directory" : type === "commit" && mode === "160000" ? "submodule" : type === "blob" && mode === "120000" ? "symlink" : type === "blob" && (mode === "100644" || mode === "100755") ? "file" : void 0;
+    if (!kind || kind === "file" && (typeof size !== "number" || !Number.isSafeInteger(size) || size < 0)) throw invalidRemote();
+    const entry = {
+      path,
+      sha: remoteSha(sha5),
+      kind,
+      size: kind === "file" ? size : null,
+      mode: kind === "directory" ? "040000" : String(mode)
+    };
+    seen.set(path, entry);
+    return entry;
+  });
+  for (const { path } of entries) {
+    const separator = path.lastIndexOf("/");
+    if (separator >= 0 && seen.get(path.slice(0, separator))?.kind !== "directory") throw invalidRemote();
+  }
+  if (verifyDigest && validateRepositoryTree(seen) !== sha4) throw invalidRemote();
+  return entries.map(({ mode: _mode, ...entry }) => entry);
+}
+function decodeRepositoryBlob(row, entry) {
+  if (row.sha !== entry.sha || typeof row.size !== "number" || !Number.isSafeInteger(row.size) || row.size < 0 || row.encoding !== "base64" || typeof row.content !== "string") throw invalidRemote();
+  if (row.size > repositoryLimits.blob) throw oversized();
+  const encoded = row.content.replace(/\r?\n/g, ""), bytes = Buffer.from(encoded, "base64");
+  if (bytes.toString("base64") !== encoded || bytes.length !== row.size || entry.size !== null && entry.size !== bytes.length || createHash11("sha1").update("blob " + bytes.length + "\0").update(bytes).digest("hex") !== entry.sha) throw invalidRemote();
+  return bytes;
+}
+var GitHubRepository = class {
+  constructor(operation, token2, transport = fetch) {
+    this.operation = operation;
+    this.token = token2;
+    this.transport = transport;
+  }
+  async get(path, limit) {
+    const headers = { accept: "application/vnd.github+json", "x-github-api-version": "2022-11-28", "user-agent": "KnowledgeOS" };
+    if (this.token) headers.authorization = "Bearer " + this.token;
+    return remoteObject(await repositoryJson("https://api.github.com" + path, limit, this.operation, headers, this.transport));
+  }
+  async resolveRepository(name) {
+    const row = await this.get(repoPath(name), 128 * 1024);
+    if (typeof row.id !== "number" || !Number.isSafeInteger(row.id) || row.id <= 0 || typeof row.private !== "boolean") throw invalidRemote();
+    if (!this.token && (row.private || row.visibility !== "public")) throw new AssetError(404, "REMOTE_REPOSITORY_NOT_FOUND");
+    let canonical;
+    try {
+      canonical = repositoryName(row.full_name);
+    } catch {
+      throw invalidRemote();
+    }
+    if (row.full_name !== repositorySlug(canonical) || repositorySlug(canonical).toLowerCase() !== repositorySlug(name).toLowerCase()) throw invalidRemote();
+    return { ...canonical, id: row.id, private: row.private };
+  }
+  async resolveRef(repo, ref) {
+    const spec = ref.kind === "commit" ? ref.value : "refs/" + (ref.kind === "branch" ? "heads/" : "tags/") + ref.value;
+    const row = await this.get(repoPath(repo) + "/commits/" + encodeURIComponent(spec), 2 * 1024 * 1024);
+    const commit = remoteSha(row.sha);
+    if (ref.kind === "commit" && commit !== ref.value) throw invalidRemote();
+    return { commit, tree: remoteSha(remoteObject(remoteObject(row.commit).tree).sha) };
+  }
+  async readTree(repo, sha4) {
+    const row = await this.get(repoPath(repo) + "/git/trees/" + remoteSha(sha4) + "?recursive=1", repositoryLimits.tree);
+    return parseRepositoryTree(row, sha4);
+  }
+  async readBlob(repo, entry) {
+    if (entry.kind !== "file" || entry.size === null) throw new AssetError(422, "REPOSITORY_NOT_REGULAR_FILE");
+    if (entry.size > repositoryLimits.blob) throw oversized();
+    const row = await this.get(repoPath(repo) + "/git/blobs/" + remoteSha(entry.sha), 800 * 1024);
+    return decodeRepositoryBlob(row, entry);
+  }
+  async resolveSnapshot(repo, ref) {
+    const revision = await this.resolveRef(repo, ref);
+    return { ...revision, entries: await this.readTree(repo, revision.tree) };
+  }
+};
 
 // src/host/gitlab-repository.ts
-import { createHash as createHash11 } from "node:crypto";
+var origin = "https://gitlab.com/api/v4";
+var segment = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,99}$/;
+function gitLabName(value) {
+  if (typeof value !== "string" || value.length > 255) throw badRepository();
+  const parts = value.replace(/^https:\/\/gitlab\.com\//i, "").split("/");
+  if (parts.length < 2 || parts.some((part) => !segment.test(part) || /\.(?:git|atom)$/i.test(part))) throw badRepository();
+  const name = parts.pop();
+  return { owner: parts.join("/"), name };
+}
+function parseTreeEntry(value) {
+  const { id, path, mode, type, name } = remoteObject(value);
+  if (!isRepositoryPath(path) || name !== path.split("/").at(-1)) throw invalidRemote();
+  const kind = type === "tree" && mode === "040000" ? "directory" : type === "commit" && mode === "160000" ? "submodule" : type === "blob" && mode === "120000" ? "symlink" : type === "blob" && (mode === "100644" || mode === "100755") ? "file" : void 0;
+  if (!kind || typeof mode !== "string") throw invalidRemote();
+  return { path, mode, sha: remoteSha(id), kind, size: null };
+}
+var GitLabRepository = class {
+  constructor(operation, token2, transport = fetch) {
+    this.operation = operation;
+    this.token = token2;
+    this.transport = transport;
+  }
+  get(path, limit) {
+    const headers = { accept: "application/json", "user-agent": "KnowledgeOS" };
+    if (this.token) headers["private-token"] = this.token;
+    return repositoryJson(origin + path, limit, this.operation, headers, this.transport);
+  }
+  async resolveRepository(name) {
+    const data = remoteObject(await this.get("/projects/" + encodeURIComponent(repositorySlug(name)), 128 * 1024));
+    if (typeof data.id !== "number" || !Number.isSafeInteger(data.id) || data.id <= 0 || !["public", "internal", "private"].includes(String(data.visibility))) throw invalidRemote();
+    const isPrivate = data.visibility !== "public";
+    if (!this.token && isPrivate) throw new AssetError(404, "REMOTE_REPOSITORY_NOT_FOUND");
+    let canonical;
+    try {
+      canonical = gitLabName(data.path_with_namespace);
+    } catch {
+      throw invalidRemote();
+    }
+    if (data.path_with_namespace !== repositorySlug(canonical) || repositorySlug(canonical).toLowerCase() !== repositorySlug(name).toLowerCase())
+      throw invalidRemote();
+    return { ...canonical, id: data.id, private: isPrivate };
+  }
+  async resolveSnapshot(repo, ref) {
+    const base = "/projects/" + repo.id + "/repository/";
+    const kind = ref.kind === "commit" ? "commits" : ref.kind === "branch" ? "branches" : "tags";
+    const selected = remoteObject(await this.get(base + kind + "/" + encodeURIComponent(ref.value), 128 * 1024));
+    if (ref.kind !== "commit" && selected.name !== ref.value) throw invalidRemote();
+    const commit = remoteSha(ref.kind === "commit" ? selected.id : remoteObject(selected.commit).id);
+    if (ref.kind === "commit" && commit !== ref.value) throw invalidRemote();
+    const entries = /* @__PURE__ */ new Map();
+    let used = 0;
+    for (let page = 1; ; page++) {
+      const query = new URLSearchParams({ ref: commit, recursive: "true", per_page: "100", page: String(page) });
+      const batch = await this.get(base + "tree?" + query, repositoryLimits.tree - used);
+      if (!Array.isArray(batch) || batch.length > 100) throw invalidRemote();
+      used += Buffer.byteLength(JSON.stringify(batch));
+      if (used > repositoryLimits.tree || entries.size + batch.length > repositoryLimits.files) throw oversized();
+      for (const item of batch) {
+        const parsed = parseTreeEntry(item);
+        if (entries.has(parsed.path)) throw invalidRemote();
+        entries.set(parsed.path, parsed);
+      }
+      if (batch.length < 100) break;
+    }
+    return { commit, tree: validateRepositoryTree(entries), entries: Array.from(entries.values(), ({ mode: _mode, ...entry }) => entry) };
+  }
+  async readBlob(repo, entry) {
+    if (entry.kind !== "file") throw new AssetError(422, "REPOSITORY_NOT_REGULAR_FILE");
+    const row = remoteObject(await this.get("/projects/" + repo.id + "/repository/blobs/" + remoteSha(entry.sha), 800 * 1024));
+    return decodeRepositoryBlob(row, entry);
+  }
+};
+
+// src/host/gitee-repository.ts
+var origin2 = "https://gitee.com/api/v5";
+var ownerPattern2 = /^[a-z0-9_][a-z0-9_-]{0,99}$/i;
+var projectPattern = /^[a-z0-9_][a-z0-9_.-]{0,99}$/i;
+function giteeName(value) {
+  if (typeof value !== "string" || value.length > 220) throw badRepository();
+  const parts = value.replace(/^https:\/\/gitee\.com\//i, "").split("/");
+  const [owner, name] = parts;
+  if (parts.length !== 2 || !owner || !name || !ownerPattern2.test(owner) || !projectPattern.test(name)) throw badRepository();
+  return { owner, name };
+}
+var GiteeRepository = class {
+  constructor(operation, token2, transport = fetch) {
+    this.operation = operation;
+    this.token = token2;
+    this.transport = transport;
+  }
+  async get(path, limit) {
+    const headers = { accept: "application/json", "user-agent": "KnowledgeOS" };
+    if (this.token) headers.authorization = "Bearer " + this.token;
+    return remoteObject(await repositoryJson(origin2 + path, limit, this.operation, headers, this.transport));
+  }
+  async resolveRepository(name) {
+    const data = await this.get(repoPath(name), 128 * 1024);
+    if (typeof data.id !== "number" || !Number.isSafeInteger(data.id) || data.id <= 0 || typeof data.private !== "boolean" || typeof data.public !== "boolean" || data.private && data.public) throw invalidRemote();
+    const isPrivate = data.private || !data.public;
+    if (!this.token && isPrivate) throw new AssetError(404, "REMOTE_REPOSITORY_NOT_FOUND");
+    let canonical;
+    try {
+      canonical = giteeName(data.full_name);
+    } catch {
+      throw invalidRemote();
+    }
+    if (data.full_name !== repositorySlug(canonical) || repositorySlug(canonical).toLowerCase() !== repositorySlug(name).toLowerCase())
+      throw invalidRemote();
+    return { ...canonical, id: data.id, private: isPrivate };
+  }
+  async resolveSnapshot(repo, ref) {
+    const path = repoPath(repo);
+    const target2 = encodeURIComponent(ref.kind === "tag" ? "refs/tags/" + ref.value : ref.value);
+    const row = await this.get(path + (ref.kind === "branch" ? "/branches/" : "/commits/") + target2, 256 * 1024);
+    if (ref.kind === "branch" && row.name !== ref.value) throw invalidRemote();
+    const selected = ref.kind === "branch" ? remoteObject(row.commit) : row;
+    const commit = remoteSha(selected.sha);
+    if (ref.kind === "commit" && commit !== ref.value) throw invalidRemote();
+    const tree = remoteSha(remoteObject(remoteObject(selected.commit).tree).sha);
+    const manifest = await this.get(path + "/git/trees/" + tree + "?recursive=1", repositoryLimits.tree);
+    return { commit, tree, entries: parseRepositoryTree(manifest, tree, "40000", true) };
+  }
+  async readBlob(repo, entry) {
+    if (entry.kind !== "file" || entry.size === null) throw new AssetError(422, "REPOSITORY_NOT_REGULAR_FILE");
+    if (entry.size > repositoryLimits.blob) throw oversized();
+    return decodeRepositoryBlob(await this.get(repoPath(repo) + "/git/blobs/" + remoteSha(entry.sha), 800 * 1024), entry);
+  }
+};
 
 // src/host/repository-store.ts
 var REPOSITORY_SCHEMA = `
@@ -1845,6 +2149,23 @@ INSERT INTO repository_files SELECT snapshot_id,path,blob_sha,payload FROM repos
 DROP TABLE repository_files_v33;
 DROP TABLE repository_snapshots_v33;
 `;
+var REPOSITORY_GITEE_TABLES = REPOSITORY_PLATFORM_TABLES.replace("CHECK(platform IN ('github','gitlab'))", "CHECK(platform IN ('github','gitlab','gitee'))");
+var REPOSITORY_GITEE_SCHEMA = `
+ALTER TABLE repository_files RENAME TO repository_files_v34;
+ALTER TABLE repository_snapshots RENAME TO repository_snapshots_v34;
+${REPOSITORY_GITEE_TABLES}
+INSERT INTO repository_snapshots(id,service_id,owner_id,platform,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,tree_json,created_at)
+SELECT id,service_id,owner_id,platform,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,tree_json,created_at
+FROM repository_snapshots_v34;
+INSERT INTO repository_files SELECT snapshot_id,path,blob_sha,payload FROM repository_files_v34;
+DROP TABLE repository_files_v34;
+DROP TABLE repository_snapshots_v34;
+`;
+var providers = {
+  github: { Adapter: GitHubRepository, origin: "https://github.com", sourcePrefix: "", ref: /^KO_GITHUB_[A-Z0-9_]{1,64}$/, token: /^(?:github_pat_|ghp_)[A-Za-z0-9_]{16,250}$/ },
+  gitlab: { Adapter: GitLabRepository, origin: "https://gitlab.com", sourcePrefix: "/-", ref: /^KO_GITLAB_[A-Z0-9_]{1,64}$/, token: /^glpat-[A-Za-z0-9_-]{16,250}$/ },
+  gitee: { Adapter: GiteeRepository, origin: "https://gitee.com", sourcePrefix: "", ref: /^KO_GITEE_[A-Z0-9_]{1,64}$/, token: /^[A-Za-z0-9_.-]{16,250}$/ }
+};
 var summaryColumns = "id,platform,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,created_at";
 var hidden2 = () => new AssetError(404, "NOT_FOUND");
 var checkSignal = (signal) => {
@@ -1853,8 +2174,8 @@ var checkSignal = (signal) => {
 var encodePath = (path) => path.split("/").map(encodeURIComponent).join("/");
 var sourceUrl = (row, type) => {
   const repository = encodePath(row.owner_name + "/" + row.repository_name);
-  const base = row.platform === "gitlab" ? "https://gitlab.com/" + repository + "/-" : "https://github.com/" + repository;
-  return base + "/" + type + "/" + row.commit_sha;
+  const provider = providers[row.platform];
+  return provider.origin + "/" + repository + provider.sourcePrefix + "/" + type + "/" + row.commit_sha;
 };
 var summarize = (row) => ({
   id: row.id,
@@ -2779,21 +3100,21 @@ function recallMasks(segments, masks, read) {
   }
   return normalized;
 }
-function recallPractice(segment, masks, revealed, text2) {
-  if (digest(text2) !== segment.source_hash) throw changed();
+function recallPractice(segment2, masks, revealed, text2) {
+  if (digest(text2) !== segment2.source_hash) throw changed();
   const runs = [];
-  let offset = segment.start;
+  let offset = segment2.start;
   const visible = (start, end) => {
     if (end > start) runs.push({ kind: "text", text: text2.slice(start, end) });
   };
   for (const m of masks) {
-    if (m.ordinal !== segment.ordinal) continue;
+    if (m.ordinal !== segment2.ordinal) continue;
     visible(offset, m.start);
     if (revealed.has(m.group)) visible(m.start, m.end);
     else runs.push({ kind: "hidden", group: m.group, length: m.end - m.start });
     offset = m.end;
   }
-  visible(offset, segment.end);
+  visible(offset, segment2.end);
   return runs;
 }
 
@@ -2861,7 +3182,7 @@ var RecallStore = class {
   practice(db, a, m, now) {
     const attempt = db.prepare("SELECT active_ordinal,revision FROM recall_attempts WHERE material_id=?").get(m.id);
     const ordinal = Number(attempt.active_ordinal);
-    const segment = db.prepare("SELECT ordinal,start,end,source_hash FROM recall_segments WHERE material_id=? AND ordinal=?").get(m.id, ordinal);
+    const segment2 = db.prepare("SELECT ordinal,start,end,source_hash FROM recall_segments WHERE material_id=? AND ordinal=?").get(m.id, ordinal);
     const source = this.source(db, a, point2(m, ordinal), now);
     const masks = db.prepare('SELECT ordinal,start,end,mask_group AS "group" FROM recall_masks WHERE material_id=? AND ordinal=? ORDER BY start').all(m.id, ordinal);
     const events = db.prepare(`SELECT event,value,count(*) AS count FROM recall_events WHERE material_id=? AND event IN ('hint','reveal','recall') GROUP BY event,value`).all(m.id);
@@ -2878,9 +3199,9 @@ var RecallStore = class {
       first: Number(bounds.first),
       last: Number(bounds.last),
       length: Number(bounds.length),
-      page_length: segment.end - segment.start,
+      page_length: segment2.end - segment2.start,
       source_changed: head?.id !== m.version_id || Boolean(m.conversion_id && conversion?.id !== m.conversion_id),
-      runs: recallPractice(segment, masks, revealed, source.text),
+      runs: recallPractice(segment2, masks, revealed, source.text),
       progress: {
         hints: events.filter((e) => e.event === "hint").map((e) => ({ group: Number(e.value), count: Number(e.count) })),
         revealed: [...revealed],
@@ -3010,7 +3331,7 @@ var INVITATION_CHANGE_SCHEMA = `CREATE TABLE invitation_change_receipts (
 var day = 864e5;
 var digest2 = (value) => createHash15("sha256").update(value).digest("hex");
 var invalid6 = () => new AssetError(422, "INVALID_INVITATION");
-var unavailable = () => new AssetError(404, "INVITATION_UNAVAILABLE");
+var unavailable2 = () => new AssetError(404, "INVITATION_UNAVAILABLE");
 var conflict2 = () => new AssetError(409, "INVITATION_CHANGED");
 var target = (r) => r.project_id ? { scope: "project", id: r.project_id, permission: "member" } : { scope: "object", id: r.object_id, permission: r.permission };
 function duration(days = 7) {
@@ -3063,12 +3384,12 @@ var InvitationStore = class {
   }
   issueTarget(a, t, now) {
     const scope = this.canIssue(a, t, now);
-    if (!scope) throw unavailable();
+    if (!scope) throw unavailable2();
     return scope;
   }
   managed(db, a, id, now) {
     const r = db.prepare("SELECT * FROM invitations WHERE service_id=? AND id=?").get(a.serviceId, id);
-    if (!r) throw unavailable();
+    if (!r) throw unavailable2();
     return { r, title: this.issueTarget(a, target(r), now).title };
   }
   issueSpec(a, s, now) {
@@ -3114,17 +3435,17 @@ var InvitationStore = class {
   redeem(prior, expected, token2, correlation = randomUUID15()) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now, expected);
-      if (!/^[a-zA-Z0-9_-]{43}$/.test(token2)) throw unavailable();
+      if (!/^[a-zA-Z0-9_-]{43}$/.test(token2)) throw unavailable2();
       const r = db.prepare("SELECT * FROM invitations WHERE service_id=? AND token_hash=?").get(a.serviceId, digest2(token2));
-      if (!r || !active(r, now)) throw unavailable();
+      if (!r || !active(r, now)) throw unavailable2();
       const t = target(r), issuer = this.principal(db, r.issuer_id, a.serviceId);
-      if (!issuer || issuer.userId === a.userId) throw unavailable();
+      if (!issuer || issuer.userId === a.userId) throw unavailable2();
       const info = this.issueTarget(issuer, t, now);
-      if (t.scope === "object" && info.project_id && !this.isMember(a, info.project_id, now)) throw unavailable();
-      if (t.scope === "project" && db.prepare("SELECT 1 FROM project_membership_removals WHERE project_id=? AND user_id=? AND removed_at>=? LIMIT 1").get(t.id, a.userId, r.issued_at)) throw unavailable();
+      if (t.scope === "object" && info.project_id && !this.isMember(a, info.project_id, now)) throw unavailable2();
+      if (t.scope === "project" && db.prepare("SELECT 1 FROM project_membership_removals WHERE project_id=? AND user_id=? AND removed_at>=? LIMIT 1").get(t.id, a.userId, r.issued_at)) throw unavailable2();
       const priorRedemption = db.prepare("SELECT id,redeemed_at,expires_at,revoked_at FROM invitation_redemptions WHERE invitation_id=? AND user_id=?").get(r.id, a.userId);
       if (priorRedemption) {
-        if (!active(priorRedemption, now)) throw unavailable();
+        if (!active(priorRedemption, now)) throw unavailable2();
         return { id: priorRedemption.id, target: t, title: info.title, expires_at: priorRedemption.expires_at, server_time: now, replayed: true };
       }
       if (r.redeemed_count >= r.max_redemptions) throw new AssetError(409, "INVITATION_FULL");
@@ -3163,7 +3484,7 @@ var InvitationStore = class {
         if (priorReceipt.request_digest !== req) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
         return { ...JSON.parse(String(priorReceipt.result_json)), replayed: true };
       }
-      if (!active(r, now)) throw unavailable();
+      if (!active(r, now)) throw unavailable2();
       if (expectedRevision !== r.revision) throw conflict2();
       const expires_at = event === "renew" ? new Date(Date.parse(r.expires_at) + extension).toISOString() : r.expires_at;
       const changed2 = (event === "renew" ? db.prepare("UPDATE invitation_redemptions SET expires_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? RETURNING id").all(expires_at, id, now) : db.prepare("UPDATE invitation_redemptions SET revoked_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? RETURNING id").all(now, id, now)).map((r2) => String(r2.id));
@@ -3179,7 +3500,8 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 34;
+var SCHEMA_VERSION = 35;
+var MIGRATION_V35_CHECKSUM = createHash16("sha256").update(REPOSITORY_GITEE_SCHEMA).digest("hex");
 var MIGRATION_V34_CHECKSUM = createHash16("sha256").update(REPOSITORY_PLATFORM_SCHEMA).digest("hex");
 var MIGRATION_V33_CHECKSUM = createHash16("sha256").update(PROJECT_TASK_APPEAL_SCHEMA).digest("hex");
 var MIGRATION_V32_CHECKSUM = createHash16("sha256").update(PROJECT_TASK_CORRECTION_SCHEMA).digest("hex");
@@ -3601,6 +3923,7 @@ var ProbeStorage = class {
       if (priorVersion < 32) this.#migrateV32(db);
       if (priorVersion < 33) this.#migrateV33(db);
       if (priorVersion < 34) this.#migrateV34(db);
+      if (priorVersion < 35) this.#migrateV35(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -4241,9 +4564,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "repository platform migration failed", false, { cause: e });
     }
   }
+  #migrateV35(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(REPOSITORY_GITEE_SCHEMA);
+      this.#injectFailure("v35:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(35,?,?)").run(MIGRATION_V35_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=35; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "Gitee repository migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM, MIGRATION_V35_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash2, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash2)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -4269,7 +4604,8 @@ var ProbeStorage = class {
       if (version >= 25) reference.exec(INVITATION_CHANGE_SCHEMA);
       if (version >= 26) reference.exec(NOTE_OUTLINE_SCHEMA);
       if (version >= 27) reference.exec(NOTE_LAYOUT_SCHEMA);
-      if (version >= 34) reference.exec(REPOSITORY_PLATFORM_TABLES);
+      if (version >= 35) reference.exec(REPOSITORY_GITEE_TABLES);
+      else if (version >= 34) reference.exec(REPOSITORY_PLATFORM_TABLES);
       else if (version >= 28) reference.exec(REPOSITORY_SCHEMA);
       if (version >= 29) reference.exec(PROJECT_TASK_SCHEMA);
       if (version >= 30) reference.exec(PROJECT_TASK_REVIEW_SCHEMA);
@@ -4807,6 +5143,7 @@ export {
   MIGRATION_V32_CHECKSUM,
   MIGRATION_V33_CHECKSUM,
   MIGRATION_V34_CHECKSUM,
+  MIGRATION_V35_CHECKSUM,
   MIGRATION_V3_CHECKSUM,
   MIGRATION_V3_SQL,
   MIGRATION_V4,

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { AssetError } from './asset-store.ts'
+import { validateRepositoryTree, type TreeEntry } from './repository-tree.ts'
 
 export const repositoryLimits = { files: 5000, blob: 512 * 1024, tree: 2 * 1024 * 1024 } as const
 export const badRepository = () => new AssetError(422, 'INVALID_REPOSITORY_INPUT')
@@ -53,7 +54,7 @@ export const remoteSha = (value: unknown) => {
   return value
 }
 export const repositorySlug = (repo: RepositoryName) => repo.owner + '/' + repo.name
-const repoPath = (repo: RepositoryName) => '/repos/' + encodeURIComponent(repo.owner) + '/' + encodeURIComponent(repo.name)
+export const repoPath = (repo: RepositoryName) => '/repos/' + encodeURIComponent(repo.owner) + '/' + encodeURIComponent(repo.name)
 
 export async function repositoryJson(url: string, limit: number, operation: AbortSignal, headers: Record<string,string>, transport: typeof fetch) {
   const signal = AbortSignal.any([operation, AbortSignal.timeout(12_000)])
@@ -90,6 +91,41 @@ export async function repositoryJson(url: string, limit: number, operation: Abor
   } finally { if (reader) void reader.cancel().catch(() => {}) }
 }
 
+export function parseRepositoryTree(row: Record<string, unknown>, sha: string, directoryMode = '040000', verifyDigest = false): RepositoryEntry[] {
+  if (row.sha !== sha || !Array.isArray(row.tree) || typeof row.truncated !== 'boolean') throw invalidRemote()
+  if (row.truncated || row.tree.length > repositoryLimits.files) throw oversized()
+  const seen = new Map<string, TreeEntry>()
+  const entries = row.tree.map((candidate: unknown): TreeEntry => {
+    const { path, sha, mode, type, size } = remoteObject(candidate)
+    if (!isRepositoryPath(path) || seen.has(path)) throw invalidRemote()
+    const kind = type === 'tree' && mode === directoryMode ? 'directory' :
+      type === 'commit' && mode === '160000' ? 'submodule' :
+      type === 'blob' && mode === '120000' ? 'symlink' :
+      type === 'blob' && (mode === '100644' || mode === '100755') ? 'file' : undefined
+    if (!kind || (kind === 'file' && (typeof size !== 'number' || !Number.isSafeInteger(size) || size < 0))) throw invalidRemote()
+    const entry: TreeEntry = { path, sha: remoteSha(sha), kind, size: kind === 'file' ? size as number : null,
+      mode: kind === 'directory' ? '040000' : String(mode) }
+    seen.set(path, entry)
+    return entry
+  })
+  for (const { path } of entries) {
+    const separator = path.lastIndexOf('/')
+    if (separator >= 0 && seen.get(path.slice(0, separator))?.kind !== 'directory') throw invalidRemote()
+  }
+  if (verifyDigest && validateRepositoryTree(seen) !== sha) throw invalidRemote()
+  return entries.map(({ mode: _mode, ...entry }) => entry)
+}
+
+export function decodeRepositoryBlob(row: Record<string, unknown>, entry: RepositoryEntry): Buffer {
+  if (row.sha !== entry.sha || typeof row.size !== 'number' || !Number.isSafeInteger(row.size) || row.size < 0 ||
+      row.encoding !== 'base64' || typeof row.content !== 'string') throw invalidRemote()
+  if (row.size > repositoryLimits.blob) throw oversized()
+  const encoded = row.content.replace(/\r?\n/g, ''), bytes = Buffer.from(encoded, 'base64')
+  if (bytes.toString('base64') !== encoded || bytes.length !== row.size || (entry.size !== null && entry.size !== bytes.length) ||
+      createHash('sha1').update('blob ' + bytes.length + '\0').update(bytes).digest('hex') !== entry.sha) throw invalidRemote()
+  return bytes
+}
+
 export class GitHubRepository implements RepositoryPort {
   constructor(private readonly operation: AbortSignal, private readonly token?: string, private readonly transport: typeof fetch = fetch) {}
 
@@ -119,37 +155,14 @@ export class GitHubRepository implements RepositoryPort {
 
   async readTree(repo: RepositoryIdentity, sha: string): Promise<RepositoryEntry[]> {
     const row = await this.get(repoPath(repo) + '/git/trees/' + remoteSha(sha) + '?recursive=1', repositoryLimits.tree)
-    if (row.sha !== sha || !Array.isArray(row.tree) || typeof row.truncated !== 'boolean') throw invalidRemote()
-    if (row.truncated || row.tree.length > repositoryLimits.files) throw oversized()
-    const seen = new Map<string, RepositoryEntry['kind']>()
-    const entries = row.tree.map((candidate: unknown): RepositoryEntry => {
-      const { path, sha, mode, type, size } = remoteObject(candidate)
-      if (!isRepositoryPath(path) || seen.has(path)) throw invalidRemote()
-      const kind = type === 'tree' && mode === '040000' ? 'directory' :
-        type === 'commit' && mode === '160000' ? 'submodule' :
-        type === 'blob' && mode === '120000' ? 'symlink' :
-        type === 'blob' && (mode === '100644' || mode === '100755') ? 'file' : undefined
-      if (!kind || (kind === 'file' && (typeof size !== 'number' || !Number.isSafeInteger(size) || size < 0))) throw invalidRemote()
-      seen.set(path, kind)
-      return { path, sha: remoteSha(sha), kind, size: kind === 'file' ? size as number : null }
-    })
-    for (const { path } of entries) {
-      const separator = path.lastIndexOf('/')
-      if (separator >= 0 && seen.get(path.slice(0, separator)) !== 'directory') throw invalidRemote()
-    }
-    return entries
+    return parseRepositoryTree(row, sha)
   }
 
   async readBlob(repo: RepositoryIdentity, entry: RepositoryEntry): Promise<Buffer> {
     if (entry.kind !== 'file' || entry.size === null) throw new AssetError(422, 'REPOSITORY_NOT_REGULAR_FILE')
     if (entry.size > repositoryLimits.blob) throw oversized()
     const row = await this.get(repoPath(repo) + '/git/blobs/' + remoteSha(entry.sha), 800 * 1024)
-    if (row.sha !== entry.sha || row.size !== entry.size || row.encoding !== 'base64' || typeof row.content !== 'string') throw invalidRemote()
-    const encoded = row.content.replace(/\r?\n/g, '')
-    const bytes = Buffer.from(encoded, 'base64')
-    if (bytes.toString('base64') !== encoded || bytes.length !== entry.size ||
-        createHash('sha1').update('blob ' + bytes.length + '\0').update(bytes).digest('hex') !== entry.sha) throw invalidRemote()
-    return bytes
+    return decodeRepositoryBlob(row, entry)
   }
 
   async resolveSnapshot(repo: RepositoryIdentity, ref: RepositoryRef) {

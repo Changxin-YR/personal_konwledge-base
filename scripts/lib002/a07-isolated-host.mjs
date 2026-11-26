@@ -23,6 +23,7 @@ export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrie
   const helpers={}
   if(repositoryTraffic){
     const path='scripts/repo001/egress-preload.mjs';helpers['repository-egress']=sha(readFileSync(join(root,path)));assert.equal(helpers['repository-egress'],sha(git('show',commit+':'+path)))
+    const oracle='scripts/repo003/gitee-oracle.mjs';helpers['gitee-oracle']=sha(readFileSync(join(root,oracle)));assert.equal(helpers['gitee-oracle'],sha(git('show',commit+':'+oracle)))
   }
   if(businessClock!==undefined){
     const path='scripts/share001/test-clock-preload.mjs';helpers['business-clock']=sha(readFileSync(join(root,path)));assert.equal(helpers['business-clock'],sha(git('show',commit+':'+path)))

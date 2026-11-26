@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { AssetError } from './asset-store.ts'
 import { badRepository, isRepositoryPath, repositoryName, repositoryRef } from './github-repository.ts'
 import { gitLabName } from './gitlab-repository.ts'
+import { giteeName } from './gitee-repository.ts'
 import { UUID_PATTERN } from './http.ts'
 import type { SessionActor } from './identity.ts'
 import type { PeerScope } from './identity-peer.ts'
@@ -26,6 +27,7 @@ async function body(req: IncomingMessage, fields: string[]): Promise<Record<stri
 }
 const id = (value: unknown) => { if (typeof value !== 'string' || !UUID_PATTERN.test(value)) throw badRepository(); return value }
 const pathValue = (value: unknown) => { if (!isRepositoryPath(value)) throw badRepository(); return value }
+const names = { github: repositoryName, gitlab: gitLabName, gitee: giteeName }
 
 export function createRepositoryHandler(service: RepositoryService, origin: () => string | undefined,
   actorFor: (req: IncomingMessage) => SessionActor | undefined, hostSignal: AbortSignal) {
@@ -56,10 +58,10 @@ export function createRepositoryHandler(service: RepositoryService, origin: () =
         if (method === 'POST') {
           const input = await body(req, ['actor_id', 'platform', 'repository', 'ref_kind', 'ref_value', 'credential_ref', 'path'])
           const platform = 'platform' in input ? input.platform : 'github'
-          if (platform !== 'github' && platform !== 'gitlab') throw badRepository()
+          if (platform !== 'github' && platform !== 'gitlab' && platform !== 'gitee') throw badRepository()
           const alias = 'credential_ref' in input ? input.credential_ref : ''
           if (typeof alias !== 'string' || alias && !credentialAlias.test(alias)) throw badRepository()
-          const name = platform === 'gitlab' ? gitLabName(input.repository) : repositoryName(input.repository)
+          const name = names[platform](input.repository)
           const saved = await service.connect(actor, id(input.actor_id), name, repositoryRef(input.ref_kind, input.ref_value), alias, signal,
             'path' in input ? pathValue(input.path) : undefined, platform)
           return result(saved.replayed ? 200 : 201, saved)

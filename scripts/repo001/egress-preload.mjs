@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import {createHash} from 'node:crypto'
 import {appendFileSync} from 'node:fs'
 import {join} from 'node:path'
+import {allowedPublicGiteeUrl} from '../repo003/gitee-oracle.mjs'
 
 assert.match(process.env.KO_TEST_LOOPBACK,/^http:\/\/127\.0\.0\.1:[0-9]+$/)
 const trace=join(process.env.KO_RUN,'repository-egress.jsonl'), real=globalThis.fetch
@@ -31,6 +32,19 @@ globalThis.fetch=async (input,init)=>{
       save('denied','UNEXPECTED',0);throw Error('REPO002_FETCH_DENIED')
     }
     const response=await real(input,{...init,redirect:'error'});save('gitlab',path+url.search,response.status);return response
+  }
+  if(process.env.KO_REPOSITORY_TRAFFIC==='gitee-public'){
+    const fixture=/^\/api\/v5\/repos\/synthetic\/(gitee-rate|gitee-denied)$/.exec(path)
+    const local=fixture&&url.origin==='https://gitee.com'&&!url.search&&!url.username&&!url.password&&!url.hash
+    if((!local&&!allowedPublicGiteeUrl(url))||method!=='GET'||init?.redirect!=='manual'||init?.body||
+      ['authorization','private-token','cookie','job-token'].some(name=>headers.has(name))){
+      save('denied','UNEXPECTED',0);throw Error('REPO003_FETCH_DENIED')
+    }
+    if(local){
+      const status=fixture[1]==='gitee-rate'?429:403
+      save('fixture',path,status);return new Response(null,{status})
+    }
+    const response=await real(input,{...init,redirect:'error'});save('gitee',path+url.search,response.status);return response
   }
   const allowedTree=path.includes('/git/trees/')?url.search==='?recursive=1':!url.search
   if(url.origin!=='https://api.github.com'||url.username||url.password||url.hash||!allowedTree||method!=='GET'||init?.redirect!=='manual'||init?.body||headers.has('authorization')){

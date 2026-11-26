@@ -1,7 +1,7 @@
-import { createHash } from 'node:crypto'
 import { AssetError } from './asset-store.ts'
+import { validateRepositoryTree, type TreeEntry } from './repository-tree.ts'
 import {
-  badRepository, invalidRemote, isRepositoryPath, oversized, remoteObject, remoteSha, repositoryJson, repositoryLimits, repositorySlug,
+  badRepository, decodeRepositoryBlob, invalidRemote, isRepositoryPath, oversized, remoteObject, remoteSha, repositoryJson, repositoryLimits, repositorySlug,
   type RepositoryEntry, type RepositoryIdentity, type RepositoryName, type RepositoryPort, type RepositoryRef,
 } from './github-repository.ts'
 
@@ -16,8 +16,6 @@ export function gitLabName(value: unknown): RepositoryName {
   return { owner: parts.join('/'), name }
 }
 
-interface TreeEntry extends RepositoryEntry { mode: string }
-
 function parseTreeEntry(value: unknown): TreeEntry {
   const { id, path, mode, type, name } = remoteObject(value)
   if (!isRepositoryPath(path) || name !== path.split('/').at(-1)) throw invalidRemote()
@@ -27,33 +25,6 @@ function parseTreeEntry(value: unknown): TreeEntry {
     type === 'blob' && (mode === '100644' || mode === '100755') ? 'file' : undefined
   if (!kind || typeof mode !== 'string') throw invalidRemote()
   return { path, mode, sha: remoteSha(id), kind, size: null }
-}
-
-function treeDigest(entries: readonly TreeEntry[]): string {
-  const sorted = entries.map(entry => {
-    const name = entry.path.slice(entry.path.lastIndexOf('/') + 1)
-    return { entry, name, order: Buffer.from(name + (entry.kind === 'directory' ? '/' : '\0')) }
-  }).sort((a, b) => Buffer.compare(a.order, b.order))
-  const bytes = Buffer.concat(sorted.flatMap(({ entry, name }) => [
-    Buffer.from(entry.mode.replace(/^0/, '') + ' ' + name + '\0'), Buffer.from(entry.sha, 'hex'),
-  ]))
-  return createHash('sha1').update('tree ' + bytes.length + '\0').update(bytes).digest('hex')
-}
-
-function validateTree(entries: ReadonlyMap<string, TreeEntry>) {
-  const children = new Map<string, TreeEntry[]>()
-  for (const entry of entries.values()) {
-    const slash = entry.path.lastIndexOf('/')
-    const parent = slash < 0 ? '' : entry.path.slice(0, slash)
-    if (parent && entries.get(parent)?.kind !== 'directory') throw invalidRemote()
-    const group = children.get(parent) ?? []
-    group.push(entry)
-    children.set(parent, group)
-  }
-  for (const entry of entries.values()) {
-    if (entry.kind === 'directory' && entry.sha !== treeDigest(children.get(entry.path) ?? [])) throw invalidRemote()
-  }
-  return treeDigest(children.get('') ?? [])
 }
 
 export class GitLabRepository implements RepositoryPort {
@@ -100,19 +71,12 @@ export class GitLabRepository implements RepositoryPort {
       }
       if (batch.length < 100) break
     }
-    return { commit, tree: validateTree(entries), entries: Array.from(entries.values(), ({ mode: _mode, ...entry }) => entry) }
+    return { commit, tree: validateRepositoryTree(entries), entries: Array.from(entries.values(), ({ mode: _mode, ...entry }) => entry) }
   }
 
   async readBlob(repo: RepositoryIdentity, entry: RepositoryEntry) {
     if (entry.kind !== 'file') throw new AssetError(422, 'REPOSITORY_NOT_REGULAR_FILE')
     const row = remoteObject(await this.get('/projects/' + repo.id + '/repository/blobs/' + remoteSha(entry.sha), 800 * 1024))
-    if (row.sha !== entry.sha || typeof row.size !== 'number' || !Number.isSafeInteger(row.size) || row.size < 0 ||
-        row.encoding !== 'base64' || typeof row.content !== 'string') throw invalidRemote()
-    if (row.size > repositoryLimits.blob) throw oversized()
-    const encoded = row.content.replace(/\r?\n/g, ''), bytes = Buffer.from(encoded, 'base64')
-    if (bytes.toString('base64') !== encoded || bytes.length !== row.size ||
-        (entry.size !== null && entry.size !== bytes.length) || createHash('sha1').update('blob ' + bytes.length + '\0').update(bytes).digest('hex') !== entry.sha)
-      throw invalidRemote()
-    return bytes
+    return decodeRepositoryBlob(row, entry)
   }
 }

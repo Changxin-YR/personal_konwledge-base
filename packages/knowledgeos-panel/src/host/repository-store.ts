@@ -4,6 +4,7 @@ import type { SessionActor } from './identity.ts'
 import type { ParseTx } from './parse-store.ts'
 import { GitHubRepository, repositoryLimits, repositorySlug, type RepositoryEntry, type RepositoryIdentity, type RepositoryName, type RepositoryRef } from './github-repository.ts'
 import { GitLabRepository } from './gitlab-repository.ts'
+import { GiteeRepository } from './gitee-repository.ts'
 
 export const REPOSITORY_SCHEMA = `
 CREATE TABLE repository_snapshots (
@@ -52,8 +53,28 @@ DROP TABLE repository_files_v33;
 DROP TABLE repository_snapshots_v33;
 `
 
-export type RepositoryPlatform = 'github' | 'gitlab'
-export const credentialAlias = /^(?:github|gitlab)_[a-z0-9_]{1,48}$/
+export const REPOSITORY_GITEE_TABLES = REPOSITORY_PLATFORM_TABLES
+  .replace("CHECK(platform IN ('github','gitlab'))", "CHECK(platform IN ('github','gitlab','gitee'))")
+
+export const REPOSITORY_GITEE_SCHEMA = `
+ALTER TABLE repository_files RENAME TO repository_files_v34;
+ALTER TABLE repository_snapshots RENAME TO repository_snapshots_v34;
+${REPOSITORY_GITEE_TABLES}
+INSERT INTO repository_snapshots(id,service_id,owner_id,platform,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,tree_json,created_at)
+SELECT id,service_id,owner_id,platform,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,tree_json,created_at
+FROM repository_snapshots_v34;
+INSERT INTO repository_files SELECT snapshot_id,path,blob_sha,payload FROM repository_files_v34;
+DROP TABLE repository_files_v34;
+DROP TABLE repository_snapshots_v34;
+`
+
+export type RepositoryPlatform = 'github' | 'gitlab' | 'gitee'
+export const credentialAlias = /^(?:github|gitlab|gitee)_[a-z0-9_]{1,48}$/
+const providers = {
+  github: { Adapter: GitHubRepository, origin: 'https://github.com', sourcePrefix: '', ref: /^KO_GITHUB_[A-Z0-9_]{1,64}$/, token: /^(?:github_pat_|ghp_)[A-Za-z0-9_]{16,250}$/ },
+  gitlab: { Adapter: GitLabRepository, origin: 'https://gitlab.com', sourcePrefix: '/-', ref: /^KO_GITLAB_[A-Z0-9_]{1,64}$/, token: /^glpat-[A-Za-z0-9_-]{16,250}$/ },
+  gitee: { Adapter: GiteeRepository, origin: 'https://gitee.com', sourcePrefix: '', ref: /^KO_GITEE_[A-Z0-9_]{1,64}$/, token: /^[A-Za-z0-9_.-]{16,250}$/ },
+} as const
 export interface RepositoryCredentialBinding {
   actorId: string; repository: string; alias: string; credentialRef: string; platform?: RepositoryPlatform
 }
@@ -70,8 +91,8 @@ type Source = Pick<SnapshotRow, 'platform' | 'owner_name' | 'repository_name' | 
 const encodePath = (path: string) => path.split('/').map(encodeURIComponent).join('/')
 const sourceUrl = (row: Source, type: 'tree' | 'blob') => {
   const repository = encodePath(row.owner_name + '/' + row.repository_name)
-  const base = row.platform === 'gitlab' ? 'https://gitlab.com/' + repository + '/-' : 'https://github.com/' + repository
-  return base + '/' + type + '/' + row.commit_sha
+  const provider = providers[row.platform]
+  return provider.origin + '/' + repository + provider.sourcePrefix + '/' + type + '/' + row.commit_sha
 }
 const summarize = (row: Omit<SnapshotRow, 'tree_json'>) => ({
   id: row.id, platform: row.platform, repository: row.owner_name + '/' + row.repository_name,
@@ -196,20 +217,18 @@ export class RepositoryService {
   constructor(readonly store: RepositoryStore, private readonly bindings: readonly RepositoryCredentialBinding[], private readonly resolve: ResolveCredential) {}
 
   private async client(actor: SessionActor, platform: RepositoryPlatform, name: RepositoryName, alias: string, signal: AbortSignal) {
-    const Client = platform === 'gitlab' ? GitLabRepository : GitHubRepository
-    if (!alias) return new Client(signal)
+    const { Adapter, ref: refPattern, token: tokenPattern } = providers[platform]
+    if (!alias) return new Adapter(signal)
     if (!alias.startsWith(platform + '_')) throw hidden()
     const allowed = this.bindings.filter(binding => binding.actorId === actor.userId && binding.alias === alias && (binding.platform ?? 'github') === platform &&
       typeof binding.repository === 'string' && binding.repository.toLowerCase() === repositorySlug(name).toLowerCase())
     if (allowed.length !== 1) throw hidden()
     const ref = allowed[0]!.credentialRef
-    const refPattern = platform === 'gitlab' ? /^KO_GITLAB_[A-Z0-9_]{1,64}$/ : /^KO_GITHUB_[A-Z0-9_]{1,64}$/
-    const tokenPattern = platform === 'gitlab' ? /^glpat-[A-Za-z0-9_-]{16,250}$/ : /^(?:github_pat_|ghp_)[A-Za-z0-9_]{16,250}$/
     if (!refPattern.test(ref)) throw new AssetError(503, 'REPOSITORY_CREDENTIAL_UNCONFIGURED')
     let token: string | undefined
     try { token = await this.resolve(ref) } catch { /* Native credential errors must not escape. */ }
     if (!token || !tokenPattern.test(token)) throw new AssetError(503, 'REPOSITORY_CREDENTIAL_UNCONFIGURED')
-    return new Client(signal, token)
+    return new Adapter(signal, token)
   }
 
   private async run<T>(session: SessionActor, expected: string, operation: (actor: SessionActor) => Promise<T>) {

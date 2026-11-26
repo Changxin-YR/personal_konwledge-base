@@ -1968,7 +1968,7 @@ var Config = Schema.object({
     repository: Schema.string().required(),
     alias: Schema.string().required(),
     credentialRef: Schema.string().required(),
-    platform: Schema.union(["github", "gitlab"])
+    platform: Schema.union(["github", "gitlab", "gitee"])
   })),
   ai: Schema.object({ provider: Schema.string(), model: Schema.string(), maxCalls: Schema.number().min(1), timeoutMs: Schema.number().min(20).max(6e4), budgetUsd: Schema.number().min(0), inputUsdPerMillion: Schema.number().min(0), outputUsdPerMillion: Schema.number().min(0) })
 });
@@ -4074,7 +4074,38 @@ var NoteStore = class {
 import { randomUUID as randomUUID13 } from "node:crypto";
 
 // src/host/github-repository.ts
+import { createHash as createHash11 } from "node:crypto";
+
+// src/host/repository-tree.ts
 import { createHash as createHash10 } from "node:crypto";
+function treeDigest(entries) {
+  const sorted = entries.map((entry) => {
+    const name2 = entry.path.slice(entry.path.lastIndexOf("/") + 1);
+    return { entry, name: name2, order: Buffer.from(name2 + (entry.kind === "directory" ? "/" : "\0")) };
+  }).sort((a, b) => Buffer.compare(a.order, b.order));
+  const bytes = Buffer.concat(sorted.flatMap(({ entry, name: name2 }) => [
+    Buffer.from(entry.mode.replace(/^0/, "") + " " + name2 + "\0"),
+    Buffer.from(entry.sha, "hex")
+  ]));
+  return createHash10("sha1").update("tree " + bytes.length + "\0").update(bytes).digest("hex");
+}
+function validateRepositoryTree(entries) {
+  const children = /* @__PURE__ */ new Map();
+  for (const entry of entries.values()) {
+    const slash = entry.path.lastIndexOf("/");
+    const parent = slash < 0 ? "" : entry.path.slice(0, slash);
+    if (parent && entries.get(parent)?.kind !== "directory") throw new AssetError(502, "REPOSITORY_INVALID_RESPONSE");
+    const group = children.get(parent) ?? [];
+    group.push(entry);
+    children.set(parent, group);
+  }
+  for (const entry of entries.values()) {
+    if (entry.kind === "directory" && entry.sha !== treeDigest(children.get(entry.path) ?? [])) throw new AssetError(502, "REPOSITORY_INVALID_RESPONSE");
+  }
+  return treeDigest(children.get("") ?? []);
+}
+
+// src/host/github-repository.ts
 var repositoryLimits = { files: 5e3, blob: 512 * 1024, tree: 2 * 1024 * 1024 };
 var badRepository = () => new AssetError(422, "INVALID_REPOSITORY_INPUT");
 var invalidRemote = () => new AssetError(502, "REPOSITORY_INVALID_RESPONSE");
@@ -4149,6 +4180,39 @@ async function repositoryJson(url, limit5, operation, headers, transport) {
     });
   }
 }
+function parseRepositoryTree(row, sha5, directoryMode = "040000", verifyDigest = false) {
+  if (row.sha !== sha5 || !Array.isArray(row.tree) || typeof row.truncated !== "boolean") throw invalidRemote();
+  if (row.truncated || row.tree.length > repositoryLimits.files) throw oversized();
+  const seen = /* @__PURE__ */ new Map();
+  const entries = row.tree.map((candidate) => {
+    const { path: path2, sha: sha6, mode, type, size } = remoteObject(candidate);
+    if (!isRepositoryPath(path2) || seen.has(path2)) throw invalidRemote();
+    const kind = type === "tree" && mode === directoryMode ? "directory" : type === "commit" && mode === "160000" ? "submodule" : type === "blob" && mode === "120000" ? "symlink" : type === "blob" && (mode === "100644" || mode === "100755") ? "file" : void 0;
+    if (!kind || kind === "file" && (typeof size !== "number" || !Number.isSafeInteger(size) || size < 0)) throw invalidRemote();
+    const entry = {
+      path: path2,
+      sha: remoteSha(sha6),
+      kind,
+      size: kind === "file" ? size : null,
+      mode: kind === "directory" ? "040000" : String(mode)
+    };
+    seen.set(path2, entry);
+    return entry;
+  });
+  for (const { path: path2 } of entries) {
+    const separator = path2.lastIndexOf("/");
+    if (separator >= 0 && seen.get(path2.slice(0, separator))?.kind !== "directory") throw invalidRemote();
+  }
+  if (verifyDigest && validateRepositoryTree(seen) !== sha5) throw invalidRemote();
+  return entries.map(({ mode: _mode, ...entry }) => entry);
+}
+function decodeRepositoryBlob(row, entry) {
+  if (row.sha !== entry.sha || typeof row.size !== "number" || !Number.isSafeInteger(row.size) || row.size < 0 || row.encoding !== "base64" || typeof row.content !== "string") throw invalidRemote();
+  if (row.size > repositoryLimits.blob) throw oversized();
+  const encoded = row.content.replace(/\r?\n/g, ""), bytes = Buffer.from(encoded, "base64");
+  if (bytes.toString("base64") !== encoded || bytes.length !== row.size || entry.size !== null && entry.size !== bytes.length || createHash11("sha1").update("blob " + bytes.length + "\0").update(bytes).digest("hex") !== entry.sha) throw invalidRemote();
+  return bytes;
+}
 var GitHubRepository = class {
   constructor(operation, token2, transport = fetch) {
     this.operation = operation;
@@ -4182,32 +4246,13 @@ var GitHubRepository = class {
   }
   async readTree(repo, sha5) {
     const row = await this.get(repoPath(repo) + "/git/trees/" + remoteSha(sha5) + "?recursive=1", repositoryLimits.tree);
-    if (row.sha !== sha5 || !Array.isArray(row.tree) || typeof row.truncated !== "boolean") throw invalidRemote();
-    if (row.truncated || row.tree.length > repositoryLimits.files) throw oversized();
-    const seen = /* @__PURE__ */ new Map();
-    const entries = row.tree.map((candidate) => {
-      const { path: path2, sha: sha6, mode, type, size } = remoteObject(candidate);
-      if (!isRepositoryPath(path2) || seen.has(path2)) throw invalidRemote();
-      const kind = type === "tree" && mode === "040000" ? "directory" : type === "commit" && mode === "160000" ? "submodule" : type === "blob" && mode === "120000" ? "symlink" : type === "blob" && (mode === "100644" || mode === "100755") ? "file" : void 0;
-      if (!kind || kind === "file" && (typeof size !== "number" || !Number.isSafeInteger(size) || size < 0)) throw invalidRemote();
-      seen.set(path2, kind);
-      return { path: path2, sha: remoteSha(sha6), kind, size: kind === "file" ? size : null };
-    });
-    for (const { path: path2 } of entries) {
-      const separator = path2.lastIndexOf("/");
-      if (separator >= 0 && seen.get(path2.slice(0, separator)) !== "directory") throw invalidRemote();
-    }
-    return entries;
+    return parseRepositoryTree(row, sha5);
   }
   async readBlob(repo, entry) {
     if (entry.kind !== "file" || entry.size === null) throw new AssetError(422, "REPOSITORY_NOT_REGULAR_FILE");
     if (entry.size > repositoryLimits.blob) throw oversized();
     const row = await this.get(repoPath(repo) + "/git/blobs/" + remoteSha(entry.sha), 800 * 1024);
-    if (row.sha !== entry.sha || row.size !== entry.size || row.encoding !== "base64" || typeof row.content !== "string") throw invalidRemote();
-    const encoded = row.content.replace(/\r?\n/g, "");
-    const bytes = Buffer.from(encoded, "base64");
-    if (bytes.toString("base64") !== encoded || bytes.length !== entry.size || createHash10("sha1").update("blob " + bytes.length + "\0").update(bytes).digest("hex") !== entry.sha) throw invalidRemote();
-    return bytes;
+    return decodeRepositoryBlob(row, entry);
   }
   async resolveSnapshot(repo, ref) {
     const revision = await this.resolveRef(repo, ref);
@@ -4216,7 +4261,6 @@ var GitHubRepository = class {
 };
 
 // src/host/gitlab-repository.ts
-import { createHash as createHash11 } from "node:crypto";
 var origin = "https://gitlab.com/api/v4";
 var segment = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,99}$/;
 function gitLabName(value) {
@@ -4232,32 +4276,6 @@ function parseTreeEntry(value) {
   const kind = type === "tree" && mode === "040000" ? "directory" : type === "commit" && mode === "160000" ? "submodule" : type === "blob" && mode === "120000" ? "symlink" : type === "blob" && (mode === "100644" || mode === "100755") ? "file" : void 0;
   if (!kind || typeof mode !== "string") throw invalidRemote();
   return { path: path2, mode, sha: remoteSha(id6), kind, size: null };
-}
-function treeDigest(entries) {
-  const sorted = entries.map((entry) => {
-    const name2 = entry.path.slice(entry.path.lastIndexOf("/") + 1);
-    return { entry, name: name2, order: Buffer.from(name2 + (entry.kind === "directory" ? "/" : "\0")) };
-  }).sort((a, b) => Buffer.compare(a.order, b.order));
-  const bytes = Buffer.concat(sorted.flatMap(({ entry, name: name2 }) => [
-    Buffer.from(entry.mode.replace(/^0/, "") + " " + name2 + "\0"),
-    Buffer.from(entry.sha, "hex")
-  ]));
-  return createHash11("sha1").update("tree " + bytes.length + "\0").update(bytes).digest("hex");
-}
-function validateTree(entries) {
-  const children = /* @__PURE__ */ new Map();
-  for (const entry of entries.values()) {
-    const slash = entry.path.lastIndexOf("/");
-    const parent = slash < 0 ? "" : entry.path.slice(0, slash);
-    if (parent && entries.get(parent)?.kind !== "directory") throw invalidRemote();
-    const group = children.get(parent) ?? [];
-    group.push(entry);
-    children.set(parent, group);
-  }
-  for (const entry of entries.values()) {
-    if (entry.kind === "directory" && entry.sha !== treeDigest(children.get(entry.path) ?? [])) throw invalidRemote();
-  }
-  return treeDigest(children.get("") ?? []);
 }
 var GitLabRepository = class {
   constructor(operation, token2, transport = fetch) {
@@ -4307,17 +4325,68 @@ var GitLabRepository = class {
       }
       if (batch.length < 100) break;
     }
-    return { commit, tree: validateTree(entries), entries: Array.from(entries.values(), ({ mode: _mode, ...entry }) => entry) };
+    return { commit, tree: validateRepositoryTree(entries), entries: Array.from(entries.values(), ({ mode: _mode, ...entry }) => entry) };
   }
   async readBlob(repo, entry) {
     if (entry.kind !== "file") throw new AssetError(422, "REPOSITORY_NOT_REGULAR_FILE");
     const row = remoteObject(await this.get("/projects/" + repo.id + "/repository/blobs/" + remoteSha(entry.sha), 800 * 1024));
-    if (row.sha !== entry.sha || typeof row.size !== "number" || !Number.isSafeInteger(row.size) || row.size < 0 || row.encoding !== "base64" || typeof row.content !== "string") throw invalidRemote();
-    if (row.size > repositoryLimits.blob) throw oversized();
-    const encoded = row.content.replace(/\r?\n/g, ""), bytes = Buffer.from(encoded, "base64");
-    if (bytes.toString("base64") !== encoded || bytes.length !== row.size || entry.size !== null && entry.size !== bytes.length || createHash11("sha1").update("blob " + bytes.length + "\0").update(bytes).digest("hex") !== entry.sha)
+    return decodeRepositoryBlob(row, entry);
+  }
+};
+
+// src/host/gitee-repository.ts
+var origin2 = "https://gitee.com/api/v5";
+var ownerPattern2 = /^[a-z0-9_][a-z0-9_-]{0,99}$/i;
+var projectPattern = /^[a-z0-9_][a-z0-9_.-]{0,99}$/i;
+function giteeName(value) {
+  if (typeof value !== "string" || value.length > 220) throw badRepository();
+  const parts = value.replace(/^https:\/\/gitee\.com\//i, "").split("/");
+  const [owner, name2] = parts;
+  if (parts.length !== 2 || !owner || !name2 || !ownerPattern2.test(owner) || !projectPattern.test(name2)) throw badRepository();
+  return { owner, name: name2 };
+}
+var GiteeRepository = class {
+  constructor(operation, token2, transport = fetch) {
+    this.operation = operation;
+    this.token = token2;
+    this.transport = transport;
+  }
+  async get(path2, limit5) {
+    const headers = { accept: "application/json", "user-agent": "KnowledgeOS" };
+    if (this.token) headers.authorization = "Bearer " + this.token;
+    return remoteObject(await repositoryJson(origin2 + path2, limit5, this.operation, headers, this.transport));
+  }
+  async resolveRepository(name2) {
+    const data = await this.get(repoPath(name2), 128 * 1024);
+    if (typeof data.id !== "number" || !Number.isSafeInteger(data.id) || data.id <= 0 || typeof data.private !== "boolean" || typeof data.public !== "boolean" || data.private && data.public) throw invalidRemote();
+    const isPrivate = data.private || !data.public;
+    if (!this.token && isPrivate) throw new AssetError(404, "REMOTE_REPOSITORY_NOT_FOUND");
+    let canonical;
+    try {
+      canonical = giteeName(data.full_name);
+    } catch {
       throw invalidRemote();
-    return bytes;
+    }
+    if (data.full_name !== repositorySlug(canonical) || repositorySlug(canonical).toLowerCase() !== repositorySlug(name2).toLowerCase())
+      throw invalidRemote();
+    return { ...canonical, id: data.id, private: isPrivate };
+  }
+  async resolveSnapshot(repo, ref) {
+    const path2 = repoPath(repo);
+    const target3 = encodeURIComponent(ref.kind === "tag" ? "refs/tags/" + ref.value : ref.value);
+    const row = await this.get(path2 + (ref.kind === "branch" ? "/branches/" : "/commits/") + target3, 256 * 1024);
+    if (ref.kind === "branch" && row.name !== ref.value) throw invalidRemote();
+    const selected = ref.kind === "branch" ? remoteObject(row.commit) : row;
+    const commit = remoteSha(selected.sha);
+    if (ref.kind === "commit" && commit !== ref.value) throw invalidRemote();
+    const tree = remoteSha(remoteObject(remoteObject(selected.commit).tree).sha);
+    const manifest = await this.get(path2 + "/git/trees/" + tree + "?recursive=1", repositoryLimits.tree);
+    return { commit, tree, entries: parseRepositoryTree(manifest, tree, "40000", true) };
+  }
+  async readBlob(repo, entry) {
+    if (entry.kind !== "file" || entry.size === null) throw new AssetError(422, "REPOSITORY_NOT_REGULAR_FILE");
+    if (entry.size > repositoryLimits.blob) throw oversized();
+    return decodeRepositoryBlob(await this.get(repoPath(repo) + "/git/blobs/" + remoteSha(entry.sha), 800 * 1024), entry);
   }
 };
 
@@ -4366,7 +4435,24 @@ INSERT INTO repository_files SELECT snapshot_id,path,blob_sha,payload FROM repos
 DROP TABLE repository_files_v33;
 DROP TABLE repository_snapshots_v33;
 `;
-var credentialAlias = /^(?:github|gitlab)_[a-z0-9_]{1,48}$/;
+var REPOSITORY_GITEE_TABLES = REPOSITORY_PLATFORM_TABLES.replace("CHECK(platform IN ('github','gitlab'))", "CHECK(platform IN ('github','gitlab','gitee'))");
+var REPOSITORY_GITEE_SCHEMA = `
+ALTER TABLE repository_files RENAME TO repository_files_v34;
+ALTER TABLE repository_snapshots RENAME TO repository_snapshots_v34;
+${REPOSITORY_GITEE_TABLES}
+INSERT INTO repository_snapshots(id,service_id,owner_id,platform,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,tree_json,created_at)
+SELECT id,service_id,owner_id,platform,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,tree_json,created_at
+FROM repository_snapshots_v34;
+INSERT INTO repository_files SELECT snapshot_id,path,blob_sha,payload FROM repository_files_v34;
+DROP TABLE repository_files_v34;
+DROP TABLE repository_snapshots_v34;
+`;
+var credentialAlias = /^(?:github|gitlab|gitee)_[a-z0-9_]{1,48}$/;
+var providers = {
+  github: { Adapter: GitHubRepository, origin: "https://github.com", sourcePrefix: "", ref: /^KO_GITHUB_[A-Z0-9_]{1,64}$/, token: /^(?:github_pat_|ghp_)[A-Za-z0-9_]{16,250}$/ },
+  gitlab: { Adapter: GitLabRepository, origin: "https://gitlab.com", sourcePrefix: "/-", ref: /^KO_GITLAB_[A-Z0-9_]{1,64}$/, token: /^glpat-[A-Za-z0-9_-]{16,250}$/ },
+  gitee: { Adapter: GiteeRepository, origin: "https://gitee.com", sourcePrefix: "", ref: /^KO_GITEE_[A-Z0-9_]{1,64}$/, token: /^[A-Za-z0-9_.-]{16,250}$/ }
+};
 var summaryColumns = "id,platform,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,created_at";
 var hidden2 = () => new AssetError(404, "NOT_FOUND");
 var checkSignal = (signal) => {
@@ -4375,8 +4461,8 @@ var checkSignal = (signal) => {
 var encodePath = (path2) => path2.split("/").map(encodeURIComponent).join("/");
 var sourceUrl = (row, type) => {
   const repository = encodePath(row.owner_name + "/" + row.repository_name);
-  const base = row.platform === "gitlab" ? "https://gitlab.com/" + repository + "/-" : "https://github.com/" + repository;
-  return base + "/" + type + "/" + row.commit_sha;
+  const provider = providers[row.platform];
+  return provider.origin + "/" + repository + provider.sourcePrefix + "/" + type + "/" + row.commit_sha;
 };
 var summarize = (row) => ({
   id: row.id,
@@ -4532,14 +4618,12 @@ var RepositoryService = class {
   }
   busy = /* @__PURE__ */ new Set();
   async client(actor2, platform, name2, alias, signal) {
-    const Client = platform === "gitlab" ? GitLabRepository : GitHubRepository;
-    if (!alias) return new Client(signal);
+    const { Adapter, ref: refPattern, token: tokenPattern } = providers[platform];
+    if (!alias) return new Adapter(signal);
     if (!alias.startsWith(platform + "_")) throw hidden2();
     const allowed = this.bindings.filter((binding) => binding.actorId === actor2.userId && binding.alias === alias && (binding.platform ?? "github") === platform && typeof binding.repository === "string" && binding.repository.toLowerCase() === repositorySlug(name2).toLowerCase());
     if (allowed.length !== 1) throw hidden2();
     const ref = allowed[0].credentialRef;
-    const refPattern = platform === "gitlab" ? /^KO_GITLAB_[A-Z0-9_]{1,64}$/ : /^KO_GITHUB_[A-Z0-9_]{1,64}$/;
-    const tokenPattern = platform === "gitlab" ? /^glpat-[A-Za-z0-9_-]{16,250}$/ : /^(?:github_pat_|ghp_)[A-Za-z0-9_]{16,250}$/;
     if (!refPattern.test(ref)) throw new AssetError(503, "REPOSITORY_CREDENTIAL_UNCONFIGURED");
     let token2;
     try {
@@ -4547,7 +4631,7 @@ var RepositoryService = class {
     } catch {
     }
     if (!token2 || !tokenPattern.test(token2)) throw new AssetError(503, "REPOSITORY_CREDENTIAL_UNCONFIGURED");
-    return new Client(signal, token2);
+    return new Adapter(signal, token2);
   }
   async run(session, expected, operation) {
     const actor2 = this.store.check(session, expected);
@@ -5773,7 +5857,8 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 34;
+var SCHEMA_VERSION = 35;
+var MIGRATION_V35_CHECKSUM = createHash16("sha256").update(REPOSITORY_GITEE_SCHEMA).digest("hex");
 var MIGRATION_V34_CHECKSUM = createHash16("sha256").update(REPOSITORY_PLATFORM_SCHEMA).digest("hex");
 var MIGRATION_V33_CHECKSUM = createHash16("sha256").update(PROJECT_TASK_APPEAL_SCHEMA).digest("hex");
 var MIGRATION_V32_CHECKSUM = createHash16("sha256").update(PROJECT_TASK_CORRECTION_SCHEMA).digest("hex");
@@ -6188,6 +6273,7 @@ var ProbeStorage = class {
       if (priorVersion < 32) this.#migrateV32(db);
       if (priorVersion < 33) this.#migrateV33(db);
       if (priorVersion < 34) this.#migrateV34(db);
+      if (priorVersion < 35) this.#migrateV35(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path2);
       const pragmas = this.#readPragmas(db);
@@ -6828,9 +6914,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "repository platform migration failed", false, { cause: e });
     }
   }
+  #migrateV35(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(REPOSITORY_GITEE_SCHEMA);
+      this.#injectFailure("v35:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(35,?,?)").run(MIGRATION_V35_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=35; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "Gitee repository migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM, MIGRATION_V35_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash4, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash4)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -6856,7 +6954,8 @@ var ProbeStorage = class {
       if (version >= 25) reference.exec(INVITATION_CHANGE_SCHEMA);
       if (version >= 26) reference.exec(NOTE_OUTLINE_SCHEMA);
       if (version >= 27) reference.exec(NOTE_LAYOUT_SCHEMA);
-      if (version >= 34) reference.exec(REPOSITORY_PLATFORM_TABLES);
+      if (version >= 35) reference.exec(REPOSITORY_GITEE_TABLES);
+      else if (version >= 34) reference.exec(REPOSITORY_PLATFORM_TABLES);
       else if (version >= 28) reference.exec(REPOSITORY_SCHEMA);
       if (version >= 29) reference.exec(PROJECT_TASK_SCHEMA);
       if (version >= 30) reference.exec(PROJECT_TASK_REVIEW_SCHEMA);
@@ -6867,8 +6966,8 @@ var ProbeStorage = class {
       for (const { name: name2, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name2)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
       }
-      const names = new Set(definitions.map((x) => x.name));
-      this.#assertV5Schema({ ...facts, ledger: facts.ledger.slice(0, 5), objects: facts.objects.filter((x) => !names.has(x.name)) });
+      const names2 = new Set(definitions.map((x) => x.name));
+      this.#assertV5Schema({ ...facts, ledger: facts.ledger.slice(0, 5), objects: facts.objects.filter((x) => !names2.has(x.name)) });
     } finally {
       reference.close();
     }
@@ -7744,8 +7843,8 @@ function isIdentityRuntimeAvailable(facts) {
     return false;
   }
 }
-function businessCookieName(serviceId, origin2) {
-  return `kos_session_${createHash18("sha256").update(`${serviceId}|${origin2}`).digest("hex").slice(0, 16)}`;
+function businessCookieName(serviceId, origin3) {
+  return `kos_session_${createHash18("sha256").update(`${serviceId}|${origin3}`).digest("hex").slice(0, 16)}`;
 }
 function readCookie(req, name2) {
   const raw = req.headers.cookie;
@@ -7756,11 +7855,11 @@ function readCookie(req, name2) {
   }
   return void 0;
 }
-function sessionCookie(name2, token2, origin2, protocol, maxAge) {
+function sessionCookie(name2, token2, origin3, protocol, maxAge) {
   const secure = protocol === "https:" ? "; Secure" : "";
   return `${name2}=${token2}; Path=/knowledge/v1; HttpOnly; SameSite=Strict${secure}; Max-Age=${String(maxAge)}`;
 }
-function clearCookie(name2, origin2, protocol) {
+function clearCookie(name2, origin3, protocol) {
   const secure = protocol === "https:" ? "; Secure" : "";
   return `${name2}=; Path=/knowledge/v1; HttpOnly; SameSite=Strict${secure}; Max-Age=0`;
 }
@@ -7844,10 +7943,10 @@ function createIdentityHandlers(options) {
   const meta = (requestId) => ({ request_id: requestId, service_id: service.setupState.serviceId, server_time: (/* @__PURE__ */ new Date()).toISOString() });
   const withMeta = (requestId, data) => ({ data, meta: meta(requestId) });
   const tokenFor = (req) => {
-    const origin2 = options.origin();
-    if (origin2 === void 0) return void 0;
+    const origin3 = options.origin();
+    if (origin3 === void 0) return void 0;
     const state = service.setupState;
-    return readCookie(req, businessCookieName(state.serviceId, origin2));
+    return readCookie(req, businessCookieName(state.serviceId, origin3));
   };
   const assertAvailable = () => {
     if (!options.isAvailable() || options.origin() === void 0 || options.host() === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
@@ -7857,12 +7956,12 @@ function createIdentityHandlers(options) {
     if ([...url.searchParams.keys()].length > 0) throw new HttpError(422, "INPUT_INVALID", "query parameters are not supported");
   };
   const assertTrust = (req, mutation) => {
-    const origin2 = options.origin();
-    if (origin2 === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
-    const expectedHost = new URL(origin2).host;
+    const origin3 = options.origin();
+    if (origin3 === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
+    const expectedHost = new URL(origin3).host;
     if (req.headers.host !== expectedHost) throw new HttpError(403, "CSRF_REJECTED", "request authority is not trusted");
     const suppliedOrigin = req.headers.origin;
-    if (suppliedOrigin !== void 0 && suppliedOrigin !== origin2) throw new HttpError(403, "CSRF_REJECTED", "request origin is not trusted");
+    if (suppliedOrigin !== void 0 && suppliedOrigin !== origin3) throw new HttpError(403, "CSRF_REJECTED", "request origin is not trusted");
     if (suppliedOrigin === "null") throw new HttpError(403, "CSRF_REJECTED", "opaque origin is not trusted");
     const fetchSite = req.headers["sec-fetch-site"];
     if (typeof fetchSite === "string" && fetchSite.toLowerCase() === "cross-site") throw new HttpError(403, "CSRF_REJECTED", "cross-site request is not trusted");
@@ -7935,12 +8034,12 @@ function createIdentityHandlers(options) {
     const body4 = bodyObject(await readBody2(req));
     assertKeys(body4, ["login_name", "password"]);
     const result = await service.login({ loginName: body4.login_name, password: body4.password, oldToken: tokenFor(req), source: requestSource(req), signal });
-    const origin2 = options.origin();
-    if (origin2 === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
+    const origin3 = options.origin();
+    if (origin3 === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
     const state = service.setupState;
-    const name2 = businessCookieName(state.serviceId, origin2);
+    const name2 = businessCookieName(state.serviceId, origin3);
     const maxAge = Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1e3);
-    sendJson2(res, 200, withMeta(randomUUID19(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin2, options.protocol(), maxAge) });
+    sendJson2(res, 200, withMeta(randomUUID19(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin3, options.protocol(), maxAge) });
   });
   const logout = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -7949,11 +8048,11 @@ function createIdentityHandlers(options) {
     const body4 = bodyObject(await readBody2(req));
     assertKeys(body4, []);
     service.logout(tokenFor(req));
-    const origin2 = options.origin();
-    if (origin2 === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
+    const origin3 = options.origin();
+    if (origin3 === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
     const state = service.setupState;
-    const name2 = businessCookieName(state.serviceId, origin2);
-    sendEmpty(res, 204, { "set-cookie": clearCookie(name2, origin2, options.protocol()) });
+    const name2 = businessCookieName(state.serviceId, origin3);
+    sendEmpty(res, 204, { "set-cookie": clearCookie(name2, origin3, options.protocol()) });
   });
   const me = async (req, res) => dispatch(req, res, () => {
     requireMethod(req, "GET");
@@ -8051,12 +8150,12 @@ var text2 = (value, name2, max2) => {
   if (typeof value !== "string" || value.length < 1 || value.length > max2 || !value.isWellFormed()) throw new ObjectHttpError(422, "INPUT_INVALID", `${name2} is invalid`);
   return value;
 };
-function trust(req, origin2, mutation) {
-  if (origin2 === void 0 || req.headers.host !== new URL(origin2).host) throw new ObjectHttpError(403, "CSRF_REJECTED", "request authority is not trusted");
-  if (req.headers.origin !== void 0 && req.headers.origin !== origin2) throw new ObjectHttpError(403, "CSRF_REJECTED", "request origin is not trusted");
+function trust(req, origin3, mutation) {
+  if (origin3 === void 0 || req.headers.host !== new URL(origin3).host) throw new ObjectHttpError(403, "CSRF_REJECTED", "request authority is not trusted");
+  if (req.headers.origin !== void 0 && req.headers.origin !== origin3) throw new ObjectHttpError(403, "CSRF_REJECTED", "request origin is not trusted");
   if (req.headers["sec-fetch-site"] === "cross-site") throw new ObjectHttpError(403, "CSRF_REJECTED", "cross-site request is not trusted");
   if (mutation && req.headers["x-knowledgeos-request"] !== "1") throw new ObjectHttpError(403, "CSRF_REJECTED", "missing KnowledgeOS request header");
-  if (new URL(req.url ?? "/", origin2).search) throw new ObjectHttpError(422, "INPUT_INVALID", "query parameters are not supported");
+  if (new URL(req.url ?? "/", origin3).search) throw new ObjectHttpError(422, "INPUT_INVALID", "query parameters are not supported");
 }
 function actor(options, req) {
   const value = options.actorFor(req);
@@ -8501,9 +8600,9 @@ function createAiHandler(options) {
       res.end(JSON.stringify(data));
     };
     try {
-      const origin2 = options.origin();
-      if (!origin2 || req.headers.host !== new URL(origin2).host || req.headers.origin !== void 0 && req.headers.origin !== origin2 || req.headers["sec-fetch-site"] === "cross-site" || req.method !== "GET" && req.headers["x-knowledgeos-request"] !== "1") throw new AiError(403, "CSRF_REJECTED");
-      const url = new URL(req.url ?? "/", origin2);
+      const origin3 = options.origin();
+      if (!origin3 || req.headers.host !== new URL(origin3).host || req.headers.origin !== void 0 && req.headers.origin !== origin3 || req.headers["sec-fetch-site"] === "cross-site" || req.method !== "GET" && req.headers["x-knowledgeos-request"] !== "1") throw new AiError(403, "CSRF_REJECTED");
+      const url = new URL(req.url ?? "/", origin3);
       if (url.search) throw new AiError(422, "INPUT_INVALID");
       const actorNow = () => options.actorFor(req);
       const actor2 = actorNow();
@@ -8600,21 +8699,21 @@ function checkWordEnvelope(b, media) {
   const entries = b.readUInt16LE(e + 10), length = b.readUInt32LE(e + 12);
   let pos = b.readUInt32LE(e + 16), expanded = 0;
   if (!entries || entries > 8192 || entries !== b.readUInt16LE(e + 8) || pos + length !== e) invalid7();
-  const central = pos, names = /* @__PURE__ */ new Set(), members = [];
+  const central = pos, names2 = /* @__PURE__ */ new Set(), members = [];
   for (let i = 0; i < entries; i++) {
     if (pos + 46 > e || b.readUInt32LE(pos) !== 33639248) invalid7();
     const n = b.readUInt16LE(pos + 28), next = pos + 46 + n + b.readUInt16LE(pos + 30) + b.readUInt16LE(pos + 32), local = b.readUInt32LE(pos + 42);
     if (!n || next > e || local + 30 > central || b.readUInt32LE(local) !== 67324752 || b.readUInt16LE(pos + 34) !== 0) invalid7();
     const name2 = b.subarray(pos + 46, pos + 46 + n), key = name2.toString("utf8"), start = local + 30 + b.readUInt16LE(local + 26) + b.readUInt16LE(local + 28);
-    if (b.readUInt16LE(local + 26) !== n || !name2.equals(b.subarray(local + 30, local + 30 + n)) || names.has(key) || start + b.readUInt32LE(pos + 20) > central) invalid7();
+    if (b.readUInt16LE(local + 26) !== n || !name2.equals(b.subarray(local + 30, local + 30 + n)) || names2.has(key) || start + b.readUInt32LE(pos + 20) > central) invalid7();
     if (b.readUInt16LE(pos + 8) & 1 || b.readUInt16LE(local + 6) & 1 || ![0, 8].includes(b.readUInt16LE(pos + 10)) || b.readUInt16LE(local + 8) !== b.readUInt16LE(pos + 10)) invalid7();
     expanded += b.readUInt32LE(pos + 24);
     if (expanded > 256 * 1024 * 1024) invalid7();
     members.push({ name: key, start, packed: b.readUInt32LE(pos + 20), size: b.readUInt32LE(pos + 24), method: b.readUInt16LE(pos + 10), crc: b.readUInt32LE(pos + 16) });
-    names.add(key);
+    names2.add(key);
     pos = next;
   }
-  if (pos !== e || !["[Content_Types].xml", "_rels/.rels", "word/document.xml"].every((k) => names.has(k))) invalid7();
+  if (pos !== e || !["[Content_Types].xml", "_rels/.rels", "word/document.xml"].every((k) => names2.has(k))) invalid7();
   return members;
 }
 var inflate = promisify(inflateRaw);
@@ -9780,7 +9879,7 @@ async function publishInput(store, originals, current, spec2, bytes, media, enco
   store.original(current(), result.receipt.id, result.receipt.version_id, false);
   return result;
 }
-function libraryHandler(store, originals, origin2, actorFor, parses, office, officeAvailable = () => true, archives, reader, search) {
+function libraryHandler(store, originals, origin3, actorFor, parses, office, officeAvailable = () => true, archives, reader, search) {
   let transfers = 0;
   return async (req, res) => {
     const requestId = randomUUID24();
@@ -9815,7 +9914,7 @@ function libraryHandler(store, originals, origin2, actorFor, parses, office, off
       if (res.destroyed || res.writableFinished) sent();
     };
     try {
-      const host = origin2();
+      const host = origin3();
       if (!host || req.headers.host !== new URL(host).host || req.headers["sec-fetch-site"] === "cross-site" || req.headers.origin !== void 0 && req.headers.origin !== host || req.method !== "GET" && req.headers["x-knowledgeos-request"] !== "1") throw new AssetError(403, "CSRF_REJECTED");
       const actor2 = actorFor(req);
       if (!actor2) throw new AssetError(401, "AUTH_REQUIRED");
@@ -10149,7 +10248,7 @@ function outlineAction(input) {
       throw invalid9();
   }
 }
-function createNoteHandler(store, origin2, actorFor) {
+function createNoteHandler(store, origin3, actorFor) {
   return async (req, res) => {
     const send = (status, data) => {
       if (res.destroyed) return;
@@ -10157,7 +10256,7 @@ function createNoteHandler(store, origin2, actorFor) {
       res.end(JSON.stringify(data));
     };
     try {
-      const base = origin2(), method = req.method;
+      const base = origin3(), method = req.method;
       if (!base || req.headers.host !== new URL(base).host || req.headers["sec-fetch-site"] === "cross-site" || req.headers.origin !== void 0 && req.headers.origin !== base || method !== "GET" && req.headers["x-knowledgeos-request"] !== "1") throw new AssetError(403, "CSRF_REJECTED");
       const url = new URL(req.url ?? "/", base), path2 = url.pathname;
       if (url.origin !== base) throw new AssetError(403, "CSRF_REJECTED");
@@ -10266,7 +10365,7 @@ async function json2(req) {
     throw invalid10();
   }
 }
-function createRecallHandler(store, origin2, actorFor) {
+function createRecallHandler(store, origin3, actorFor) {
   return async (req, res) => {
     const send = (http, data) => {
       if (!res.destroyed) {
@@ -10275,7 +10374,7 @@ function createRecallHandler(store, origin2, actorFor) {
       }
     };
     try {
-      const base = origin2(), method = req.method;
+      const base = origin3(), method = req.method;
       if (!base || req.headers.host !== new URL(base).host || req.headers["sec-fetch-site"] === "cross-site" || req.headers.origin !== void 0 && req.headers.origin !== base || method !== "GET" && req.headers["x-knowledgeos-request"] !== "1") throw new AssetError(403, "CSRF_REJECTED");
       const url = new URL(req.url ?? "/", base);
       if (url.origin !== base) throw new AssetError(403, "CSRF_REJECTED");
@@ -10366,7 +10465,7 @@ async function body(req) {
     throw invalid11();
   }
 }
-function createInvitationHandler(store, origin2, actorFor) {
+function createInvitationHandler(store, origin3, actorFor) {
   return async (req, res) => {
     const correlation = randomUUID25();
     const send = (status, data) => {
@@ -10376,7 +10475,7 @@ function createInvitationHandler(store, origin2, actorFor) {
       }
     };
     try {
-      const base = origin2(), method = req.method;
+      const base = origin3(), method = req.method;
       if (!base || req.headers.host !== new URL(base).host || req.headers["sec-fetch-site"] === "cross-site" || req.headers.origin !== void 0 && req.headers.origin !== base || method !== "GET" && req.headers["x-knowledgeos-request"] !== "1") throw new AssetError(403, "CSRF_REJECTED");
       const url = new URL(req.url ?? "/", base);
       if (url.origin !== base) throw new AssetError(403, "CSRF_REJECTED");
@@ -12566,7 +12665,8 @@ var pathValue = (value) => {
   if (!isRepositoryPath(value)) throw badRepository();
   return value;
 };
-function createRepositoryHandler(service, origin2, actorFor, hostSignal) {
+var names = { github: repositoryName, gitlab: gitLabName, gitee: giteeName };
+function createRepositoryHandler(service, origin3, actorFor, hostSignal) {
   return async (req, res, peer) => {
     const disconnected = new AbortController();
     const close = () => {
@@ -12580,7 +12680,7 @@ function createRepositoryHandler(service, origin2, actorFor, hostSignal) {
       res.end(JSON.stringify(data));
     };
     try {
-      const base = origin2(), method = req.method;
+      const base = origin3(), method = req.method;
       if (!base || req.headers.host !== new URL(base).host || req.headers["sec-fetch-site"] === "cross-site" || req.headers.origin !== void 0 && req.headers.origin !== base || method !== "GET" && req.headers["x-knowledgeos-request"] !== "1")
         throw new AssetError(403, "CSRF_REJECTED");
       const url = new URL(req.url ?? "/", base);
@@ -12595,10 +12695,10 @@ function createRepositoryHandler(service, origin2, actorFor, hostSignal) {
         if (method === "POST") {
           const input = await body2(req, ["actor_id", "platform", "repository", "ref_kind", "ref_value", "credential_ref", "path"]);
           const platform = "platform" in input ? input.platform : "github";
-          if (platform !== "github" && platform !== "gitlab") throw badRepository();
+          if (platform !== "github" && platform !== "gitlab" && platform !== "gitee") throw badRepository();
           const alias = "credential_ref" in input ? input.credential_ref : "";
           if (typeof alias !== "string" || alias && !credentialAlias.test(alias)) throw badRepository();
-          const name2 = platform === "gitlab" ? gitLabName(input.repository) : repositoryName(input.repository);
+          const name2 = names[platform](input.repository);
           const saved = await service.connect(
             actor2,
             id4(input.actor_id),
@@ -12640,11 +12740,11 @@ function buildRepositoryHtml(nonce) {
 @media(max-width:700px){nav,main{padding:12px 16px}.workspace,.fields{grid-template-columns:minmax(0,1fr)}.side{border:0;padding:0}.tree{max-height:280px}}
 </style></head><body>
 <header><nav aria-label="\u4E1A\u52A1\u5BFC\u822A"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">\u77E5\u8BC6\u5E93</a><a href="/knowledgeos/repositories" aria-current="page">\u4ED3\u5E93\u4E0E\u4EE3\u7801</a><a href="/knowledgeos/account">\u8D26\u53F7</a></nav></header>
-<main><h1>\u4ED3\u5E93\u4E0E\u4EE3\u7801</h1><p class="badge">GitHub\u3001GitLab \xB7 \u53EA\u8BFB</p><p id="status" role="status">\u6B63\u5728\u8BFB\u53D6\u2026</p><a id="login" href="/knowledgeos/account" hidden>\u767B\u5F55</a>
+<main><h1>\u4ED3\u5E93\u4E0E\u4EE3\u7801</h1><p class="badge">GitHub\u3001GitLab\u3001Gitee \xB7 \u53EA\u8BFB</p><p id="status" role="status">\u6B63\u5728\u8BFB\u53D6\u2026</p><a id="login" href="/knowledgeos/account" hidden>\u767B\u5F55</a>
 <div class="workspace" id="workspace" hidden>
 <aside class="side"><h2>\u56FA\u5B9A\u5FEB\u7167</h2><ul id="snapshots"></ul></aside>
 <div class="content"><section class="section"><h2>\u8FDE\u63A5\u4ED3\u5E93</h2><form id="connect">
-<label>\u6258\u7BA1\u5E73\u53F0<select id="platform"><option value="github">GitHub</option><option value="gitlab">GitLab</option></select></label>
+<label>\u6258\u7BA1\u5E73\u53F0<select id="platform"><option value="github">GitHub</option><option value="gitlab">GitLab</option><option value="gitee">Gitee</option></select></label>
 <fieldset class="fields" id="connect-fields"><label>\u4ED3\u5E93<input id="repository" placeholder="owner/repository" maxlength="255" required></label>
 <label>\u5F15\u7528\u7C7B\u578B<select id="ref-kind"><option value="branch">\u5206\u652F</option><option value="tag">\u6807\u7B7E</option><option value="commit">\u5B8C\u6574 SHA</option></select></label>
 <label>\u5F15\u7528<input id="ref" placeholder="main" maxlength="200" required></label></fieldset>
@@ -12659,7 +12759,7 @@ function buildRepositoryHtml(nonce) {
 const $=id=>document.getElementById(id), api='/knowledge/v1/repositories', status=text=>$('status').textContent=text;
 const errors={ACTOR_MISMATCH:'\u8D26\u53F7\u5DF2\u53D8\u66F4\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00\u9875\u9762\u3002',NOT_FOUND:'\u672A\u627E\u5230\u5FEB\u7167\u6216\u6587\u4EF6\u3002',REMOTE_REPOSITORY_NOT_FOUND:'\u4ED3\u5E93\u6216\u5F15\u7528\u4E0D\u5B58\u5728\uFF0C\u6216\u5165\u53E3\u65E0\u6743\u8BBF\u95EE\u3002',REPOSITORY_REDIRECT_REJECTED:'\u4ED3\u5E93\u5E73\u53F0\u8FD4\u56DE\u4E86\u91CD\u5B9A\u5411\uFF0C\u672A\u8BFB\u53D6\u3002',REPOSITORY_RATE_LIMIT:'\u5DF2\u8FBE\u5230\u4ED3\u5E93\u5E73\u53F0\u8BF7\u6C42\u4E0A\u9650\u3002',REPOSITORY_LIMIT_EXCEEDED:'\u4ED3\u5E93\u6811\u6216\u6587\u4EF6\u8D85\u8FC7\u8BFB\u53D6\u4E0A\u9650\u3002',REPOSITORY_CREDENTIAL_UNCONFIGURED:'\u6307\u5B9A\u7684\u539F\u751F\u51ED\u636E\u672A\u914D\u7F6E\u3002',INVALID_REPOSITORY_INPUT:'\u68C0\u67E5\u4ED3\u5E93\u3001\u5F15\u7528\u3001\u6587\u4EF6\u8DEF\u5F84\u548C\u51ED\u636E\u522B\u540D\u3002',REPOSITORY_TIMEOUT:'\u4ED3\u5E93\u5E73\u53F0\u8BFB\u53D6\u8D85\u65F6\u3002',REPOSITORY_CHANGED:'\u8FDC\u7AEF\u4ED3\u5E93\u8EAB\u4EFD\u53D1\u751F\u53D8\u5316\uFF0C\u672A\u4FDD\u5B58\u3002',REPOSITORY_INVALID_RESPONSE:'\u4ED3\u5E93\u5E73\u53F0\u8FD4\u56DE\u7684\u5BF9\u8C61\u65E0\u6CD5\u9A8C\u8BC1\u3002',REPOSITORY_BUSY:'\u5DF2\u6709\u4ED3\u5E93\u8BF7\u6C42\u6B63\u5728\u6267\u884C\u3002',REPOSITORY_FILE_QUOTA:'\u5DF2\u8FBE\u5230\u672C\u5730\u6587\u4EF6\u5FEB\u7167\u4E0A\u9650\u3002',REPOSITORY_SNAPSHOT_QUOTA:'\u5DF2\u8FBE\u5230\u672C\u5730\u4ED3\u5E93\u5FEB\u7167\u4E0A\u9650\u3002'};
 const kinds={directory:'\u76EE\u5F55',symlink:'\u7B26\u53F7\u94FE\u63A5',submodule:'\u5B50\u6A21\u5757',file:'\u6587\u4EF6'};
-const platforms={github:'GitHub',gitlab:'GitLab'};
+const platforms={github:'GitHub',gitlab:'GitLab',gitee:'Gitee'};
 function platformHints(){const selected=$('platform').value;$('repository').placeholder=selected==='gitlab'?'group/subgroup/project':'owner/repository';$('credential').placeholder=selected+'_example';}
 let actor, rows=[], selected, entries=[], files=[], busy=false, gated=false, generation=0, focusEpoch=0, controller=new AbortController();
 function clear(){generation++;focusEpoch++;controller.abort();controller=new AbortController();actor=selected=undefined;rows=[];entries=[];files=[];busy=gated=false;$('connect').reset();platformHints();$('save').disabled=false;$('filter').value='';$('workspace').hidden=$('detail').hidden=$('file').hidden=true;
@@ -12759,7 +12859,7 @@ var taskReview = (value) => {
   const reason = text3(value.reason);
   return "requested_work" in value ? { results, reason, requested_work: text3(value.requested_work) } : { results, reason };
 };
-function createProjectTaskHandler(store, origin2, actorFor) {
+function createProjectTaskHandler(store, origin3, actorFor) {
   return async (req, res) => {
     const send = (status, payload) => {
       if (!res.destroyed) {
@@ -12768,7 +12868,7 @@ function createProjectTaskHandler(store, origin2, actorFor) {
       }
     };
     try {
-      const base = origin2(), method = req.method;
+      const base = origin3(), method = req.method;
       if (!base || req.headers.host !== new URL(base).host || req.headers["sec-fetch-site"] === "cross-site" || req.headers.origin !== void 0 && req.headers.origin !== base || method !== "GET" && req.headers["x-knowledgeos-request"] !== "1") throw new AssetError(403, "CSRF_REJECTED");
       const url = new URL(req.url ?? "/", base);
       if (url.origin !== base) throw new AssetError(403, "CSRF_REJECTED");
@@ -13332,9 +13432,9 @@ function apply(ctx, config = {}) {
           return readLegacyWord(s, check, signal);
         });
         const sessionFor = (req) => {
-          const origin2 = actualOrigin();
-          if (!origin2 || !identityAvailable()) return void 0;
-          return identity.actor(readCookie(req, businessCookieName(identity.setupState.serviceId, origin2)));
+          const origin3 = actualOrigin();
+          if (!origin3 || !identityAvailable()) return void 0;
+          return identity.actor(readCookie(req, businessCookieName(identity.setupState.serviceId, origin3)));
         };
         const handler = libraryHandler(storage.assets, originals, actualOrigin, sessionFor, storage.parses, storage.office, () => !!officeMount, storage.archives, reader, storage.search);
         const notes = createNoteHandler(storage.notes, actualOrigin, sessionFor);
@@ -13451,9 +13551,9 @@ function apply(ctx, config = {}) {
         res.end(buildAiHtml());
       } }));
       const aiHandler = createAiHandler({ service: () => ai, origin: actualOrigin, actorFor: (req) => {
-        const origin2 = actualOrigin();
-        if (origin2 === void 0 || !identityAvailable()) return void 0;
-        return identity.actor(readCookie(req, businessCookieName(identity.setupState.serviceId, origin2)));
+        const origin3 = actualOrigin();
+        if (origin3 === void 0 || !identityAvailable()) return void 0;
+        return identity.actor(readCookie(req, businessCookieName(identity.setupState.serviceId, origin3)));
       } });
       disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/ai", auth: "anonymous", handler: withPeer(async (req, res) => aiHandler(req, res)) }));
       disposers.push(identityContext.webServer.register({ kind: "exact", path: SETUP_PATH, auth: "required", handler: ownerSetupPage }));
@@ -13471,9 +13571,9 @@ function apply(ctx, config = {}) {
       const objectHandler = createObjectHandlers({
         storage,
         actorFor: (req) => {
-          const origin2 = actualOrigin();
-          if (origin2 === void 0) return void 0;
-          const token2 = readCookie(req, businessCookieName(identity.setupState.serviceId, origin2));
+          const origin3 = actualOrigin();
+          if (origin3 === void 0) return void 0;
+          const token2 = readCookie(req, businessCookieName(identity.setupState.serviceId, origin3));
           return identity.actor(token2);
         },
         origin: actualOrigin

@@ -7,11 +7,11 @@ export function buildRepositoryHtml(nonce: string): string {
 @media(max-width:700px){nav,main{padding:12px 16px}.workspace,.fields{grid-template-columns:minmax(0,1fr)}.side{border:0;padding:0}.tree{max-height:280px}}
 </style></head><body>
 <header><nav aria-label="业务导航"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">知识库</a><a href="/knowledgeos/repositories" aria-current="page">仓库与代码</a><a href="/knowledgeos/account">账号</a></nav></header>
-<main><h1>仓库与代码</h1><p class="badge">GitHub、GitLab · 只读</p><p id="status" role="status">正在读取…</p><a id="login" href="/knowledgeos/account" hidden>登录</a>
+<main><h1>仓库与代码</h1><p class="badge">GitHub、GitLab、Gitee · 只读</p><p id="status" role="status">正在读取…</p><a id="login" href="/knowledgeos/account" hidden>登录</a>
 <div class="workspace" id="workspace" hidden>
 <aside class="side"><h2>固定快照</h2><ul id="snapshots"></ul></aside>
 <div class="content"><section class="section"><h2>连接仓库</h2><form id="connect">
-<label>托管平台<select id="platform"><option value="github">GitHub</option><option value="gitlab">GitLab</option></select></label>
+<label>托管平台<select id="platform"><option value="github">GitHub</option><option value="gitlab">GitLab</option><option value="gitee">Gitee</option></select></label>
 <fieldset class="fields" id="connect-fields"><label>仓库<input id="repository" placeholder="owner/repository" maxlength="255" required></label>
 <label>引用类型<select id="ref-kind"><option value="branch">分支</option><option value="tag">标签</option><option value="commit">完整 SHA</option></select></label>
 <label>引用<input id="ref" placeholder="main" maxlength="200" required></label></fieldset>
@@ -26,7 +26,7 @@ export function buildRepositoryHtml(nonce: string): string {
 const $=id=>document.getElementById(id), api='/knowledge/v1/repositories', status=text=>$('status').textContent=text;
 const errors={ACTOR_MISMATCH:'账号已变更，请重新打开页面。',NOT_FOUND:'未找到快照或文件。',REMOTE_REPOSITORY_NOT_FOUND:'仓库或引用不存在，或入口无权访问。',REPOSITORY_REDIRECT_REJECTED:'仓库平台返回了重定向，未读取。',REPOSITORY_RATE_LIMIT:'已达到仓库平台请求上限。',REPOSITORY_LIMIT_EXCEEDED:'仓库树或文件超过读取上限。',REPOSITORY_CREDENTIAL_UNCONFIGURED:'指定的原生凭据未配置。',INVALID_REPOSITORY_INPUT:'检查仓库、引用、文件路径和凭据别名。',REPOSITORY_TIMEOUT:'仓库平台读取超时。',REPOSITORY_CHANGED:'远端仓库身份发生变化，未保存。',REPOSITORY_INVALID_RESPONSE:'仓库平台返回的对象无法验证。',REPOSITORY_BUSY:'已有仓库请求正在执行。',REPOSITORY_FILE_QUOTA:'已达到本地文件快照上限。',REPOSITORY_SNAPSHOT_QUOTA:'已达到本地仓库快照上限。'};
 const kinds={directory:'目录',symlink:'符号链接',submodule:'子模块',file:'文件'};
-const platforms={github:'GitHub',gitlab:'GitLab'};
+const platforms={github:'GitHub',gitlab:'GitLab',gitee:'Gitee'};
 function platformHints(){const selected=$('platform').value;$('repository').placeholder=selected==='gitlab'?'group/subgroup/project':'owner/repository';$('credential').placeholder=selected+'_example';}
 let actor, rows=[], selected, entries=[], files=[], busy=false, gated=false, generation=0, focusEpoch=0, controller=new AbortController();
 function clear(){generation++;focusEpoch++;controller.abort();controller=new AbortController();actor=selected=undefined;rows=[];entries=[];files=[];busy=gated=false;$('connect').reset();platformHints();$('save').disabled=false;$('filter').value='';$('workspace').hidden=$('detail').hidden=$('file').hidden=true;

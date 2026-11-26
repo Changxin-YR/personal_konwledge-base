@@ -9,8 +9,8 @@
     "path": "CODEX_START.md",
     "sha256": "a2e5986cfa81189aeae0c4b43ebfe4afd074aae9d5674e7ecf5e069c5d6ab530"
   },
-  "active_unit": "REPO-002",
-  "unit_state": "passed",
+  "active_unit": "REPO-003",
+  "unit_state": "in_progress",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Public GitLab fixed revision and missing credential behavior passed; Gitee is eligible next.",
+  "state_reason": "Implement Gitee read-only adapter and verify A19 on one candidate across platforms.",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -156,32 +156,20 @@
     "next_task": "REPO-003"
   },
   "checkpoint": {
-    "candidate_sha": "77eeaaea6546c96827a08db88f9e5927a4b993b4",
-    "tree": "a2c21a040d90b3300438053311e5ac304e496a3d",
-    "source_tree": "7440ba7f9c66c1a62f644e8871675d12cf934388",
-    "entry_sha256": "8383ec51f3a398bab2690c0575482e2b48a1a345113b734d0c54230465b4c0ee",
-    "build_sha256": "740c7cf0a05f21174fbae19c2f933d574e4119795dee46608aec474349241cee",
-    "unit_id": "REPO-002",
-    "base_commit": "d8c3f91a14d8abfcf8ff2a4cd2fcae5025212e14",
+    "unit_id": "REPO-003",
+    "base_commit": "4a20369eec9732141316dfa6249696cf983c49bc",
     "completed": [
-      "GitLab fixed refs and verified trees/blobs; append-only v34 migration preserves GitHub snapshots and pin bytes.",
-      "Main and independent live GitLab / Chrome / SQLite passed. GitHub affected regression and nine targeted checks passed."
+      "Independent public Gitee fixture preflight and acceptance plan prepared."
     ],
     "test_results": {
-      "unit_acceptance": "PASS",
-      "T01": "PASS",
-      "T02": "PASS",
-      "independent": "PASS",
-      "github_regression": "PASS",
-      "private_gitlab": "BLOCKED",
+      "unit_acceptance": "NOT_RUN",
+      "T01": "NOT_RUN",
+      "T02": "NOT_RUN",
       "A19": "NOT_RUN"
     },
-    "evidence": "docs/evidence/REPO-002/acceptance.json",
+    "evidence": "scripts/repo003/acceptance-plan.md",
     "defects": [],
-    "blocked_dependencies": [
-      "Private GitLab test lacks an authorized test repository and credential.",
-      "A19 depends on live Gitee and real Host refusal of AI repository write action."
-    ],
+    "blocked_dependencies": [],
     "next_task": "REPO-003"
   }
 }
