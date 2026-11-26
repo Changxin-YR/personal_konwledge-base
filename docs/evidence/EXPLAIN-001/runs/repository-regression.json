@@ -1,0 +1,29 @@
+{
+  "unit_id": "REPO-001",
+  "candidate_sha": "2d02fc156f1b04a61ad76c44ad5b5952b12bb526",
+  "tree": "0a20a5463aa90100780a5332bee75a25d287e46b",
+  "source_tree": "423084dc433be842fe12b3436cfd79e1c13fbeb9",
+  "entry_sha256": "e13659019b9900fb8d2b4c5dd3f8a07ea359a0f17a6cf04a859f08478fc81213",
+  "build_sha256": "e53ef37bca33b91879fd35b244dbc2c29dac0be78f8d282b2bd7d1179e786c72",
+  "runner_sha256": "de251bf479d243a6df997c4db1a0a52abec3884dafb3a2138e4ec43ed789e16e",
+  "scope": "isolated DSH Host/Chrome/SQLite fixtures only; not unit acceptance",
+  "status": "PASS",
+  "checks": [
+    {
+      "id": "authorization_and_failure_atomicity",
+      "status": "PASS",
+      "remote_for_acl_denials": 0
+    },
+    {
+      "id": "foreground_identity_fail_closed",
+      "status": "PASS"
+    },
+    {
+      "id": "content_inert_and_egress_allowlisted",
+      "status": "PASS",
+      "github_read_requests": 0,
+      "external_browser_requests": 0
+    }
+  ],
+  "chrome": "158.0.8127.88"
+}

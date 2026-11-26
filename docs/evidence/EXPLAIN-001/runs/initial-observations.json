@@ -1,0 +1,22 @@
+[
+  {
+    "check": "predispatch_revocation_error",
+    "status": "FAIL",
+    "phase": "implementation",
+    "actual": "Source was removed during model catalog lookup. Local access failure surfaced as MODEL_NOT_FOUND instead of NOT_FOUND.",
+    "fix": "Preserve the authorization callback error at the model dispatch boundary.",
+    "retest": "PASS",
+    "test": "scripts/explain001/source.test.mjs",
+    "real_model_requests": 0
+  },
+  {
+    "check": "library_to_repository_navigation",
+    "candidate_sha": "8c16d01969a759c4f4e7005ba357e572bcfbf6ba",
+    "status": "FAIL",
+    "actual": "The repository regression clicked a link in a collapsed library tools disclosure and timed out.",
+    "fix": "Exercise the visible disclosure before clicking the repository link.",
+    "retest": "PASS",
+    "retest_candidate_sha": "2d02fc156f1b04a61ad76c44ad5b5952b12bb526",
+    "real_model_requests": 0
+  }
+]
