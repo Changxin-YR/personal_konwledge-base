@@ -1,0 +1,39 @@
+{
+  "unit_id": "KNOW-003",
+  "candidate_sha": "0c53da25dd4bc4c1cdcd7195053af480cfd0ff73",
+  "tree": "445c7afd12f39df8712d22b1124fdf9551c12225",
+  "source_tree": "dd336a9801280eaa417b26c8a70303cb010b12b6",
+  "entry_sha256": "d0ef059866195178c56e883138208f970ec919cc90ec2786386ac734a947bb12",
+  "build_sha256": "7ee362c3771489c9c563527fd66e279b04052205ee2e9d525f12c689f766552e",
+  "unit_acceptance": "PASS",
+  "passed_test_ids": [
+    "KNOW-003-T01",
+    "KNOW-003-T02"
+  ],
+  "main_command": "node scripts/know003/host-ontology.mjs <frozen-checkout> 0c53da25dd4bc4c1cdcd7195053af480cfd0ff73 d0ef059866195178c56e883138208f970ec919cc90ec2786386ac734a947bb12 scripts/know003/tokease/controller.mjs scripts/know003/main-scenario.mjs main",
+  "main_exit": 0,
+  "main_records": [
+    {
+      "path": "docs/evidence/KNOW-003/runs/main-live.json",
+      "sha256": "5938ea5ecea6dc2df60f1b1ef11da4d17ccd416e070bc214caecff97f7921442"
+    },
+    {
+      "path": "docs/evidence/KNOW-003/runs/dry-calibration-run.json",
+      "sha256": "af957d90753d626f4975a5445db0102945aba8eb24fc6a2e9f872090eb226a06"
+    }
+  ],
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/KNOW-003/independent.json",
+  "technical_results": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "reader_citation_term_regressions": 17,
+    "sqlite_checks": 7,
+    "plan_gate_regressions": 148
+  },
+  "final_cases": [
+    "docs/evidence/KNOW-003/A11.json"
+  ],
+  "A12": "NOT_RUN",
+  "A45": "NOT_RUN"
+}

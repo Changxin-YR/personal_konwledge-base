@@ -1,0 +1,128 @@
+{
+  "unit_id": "KNOW-003",
+  "candidate_sha": "0c53da25dd4bc4c1cdcd7195053af480cfd0ff73",
+  "tree": "445c7afd12f39df8712d22b1124fdf9551c12225",
+  "source_tree": "dd336a9801280eaa417b26c8a70303cb010b12b6",
+  "entry_sha256": "d0ef059866195178c56e883138208f970ec919cc90ec2786386ac734a947bb12",
+  "build_sha256": "7ee362c3771489c9c563527fd66e279b04052205ee2e9d525f12c689f766552e",
+  "runner_sha256": "dd3fb4722aa29f7278ff420a9a0b5ddcb61560786700a85d28beca6067700077",
+  "controller_sha256": "3f54f274e0969bbc7a3727311dfdb1cf5f6b824ca46186456a38d4d68b3b4db9",
+  "scenario_sha256": "ee4d7fdcfcd4e0b540219aa1ada98e2cf99c2043acbbbf4b7d85cac572072a50",
+  "run_kind": "main",
+  "model_phase": "live",
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "A11": "PASS",
+  "A12": "NOT_RUN",
+  "checks": [
+    {
+      "id": "real_versioned_endpoints_and_fixed_evidence",
+      "status": "PASS",
+      "evidence_id": "577c6054-d7e3-4fd5-b24c-226317fc250d",
+      "source_version": "1942c620-c150-4d3a-b2f6-ca7b78383101"
+    },
+    {
+      "id": "T01",
+      "status": "PASS",
+      "negative_rule_cases": 6,
+      "fixed_quote_hash": "9885fc1f41dfbf7dc1086a6ae3a480a9b79905e790209e731c77ea0bf17f1119",
+      "shared_graph_list_revision": 2
+    },
+    {
+      "id": "T02",
+      "status": "PASS",
+      "model_pending": true,
+      "review_actions": [
+        "confirm",
+        "correct",
+        "reject"
+      ],
+      "old_version_preserved": true,
+      "revoke_denies_history_and_replay": true
+    },
+    {
+      "id": "A11",
+      "status": "PASS",
+      "legal_manual_and_model_proposal": true,
+      "invalid_shapes_no_writes": true,
+      "source_revoke_no_fact": true
+    }
+  ],
+  "screens": [
+    {
+      "name": "manual-shared-graph.png",
+      "sha256": "2bc54c606ba862af4f4e0cbb7d5d3e7ffa7dfeae0c98ba680af660111f54c369"
+    },
+    {
+      "name": "real-shaped-model-pending.png",
+      "sha256": "b4d36137a3c9676693ed34fe28c1342c639e8f24a9f4e90359d24e56cbd37633"
+    },
+    {
+      "name": "revoked-evidence-clears-graph.png",
+      "sha256": "d4e89cbf6be11889ef98af6f8a7350deb07fb08978ea2825e74945e8426c3a68"
+    }
+  ],
+  "boots": [
+    18672
+  ],
+  "chrome": "158.0.8127.88",
+  "model": {
+    "mode": "live",
+    "unit": "KNOW-003",
+    "candidate_sha": "0c53da25dd4bc4c1cdcd7195053af480cfd0ff73",
+    "tree": "445c7afd12f39df8712d22b1124fdf9551c12225",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "d0ef059866195178c56e883138208f970ec919cc90ec2786386ac734a947bb12",
+    "provider": "tokease",
+    "model": "deepseek-v4.1-flash-1017",
+    "endpoint": "https://tokease.cn/v1",
+    "manifest_sha256": "8962ab2d1ccfa3bd1be49608ea0acdf3956341ca3392bd15693fb73e5257182a",
+    "helpers": {
+      "controller.mjs": "3f54f274e0969bbc7a3727311dfdb1cf5f6b824ca46186456a38d4d68b3b4db9",
+      "guard.mjs": "05850309344472f502e39fad6dacf22b8033387efe6f2bbdc727f9a2b1b274d1",
+      "native.mjs": "43956d4c7e6bde8dc7a68bcb8b8af1972750d1a2bb1a544d6f2d1d5fde339c0d",
+      "preload.mjs": "303f79c7359dda2330aff0126daf1a4b6ca0ac5ceae6d3aa664a8b21eb57f753",
+      "synthetic.mjs": "97f63d983f3d0ca99527a8fec863d7848698d2f13a82dbff7df8b0b7140ee63c"
+    },
+    "real_inference_requests": 1,
+    "outbound_tls_connect_attempts": 1,
+    "wire_calibrations": 0,
+    "expectations_armed": 1,
+    "permit_consumed": true,
+    "native_denials": 0,
+    "network_denials": [
+      {
+        "scope": "tcp",
+        "destination": "windows_local_pipe",
+        "result": "DENIED_BEFORE_DISPATCH"
+      }
+    ],
+    "transport_errors": [],
+    "requests": [
+      {
+        "stage": "valid-ontology-relation",
+        "request_sha256": "adb009a1fcdcd6dbee0a4751cbdc730dd7778304fa5ad03627c1da20efa99c78",
+        "system_sha256": "a255ecacbbd2c3b5217aeca6de8dda021af4b9978a05d1293595c058e584f4a1",
+        "user_sha256": "f9b65da956d02fca6ea184f57f49e53f4cdb8ead1a28475030cf96a86b999f4f",
+        "output_token_cap": 1536,
+        "tools": 0
+      }
+    ],
+    "response_usage": [
+      {
+        "http_status": 200,
+        "bytes": 11921,
+        "content_chars": 91,
+        "reasoning_chars": 208,
+        "finish": "stop",
+        "response_sha256": "1b528872e43ab38c2361035b87433276d4ccefa69a95a9f63f7df68b7f19dcc0",
+        "input_tokens": 209,
+        "output_tokens": 123,
+        "total_tokens": 332
+      }
+    ]
+  },
+  "cleanup": "PASS"
+}

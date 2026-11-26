@@ -1,0 +1,75 @@
+{
+  "unit_id": "KNOW-003",
+  "candidate_sha": "0c53da25dd4bc4c1cdcd7195053af480cfd0ff73",
+  "tree": "445c7afd12f39df8712d22b1124fdf9551c12225",
+  "source_tree": "dd336a9801280eaa417b26c8a70303cb010b12b6",
+  "entry_sha256": "d0ef059866195178c56e883138208f970ec919cc90ec2786386ac734a947bb12",
+  "build_sha256": "7ee362c3771489c9c563527fd66e279b04052205ee2e9d525f12c689f766552e",
+  "case_id": "A11",
+  "participants": [
+    {
+      "unit_id": "FND-005",
+      "candidate_sha": "aadf13abcb37aa24010af35543062d0551c58955"
+    },
+    {
+      "unit_id": "READ-001",
+      "candidate_sha": "fdac3b02fc5ac42eabef72374aee9b7050c942e3"
+    },
+    {
+      "unit_id": "KNOW-002",
+      "candidate_sha": "0b2f4d6428635fad8691b8dfca0f8e9a5acf2a45"
+    },
+    {
+      "unit_id": "KNOW-003",
+      "candidate_sha": "0c53da25dd4bc4c1cdcd7195053af480cfd0ff73"
+    }
+  ],
+  "kind": "main",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/know003/host-ontology.mjs <frozen-checkout> 0c53da25dd4bc4c1cdcd7195053af480cfd0ff73 d0ef059866195178c56e883138208f970ec919cc90ec2786386ac734a947bb12 scripts/know003/tokease/controller.mjs scripts/know003/main-scenario.mjs main",
+  "runner": "Codex main browser runner and registered Tokease native transport",
+  "environment": "Isolated Windows DSH Host, native llm-pi-ai adapter, Chrome and read-only SQLite observation.",
+  "inputs": "Fixed synthetic Markdown, versioned solutions and cases, separate test identities.",
+  "run_id": "knowledgeos-know003-run-EHmRa1",
+  "results": [
+    {
+      "id": "MANUAL_DIRECTION_TYPE_AND_EVIDENCE",
+      "status": "PASS",
+      "actual": "Chrome manual proposal and confirmation succeeded. Reverse, wrong type, cross-domain and empty evidence requests were rejected without writes."
+    },
+    {
+      "id": "REAL_MODEL_PROPOSAL_AND_EXPLICIT_REVIEW",
+      "status": "PASS",
+      "actual": "The authorized native Tokease call returned one supported relation. The graph excluded the proposed revision until a human confirmed it. Correction and rejection added history."
+    },
+    {
+      "id": "SHARED_GRAPH_LIST_AND_FIXED_SOURCE",
+      "status": "PASS",
+      "actual": "Graph and list agreed on edge and current revision. The evidence matched immutable Reader version, UTF-16 coordinates and context/quote hashes."
+    },
+    {
+      "id": "INACCESSIBLE_ENDPOINT_AND_REVOKED_EVIDENCE",
+      "status": "PASS",
+      "actual": "Foreign endpoints and versions returned scoped errors. Revocation removed the fact from the open Chrome graph and list and denied replay."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/KNOW-003/runs/main-live.json",
+      "sha256": "5938ea5ecea6dc2df60f1b1ef11da4d17ccd416e070bc214caecff97f7921442"
+    },
+    {
+      "path": "docs/evidence/KNOW-003/runs/main-live-manual-shared-graph.png",
+      "sha256": "2bc54c606ba862af4f4e0cbb7d5d3e7ffa7dfeae0c98ba680af660111f54c369"
+    },
+    {
+      "path": "docs/evidence/KNOW-003/runs/main-live-real-shaped-model-pending.png",
+      "sha256": "b4d36137a3c9676693ed34fe28c1342c639e8f24a9f4e90359d24e56cbd37633"
+    },
+    {
+      "path": "docs/evidence/KNOW-003/runs/main-live-revoked-evidence-clears-graph.png",
+      "sha256": "d4e89cbf6be11889ef98af6f8a7350deb07fb08978ea2825e74945e8426c3a68"
+    }
+  ]
+}

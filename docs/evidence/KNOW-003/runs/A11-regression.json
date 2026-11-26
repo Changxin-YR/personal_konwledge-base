@@ -1,0 +1,78 @@
+{
+  "unit_id": "KNOW-003",
+  "candidate_sha": "0c53da25dd4bc4c1cdcd7195053af480cfd0ff73",
+  "tree": "445c7afd12f39df8712d22b1124fdf9551c12225",
+  "source_tree": "dd336a9801280eaa417b26c8a70303cb010b12b6",
+  "entry_sha256": "d0ef059866195178c56e883138208f970ec919cc90ec2786386ac734a947bb12",
+  "build_sha256": "7ee362c3771489c9c563527fd66e279b04052205ee2e9d525f12c689f766552e",
+  "case_id": "A11",
+  "participants": [
+    {
+      "unit_id": "FND-005",
+      "candidate_sha": "aadf13abcb37aa24010af35543062d0551c58955"
+    },
+    {
+      "unit_id": "READ-001",
+      "candidate_sha": "fdac3b02fc5ac42eabef72374aee9b7050c942e3"
+    },
+    {
+      "unit_id": "KNOW-002",
+      "candidate_sha": "0b2f4d6428635fad8691b8dfca0f8e9a5acf2a45"
+    },
+    {
+      "unit_id": "KNOW-003",
+      "candidate_sha": "0c53da25dd4bc4c1cdcd7195053af480cfd0ff73"
+    }
+  ],
+  "kind": "regression",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node --experimental-transform-types scripts/know003/v38-regression.mjs <frozen-checkout> <candidate SHA> <entry SHA-256>",
+  "runner": "Independent SQLite migration and competition runner",
+  "environment": "Windows Node SQLite",
+  "inputs": "Fixed synthetic Markdown, versioned solutions and cases, separate test identities.",
+  "run_id": "v38-kos-k003-0c53da25-ind-c2fc803e",
+  "results": [
+    {
+      "id": "v37_real_knowledge_items_versions_receipts_seeded",
+      "status": "PASS",
+      "actual": "Observed against production storage using independent connections."
+    },
+    {
+      "id": "v38_after_schema_failure_rolls_back_full_v37_database",
+      "status": "PASS",
+      "actual": "Observed against production storage using independent connections."
+    },
+    {
+      "id": "v38_exact_single_ledger_and_prior_knowledge_round_trip_after_reopen",
+      "status": "PASS",
+      "actual": "Observed against production storage using independent connections."
+    },
+    {
+      "id": "v38_create_pointer_and_receipt_faults_leave_no_rows_and_key_recovers",
+      "status": "PASS",
+      "actual": "Observed against production storage using independent connections."
+    },
+    {
+      "id": "v38_review_pointer_and_receipt_faults_preserve_original_version",
+      "status": "PASS",
+      "actual": "Observed against production storage using independent connections."
+    },
+    {
+      "id": "two_concurrent_review_connections_commit_one_revision_and_receipt",
+      "status": "PASS",
+      "actual": "Observed against production storage using independent connections."
+    },
+    {
+      "id": "correction_appends_immutable_history_and_keeps_v37_rows",
+      "status": "PASS",
+      "actual": "Observed against production storage using independent connections."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/KNOW-003/runs/v38-storage.json",
+      "sha256": "c8509a3f21c718002ab8e376c1edbe260f120bcd4d0cae93c46e017e1716e25b"
+    }
+  ]
+}

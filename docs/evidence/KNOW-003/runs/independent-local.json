@@ -1,0 +1,181 @@
+{
+  "unit_id": "KNOW-003",
+  "candidate_sha": "0c53da25dd4bc4c1cdcd7195053af480cfd0ff73",
+  "tree": "445c7afd12f39df8712d22b1124fdf9551c12225",
+  "source_tree": "dd336a9801280eaa417b26c8a70303cb010b12b6",
+  "entry_sha256": "d0ef059866195178c56e883138208f970ec919cc90ec2786386ac734a947bb12",
+  "build_sha256": "7ee362c3771489c9c563527fd66e279b04052205ee2e9d525f12c689f766552e",
+  "runner_sha256": "dd3fb4722aa29f7278ff420a9a0b5ddcb61560786700a85d28beca6067700077",
+  "controller_sha256": "76555e95b1240d43c29b061c1ae2bb9e8299d03722b550c9ba3eb574283f3d2e",
+  "scenario_sha256": "4addbf508b65ff7cfd124808779bae1ddaea0aefd672934f099fddfdab5ca65f",
+  "run_kind": "independent",
+  "model_phase": "local",
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "A11": "NOT_RUN",
+  "A12": "NOT_RUN",
+  "checks": [
+    {
+      "id": "real_versioned_endpoints_and_fixed_evidence",
+      "status": "PASS",
+      "evidence_id": "5b20369d-3dba-4d7e-8dca-97ea29d276fa",
+      "source_version": "426def1c-d20a-43e8-bd2d-1d0e7a4a1d04"
+    },
+    {
+      "id": "T01",
+      "status": "PASS",
+      "validation_failures_left_sql_unchanged": true,
+      "relation_id": "0b9148ee-0766-488d-9886-f4cf25adebfa",
+      "valid_depends_on": true,
+      "reversed_symmetric_duplicate_code": "DUPLICATE_RELATION"
+    },
+    {
+      "id": "T02_invalid_model_output",
+      "status": "PASS",
+      "malformed_json_code": "MODEL_OUTPUT_INVALID",
+      "disallowed_type_code": "MODEL_OUTPUT_INVALID",
+      "relations_and_receipts_unchanged": true
+    },
+    {
+      "id": "T02_held_revoked_model",
+      "status": "PASS",
+      "held_dispatch": true,
+      "revoke_before_reply": true,
+      "source_acl_status": 404,
+      "source_acl_code": "RELATION_NOT_FOUND",
+      "endpoints_remained_readable": true,
+      "relations_and_receipts_unchanged": true
+    },
+    {
+      "id": "A12_source_change_preflight",
+      "status": "PASS",
+      "local_only_preflight": true,
+      "scope": "version-update-only",
+      "state": "needs_review",
+      "historical_quote_sha256": "7906d784e3db7c57dc229a552b7d6b40c279ccbac8e808dd10b7992f25ecb513",
+      "original_review_preserved": true,
+      "silent_confirmation_code": "RELATION_SOURCE_CHANGED"
+    },
+    {
+      "id": "T02",
+      "status": "PASS",
+      "actual_native_local_model": true,
+      "separate_correction_and_rejection": true
+    },
+    {
+      "id": "A11_local_preflight",
+      "status": "PASS",
+      "local_only_preflight": true,
+      "legal_manual_and_ai_path": true,
+      "pending_never_fact": true
+    }
+  ],
+  "screens": [
+    {
+      "name": "ontology-manual-confirmed.png",
+      "sha256": "acb36c5b0fe18cd03e79bbc64a07fcc042016de1f2a8593e3fb87f54baecf046"
+    },
+    {
+      "name": "ontology-ai-pending.png",
+      "sha256": "ea004dc09bc0e18923703f64175e4433741f7ba769f0a81fa210b5bfdd00f7a7"
+    },
+    {
+      "name": "ontology-revoked.png",
+      "sha256": "d4e89cbf6be11889ef98af6f8a7350deb07fb08978ea2825e74945e8426c3a68"
+    },
+    {
+      "name": "ontology-source-needs-review.png",
+      "sha256": "9823e6b7f521415097ad2e8137d6c874c15d8a858c3bd58fb7aab55a3a8f1d16"
+    },
+    {
+      "name": "ontology-source-v1-citation.png",
+      "sha256": "17186563f1aea00680d878a08c398808f50cdee442d093285c391ef77bfe9102"
+    }
+  ],
+  "boots": [
+    36392,
+    6016
+  ],
+  "chrome": "158.0.8127.88",
+  "model": {
+    "mode": "CONTROLLED_LOOPBACK_NATIVE_PI_AI_OPENAI_COMPLETIONS",
+    "candidate_sha": "0c53da25dd4bc4c1cdcd7195053af480cfd0ff73",
+    "tree": "445c7afd12f39df8712d22b1124fdf9551c12225",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "d0ef059866195178c56e883138208f970ec919cc90ec2786386ac734a947bb12",
+    "provider": "knowledgeos-ontology-fixture",
+    "model": "deepseek-ontology-local-fixture",
+    "real_inference_requests": 0,
+    "local_sse_requests": 4,
+    "expectations_armed": 4,
+    "expectation_unconsumed": null,
+    "network_denials": [
+      {
+        "scope": "tcp",
+        "destination": "windows_local_pipe",
+        "result": "DENIED_BEFORE_DISPATCH"
+      },
+      {
+        "scope": "tcp",
+        "destination": "windows_local_pipe",
+        "result": "DENIED_BEFORE_DISPATCH"
+      }
+    ],
+    "fixture_denials": [],
+    "requests": [
+      {
+        "stage": "valid-ontology-relation",
+        "result": "LOCAL_HTTP_SSE",
+        "request_sha256": "bd81c29c38a620b709128681366645dd4409ef1016d679999f09f0fe905751ee",
+        "system_sha256": "a255ecacbbd2c3b5217aeca6de8dda021af4b9978a05d1293595c058e584f4a1",
+        "user_sha256": "c87dc479b3ce2c4718242ee46af0b9820e051cb7a2cc0fb34fdd3761941d1526",
+        "output_token_cap": 512,
+        "tools": 0,
+        "reply_sha256": "afd5eac356d7ac66b0d421a9e245ff2f3e6d5a444118260c84ba1fd6b2f212d6",
+        "finish": "stop",
+        "held": false
+      },
+      {
+        "stage": "malformed-ontology-output",
+        "result": "LOCAL_HTTP_SSE",
+        "request_sha256": "962a7de9297503b4c560e272d24ddfb52b054e99400fa3cce3fcf32fb1516d7f",
+        "system_sha256": "a255ecacbbd2c3b5217aeca6de8dda021af4b9978a05d1293595c058e584f4a1",
+        "user_sha256": "d774cd6cdd240abf1d2fab22e88edc488b06ddc881ee17309c3c121d0b345e7f",
+        "output_token_cap": 512,
+        "tools": 0,
+        "reply_sha256": "eb8333eae5e2977d80e7110fcd44ead2575085929b76da246cc1914327a08eb9",
+        "finish": "stop",
+        "held": false
+      },
+      {
+        "stage": "forged-ontology-type",
+        "result": "LOCAL_HTTP_SSE",
+        "request_sha256": "962a7de9297503b4c560e272d24ddfb52b054e99400fa3cce3fcf32fb1516d7f",
+        "system_sha256": "a255ecacbbd2c3b5217aeca6de8dda021af4b9978a05d1293595c058e584f4a1",
+        "user_sha256": "d774cd6cdd240abf1d2fab22e88edc488b06ddc881ee17309c3c121d0b345e7f",
+        "output_token_cap": 512,
+        "tools": 0,
+        "reply_sha256": "6465231ba1ae710a3833e62abd4af5d024719d8c2e70497121c6faceb6245375",
+        "finish": "stop",
+        "held": false
+      },
+      {
+        "stage": "held-revoked-ontology-reply",
+        "result": "LOCAL_HTTP_SSE",
+        "request_sha256": "991e7882652ee7fc7c0ccb69b0859d707125d3b527240c2f8d2442e17ca86298",
+        "system_sha256": "a255ecacbbd2c3b5217aeca6de8dda021af4b9978a05d1293595c058e584f4a1",
+        "user_sha256": "5874356dad01241e3e2ba592c15f0d231c65d8276a6409f9b0b4a31d2acc24f5",
+        "output_token_cap": 512,
+        "tools": 0,
+        "reply_sha256": "afd5eac356d7ac66b0d421a9e245ff2f3e6d5a444118260c84ba1fd6b2f212d6",
+        "finish": "stop",
+        "held": true
+      }
+    ],
+    "fixture_sha256": "76555e95b1240d43c29b061c1ae2bb9e8299d03722b550c9ba3eb574283f3d2e",
+    "fence_sha256": "257aa8fe1358e4bc950988a87455db85e2d54b79814c8e1445d773ce83af34dd"
+  },
+  "cleanup": "PASS"
+}

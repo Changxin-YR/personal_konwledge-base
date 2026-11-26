@@ -1,0 +1,44 @@
+{
+  "unit_id": "KNOW-003",
+  "candidate_sha": "0c53da25dd4bc4c1cdcd7195053af480cfd0ff73",
+  "entry_sha256": "d0ef059866195178c56e883138208f970ec919cc90ec2786386ac734a947bb12",
+  "frozen_v37": "ff32c0001e2cc8d71ebce58f876242f499ffaeb6",
+  "old_bundle_sha256": "011f2dee69345639b501f35d2da30db84829cd8653c97fbae48688bcf9c6c0c1",
+  "test_support_sha256": "04e9eea7dcaea3a4f5cb7deb987f44ceb13b44392405bbd240ed5bbec44a0fe2",
+  "runner_sha256": "583a94aa61a1d971d2b01912f7d4ad0f5c2e36044ea1e1a2e23e4f88e37619f6",
+  "scope": "INDEPENDENT_OFFLINE_V38_STORAGE",
+  "command": "node --experimental-transform-types v38-regression.mjs <checkout> <candidate SHA> <entry SHA-256>",
+  "status": "PASS",
+  "exit_code": 0,
+  "real_inference_requests": 0,
+  "results": [
+    {
+      "id": "v37_real_knowledge_items_versions_receipts_seeded",
+      "status": "PASS"
+    },
+    {
+      "id": "v38_after_schema_failure_rolls_back_full_v37_database",
+      "status": "PASS"
+    },
+    {
+      "id": "v38_exact_single_ledger_and_prior_knowledge_round_trip_after_reopen",
+      "status": "PASS"
+    },
+    {
+      "id": "v38_create_pointer_and_receipt_faults_leave_no_rows_and_key_recovers",
+      "status": "PASS"
+    },
+    {
+      "id": "v38_review_pointer_and_receipt_faults_preserve_original_version",
+      "status": "PASS"
+    },
+    {
+      "id": "two_concurrent_review_connections_commit_one_revision_and_receipt",
+      "status": "PASS"
+    },
+    {
+      "id": "correction_appends_immutable_history_and_keeps_v37_rows",
+      "status": "PASS"
+    }
+  ]
+}

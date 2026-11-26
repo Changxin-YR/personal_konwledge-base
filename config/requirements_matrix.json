@@ -214,9 +214,11 @@
       "acceptance_ids": [
         "A11"
       ],
-      "implementation_status": "in_progress",
+      "implementation_status": "verified",
       "evidence_paths": [
-        "docs/evidence/KNOW-002/acceptance.json"
+        "docs/evidence/KNOW-002/acceptance.json",
+        "docs/evidence/KNOW-003/acceptance.json",
+        "docs/evidence/KNOW-003/A11.json"
       ]
     },
     {
@@ -229,9 +231,11 @@
         "A12",
         "A45"
       ],
-      "implementation_status": "in_progress",
+      "implementation_status": "implemented_unverified",
       "evidence_paths": [
-        "docs/evidence/KNOW-002/acceptance.json"
+        "docs/evidence/KNOW-002/acceptance.json",
+        "docs/evidence/KNOW-003/acceptance.json",
+        "docs/evidence/KNOW-003/A11.json"
       ]
     },
     {
@@ -1112,8 +1116,11 @@
       "expected": "违反类型或方向拒绝；AI建议先待确认；证据可核查；不可见目标不泄露正文。",
       "level": "integration",
       "evidence_required": "测试记录、关键状态与操作证据",
-      "status": "NOT_RUN",
-      "final_milestone": "M2"
+      "status": "PASS",
+      "final_milestone": "M2",
+      "evidence_paths": [
+        "docs/evidence/KNOW-003/A11.json"
+      ]
     },
     {
       "id": "A12",

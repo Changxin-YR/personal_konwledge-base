@@ -1,0 +1,38 @@
+{
+  "unit_id": "KNOW-003",
+  "candidate_sha": "0c53da25dd4bc4c1cdcd7195053af480cfd0ff73",
+  "tree": "445c7afd12f39df8712d22b1124fdf9551c12225",
+  "source_tree": "dd336a9801280eaa417b26c8a70303cb010b12b6",
+  "entry_sha256": "d0ef059866195178c56e883138208f970ec919cc90ec2786386ac734a947bb12",
+  "build_sha256": "7ee362c3771489c9c563527fd66e279b04052205ee2e9d525f12c689f766552e",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/know003/host-ontology.mjs <frozen-checkout> 0c53da25dd4bc4c1cdcd7195053af480cfd0ff73 d0ef059866195178c56e883138208f970ec919cc90ec2786386ac734a947bb12 scripts/know003/local-model/fixture.mjs scripts/know003/independent-scenario.mjs independent + node scripts/know003/host-ontology.mjs <frozen-checkout> 0c53da25dd4bc4c1cdcd7195053af480cfd0ff73 d0ef059866195178c56e883138208f970ec919cc90ec2786386ac734a947bb12 scripts/know003/tokease/controller.mjs scripts/know003/main-scenario.mjs independent",
+  "reviewer": "Independent Chrome/Host and SQLite replay agents",
+  "results": [
+    {
+      "id": "KNOW-003-T01",
+      "status": "PASS",
+      "actual": "Rule direction and types, canonical symmetric edge, fixed evidence, graph/list, private ACL and duplicate rejection."
+    },
+    {
+      "id": "KNOW-003-T02",
+      "status": "PASS",
+      "actual": "Native local malformed/forged reply and held revoke, independent real model proposal, explicit confirmation, correction, rejection, source replacement and restart."
+    }
+  ],
+  "records": [
+    {
+      "path": "docs/evidence/KNOW-003/runs/independent-local.json",
+      "sha256": "359c214056c649f64a89a6e4afa7a770e8b69178cdf3835a3eec8becce19a4ea"
+    },
+    {
+      "path": "docs/evidence/KNOW-003/runs/independent-live.json",
+      "sha256": "9f9756ac7f3ce47726e8ca47c8b6fed94ade63f8936e874fb479b2df342f80ab"
+    },
+    {
+      "path": "docs/evidence/KNOW-003/runs/v38-storage.json",
+      "sha256": "c8509a3f21c718002ab8e376c1edbe260f120bcd4d0cae93c46e017e1716e25b"
+    }
+  ]
+}

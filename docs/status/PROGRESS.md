@@ -1,6 +1,6 @@
 # 实际进度
 
-2026-11-26，**30/76 工作单元通过、16/66 完整场景通过、5/44 完整需求 verified**。[PROJECT-002](../evidence/PROJECT-002/REPORT.md) 和 A31 通过，P08 等 SCORE-001。[FND-005](../evidence/FND-005/tokease-20261126/REPORT.md) 已完成 T01–T09 与 A01，词易模型 `deepseek-v4.1-flash-1017` 通过真实业务读写及独立复跑。[PROJECT-003](../evidence/PROJECT-003/REPORT.md) 与 [PROJECT-004](../evidence/PROJECT-004/REPORT.md) 通过指定审核、权限内改判、正式复议和材料授权自然到期验收，A32/A33 已收口。[GitLab](../evidence/REPO-002/REPORT.md) 和 [Gitee](../evidence/REPO-003/REPORT.md) 已验收，三平台固定版本读取及实际 AI 写入拒绝完成 A19、F15。[KNOW-001](../evidence/KNOW-001/REPORT.md) 的真实双语境解释、个人保存和固定原文定位已通过独立复跑。[KNOW-002](../evidence/KNOW-002/REPORT.md) 已验收正式知识条目、人工确认、历史版本及来源撤权。下一单元 KNOW-003。
+2026-11-26，**31/76 工作单元通过、17/66 完整场景通过、6/44 完整需求 verified**。[PROJECT-002](../evidence/PROJECT-002/REPORT.md) 和 A31 通过，P08 等 SCORE-001。[FND-005](../evidence/FND-005/tokease-20261126/REPORT.md) 已完成 T01–T09 与 A01，词易模型 `deepseek-v4.1-flash-1017` 通过真实业务读写及独立复跑。[PROJECT-003](../evidence/PROJECT-003/REPORT.md) 与 [PROJECT-004](../evidence/PROJECT-004/REPORT.md) 通过指定审核、权限内改判、正式复议和材料授权自然到期验收，A32/A33 已收口。[GitLab](../evidence/REPO-002/REPORT.md) 和 [Gitee](../evidence/REPO-003/REPORT.md) 已验收，三平台固定版本读取及实际 AI 写入拒绝完成 A19、F15。[KNOW-001](../evidence/KNOW-001/REPORT.md) 的真实双语境解释、个人保存和固定原文定位已通过独立复跑。[KNOW-002](../evidence/KNOW-002/REPORT.md) 已验收正式知识条目、人工确认、历史版本及来源撤权。[KNOW-003](../evidence/KNOW-003/REPORT.md) 已验收规则约束、真实模型提案、人工审核和固定证据，A11 与 F13 收口。A12、A45 待生命周期集成。下一单元 LEARN-001。
 
 ## 2026-11-22 检查点与历史
 

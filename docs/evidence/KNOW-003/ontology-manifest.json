@@ -1,0 +1,16 @@
+{
+  "unit": "KNOW-003",
+  "candidate": "0c53da25dd4bc4c1cdcd7195053af480cfd0ff73",
+  "entry_sha256": "d0ef059866195178c56e883138208f970ec919cc90ec2786386ac734a947bb12",
+  "route": {
+    "provider": "tokease",
+    "model": "deepseek-v4.1-flash-1017",
+    "endpoint": "https://tokease.cn/v1"
+  },
+  "stage": "valid-ontology-relation",
+  "fixture_sha256": "97f63d983f3d0ca99527a8fec863d7848698d2f13a82dbff7df8b0b7140ee63c",
+  "system_sha256": "a255ecacbbd2c3b5217aeca6de8dda021af4b9978a05d1293595c058e584f4a1",
+  "user_sha256": "f9b65da956d02fca6ea184f57f49e53f4cdb8ead1a28475030cf96a86b999f4f",
+  "wire_sha256": "adb009a1fcdcd6dbee0a4751cbdc730dd7778304fa5ad03627c1da20efa99c78",
+  "approval_sha256": "3fc23e7cca506f0406e2346850d85052db19e4529ecab8c88150751f53c9e06b"
+}
