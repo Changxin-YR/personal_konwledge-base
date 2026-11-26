@@ -11,7 +11,9 @@ const out=resolve(process.argv[2]??'docs/evidence/FND-005/runs/configuration');m
 const report={category:'REAL_HTTP_CONFIG_AND_CONTROLLED_ERROR_FIXTURE',real_gpt:false,status:'PASS',checks:[],started_at:new Date().toISOString()}
 const base={provider:'fnd005-fixture',model:'deepseek-controlled-tool-model',inputUsdPerMillion:.001,outputUsdPerMillion:.001,maxCalls:1}
 const cases=[['unconfigured',{},503,'MODEL_NOT_CONFIGURED'],['non-deepseek',{...base,model:'gpt-fixture'},503,'MODEL_NOT_CONFIGURED'],['provider-unavailable',{...base,provider:'unavailable'},503,'MODEL_NOT_CONFIGURED'],['model-not-found',{...base,model:'deepseek-nonexistent-model'},404,'MODEL_NOT_FOUND'],['prices-absent',{provider:base.provider,model:base.model},200,undefined],['monetary-budget',{...base,budgetUsd:.001,inputUsdPerMillion:1000},200,undefined],['call-budget',base,200,undefined]]
-for(const [id,ai,status,code] of cases){let host;const run=prepareRun(out,3133,{ai});try{
+for(const [id,ai,status,code] of cases){let host;
+ const providerRows=id==='unconfigured'?[{id:'agent-default-model',config:{provider:'',model:''}}]:undefined;
+ const run=prepareRun(out,3133,{ai,providerRows});try{
  const c=await accounts(run);host=c.host;const body={request_id:randomUUID(),instruction:'读取对象',object_id:'synthetic-target',expected_revision:1,idempotency_key:'key'}
  if(id==='call-budget')assert.equal((await api(run.port,c.alice.cookie,'POST','/knowledge/v1/ai/prepare',body)).status,200)
  const r=await api(run.port,c.alice.cookie,'POST','/knowledge/v1/ai/prepare',{...body,request_id:randomUUID()});assert.equal(r.status,status,JSON.stringify(r.json));assert.equal(r.json.code,code)

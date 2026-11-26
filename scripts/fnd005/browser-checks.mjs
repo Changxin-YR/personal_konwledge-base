@@ -39,7 +39,8 @@ try{
  await page.locator('#refresh').click();await page.waitForFunction(()=>document.querySelector('#execute').disabled);assert.equal(await page.locator('#tool').textContent(),'');report.checks.push({id:'T08.refresh-invalidates-prepared-tool',status:'PASS'})
  await context.close()
  await stopHost(host);host=undefined
- const blocked=prepareRun(out,3134,{fixture:false}),bc=await accounts(blocked);host=bc.host
+ const blocked=prepareRun(out,3134,{fixture:false,providerRows:[{id:'agent-default-model',config:{provider:'',model:''}}]});
+ const bc=await accounts(blocked);host=bc.host
  const blockedContext=await browser.newContext({viewport:{width:1180,height:900}}),blockedPage=await blockedContext.newPage()
  await blockedPage.goto(base+'/knowledgeos/account');await blockedPage.locator('#login_name').fill('alice');await blockedPage.locator('#login_password').fill('甲 synthetic password 2026!');await blockedPage.locator('#login').click();await blockedPage.locator('#profile').waitFor({state:'visible'})
  await blockedPage.goto(base+'/knowledgeos/ai');await blockedPage.waitForFunction(()=>document.querySelector('#status').textContent.includes('BLOCKED'));assert(await blockedPage.locator('#prepare').isDisabled());await blockedPage.screenshot({path:join(out,'model-not-configured.png'),fullPage:true});report.checks.push({id:'T08.unconfigured-ui-blocked',status:'PASS',provider_calls:0});await blockedPage.locator('#instruction').fill('读取');assert(await blockedPage.locator('#prepare').isDisabled());assert((await blockedPage.locator('#status').textContent()).includes('BLOCKED'));report.checks.push({id:'T08.unconfigured-draft-stays-blocked',status:'PASS'});await blockedContext.close()
