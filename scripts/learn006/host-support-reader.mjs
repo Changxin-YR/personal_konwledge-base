@@ -204,7 +204,7 @@ export async function editCard(h, actor, peer, asset, card, other, supplement) {
   await h.capture(actor, '#term-panel', 'saved-edited-card')
   await openReader(h, peer, asset)
   await h.event(peer, termList(asset), 'GET', '#terms-open', 200)
-  await peer.page.locator('#term-list').waitFor()
+  await peer.page.locator('#term-status').filter({ hasText: '没有收藏的术语' }).waitFor()
   assert.equal(await peer.page.locator('#term-list li button').count(), 0)
   absent(await peer.page.locator('#term-panel').innerText(), [supplement, edited.explanation.professional])
   return edited
