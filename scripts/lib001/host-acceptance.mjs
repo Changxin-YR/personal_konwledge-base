@@ -103,7 +103,7 @@ async function show(page,n){
 }
 async function image(page,label){
   // Only the library main in a new, synthetic session; never the entry URL, login page, Host log or browser chrome.
-  assert.equal(page.url(),base+library);const main=page.getByRole('main');await main.getByRole('heading',{name:'PDF 资料库',exact:true}).waitFor()
+  assert.equal(page.url(),base+library);const main=page.getByRole('main');await main.getByRole('heading',{name:'知识库',level:1,exact:true}).waitFor()
   const name=label+'.png',img=await main.screenshot({path:join(out,name)});log('browser:'+label,{file:name,sha256:sha(img)})
 }
 async function choose(page,name,bytes){
