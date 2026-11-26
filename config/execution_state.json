@@ -10,7 +10,7 @@
     "sha256": "a2e5986cfa81189aeae0c4b43ebfe4afd074aae9d5674e7ecf5e069c5d6ab530"
   },
   "active_unit": "KNOW-001",
-  "unit_state": "in_progress",
+  "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Build contextual term explanations tied to an authorized fixed reader selection, with explicit personal saving.",
+  "state_reason": "Contextual terms verified through the authorized real model and independent route replay.",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,47 +127,57 @@
     }
   },
   "last_accepted_checkpoint": {
-    "candidate_sha": "067de230947b8fa44435de544647fddb15c1e4f0",
-    "tree": "871b4782b2c26042ab091e646c99e490a865af73",
-    "source_tree": "0291e4728ec520ed882867b6a86b28934f45abae",
-    "entry_sha256": "e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca",
-    "build_sha256": "5ef94b938c299de1f5d7a1b605f40796fa4417ded8f0f423f4430258ece642df",
-    "unit_id": "REPO-003",
-    "base_commit": "4a20369eec9732141316dfa6249696cf983c49bc",
+    "candidate_sha": "4d4275ded7afecc3c4ddec2612ac5006b717308f",
+    "tree": "0ace13f00590c73d0439999bc2a2e75fa1d7ec25",
+    "source_tree": "9a872b2e438f244537dafe213bc056e9cd96d8d6",
+    "entry_sha256": "cb1b53e3d3a63eb90d69ad9126e5fb9f69e45568f97f69d812506a10c578cdd9",
+    "build_sha256": "9c3f1def17f513744b6bcde3c494062af5e899d5cf2f09ada7a73b1d36e0adec",
+    "unit_id": "KNOW-001",
+    "base_commit": "0016a75c5bee1977d7bec42367b2f44133bc708c",
     "completed": [
-      "Added Gitee and checksum-bound v35 upgrade while preserving GitHub and GitLab snapshots.",
-      "Main and independent original public reads from three platforms and real product AI push denial all passed."
+      "Two fixed reader selections explained with the authorized Tokease model in two isolated browser/database sessions.",
+      "Private explicit saving, interruption, scope and v36 migration verification."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
       "T01": "PASS",
       "T02": "PASS",
-      "A19": "PASS",
-      "independent": "PASS"
+      "independent": "PASS",
+      "A10": "NOT_RUN",
+      "P03": "NOT_RUN"
     },
-    "evidence": "docs/evidence/REPO-003/acceptance.json",
+    "evidence": "docs/evidence/KNOW-001/acceptance.json",
     "defects": [],
     "blocked_dependencies": [
-      "Private platform credential and revocation behavior require approved private test fixtures."
+      "A10 and P03 need downstream practice and return-reading integration."
     ],
-    "next_task": "KNOW-001"
+    "next_task": "KNOW-002"
   },
   "checkpoint": {
+    "candidate_sha": "4d4275ded7afecc3c4ddec2612ac5006b717308f",
+    "tree": "0ace13f00590c73d0439999bc2a2e75fa1d7ec25",
+    "source_tree": "9a872b2e438f244537dafe213bc056e9cd96d8d6",
+    "entry_sha256": "cb1b53e3d3a63eb90d69ad9126e5fb9f69e45568f97f69d812506a10c578cdd9",
+    "build_sha256": "9c3f1def17f513744b6bcde3c494062af5e899d5cf2f09ada7a73b1d36e0adec",
     "unit_id": "KNOW-001",
-    "base_commit": "e9fab12616ad1b4c984e4984a93562157976cc75",
+    "base_commit": "0016a75c5bee1977d7bec42367b2f44133bc708c",
     "completed": [
-      "Independent acceptance expectations and two-sense fixture prepared."
+      "Two fixed reader selections explained with the authorized Tokease model in two isolated browser/database sessions.",
+      "Private explicit saving, interruption, scope and v36 migration verification."
     ],
     "test_results": {
-      "unit_acceptance": "NOT_RUN",
-      "T01": "NOT_RUN",
-      "T02": "NOT_RUN",
-      "P03": "NOT_RUN",
-      "A10": "NOT_RUN"
+      "unit_acceptance": "PASS",
+      "T01": "PASS",
+      "T02": "PASS",
+      "independent": "PASS",
+      "A10": "NOT_RUN",
+      "P03": "NOT_RUN"
     },
-    "evidence": "scripts/know001/acceptance-plan.md",
+    "evidence": "docs/evidence/KNOW-001/acceptance.json",
     "defects": [],
-    "blocked_dependencies": [],
-    "next_task": "KNOW-001"
+    "blocked_dependencies": [
+      "A10 and P03 need downstream practice and return-reading integration."
+    ],
+    "next_task": "KNOW-002"
   }
 }

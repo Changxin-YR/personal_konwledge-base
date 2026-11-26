@@ -1,0 +1,94 @@
+{
+  "unit_id": "KNOW-001",
+  "candidate_sha": "4d4275ded7afecc3c4ddec2612ac5006b717308f",
+  "tree": "0ace13f00590c73d0439999bc2a2e75fa1d7ec25",
+  "source_tree": "9a872b2e438f244537dafe213bc056e9cd96d8d6",
+  "entry_sha256": "cb1b53e3d3a63eb90d69ad9126e5fb9f69e45568f97f69d812506a10c578cdd9",
+  "build_sha256": "9c3f1def17f513744b6bcde3c494062af5e899d5cf2f09ada7a73b1d36e0adec",
+  "runner_sha256": "b513df3e42f60109b5c7689adb1f77ef3cdf7c7f42e68751b27897ff0af4a5bb",
+  "fixture_sha256": "b85eb1743386bbe66489e736edd9bac9a994f6dcfcb33884abcd21f4e36bb559",
+  "controller_sha256": "c88e6ddab3694e1a721b94d39b3f0f679bbedb69f8f1a27a85c79e645938af4c",
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "A10": "NOT_RUN",
+  "P03": "NOT_RUN",
+  "checks": [
+    {
+      "id": "same_term_distinct_contexts_and_utf16_anchors",
+      "status": "PASS",
+      "sources": [
+        {
+          "asset_id": "069383ca-864a-450f-9cd3-ae266a4780aa",
+          "version_id": "192cba51-e498-4e8e-a8b7-4a5b937b9911",
+          "ordinal": 5,
+          "start": 97,
+          "end": 99,
+          "source_hash": "181c5be6eb73847fd821460c1e4e5dc59e0efca876a2a4bfde009b72815681de"
+        },
+        {
+          "asset_id": "069383ca-864a-450f-9cd3-ae266a4780aa",
+          "version_id": "192cba51-e498-4e8e-a8b7-4a5b937b9911",
+          "ordinal": 9,
+          "start": 73,
+          "end": 75,
+          "source_hash": "16a913b2815125c47b9e6410b93383d7564221e0f10906a57e1e66e48cfbda5f"
+        }
+      ],
+      "lookup_created_no_term_rows": true
+    },
+    {
+      "id": "explicit_save_personal_scope_replay_and_fixed_source_after_restart",
+      "status": "PASS",
+      "saved_count": 1,
+      "discarded_count": 1,
+      "resumed_ordinal": 9
+    }
+  ],
+  "screens": [
+    {
+      "name": "database-term.png",
+      "sha256": "e2674238f9dd908bbeeceaff782f51e5023cd78ed4470994a625bc432162f3da"
+    },
+    {
+      "name": "array-term.png",
+      "sha256": "5ace9353ea9702ae20bedc534638d004f87f45329a84996279660717815c6937"
+    },
+    {
+      "name": "term-fixed-source-return.png",
+      "sha256": "8d6a1ba99723a4c111fd9e4ee3ccc40815974f6719ad4a0ac82f33a03f73c42f"
+    }
+  ],
+  "boots": [
+    121484,
+    120008
+  ],
+  "chrome": "158.0.8127.88",
+  "model": {
+    "mode": "live",
+    "provider": "tokease",
+    "model": "deepseek-v4.1-flash-1017",
+    "real_inference_requests": 2,
+    "wire_calibrations": 0,
+    "requests": [
+      {
+        "stage": "database-index",
+        "request_sha256": "906df1ebbfda29806fecf8cd83a80f30d18b3e57f2882bc52299e0123e96933e",
+        "output_token_cap": 1536
+      },
+      {
+        "stage": "array-index",
+        "request_sha256": "e7fe219feb89bbba8eb81d1ba508c901233fddbca8a415d0dc868c913f027cca",
+        "output_token_cap": 1536
+      }
+    ],
+    "endpoint": "https://tokease.cn/v1",
+    "manifest_sha256": "9a5819ab60ad403fa1f0ee105aa8c0620ebd871f94d8a85705ad8718e86eb62c"
+  },
+  "model_usage": {
+    "reported_input_tokens": 174,
+    "reported_output_tokens": 1245,
+    "known_estimated_usd": 0,
+    "unknown_cost_calls": 2
+  }
+}

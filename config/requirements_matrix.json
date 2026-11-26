@@ -171,8 +171,10 @@
         "P03",
         "A10"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/KNOW-001/acceptance.json"
+      ]
     },
     {
       "id": "F11",

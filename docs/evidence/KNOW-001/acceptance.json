@@ -1,0 +1,47 @@
+{
+  "candidate_sha": "4d4275ded7afecc3c4ddec2612ac5006b717308f",
+  "tree": "0ace13f00590c73d0439999bc2a2e75fa1d7ec25",
+  "source_tree": "9a872b2e438f244537dafe213bc056e9cd96d8d6",
+  "entry_sha256": "cb1b53e3d3a63eb90d69ad9126e5fb9f69e45568f97f69d812506a10c578cdd9",
+  "build_sha256": "9c3f1def17f513744b6bcde3c494062af5e899d5cf2f09ada7a73b1d36e0adec",
+  "unit_id": "KNOW-001",
+  "unit_acceptance": "PASS",
+  "passed_test_ids": [
+    "KNOW-001-T01",
+    "KNOW-001-T02"
+  ],
+  "main_command": "node scripts/know001/host-terms.mjs <frozen-checkout> 4d4275ded7afecc3c4ddec2612ac5006b717308f cb1b53e3d3a63eb90d69ad9126e5fb9f69e45568f97f69d812506a10c578cdd9 <frozen-controller>",
+  "main_exit": 0,
+  "main_records": [
+    {
+      "path": "docs/evidence/KNOW-001/runs/main.json",
+      "sha256": "2dcbc4f21a472426c91bfc73278bf95d202961d06f0a899735b31968267e07e9"
+    }
+  ],
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/KNOW-001/independent.json",
+  "native_offline_calibration": {
+    "path": "docs/evidence/KNOW-001/runs/term-calibration.json",
+    "sha256": "affd60a0da0818b67331fa787cd8178ebcee30548fec91969bfa5373fce05bf8"
+  },
+  "real_inference_requests": 4,
+  "price_approval": {
+    "path": "docs/evidence/KNOW-001/price-approval.json",
+    "sha256": "85c2779560fdc0598602fb8f2f8d6df8164b64aa7e2a69a2ae272ccc90030dda"
+  },
+  "approved_request_manifest": {
+    "path": "docs/evidence/KNOW-001/term-manifest.json",
+    "sha256": "9a5819ab60ad403fa1f0ee105aa8c0620ebd871f94d8a85705ad8718e86eb62c"
+  },
+  "technical_results": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "migration_v36": "PASS",
+    "bounded_adapter_tests": "PASS",
+    "fnd005_regression": "PASS"
+  },
+  "pending_cases": [
+    "A10",
+    "P03"
+  ]
+}

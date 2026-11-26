@@ -1,0 +1,26 @@
+{
+  "unit_id": "KNOW-001",
+  "candidate_sha": "28938690b13bf22c9ae593ed57368af864767432",
+  "tree": "ddb21a992a8e5b3805bf1bbe06dfe50359073499",
+  "source_tree": "482e83bbceaf2d5b3923e94028efb731a11eaa1e",
+  "entry_sha256": "65a4a9d60cd5007c66799a776ed02029c0c4f4b547833e91f8d7175e7db95327",
+  "build_sha256": "3acf7d4fb3e262ce4d69d230a0ce1b240498b55ffabc352ed19218280f250001",
+  "runner_sha256": "ab22cde6669a4fac66a0704ddb4bb301bd0aaf12aa0e9cd7b264250f2578f655",
+  "fixture_sha256": "b85eb1743386bbe66489e736edd9bac9a994f6dcfcb33884abcd21f4e36bb559",
+  "controller_sha256": "1f2770e16fc1895026456217d10b0fcf32990f680b943cd5331512d1a7ef212c",
+  "status": "FAIL",
+  "T01": "NOT_RUN",
+  "T02": "NOT_RUN",
+  "A10": "NOT_RUN",
+  "P03": "NOT_RUN",
+  "checks": [],
+  "screens": [],
+  "boots": [
+    135480
+  ],
+  "chrome": "158.0.8127.88",
+  "failure": {
+    "phase": "T01 first range: database, temporary only",
+    "message": "MODEL_OUTPUT_EMPTY\n\n502 !== 200\n"
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "unit_id": "REPO-003",
+  "acceptance_slice": "A19_AI_REPOSITORY_WRITE_DENIED",
+  "candidate_sha": "e10eeb40399b12965478d192e029c75acdc3dd91",
+  "tree": "c24020ffc1b01c581cbcc62f892d20322955dbe8",
+  "source_tree": "9a872b2e438f244537dafe213bc056e9cd96d8d6",
+  "entry_sha256": "cb1b53e3d3a63eb90d69ad9126e5fb9f69e45568f97f69d812506a10c578cdd9",
+  "build_sha256": "9c3f1def17f513744b6bcde3c494062af5e899d5cf2f09ada7a73b1d36e0adec",
+  "runner_sha256": "a61d0fccd34b3a6ed1121017cd54f1af704b5965bc653a3e4e56b2e9389af9d3",
+  "fixture_sha256": "551827a857d865fb8277f5167f7a012063e64b91e6008dc9477589570caf66ac",
+  "test_scope": "Actual product UI, HTTP, DSH tool policy and SQLite with offline model and GitHub setup fixtures",
+  "real_model_inference": false,
+  "real_platform_reads": 0,
+  "status": "PASS",
+  "A19": "NOT_RUN",
+  "screenshots": [
+    {
+      "name": "a19-ai-repository-push-denied.png",
+      "sha256": "9280b2e3ab6bca6ac0bb63805fc40f07afef84ce6ad9992c2f85d3eec13aed3c"
+    }
+  ],
+  "checks": [
+    {
+      "id": "A19_AI_AUTHENTICATED_READ_CONTROL",
+      "status": "PASS",
+      "status_http": 200,
+      "tool": "knowledgeos_read_object"
+    },
+    {
+      "id": "A19_AI_REPOSITORY_WRITE_DENIED",
+      "status": "PASS",
+      "status_http": 422,
+      "code": "TOOL_NOT_ALLOWED",
+      "product_ui": true,
+      "prepared": false,
+      "tool_executions": 0,
+      "repo_transport_attempts": 0,
+      "browser_external_attempts": 0,
+      "ai_mutations": 0,
+      "sqlite_before_after_equal": true,
+      "fixed_snapshot_retrieved_after_denial": true,
+      "setup_fixture_reads": 5
+    }
+  ],
+  "binding": {
+    "candidate_sha": "e10eeb40399b12965478d192e029c75acdc3dd91",
+    "tree": "c24020ffc1b01c581cbcc62f892d20322955dbe8",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "cb1b53e3d3a63eb90d69ad9126e5fb9f69e45568f97f69d812506a10c578cdd9",
+    "helpers": {
+      "candidate-load-proof": "b4a49fa20f056e8d0969b409fee51b56caac35a803636029b072ee576c8b6de1",
+      "repository-egress": "0f5c7dc49d64d41cbfd2685d6d3c2ba7ea31ee7352a7a37174eee40353027448"
+    }
+  },
+  "chrome": "158.0.8127.88"
+}

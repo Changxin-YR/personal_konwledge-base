@@ -1,0 +1,43 @@
+{
+  "unit_id": "KNOW-001",
+  "candidate_sha": "e10eeb40399b12965478d192e029c75acdc3dd91",
+  "tree": "c24020ffc1b01c581cbcc62f892d20322955dbe8",
+  "source_tree": "9a872b2e438f244537dafe213bc056e9cd96d8d6",
+  "entry_sha256": "cb1b53e3d3a63eb90d69ad9126e5fb9f69e45568f97f69d812506a10c578cdd9",
+  "build_sha256": "9c3f1def17f513744b6bcde3c494062af5e899d5cf2f09ada7a73b1d36e0adec",
+  "fixture_sha256": "b85eb1743386bbe66489e736edd9bac9a994f6dcfcb33884abcd21f4e36bb559",
+  "scope": "REAL_HOST_HTTP_SQLITE_CONTROLLED_MODEL_AFTER_DISPATCH_REVOCATION",
+  "status": "PASS",
+  "real_inference_requests": 0,
+  "checks": [
+    {
+      "id": "bad_hash_denied_before_fixture_dispatch",
+      "status": "PASS",
+      "http": 409,
+      "fixture_dispatches": 0
+    },
+    {
+      "id": "after_dispatch_source_revocation_suppresses_result",
+      "status": "PASS",
+      "model_fixture_dispatches": 1,
+      "release_only_after_authentication_404": true,
+      "http": 404,
+      "response_code": "SOURCE_NOT_FOUND",
+      "no_handle_or_source_disclosed": true,
+      "owner_reader_control": 200,
+      "no_saved_terms_or_citation_mutation": true
+    }
+  ],
+  "host_pid": 136008,
+  "fixture": {
+    "mode": "CONTROLLED_FIXTURE",
+    "provider": "knowledgeos-know001-fixture",
+    "model": "deepseek-know001-controlled-fixture",
+    "real_inference_requests": 0,
+    "fixture_dispatches": 1,
+    "external_fetch_denials": 0,
+    "controller_sha256": "06262506c000de73091f9ba8488a8e8f375a624111937bf54ad5244eff3ee213",
+    "adapter_sha256": "3bb3bb4bcc2793cd4633852ac20e6d8857b38769333fd428dcaea27eda1b90f7",
+    "egress_sha256": "779fe4ee8d831f390209552bb10f67a34fbb21217dd970f619596203e305ad84"
+  }
+}
