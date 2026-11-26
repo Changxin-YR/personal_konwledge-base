@@ -462,7 +462,7 @@ var AiService = class {
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash17, randomUUID as randomUUID17 } from "node:crypto";
+import { createHash as createHash18, randomUUID as randomUUID18 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -717,11 +717,11 @@ var SearchStore = class {
     if (!current) throw new AssetError(401, "AUTH_REQUIRED");
     return current;
   }
-  indexed(hash2, text2) {
-    const hit = this.cache.get(hash2);
+  indexed(hash3, text2) {
+    const hit = this.cache.get(hash3);
     if (hit) {
-      this.cache.delete(hash2);
-      this.cache.set(hash2, hit);
+      this.cache.delete(hash3);
+      this.cache.set(hash3, hit);
       return hit.index;
     }
     const index = indexSearchText(text2), weight = index.ranges.length;
@@ -731,7 +731,7 @@ var SearchStore = class {
       this.weight -= this.cache.get(key).weight;
       this.cache.delete(key);
     }
-    this.cache.set(hash2, { index, weight });
+    this.cache.set(hash3, { index, weight });
     this.weight += weight;
     return index;
   }
@@ -1418,8 +1418,8 @@ import { createHash as createHash6 } from "node:crypto";
 function citationAnchor(text2, start, end) {
   const split = (n) => n > 0 && n < text2.length && text2.charCodeAt(n - 1) >= 55296 && text2.charCodeAt(n - 1) <= 56319 && text2.charCodeAt(n) >= 56320 && text2.charCodeAt(n) <= 57343;
   if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end <= start || end > text2.length || split(start) || split(end)) throw new AssetError(422, "INVALID_CITATION_RANGE");
-  const quote = text2.slice(start, end), hash2 = (s) => createHash6("sha256").update(s, "utf8").digest("hex");
-  return { start, end, quote_hash: hash2(quote), source_hash: hash2(text2) };
+  const quote = text2.slice(start, end), hash3 = (s) => createHash6("sha256").update(s, "utf8").digest("hex");
+  return { start, end, quote_hash: hash3(quote), source_hash: hash3(text2) };
 }
 function resolveCitationText(text2, anchor) {
   const digest3 = createHash6("sha256").update(text2, "utf8").digest("hex");
@@ -1813,6 +1813,11 @@ var CitationStore = class {
   target(prior, id) {
     return this.tx("read", (db, now) => this.lookup(db, this.actor(prior, now), id, now));
   }
+  knowledgeSource(db, actor, id, now) {
+    const citation = this.lookup(db, actor, id, now);
+    this.checkStoredSelection(db, actor, citation, now);
+    return citation;
+  }
   resolve(prior, id, w) {
     return this.tx("read", (db, now) => {
       const a = this.actor(prior, now), r = this.lookup(db, a, id, now), source = this.read(db, a, r, now);
@@ -1948,6 +1953,14 @@ var NoteStore = class {
     const row = db.prepare(`SELECT ${rowFields} FROM notes WHERE id=? AND service_id=? AND owner_user_id=?`).get(id, a.serviceId, a.userId);
     if (!row) throw notFound3();
     return row;
+  }
+  knowledgeSource(db, actor, id) {
+    const note = this.owned(db, actor, id);
+    const root = db.prepare("SELECT body FROM note_nodes WHERE note_id=? AND parent_id IS NULL AND archived_at IS NULL").get(id);
+    if (!root) throw notFound3();
+    const citations = db.prepare(`SELECT DISTINCT r.citation_id FROM note_references r JOIN note_nodes n ON n.id=r.node_id
+      WHERE n.note_id=? AND n.archived_at IS NULL ORDER BY r.citation_id`).all(id).map((r) => String(r.citation_id));
+    return { id, title: note.title, revision: note.revision, content_hash: createHash10("sha256").update(String(root.body)).digest("hex"), citations };
   }
   detail(db, a, id, now) {
     const meta = this.owned(db, a, id);
@@ -2220,6 +2233,11 @@ var TermStore = class {
       return row ? this.view(db, actor, row, now) : void 0;
     });
   }
+  knowledgeSource(db, actor, id, now) {
+    const row = this.row(db, actor, id);
+    if (!row) throw new AssetError(404, "SOURCE_NOT_FOUND");
+    return this.view(db, actor, row, now);
+  }
   list(session, asset, version) {
     return this.tx("read", (db, now) => {
       const actor = this.actor(session, now);
@@ -2270,14 +2288,245 @@ var TermStore = class {
   }
 };
 
+// src/host/knowledge-store.ts
+import { createHash as createHash11, randomUUID as randomUUID13 } from "node:crypto";
+var KNOWLEDGE_SCHEMA = `
+CREATE TABLE knowledge_items (
+  id TEXT PRIMARY KEY, service_id TEXT NOT NULL, owner_id TEXT NOT NULL REFERENCES users(id),
+  kind TEXT NOT NULL CHECK(kind IN ('term','concept','case','solution')),
+  domain TEXT NOT NULL CHECK(domain IN ('software_engineering','system_architecture','hardware_engineering','ai_development')),
+  current_version_id TEXT NOT NULL, created_at TEXT NOT NULL,
+  FOREIGN KEY(id,current_version_id) REFERENCES knowledge_versions(item_id,id) DEFERRABLE INITIALLY DEFERRED
+) STRICT;
+CREATE TABLE knowledge_versions (
+  id TEXT PRIMARY KEY, item_id TEXT NOT NULL REFERENCES knowledge_items(id),
+  revision INTEGER NOT NULL CHECK(revision>=1), title TEXT NOT NULL, definition TEXT NOT NULL, plain_explanation TEXT NOT NULL, context TEXT NOT NULL,
+  sources_json TEXT NOT NULL, author_kind TEXT NOT NULL CHECK(author_kind IN ('human','assisted')),
+  created_by TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL,
+  confirmation_state TEXT NOT NULL CHECK(confirmation_state IN ('pending','confirmed')),
+  confirmed_by TEXT REFERENCES users(id), confirmed_at TEXT,
+  CHECK((confirmation_state='confirmed')=(confirmed_by IS NOT NULL AND confirmed_at IS NOT NULL)),
+  CHECK((confirmed_by IS NULL)=(confirmed_at IS NULL)), UNIQUE(item_id,revision), UNIQUE(item_id,id)
+) STRICT;
+CREATE TABLE knowledge_write_receipts (
+  service_id TEXT NOT NULL, owner_id TEXT NOT NULL REFERENCES users(id), request_key TEXT NOT NULL,
+  digest TEXT NOT NULL CHECK(length(digest)=64), item_id TEXT NOT NULL, version_id TEXT NOT NULL,
+  FOREIGN KEY(item_id,version_id) REFERENCES knowledge_versions(item_id,id), PRIMARY KEY(service_id,owner_id,request_key)
+) STRICT;
+CREATE INDEX knowledge_items_owner ON knowledge_items(service_id,owner_id,created_at,id);
+`;
+var noAccess = () => new AssetError(404, "KNOWLEDGE_ITEM_NOT_FOUND");
+var invalidSource = () => new AssetError(404, "SOURCE_NOT_FOUND");
+var conflict2 = () => new AssetError(409, "REVISION_CONFLICT");
+var hash2 = (value) => createHash11("sha256").update(JSON.stringify(value)).digest("hex");
+var origin = (source) => "/knowledgeos/reader?" + new URLSearchParams({
+  asset: source.asset_id,
+  version: source.version_id,
+  citation: source.id
+});
+var KnowledgeStore = class {
+  constructor(tx, current, citations, notes, terms) {
+    this.tx = tx;
+    this.current = current;
+    this.citations = citations;
+    this.notes = notes;
+    this.terms = terms;
+  }
+  actor(prior, now) {
+    const actor = this.current(prior, now);
+    if (!actor) throw new AssetError(401, "AUTH_REQUIRED");
+    return actor;
+  }
+  owned(db, actor, id) {
+    const row = db.prepare("SELECT id,kind,domain,current_version_id,created_at FROM knowledge_items WHERE service_id=? AND owner_id=? AND id=?").get(actor.serviceId, actor.userId, id);
+    if (!row) throw noAccess();
+    return row;
+  }
+  version(db, item, revision) {
+    const row = revision === void 0 ? db.prepare("SELECT * FROM knowledge_versions WHERE item_id=? AND id=?").get(item.id, item.current_version_id) : db.prepare("SELECT * FROM knowledge_versions WHERE item_id=? AND revision=?").get(item.id, revision);
+    if (!row) throw noAccess();
+    return row;
+  }
+  pin(db, actor, inputs, now) {
+    return inputs.map((input) => {
+      if (input.type === "citation") return { type: "citation", ...this.citations.knowledgeSource(db, actor, input.id, now) };
+      if (input.type === "term") {
+        const term = this.terms.knowledgeSource(db, actor, input.id, now);
+        return { type: "term", id: term.id, title: term.term, provenance: term.source, provider: term.provider, model: term.model };
+      }
+      if (input.type !== "note") throw invalidSource();
+      const { citations, ...note } = this.notes.knowledgeSource(db, actor, input.id);
+      if (note.revision !== input.revision) throw new AssetError(409, "KNOWLEDGE_SOURCE_CHANGED");
+      return { type: "note", ...note, dependencies: citations.map((id) => this.citations.knowledgeSource(db, actor, id, now)) };
+    });
+  }
+  validatedSources(db, actor, row, now) {
+    return JSON.parse(row.sources_json).map((source) => {
+      if (source.type === "citation") {
+        this.citations.checkStoredSelection(db, actor, source, now);
+        return { ...source, category: "excerpt", state: "fixed", href: origin(source) };
+      }
+      if (source.type === "term") {
+        this.citations.checkStoredSelection(db, actor, source.provenance, now);
+        this.terms.knowledgeSource(db, actor, source.id, now);
+        return { ...source, category: "assisted", state: "fixed", href: source.provenance.origin };
+      }
+      const note = this.notes.knowledgeSource(db, actor, source.id);
+      for (const citation of source.dependencies) this.citations.checkStoredSelection(db, actor, citation, now);
+      const { dependencies, ...witness } = source;
+      const stable = note.revision === source.revision && note.content_hash === source.content_hash;
+      return {
+        ...witness,
+        dependency_count: dependencies.length,
+        category: "note",
+        state: stable ? "fixed" : "changed",
+        href: stable ? "/knowledgeos/notes?" + new URLSearchParams({ note: source.id }) : null
+      };
+    });
+  }
+  view(db, actor, item, row, now) {
+    const sources2 = this.validatedSources(db, actor, row, now);
+    return {
+      id: item.id,
+      version_id: row.id,
+      version: row.revision,
+      is_current: row.id === item.current_version_id,
+      kind: item.kind,
+      domain: item.domain,
+      title: row.title,
+      definition: row.definition,
+      plain_explanation: row.plain_explanation,
+      context: row.context,
+      sources: sources2,
+      source_kind: sources2.length ? "sourced" : "original",
+      author_kind: row.author_kind,
+      created_by: row.created_by,
+      created_at: row.created_at,
+      confirmation_state: row.confirmation_state,
+      confirmed_by: row.confirmed_by,
+      confirmed_at: row.confirmed_at
+    };
+  }
+  visible(operation) {
+    try {
+      return [operation()];
+    } catch (error) {
+      if (error instanceof AssetError && [404, 409].includes(error.status)) return [];
+      throw error;
+    }
+  }
+  list(prior) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(prior, now);
+      const rows = db.prepare("SELECT id,kind,domain,current_version_id,created_at FROM knowledge_items WHERE service_id=? AND owner_id=? ORDER BY created_at DESC,id DESC").all(actor.serviceId, actor.userId);
+      return rows.flatMap((row) => this.visible(() => {
+        const version = this.version(db, row), item = this.view(db, actor, row, version, now);
+        const { id, title, domain, kind, version_id, confirmation_state, source_kind } = item;
+        return { id, title, domain, kind, version_id, version: version.revision, confirmation_state, source_kind };
+      }));
+    });
+  }
+  get(prior, id, revision) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(prior, now), item = this.owned(db, actor, id);
+      return this.view(db, actor, item, this.version(db, item, revision), now);
+    });
+  }
+  history(prior, id) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(prior, now), item = this.owned(db, actor, id);
+      const versions = db.prepare("SELECT * FROM knowledge_versions WHERE item_id=? ORDER BY revision DESC").all(id);
+      return versions.flatMap((row) => this.visible(() => {
+        this.validatedSources(db, actor, row, now);
+        return { version: row.revision, version_id: row.id, confirmation_state: row.confirmation_state, created_at: row.created_at, is_current: row.id === item.current_version_id };
+      }));
+    });
+  }
+  insert(db, item, actor, revision, data, sources2, now, confirm) {
+    const row = {
+      id: randomUUID13(),
+      item_id: item.id,
+      revision,
+      title: data.title,
+      definition: data.definition,
+      plain_explanation: data.plain_explanation,
+      context: data.context,
+      sources_json: JSON.stringify(sources2),
+      author_kind: sources2.some((s) => s.type === "term") ? "assisted" : "human",
+      created_by: actor.userId,
+      created_at: now,
+      confirmation_state: confirm ? "confirmed" : "pending",
+      confirmed_by: confirm ? actor.userId : null,
+      confirmed_at: confirm ? now : null
+    };
+    db.prepare("INSERT INTO knowledge_versions VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(
+      row.id,
+      row.item_id,
+      row.revision,
+      row.title,
+      row.definition,
+      row.plain_explanation,
+      row.context,
+      row.sources_json,
+      row.author_kind,
+      row.created_by,
+      row.created_at,
+      row.confirmation_state,
+      row.confirmed_by,
+      row.confirmed_at
+    );
+    return row;
+  }
+  write(prior, key, action, apply) {
+    return this.tx("write", (db, now) => {
+      const actor = this.actor(prior, now), digest3 = hash2(action);
+      const receipt3 = db.prepare("SELECT item_id,version_id,digest FROM knowledge_write_receipts WHERE service_id=? AND owner_id=? AND request_key=?").get(actor.serviceId, actor.userId, key);
+      if (receipt3) {
+        const item2 = this.owned(db, actor, String(receipt3.item_id));
+        const row2 = db.prepare("SELECT * FROM knowledge_versions WHERE item_id=? AND id=?").get(item2.id, receipt3.version_id);
+        const result = this.view(db, actor, item2, row2, now);
+        if (receipt3.digest !== digest3) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        return { item: result, replayed: true };
+      }
+      const { item, row } = apply(db, actor, now);
+      db.prepare("INSERT INTO knowledge_write_receipts VALUES(?,?,?,?,?,?)").run(actor.serviceId, actor.userId, key, digest3, item.id, row.id);
+      return { item: this.view(db, actor, item, row, now), replayed: false };
+    });
+  }
+  create(prior, key, input) {
+    return this.write(prior, key, ["create", input], (db, actor, now) => {
+      const { kind, domain, sources: sources2, ...draft } = input;
+      const pinned = this.pin(db, actor, sources2, now);
+      const item = { id: randomUUID13(), kind, domain, current_version_id: "", created_at: now };
+      db.prepare("INSERT INTO knowledge_items VALUES(?,?,?,?,?,?,?)").run(item.id, actor.serviceId, actor.userId, kind, domain, "", now);
+      const row = this.insert(db, item, actor, 1, draft, pinned, now, false);
+      db.prepare("UPDATE knowledge_items SET current_version_id=? WHERE id=?").run(row.id, item.id);
+      return { item: { ...item, current_version_id: row.id }, row };
+    });
+  }
+  update(prior, key, id, expected, draft) {
+    return this.write(prior, key, [draft ? "correct" : "confirm", id, expected, draft], (db, actor, now) => {
+      const item = this.owned(db, actor, id), current = this.version(db, item);
+      const previous = this.validatedSources(db, actor, current, now);
+      if (expected !== current.revision || current.revision >= Number.MAX_SAFE_INTEGER) throw conflict2();
+      if (!draft && current.confirmation_state === "confirmed") throw new AssetError(409, "ALREADY_CONFIRMED");
+      if (!draft && previous.some((source) => source.state === "changed")) throw new AssetError(409, "KNOWLEDGE_SOURCE_CHANGED");
+      const pinned = draft ? this.pin(db, actor, draft.sources, now) : JSON.parse(current.sources_json);
+      const row = this.insert(db, item, actor, current.revision + 1, draft ?? current, pinned, now, !draft);
+      if (Number(db.prepare("UPDATE knowledge_items SET current_version_id=? WHERE id=? AND current_version_id=?").run(row.id, item.id, current.id).changes) !== 1) throw conflict2();
+      return { item: { ...item, current_version_id: row.id }, row };
+    });
+  }
+};
+
 // src/host/repository-store.ts
-import { randomUUID as randomUUID13 } from "node:crypto";
+import { randomUUID as randomUUID14 } from "node:crypto";
 
 // src/host/github-repository.ts
-import { createHash as createHash12 } from "node:crypto";
+import { createHash as createHash13 } from "node:crypto";
 
 // src/host/repository-tree.ts
-import { createHash as createHash11 } from "node:crypto";
+import { createHash as createHash12 } from "node:crypto";
 function treeDigest(entries) {
   const sorted = entries.map((entry) => {
     const name = entry.path.slice(entry.path.lastIndexOf("/") + 1);
@@ -2287,7 +2536,7 @@ function treeDigest(entries) {
     Buffer.from(entry.mode.replace(/^0/, "") + " " + name + "\0"),
     Buffer.from(entry.sha, "hex")
   ]));
-  return createHash11("sha1").update("tree " + bytes.length + "\0").update(bytes).digest("hex");
+  return createHash12("sha1").update("tree " + bytes.length + "\0").update(bytes).digest("hex");
 }
 function validateRepositoryTree(entries) {
   const children = /* @__PURE__ */ new Map();
@@ -2404,7 +2653,7 @@ function decodeRepositoryBlob(row, entry) {
   if (row.sha !== entry.sha || typeof row.size !== "number" || !Number.isSafeInteger(row.size) || row.size < 0 || row.encoding !== "base64" || typeof row.content !== "string") throw invalidRemote();
   if (row.size > repositoryLimits.blob) throw oversized();
   const encoded = row.content.replace(/\r?\n/g, ""), bytes = Buffer.from(encoded, "base64");
-  if (bytes.toString("base64") !== encoded || bytes.length !== row.size || entry.size !== null && entry.size !== bytes.length || createHash12("sha1").update("blob " + bytes.length + "\0").update(bytes).digest("hex") !== entry.sha) throw invalidRemote();
+  if (bytes.toString("base64") !== encoded || bytes.length !== row.size || entry.size !== null && entry.size !== bytes.length || createHash13("sha1").update("blob " + bytes.length + "\0").update(bytes).digest("hex") !== entry.sha) throw invalidRemote();
   return bytes;
 }
 var GitHubRepository = class {
@@ -2455,7 +2704,7 @@ var GitHubRepository = class {
 };
 
 // src/host/gitlab-repository.ts
-var origin = "https://gitlab.com/api/v4";
+var origin2 = "https://gitlab.com/api/v4";
 var segment = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,99}$/;
 function gitLabName(value) {
   if (typeof value !== "string" || value.length > 255) throw badRepository();
@@ -2480,7 +2729,7 @@ var GitLabRepository = class {
   get(path, limit) {
     const headers = { accept: "application/json", "user-agent": "KnowledgeOS" };
     if (this.token) headers["private-token"] = this.token;
-    return repositoryJson(origin + path, limit, this.operation, headers, this.transport);
+    return repositoryJson(origin2 + path, limit, this.operation, headers, this.transport);
   }
   async resolveRepository(name) {
     const data = remoteObject(await this.get("/projects/" + encodeURIComponent(repositorySlug(name)), 128 * 1024));
@@ -2529,7 +2778,7 @@ var GitLabRepository = class {
 };
 
 // src/host/gitee-repository.ts
-var origin2 = "https://gitee.com/api/v5";
+var origin3 = "https://gitee.com/api/v5";
 var ownerPattern2 = /^[a-z0-9_][a-z0-9_-]{0,99}$/i;
 var projectPattern = /^[a-z0-9_][a-z0-9_.-]{0,99}$/i;
 function giteeName(value) {
@@ -2548,7 +2797,7 @@ var GiteeRepository = class {
   async get(path, limit) {
     const headers = { accept: "application/json", "user-agent": "KnowledgeOS" };
     if (this.token) headers.authorization = "Bearer " + this.token;
-    return remoteObject(await repositoryJson(origin2 + path, limit, this.operation, headers, this.transport));
+    return remoteObject(await repositoryJson(origin3 + path, limit, this.operation, headers, this.transport));
   }
   async resolveRepository(name) {
     const data = await this.get(repoPath(name), 128 * 1024);
@@ -2748,7 +2997,7 @@ var RepositoryStore = class {
       if (Number(db.prepare("SELECT count(*) AS total FROM repository_snapshots WHERE service_id=? AND owner_id=?").get(serviceId, userId)?.total) >= 25)
         throw new AssetError(409, "REPOSITORY_SNAPSHOT_QUOTA");
       const row = {
-        id: randomUUID13(),
+        id: randomUUID14(),
         platform,
         remote_id: remote.id,
         owner_name: remote.owner,
@@ -2805,7 +3054,7 @@ var RepositoryStore = class {
 };
 
 // src/host/project-task-store.ts
-import { createHash as createHash13, randomUUID as randomUUID14 } from "node:crypto";
+import { createHash as createHash14, randomUUID as randomUUID15 } from "node:crypto";
 
 // src/host/project-task-policy.ts
 var unacceptable = /[\p{Cf}\p{Cs}\x00-\x08\x0b-\x1f\x7f]/u;
@@ -2970,7 +3219,7 @@ var appealView = (r) => ({
   resolution_decision_id: r.resolution_decision_id,
   resolved_at: r.resolved_at
 });
-var requestDigest = (value) => createHash13("sha256").update(JSON.stringify(value)).digest("hex");
+var requestDigest = (value) => createHash14("sha256").update(JSON.stringify(value)).digest("hex");
 var workflow = (t) => ({
   kind: t.task_kind,
   assignee: t.assignee_id,
@@ -3065,7 +3314,7 @@ var transition = (task, a, action, correction = false, appeal = false) => {
   return next.state;
 };
 function recordDecisionImpact(db, task, actor, now, correlation, event, payload) {
-  const eventId = randomUUID14(), revision = task.revision + 1, recalculation = event !== "appeal.opened";
+  const eventId = randomUUID15(), revision = task.revision + 1, recalculation = event !== "appeal.opened";
   if (recalculation) db.prepare(`INSERT INTO task_decision_impacts(task_id,task_revision,recalculation_required,updated_at) VALUES(?,?,1,?)
     ON CONFLICT(task_id) DO UPDATE SET task_revision=excluded.task_revision,recalculation_required=1,updated_at=excluded.updated_at`).run(task.id, revision, now);
   const causation = event === "appeal.resolved" ? db.prepare(`SELECT event_id FROM domain_events WHERE aggregate_type='project_task'
@@ -3139,7 +3388,7 @@ var ProjectTaskStore = class {
           WHERE i.service_id=? AND (i.project_id=? OR o.project_id=?))`).run(now, memberId, a.serviceId, projectId, projectId);
       db.prepare(`UPDATE resource_grants SET revoked_at=? WHERE service_id=? AND subject_type='user' AND subject_id=? AND revoked_at IS NULL
         AND resource_type='knowledge_object' AND resource_id IN (SELECT id FROM knowledge_objects WHERE project_id=?)`).run(now, a.serviceId, memberId, projectId);
-      db.prepare("INSERT INTO project_membership_removals VALUES(?,?,?,?,?)").run(randomUUID14(), projectId, memberId, a.userId, now);
+      db.prepare("INSERT INTO project_membership_removals VALUES(?,?,?,?,?)").run(randomUUID15(), projectId, memberId, a.userId, now);
       return { removed: true };
     });
   }
@@ -3230,7 +3479,7 @@ var ProjectTaskStore = class {
   assign(s, expected, projectId, key, d) {
     if (!validTaskDraft(d)) throw invalid3();
     const title = d.title.trim(), goal = d.goal.trim(), items = clean(d.criteria), peer = d.peer_reviewer_id ?? null;
-    const digest3 = createHash13("sha256").update(JSON.stringify([projectId, title, goal, d.due_at, d.assignee_id, d.final_reviewer_id, peer, items])).digest("hex");
+    const digest3 = createHash14("sha256").update(JSON.stringify([projectId, title, goal, d.due_at, d.assignee_id, d.final_reviewer_id, peer, items])).digest("hex");
     return this.tx("write", (db, now) => {
       const a = this.actor(s, now, expected), project = projectId === null ? null : this.project(db, a, projectId, now);
       if (project && project.row.owner_user_id !== a.userId) throw hidden3();
@@ -3241,7 +3490,7 @@ var ProjectTaskStore = class {
       }
       const decision = decideAssignment(d, { id: a.userId, role: a.role }, project && this.participants(db, a, project.active), now);
       if ("error" in decision) throw new AssetError(decision.error === "TASK_MEMBER_UNAVAILABLE" ? 409 : 422, decision.error);
-      const id = randomUUID14();
+      const id = randomUUID15();
       db.prepare(`INSERT INTO tasks(id,service_id,project_id,issuer_id,personal_space_id,assignee_id,task_kind,title,goal,due_at,final_reviewer_id,
         peer_reviewer_id,criteria_revision,current_state,revision,issued_at,updated_at,request_key,request_digest) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,'assigned',1,?,?,?,?)`).run(id, a.serviceId, projectId, a.userId, projectId === null ? a.personalSpaceId : null, d.assignee_id, decision.kind, title, goal, d.due_at, d.final_reviewer_id, peer, now, now, key, digest3);
       db.prepare("INSERT INTO task_criteria_versions VALUES(?,1,?,'next_submission',?,?)").run(id, JSON.stringify(items), a.userId, now);
@@ -3321,7 +3570,7 @@ var ProjectTaskStore = class {
       if (!hasFormalDecision(task.current_state) || current?.id !== decisionId) throw new AssetError(409, "TASK_REVIEW_CONFLICT");
       if (pendingAppeal(db, task.id) || db.prepare("SELECT 1 FROM task_appeals WHERE against_review_id=? OR against_correction_id=?").get(decisionId, decisionId))
         throw new AssetError(409, "TASK_APPEAL_CONFLICT");
-      const appealId = randomUUID14();
+      const appealId = randomUUID15();
       db.prepare(`INSERT INTO task_appeals(id,task_id,submission_id,requester_id,reason,against_review_id,against_correction_id,
         status,requested_at,request_key,request_digest) VALUES(?,?,?,?,?,?,?,'pending',?,?,?)`).run(appealId, task.id, submission.id, a.userId, text2, current.correction ? null : current.id, current.correction ? current.id : null, now, key, digest3);
       advance(db, task, task.current_state, now);
@@ -3368,7 +3617,7 @@ var ProjectTaskStore = class {
       }
       const version = (previous?.version ?? 0) + 1;
       if (version > 50) throw new AssetError(409, "TASK_SUBMISSION_LIMIT");
-      const submissionId = randomUUID14();
+      const submissionId = randomUUID15();
       db.prepare(`INSERT INTO task_submissions(id,task_id,version,criteria_version,author_id,content,submitted_at,previous_version,request_key,request_digest)
         VALUES(?,?,?,?,?,?,?,?,?,?)`).run(submissionId, id, version, task.criteria_revision, a.userId, normalized, now, previous?.version ?? null, key, digest3);
       const saved = latestSubmission(db, id);
@@ -3418,7 +3667,7 @@ var ProjectTaskStore = class {
       const pending = pendingAppeal(db, id);
       if (pending && pending.id !== appeal?.id) throw new AssetError(409, "TASK_APPEAL_PENDING");
       if (appeal && appeal.status !== "pending") throw new AssetError(409, "TASK_APPEAL_CONFLICT");
-      const state = transition(task, a, action, correction, Boolean(appeal)), reviewId = randomUUID14();
+      const state = transition(task, a, action, correction, Boolean(appeal)), reviewId = randomUUID15();
       if (correction) {
         const current = latestFormalReview(db, submissionId);
         if (!current || current.id !== supersedes) throw new AssetError(409, "TASK_REVIEW_CONFLICT");
@@ -3535,11 +3784,11 @@ CREATE TABLE task_decision_impacts (
 `;
 
 // src/host/recall-store.ts
-import { createHash as createHash15, randomUUID as randomUUID15 } from "node:crypto";
+import { createHash as createHash16, randomUUID as randomUUID16 } from "node:crypto";
 
 // src/host/recall-range.ts
-import { createHash as createHash14 } from "node:crypto";
-var digest = (text2) => createHash14("sha256").update(text2, "utf8").digest("hex");
+import { createHash as createHash15 } from "node:crypto";
+var digest = (text2) => createHash15("sha256").update(text2, "utf8").digest("hex");
 var invalid4 = () => new AssetError(422, "INVALID_RECALL_RANGE");
 var changed = () => new AssetError(409, "RECALL_SOURCE_CHANGED");
 var available = (text2) => {
@@ -3637,7 +3886,7 @@ CREATE TABLE recall_events (
   CHECK(event IN ('move','hint','reveal','recall','rating'))
 ) STRICT;
 CREATE INDEX recall_events_groups ON recall_events(material_id,event,value);`;
-var sha3 = (text2) => createHash15("sha256").update(text2).digest("hex");
+var sha3 = (text2) => createHash16("sha256").update(text2).digest("hex");
 var invalid5 = () => new AssetError(422, "INVALID_RECALL");
 var notFound4 = () => new AssetError(404, "RECALL_NOT_FOUND");
 var point2 = (t, ordinal) => ({ asset_id: t.asset_id, version_id: t.version_id, ordinal, ...t.conversion_id ? { conversion_id: t.conversion_id } : {} });
@@ -3725,7 +3974,7 @@ var RecallStore = class {
       if (!draft.title.trim() || draft.title.length > 200 || !draft.masks.length) throw invalid5();
       const first = this.source(db, a, point2(draft, draft.first.ordinal), now);
       const read = (n) => n === first.ordinal ? first.text : this.source(db, a, point2(draft, n), now).text;
-      const segments = recallSelection(draft.first, draft.last, draft.interior_hashes, first.total, read), masks = recallMasks(segments, draft.masks, read), id = randomUUID15();
+      const segments = recallSelection(draft.first, draft.last, draft.interior_hashes, first.total, read), masks = recallMasks(segments, draft.masks, read), id = randomUUID16();
       const m = { id, title: draft.title, asset_id: draft.asset_id, version_id: draft.version_id, conversion_id: draft.conversion_id ?? null };
       db.prepare("INSERT INTO recall_materials VALUES(?,?,?,?,?,?,?,?,?,?)").run(id, a.userId, a.serviceId, m.asset_id, m.version_id, m.conversion_id, m.title, now, key, digest3);
       const insert = db.prepare("INSERT INTO recall_segments VALUES(?,?,?,?,?)");
@@ -3764,7 +4013,7 @@ var RecallStore = class {
 };
 
 // src/host/invitation-store.ts
-import { createHash as createHash16, randomBytes, randomUUID as randomUUID16 } from "node:crypto";
+import { createHash as createHash17, randomBytes, randomUUID as randomUUID17 } from "node:crypto";
 var INVITATION_SCHEMA = `CREATE TABLE invitations (
   id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE CHECK(length(token_hash)=64),
   service_id TEXT NOT NULL, issuer_id TEXT NOT NULL REFERENCES users(id),
@@ -3809,10 +4058,10 @@ var INVITATION_CHANGE_SCHEMA = `CREATE TABLE invitation_change_receipts (
   result_json TEXT NOT NULL CHECK(json_valid(result_json)), PRIMARY KEY(service_id,actor_id,request_key)
 ) STRICT;`;
 var day = 864e5;
-var digest2 = (value) => createHash16("sha256").update(value).digest("hex");
+var digest2 = (value) => createHash17("sha256").update(value).digest("hex");
 var invalid6 = () => new AssetError(422, "INVALID_INVITATION");
 var unavailable2 = () => new AssetError(404, "INVITATION_UNAVAILABLE");
-var conflict2 = () => new AssetError(409, "INVITATION_CHANGED");
+var conflict3 = () => new AssetError(409, "INVITATION_CHANGED");
 var target = (r) => r.project_id ? { scope: "project", id: r.project_id, permission: "member" } : { scope: "object", id: r.object_id, permission: r.permission };
 function duration(days = 7) {
   if (!Number.isInteger(days) || days < 1 || days > 90) throw invalid6();
@@ -3837,7 +4086,7 @@ function receipt2(r) {
 var active = (r, now) => r.revoked_at === null && now < r.expires_at;
 function recordEvent(db, r, a, event, now, before, affected, correlation) {
   db.prepare("INSERT INTO invitation_audit VALUES(?,?,?,?,?,?,?,?)").run(r.id, r.revision, a.userId, event, now, before, r.expires_at, affected.length);
-  const eventId = randomUUID16(), payload = JSON.stringify({
+  const eventId = randomUUID17(), payload = JSON.stringify({
     target: target(r),
     prior_expires_at: before,
     expires_at: r.expires_at,
@@ -3882,7 +4131,7 @@ var InvitationStore = class {
       return this.issueSpec(this.actor(prior, now, expected), s, now);
     });
   }
-  create(prior, expected, s, key, correlation = randomUUID16()) {
+  create(prior, expected, s, key, correlation = randomUUID17()) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now, expected), p = this.issueSpec(a, s, now);
       const req = digest2(JSON.stringify([p.target, s.days ?? 7, p.max_redemptions]));
@@ -3893,7 +4142,7 @@ var InvitationStore = class {
       }
       const token2 = randomBytes(32).toString("base64url");
       const r = {
-        id: randomUUID16(),
+        id: randomUUID17(),
         service_id: a.serviceId,
         issuer_id: a.userId,
         object_id: s.scope === "object" ? s.id : null,
@@ -3912,7 +4161,7 @@ var InvitationStore = class {
       return { ...receipt2(r), title: p.title, token: token2, server_time: now, replayed: false };
     });
   }
-  redeem(prior, expected, token2, correlation = randomUUID16()) {
+  redeem(prior, expected, token2, correlation = randomUUID17()) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now, expected);
       if (!/^[a-zA-Z0-9_-]{43}$/.test(token2)) throw unavailable2();
@@ -3929,10 +4178,10 @@ var InvitationStore = class {
         return { id: priorRedemption.id, target: t, title: info.title, expires_at: priorRedemption.expires_at, server_time: now, replayed: true };
       }
       if (r.redeemed_count >= r.max_redemptions) throw new AssetError(409, "INVITATION_FULL");
-      const grant = randomUUID16();
+      const grant = randomUUID17();
       db.prepare("INSERT INTO invitation_redemptions VALUES(?,?,?,?,?,NULL)").run(grant, r.id, a.userId, now, r.expires_at);
       const change = db.prepare("UPDATE invitations SET redeemed_count=redeemed_count+1,revision=revision+1 WHERE id=? AND revision=? AND redeemed_count<max_redemptions").run(r.id, r.revision);
-      if (change.changes !== 1) throw conflict2();
+      if (change.changes !== 1) throw conflict3();
       recordEvent(db, { ...r, revision: r.revision + 1 }, a, "redeem", now, null, [grant], correlation);
       return { id: grant, target: t, title: info.title, expires_at: r.expires_at, server_time: now, replayed: false };
     });
@@ -3955,7 +4204,7 @@ var InvitationStore = class {
       return { actor_id: a.userId, server_time: now, items };
     });
   }
-  change(prior, expected, id, expectedRevision, event, days, key = randomUUID16(), correlation = randomUUID16()) {
+  change(prior, expected, id, expectedRevision, event, days, key = randomUUID17(), correlation = randomUUID17()) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now, expected), { r } = this.managed(db, a, id, now);
       const extension = event === "renew" ? duration(days) : 0, req = digest2(JSON.stringify([id, expectedRevision, event, extension]));
@@ -3965,7 +4214,7 @@ var InvitationStore = class {
         return { ...JSON.parse(String(priorReceipt.result_json)), replayed: true };
       }
       if (!active(r, now)) throw unavailable2();
-      if (expectedRevision !== r.revision) throw conflict2();
+      if (expectedRevision !== r.revision) throw conflict3();
       const expires_at = event === "renew" ? new Date(Date.parse(r.expires_at) + extension).toISOString() : r.expires_at;
       const changed2 = (event === "renew" ? db.prepare("UPDATE invitation_redemptions SET expires_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? RETURNING id").all(expires_at, id, now) : db.prepare("UPDATE invitation_redemptions SET revoked_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? RETURNING id").all(now, id, now)).map((r2) => String(r2.id));
       const next = { ...r, expires_at, revoked_at: event === "revoke" ? now : null, revision: r.revision + 1 };
@@ -3980,38 +4229,39 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 36;
-var MIGRATION_V36_CHECKSUM = createHash17("sha256").update(TERM_SCHEMA).digest("hex");
-var MIGRATION_V35_CHECKSUM = createHash17("sha256").update(REPOSITORY_GITEE_SCHEMA).digest("hex");
-var MIGRATION_V34_CHECKSUM = createHash17("sha256").update(REPOSITORY_PLATFORM_SCHEMA).digest("hex");
-var MIGRATION_V33_CHECKSUM = createHash17("sha256").update(PROJECT_TASK_APPEAL_SCHEMA).digest("hex");
-var MIGRATION_V32_CHECKSUM = createHash17("sha256").update(PROJECT_TASK_CORRECTION_SCHEMA).digest("hex");
-var MIGRATION_V31_CHECKSUM = createHash17("sha256").update(PROJECT_TASK_MATERIAL_SCHEMA).digest("hex");
-var MIGRATION_V30_CHECKSUM = createHash17("sha256").update(PROJECT_TASK_REVIEW_SCHEMA).digest("hex");
-var MIGRATION_V29_CHECKSUM = createHash17("sha256").update(PROJECT_TASK_SCHEMA).digest("hex");
-var MIGRATION_V28_CHECKSUM = createHash17("sha256").update(REPOSITORY_SCHEMA).digest("hex");
-var MIGRATION_V27_CHECKSUM = createHash17("sha256").update(NOTE_LAYOUT_SCHEMA).digest("hex");
-var MIGRATION_V26_CHECKSUM = createHash17("sha256").update(NOTE_OUTLINE_SCHEMA).digest("hex");
-var MIGRATION_V25_CHECKSUM = createHash17("sha256").update(INVITATION_CHANGE_SCHEMA).digest("hex");
-var MIGRATION_V24_CHECKSUM = createHash17("sha256").update(INVITATION_EVENT_SCHEMA).digest("hex");
-var MIGRATION_V23_CHECKSUM = createHash17("sha256").update(INVITATION_SCHEMA).digest("hex");
-var MIGRATION_V22_CHECKSUM = createHash17("sha256").update(RECALL_SCHEMA).digest("hex");
-var MIGRATION_V21_CHECKSUM = createHash17("sha256").update(NOTE_SCHEMA).digest("hex");
-var MIGRATION_V20_CHECKSUM = createHash17("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
-var MIGRATION_V19_CHECKSUM = createHash17("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V18_CHECKSUM = createHash17("sha256").update(SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V17_CHECKSUM = createHash17("sha256").update(ANNOTATION_SCHEMA).digest("hex");
-var MIGRATION_V16_CHECKSUM = createHash17("sha256").update(READING_STATE_SCHEMA).digest("hex");
-var MIGRATION_V15_CHECKSUM = createHash17("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
-var MIGRATION_V13_CHECKSUM = createHash17("sha256").update(ZIP_SCHEMA).digest("hex");
-var MIGRATION_V14_CHECKSUM = createHash17("sha256").update(CITATION_SCHEMA).digest("hex");
-var MIGRATION_V12_CHECKSUM = createHash17("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
-var MIGRATION_V11_CHECKSUM = createHash17("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
-var MIGRATION_V10_CHECKSUM = createHash17("sha256").update(OFFICE_SCHEMA).digest("hex");
-var MIGRATION_V9_CHECKSUM = createHash17("sha256").update(TEXT_SCHEMA).digest("hex");
-var MIGRATION_V8_CHECKSUM = createHash17("sha256").update(PARSE_SCHEMA).digest("hex");
-var MIGRATION_V7_CHECKSUM = createHash17("sha256").update(ASSET_SCHEMA).digest("hex");
-var MIGRATION_V6_CHECKSUM = createHash17("sha256").update(JOB_SCHEMA).digest("hex");
+var SCHEMA_VERSION = 37;
+var MIGRATION_V37_CHECKSUM = createHash18("sha256").update(KNOWLEDGE_SCHEMA).digest("hex");
+var MIGRATION_V36_CHECKSUM = createHash18("sha256").update(TERM_SCHEMA).digest("hex");
+var MIGRATION_V35_CHECKSUM = createHash18("sha256").update(REPOSITORY_GITEE_SCHEMA).digest("hex");
+var MIGRATION_V34_CHECKSUM = createHash18("sha256").update(REPOSITORY_PLATFORM_SCHEMA).digest("hex");
+var MIGRATION_V33_CHECKSUM = createHash18("sha256").update(PROJECT_TASK_APPEAL_SCHEMA).digest("hex");
+var MIGRATION_V32_CHECKSUM = createHash18("sha256").update(PROJECT_TASK_CORRECTION_SCHEMA).digest("hex");
+var MIGRATION_V31_CHECKSUM = createHash18("sha256").update(PROJECT_TASK_MATERIAL_SCHEMA).digest("hex");
+var MIGRATION_V30_CHECKSUM = createHash18("sha256").update(PROJECT_TASK_REVIEW_SCHEMA).digest("hex");
+var MIGRATION_V29_CHECKSUM = createHash18("sha256").update(PROJECT_TASK_SCHEMA).digest("hex");
+var MIGRATION_V28_CHECKSUM = createHash18("sha256").update(REPOSITORY_SCHEMA).digest("hex");
+var MIGRATION_V27_CHECKSUM = createHash18("sha256").update(NOTE_LAYOUT_SCHEMA).digest("hex");
+var MIGRATION_V26_CHECKSUM = createHash18("sha256").update(NOTE_OUTLINE_SCHEMA).digest("hex");
+var MIGRATION_V25_CHECKSUM = createHash18("sha256").update(INVITATION_CHANGE_SCHEMA).digest("hex");
+var MIGRATION_V24_CHECKSUM = createHash18("sha256").update(INVITATION_EVENT_SCHEMA).digest("hex");
+var MIGRATION_V23_CHECKSUM = createHash18("sha256").update(INVITATION_SCHEMA).digest("hex");
+var MIGRATION_V22_CHECKSUM = createHash18("sha256").update(RECALL_SCHEMA).digest("hex");
+var MIGRATION_V21_CHECKSUM = createHash18("sha256").update(NOTE_SCHEMA).digest("hex");
+var MIGRATION_V20_CHECKSUM = createHash18("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
+var MIGRATION_V19_CHECKSUM = createHash18("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V18_CHECKSUM = createHash18("sha256").update(SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V17_CHECKSUM = createHash18("sha256").update(ANNOTATION_SCHEMA).digest("hex");
+var MIGRATION_V16_CHECKSUM = createHash18("sha256").update(READING_STATE_SCHEMA).digest("hex");
+var MIGRATION_V15_CHECKSUM = createHash18("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
+var MIGRATION_V13_CHECKSUM = createHash18("sha256").update(ZIP_SCHEMA).digest("hex");
+var MIGRATION_V14_CHECKSUM = createHash18("sha256").update(CITATION_SCHEMA).digest("hex");
+var MIGRATION_V12_CHECKSUM = createHash18("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
+var MIGRATION_V11_CHECKSUM = createHash18("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
+var MIGRATION_V10_CHECKSUM = createHash18("sha256").update(OFFICE_SCHEMA).digest("hex");
+var MIGRATION_V9_CHECKSUM = createHash18("sha256").update(TEXT_SCHEMA).digest("hex");
+var MIGRATION_V8_CHECKSUM = createHash18("sha256").update(PARSE_SCHEMA).digest("hex");
+var MIGRATION_V7_CHECKSUM = createHash18("sha256").update(ASSET_SCHEMA).digest("hex");
+var MIGRATION_V6_CHECKSUM = createHash18("sha256").update(JOB_SCHEMA).digest("hex");
 var PROBE_SCHEMA_VERSION = 1;
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
@@ -4028,7 +4278,7 @@ CREATE TABLE storage_probe_records (
   created_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V1_CHECKSUM = createHash17("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
+var MIGRATION_V1_CHECKSUM = createHash18("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
 var MIGRATION_V2_SQL = `CREATE TABLE password_credentials (
   id TEXT PRIMARY KEY,
   algorithm TEXT NOT NULL,
@@ -4082,7 +4332,7 @@ CREATE TABLE spaces (
   updated_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V2_CHECKSUM = createHash17("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
+var MIGRATION_V2_CHECKSUM = createHash18("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
 var MIGRATION_V3_SQL = `CREATE TABLE knowledge_projects (
   id TEXT PRIMARY KEY,
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
@@ -4132,7 +4382,7 @@ CREATE TABLE resource_grants (
   UNIQUE (resource_id, subject_type, subject_id, action)
 ) STRICT;
 `;
-var MIGRATION_V3_CHECKSUM = createHash17("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
+var MIGRATION_V3_CHECKSUM = createHash18("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
 var MIGRATION_V4_SQL = `ALTER TABLE resource_grants RENAME TO resource_grants_v3;
 CREATE TABLE resource_grants (
   id TEXT PRIMARY KEY,
@@ -4154,7 +4404,7 @@ CREATE UNIQUE INDEX resource_grants_active_subject_action_uq
   WHERE revoked_at IS NULL;
 DROP TABLE resource_grants_v3;
 `;
-var MIGRATION_V4_CHECKSUM = createHash17("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
+var MIGRATION_V4_CHECKSUM = createHash18("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
 var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -4166,7 +4416,7 @@ var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   PRIMARY KEY (service_id, user_id, idempotency_key)
 ) STRICT;
 `;
-var MIGRATION_V5_CHECKSUM = createHash17("sha256").update(MIGRATION_V5_SQL).digest("hex");
+var MIGRATION_V5_CHECKSUM = createHash18("sha256").update(MIGRATION_V5_SQL).digest("hex");
 var PROBE_SUPPORTED_TABLES = ["schema_migrations", "storage_probe_records"];
 var IDENTITY_SUPPORTED_TABLES = [
   "auth_sessions",
@@ -4287,6 +4537,7 @@ var ProbeStorage = class {
     return object && this.#authorizationHorizon(a, object, "read", now);
   });
   terms = new TermStore(this.#assetTx, (s, now) => this.#currentActor(s, now), this.citations);
+  knowledge = new KnowledgeStore(this.#assetTx, (s, now) => this.#currentActor(s, now), this.citations, this.notes, this.terms);
   recall = new RecallStore(
     this.#assetTx,
     (s, now) => this.#currentActor(s, now),
@@ -4405,6 +4656,7 @@ var ProbeStorage = class {
       if (priorVersion < 34) this.#migrateV34(db);
       if (priorVersion < 35) this.#migrateV35(db);
       if (priorVersion < 36) this.#migrateV36(db);
+      if (priorVersion < 37) this.#migrateV37(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -4631,7 +4883,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID17());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID18());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -5069,10 +5321,22 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "personal terms migration failed", false, { cause: e });
     }
   }
+  #migrateV37(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(KNOWLEDGE_SCHEMA);
+      this.#injectFailure("v37:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(37,?,?)").run(MIGRATION_V37_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=37; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "knowledge item migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM, MIGRATION_V35_CHECKSUM, MIGRATION_V36_CHECKSUM].slice(0, version - 5);
-    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash2, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash2)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM, MIGRATION_V35_CHECKSUM, MIGRATION_V36_CHECKSUM, MIGRATION_V37_CHECKSUM].slice(0, version - 5);
+    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash3, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash3)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
       reference.exec(JOB_SCHEMA);
@@ -5106,6 +5370,7 @@ var ProbeStorage = class {
       if (version >= 32) reference.exec(PROJECT_TASK_CORRECTION_SCHEMA);
       if (version >= 33) reference.exec(PROJECT_TASK_APPEAL_SCHEMA);
       if (version >= 36) reference.exec(TERM_SCHEMA);
+      if (version >= 37) reference.exec(KNOWLEDGE_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -5208,9 +5473,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID17();
-      const spaceId = randomUUID17();
-      const credentialId = randomUUID17();
+      const userId = randomUUID18();
+      const spaceId = randomUUID18();
+      const credentialId = randomUUID18();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -5244,9 +5509,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID17();
-      const spaceId = randomUUID17();
-      const credentialId = randomUUID17();
+      const userId = randomUUID18();
+      const spaceId = randomUUID18();
+      const credentialId = randomUUID18();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -5444,7 +5709,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID17(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
+        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID18(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -5543,8 +5808,8 @@ var ProbeStorage = class {
     let primaryCode;
     let failed = false;
     try {
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash17("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash17("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash18("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash18("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
     } catch (error) {
       failed = true;
       primaryCode = primarySqliteCode(error);
@@ -5602,7 +5867,7 @@ var ProbeStorage = class {
 };
 
 // src/host/identity.ts
-import { createHash as createHash18, randomBytes as randomBytes2, randomUUID as randomUUID18, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
+import { createHash as createHash19, randomBytes as randomBytes2, randomUUID as randomUUID19, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
 var DOMAINS = ["software_engineering", "system_architecture", "hardware_engineering", "ai_development"];
 var LEARNING_TRACKS = ["engineering_practice", "architecture_exam", "knowledge_accumulation"];
 var DEFAULT_TIMEZONE = "Asia/Shanghai";
@@ -5674,7 +5939,7 @@ function validateGoalText(value) {
   return value;
 }
 function tokenHash(token2) {
-  return createHash18("sha256").update(token2, "utf8").digest("hex");
+  return createHash19("sha256").update(token2, "utf8").digest("hex");
 }
 function makeToken() {
   return randomBytes2(32).toString("base64url");
@@ -5879,7 +6144,7 @@ var IdentityService = class {
     const token2 = makeToken();
     const createdAt = /* @__PURE__ */ new Date();
     const expiresAt = new Date(createdAt.getTime() + SESSION_TTL_MS).toISOString();
-    this.#store.createSession({ sessionId: randomUUID18(), userId: lookup.userId, tokenHash: tokenHash(token2), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
+    this.#store.createSession({ sessionId: randomUUID19(), userId: lookup.userId, tokenHash: tokenHash(token2), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
     const user = this.#store.getProfile(lookup.userId);
     if (user === void 0) throw new IdentityError("STORAGE_UNAVAILABLE", "user profile unavailable");
     return { user, token: token2, expiresAt };
@@ -5907,7 +6172,7 @@ var IdentityService = class {
 };
 
 // src/host/identity-http.ts
-import { createHash as createHash19, randomUUID as randomUUID19 } from "node:crypto";
+import { createHash as createHash20, randomUUID as randomUUID20 } from "node:crypto";
 import { isIP } from "node:net";
 function isLoopbackAddress(value) {
   if (value === void 0) return false;

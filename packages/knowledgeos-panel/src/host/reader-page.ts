@@ -8,12 +8,12 @@ export function buildReaderHtml(): string {
 </style></head><body><header><strong>KnowledgeOS</strong><a href="/knowledgeos/library">资料库</a><a href="/knowledgeos/account">账号与登录</a></header><main>
 <h1 id="title">版本阅读</h1><p id="version"></p><div class="tools"><button id="refresh">刷新</button><form id="jump"><button type="button" id="prev" aria-label="上一位置">←</button><input type="number" min="1" step="1" required id="number" aria-label="跳转位置"><button>跳转</button><button type="button" id="next" aria-label="下一位置">→</button></form><span id="count"></span><a id="task-material-link" hidden>固定材料链接</a></div><p id="status" role="status"></p>
 <section id="continuity" aria-label="阅读导航" hidden><details id="toc-details" open><summary>目录</summary><ul id="toc"></ul></details><details id="bookmarks-details" open><summary>我的书签</summary><ul id="bookmarks"></ul><form id="bookmark-form"><input id="bookmark-title" maxlength="120" required placeholder="书签名称" aria-label="书签名称"><button id="bookmark-add">添加书签</button></form></details><p id="reading-status" role="status"></p></section>
-<div class="layout"><nav id="rail" aria-label="页与文本块" hidden><div id="window"></div></nav><article><h2 id="anchor"></h2><div class="modes" id="modes" hidden><button id="paper">原页</button><button id="structured">结构文本</button><button id="cite" disabled>生成引用链接</button><button id="annotate" disabled>选区批注</button><button id="term-explain" disabled>解释术语</button><button id="terms-open" disabled>我的术语</button><button id="annotations-toggle" aria-controls="annotations" aria-expanded="false">本处批注</button><a id="link" hidden>打开引用</a><a id="note-link" hidden>记笔记</a><a id="recall-link" hidden>制作遮挡练习</a></div><div id="original" hidden></div><pre id="text" tabindex="-1" hidden></pre><section id="term-panel" aria-labelledby="term-title" tabindex="-1" hidden>
+<div class="layout"><nav id="rail" aria-label="页与文本块" hidden><div id="window"></div></nav><article><h2 id="anchor"></h2><div class="modes" id="modes" hidden><button id="paper">原页</button><button id="structured">结构文本</button><button id="cite" disabled>生成引用链接</button><button id="annotate" disabled>选区批注</button><button id="term-explain" disabled>解释术语</button><button id="terms-open" disabled>我的术语</button><button id="annotations-toggle" aria-controls="annotations" aria-expanded="false">本处批注</button><a id="link" hidden>打开引用</a><a id="note-link" hidden>记笔记</a><a id="knowledge-link" hidden>形成知识条目</a><a id="recall-link" hidden>制作遮挡练习</a></div><div id="original" hidden></div><pre id="text" tabindex="-1" hidden></pre><section id="term-panel" aria-labelledby="term-title" tabindex="-1" hidden>
 <header><h2 id="term-title">语境术语</h2><button id="term-close" type="button">返回阅读</button></header>
 <p id="term-status" role="status"></p><div id="term-result" hidden><dl>
 <dt>当前语境</dt><dd id="term-context"></dd><dt>通俗说明</dt><dd id="term-plain"></dd>
 <dt>专业定义</dt><dd id="term-professional"></dd><dt>易混概念</dt><dd id="term-confusions"></dd></dl>
-<p id="term-uncertainty" hidden></p><blockquote id="term-evidence" hidden></blockquote><a id="term-origin" hidden>查看原文位置</a>
+<p id="term-uncertainty" hidden></p><blockquote id="term-evidence" hidden></blockquote><a id="term-origin" hidden>查看原文位置</a><p><a id="term-knowledge" hidden>形成正式知识条目</a></p>
 <div id="term-saving"><label for="term-supplement">个人补充</label><textarea id="term-supplement" maxlength="1000"></textarea>
 <button id="term-save" type="button">保存到我的术语</button></div></div><ul id="term-list" hidden></ul></section><section id="annotations" aria-label="本处批注" hidden><p id="annotation-status" role="status"></p><ul id="annotation-items"></ul><form id="annotation-form" hidden><label for="annotation-body">批注正文</label><textarea id="annotation-body" maxlength="4000" required></textarea><label id="annotation-scope">可见范围 <select id="annotation-visibility"><option value="private">仅本人</option><option value="project">当前项目</option></select></label><div class="annotation-buttons"><button id="annotation-submit">保存批注</button><button type="button" id="annotation-rebase" hidden>读取最新版本并保留草稿</button><button type="button" id="annotation-cancel">取消</button></div></form></section></article></div></main><script>
 'use strict';
@@ -57,7 +57,7 @@ function clearPage(){
   page=null;selection=null;posting=false;getSelection().removeAllRanges();
   for(const id of ['text','original','anchor'])$(id).replaceChildren();
   for(const id of ['text','original','modes','link'])$(id).hidden=true;
-  $('link').removeAttribute('href');$('note-link').hidden=true;$('note-link').removeAttribute('href');$('cite').disabled=true;
+  $('link').removeAttribute('href');$('note-link').hidden=true;$('note-link').removeAttribute('href');$('knowledge-link').hidden=true;$('knowledge-link').removeAttribute('href');$('cite').disabled=true;
   $('recall-link').hidden=true;$('recall-link').removeAttribute('href');
   $('task-material-link').hidden=true;$('task-material-link').removeAttribute('href');
   clearAnnotations();clearTerms();$('term-explain').disabled=$('terms-open').disabled=true;
@@ -267,7 +267,7 @@ function capture(){
   const prefix=r.cloneRange();prefix.selectNodeContents(text);prefix.setEnd(r.startContainer,r.startOffset);
   const start=prefix.toString().length,end=start+r.toString().length;
   if(selection?.start!==start||selection?.end!==end){
-    for(const id of ['link','note-link']){$(id).hidden=true;$(id).removeAttribute('href')}
+    for(const id of ['link','note-link','knowledge-link']){$(id).hidden=true;$(id).removeAttribute('href')}
     if(!$('term-panel').hidden&&validRange(page.text,start,end))clearTerms();
   }
   selection=validRange(page.text,start,end)?{start,end}:null;$('cite').disabled=!selection;$('annotate').disabled=!selection||annotationBusy;
@@ -276,8 +276,8 @@ function capture(){
 function clearTerms(restore=false){
   const control=termTrigger;termTrigger=null;termSequence++;termRequest?.abort();termRequest=null;termResult=null;
   for(const id of ['term-status','term-context','term-plain','term-professional','term-confusions','term-uncertainty','term-evidence','term-list'])$(id).textContent='';
-  for(const id of ['term-panel','term-result','term-uncertainty','term-evidence','term-list','term-origin','term-saving'])$(id).hidden=true;
-  $('term-origin').removeAttribute('href');$('term-supplement').value='';$('term-title').textContent='语境术语';$('term-save').disabled=true;
+  for(const id of ['term-panel','term-result','term-uncertainty','term-evidence','term-list','term-origin','term-knowledge','term-saving'])$(id).hidden=true;
+  $('term-origin').removeAttribute('href');$('term-knowledge').removeAttribute('href');$('term-supplement').value='';$('term-title').textContent='语境术语';$('term-save').disabled=true;
   if(restore)(control&&!control.disabled?control:$('text')).focus({preventScroll:true});
 }
 function openTerms(trigger){
@@ -303,6 +303,8 @@ function paintTerm(card,temporary){
   $('term-uncertainty').textContent=x.uncertainty;$('term-uncertainty').hidden=!x.uncertainty;
   $('term-evidence').textContent=s.excerpt||card.term;$('term-evidence').hidden=false;
   $('term-origin').href=s.origin;$('term-origin').hidden=false;$('term-list').hidden=true;$('term-result').hidden=false;
+  const knowledge=$('term-knowledge');knowledge.hidden=temporary||!uuid(card.id);
+  if(knowledge.hidden)knowledge.removeAttribute('href');else knowledge.href='/knowledgeos/knowledge?'+new URLSearchParams({term:card.id});
   $('term-saving').hidden=!temporary;$('term-save').disabled=!temporary;$('term-supplement').value=card.supplement||'';
   $('term-status').textContent=temporary?'解释已生成，可保存为个人术语。':(card.supplement?'个人补充 · '+card.supplement:'已保存到我的术语。');
 }
@@ -376,7 +378,8 @@ async function createCitation(range=selection,announce=true){
     const c=locator(receipt);if(!uuid(c.id)||c.ordinal!==body.ordinal||c.start!==start||c.end!==end||c.source_hash!==source_hash||c.quote_hash!==quote||(c.conversion_id??null)!==(body.conversion_id??null))throw invalid();
     if(announce){const u=new URL('/knowledgeos/reader',location.origin);u.search=new URLSearchParams({asset,version,citation:c.id});
       $('link').href=u.href;$('link').hidden=false;
-      $('note-link').href='/knowledgeos/notes?'+new URLSearchParams({citation:c.id});$('note-link').hidden=false;draw();status('引用链接已生成。')}
+      $('note-link').href='/knowledgeos/notes?'+new URLSearchParams({citation:c.id});$('note-link').hidden=false;
+      $('knowledge-link').href='/knowledgeos/knowledge?'+new URLSearchParams({citation:c.id});$('knowledge-link').hidden=false;draw();status('引用链接已生成。')}
     return c;
   }catch(e){
     if(g!==gen)return;if([401,403,404,409].includes(e.http)){failure(e,g);return}

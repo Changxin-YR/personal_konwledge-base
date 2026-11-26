@@ -215,6 +215,11 @@ export class CitationStore {
     const r=db.prepare(`SELECT ${fields} FROM citations WHERE id=?`).get(id);if(!r||!this.allowed(a,String(r.asset_id),now))throw notFound();return dto(r)
   }
   target(prior:SessionActor,id:string){return this.tx('read',(db,now)=>this.lookup(db,this.actor(prior,now),id,now))}
+  knowledgeSource(db:DatabaseSync,actor:SessionActor,id:string,now:string){
+    const citation=this.lookup(db,actor,id,now)
+    this.checkStoredSelection(db,actor,citation,now)
+    return citation
+  }
   resolve(prior:SessionActor,id:string,w?:RenderWitness){return this.tx('read',(db,now)=>{
     const a=this.actor(prior,now),r=this.lookup(db,a,id,now),source=this.read(db,a,r,now)
     return {...r,quote:resolveCitationText(this.text(source,w),r),locator:this.locator(db,id)}

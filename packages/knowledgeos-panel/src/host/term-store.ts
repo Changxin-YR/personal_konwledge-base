@@ -92,6 +92,11 @@ export class TermStore {
       return row ? this.view(db, actor, row, now) : undefined
     })
   }
+  knowledgeSource(db: DatabaseSync, actor: SessionActor, id: string, now: string) {
+    const row = this.row(db, actor, id)
+    if (!row) throw new AssetError(404, 'SOURCE_NOT_FOUND')
+    return this.view(db, actor, row, now)
+  }
 
   list(session: SessionActor, asset: string, version: string) {
     return this.tx('read', (db, now) => {

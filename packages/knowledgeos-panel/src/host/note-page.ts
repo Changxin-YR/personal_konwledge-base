@@ -15,7 +15,7 @@ label{display:grid;gap:4px;font-weight:600;min-width:0}input,select,textarea{wid
 <aside class="sidebar" aria-label="我的笔记"><button type="button" id="new">新建笔记</button><ul id="list"></ul><button type="button" id="more" hidden>更多笔记</button></aside>
 <div class="stack"><form id="editor"><fieldset id="fields" class="stack"><label>标题<input id="title" maxlength="200" required></label>
 <label>类型<select id="kind"><option value="plain">普通笔记</option><option value="reading">读书笔记</option><option value="project">项目随记</option><option value="reflection">个人复盘</option></select></label>
-<label>正文<textarea id="body" maxlength="32000"></textarea></label><div class="tools"><button type="submit" id="save">保存笔记</button><small id="revision"></small></div></fieldset></form>
+<label>正文<textarea id="body" maxlength="32000"></textarea></label><div class="tools"><button type="submit" id="save">保存笔记</button><small id="revision"></small><a id="knowledge-link" hidden>形成知识条目</a></div></fieldset></form>
 <section id="conflict" hidden><h2>服务器版本</h2><p id="latest-title"></p><pre id="latest-body"></pre><button type="button" id="rebase">保留草稿并使用此修订</button></section>
 <section id="outline" class="stack" hidden aria-labelledby="outline-heading"><div class="tools"><h2 id="outline-heading">层级大纲</h2><div class="view-segment" role="group" aria-label="笔记视图"><button type="button" id="view-outline" aria-pressed="true">大纲</button><button type="button" id="view-map" aria-pressed="false">脑图</button></div></div>
 <ul id="outline-list" aria-label="大纲节点"></ul>
@@ -47,6 +47,7 @@ const form=()=>({title:$('title').value,kind:$('kind').value,body:$('body').valu
 const desired=q.get('note'), citation=q.get('citation');
 function stop(message){
   locked=true;$('workspace').hidden=true;note=null;rows=[];pending=null;conflict=null;
+  $('knowledge-link').hidden=true;$('knowledge-link').removeAttribute('href');
   $('title').value=$('body').value=$('latest-title').textContent=$('latest-body').textContent='';
   selected=null;pendingMapFocus=undefined;clearOutlinePanels();$('node-body').value='';$('node-target').replaceChildren();$('outline-list').replaceChildren();$('map-graph').replaceChildren();$('map-layout-status').textContent='';$('outline').hidden=true;
   for(const id of ['list','references','projects','project-list'])$(id).replaceChildren();status(message);
@@ -110,7 +111,9 @@ function renderRefs(){
 function clearConflict(){conflict=null;$('conflict').hidden=true;$('latest-title').textContent=$('latest-body').textContent=''}
 function showConflict(latest){conflict=latest.revision;$('latest-title').textContent=latest.title;$('latest-body').textContent=latest.body;$('conflict').hidden=false}
 function apply(n,newCitation=null,outlineDraft=null){
-  note=n;pending=newCitation;key=null;clearConflict();$('title').value=n?.title??'';$('kind').value=n?.kind??(newCitation?'reading':'plain');$('body').value=n?.body??'';
+  note=n;pending=newCitation;key=null;clearConflict();
+  const knowledge=$('knowledge-link');knowledge.hidden=!n;
+  if(n)knowledge.href='/knowledgeos/knowledge?'+new URLSearchParams({note:n.id,revision:String(n.revision)});else knowledge.removeAttribute('href');$('title').value=n?.title??'';$('kind').value=n?.kind??(newCitation?'reading':'plain');$('body').value=n?.body??'';
   $('revision').textContent=n?'修订 '+n.revision:'未保存';renderList();renderRefs();
   $('map-layout-status').textContent='';
   clearOutlinePanels();chooseNode(outlineDraft?.id,outlineDraft?.body);

@@ -13,7 +13,7 @@ import { AssetError } from '../../packages/knowledgeos-panel/src/host/asset-stor
 import { termSystem, readTermAnswer } from '../../packages/knowledgeos-panel/src/host/term-http.ts'
 import { decodeText } from '../../packages/knowledgeos-panel/src/host/text-document.ts'
 import * as lib from '../../packages/knowledgeos-panel/lib/test-support.js'
-import { MIGRATION_V36_CHECKSUM } from '../../packages/knowledgeos-panel/lib/storage.js'
+import { MIGRATION_V36_CHECKSUM, SCHEMA_VERSION } from '../../packages/knowledgeos-panel/lib/storage.js'
 
 const digest = bytes => createHash('sha256').update(bytes).digest('hex')
 const answer = { status: 'explained', context: '当前位置编号', plain: '数到第几个元素', professional: '元素位置的整数编号',
@@ -102,7 +102,7 @@ test('v36 rollback preserves v35 history and saved terms keep exact immutable UT
     assert.deepEqual(data('citations'), oldCitations)
     storage = new lib.ProbeStorage({ dataDir: dir })
     assert(storage.available)
-    assert.equal(db.prepare('PRAGMA user_version').get().user_version, 36)
+    assert.equal(db.prepare('PRAGMA user_version').get().user_version, SCHEMA_VERSION)
     assert.equal(data('schema_migrations')[35].checksum, MIGRATION_V36_CHECKSUM)
     const selected = storage.terms.selection(actor, target)
     assert.equal(selected.source.quote, '索引')

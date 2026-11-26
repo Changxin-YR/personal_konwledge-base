@@ -43,6 +43,8 @@ import { buildRecallHtml } from './recall-page.ts'
 import { buildInvitationHtml } from './invitation-page.ts'
 import { createRepositoryHandler, repositoryApi } from './repository-http.ts'
 import { createTermHandler, termApi } from './term-http.ts'
+import { createKnowledgeHandler, knowledgeApi } from './knowledge-http.ts'
+import { buildKnowledgeHtml } from './knowledge-page.ts'
 import { RepositoryService } from './repository-store.ts'
 import { buildRepositoryHtml } from './repository-page.ts'
 import { appealApi, createProjectTaskHandler, decisionApi, taskApi } from './project-task-http.ts'
@@ -287,6 +289,15 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
         const termScope=new AbortController()
         disposers.push(()=>termScope.abort(),identityContext.webServer.register({kind:'prefix',path:termApi,auth:'anonymous',
           handler:withPeer(createTermHandler(storage.terms,reader,()=>ai,actualOrigin,sessionFor,termScope.signal))}))
+        disposers.push(identityContext.webServer.register({kind:'prefix',path:knowledgeApi,auth:'anonymous',
+          handler:withPeer(createKnowledgeHandler(storage.knowledge,actualOrigin,sessionFor))}))
+        disposers.push(identityContext.webServer.register({kind:'exact',path:'/knowledgeos/knowledge',auth:'anonymous',handler:(req,res)=>{
+          if(req.method!=='GET'){res.writeHead(405,{allow:'GET'});res.end();return}
+          const nonce=randomUUID()
+          res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer',
+            'x-content-type-options':'nosniff','content-security-policy':"default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; connect-src 'self'; script-src 'nonce-"+nonce+"'; style-src 'nonce-"+nonce+"'"})
+          res.end(buildKnowledgeHtml(nonce))
+        }}))
         const handler=libraryHandler(storage.assets,originals,actualOrigin,sessionFor,storage.parses,storage.office,()=>!!officeMount,storage.archives,reader,storage.search)
         const notes=createNoteHandler(storage.notes,actualOrigin,sessionFor)
         const projectTasks=withPeer(createProjectTaskHandler(storage.projectTasks,actualOrigin,sessionFor))

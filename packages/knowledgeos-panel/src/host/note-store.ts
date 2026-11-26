@@ -72,6 +72,14 @@ export class NoteStore {
     if(!row)throw notFound()
     return row
   }
+  knowledgeSource(db:DatabaseSync,actor:SessionActor,id:string){
+    const note=this.owned(db,actor,id)
+    const root=db.prepare('SELECT body FROM note_nodes WHERE note_id=? AND parent_id IS NULL AND archived_at IS NULL').get(id)
+    if(!root)throw notFound()
+    const citations=db.prepare(`SELECT DISTINCT r.citation_id FROM note_references r JOIN note_nodes n ON n.id=r.node_id
+      WHERE n.note_id=? AND n.archived_at IS NULL ORDER BY r.citation_id`).all(id).map(r=>String(r.citation_id))
+    return {id,title:note.title,revision:note.revision,content_hash:createHash('sha256').update(String(root.body)).digest('hex'),citations}
+  }
   private detail(db:DatabaseSync,a:SessionActor,id:string,now:string){
     const meta=this.owned(db,a,id)
     const root=db.prepare('SELECT id,body FROM note_nodes WHERE note_id=? AND parent_id IS NULL').get(id)
