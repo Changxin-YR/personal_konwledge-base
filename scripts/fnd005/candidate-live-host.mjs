@@ -7,6 +7,7 @@ import {createServer} from 'node:net'
 import {setTimeout as sleep} from 'node:timers/promises'
 import {fileURLToPath} from 'node:url'
 import {uuid} from './candidate-live-guards.mjs'
+import {credentialAlias} from './candidate-live-egress.mjs'
 const base=()=>join(process.env.LOCALAPPDATA,'KnowledgeOS-CandidateLive')
 export function workspace(id) {
   assert.match(id,uuid);const dir=join(base(),id);assert.equal(realpathSync(dir),resolve(dir));assert.equal(readFileSync(join(dir,'run-id'),'utf8'),id)
@@ -32,13 +33,20 @@ export async function withHost(bound,dir,run,mode,fn) {
   for(const k of ['USERPROFILE','HOME','LOCALAPPDATA','APPDATA','TEMP','TMP']){env[k]=join(dir,'sandbox-'+k);mkdirSync(env[k],{recursive:true})}
   Object.assign(env,{DSH_HOME:home,DSH_CLIENT_COMMIT_HASH:bound.facts.upstream,KO_ENTRY:bound.entry,KO_HASH:bound.facts.entry_sha256,KO_RUN:run,KO_MODE:mode,TSX_DISABLE_CACHE:'1'})
   const port=await freePort(),base='http://127.0.0.1:'+port
-  const child=spawn(process.execPath,['--import',new URL('candidate-live-trace.mjs',import.meta.url).href,'--import','tsx/esm','apps/cli/src/bin.ts','--profile','web','--patch',patch,'--host','127.0.0.1','--port',String(port),'--no-open'],{cwd:bound.runtime,env,stdio:['ignore','pipe','pipe'],windowsHide:true})
+  const confined=process.env.KO_ACCEPT_TOKEASE_ENV==='1'
+  const egress=[]
+  if(confined) {
+    const credential=process.env[credentialAlias];assert(credential?.trim())
+    Object.assign(env,{[credentialAlias]:credential,KO_TOKEASE_CONFINED:'1',DSH_TELEMETRY_DISABLED:'1',DSH_TELEMETRY_MODE:'DISABLED',KO_TEST_LOOPBACK:base,KO_BOUND_CANDIDATE:bound.facts.candidate_sha})
+    egress.push('--import',new URL('candidate-live-egress.mjs',import.meta.url).href)
+  }
+  const child=spawn(process.execPath,[...egress,'--import',new URL('candidate-live-trace.mjs',import.meta.url).href,'--import','tsx/esm','apps/cli/src/bin.ts','--profile','web','--patch',patch,'--host','127.0.0.1','--port',String(port),'--no-open'],{cwd:bound.runtime,env,stdio:['ignore','pipe','pipe'],windowsHide:true})
   let entry=null,buf='',ended=false;const end=new Promise(ok=>{child.once('error',()=>{ended=true;ok()});child.once('close',()=>{ended=true;ok()})})
   function drain(chunk){if(entry)return;buf=(buf+chunk).slice(-16000);const m=/dsh web:\s*(http:\/\/[^\s]+)\s/.exec(buf);if(m){entry=m[1];buf=''}}
   child.stdout.on('data',drain);child.stderr.on('data',drain)
   try {
     for(let i=0;i<450;i++) {assert(!ended);if(entry&&existsSync(join(run,'loaded.json'))&&existsSync(join(run,'route.json')))break;await sleep(200)}
     assert(entry && new URL(entry).origin===base);const load=JSON.parse(readFileSync(join(run,'loaded.json'))),route=JSON.parse(readFileSync(join(run,'route.json')))
-    assert.deepEqual(load,{pid:child.pid,hash:bound.facts.entry_sha256});assert.equal(route.pid,child.pid);await fn({entry,base,route,pid:child.pid,loadedHash:load.hash})
+    assert.deepEqual(load,{pid:child.pid,hash:bound.facts.entry_sha256});assert.equal(route.pid,child.pid);await fn({entry,base,route,pid:child.pid,loadedHash:load.hash,confined})
   } finally {if(!ended)child.kill();let timer;try{await Promise.race([end,new Promise((_,no)=>{timer=setTimeout(()=>no(Error('HOST_NOT_STOPPED')),15000)})])}finally{clearTimeout(timer)}}
 }

@@ -6,8 +6,9 @@ import {pathToFileURL} from 'node:url'
 import {DatabaseSync} from 'node:sqlite'
 import {bodies,title,sha,ids,tools,uuid,selection,operation} from './candidate-live-guards.mjs'
 import {capture,reread,statusUsage} from './candidate-live-capture.mjs'
+import {instructionFor,makePermit} from './candidate-live-egress.mjs'
 
-export async function browserRun({bound,base,entry,run,route,proof,authorize,images}) {
+export async function browserRun({bound,base,entry,run,route,proof,authorize,images,confined}) {
   const {chromium}=await import(pathToFileURL(bound.playwright).href)
   const headers={'x-knowledgeos-request':'1','content-type':'application/json'}
   const owner=await fetch(entry,{redirect:'manual',signal:AbortSignal.timeout(5000)})
@@ -39,8 +40,8 @@ export async function browserRun({bound,base,entry,run,route,proof,authorize,ima
     assert.equal(await page.locator('#target').inputValue(),id);assert.equal(await page.locator('#model').innerText(),'模型：'+route.provider+' / '+route.model)
     for(let i=0;i<2;i++) {
       const who=await get('me'),status=await get('ai/status');assert.equal(who.id,me.id);assert.equal(status.configured,true);assert.deepEqual(ids(status),ids(route));assert.equal(status.attempts,i)
-      await page.locator('#instruction').fill(i?'Set only the body to exactly: '+bodies[i]:'Read this object.');await page.locator('#key').fill(randomUUID())
-      await authorize();assert(!pageError);writeFileSync(join(run,'permit-'+(i+1)),'',{flag:'wx'});pending=true
+      await page.locator('#instruction').fill(instructionFor(i+1));await page.locator('#key').fill(randomUUID())
+      await authorize();assert(!pageError);writeFileSync(join(run,'permit-'+(i+1)),confined?JSON.stringify(makePermit(bound.facts.candidate_sha,route,i+1,id)):'',{flag:'wx'});pending=true
       const wait=(path,click)=>Promise.all([page.waitForResponse(base+'/knowledge/v1/'+path,{timeout:85000}),page.locator(click).click()]).then(([r])=>r)
       const p=await wait('ai/prepare','#prepare');assert.equal(p.status(),200);const prepared=(await p.json()).data
       assert(existsSync(join(run,'consumed-'+(i+1))));assert.equal(proof.prepare_requests,i+1);selection(prepared,route,i,id);proof.successful_model_selections++

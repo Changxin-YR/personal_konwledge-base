@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {readFileSync,renameSync,writeFileSync} from 'node:fs'
 import {join} from 'node:path'
 import {ids,checkedRoute,dispatch} from './candidate-live-guards.mjs'
+import {credentialAlias,relayRoute} from './candidate-live-egress.mjs'
 export const name='candidate-live-native',inject=['llm','settings','credentials','agentDefaultModel']
 export async function projection(ctx) {
   const pair=ids(ctx.agentDefaultModel.currentSelection())
@@ -12,7 +13,12 @@ export async function projection(ctx) {
   const profile=section?.value?.providers?.[pair.provider]; assert(profile && !dir.error); assert.match(profile.apiKeyEnv,/^[A-Z][A-Z0-9_]{1,80}$/)
   const credential=await ctx.credentials.describe(profile.apiKeyEnv)
   assert(ctx.llm.listProviders().some(p=>p.id===pair.provider))
-  return checkedRoute(pair,await ctx.llm.listModels(pair.provider),dir,profile,credential.configured,ctx.llm.providerRetryPolicy(pair.provider))
+  const route=checkedRoute(pair,await ctx.llm.listModels(pair.provider),dir,profile,credential.configured,ctx.llm.providerRetryPolicy(pair.provider))
+  if(process.env.KO_TOKEASE_CONFINED==='1') {
+    assert.deepEqual(route,relayRoute)
+    assert(profile.api==='openai-completions' && profile.apiKeyEnv===credentialAlias && credential.source==='env')
+  }
+  return route
 }
 export function apply(ctx) {
   const root=process.env.KO_RUN; let route,n=0
@@ -21,7 +27,10 @@ export function apply(ctx) {
     try {
       assert(route && process.env.KO_MODE==='live'); assert.deepEqual(ids(ctx.agentDefaultModel.currentSelection()),ids(route)); assert.equal(ctx.llm.providerRetryPolicy(route.provider).maxRetries,0)
       const q=JSON.parse(readFileSync(file('approved.json'),'utf8'))
-      dispatch(req,route,q,n+1,i=>renameSync(file('permit-'+i),file('consumed-'+i))); n++
+      dispatch(req,route,q,n+1,i=>{
+        if(process.env.KO_TOKEASE_CONFINED==='1')writeFileSync(file('armed-'+i),'',{flag:'wx'})
+        else renameSync(file('permit-'+i),file('consumed-'+i))
+      }); n++
     } catch { throw Error('ACCEPTANCE_DISPATCH_DENIED') }
     return next()
   })

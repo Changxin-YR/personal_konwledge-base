@@ -25,11 +25,22 @@ export function priceApproval(q,r,now=Date.now()) {
   for(const v of [q.input,q.output]) assert(Number.isFinite(v)&&v>0&&v<=1000)
 }
 export function relayPrice(model,pricing,status,caps) {
-  const [name,slug]=model.split('/'); assert(slug)
-  const channels=pricing.data.filter(m=>m.model_name===name&&m.enable_groups.includes('default')).flatMap(m=>m.channel_list).filter(c=>c.route_slug===slug)
-  assert.equal(channels.length,1); const c=channels[0],group=pricing.group_ratio.default,unit=status.data.quota_per_unit
+  const [name,slug,...extra]=model.split('/'); assert(name && slug!=='' && extra.length===0)
+  const rows=pricing.data.filter(m=>m.model_name===name)
+  const eligible=rows.filter(m=>m.enable_groups.includes('default'))
+  const channels=eligible.flatMap(m=>m.channel_list).filter(c=>!slug||c.route_slug===slug)
+  if(slug) {
+    assert.equal(channels.length,1)
+  } else {
+    assert(eligible.length>0 && eligible.length===rows.length)
+    assert(eligible.every(m=>m.quota_type===0 && m.enable_groups.length===1 && Array.isArray(m.channel_list) && m.channel_list.length>0))
+    const slugs=channels.map(c=>c.route_slug)
+    assert(slugs.every(v=>typeof v==='string' && /^[a-z0-9-]{1,40}$/.test(v)))
+    assert.equal(new Set(slugs).size,channels.length)
+  }
+  const group=pricing.group_ratio.default,unit=status.data.quota_per_unit
   assert(Number.isFinite(group)&&group>0&&Number.isFinite(unit)&&unit>0)
-  for(const t of [c,...(c.time_pricing?[c.time_pricing.regular_pricing,...c.time_pricing.schedules.map(s=>s.pricing)]:[])]) {
+  for(const c of channels) for(const t of [c,...(c.time_pricing?[c.time_pricing.regular_pricing,...c.time_pricing.schedules.map(s=>s.pricing)]:[])]) {
     const input=1e6*t.model_ratio*group/unit,output=input*t.completion_ratio
     assert(t.quota_type===0 && input>0 && input<=caps.input && output>0 && output<=caps.output)
   }

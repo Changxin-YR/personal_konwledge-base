@@ -28,6 +28,19 @@ test('price rejects future/stale approvals, mismatch, negative and ambiguous/sch
   const c={route_slug:'route-a',model_ratio:1,completion_ratio:2,quota_type:0},p={data:[{model_name:'deepseek-test',enable_groups:['default'],channel_list:[c]}],group_ratio:{default:1}},s={data:{quota_per_unit:1e6}}
   relayPrice(r.model,p,s,q);assert.throws(()=>relayPrice('deepseek-test/other',p,s,q));p.data[0].channel_list.push(c);assert.throws(()=>relayPrice(r.model,p,s,q));p.data[0].channel_list.pop();c.time_pricing={regular_pricing:c,schedules:[{pricing:{...c,completion_ratio:10}}]};assert.throws(()=>relayPrice(r.model,p,s,q))
 })
+test('unsuffixed relay validates every default channel and scheduled price, including split catalog rows',()=>{
+  const route=route_slug=>({route_slug,quota_type:0,model_ratio:0.5,completion_ratio:2})
+  const model=(channel,groups=['default'])=>({quota_type:0,model_name:'deepseek-test',enable_groups:groups,channel_list:[channel]})
+  const pricing=(...data)=>({data,group_ratio:{default:1}}),status={data:{quota_per_unit:1e6}}
+  const a=route('route-a'),b={...route('route-b'),time_pricing:{regular_pricing:route('route-b'),schedules:[{pricing:route('route-b')}]}}
+  relayPrice('deepseek-test',pricing(model(a),model(b)),status,q)
+  for(const rows of [[],[model(a),model(a)],[model(a),model(b,['vip'])],[model(a,['default','vip'])],[model({...a,route_slug:undefined})],[model({...a,model_ratio:3})],[model({...a,quota_type:1})]]) {
+    assert.throws(()=>relayPrice('deepseek-test',pricing(...rows),status,q))
+  }
+  b.time_pricing.schedules[0].pricing.completion_ratio=20
+  assert.throws(()=>relayPrice('deepseek-test',pricing(model(a),model(b)),status,q))
+  relayPrice('deepseek-test/route-a',pricing(model(a),model(b)),status,q)
+})
 test('native transport requires an unused permit on exact endpoint; no third attempt',()=>{
   const req={...r,baseURL:r.endpoint},permits=new Set(),consume=i=>assert(permits.delete(i));assert.throws(()=>dispatch(req,r,q,1,consume));permits.add(1)
   for(const extra of [{baseURL:'https://api.deepseek.com'},{sessionId:'test'},{model:'deepseek-other'}])assert.throws(()=>dispatch({...req,...extra},r,q,1,consume))

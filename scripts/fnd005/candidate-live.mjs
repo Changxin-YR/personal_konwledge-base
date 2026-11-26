@@ -10,6 +10,7 @@ const help = [
  'freeze COMMIT CACHE  (offline; print binding fingerprint)',
  'init  (create an ACL-private disposable home; returns id and home)',
  'Provision only that DSH_HOME, stock web profile, using native DSH settings and credential manager; no copied profiles, inline keys, plugins or concurrent Host. Set its intended default and normal retry policy with maxRetries=0. Stop setup Host.',
+ 'For the exact Tokease test route, explicitly set KO_ACCEPT_TOKEASE_ENV=1 and supply KOS_TOKEASE_ACCEPTANCE_KEY through the launch environment only.',
  'discover COMMIT CACHE FINGERPRINT ID  (start isolated Host; no prepare or inference; emits selected route only)',
  'Review a fresh supplier price for that exact route. Put non-secret approval.json in the ID directory (parent of home), UTF-8 JSON:',
  '{"provider":"<discovered>","model":"<discovered>","endpoint":"<discovered>","currency":"USD_PER_MILLION_TOKENS","input":1,"output":1,"reviewed_at":"<UTC ISO time>"}',
@@ -35,12 +36,12 @@ async function main([mode,...a]) {
   const proof={unit_id:'FND-005',category:'REAL_DEEPSEEK_UI_HTTP_SQLITE',...bound.facts,status:'BLOCKED',provider:null,model:null,prepare_requests:0,successful_model_selections:0,operations:[],started_at:new Date().toISOString(),phase:'STARTUP'}
   const images=[];let q;try {
     if(mode==='live'){const path=join(dir,'approval.json');assert(lstatSync(path).isFile() && lstatSync(path).size<=4096);const bytes=readFileSync(path);assert.equal(sha(bytes),qhash);q=JSON.parse(bytes);proof.price_approval_sha256=qhash}
-    await withHost(bound,dir,run,mode,async ({route,entry,base,pid,loadedHash})=>{
+    await withHost(bound,dir,run,mode,async ({route,entry,base,pid,loadedHash,confined})=>{
       const r={...ids(route),endpoint:endpoint(route.endpoint)};proof.provider=r.provider;proof.model=r.model;proof.host_pid=pid;proof.loader_sha256=loadedHash
       if(mode==='discover'){console.log(JSON.stringify(r));return}
       proof.phase='PRICE_AND_ROUTE';await price(q,r);const approved={...ids(q),endpoint:r.endpoint,reviewed_at:q.reviewed_at,currency:q.currency,input:q.input,output:q.output};writeFileSync(join(run,'approved.json'),JSON.stringify(approved),{flag:'wx'})
       const authorize=async()=>{assert.equal(binding(commit,cache).fingerprint,fingerprint);await price(q,r)}
-      proof.phase='BROWSER';const {browserRun}=await import('./candidate-live-browser.mjs');await browserRun({bound,base,entry,run,route:r,proof,authorize,images})
+      proof.phase='BROWSER';const {browserRun}=await import('./candidate-live-browser.mjs');await browserRun({bound,base,entry,run,route:r,proof,authorize,images,confined})
     });if(mode==='live'){proof.phase='FINAL_BINDING';assert.equal(binding(commit,cache).fingerprint,fingerprint);assert.equal(proof.operations.length,2);assert.equal(proof.prepare_requests,2);assert.equal(proof.successful_model_selections,2);proof.status='PASS';proof.phase='COMPLETE'}
   }catch{if(mode==='live'&&proof.prepare_requests>0)proof.status='FAIL';process.exitCode=1;console.error('Stopped: '+proof.phase)}finally{
     if(mode==='live'){proof.native_dispatches=[1,2].filter(i=>existsSync(join(run,'consumed-'+i))).length;proof.finished_at=new Date().toISOString();const path=publishProof(run,proof,images);console.log(JSON.stringify({status:proof.status,proof:path}))}
