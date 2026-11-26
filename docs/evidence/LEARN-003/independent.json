@@ -1,0 +1,34 @@
+{
+  "unit_id": "LEARN-003",
+  "candidate_sha": "dc21d5dc1875d848eaff62f24ef26575deac3443",
+  "tree": "2f950a635bb2b56a8ff4448d907dcd6f38f69371",
+  "source_tree": "7ca4620fd4b207c9706f16228711527cdf361a35",
+  "entry_sha256": "f8d57829bb6ce5c3e833a237374b1374cab14de0dee5c7949a3e815e13996b1e",
+  "build_sha256": "44ee8838ac32296842043cdec434489dc4e11cd24bb9377fdeef7f22c91333e6",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/learn003/host-question-states.mjs <frozen-checkout> dc21d5dc1875d848eaff62f24ef26575deac3443 f8d57829bb6ce5c3e833a237374b1374cab14de0dee5c7949a3e815e13996b1e scripts/learn003/independent-review-scenario.mjs independent",
+  "reviewer": "Independent Chrome/Host and SQLite replay agents",
+  "results": [
+    {
+      "id": "LEARN-003-T01",
+      "status": "PASS",
+      "actual": "Two durable first answers and one author version correction, separate current grades, exact old attempts/feedback intact."
+    },
+    {
+      "id": "LEARN-003-T02",
+      "status": "PASS",
+      "actual": "Four personal outcomes with pre-answer hints and open dispute, actual dated review queue, same direction and goals, current ACL and restart."
+    }
+  ],
+  "records": [
+    {
+      "path": "docs/evidence/LEARN-003/runs/independent.json",
+      "sha256": "41b75986973956e18f1d69ff671723567804513158353ab8f7e98e114ab1fcff"
+    },
+    {
+      "path": "docs/evidence/LEARN-003/runs/v41-storage.json",
+      "sha256": "10496274c06ff4c318bc396c14aea5cd649d081020ba52c2288e4c172edf73db"
+    }
+  ]
+}

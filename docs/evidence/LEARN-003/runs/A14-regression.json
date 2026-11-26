@@ -1,0 +1,69 @@
+{
+  "unit_id": "LEARN-003",
+  "candidate_sha": "dc21d5dc1875d848eaff62f24ef26575deac3443",
+  "tree": "2f950a635bb2b56a8ff4448d907dcd6f38f69371",
+  "source_tree": "7ca4620fd4b207c9706f16228711527cdf361a35",
+  "entry_sha256": "f8d57829bb6ce5c3e833a237374b1374cab14de0dee5c7949a3e815e13996b1e",
+  "build_sha256": "44ee8838ac32296842043cdec434489dc4e11cd24bb9377fdeef7f22c91333e6",
+  "case_id": "A14",
+  "participants": [
+    {
+      "unit_id": "FND-004",
+      "candidate_sha": "3c78f1f1379a033c20a193cc091f873e0573e0c1"
+    },
+    {
+      "unit_id": "LEARN-001",
+      "candidate_sha": "0e7c900a7d0a922be46b8b6c59fbf08375f8b91c"
+    },
+    {
+      "unit_id": "LEARN-003",
+      "candidate_sha": "dc21d5dc1875d848eaff62f24ef26575deac3443"
+    }
+  ],
+  "kind": "regression",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node --experimental-transform-types scripts/learn003/v41-regression.mjs <frozen-checkout> <candidate> <entry>",
+  "runner": "Independent SQLite migration, correction transaction and reopening regression",
+  "environment": "Isolated native Windows DSH Host/Chrome/SQLite or direct production SQLite regression.",
+  "inputs": "Fixed synthetic cited questions and independently scoped project test identities.",
+  "run_id": "kos-learn003-v41-egIhGp",
+  "results": [
+    {
+      "id": "frozen_v40_shared_played_attempts_and_generated_run",
+      "status": "PASS",
+      "actual": "Observed in isolated production SQLite replay."
+    },
+    {
+      "id": "v41_migration_failure_preserves_all_legacy_rows",
+      "status": "PASS",
+      "actual": "Observed in isolated production SQLite replay."
+    },
+    {
+      "id": "one_v41_ledger_and_original_answers_still_visible_to_owners",
+      "status": "PASS",
+      "actual": "Observed in isolated production SQLite replay."
+    },
+    {
+      "id": "faults_in_second_regrade_and_pointer_rollback_everything",
+      "status": "PASS",
+      "actual": "Observed in isolated production SQLite replay."
+    },
+    {
+      "id": "atomic_author_correction_flips_private_effective_grades_without_mutation",
+      "status": "PASS",
+      "actual": "Observed in isolated production SQLite replay."
+    },
+    {
+      "id": "reopen_rehydrates_only_personal_corrected_summary",
+      "status": "PASS",
+      "actual": "Observed in isolated production SQLite replay."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/LEARN-003/runs/v41-storage.json",
+      "sha256": "10496274c06ff4c318bc396c14aea5cd649d081020ba52c2288e4c172edf73db"
+    }
+  ]
+}

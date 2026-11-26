@@ -1,0 +1,46 @@
+{
+  "unit_id": "LEARN-003",
+  "candidate_sha": "dc21d5dc1875d848eaff62f24ef26575deac3443",
+  "entry_sha256": "f8d57829bb6ce5c3e833a237374b1374cab14de0dee5c7949a3e815e13996b1e",
+  "frozen_v40": "18e65b30a9246c2c488eb289c14cf7e51c6b3984",
+  "runner_sha256": "425906817d7c9a1b2eb46ec015978c457e636eb199e7a4dedbbd49254483166a",
+  "old_bundle_sha256": "34beba19564cab0d6c0f963f06e9234e7ade7fe9bdaefba65e3d8794451e96b7",
+  "test_support_sha256": "b081f7b19706a5601075ed8b15dfa1da0d4ed451182b3b641bc0fd08c816d748",
+  "scope": "INDEPENDENT_OFFLINE_V41_STORAGE",
+  "command": "node --experimental-transform-types v41-regression.mjs <checkout> <candidate SHA> <entry SHA-256>",
+  "status": "PASS",
+  "exit_code": 0,
+  "real_inference_requests": 0,
+  "results": [
+    {
+      "id": "frozen_v40_shared_played_attempts_and_generated_run",
+      "status": "PASS",
+      "actual": "Production v40 built a shared fixed-source question with two genuine private attempts, plus its generated question/receipt and persisted profile directions."
+    },
+    {
+      "id": "v41_migration_failure_preserves_all_legacy_rows",
+      "status": "PASS",
+      "actual": "Injected failure after the new schema rolled back every definition, old row and ledger record."
+    },
+    {
+      "id": "one_v41_ledger_and_original_answers_still_visible_to_owners",
+      "status": "PASS",
+      "actual": "Two successful opens produced one exact v41 checksum and unchanged v40 data, including learner-only originals and generated practice."
+    },
+    {
+      "id": "faults_in_second_regrade_and_pointer_rollback_everything",
+      "status": "PASS",
+      "actual": "Failure after one real regrade, or after both, restored the original rubric, report, correction receipt, ledgers, attempts and every relevant row."
+    },
+    {
+      "id": "atomic_author_correction_flips_private_effective_grades_without_mutation",
+      "status": "PASS",
+      "actual": "Only the author corrected the rubric. Matching key replay was inert, stale and modified requests failed. Two effective grades flipped in opposite directions while old answers, old feedback, private reason and user profiles remained exact."
+    },
+    {
+      "id": "reopen_rehydrates_only_personal_corrected_summary",
+      "status": "PASS",
+      "actual": "After restart the regraded classifications remained available to their respective learners; author had no private answer listing and profile data was unchanged."
+    }
+  ]
+}

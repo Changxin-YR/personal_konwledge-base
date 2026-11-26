@@ -1,0 +1,104 @@
+{
+  "unit_id": "LEARN-003",
+  "candidate_sha": "dc21d5dc1875d848eaff62f24ef26575deac3443",
+  "tree": "2f950a635bb2b56a8ff4448d907dcd6f38f69371",
+  "source_tree": "7ca4620fd4b207c9706f16228711527cdf361a35",
+  "entry_sha256": "f8d57829bb6ce5c3e833a237374b1374cab14de0dee5c7949a3e815e13996b1e",
+  "build_sha256": "44ee8838ac32296842043cdec434489dc4e11cd24bb9377fdeef7f22c91333e6",
+  "runner_sha256": "4efe79214ba4955c0faa6b7a59447fbb654426deb5b458bf02664a3d34a68431",
+  "scenario_sha256": "e2682d2834c80a7ac087dc73691182470ba85047838420fbc2eb5c1740bc71e6",
+  "run_kind": "independent",
+  "model_phase": "offline",
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "P05": "NOT_RUN",
+  "A14": "NOT_RUN",
+  "checks": [
+    {
+      "id": "real_project_acl_and_reader_source",
+      "status": "PASS",
+      "sqlite_schema": 41,
+      "source_quote_sha256": "f9fb7e3ea78ba0bde6ef0fc6869421174cc412fbbd04cc3ef6c946e8dc99c53c"
+    },
+    {
+      "id": "isolated_original_first_answers",
+      "status": "PASS",
+      "version": "664ceb68-114e-4823-9577-9fe8a4011da2",
+      "wrong_owner_distinct": true,
+      "author_cannot_read_attempt": true
+    },
+    {
+      "id": "T02",
+      "status": "PASS",
+      "wrong_uncertain_assisted_disputed_distinct": true,
+      "unknown_decision_rejected": true,
+      "own_followup_queue": true,
+      "directions_and_goals_same": true
+    },
+    {
+      "id": "T01",
+      "status": "PASS",
+      "authored_version_advanced": true,
+      "first_attempts_immutable": true,
+      "personal_two_way_recalculation": true,
+      "exact_replay_one_version": true
+    },
+    {
+      "id": "durable_current_and_historical_outcomes",
+      "status": "PASS",
+      "restarted": true,
+      "private_results_separate": true
+    },
+    {
+      "id": "current_acl_gates_review_history_and_foreground",
+      "status": "PASS",
+      "source_loss": true,
+      "project_loss": true,
+      "historical_rows_retained": true
+    }
+  ],
+  "screens": [
+    {
+      "file": "personal-wrong-before-correction.png",
+      "sha256": "d8fe3339b9df7bc2758828e10d698c6a025ee55b26306af7a1f23d7c7a82b519",
+      "bytes": 33803
+    },
+    {
+      "file": "personal-reason-and-next-review.png",
+      "sha256": "5f04c6e3adbc70a35164c273faee098ea89d3b9b03d5aa5da9508b35f1eed3c1",
+      "bytes": 55761
+    },
+    {
+      "file": "personal-disputes-and-follow-up.png",
+      "sha256": "1f6754547adb1935b85419670d0c1e060f2b75e872a2e1bfcb8648a055eb9ee6",
+      "bytes": 42661
+    },
+    {
+      "file": "personal-corrected-original-retained.png",
+      "sha256": "3105a9e0edba5f6780ff166383b5347641c4816d9dbccb1bbb42ff06c4ccdfc7",
+      "bytes": 65314
+    },
+    {
+      "file": "peer-recalculation-after-restart.png",
+      "sha256": "c7cc84fd64e2bd682bc14047154a7fe6e42288facff10be3a3f98474fb7866de",
+      "bytes": 34096
+    },
+    {
+      "file": "personal-review-source-revoked.png",
+      "sha256": "1a35bf1357df82d120c9bdbfe5baf6b06555becd82f9546c5d97d3a94119e516",
+      "bytes": 32920
+    }
+  ],
+  "boots": [
+    13056,
+    46744
+  ],
+  "egress": {
+    "browser_denied": 0,
+    "host_non_loopback_requests": 0,
+    "real_model_requests": 0
+  },
+  "chrome": "158.0.8127.88",
+  "cleanup": "PASS"
+}

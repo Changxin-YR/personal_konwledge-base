@@ -1,0 +1,71 @@
+{
+  "unit_id": "LEARN-003",
+  "candidate_sha": "dc21d5dc1875d848eaff62f24ef26575deac3443",
+  "tree": "2f950a635bb2b56a8ff4448d907dcd6f38f69371",
+  "source_tree": "7ca4620fd4b207c9706f16228711527cdf361a35",
+  "entry_sha256": "f8d57829bb6ce5c3e833a237374b1374cab14de0dee5c7949a3e815e13996b1e",
+  "build_sha256": "44ee8838ac32296842043cdec434489dc4e11cd24bb9377fdeef7f22c91333e6",
+  "case_id": "A14",
+  "participants": [
+    {
+      "unit_id": "FND-004",
+      "candidate_sha": "3c78f1f1379a033c20a193cc091f873e0573e0c1"
+    },
+    {
+      "unit_id": "LEARN-001",
+      "candidate_sha": "0e7c900a7d0a922be46b8b6c59fbf08375f8b91c"
+    },
+    {
+      "unit_id": "LEARN-003",
+      "candidate_sha": "dc21d5dc1875d848eaff62f24ef26575deac3443"
+    }
+  ],
+  "kind": "main",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/learn003/host-question-states.mjs <frozen-checkout> dc21d5dc1875d848eaff62f24ef26575deac3443 f8d57829bb6ce5c3e833a237374b1374cab14de0dee5c7949a3e815e13996b1e scripts/learn003/main-review-scenario.mjs main",
+  "runner": "Main Chrome correction and private follow-up scenario",
+  "environment": "Isolated native Windows DSH Host/Chrome/SQLite or direct production SQLite regression.",
+  "inputs": "Fixed synthetic cited questions and independently scoped project test identities.",
+  "run_id": "knowledgeos-learn003-run-0BYzd0",
+  "results": [
+    {
+      "id": "TWO_SCOPED_LEARNERS_WITH_DIFFERENT_FIRST_RESULTS",
+      "status": "PASS",
+      "actual": "Two actual project members submitted different initial grades against the same version."
+    },
+    {
+      "id": "AUTHOR_CREATES_IMMUTABLE_CORRECTION",
+      "status": "PASS",
+      "actual": "Scoped owner used Chrome to append a corrected rubric and explanation; stale and ordinary-member requests rejected."
+    },
+    {
+      "id": "EFFECTIVE_REGRADES_FLIP_ONLY_OWN_STATE",
+      "status": "PASS",
+      "actual": "Both learners observed their separately recomputed grade and private follow-up status, no author exposure to individual attempt records."
+    },
+    {
+      "id": "ORIGINAL_ATTEMPTS_AND_SOURCES_SURVIVE",
+      "status": "PASS",
+      "actual": "SQLite historical rows exactly retained original answers/grade/timestamps, candidate pins and V1 feedback/citation survived."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/LEARN-003/runs/main.json",
+      "sha256": "716503add9ef550acf68e9311556d0b2fdcd5549a9fa07eacd4aea2f6e009654"
+    },
+    {
+      "path": "docs/evidence/LEARN-003/runs/main-dispute-pauses-evaluation.png",
+      "sha256": "1300accc097f765800e94b0811ed4c5623426ad4c2a1444999b5166342513bd9"
+    },
+    {
+      "path": "docs/evidence/LEARN-003/runs/main-private-classes-and-real-review-queue.png",
+      "sha256": "a9919565a3c689a2265a6f57d4488c8a3bd0bf6b6eee1212ac0eb414b935e884"
+    },
+    {
+      "path": "docs/evidence/LEARN-003/runs/main-private-corrected-result.png",
+      "sha256": "bdf57b87970a5b137fb72efd2bbad805941eea6dea0a70d02f3dfd5789aab586"
+    }
+  ]
+}

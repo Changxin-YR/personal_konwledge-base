@@ -1,0 +1,68 @@
+{
+  "unit_id": "LEARN-003",
+  "candidate_sha": "dc21d5dc1875d848eaff62f24ef26575deac3443",
+  "tree": "2f950a635bb2b56a8ff4448d907dcd6f38f69371",
+  "source_tree": "7ca4620fd4b207c9706f16228711527cdf361a35",
+  "entry_sha256": "f8d57829bb6ce5c3e833a237374b1374cab14de0dee5c7949a3e815e13996b1e",
+  "build_sha256": "44ee8838ac32296842043cdec434489dc4e11cd24bb9377fdeef7f22c91333e6",
+  "runner_sha256": "4efe79214ba4955c0faa6b7a59447fbb654426deb5b458bf02664a3d34a68431",
+  "scenario_sha256": "c73b9143789eb9bd13119711243f4fff7a89601f17e734a4f225ed6e07a6154c",
+  "run_kind": "main",
+  "model_phase": "offline",
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "P05": "NOT_RUN",
+  "A14": "NOT_RUN",
+  "checks": [
+    {
+      "id": "real_project_acl_and_reader_source",
+      "status": "PASS",
+      "sqlite_schema": 41,
+      "source_quote_sha256": "f9fb7e3ea78ba0bde6ef0fc6869421174cc412fbbd04cc3ef6c946e8dc99c53c"
+    },
+    {
+      "id": "T02",
+      "status": "PASS",
+      "four_distinct_classes": true,
+      "dispute_pauses_other_formal_result": true,
+      "private_plan": true,
+      "unchanged_profile": true
+    },
+    {
+      "id": "T01",
+      "status": "PASS",
+      "different_initial_and_effective_grades": true,
+      "raw_attempts_identical": true,
+      "pinned_original_explanation": true,
+      "author_only_correction": true
+    }
+  ],
+  "screens": [
+    {
+      "file": "dispute-pauses-evaluation.png",
+      "sha256": "1300accc097f765800e94b0811ed4c5623426ad4c2a1444999b5166342513bd9",
+      "bytes": 74418
+    },
+    {
+      "file": "private-classes-and-real-review-queue.png",
+      "sha256": "a9919565a3c689a2265a6f57d4488c8a3bd0bf6b6eee1212ac0eb414b935e884",
+      "bytes": 44943
+    },
+    {
+      "file": "private-corrected-result.png",
+      "sha256": "bdf57b87970a5b137fb72efd2bbad805941eea6dea0a70d02f3dfd5789aab586",
+      "bytes": 55729
+    }
+  ],
+  "boots": [
+    35144
+  ],
+  "egress": {
+    "browser_denied": 0,
+    "host_non_loopback_requests": 0,
+    "real_model_requests": 0
+  },
+  "chrome": "158.0.8127.88",
+  "cleanup": "PASS"
+}

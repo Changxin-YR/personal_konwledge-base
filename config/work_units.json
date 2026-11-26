@@ -2515,8 +2515,29 @@
         "A14"
       ],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "in_progress",
-      "test_plan_status": "expanded_for_activation"
+      "status": "passed",
+      "test_plan_status": "executed_with_evidence",
+      "candidate_commit": "dc21d5dc1875d848eaff62f24ef26575deac3443",
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "retest_status": "PASS",
+      "completed_test_ids": [
+        "LEARN-003-T01",
+        "LEARN-003-T02"
+      ],
+      "open_review_items": [],
+      "closed_review_items": [],
+      "completed_at": "2026-11-26T05:32:56.344926+00:00",
+      "acceptance_record": "docs/evidence/LEARN-003/acceptance.json",
+      "evidence_paths": [
+        "docs/evidence/LEARN-003/REPORT.md",
+        "docs/evidence/LEARN-003/acceptance.json",
+        "docs/evidence/LEARN-003/independent.json",
+        "docs/evidence/LEARN-003/P05.json",
+        "docs/evidence/LEARN-003/A14.json",
+        "docs/evidence/LEARN-003/runs/v41-storage.json",
+        "docs/evidence/LEARN-003/runs/plan-gates.json"
+      ]
     },
     {
       "id": "LEARN-004",

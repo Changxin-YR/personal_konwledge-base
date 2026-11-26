@@ -1,0 +1,83 @@
+{
+  "unit_id": "LEARN-003",
+  "candidate_sha": "dc21d5dc1875d848eaff62f24ef26575deac3443",
+  "tree": "2f950a635bb2b56a8ff4448d907dcd6f38f69371",
+  "source_tree": "7ca4620fd4b207c9706f16228711527cdf361a35",
+  "entry_sha256": "f8d57829bb6ce5c3e833a237374b1374cab14de0dee5c7949a3e815e13996b1e",
+  "build_sha256": "44ee8838ac32296842043cdec434489dc4e11cd24bb9377fdeef7f22c91333e6",
+  "case_id": "A14",
+  "participants": [
+    {
+      "unit_id": "FND-004",
+      "candidate_sha": "3c78f1f1379a033c20a193cc091f873e0573e0c1"
+    },
+    {
+      "unit_id": "LEARN-001",
+      "candidate_sha": "0e7c900a7d0a922be46b8b6c59fbf08375f8b91c"
+    },
+    {
+      "unit_id": "LEARN-003",
+      "candidate_sha": "dc21d5dc1875d848eaff62f24ef26575deac3443"
+    }
+  ],
+  "kind": "independent",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/learn003/host-question-states.mjs <frozen-checkout> dc21d5dc1875d848eaff62f24ef26575deac3443 f8d57829bb6ce5c3e833a237374b1374cab14de0dee5c7949a3e815e13996b1e scripts/learn003/independent-review-scenario.mjs independent",
+  "runner": "Independent native Chrome review, comparison and ACL restart scenario",
+  "environment": "Isolated native Windows DSH Host/Chrome/SQLite or direct production SQLite regression.",
+  "inputs": "Fixed synthetic cited questions and independently scoped project test identities.",
+  "run_id": "knowledgeos-learn003-run-ccfGqF",
+  "results": [
+    {
+      "id": "TWO_SCOPED_LEARNERS_WITH_DIFFERENT_FIRST_RESULTS",
+      "status": "PASS",
+      "actual": "Two actual project members submitted different initial grades against the same version."
+    },
+    {
+      "id": "AUTHOR_CREATES_IMMUTABLE_CORRECTION",
+      "status": "PASS",
+      "actual": "Scoped owner used Chrome to append a corrected rubric and explanation; stale and ordinary-member requests rejected."
+    },
+    {
+      "id": "EFFECTIVE_REGRADES_FLIP_ONLY_OWN_STATE",
+      "status": "PASS",
+      "actual": "Both learners observed their separately recomputed grade and private follow-up status, no author exposure to individual attempt records."
+    },
+    {
+      "id": "ORIGINAL_ATTEMPTS_AND_SOURCES_SURVIVE",
+      "status": "PASS",
+      "actual": "SQLite historical rows exactly retained original answers/grade/timestamps, candidate pins and V1 feedback/citation survived."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/LEARN-003/runs/independent.json",
+      "sha256": "41b75986973956e18f1d69ff671723567804513158353ab8f7e98e114ab1fcff"
+    },
+    {
+      "path": "docs/evidence/LEARN-003/runs/independent-personal-wrong-before-correction.png",
+      "sha256": "d8fe3339b9df7bc2758828e10d698c6a025ee55b26306af7a1f23d7c7a82b519"
+    },
+    {
+      "path": "docs/evidence/LEARN-003/runs/independent-personal-reason-and-next-review.png",
+      "sha256": "5f04c6e3adbc70a35164c273faee098ea89d3b9b03d5aa5da9508b35f1eed3c1"
+    },
+    {
+      "path": "docs/evidence/LEARN-003/runs/independent-personal-disputes-and-follow-up.png",
+      "sha256": "1f6754547adb1935b85419670d0c1e060f2b75e872a2e1bfcb8648a055eb9ee6"
+    },
+    {
+      "path": "docs/evidence/LEARN-003/runs/independent-personal-corrected-original-retained.png",
+      "sha256": "3105a9e0edba5f6780ff166383b5347641c4816d9dbccb1bbb42ff06c4ccdfc7"
+    },
+    {
+      "path": "docs/evidence/LEARN-003/runs/independent-peer-recalculation-after-restart.png",
+      "sha256": "c7cc84fd64e2bd682bc14047154a7fe6e42288facff10be3a3f98474fb7866de"
+    },
+    {
+      "path": "docs/evidence/LEARN-003/runs/independent-personal-review-source-revoked.png",
+      "sha256": "1a35bf1357df82d120c9bdbfe5baf6b06555becd82f9546c5d97d3a94119e516"
+    }
+  ]
+}

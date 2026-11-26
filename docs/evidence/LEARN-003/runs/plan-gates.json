@@ -1,0 +1,8 @@
+{
+  "scope": "plan_gate_regressions_only",
+  "status": "PASS",
+  "checks": 148,
+  "started_at": "2026-11-26T05:30:20.756Z",
+  "finished_at": "2026-11-26T05:32:23.226Z",
+  "source_sha256": "ba174beec21d52d2155613435bf0e8e4fa088bb6f9488fe22f5d569b051889f5"
+}

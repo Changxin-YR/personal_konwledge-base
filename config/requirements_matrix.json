@@ -206,7 +206,9 @@
       "implementation_status": "in_progress",
       "evidence_paths": [
         "docs/evidence/LEARN-002/acceptance.json",
-        "docs/evidence/LEARN-002/A13.json"
+        "docs/evidence/LEARN-002/A13.json",
+        "docs/evidence/LEARN-003/acceptance.json",
+        "docs/evidence/LEARN-003/P05.json"
       ]
     },
     {
@@ -368,8 +370,11 @@
         "A15",
         "A16"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/LEARN-003/acceptance.json",
+        "docs/evidence/LEARN-003/A14.json"
+      ]
     },
     {
       "id": "F24",
@@ -386,7 +391,10 @@
       ],
       "implementation_status": "in_progress",
       "evidence_paths": [
-        "docs/evidence/LEARN-001/acceptance.json"
+        "docs/evidence/LEARN-001/acceptance.json",
+        "docs/evidence/LEARN-003/acceptance.json",
+        "docs/evidence/LEARN-003/P05.json",
+        "docs/evidence/LEARN-003/A14.json"
       ]
     },
     {
@@ -409,8 +417,11 @@
         "P05",
         "A18"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/LEARN-003/acceptance.json",
+        "docs/evidence/LEARN-003/P05.json"
+      ]
     },
     {
       "id": "F27",
@@ -703,7 +714,9 @@
       ],
       "implementation_status": "in_progress",
       "evidence_paths": [
-        "docs/evidence/PROJECT-004/A33.json"
+        "docs/evidence/PROJECT-004/A33.json",
+        "docs/evidence/LEARN-003/acceptance.json",
+        "docs/evidence/LEARN-003/A14.json"
       ]
     }
   ],
@@ -793,8 +806,11 @@
       "expected": "四种表现区分；正式错题属于本人；争议题不参与正式能力判定；学习方向未自动改变。",
       "level": "e2e",
       "evidence_required": "测试记录、关键状态与操作证据",
-      "status": "NOT_RUN",
-      "final_milestone": "M2"
+      "status": "PASS",
+      "final_milestone": "M2",
+      "evidence_paths": [
+        "docs/evidence/LEARN-003/P05.json"
+      ]
     },
     {
       "id": "P06",
@@ -1182,8 +1198,11 @@
       "expected": "乙不进入甲错题；错因/复习各自独立；改题不覆盖历史答案；受影响能力结论可更正。",
       "level": "integration",
       "evidence_required": "测试记录、关键状态与操作证据",
-      "status": "NOT_RUN",
-      "final_milestone": "M2"
+      "status": "PASS",
+      "final_milestone": "M2",
+      "evidence_paths": [
+        "docs/evidence/LEARN-003/A14.json"
+      ]
     },
     {
       "id": "A15",
