@@ -41,6 +41,7 @@ import {CITATION_LOCATOR_SCHEMA} from './citation-locator-schema.ts'
 import {NOTE_LAYOUT_SCHEMA,NOTE_OUTLINE_SCHEMA,NOTE_SCHEMA,NoteStore} from './note-store.ts'
 import {TERM_SCHEMA,TermStore} from './term-store.ts'
 import {KNOWLEDGE_SCHEMA,KnowledgeStore} from './knowledge-store.ts'
+import {ONTOLOGY_SCHEMA,OntologyStore} from './ontology-store.ts'
 import {REPOSITORY_GITEE_SCHEMA,REPOSITORY_GITEE_TABLES,REPOSITORY_PLATFORM_SCHEMA,REPOSITORY_PLATFORM_TABLES,REPOSITORY_SCHEMA,RepositoryStore} from './repository-store.ts'
 import {PROJECT_TASK_SCHEMA,ProjectTaskStore} from './project-task-store.ts'
 import {PROJECT_TASK_CORRECTION_SCHEMA,PROJECT_TASK_REVIEW_SCHEMA} from './project-task-review-schema.ts'
@@ -52,8 +53,9 @@ import {INVITATION_CHANGE_SCHEMA,INVITATION_EVENT_SCHEMA,INVITATION_SCHEMA,Invit
 /** Fixed application identity written to PRAGMA application_id (KOS1). */
 export const APPLICATION_ID = 0x4b4f5331
 /** Current application schema version. */
-export const SCHEMA_VERSION = 37
-type VerifiedSchema = 6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37
+export const SCHEMA_VERSION = 38
+type VerifiedSchema = 6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37|38
+export const MIGRATION_V38_CHECKSUM = createHash('sha256').update(ONTOLOGY_SCHEMA).digest('hex')
 export const MIGRATION_V37_CHECKSUM = createHash('sha256').update(KNOWLEDGE_SCHEMA).digest('hex')
 export const MIGRATION_V36_CHECKSUM = createHash('sha256').update(TERM_SCHEMA).digest('hex')
 export const MIGRATION_V35_CHECKSUM = createHash('sha256').update(REPOSITORY_GITEE_SCHEMA).digest('hex')
@@ -314,6 +316,7 @@ export interface ProbeStorageOptions {
     | 'v35:after-schema'
     | 'v36:after-schema'
     | 'v37:after-schema'
+    | 'v38:after-schema'
 }
 
 export interface DatabaseFacts {
@@ -447,6 +450,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
   },(a,id,now)=>{const object=this.#loadObject(id);return object&&this.#authorizationHorizon(a,object,'read',now)})
   readonly terms = new TermStore(this.#assetTx,(s,now)=>this.#currentActor(s,now),this.citations)
   readonly knowledge = new KnowledgeStore(this.#assetTx,(s,now)=>this.#currentActor(s,now),this.citations,this.notes,this.terms)
+  readonly ontology = new OntologyStore(this.#assetTx,(s,now)=>this.#currentActor(s,now),this.knowledge,this.citations)
   readonly recall = new RecallStore(this.#assetTx,(s,now)=>this.#currentActor(s,now),(a,id,now)=>Boolean(this.authorizeObject(a,id,'read',now)),
     (db,a,t,now)=>this.citations.recallSource(db,a,t,now))
   readonly invitations = new InvitationStore(this.#assetTx,(s,now)=>this.#currentActor(s,now),(db,user,service)=>{
@@ -556,6 +560,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       if (priorVersion<35) this.#migrateV35(db)
       if (priorVersion<36) this.#migrateV36(db)
       if (priorVersion<37) this.#migrateV37(db)
+      if (priorVersion<38) this.#migrateV38(db)
       this.#verify(db,SCHEMA_VERSION)
       const facts = readDatabaseFacts(path)
       const pragmas = this.#readPragmas(db)
@@ -1158,9 +1163,22 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     }
   }
 
+  #migrateV38(db:DatabaseSync):void {
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      db.exec(ONTOLOGY_SCHEMA)
+      this.#injectFailure('v38:after-schema')
+      db.prepare('INSERT INTO schema_migrations VALUES(38,?,?)').run(MIGRATION_V38_CHECKSUM,new Date().toISOString())
+      db.exec('PRAGMA user_version=38; COMMIT')
+    } catch(e) {
+      if(!this.#rollback(db))throw this.#failure
+      throw new RecordsError('STORAGE_INCOMPATIBLE','ontology migration failed',false,{cause:e})
+    }
+  }
+
   #verify(db: DatabaseSync, version:VerifiedSchema): void {
     const facts = readDatabaseFacts(this.databasePath)
-    const checks=[MIGRATION_V6_CHECKSUM,MIGRATION_V7_CHECKSUM,MIGRATION_V8_CHECKSUM,MIGRATION_V9_CHECKSUM,MIGRATION_V10_CHECKSUM,MIGRATION_V11_CHECKSUM,MIGRATION_V12_CHECKSUM,MIGRATION_V13_CHECKSUM,MIGRATION_V14_CHECKSUM,MIGRATION_V15_CHECKSUM,MIGRATION_V16_CHECKSUM,MIGRATION_V17_CHECKSUM,MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM,MIGRATION_V20_CHECKSUM,MIGRATION_V21_CHECKSUM,MIGRATION_V22_CHECKSUM,MIGRATION_V23_CHECKSUM,MIGRATION_V24_CHECKSUM,MIGRATION_V25_CHECKSUM,MIGRATION_V26_CHECKSUM,MIGRATION_V27_CHECKSUM,MIGRATION_V28_CHECKSUM,MIGRATION_V29_CHECKSUM,MIGRATION_V30_CHECKSUM,MIGRATION_V31_CHECKSUM,MIGRATION_V32_CHECKSUM,MIGRATION_V33_CHECKSUM,MIGRATION_V34_CHECKSUM,MIGRATION_V35_CHECKSUM,MIGRATION_V36_CHECKSUM,MIGRATION_V37_CHECKSUM].slice(0,version-5)
+    const checks=[MIGRATION_V6_CHECKSUM,MIGRATION_V7_CHECKSUM,MIGRATION_V8_CHECKSUM,MIGRATION_V9_CHECKSUM,MIGRATION_V10_CHECKSUM,MIGRATION_V11_CHECKSUM,MIGRATION_V12_CHECKSUM,MIGRATION_V13_CHECKSUM,MIGRATION_V14_CHECKSUM,MIGRATION_V15_CHECKSUM,MIGRATION_V16_CHECKSUM,MIGRATION_V17_CHECKSUM,MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM,MIGRATION_V20_CHECKSUM,MIGRATION_V21_CHECKSUM,MIGRATION_V22_CHECKSUM,MIGRATION_V23_CHECKSUM,MIGRATION_V24_CHECKSUM,MIGRATION_V25_CHECKSUM,MIGRATION_V26_CHECKSUM,MIGRATION_V27_CHECKSUM,MIGRATION_V28_CHECKSUM,MIGRATION_V29_CHECKSUM,MIGRATION_V30_CHECKSUM,MIGRATION_V31_CHECKSUM,MIGRATION_V32_CHECKSUM,MIGRATION_V33_CHECKSUM,MIGRATION_V34_CHECKSUM,MIGRATION_V35_CHECKSUM,MIGRATION_V36_CHECKSUM,MIGRATION_V37_CHECKSUM,MIGRATION_V38_CHECKSUM].slice(0,version-5)
     if(facts.applicationId!==APPLICATION_ID || facts.userVersion!==version || facts.ledger.length!==version || checks.some((hash,i)=>facts.ledger[i+5]?.version!==i+6||facts.ledger[i+5]?.checksum!==hash))throw new RecordsError('STORAGE_INCOMPATIBLE','database ownership/version verification failed')
     const reference = new DatabaseSync(':memory:')
     try {
@@ -1196,6 +1214,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       if(version>=33)reference.exec(PROJECT_TASK_APPEAL_SCHEMA)
       if(version>=36)reference.exec(TERM_SCHEMA)
       if(version>=37)reference.exec(KNOWLEDGE_SCHEMA)
+      if(version>=38)reference.exec(ONTOLOGY_SCHEMA)
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all()
       for (const {name,sql} of definitions) {
         if (db.prepare('SELECT sql FROM sqlite_master WHERE name=?').get(name!)?.sql!==sql) throw new RecordsError('STORAGE_INCOMPATIBLE','jobs schema definition mismatch')

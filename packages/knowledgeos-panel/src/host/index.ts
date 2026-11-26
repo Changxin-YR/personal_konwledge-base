@@ -45,6 +45,8 @@ import { createRepositoryHandler, repositoryApi } from './repository-http.ts'
 import { createTermHandler, termApi } from './term-http.ts'
 import { createKnowledgeHandler, knowledgeApi } from './knowledge-http.ts'
 import { buildKnowledgeHtml } from './knowledge-page.ts'
+import { createOntologyHandler, ontologyApi } from './ontology-http.ts'
+import { buildOntologyHtml } from './ontology-page.ts'
 import { RepositoryService } from './repository-store.ts'
 import { buildRepositoryHtml } from './repository-page.ts'
 import { appealApi, createProjectTaskHandler, decisionApi, taskApi } from './project-task-http.ts'
@@ -291,13 +293,16 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
           handler:withPeer(createTermHandler(storage.terms,reader,()=>ai,actualOrigin,sessionFor,termScope.signal))}))
         disposers.push(identityContext.webServer.register({kind:'prefix',path:knowledgeApi,auth:'anonymous',
           handler:withPeer(createKnowledgeHandler(storage.knowledge,actualOrigin,sessionFor))}))
-        disposers.push(identityContext.webServer.register({kind:'exact',path:'/knowledgeos/knowledge',auth:'anonymous',handler:(req,res)=>{
-          if(req.method!=='GET'){res.writeHead(405,{allow:'GET'});res.end();return}
-          const nonce=randomUUID()
-          res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer',
-            'x-content-type-options':'nosniff','content-security-policy':"default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; connect-src 'self'; script-src 'nonce-"+nonce+"'; style-src 'nonce-"+nonce+"'"})
-          res.end(buildKnowledgeHtml(nonce))
-        }}))
+        disposers.push(identityContext.webServer.register({kind:'prefix',path:ontologyApi,auth:'anonymous',
+          handler:withPeer(createOntologyHandler(storage.ontology,reader,()=>ai,actualOrigin,sessionFor,termScope.signal))}))
+        for (const [path, page] of [['/knowledgeos/knowledge',buildKnowledgeHtml],['/knowledgeos/ontology',buildOntologyHtml]] as const)
+          disposers.push(identityContext.webServer.register({kind:'exact',path,auth:'anonymous',handler:(req,res)=>{
+            if(req.method!=='GET'){res.writeHead(405,{allow:'GET'});res.end();return}
+            const nonce=randomUUID()
+            res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer',
+              'x-content-type-options':'nosniff','content-security-policy':"default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; connect-src 'self'; script-src 'nonce-"+nonce+"'; style-src 'nonce-"+nonce+"'"})
+            res.end(page(nonce))
+          }}))
         const handler=libraryHandler(storage.assets,originals,actualOrigin,sessionFor,storage.parses,storage.office,()=>!!officeMount,storage.archives,reader,storage.search)
         const notes=createNoteHandler(storage.notes,actualOrigin,sessionFor)
         const projectTasks=withPeer(createProjectTaskHandler(storage.projectTasks,actualOrigin,sessionFor))

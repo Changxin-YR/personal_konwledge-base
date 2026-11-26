@@ -462,7 +462,7 @@ var AiService = class {
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash18, randomUUID as randomUUID18 } from "node:crypto";
+import { createHash as createHash19, randomUUID as randomUUID19 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -717,11 +717,11 @@ var SearchStore = class {
     if (!current) throw new AssetError(401, "AUTH_REQUIRED");
     return current;
   }
-  indexed(hash3, text2) {
-    const hit = this.cache.get(hash3);
+  indexed(hash4, text2) {
+    const hit = this.cache.get(hash4);
     if (hit) {
-      this.cache.delete(hash3);
-      this.cache.set(hash3, hit);
+      this.cache.delete(hash4);
+      this.cache.set(hash4, hit);
       return hit.index;
     }
     const index = indexSearchText(text2), weight = index.ranges.length;
@@ -731,7 +731,7 @@ var SearchStore = class {
       this.weight -= this.cache.get(key).weight;
       this.cache.delete(key);
     }
-    this.cache.set(hash3, { index, weight });
+    this.cache.set(hash4, { index, weight });
     this.weight += weight;
     return index;
   }
@@ -1418,8 +1418,8 @@ import { createHash as createHash6 } from "node:crypto";
 function citationAnchor(text2, start, end) {
   const split = (n) => n > 0 && n < text2.length && text2.charCodeAt(n - 1) >= 55296 && text2.charCodeAt(n - 1) <= 56319 && text2.charCodeAt(n) >= 56320 && text2.charCodeAt(n) <= 57343;
   if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end <= start || end > text2.length || split(start) || split(end)) throw new AssetError(422, "INVALID_CITATION_RANGE");
-  const quote = text2.slice(start, end), hash3 = (s) => createHash6("sha256").update(s, "utf8").digest("hex");
-  return { start, end, quote_hash: hash3(quote), source_hash: hash3(text2) };
+  const quote = text2.slice(start, end), hash4 = (s) => createHash6("sha256").update(s, "utf8").digest("hex");
+  return { start, end, quote_hash: hash4(quote), source_hash: hash4(text2) };
 }
 function resolveCitationText(text2, anchor) {
   const digest3 = createHash6("sha256").update(text2, "utf8").digest("hex");
@@ -2407,6 +2407,15 @@ var KnowledgeStore = class {
       confirmed_at: row.confirmed_at
     };
   }
+  relationNode(db, actor, id, now, pinned) {
+    const item = this.owned(db, actor, id);
+    const row = pinned === void 0 ? this.version(db, item) : db.prepare("SELECT * FROM knowledge_versions WHERE item_id=? AND id=?").get(item.id, pinned);
+    if (!row) throw noAccess();
+    const sources2 = this.validatedSources(db, actor, row, now);
+    const changed2 = row.id !== item.current_version_id || sources2.some((source) => source.state === "changed");
+    if (pinned === void 0 && (changed2 || row.confirmation_state !== "confirmed")) throw new AssetError(409, "RELATION_NODE_UNCONFIRMED");
+    return { id, version_id: row.id, kind: item.kind, domain: item.domain, title: row.title, definition: row.definition, changed: changed2 };
+  }
   visible(operation) {
     try {
       return [operation()];
@@ -2519,14 +2528,308 @@ var KnowledgeStore = class {
   }
 };
 
+// src/host/ontology-store.ts
+import { createHash as createHash12, randomUUID as randomUUID14 } from "node:crypto";
+var ONTOLOGY_SCHEMA = `
+CREATE TABLE relation_types (
+  id TEXT NOT NULL, version INTEGER NOT NULL CHECK(version>=1), label TEXT NOT NULL,
+  from_kinds TEXT NOT NULL, to_kinds TEXT NOT NULL, direction TEXT NOT NULL CHECK(direction IN ('directed','symmetric')),
+  same_domain INTEGER NOT NULL CHECK(same_domain IN (0,1)), same_kind INTEGER NOT NULL CHECK(same_kind IN (0,1)),
+  PRIMARY KEY(id,version)
+) STRICT;
+INSERT INTO relation_types VALUES
+  ('solves',1,'\u89E3\u51B3','["solution"]','["case"]','directed',1,0),
+  ('depends_on',1,'\u4F9D\u8D56','["term","concept","case","solution"]','["concept"]','directed',1,0),
+  ('compares',1,'\u5BF9\u6BD4','["term","concept","case","solution"]','["term","concept","case","solution"]','symmetric',1,1);
+CREATE TABLE knowledge_relations (
+  id TEXT PRIMARY KEY, service_id TEXT NOT NULL, owner_id TEXT NOT NULL REFERENCES users(id),
+  current_version_id TEXT NOT NULL, created_at TEXT NOT NULL,
+  FOREIGN KEY(id,current_version_id) REFERENCES relation_versions(relation_id,id) DEFERRABLE INITIALLY DEFERRED
+) STRICT;
+CREATE TABLE relation_versions (
+  id TEXT PRIMARY KEY, relation_id TEXT NOT NULL REFERENCES knowledge_relations(id), revision INTEGER NOT NULL CHECK(revision>=1),
+  from_id TEXT NOT NULL, from_version_id TEXT NOT NULL, to_id TEXT NOT NULL, to_version_id TEXT NOT NULL,
+  relation_type TEXT NOT NULL, relation_type_version INTEGER NOT NULL, evidence_json TEXT NOT NULL,
+  proposal_kind TEXT NOT NULL CHECK(proposal_kind IN ('human','ai')), proposal_actor TEXT NOT NULL REFERENCES users(id),
+  provider TEXT, model TEXT, reason TEXT,
+  state TEXT NOT NULL CHECK(state IN ('proposed','confirmed','rejected')), review_action TEXT CHECK(review_action IN ('correct','confirm','reject')),
+  reviewed_by TEXT REFERENCES users(id), created_at TEXT NOT NULL,
+  CHECK(from_id<>to_id),
+  CHECK((proposal_kind='ai')=(provider IS NOT NULL AND model IS NOT NULL AND reason IS NOT NULL)),
+  CHECK((review_action IS NULL)=(reviewed_by IS NULL)),
+  CHECK(CASE state WHEN 'confirmed' THEN review_action IS 'confirm' WHEN 'rejected' THEN review_action IS 'reject'
+    ELSE review_action IS NULL OR review_action IS 'correct' END),
+  FOREIGN KEY(from_id,from_version_id) REFERENCES knowledge_versions(item_id,id),
+  FOREIGN KEY(to_id,to_version_id) REFERENCES knowledge_versions(item_id,id),
+  FOREIGN KEY(relation_type,relation_type_version) REFERENCES relation_types(id,version),
+  UNIQUE(relation_id,revision), UNIQUE(relation_id,id)
+) STRICT;
+CREATE INDEX relations_owner ON knowledge_relations(service_id,owner_id,created_at,id);
+CREATE INDEX relation_pair ON relation_versions(relation_type,from_id,to_id,state);
+CREATE TABLE relation_write_receipts (
+  service_id TEXT NOT NULL, owner_id TEXT NOT NULL REFERENCES users(id), request_key TEXT NOT NULL,
+  digest TEXT NOT NULL CHECK(length(digest)=64), relation_id TEXT NOT NULL, version_id TEXT NOT NULL,
+  FOREIGN KEY(relation_id,version_id) REFERENCES relation_versions(relation_id,id),
+  PRIMARY KEY(service_id,owner_id,request_key)
+) STRICT;
+`;
+var hidden2 = () => new AssetError(404, "RELATION_NOT_FOUND");
+var stale = () => new AssetError(409, "RELATION_SOURCE_CHANGED");
+var hash3 = (data) => createHash12("sha256").update(JSON.stringify(data)).digest("hex");
+var OntologyStore = class {
+  constructor(tx, current, knowledge, citations) {
+    this.tx = tx;
+    this.current = current;
+    this.knowledge = knowledge;
+    this.citations = citations;
+  }
+  actor(prior, now) {
+    const actor = this.current(prior, now);
+    if (!actor) throw new AssetError(401, "AUTH_REQUIRED");
+    return actor;
+  }
+  rules(db) {
+    return db.prepare(`SELECT r.* FROM relation_types r
+      WHERE r.version=(SELECT max(v.version) FROM relation_types v WHERE v.id=r.id) ORDER BY r.id`).all().map((row) => ({
+      id: String(row.id),
+      label: String(row.label),
+      version: Number(row.version),
+      from_kinds: JSON.parse(String(row.from_kinds)),
+      to_kinds: JSON.parse(String(row.to_kinds)),
+      direction: row.direction,
+      same_domain: row.same_domain === 1,
+      same_kind: row.same_kind === 1
+    }));
+  }
+  types(prior) {
+    return this.tx("read", (db, now) => {
+      this.actor(prior, now);
+      return this.rules(db);
+    });
+  }
+  node(db, actor, id, now, pinned) {
+    try {
+      return this.knowledge.relationNode(db, actor, id, now, pinned);
+    } catch (error) {
+      if (error instanceof AssetError && error.status === 404) throw hidden2();
+      throw error;
+    }
+  }
+  evidence(db, actor, id, now) {
+    try {
+      return this.citations.knowledgeSource(db, actor, id, now);
+    } catch (error) {
+      if (error instanceof AssetError && error.status === 404) throw hidden2();
+      throw error;
+    }
+  }
+  changed(db, citation) {
+    return citation.version_id !== db.prepare("SELECT id FROM asset_versions WHERE asset_id=? ORDER BY version DESC LIMIT 1").get(citation.asset_id)?.id;
+  }
+  inputs(db, actor, pair, now) {
+    const from = this.node(db, actor, pair.from_id, now);
+    const to = this.node(db, actor, pair.to_id, now);
+    const evidence = pair.evidence_citation_ids.map((id) => this.evidence(db, actor, id, now));
+    if (evidence.some((citation) => this.changed(db, citation))) throw stale();
+    const rules = this.rules(db).filter((rule) => from.id !== to.id && rule.from_kinds.includes(from.kind) && rule.to_kinds.includes(to.kind) && (!rule.same_domain || from.domain === to.domain) && (!rule.same_kind || from.kind === to.kind));
+    return { from, to, evidence, rules, fingerprint: hash3([from.version_id, to.version_id, evidence, rules]) };
+  }
+  owned(db, actor, id) {
+    const row = db.prepare("SELECT id,current_version_id FROM knowledge_relations WHERE service_id=? AND owner_id=? AND id=?").get(actor.serviceId, actor.userId, id);
+    if (!row) throw hidden2();
+    return row;
+  }
+  version(db, relation, revision) {
+    const row = revision === void 0 ? db.prepare("SELECT * FROM relation_versions WHERE relation_id=? AND id=?").get(relation.id, relation.current_version_id) : db.prepare("SELECT * FROM relation_versions WHERE relation_id=? AND revision=?").get(relation.id, revision);
+    if (!row) throw hidden2();
+    return row;
+  }
+  view(db, actor, row, now) {
+    const from = this.node(db, actor, row.from_id, now, row.from_version_id);
+    const to = this.node(db, actor, row.to_id, now, row.to_version_id);
+    const evidence = JSON.parse(row.evidence_json).map((citation) => {
+      const current = this.evidence(db, actor, citation.id, now);
+      if (hash3(current) !== hash3(citation)) throw stale();
+      return {
+        ...citation,
+        state: this.changed(db, citation) ? "changed" : "fixed",
+        href: "/knowledgeos/reader?" + new URLSearchParams({ asset: citation.asset_id, version: citation.version_id, citation: citation.id })
+      };
+    });
+    const changed2 = from.changed || to.changed || evidence.some((item) => item.state === "changed") || db.prepare("SELECT max(version) version FROM relation_types WHERE id=?").get(row.relation_type)?.version !== row.relation_type_version;
+    const summary = ({ id, version_id, kind, domain, title }) => ({ id, version_id, kind, domain, title });
+    return {
+      id: row.relation_id,
+      version_id: row.id,
+      revision: row.revision,
+      from: summary(from),
+      to: summary(to),
+      relation_type: row.relation_type,
+      relation_type_version: row.relation_type_version,
+      recorded_state: row.state,
+      state: changed2 && row.state !== "rejected" ? "needs_review" : row.state,
+      evidence,
+      proposal: { kind: row.proposal_kind, actor_id: row.proposal_actor, provider: row.provider, model: row.model, reason: row.reason },
+      review: row.review_action ? { action: row.review_action, actor_id: row.reviewed_by, at: row.created_at } : null,
+      created_at: row.created_at
+    };
+  }
+  accessible(operation) {
+    try {
+      return [operation()];
+    } catch (error) {
+      if (error instanceof AssetError && (error.status === 404 || error.status === 409)) return [];
+      throw error;
+    }
+  }
+  list(prior) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(prior, now);
+      const rows = db.prepare("SELECT id,current_version_id FROM knowledge_relations WHERE service_id=? AND owner_id=? ORDER BY created_at DESC,id DESC").all(actor.serviceId, actor.userId);
+      const relations = rows.flatMap((row) => this.accessible(() => this.view(db, actor, this.version(db, row), now)));
+      return { relations, facts: relations.filter((row) => row.state === "confirmed") };
+    });
+  }
+  get(prior, id, revision) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(prior, now), relation = this.owned(db, actor, id);
+      return this.view(db, actor, this.version(db, relation, revision), now);
+    });
+  }
+  history(prior, id) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(prior, now), relation = this.owned(db, actor, id);
+      const rows = db.prepare("SELECT * FROM relation_versions WHERE relation_id=? ORDER BY revision DESC").all(relation.id);
+      const versions = rows.flatMap((row) => this.accessible(() => this.view(db, actor, row, now)));
+      if (!versions.length) throw hidden2();
+      return versions;
+    });
+  }
+  replay(db, actor, key, action, now) {
+    const receipt3 = db.prepare("SELECT digest,relation_id,version_id FROM relation_write_receipts WHERE service_id=? AND owner_id=? AND request_key=?").get(actor.serviceId, actor.userId, key);
+    if (!receipt3) return;
+    const relation = this.owned(db, actor, String(receipt3.relation_id));
+    const row = db.prepare("SELECT * FROM relation_versions WHERE relation_id=? AND id=?").get(relation.id, String(receipt3.version_id));
+    const value = this.view(db, actor, row, now);
+    if (receipt3.digest !== hash3(action)) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+    return { relation: value, replayed: true };
+  }
+  prepareModel(prior, key, pair) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(prior, now);
+      const receipt3 = this.replay(db, actor, key, ["ai", pair], now);
+      if (receipt3) return { receipt: receipt3 };
+      const input = this.inputs(db, actor, pair, now);
+      if (!input.rules.length) throw new AssetError(422, "RELATION_RULE_VIOLATION");
+      return { input };
+    });
+  }
+  write(prior, key, action, apply) {
+    return this.tx("write", (db, now) => {
+      const actor = this.actor(prior, now), replay = this.replay(db, actor, key, action, now);
+      if (replay) return replay;
+      const row = apply(db, actor, now);
+      db.prepare("INSERT INTO relation_write_receipts VALUES(?,?,?,?,?,?)").run(actor.serviceId, actor.userId, key, hash3(action), row.relation_id, row.id);
+      return { relation: this.view(db, actor, row, now), replayed: false };
+    });
+  }
+  draft(db, actor, id, pair, type, now, fingerprint) {
+    const { from, to, evidence, rules, fingerprint: current } = this.inputs(db, actor, pair, now);
+    if (fingerprint !== void 0 && current !== fingerprint) throw stale();
+    const rule = rules.find((value) => value.id === type);
+    if (!rule) throw new AssetError(422, "RELATION_RULE_VIOLATION");
+    const [start, end] = rule.direction === "symmetric" && from.id > to.id ? [to, from] : [from, to];
+    const duplicate = db.prepare(`SELECT 1 FROM relation_versions v JOIN knowledge_relations r ON r.current_version_id=v.id
+      WHERE r.service_id=? AND r.owner_id=? AND r.id<>? AND v.relation_type=? AND v.from_id=? AND v.to_id=? AND v.state<>'rejected'`).get(actor.serviceId, actor.userId, id, rule.id, start.id, end.id);
+    if (duplicate) throw new AssetError(409, "DUPLICATE_RELATION");
+    return {
+      from_id: start.id,
+      from_version_id: start.version_id,
+      to_id: end.id,
+      to_version_id: end.version_id,
+      relation_type: rule.id,
+      relation_type_version: rule.version,
+      evidence_json: JSON.stringify(evidence)
+    };
+  }
+  insert(db, relation, row) {
+    db.prepare("INSERT INTO relation_versions VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(
+      row.id,
+      row.relation_id,
+      row.revision,
+      row.from_id,
+      row.from_version_id,
+      row.to_id,
+      row.to_version_id,
+      row.relation_type,
+      row.relation_type_version,
+      row.evidence_json,
+      row.proposal_kind,
+      row.proposal_actor,
+      row.provider,
+      row.model,
+      row.reason,
+      row.state,
+      row.review_action,
+      row.reviewed_by,
+      row.created_at
+    );
+    if (Number(db.prepare("UPDATE knowledge_relations SET current_version_id=? WHERE id=? AND current_version_id=?").run(row.id, relation.id, relation.current_version_id).changes) !== 1) throw new AssetError(409, "REVISION_CONFLICT");
+    return row;
+  }
+  create(prior, key, pair, type, proposal, fingerprint) {
+    return this.write(prior, key, proposal ? ["ai", pair] : ["human", pair, type], (db, actor, now) => {
+      const relation = { id: randomUUID14(), current_version_id: "" };
+      const draft = this.draft(db, actor, relation.id, pair, type, now, fingerprint);
+      db.prepare("INSERT INTO knowledge_relations VALUES(?,?,?,?,?)").run(relation.id, actor.serviceId, actor.userId, "", now);
+      return this.insert(db, relation, {
+        ...draft,
+        id: randomUUID14(),
+        relation_id: relation.id,
+        revision: 1,
+        created_at: now,
+        proposal_kind: proposal ? "ai" : "human",
+        proposal_actor: actor.userId,
+        provider: proposal?.provider ?? null,
+        model: proposal?.model ?? null,
+        reason: proposal?.reason ?? null,
+        state: "proposed",
+        review_action: null,
+        reviewed_by: null
+      });
+    });
+  }
+  review(prior, key, id, expected, action, correction) {
+    return this.write(prior, key, ["review", id, expected, action, correction], (db, actor, now) => {
+      const relation = this.owned(db, actor, id), current = this.version(db, relation);
+      const previous = this.view(db, actor, current, now);
+      if (expected !== current.revision || expected >= Number.MAX_SAFE_INTEGER) throw new AssetError(409, "REVISION_CONFLICT");
+      if (action === "confirm" && previous.state === "needs_review") throw stale();
+      if (action === "confirm" && previous.state !== "proposed" || action === "reject" && previous.state === "rejected")
+        throw new AssetError(409, "INVALID_RELATION_REVIEW_STATE");
+      const next = correction ? this.draft(db, actor, id, correction, correction.relation_type, now) : current;
+      return this.insert(db, relation, {
+        ...current,
+        ...next,
+        id: randomUUID14(),
+        revision: current.revision + 1,
+        created_at: now,
+        state: action === "confirm" ? "confirmed" : action === "reject" ? "rejected" : "proposed",
+        review_action: action,
+        reviewed_by: actor.userId
+      });
+    });
+  }
+};
+
 // src/host/repository-store.ts
-import { randomUUID as randomUUID14 } from "node:crypto";
+import { randomUUID as randomUUID15 } from "node:crypto";
 
 // src/host/github-repository.ts
-import { createHash as createHash13 } from "node:crypto";
+import { createHash as createHash14 } from "node:crypto";
 
 // src/host/repository-tree.ts
-import { createHash as createHash12 } from "node:crypto";
+import { createHash as createHash13 } from "node:crypto";
 function treeDigest(entries) {
   const sorted = entries.map((entry) => {
     const name = entry.path.slice(entry.path.lastIndexOf("/") + 1);
@@ -2536,7 +2839,7 @@ function treeDigest(entries) {
     Buffer.from(entry.mode.replace(/^0/, "") + " " + name + "\0"),
     Buffer.from(entry.sha, "hex")
   ]));
-  return createHash12("sha1").update("tree " + bytes.length + "\0").update(bytes).digest("hex");
+  return createHash13("sha1").update("tree " + bytes.length + "\0").update(bytes).digest("hex");
 }
 function validateRepositoryTree(entries) {
   const children = /* @__PURE__ */ new Map();
@@ -2653,7 +2956,7 @@ function decodeRepositoryBlob(row, entry) {
   if (row.sha !== entry.sha || typeof row.size !== "number" || !Number.isSafeInteger(row.size) || row.size < 0 || row.encoding !== "base64" || typeof row.content !== "string") throw invalidRemote();
   if (row.size > repositoryLimits.blob) throw oversized();
   const encoded = row.content.replace(/\r?\n/g, ""), bytes = Buffer.from(encoded, "base64");
-  if (bytes.toString("base64") !== encoded || bytes.length !== row.size || entry.size !== null && entry.size !== bytes.length || createHash13("sha1").update("blob " + bytes.length + "\0").update(bytes).digest("hex") !== entry.sha) throw invalidRemote();
+  if (bytes.toString("base64") !== encoded || bytes.length !== row.size || entry.size !== null && entry.size !== bytes.length || createHash14("sha1").update("blob " + bytes.length + "\0").update(bytes).digest("hex") !== entry.sha) throw invalidRemote();
   return bytes;
 }
 var GitHubRepository = class {
@@ -2896,7 +3199,7 @@ var providers = {
   gitee: { Adapter: GiteeRepository, origin: "https://gitee.com", sourcePrefix: "", ref: /^KO_GITEE_[A-Z0-9_]{1,64}$/, token: /^[A-Za-z0-9_.-]{16,250}$/ }
 };
 var summaryColumns = "id,platform,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,created_at";
-var hidden2 = () => new AssetError(404, "NOT_FOUND");
+var hidden3 = () => new AssetError(404, "NOT_FOUND");
 var checkSignal = (signal) => {
   if (signal.aborted) throw new AssetError(409, "REPOSITORY_CANCELLED");
 };
@@ -2957,7 +3260,7 @@ var RepositoryStore = class {
   }
   row(db, actor, id) {
     const row = db.prepare("SELECT * FROM repository_snapshots WHERE service_id=? AND owner_id=? AND id=?").get(actor.serviceId, actor.userId, id);
-    if (!row) throw hidden2();
+    if (!row) throw hidden3();
     return row;
   }
   detail(session, id) {
@@ -2972,7 +3275,7 @@ var RepositoryStore = class {
     return this.tx("read", (db, now) => {
       const row = this.row(db, this.actor(session, now), id);
       const saved = db.prepare("SELECT blob_sha,payload FROM repository_files WHERE snapshot_id=? AND path=?").get(id, path);
-      if (!saved) throw hidden2();
+      if (!saved) throw hidden3();
       return fileView(row, path, String(saved.blob_sha), saved.payload);
     });
   }
@@ -2980,7 +3283,7 @@ var RepositoryStore = class {
     return this.tx("read", (db, now) => {
       const row = this.row(db, this.actor(session, now, expected), id);
       const entry = JSON.parse(row.tree_json).find((candidate) => candidate.path === path);
-      if (!entry) throw hidden2();
+      if (!entry) throw hidden3();
       return { row, entry };
     });
   }
@@ -2997,7 +3300,7 @@ var RepositoryStore = class {
       if (Number(db.prepare("SELECT count(*) AS total FROM repository_snapshots WHERE service_id=? AND owner_id=?").get(serviceId, userId)?.total) >= 25)
         throw new AssetError(409, "REPOSITORY_SNAPSHOT_QUOTA");
       const row = {
-        id: randomUUID14(),
+        id: randomUUID15(),
         platform,
         remote_id: remote.id,
         owner_name: remote.owner,
@@ -3054,7 +3357,7 @@ var RepositoryStore = class {
 };
 
 // src/host/project-task-store.ts
-import { createHash as createHash14, randomUUID as randomUUID15 } from "node:crypto";
+import { createHash as createHash15, randomUUID as randomUUID16 } from "node:crypto";
 
 // src/host/project-task-policy.ts
 var unacceptable = /[\p{Cf}\p{Cs}\x00-\x08\x0b-\x1f\x7f]/u;
@@ -3182,7 +3485,7 @@ var uuid3 = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
 var validId = (id) => typeof id === "string" && uuid3.test(id);
 var materialUnavailable = () => new AssetError(404, "TASK_MATERIAL_UNAVAILABLE");
 var materialAccessRequired = () => new AssetError(409, "TASK_MATERIAL_ACCESS_REQUIRED");
-var hidden3 = () => new AssetError(404, "NOT_FOUND");
+var hidden4 = () => new AssetError(404, "NOT_FOUND");
 var invalid3 = () => new AssetError(422, "INVALID_TASK_INPUT");
 var submissionView = (t, r) => ({
   id: r.id,
@@ -3219,7 +3522,7 @@ var appealView = (r) => ({
   resolution_decision_id: r.resolution_decision_id,
   resolved_at: r.resolved_at
 });
-var requestDigest = (value) => createHash14("sha256").update(JSON.stringify(value)).digest("hex");
+var requestDigest = (value) => createHash15("sha256").update(JSON.stringify(value)).digest("hex");
 var workflow = (t) => ({
   kind: t.task_kind,
   assignee: t.assignee_id,
@@ -3314,7 +3617,7 @@ var transition = (task, a, action, correction = false, appeal = false) => {
   return next.state;
 };
 function recordDecisionImpact(db, task, actor, now, correlation, event, payload) {
-  const eventId = randomUUID15(), revision = task.revision + 1, recalculation = event !== "appeal.opened";
+  const eventId = randomUUID16(), revision = task.revision + 1, recalculation = event !== "appeal.opened";
   if (recalculation) db.prepare(`INSERT INTO task_decision_impacts(task_id,task_revision,recalculation_required,updated_at) VALUES(?,?,1,?)
     ON CONFLICT(task_id) DO UPDATE SET task_revision=excluded.task_revision,recalculation_required=1,updated_at=excluded.updated_at`).run(task.id, revision, now);
   const causation = event === "appeal.resolved" ? db.prepare(`SELECT event_id FROM domain_events WHERE aggregate_type='project_task'
@@ -3349,9 +3652,9 @@ var ProjectTaskStore = class {
   }
   project(db, a, id, now) {
     const row = db.prepare("SELECT id,name,owner_user_id FROM knowledge_projects WHERE id=? AND service_id=? AND status='active'").get(id, a.serviceId);
-    if (!row) throw hidden3();
+    if (!row) throw hidden4();
     const active2 = this.memberships(db, id).filter((m) => isGrantActive(m, now));
-    if (!active2.some((m) => m.userId === a.userId)) throw hidden3();
+    if (!active2.some((m) => m.userId === a.userId)) throw hidden4();
     return { row, active: active2 };
   }
   participants(db, a, active2) {
@@ -3381,25 +3684,25 @@ var ProjectTaskStore = class {
   removeMember(s, expected, projectId, memberId) {
     return this.tx("write", (db, now) => {
       const a = this.actor(s, now, expected), { row, active: active2 } = this.project(db, a, projectId, now);
-      if (row.owner_user_id !== a.userId || memberId === a.userId || !active2.some((m) => m.userId === memberId)) throw hidden3();
+      if (row.owner_user_id !== a.userId || memberId === a.userId || !active2.some((m) => m.userId === memberId)) throw hidden4();
       db.prepare("UPDATE project_memberships SET revoked_at=? WHERE project_id=? AND user_id=? AND revoked_at IS NULL").run(now, projectId, memberId);
       db.prepare(`UPDATE invitation_redemptions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL AND invitation_id IN
         (SELECT i.id FROM invitations i LEFT JOIN knowledge_objects o ON o.id=i.object_id
           WHERE i.service_id=? AND (i.project_id=? OR o.project_id=?))`).run(now, memberId, a.serviceId, projectId, projectId);
       db.prepare(`UPDATE resource_grants SET revoked_at=? WHERE service_id=? AND subject_type='user' AND subject_id=? AND revoked_at IS NULL
         AND resource_type='knowledge_object' AND resource_id IN (SELECT id FROM knowledge_objects WHERE project_id=?)`).run(now, a.serviceId, memberId, projectId);
-      db.prepare("INSERT INTO project_membership_removals VALUES(?,?,?,?,?)").run(randomUUID15(), projectId, memberId, a.userId, now);
+      db.prepare("INSERT INTO project_membership_removals VALUES(?,?,?,?,?)").run(randomUUID16(), projectId, memberId, a.userId, now);
       return { removed: true };
     });
   }
   lookup(db, a, id, now) {
     const row = db.prepare("SELECT * FROM tasks WHERE id=? AND service_id=?").get(id, a.serviceId);
-    if (!row) throw hidden3();
+    if (!row) throw hidden4();
     if (row.project_id === null) {
-      if (row.personal_space_id !== a.personalSpaceId || row.issuer_id !== a.userId) throw hidden3();
+      if (row.personal_space_id !== a.personalSpaceId || row.issuer_id !== a.userId) throw hidden4();
     } else {
       const { row: project } = this.project(db, a, row.project_id, now);
-      if (!canCorrect(a, row) && ![project.owner_user_id, row.issuer_id, row.assignee_id, row.final_reviewer_id, row.peer_reviewer_id].includes(a.userId)) throw hidden3();
+      if (!canCorrect(a, row) && ![project.owner_user_id, row.issuer_id, row.assignee_id, row.final_reviewer_id, row.peer_reviewer_id].includes(a.userId)) throw hidden4();
     }
     return row;
   }
@@ -3455,7 +3758,7 @@ var ProjectTaskStore = class {
       if (projectId !== null) this.project(db, a, projectId, now);
       if (taskId) {
         const task = this.lookup(db, a, taskId, now);
-        if (task.project_id !== projectId) throw hidden3();
+        if (task.project_id !== projectId) throw hidden4();
         if (materialView) {
           const current = this.reconcileMaterials(db, task, now);
           return { allowed: true, access_revision: this.materialVisibility(a, current, db, now).access_revision };
@@ -3479,10 +3782,10 @@ var ProjectTaskStore = class {
   assign(s, expected, projectId, key, d) {
     if (!validTaskDraft(d)) throw invalid3();
     const title = d.title.trim(), goal = d.goal.trim(), items = clean(d.criteria), peer = d.peer_reviewer_id ?? null;
-    const digest3 = createHash14("sha256").update(JSON.stringify([projectId, title, goal, d.due_at, d.assignee_id, d.final_reviewer_id, peer, items])).digest("hex");
+    const digest3 = createHash15("sha256").update(JSON.stringify([projectId, title, goal, d.due_at, d.assignee_id, d.final_reviewer_id, peer, items])).digest("hex");
     return this.tx("write", (db, now) => {
       const a = this.actor(s, now, expected), project = projectId === null ? null : this.project(db, a, projectId, now);
-      if (project && project.row.owner_user_id !== a.userId) throw hidden3();
+      if (project && project.row.owner_user_id !== a.userId) throw hidden4();
       const old = db.prepare("SELECT id,request_digest FROM tasks WHERE service_id=? AND issuer_id=? AND request_key=?").get(a.serviceId, a.userId, key);
       if (old) {
         if (old.request_digest !== digest3) throw new AssetError(409, "TASK_REQUEST_CONFLICT");
@@ -3490,7 +3793,7 @@ var ProjectTaskStore = class {
       }
       const decision = decideAssignment(d, { id: a.userId, role: a.role }, project && this.participants(db, a, project.active), now);
       if ("error" in decision) throw new AssetError(decision.error === "TASK_MEMBER_UNAVAILABLE" ? 409 : 422, decision.error);
-      const id = randomUUID15();
+      const id = randomUUID16();
       db.prepare(`INSERT INTO tasks(id,service_id,project_id,issuer_id,personal_space_id,assignee_id,task_kind,title,goal,due_at,final_reviewer_id,
         peer_reviewer_id,criteria_revision,current_state,revision,issued_at,updated_at,request_key,request_digest) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,'assigned',1,?,?,?,?)`).run(id, a.serviceId, projectId, a.userId, projectId === null ? a.personalSpaceId : null, d.assignee_id, decision.kind, title, goal, d.due_at, d.final_reviewer_id, peer, now, now, key, digest3);
       db.prepare("INSERT INTO task_criteria_versions VALUES(?,1,?,'next_submission',?,?)").run(id, JSON.stringify(items), a.userId, now);
@@ -3502,7 +3805,7 @@ var ProjectTaskStore = class {
     const items = JSON.stringify(clean(criteria));
     return this.tx("write", (db, now) => {
       const a = this.actor(s, now, expected), task = this.lookup(db, a, id, now);
-      if (task.issuer_id !== a.userId) throw hidden3();
+      if (task.issuer_id !== a.userId) throw hidden4();
       if (task.revision !== revision) throw new AssetError(409, "TASK_REVISION_CONFLICT");
       if (!["assigned", "returned"].includes(task.current_state)) throw new AssetError(409, "TASK_STATE_CONFLICT");
       const prior = db.prepare("SELECT acceptance_items FROM task_criteria_versions WHERE task_id=? AND version=?").get(id, task.criteria_revision);
@@ -3555,9 +3858,9 @@ var ProjectTaskStore = class {
     const text2 = reason.trim(), digest3 = requestDigest([decisionId, revision, text2]);
     return this.tx("write", (db, now) => {
       const a = this.actor(s, now, expected), submission = formalDecisionSubmission(db, decisionId);
-      if (!submission) throw hidden3();
+      if (!submission) throw hidden4();
       const task = this.lookup(db, a, submission.task_id, now);
-      if (task.assignee_id !== a.userId) throw hidden3();
+      if (task.assignee_id !== a.userId) throw hidden4();
       if (pinnedTargets(db, submission).some((m) => !this.readable(a, task, m, now))) throw materialAccessRequired();
       const old = db.prepare("SELECT * FROM task_appeals WHERE task_id=? AND requester_id=? AND request_key=?").get(task.id, a.userId, key);
       if (old) {
@@ -3570,7 +3873,7 @@ var ProjectTaskStore = class {
       if (!hasFormalDecision(task.current_state) || current?.id !== decisionId) throw new AssetError(409, "TASK_REVIEW_CONFLICT");
       if (pendingAppeal(db, task.id) || db.prepare("SELECT 1 FROM task_appeals WHERE against_review_id=? OR against_correction_id=?").get(decisionId, decisionId))
         throw new AssetError(409, "TASK_APPEAL_CONFLICT");
-      const appealId = randomUUID15();
+      const appealId = randomUUID16();
       db.prepare(`INSERT INTO task_appeals(id,task_id,submission_id,requester_id,reason,against_review_id,against_correction_id,
         status,requested_at,request_key,request_digest) VALUES(?,?,?,?,?,?,?,'pending',?,?,?)`).run(appealId, task.id, submission.id, a.userId, text2, current.correction ? null : current.id, current.correction ? current.id : null, now, key, digest3);
       advance(db, task, task.current_state, now);
@@ -3581,7 +3884,7 @@ var ProjectTaskStore = class {
   resolveAppeal(s, expected, appealId, key, revision, action, input) {
     const target2 = this.tx("read", (db, now) => {
       const a = this.actor(s, now, expected), appeal = appealById(db, appealId);
-      if (!appeal || !canResolveAppeal(a, this.lookup(db, a, appeal.task_id, now))) throw hidden3();
+      if (!appeal || !canResolveAppeal(a, this.lookup(db, a, appeal.task_id, now))) throw hidden4();
       return appeal;
     });
     return this.review(s, expected, target2.task_id, key, revision, target2.submission_id, action, input, appealDecisionId(target2), target2.id);
@@ -3592,7 +3895,7 @@ var ProjectTaskStore = class {
     const result = this.tx("write", (db, now) => {
       const a = this.actor(s, now, expected), before = this.lookup(db, a, id, now);
       const task = this.reconcileMaterials(db, before, now);
-      if (task.assignee_id !== a.userId) throw hidden3();
+      if (task.assignee_id !== a.userId) throw hidden4();
       const old = db.prepare("SELECT * FROM task_submissions WHERE task_id=? AND author_id=? AND request_key=?").get(id, a.userId, key);
       if (old) {
         if (old.request_digest !== digest3) throw new AssetError(409, "TASK_REQUEST_CONFLICT");
@@ -3617,7 +3920,7 @@ var ProjectTaskStore = class {
       }
       const version = (previous?.version ?? 0) + 1;
       if (version > 50) throw new AssetError(409, "TASK_SUBMISSION_LIMIT");
-      const submissionId = randomUUID15();
+      const submissionId = randomUUID16();
       db.prepare(`INSERT INTO task_submissions(id,task_id,version,criteria_version,author_id,content,submitted_at,previous_version,request_key,request_digest)
         VALUES(?,?,?,?,?,?,?,?,?,?)`).run(submissionId, id, version, task.criteria_revision, a.userId, normalized, now, previous?.version ?? null, key, digest3);
       const saved = latestSubmission(db, id);
@@ -3636,13 +3939,13 @@ var ProjectTaskStore = class {
     const result = this.tx("write", (db, now) => {
       const a = this.actor(s, now, expected), before = this.lookup(db, a, id, now);
       const appeal = appealId === void 0 ? void 0 : appealById(db, appealId);
-      if (appealId !== void 0 && (!appeal || appeal.task_id !== id || appeal.submission_id !== submissionId || appealDecisionId(appeal) !== supersedes)) throw hidden3();
+      if (appealId !== void 0 && (!appeal || appeal.task_id !== id || appeal.submission_id !== submissionId || appealDecisionId(appeal) !== supersedes)) throw hidden4();
       if (correction) {
-        if (!(appeal ? canResolveAppeal(a, before) : canCorrect(a, before))) throw hidden3();
-      } else if (stage === "peer" ? a.userId !== before.peer_reviewer_id : a.userId !== before.final_reviewer_id || before.task_kind === "project_admin" && a.role !== "admin") throw hidden3();
+        if (!(appeal ? canResolveAppeal(a, before) : canCorrect(a, before))) throw hidden4();
+      } else if (stage === "peer" ? a.userId !== before.peer_reviewer_id : a.userId !== before.final_reviewer_id || before.task_kind === "project_admin" && a.role !== "admin") throw hidden4();
       if (before.task_kind === "personal") throw new AssetError(409, "TASK_WORKFLOW_UNAVAILABLE");
       const submission = db.prepare("SELECT * FROM task_submissions WHERE task_id=? AND id=?").get(id, submissionId);
-      if (!submission) throw hidden3();
+      if (!submission) throw hidden4();
       const task = this.reconcileMaterials(db, before, now);
       if (pinnedTargets(db, submission).some((m) => !this.readable(a, task, m, now))) return materialAccessRequired();
       if (before.revision !== task.revision) return new AssetError(409, "TASK_REVISION_CONFLICT");
@@ -3667,7 +3970,7 @@ var ProjectTaskStore = class {
       const pending = pendingAppeal(db, id);
       if (pending && pending.id !== appeal?.id) throw new AssetError(409, "TASK_APPEAL_PENDING");
       if (appeal && appeal.status !== "pending") throw new AssetError(409, "TASK_APPEAL_CONFLICT");
-      const state = transition(task, a, action, correction, Boolean(appeal)), reviewId = randomUUID15();
+      const state = transition(task, a, action, correction, Boolean(appeal)), reviewId = randomUUID16();
       if (correction) {
         const current = latestFormalReview(db, submissionId);
         if (!current || current.id !== supersedes) throw new AssetError(409, "TASK_REVIEW_CONFLICT");
@@ -3784,11 +4087,11 @@ CREATE TABLE task_decision_impacts (
 `;
 
 // src/host/recall-store.ts
-import { createHash as createHash16, randomUUID as randomUUID16 } from "node:crypto";
+import { createHash as createHash17, randomUUID as randomUUID17 } from "node:crypto";
 
 // src/host/recall-range.ts
-import { createHash as createHash15 } from "node:crypto";
-var digest = (text2) => createHash15("sha256").update(text2, "utf8").digest("hex");
+import { createHash as createHash16 } from "node:crypto";
+var digest = (text2) => createHash16("sha256").update(text2, "utf8").digest("hex");
 var invalid4 = () => new AssetError(422, "INVALID_RECALL_RANGE");
 var changed = () => new AssetError(409, "RECALL_SOURCE_CHANGED");
 var available = (text2) => {
@@ -3886,7 +4189,7 @@ CREATE TABLE recall_events (
   CHECK(event IN ('move','hint','reveal','recall','rating'))
 ) STRICT;
 CREATE INDEX recall_events_groups ON recall_events(material_id,event,value);`;
-var sha3 = (text2) => createHash16("sha256").update(text2).digest("hex");
+var sha3 = (text2) => createHash17("sha256").update(text2).digest("hex");
 var invalid5 = () => new AssetError(422, "INVALID_RECALL");
 var notFound4 = () => new AssetError(404, "RECALL_NOT_FOUND");
 var point2 = (t, ordinal) => ({ asset_id: t.asset_id, version_id: t.version_id, ordinal, ...t.conversion_id ? { conversion_id: t.conversion_id } : {} });
@@ -3974,7 +4277,7 @@ var RecallStore = class {
       if (!draft.title.trim() || draft.title.length > 200 || !draft.masks.length) throw invalid5();
       const first = this.source(db, a, point2(draft, draft.first.ordinal), now);
       const read = (n) => n === first.ordinal ? first.text : this.source(db, a, point2(draft, n), now).text;
-      const segments = recallSelection(draft.first, draft.last, draft.interior_hashes, first.total, read), masks = recallMasks(segments, draft.masks, read), id = randomUUID16();
+      const segments = recallSelection(draft.first, draft.last, draft.interior_hashes, first.total, read), masks = recallMasks(segments, draft.masks, read), id = randomUUID17();
       const m = { id, title: draft.title, asset_id: draft.asset_id, version_id: draft.version_id, conversion_id: draft.conversion_id ?? null };
       db.prepare("INSERT INTO recall_materials VALUES(?,?,?,?,?,?,?,?,?,?)").run(id, a.userId, a.serviceId, m.asset_id, m.version_id, m.conversion_id, m.title, now, key, digest3);
       const insert = db.prepare("INSERT INTO recall_segments VALUES(?,?,?,?,?)");
@@ -4013,7 +4316,7 @@ var RecallStore = class {
 };
 
 // src/host/invitation-store.ts
-import { createHash as createHash17, randomBytes, randomUUID as randomUUID17 } from "node:crypto";
+import { createHash as createHash18, randomBytes, randomUUID as randomUUID18 } from "node:crypto";
 var INVITATION_SCHEMA = `CREATE TABLE invitations (
   id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE CHECK(length(token_hash)=64),
   service_id TEXT NOT NULL, issuer_id TEXT NOT NULL REFERENCES users(id),
@@ -4058,7 +4361,7 @@ var INVITATION_CHANGE_SCHEMA = `CREATE TABLE invitation_change_receipts (
   result_json TEXT NOT NULL CHECK(json_valid(result_json)), PRIMARY KEY(service_id,actor_id,request_key)
 ) STRICT;`;
 var day = 864e5;
-var digest2 = (value) => createHash17("sha256").update(value).digest("hex");
+var digest2 = (value) => createHash18("sha256").update(value).digest("hex");
 var invalid6 = () => new AssetError(422, "INVALID_INVITATION");
 var unavailable2 = () => new AssetError(404, "INVITATION_UNAVAILABLE");
 var conflict3 = () => new AssetError(409, "INVITATION_CHANGED");
@@ -4086,7 +4389,7 @@ function receipt2(r) {
 var active = (r, now) => r.revoked_at === null && now < r.expires_at;
 function recordEvent(db, r, a, event, now, before, affected, correlation) {
   db.prepare("INSERT INTO invitation_audit VALUES(?,?,?,?,?,?,?,?)").run(r.id, r.revision, a.userId, event, now, before, r.expires_at, affected.length);
-  const eventId = randomUUID17(), payload = JSON.stringify({
+  const eventId = randomUUID18(), payload = JSON.stringify({
     target: target(r),
     prior_expires_at: before,
     expires_at: r.expires_at,
@@ -4131,7 +4434,7 @@ var InvitationStore = class {
       return this.issueSpec(this.actor(prior, now, expected), s, now);
     });
   }
-  create(prior, expected, s, key, correlation = randomUUID17()) {
+  create(prior, expected, s, key, correlation = randomUUID18()) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now, expected), p = this.issueSpec(a, s, now);
       const req = digest2(JSON.stringify([p.target, s.days ?? 7, p.max_redemptions]));
@@ -4142,7 +4445,7 @@ var InvitationStore = class {
       }
       const token2 = randomBytes(32).toString("base64url");
       const r = {
-        id: randomUUID17(),
+        id: randomUUID18(),
         service_id: a.serviceId,
         issuer_id: a.userId,
         object_id: s.scope === "object" ? s.id : null,
@@ -4161,7 +4464,7 @@ var InvitationStore = class {
       return { ...receipt2(r), title: p.title, token: token2, server_time: now, replayed: false };
     });
   }
-  redeem(prior, expected, token2, correlation = randomUUID17()) {
+  redeem(prior, expected, token2, correlation = randomUUID18()) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now, expected);
       if (!/^[a-zA-Z0-9_-]{43}$/.test(token2)) throw unavailable2();
@@ -4178,7 +4481,7 @@ var InvitationStore = class {
         return { id: priorRedemption.id, target: t, title: info.title, expires_at: priorRedemption.expires_at, server_time: now, replayed: true };
       }
       if (r.redeemed_count >= r.max_redemptions) throw new AssetError(409, "INVITATION_FULL");
-      const grant = randomUUID17();
+      const grant = randomUUID18();
       db.prepare("INSERT INTO invitation_redemptions VALUES(?,?,?,?,?,NULL)").run(grant, r.id, a.userId, now, r.expires_at);
       const change = db.prepare("UPDATE invitations SET redeemed_count=redeemed_count+1,revision=revision+1 WHERE id=? AND revision=? AND redeemed_count<max_redemptions").run(r.id, r.revision);
       if (change.changes !== 1) throw conflict3();
@@ -4204,7 +4507,7 @@ var InvitationStore = class {
       return { actor_id: a.userId, server_time: now, items };
     });
   }
-  change(prior, expected, id, expectedRevision, event, days, key = randomUUID17(), correlation = randomUUID17()) {
+  change(prior, expected, id, expectedRevision, event, days, key = randomUUID18(), correlation = randomUUID18()) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now, expected), { r } = this.managed(db, a, id, now);
       const extension = event === "renew" ? duration(days) : 0, req = digest2(JSON.stringify([id, expectedRevision, event, extension]));
@@ -4229,39 +4532,40 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 37;
-var MIGRATION_V37_CHECKSUM = createHash18("sha256").update(KNOWLEDGE_SCHEMA).digest("hex");
-var MIGRATION_V36_CHECKSUM = createHash18("sha256").update(TERM_SCHEMA).digest("hex");
-var MIGRATION_V35_CHECKSUM = createHash18("sha256").update(REPOSITORY_GITEE_SCHEMA).digest("hex");
-var MIGRATION_V34_CHECKSUM = createHash18("sha256").update(REPOSITORY_PLATFORM_SCHEMA).digest("hex");
-var MIGRATION_V33_CHECKSUM = createHash18("sha256").update(PROJECT_TASK_APPEAL_SCHEMA).digest("hex");
-var MIGRATION_V32_CHECKSUM = createHash18("sha256").update(PROJECT_TASK_CORRECTION_SCHEMA).digest("hex");
-var MIGRATION_V31_CHECKSUM = createHash18("sha256").update(PROJECT_TASK_MATERIAL_SCHEMA).digest("hex");
-var MIGRATION_V30_CHECKSUM = createHash18("sha256").update(PROJECT_TASK_REVIEW_SCHEMA).digest("hex");
-var MIGRATION_V29_CHECKSUM = createHash18("sha256").update(PROJECT_TASK_SCHEMA).digest("hex");
-var MIGRATION_V28_CHECKSUM = createHash18("sha256").update(REPOSITORY_SCHEMA).digest("hex");
-var MIGRATION_V27_CHECKSUM = createHash18("sha256").update(NOTE_LAYOUT_SCHEMA).digest("hex");
-var MIGRATION_V26_CHECKSUM = createHash18("sha256").update(NOTE_OUTLINE_SCHEMA).digest("hex");
-var MIGRATION_V25_CHECKSUM = createHash18("sha256").update(INVITATION_CHANGE_SCHEMA).digest("hex");
-var MIGRATION_V24_CHECKSUM = createHash18("sha256").update(INVITATION_EVENT_SCHEMA).digest("hex");
-var MIGRATION_V23_CHECKSUM = createHash18("sha256").update(INVITATION_SCHEMA).digest("hex");
-var MIGRATION_V22_CHECKSUM = createHash18("sha256").update(RECALL_SCHEMA).digest("hex");
-var MIGRATION_V21_CHECKSUM = createHash18("sha256").update(NOTE_SCHEMA).digest("hex");
-var MIGRATION_V20_CHECKSUM = createHash18("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
-var MIGRATION_V19_CHECKSUM = createHash18("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V18_CHECKSUM = createHash18("sha256").update(SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V17_CHECKSUM = createHash18("sha256").update(ANNOTATION_SCHEMA).digest("hex");
-var MIGRATION_V16_CHECKSUM = createHash18("sha256").update(READING_STATE_SCHEMA).digest("hex");
-var MIGRATION_V15_CHECKSUM = createHash18("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
-var MIGRATION_V13_CHECKSUM = createHash18("sha256").update(ZIP_SCHEMA).digest("hex");
-var MIGRATION_V14_CHECKSUM = createHash18("sha256").update(CITATION_SCHEMA).digest("hex");
-var MIGRATION_V12_CHECKSUM = createHash18("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
-var MIGRATION_V11_CHECKSUM = createHash18("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
-var MIGRATION_V10_CHECKSUM = createHash18("sha256").update(OFFICE_SCHEMA).digest("hex");
-var MIGRATION_V9_CHECKSUM = createHash18("sha256").update(TEXT_SCHEMA).digest("hex");
-var MIGRATION_V8_CHECKSUM = createHash18("sha256").update(PARSE_SCHEMA).digest("hex");
-var MIGRATION_V7_CHECKSUM = createHash18("sha256").update(ASSET_SCHEMA).digest("hex");
-var MIGRATION_V6_CHECKSUM = createHash18("sha256").update(JOB_SCHEMA).digest("hex");
+var SCHEMA_VERSION = 38;
+var MIGRATION_V38_CHECKSUM = createHash19("sha256").update(ONTOLOGY_SCHEMA).digest("hex");
+var MIGRATION_V37_CHECKSUM = createHash19("sha256").update(KNOWLEDGE_SCHEMA).digest("hex");
+var MIGRATION_V36_CHECKSUM = createHash19("sha256").update(TERM_SCHEMA).digest("hex");
+var MIGRATION_V35_CHECKSUM = createHash19("sha256").update(REPOSITORY_GITEE_SCHEMA).digest("hex");
+var MIGRATION_V34_CHECKSUM = createHash19("sha256").update(REPOSITORY_PLATFORM_SCHEMA).digest("hex");
+var MIGRATION_V33_CHECKSUM = createHash19("sha256").update(PROJECT_TASK_APPEAL_SCHEMA).digest("hex");
+var MIGRATION_V32_CHECKSUM = createHash19("sha256").update(PROJECT_TASK_CORRECTION_SCHEMA).digest("hex");
+var MIGRATION_V31_CHECKSUM = createHash19("sha256").update(PROJECT_TASK_MATERIAL_SCHEMA).digest("hex");
+var MIGRATION_V30_CHECKSUM = createHash19("sha256").update(PROJECT_TASK_REVIEW_SCHEMA).digest("hex");
+var MIGRATION_V29_CHECKSUM = createHash19("sha256").update(PROJECT_TASK_SCHEMA).digest("hex");
+var MIGRATION_V28_CHECKSUM = createHash19("sha256").update(REPOSITORY_SCHEMA).digest("hex");
+var MIGRATION_V27_CHECKSUM = createHash19("sha256").update(NOTE_LAYOUT_SCHEMA).digest("hex");
+var MIGRATION_V26_CHECKSUM = createHash19("sha256").update(NOTE_OUTLINE_SCHEMA).digest("hex");
+var MIGRATION_V25_CHECKSUM = createHash19("sha256").update(INVITATION_CHANGE_SCHEMA).digest("hex");
+var MIGRATION_V24_CHECKSUM = createHash19("sha256").update(INVITATION_EVENT_SCHEMA).digest("hex");
+var MIGRATION_V23_CHECKSUM = createHash19("sha256").update(INVITATION_SCHEMA).digest("hex");
+var MIGRATION_V22_CHECKSUM = createHash19("sha256").update(RECALL_SCHEMA).digest("hex");
+var MIGRATION_V21_CHECKSUM = createHash19("sha256").update(NOTE_SCHEMA).digest("hex");
+var MIGRATION_V20_CHECKSUM = createHash19("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
+var MIGRATION_V19_CHECKSUM = createHash19("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V18_CHECKSUM = createHash19("sha256").update(SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V17_CHECKSUM = createHash19("sha256").update(ANNOTATION_SCHEMA).digest("hex");
+var MIGRATION_V16_CHECKSUM = createHash19("sha256").update(READING_STATE_SCHEMA).digest("hex");
+var MIGRATION_V15_CHECKSUM = createHash19("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
+var MIGRATION_V13_CHECKSUM = createHash19("sha256").update(ZIP_SCHEMA).digest("hex");
+var MIGRATION_V14_CHECKSUM = createHash19("sha256").update(CITATION_SCHEMA).digest("hex");
+var MIGRATION_V12_CHECKSUM = createHash19("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
+var MIGRATION_V11_CHECKSUM = createHash19("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
+var MIGRATION_V10_CHECKSUM = createHash19("sha256").update(OFFICE_SCHEMA).digest("hex");
+var MIGRATION_V9_CHECKSUM = createHash19("sha256").update(TEXT_SCHEMA).digest("hex");
+var MIGRATION_V8_CHECKSUM = createHash19("sha256").update(PARSE_SCHEMA).digest("hex");
+var MIGRATION_V7_CHECKSUM = createHash19("sha256").update(ASSET_SCHEMA).digest("hex");
+var MIGRATION_V6_CHECKSUM = createHash19("sha256").update(JOB_SCHEMA).digest("hex");
 var PROBE_SCHEMA_VERSION = 1;
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
@@ -4278,7 +4582,7 @@ CREATE TABLE storage_probe_records (
   created_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V1_CHECKSUM = createHash18("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
+var MIGRATION_V1_CHECKSUM = createHash19("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
 var MIGRATION_V2_SQL = `CREATE TABLE password_credentials (
   id TEXT PRIMARY KEY,
   algorithm TEXT NOT NULL,
@@ -4332,7 +4636,7 @@ CREATE TABLE spaces (
   updated_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V2_CHECKSUM = createHash18("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
+var MIGRATION_V2_CHECKSUM = createHash19("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
 var MIGRATION_V3_SQL = `CREATE TABLE knowledge_projects (
   id TEXT PRIMARY KEY,
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
@@ -4382,7 +4686,7 @@ CREATE TABLE resource_grants (
   UNIQUE (resource_id, subject_type, subject_id, action)
 ) STRICT;
 `;
-var MIGRATION_V3_CHECKSUM = createHash18("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
+var MIGRATION_V3_CHECKSUM = createHash19("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
 var MIGRATION_V4_SQL = `ALTER TABLE resource_grants RENAME TO resource_grants_v3;
 CREATE TABLE resource_grants (
   id TEXT PRIMARY KEY,
@@ -4404,7 +4708,7 @@ CREATE UNIQUE INDEX resource_grants_active_subject_action_uq
   WHERE revoked_at IS NULL;
 DROP TABLE resource_grants_v3;
 `;
-var MIGRATION_V4_CHECKSUM = createHash18("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
+var MIGRATION_V4_CHECKSUM = createHash19("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
 var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -4416,7 +4720,7 @@ var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   PRIMARY KEY (service_id, user_id, idempotency_key)
 ) STRICT;
 `;
-var MIGRATION_V5_CHECKSUM = createHash18("sha256").update(MIGRATION_V5_SQL).digest("hex");
+var MIGRATION_V5_CHECKSUM = createHash19("sha256").update(MIGRATION_V5_SQL).digest("hex");
 var PROBE_SUPPORTED_TABLES = ["schema_migrations", "storage_probe_records"];
 var IDENTITY_SUPPORTED_TABLES = [
   "auth_sessions",
@@ -4538,6 +4842,7 @@ var ProbeStorage = class {
   });
   terms = new TermStore(this.#assetTx, (s, now) => this.#currentActor(s, now), this.citations);
   knowledge = new KnowledgeStore(this.#assetTx, (s, now) => this.#currentActor(s, now), this.citations, this.notes, this.terms);
+  ontology = new OntologyStore(this.#assetTx, (s, now) => this.#currentActor(s, now), this.knowledge, this.citations);
   recall = new RecallStore(
     this.#assetTx,
     (s, now) => this.#currentActor(s, now),
@@ -4657,6 +4962,7 @@ var ProbeStorage = class {
       if (priorVersion < 35) this.#migrateV35(db);
       if (priorVersion < 36) this.#migrateV36(db);
       if (priorVersion < 37) this.#migrateV37(db);
+      if (priorVersion < 38) this.#migrateV38(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -4883,7 +5189,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID18());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID19());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -5333,10 +5639,22 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "knowledge item migration failed", false, { cause: e });
     }
   }
+  #migrateV38(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(ONTOLOGY_SCHEMA);
+      this.#injectFailure("v38:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(38,?,?)").run(MIGRATION_V38_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=38; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "ontology migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM, MIGRATION_V35_CHECKSUM, MIGRATION_V36_CHECKSUM, MIGRATION_V37_CHECKSUM].slice(0, version - 5);
-    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash3, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash3)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM, MIGRATION_V35_CHECKSUM, MIGRATION_V36_CHECKSUM, MIGRATION_V37_CHECKSUM, MIGRATION_V38_CHECKSUM].slice(0, version - 5);
+    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash4, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash4)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
       reference.exec(JOB_SCHEMA);
@@ -5371,6 +5689,7 @@ var ProbeStorage = class {
       if (version >= 33) reference.exec(PROJECT_TASK_APPEAL_SCHEMA);
       if (version >= 36) reference.exec(TERM_SCHEMA);
       if (version >= 37) reference.exec(KNOWLEDGE_SCHEMA);
+      if (version >= 38) reference.exec(ONTOLOGY_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -5473,9 +5792,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID18();
-      const spaceId = randomUUID18();
-      const credentialId = randomUUID18();
+      const userId = randomUUID19();
+      const spaceId = randomUUID19();
+      const credentialId = randomUUID19();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -5509,9 +5828,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID18();
-      const spaceId = randomUUID18();
-      const credentialId = randomUUID18();
+      const userId = randomUUID19();
+      const spaceId = randomUUID19();
+      const credentialId = randomUUID19();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -5709,7 +6028,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID18(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
+        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID19(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -5808,8 +6127,8 @@ var ProbeStorage = class {
     let primaryCode;
     let failed = false;
     try {
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash18("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash18("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash19("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash19("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
     } catch (error) {
       failed = true;
       primaryCode = primarySqliteCode(error);
@@ -5867,7 +6186,7 @@ var ProbeStorage = class {
 };
 
 // src/host/identity.ts
-import { createHash as createHash19, randomBytes as randomBytes2, randomUUID as randomUUID19, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
+import { createHash as createHash20, randomBytes as randomBytes2, randomUUID as randomUUID20, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
 var DOMAINS = ["software_engineering", "system_architecture", "hardware_engineering", "ai_development"];
 var LEARNING_TRACKS = ["engineering_practice", "architecture_exam", "knowledge_accumulation"];
 var DEFAULT_TIMEZONE = "Asia/Shanghai";
@@ -5939,7 +6258,7 @@ function validateGoalText(value) {
   return value;
 }
 function tokenHash(token2) {
-  return createHash19("sha256").update(token2, "utf8").digest("hex");
+  return createHash20("sha256").update(token2, "utf8").digest("hex");
 }
 function makeToken() {
   return randomBytes2(32).toString("base64url");
@@ -6144,7 +6463,7 @@ var IdentityService = class {
     const token2 = makeToken();
     const createdAt = /* @__PURE__ */ new Date();
     const expiresAt = new Date(createdAt.getTime() + SESSION_TTL_MS).toISOString();
-    this.#store.createSession({ sessionId: randomUUID19(), userId: lookup.userId, tokenHash: tokenHash(token2), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
+    this.#store.createSession({ sessionId: randomUUID20(), userId: lookup.userId, tokenHash: tokenHash(token2), createdAt: createdAt.toISOString(), expiresAt, revokeTokenHash: input.oldToken ? tokenHash(input.oldToken) : void 0 });
     const user = this.#store.getProfile(lookup.userId);
     if (user === void 0) throw new IdentityError("STORAGE_UNAVAILABLE", "user profile unavailable");
     return { user, token: token2, expiresAt };
@@ -6172,7 +6491,7 @@ var IdentityService = class {
 };
 
 // src/host/identity-http.ts
-import { createHash as createHash20, randomUUID as randomUUID20 } from "node:crypto";
+import { createHash as createHash21, randomUUID as randomUUID21 } from "node:crypto";
 import { isIP } from "node:net";
 function isLoopbackAddress(value) {
   if (value === void 0) return false;

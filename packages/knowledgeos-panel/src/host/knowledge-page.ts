@@ -12,7 +12,7 @@ label{display:grid;gap:3px}input,textarea{width:100%}textarea{min-height:5rem}fi
 #entry-source{display:grid;grid-template-columns:minmax(7rem,1fr) minmax(0,3fr) minmax(5rem,1fr);gap:9px}#entry-status{min-height:1.6rem;color:#3d6659}
 #entry-detail{margin-bottom:12px;border-bottom:1px solid #cfdfd8;padding-bottom:8px}#entry-list button{width:100%;text-align:left;overflow-wrap:anywhere}#entry-facts{overflow-wrap:anywhere;color:#436358}
 :focus-visible{outline:2px solid #1d7392;outline-offset:2px}@media(max-width:650px){main,nav{padding:12px 14px}.layout,.pair,#entry-source{grid-template-columns:minmax(0,1fr)}aside{border:0;padding:0}}
-</style></head><body><header><nav aria-label="业务导航"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">知识库</a><a href="/knowledgeos/notes">笔记</a><a href="/knowledgeos/knowledge" aria-current="page">知识条目</a><a href="/knowledgeos/account">账号</a></nav></header>
+</style></head><body><header><nav aria-label="业务导航"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">知识库</a><a href="/knowledgeos/notes">笔记</a><a href="/knowledgeos/knowledge" aria-current="page">知识条目</a><a href="/knowledgeos/ontology">知识关系</a><a href="/knowledgeos/account">账号</a></nav></header>
 <main><h1>知识条目</h1><p id="entry-status" role="status">正在读取…</p><a href="/knowledgeos/account" id="entry-login" hidden>登录</a>
 <div class="layout" id="entry-workspace" hidden><aside><div class="toolbar"><h2>我的条目</h2><button id="entry-new" type="button">新建</button></div><ul id="entry-list"></ul></aside>
 <section><section id="entry-detail" hidden><h2 id="entry-current-name"></h2><p id="entry-facts"></p><div class="toolbar">

@@ -129,6 +129,17 @@ export class KnowledgeStore {
       created_by: row.created_by, created_at: row.created_at, confirmation_state: row.confirmation_state, confirmed_by: row.confirmed_by, confirmed_at: row.confirmed_at }
   }
 
+  relationNode(db: DatabaseSync, actor: SessionActor, id: string, now: string, pinned?: string) {
+    const item = this.owned(db, actor, id)
+    const row = pinned === undefined ? this.version(db, item) : db.prepare('SELECT * FROM knowledge_versions WHERE item_id=? AND id=?')
+      .get(item.id, pinned) as unknown as VersionRow | undefined
+    if (!row) throw noAccess()
+    const sources = this.validatedSources(db, actor, row, now)
+    const changed = row.id !== item.current_version_id || sources.some(source => source.state === 'changed')
+    if (pinned === undefined && (changed || row.confirmation_state !== 'confirmed')) throw new AssetError(409, 'RELATION_NODE_UNCONFIRMED')
+    return { id, version_id: row.id, kind: item.kind, domain: item.domain, title: row.title, definition: row.definition, changed }
+  }
+
   private visible<T>(operation: () => T): T[] {
     try { return [operation()] }
     catch (error) {
