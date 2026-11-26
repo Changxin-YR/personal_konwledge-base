@@ -166,6 +166,25 @@ export class CitationStore {
     if(!w||w.conversion_id!==s.conversion_id||w.sha256!==s.ref?.sha256||w.ordinal!==s.ordinal)throw new AssetError(409,'CITATION_SOURCE_CHANGED')
     return w.text
   }
+  verifySelection(db:DatabaseSync,actor:SessionActor,spec:CitationSpec,now:string,w?:RenderWitness) {
+    const source=this.read(db,actor,spec,now)
+    if(source.kind==='office'&&!spec.conversion_id)throw new AssetError(422,'INVALID_CITATION')
+    const text=this.text(source,w)
+    const range=citationAnchor(text,spec.start,spec.end)
+    if(range.source_hash!==spec.source_hash)throw new AssetError(409,'CITATION_SOURCE_CHANGED')
+    return {title:source.title,kind:source.kind,text,...range}
+  }
+  selection(prior:SessionActor,spec:CitationSpec,w?:RenderWitness){
+    return this.tx('read',(db,now)=>this.verifySelection(db,this.actor(prior,now),spec,now,w))
+  }
+  checkStoredSelection(db:DatabaseSync,actor:SessionActor,spec:CitationSpec&{quote_hash:string},now:string){
+    const source=this.read(db,actor,spec,now)
+    if(source.kind==='office'){
+      if(!spec.conversion_id||source.conversion_id!==spec.conversion_id)throw notFound()
+      return
+    }
+    resolveCitationText(this.text(source),spec)
+  }
   private locator(db:DatabaseSync,id:string){const r=db.prepare('SELECT snapshot FROM citation_locators WHERE citation_id=?').get(id);return r?JSON.parse(String(r.snapshot)) as ReturnType<typeof makeLocator>:null}
   private receipt(db:DatabaseSync,a:SessionActor,now:string,spec:CitationSpec,key:string,range:ReturnType<typeof citationAnchor>){
     const old=db.prepare(`SELECT ${fields} FROM citations WHERE created_by=? AND request_key=?`).get(a.userId,key)

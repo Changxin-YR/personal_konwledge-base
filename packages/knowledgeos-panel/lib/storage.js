@@ -1412,6 +1412,25 @@ var CitationStore = class {
     if (!w || w.conversion_id !== s.conversion_id || w.sha256 !== s.ref?.sha256 || w.ordinal !== s.ordinal) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
     return w.text;
   }
+  verifySelection(db, actor, spec, now, w) {
+    const source = this.read(db, actor, spec, now);
+    if (source.kind === "office" && !spec.conversion_id) throw new AssetError(422, "INVALID_CITATION");
+    const text2 = this.text(source, w);
+    const range = citationAnchor(text2, spec.start, spec.end);
+    if (range.source_hash !== spec.source_hash) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
+    return { title: source.title, kind: source.kind, text: text2, ...range };
+  }
+  selection(prior, spec, w) {
+    return this.tx("read", (db, now) => this.verifySelection(db, this.actor(prior, now), spec, now, w));
+  }
+  checkStoredSelection(db, actor, spec, now) {
+    const source = this.read(db, actor, spec, now);
+    if (source.kind === "office") {
+      if (!spec.conversion_id || source.conversion_id !== spec.conversion_id) throw notFound2();
+      return;
+    }
+    resolveCitationText(this.text(source), spec);
+  }
   locator(db, id) {
     const r = db.prepare("SELECT snapshot FROM citation_locators WHERE citation_id=?").get(id);
     return r ? JSON.parse(String(r.snapshot)) : null;
@@ -1786,6 +1805,133 @@ var NoteStore = class {
       JOIN notes n ON n.id=r.note_id WHERE r.project_id=? AND n.service_id=? AND n.owner_user_id=? AND n.id>?
       ORDER BY n.id LIMIT 51`).all(project, a.serviceId, a.userId, after);
       return { items: rows.slice(0, 50), next: rows.length > 50 ? rows[49].id : null };
+    });
+  }
+};
+
+// src/host/term-store.ts
+var TERM_SCHEMA = `
+CREATE TABLE saved_terms (
+  id TEXT PRIMARY KEY, service_id TEXT NOT NULL, owner_id TEXT NOT NULL REFERENCES users(id),
+  asset_id TEXT NOT NULL REFERENCES assets(id), version_id TEXT NOT NULL REFERENCES asset_versions(id),
+  conversion_id TEXT REFERENCES office_conversions(id), ordinal INTEGER NOT NULL CHECK(ordinal>=1),
+  start INTEGER NOT NULL CHECK(start>=0), end INTEGER NOT NULL CHECK(end>start),
+  source_hash TEXT NOT NULL CHECK(length(source_hash)=64), quote_hash TEXT NOT NULL CHECK(length(quote_hash)=64),
+  explanation_json TEXT NOT NULL, supplement TEXT NOT NULL, provider TEXT NOT NULL, model TEXT NOT NULL, created_at TEXT NOT NULL
+) STRICT;
+CREATE INDEX saved_terms_owner_source ON saved_terms(service_id,owner_id,asset_id,version_id,created_at,id);
+`;
+var sourceUrl = (spec) => "/knowledgeos/reader?" + new URLSearchParams({
+  asset: spec.asset_id,
+  version: spec.version_id,
+  unit: String(spec.ordinal),
+  match: spec.start + ":" + spec.end + ":" + spec.source_hash,
+  ...spec.conversion_id ? { conversion: spec.conversion_id } : {}
+});
+function trimBoundary(text2, offset, delta) {
+  if (offset > 0 && offset < text2.length && /[\uD800-\uDBFF]/.test(text2.charAt(offset - 1)) && /[\uDC00-\uDFFF]/.test(text2.charAt(offset))) return offset + delta;
+  return offset;
+}
+function termWindow(spec, verified) {
+  const { text: text2, start, end, title, kind, quote_hash } = verified;
+  const from = trimBoundary(text2, Math.max(0, start - 220), 1);
+  const to = trimBoundary(text2, Math.min(text2.length, end + 220), -1);
+  const quote = text2.slice(start, end), before = text2.slice(from, start), after = text2.slice(end, to);
+  const source = { ...spec, quote_hash, quote, excerpt: text2.slice(from, to), title, kind, origin: sourceUrl(spec) };
+  return { source, before, after };
+}
+var TermStore = class {
+  constructor(tx, current, citations) {
+    this.tx = tx;
+    this.current = current;
+    this.citations = citations;
+  }
+  actor(session, now) {
+    const actor = this.current(session, now);
+    if (!actor) throw new AssetError(401, "AUTH_REQUIRED");
+    return actor;
+  }
+  selection(session, spec, witness) {
+    return termWindow(spec, this.citations.selection(session, spec, witness));
+  }
+  row(db, actor, id) {
+    return db.prepare("SELECT * FROM saved_terms WHERE service_id=? AND owner_id=? AND id=?").get(actor.serviceId, actor.userId, id);
+  }
+  view(db, actor, row, now) {
+    const spec = {
+      asset_id: row.asset_id,
+      version_id: row.version_id,
+      ordinal: row.ordinal,
+      start: row.start,
+      end: row.end,
+      source_hash: row.source_hash,
+      ...row.conversion_id ? { conversion_id: row.conversion_id } : {}
+    };
+    this.citations.checkStoredSelection(db, actor, { ...spec, quote_hash: row.quote_hash }, now);
+    const { term, explanation } = JSON.parse(row.explanation_json);
+    return {
+      id: row.id,
+      term,
+      explanation,
+      supplement: row.supplement,
+      provider: row.provider,
+      model: row.model,
+      source: { ...spec, quote_hash: row.quote_hash, origin: sourceUrl(spec) },
+      created_at: row.created_at
+    };
+  }
+  find(session, id) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(session, now), row = this.row(db, actor, id);
+      return row ? this.view(db, actor, row, now) : void 0;
+    });
+  }
+  list(session, asset, version) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(session, now);
+      this.citations.validateTaskMaterial(db, actor, { asset_id: asset, version_id: version, ordinal: 1 }, now);
+      const rows = db.prepare("SELECT * FROM saved_terms WHERE service_id=? AND owner_id=? AND asset_id=? AND version_id=? ORDER BY created_at DESC,id DESC LIMIT 100").all(actor.serviceId, actor.userId, asset, version);
+      return rows.flatMap((row) => {
+        try {
+          return [this.view(db, actor, row, now)];
+        } catch (error) {
+          if (error instanceof AssetError && ["CITATION_SOURCE_CHANGED", "SOURCE_NOT_READY", "SOURCE_NOT_FOUND"].includes(error.code)) return [];
+          throw error;
+        }
+      });
+    });
+  }
+  save(session, card, supplement, witness) {
+    return this.tx("write", (db, now) => {
+      const actor = this.actor(session, now), source = card.source;
+      const verified = this.citations.verifySelection(db, actor, source, now, witness);
+      if (verified.quote_hash !== source.quote_hash) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
+      const existing = this.row(db, actor, card.explanation_id);
+      if (existing) {
+        if (existing.supplement !== supplement) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        return { term: this.view(db, actor, existing, now), replayed: true };
+      }
+      const count = db.prepare("SELECT count(*) n FROM saved_terms WHERE service_id=? AND owner_id=? AND asset_id=? AND version_id=?").get(actor.serviceId, actor.userId, source.asset_id, source.version_id)?.n;
+      if (Number(count) >= 100) throw new AssetError(409, "TERM_QUOTA");
+      db.prepare("INSERT INTO saved_terms VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(
+        card.explanation_id,
+        actor.serviceId,
+        actor.userId,
+        source.asset_id,
+        source.version_id,
+        source.conversion_id ?? null,
+        source.ordinal,
+        source.start,
+        source.end,
+        source.source_hash,
+        source.quote_hash,
+        JSON.stringify({ term: card.term, explanation: card.explanation }),
+        supplement,
+        card.provider,
+        card.model,
+        now
+      );
+      return { term: this.view(db, actor, this.row(db, actor, card.explanation_id), now), replayed: false };
     });
   }
 };
@@ -2172,7 +2318,7 @@ var checkSignal = (signal) => {
   if (signal.aborted) throw new AssetError(409, "REPOSITORY_CANCELLED");
 };
 var encodePath = (path) => path.split("/").map(encodeURIComponent).join("/");
-var sourceUrl = (row, type) => {
+var sourceUrl2 = (row, type) => {
   const repository = encodePath(row.owner_name + "/" + row.repository_name);
   const provider = providers[row.platform];
   return provider.origin + "/" + repository + provider.sourcePrefix + "/" + type + "/" + row.commit_sha;
@@ -2188,7 +2334,7 @@ var summarize = (row) => ({
   commit: row.commit_sha,
   tree: row.tree_sha,
   created_at: row.created_at,
-  source_url: sourceUrl(row, "tree")
+  source_url: sourceUrl2(row, "tree")
 });
 var fileView = (row, path, sha4, bytes) => {
   let text2 = null;
@@ -2203,7 +2349,7 @@ var fileView = (row, path, sha4, bytes) => {
     sha: sha4,
     size: bytes.length,
     text: text2,
-    source_url: sourceUrl(row, "blob") + "/" + encodePath(path)
+    source_url: sourceUrl2(row, "blob") + "/" + encodePath(path)
   };
 };
 var RepositoryStore = class {
@@ -3500,7 +3646,8 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 35;
+var SCHEMA_VERSION = 36;
+var MIGRATION_V36_CHECKSUM = createHash16("sha256").update(TERM_SCHEMA).digest("hex");
 var MIGRATION_V35_CHECKSUM = createHash16("sha256").update(REPOSITORY_GITEE_SCHEMA).digest("hex");
 var MIGRATION_V34_CHECKSUM = createHash16("sha256").update(REPOSITORY_PLATFORM_SCHEMA).digest("hex");
 var MIGRATION_V33_CHECKSUM = createHash16("sha256").update(PROJECT_TASK_APPEAL_SCHEMA).digest("hex");
@@ -3807,6 +3954,7 @@ var ProbeStorage = class {
     const object = this.#loadObject(id);
     return object && this.#authorizationHorizon(a, object, "read", now);
   });
+  terms = new TermStore(this.#assetTx, (s, now) => this.#currentActor(s, now), this.citations);
   recall = new RecallStore(
     this.#assetTx,
     (s, now) => this.#currentActor(s, now),
@@ -3924,6 +4072,7 @@ var ProbeStorage = class {
       if (priorVersion < 33) this.#migrateV33(db);
       if (priorVersion < 34) this.#migrateV34(db);
       if (priorVersion < 35) this.#migrateV35(db);
+      if (priorVersion < 36) this.#migrateV36(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -4576,9 +4725,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "Gitee repository migration failed", false, { cause: e });
     }
   }
+  #migrateV36(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(TERM_SCHEMA);
+      this.#injectFailure("v36:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(36,?,?)").run(MIGRATION_V36_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=36; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "personal terms migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM, MIGRATION_V35_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM, MIGRATION_V35_CHECKSUM, MIGRATION_V36_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash2, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash2)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -4612,6 +4773,7 @@ var ProbeStorage = class {
       if (version >= 31) reference.exec(PROJECT_TASK_MATERIAL_SCHEMA);
       if (version >= 32) reference.exec(PROJECT_TASK_CORRECTION_SCHEMA);
       if (version >= 33) reference.exec(PROJECT_TASK_APPEAL_SCHEMA);
+      if (version >= 36) reference.exec(TERM_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -5144,6 +5306,7 @@ export {
   MIGRATION_V33_CHECKSUM,
   MIGRATION_V34_CHECKSUM,
   MIGRATION_V35_CHECKSUM,
+  MIGRATION_V36_CHECKSUM,
   MIGRATION_V3_CHECKSUM,
   MIGRATION_V3_SQL,
   MIGRATION_V4,

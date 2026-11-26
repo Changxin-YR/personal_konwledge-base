@@ -4,10 +4,18 @@ export function buildReaderHtml(): string {
 *{box-sizing:border-box}body{margin:0;background:#f7faf9;color:#243936;font:15px/1.6 "Segoe UI","Microsoft YaHei UI",sans-serif}header,main{padding:14px max(16px,calc((100% - 1050px)/2))}header,.tools,.modes,form{display:flex;align-items:center;gap:8px;flex-wrap:wrap}header{background:white;border-bottom:1px solid #cbd9d6;gap:20px}header strong{color:#18565a}a{color:#176166}h1{font-size:24px;margin:8px 0}h2{font-size:17px}button,input{font:inherit;border:1px solid #8ba4a0;border-radius:4px;background:white;padding:4px 10px;color:inherit}button{cursor:pointer}button:disabled{opacity:.55;cursor:default}button[aria-pressed=true],button[aria-current=true]{background:#235e5b;color:white}input{width:6em}.layout{display:grid;grid-template-columns:9em minmax(0,1fr);gap:18px;margin-top:18px}#rail{height:230px;overflow:auto;border-block:1px solid #cbd9d6}#window{position:relative}#window button{position:absolute;left:0;width:100%;height:36px;text-align:left;border:0;border-radius:0}article{min-width:0}#version,#status,pre,#anchor{overflow-wrap:anywhere}#version{color:#536866}#original{position:relative;width:100%;max-width:var(--page-width);line-height:0}#original img{width:100%;height:auto}.highlight{position:absolute;background:#ffc02b66;box-shadow:inset 0 0 0 1px #ad7900;pointer-events:none}pre{font:inherit;line-height:1.8;white-space:pre-wrap;margin:0}mark{background:#ffe491}#status{border-left:3px solid #94b6ac;padding-left:8px}[hidden]{display:none!important}:focus-visible{outline:3px solid #176d92;outline-offset:1px}@media(max-width:620px){.layout{grid-template-columns:minmax(0,1fr)}#rail{height:82px}}
 #continuity{margin-top:12px;border-block:1px solid #cbd9d6;padding:8px 0}#continuity details{margin:4px 0}#continuity summary{cursor:pointer;color:#18565a}#continuity ul{list-style:none;margin:6px 0;padding:0;max-height:20em;overflow:auto}#continuity li{display:flex;gap:6px;margin:4px 0}#continuity li button:first-child{overflow-wrap:anywhere;text-align:left}#bookmark-title{width:min(100%,20em)}#reading-status{margin:4px 0;min-height:1.6em;color:#536866}
 #annotations{border-block:1px solid #cbd9d6;margin-block:14px;padding-block:8px;overflow-wrap:anywhere}#annotation-form{display:grid;gap:8px}#annotation-body{max-width:100%;width:100%;min-height:6em;font:inherit;padding:6px;border:1px solid #8ba4a0;border-radius:4px}#annotation-items{list-style:none;padding:0;margin:0}#annotation-items li{border-top:1px solid #cbd9d6;padding:8px 0}#annotation-items p{white-space:pre-wrap;margin:4px 0}.annotation-buttons{display:flex;flex-wrap:wrap;gap:8px}
+#term-panel{position:fixed;z-index:3;inset:74px 16px auto auto;width:min(28rem,calc(100vw - 32px));max-height:calc(100vh - 92px);overflow:auto;background:#fff;border:1px solid #a8bcb7;border-radius:8px;padding:16px;box-shadow:0 10px 30px #163d3320;overflow-wrap:anywhere}#term-panel header{padding:0 0 8px;justify-content:space-between}#term-panel h2{margin:0}#term-panel dl{margin:8px 0}#term-panel dt{font-weight:600}#term-panel dd{margin:0 0 8px;white-space:pre-wrap}#term-panel blockquote{margin:8px 0;border-left:3px solid #94b6ac;padding-left:8px;white-space:pre-wrap}#term-panel textarea{font:inherit;width:100%;min-height:4em;border:1px solid #8ba4a0;border-radius:4px;padding:6px}#term-list{padding-left:1.3em}#term-list li{padding:4px}#term-status:empty{display:none}@media(max-width:620px){#term-panel{inset:auto 8px 8px;width:auto;max-height:75vh}}
 </style></head><body><header><strong>KnowledgeOS</strong><a href="/knowledgeos/library">资料库</a><a href="/knowledgeos/account">账号与登录</a></header><main>
 <h1 id="title">版本阅读</h1><p id="version"></p><div class="tools"><button id="refresh">刷新</button><form id="jump"><button type="button" id="prev" aria-label="上一位置">←</button><input type="number" min="1" step="1" required id="number" aria-label="跳转位置"><button>跳转</button><button type="button" id="next" aria-label="下一位置">→</button></form><span id="count"></span><a id="task-material-link" hidden>固定材料链接</a></div><p id="status" role="status"></p>
 <section id="continuity" aria-label="阅读导航" hidden><details id="toc-details" open><summary>目录</summary><ul id="toc"></ul></details><details id="bookmarks-details" open><summary>我的书签</summary><ul id="bookmarks"></ul><form id="bookmark-form"><input id="bookmark-title" maxlength="120" required placeholder="书签名称" aria-label="书签名称"><button id="bookmark-add">添加书签</button></form></details><p id="reading-status" role="status"></p></section>
-<div class="layout"><nav id="rail" aria-label="页与文本块" hidden><div id="window"></div></nav><article><h2 id="anchor"></h2><div class="modes" id="modes" hidden><button id="paper">原页</button><button id="structured">结构文本</button><button id="cite" disabled>生成引用链接</button><button id="annotate" disabled>选区批注</button><button id="annotations-toggle" aria-controls="annotations" aria-expanded="false">本处批注</button><a id="link" hidden>打开引用</a><a id="note-link" hidden>记笔记</a><a id="recall-link" hidden>制作遮挡练习</a></div><div id="original" hidden></div><pre id="text" hidden></pre><section id="annotations" aria-label="本处批注" hidden><p id="annotation-status" role="status"></p><ul id="annotation-items"></ul><form id="annotation-form" hidden><label for="annotation-body">批注正文</label><textarea id="annotation-body" maxlength="4000" required></textarea><label id="annotation-scope">可见范围 <select id="annotation-visibility"><option value="private">仅本人</option><option value="project">当前项目</option></select></label><div class="annotation-buttons"><button id="annotation-submit">保存批注</button><button type="button" id="annotation-rebase" hidden>读取最新版本并保留草稿</button><button type="button" id="annotation-cancel">取消</button></div></form></section></article></div></main><script>
+<div class="layout"><nav id="rail" aria-label="页与文本块" hidden><div id="window"></div></nav><article><h2 id="anchor"></h2><div class="modes" id="modes" hidden><button id="paper">原页</button><button id="structured">结构文本</button><button id="cite" disabled>生成引用链接</button><button id="annotate" disabled>选区批注</button><button id="term-explain" disabled>解释术语</button><button id="terms-open" disabled>我的术语</button><button id="annotations-toggle" aria-controls="annotations" aria-expanded="false">本处批注</button><a id="link" hidden>打开引用</a><a id="note-link" hidden>记笔记</a><a id="recall-link" hidden>制作遮挡练习</a></div><div id="original" hidden></div><pre id="text" tabindex="-1" hidden></pre><section id="term-panel" aria-labelledby="term-title" tabindex="-1" hidden>
+<header><h2 id="term-title">语境术语</h2><button id="term-close" type="button">返回阅读</button></header>
+<p id="term-status" role="status"></p><div id="term-result" hidden><dl>
+<dt>当前语境</dt><dd id="term-context"></dd><dt>通俗说明</dt><dd id="term-plain"></dd>
+<dt>专业定义</dt><dd id="term-professional"></dd><dt>易混概念</dt><dd id="term-confusions"></dd></dl>
+<p id="term-uncertainty" hidden></p><blockquote id="term-evidence" hidden></blockquote><a id="term-origin" hidden>查看原文位置</a>
+<div id="term-saving"><label for="term-supplement">个人补充</label><textarea id="term-supplement" maxlength="1000"></textarea>
+<button id="term-save" type="button">保存到我的术语</button></div></div><ul id="term-list" hidden></ul></section><section id="annotations" aria-label="本处批注" hidden><p id="annotation-status" role="status"></p><ul id="annotation-items"></ul><form id="annotation-form" hidden><label for="annotation-body">批注正文</label><textarea id="annotation-body" maxlength="4000" required></textarea><label id="annotation-scope">可见范围 <select id="annotation-visibility"><option value="private">仅本人</option><option value="project">当前项目</option></select></label><div class="annotation-buttons"><button id="annotation-submit">保存批注</button><button type="button" id="annotation-rebase" hidden>读取最新版本并保留草稿</button><button type="button" id="annotation-cancel">取消</button></div></form></section></article></div></main><script>
 'use strict';
 const $=id=>document.getElementById(id), q=new URLSearchParams(location.search), asset=q.get('asset'), version=q.get('version'), cid=q.get('citation');
 const requestedUnit=q.get('unit')??'1', requestedConversion=q.get('conversion');
@@ -22,10 +30,11 @@ const readerPath='assets/'+asset+'/versions/'+version+'/reader';
 let continuity=null, outlineLoaded=false, busy=false;
 let annotationPanel=false, annotationDraft=null, annotationBusy=false, annotationSequence=0, suspendedDraft=null;
 let expirationTimer=null;
+let termSequence=0, termRequest=null, termResult=null, termTrigger=null;
 const readingStatus=s=>{$('reading-status').textContent=s};
 async function api(path,options){
   const r=await fetch('/knowledge/v1/'+path,{credentials:'same-origin',cache:'no-store',redirect:'error',...options});
-  if(!r.ok){const e=problem(r.status);if(r.status===422||r.status===409)e.code=(await r.json().catch(()=>null))?.code;throw e}return (await r.json()).data;
+  if(!r.ok){const e=problem(r.status);e.code=(await r.json().catch(()=>null))?.code;throw e}return (await r.json()).data;
 }
 async function access(g){
   if(g!==gen||document.hidden)return false;
@@ -51,7 +60,7 @@ function clearPage(){
   $('link').removeAttribute('href');$('note-link').hidden=true;$('note-link').removeAttribute('href');$('cite').disabled=true;
   $('recall-link').hidden=true;$('recall-link').removeAttribute('href');
   $('task-material-link').hidden=true;$('task-material-link').removeAttribute('href');
-  clearAnnotations();
+  clearAnnotations();clearTerms();$('term-explain').disabled=$('terms-open').disabled=true;
 }
 function lock(message,keepDraft=false){
   clearTimeout(expirationTimer);expirationTimer=null;
@@ -245,19 +254,112 @@ function draw(){
   $('cite').disabled=!available||!s||posting;
   if(available){$('recall-link').href='/knowledgeos/recall?'+new URLSearchParams({asset,version,unit:String(d.ordinal),...(d.conversion_id?{conversion:d.conversion_id}:{})});$('recall-link').hidden=false}
   $('annotate').disabled=!available||!s||posting||annotationBusy;$('annotations-toggle').disabled=!available;
+  $('term-explain').disabled=!available||!s||showOriginal;$('terms-open').disabled=!available;
   const states={failed:'本处解析失败。',empty:'此版本没有可阅读的文本块。',unconverted:'此版本尚无已完成的转换。',review:'本页解析结果待复核。'};
   const layout=d.kind==='pdf'&&available&&!showOriginal?' 提取文本不等同于原页版式。':'';
   status((states[d.state] || (!available?'本处尚未就绪。':showOriginal&&s&&!boxes.length?'原页缺少精确选区坐标，请查看结构文本中的高亮。':resolved?'已定位到固定版本引用。':'已打开固定版本。'))+layout);
 }
 function capture(){
   if(!page||!ready(page)||posting||$('text').hidden)return;
-  const sel=getSelection();if(!sel.rangeCount||sel.isCollapsed)return;
-  const r=sel.getRangeAt(0),text=$('text');if(!text.contains(r.startContainer)||!text.contains(r.endContainer)){selection=null;pending=null;$('cite').disabled=true;$('annotate').disabled=true;return}
+  const sel=getSelection();if(!sel.rangeCount||sel.isCollapsed){$('term-explain').disabled=true;return}
+  const r=sel.getRangeAt(0),text=$('text');if(!text.contains(r.startContainer)||!text.contains(r.endContainer)){selection=null;pending=null;$('cite').disabled=true;$('annotate').disabled=true;$('term-explain').disabled=true;return}
   // Measure from the container, not indexOf(quote): repeated passages and split mark nodes are legal.
   const prefix=r.cloneRange();prefix.selectNodeContents(text);prefix.setEnd(r.startContainer,r.startOffset);
   const start=prefix.toString().length,end=start+r.toString().length;
-  if(selection?.start!==start||selection?.end!==end){for(const id of ['link','note-link']){$(id).hidden=true;$(id).removeAttribute('href')}}
+  if(selection?.start!==start||selection?.end!==end){
+    for(const id of ['link','note-link']){$(id).hidden=true;$(id).removeAttribute('href')}
+    if(!$('term-panel').hidden&&validRange(page.text,start,end))clearTerms();
+  }
   selection=validRange(page.text,start,end)?{start,end}:null;$('cite').disabled=!selection;$('annotate').disabled=!selection||annotationBusy;
+  $('term-explain').disabled=!selection||end-start>64;
+}
+function clearTerms(restore=false){
+  const control=termTrigger;termTrigger=null;termSequence++;termRequest?.abort();termRequest=null;termResult=null;
+  for(const id of ['term-status','term-context','term-plain','term-professional','term-confusions','term-uncertainty','term-evidence','term-list'])$(id).textContent='';
+  for(const id of ['term-panel','term-result','term-uncertainty','term-evidence','term-list','term-origin','term-saving'])$(id).hidden=true;
+  $('term-origin').removeAttribute('href');$('term-supplement').value='';$('term-title').textContent='语境术语';$('term-save').disabled=true;
+  if(restore)(control&&!control.disabled?control:$('text')).focus({preventScroll:true});
+}
+function openTerms(trigger){
+  clearTerms();termTrigger=$(trigger);$('term-panel').hidden=false;$('term-panel').focus({preventScroll:true});
+  termRequest=new AbortController();return {g:gen,sequence:termSequence,controller:termRequest,actor:owner};
+}
+const termCurrent=run=>run.g===gen&&run.sequence===termSequence&&run.actor===owner&&!document.hidden&&!run.controller.signal.aborted;
+function termError(e,run){
+  if(!termCurrent(run))return;
+  if([401,403,404].includes(e.http)&&['AUTH_REQUIRED','SOURCE_NOT_FOUND','READER_ACTOR_CHANGED','CSRF_REJECTED'].includes(e.code)){failure(e,run.g);return}
+  const errors={TERM_SOURCE_INSUFFICIENT:'来源不足，无法解释这处用法。请选择包含更多语境的术语。',
+    MODEL_NOT_CONFIGURED:'暂未配置术语解释模型。',CREDENTIALS_MISSING:'模型凭据未配置。',MODEL_OUTPUT_INVALID:'模型返回的解释无法核验。',
+    MODEL_TIMEOUT:'解释请求超时。',CITATION_SOURCE_CHANGED:'固定来源已变化，请重新选择。',TERM_EXPLANATION_NOT_FOUND:'临时解释已过期，请重新选择。',
+    TERM_QUOTA:'此版本的个人术语已达上限。',PROVIDER_RATE_LIMITED:'模型请求过多，请稍后再试。'};
+  $('term-status').textContent=errors[e.code]||'当前无法读取或保存术语。';
+}
+const termHeaders=actor=>({'Content-Type':'application/json','X-KnowledgeOS-Request':'1','X-KnowledgeOS-Reader-Actor':actor});
+function paintTerm(card,temporary){
+  const x=card.explanation,s=card.source;if(!x||!s||typeof s.origin!=='string'||!s.origin.startsWith('/knowledgeos/reader?'))throw invalid();
+  $('term-title').textContent=card.term;$('term-context').textContent=x.context;$('term-plain').textContent=x.plain;
+  $('term-professional').textContent=x.professional;$('term-confusions').textContent=x.confusions.map(v=>v.term+' · '+v.distinction).join('\n')||'暂无已区分的概念。';
+  $('term-uncertainty').textContent=x.uncertainty;$('term-uncertainty').hidden=!x.uncertainty;
+  $('term-evidence').textContent=s.excerpt||card.term;$('term-evidence').hidden=false;
+  $('term-origin').href=s.origin;$('term-origin').hidden=false;$('term-list').hidden=true;$('term-result').hidden=false;
+  $('term-saving').hidden=!temporary;$('term-save').disabled=!temporary;$('term-supplement').value=card.supplement||'';
+  $('term-status').textContent=temporary?'解释已生成，可保存为个人术语。':(card.supplement?'个人补充 · '+card.supplement:'已保存到我的术语。');
+}
+async function explainTerms(){
+  const range=selection,d=page;
+  if(!range||!d||!ready(d)||$('term-explain').disabled||range.end-range.start>64)return;
+  const run=openTerms('term-explain');$('term-status').textContent='正在解释所选术语…';
+  try{
+    const source_hash=await sha(d.text);
+    if(!termCurrent(run)||!await access(run.g)||!termCurrent(run))return;
+    const spec={asset_id:asset,version_id:version,ordinal:d.ordinal,...range,source_hash,...(d.conversion_id?{conversion_id:d.conversion_id}:{})};
+    const card=await api('terms/explain',{method:'POST',headers:termHeaders(run.actor),body:JSON.stringify(spec),signal:run.controller.signal});
+    if(!termCurrent(run)||!await access(run.g)||!termCurrent(run))return;
+    const s=card.source;
+    if(card.actor_id!==run.actor||!uuid(card.explanation_id)||!s||s.asset_id!==asset||s.version_id!==version||s.ordinal!==d.ordinal||
+        s.start!==range.start||s.end!==range.end||s.source_hash!==source_hash||s.quote!==d.text.slice(range.start,range.end)||(s.conversion_id??null)!==(d.conversion_id??null))throw invalid();
+    termResult={run,card};paintTerm(card,true);
+  }catch(e){termError(e,run)}
+}
+async function saveTerm(){
+  const active=termResult;if(!active||!termCurrent(active.run))return;
+  const {run,card}=active,supplement=$('term-supplement').value;
+  $('term-save').disabled=true;
+  try{
+    if(!await access(run.g)||!termCurrent(run))return;
+    const data=await api('terms',{method:'POST',headers:termHeaders(run.actor),signal:run.controller.signal,
+      body:JSON.stringify({explanation_id:card.explanation_id,...(supplement?{supplement}:{})})});
+    if(!termCurrent(run)||!await access(run.g)||!termCurrent(run))return;
+    if(data.actor_id!==run.actor||data.term?.id!==card.explanation_id)throw invalid();
+    termResult=null;paintTerm(data.term,false);
+  }catch(e){
+    if(termCurrent(run))$('term-save').disabled=false;
+    termError(e,run);
+  }
+}
+async function showTerms(){
+  if(!page||!owner)return;
+  const run=openTerms('terms-open');$('term-title').textContent='我的术语';$('term-status').textContent='正在读取…';
+  try{
+    if(!await access(run.g)||!termCurrent(run))return;
+    const data=await api('terms?'+new URLSearchParams({asset,version}),{signal:run.controller.signal});
+    if(!termCurrent(run)||!await access(run.g)||!termCurrent(run))return;
+    if(data.actor_id!==run.actor||!Array.isArray(data.terms))throw invalid();
+    for(const card of data.terms){
+      const li=document.createElement('li'),button=document.createElement('button');button.type='button';button.textContent=card.term;
+      button.onclick=async()=>{
+        try{
+          if(!await access(run.g)||!termCurrent(run))return;
+          const read=await api('terms/'+card.id,{signal:run.controller.signal});
+          if(!termCurrent(run)||!await access(run.g)||!termCurrent(run))return;
+          if(read.actor_id!==run.actor||read.term?.id!==card.id)throw invalid();
+          paintTerm(read.term,false);
+        }catch(e){termError(e,run)}
+      };
+      li.append(button);$('term-list').append(li);
+    }
+    $('term-list').hidden=false;$('term-status').textContent=data.terms.length?'':'这一版本还没有保存的术语。';
+  }catch(e){termError(e,run)}
 }
 async function createCitation(range=selection,announce=true){
   if(!page||!range||posting)return;
@@ -364,6 +466,9 @@ async function recheck(){
 $('paper').onclick=()=>switchMode('paper');$('structured').onclick=()=>switchMode('text');
 $('cite').onpointerdown=e=>e.preventDefault();$('cite').onclick=()=>createCitation();document.addEventListener('selectionchange',capture);
 $('annotate').onpointerdown=e=>e.preventDefault();$('annotate').onclick=()=>{if(selection)void openAnnotations({...selection})};
+$('term-explain').onpointerdown=e=>e.preventDefault();$('term-explain').onclick=()=>void explainTerms();
+$('terms-open').onclick=()=>void showTerms();$('term-save').onclick=()=>void saveTerm();$('term-close').onclick=()=>clearTerms(true);
+$('term-panel').addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();clearTerms(true)}});
 $('annotations-toggle').onclick=()=>{if(annotationPanel){if(!annotationBusy)clearAnnotations()}else void openAnnotations(null)};
 $('annotation-form').onsubmit=e=>{e.preventDefault();if(annotationDraft&&!annotationDraft.conflict)void writeAnnotation(annotationDraft.id?'PATCH':'POST',annotationDraft)};
 $('annotation-cancel').onclick=()=>{if(!annotationBusy)resetAnnotationDraft()};

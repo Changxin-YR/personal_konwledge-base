@@ -42,6 +42,7 @@ import { buildNotesHtml } from './note-page.ts'
 import { buildRecallHtml } from './recall-page.ts'
 import { buildInvitationHtml } from './invitation-page.ts'
 import { createRepositoryHandler, repositoryApi } from './repository-http.ts'
+import { createTermHandler, termApi } from './term-http.ts'
 import { RepositoryService } from './repository-store.ts'
 import { buildRepositoryHtml } from './repository-page.ts'
 import { appealApi, createProjectTaskHandler, decisionApi, taskApi } from './project-task-http.ts'
@@ -283,6 +284,9 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
           return readLegacyWord(s,check,signal)
         })
         const sessionFor=(req:import('node:http').IncomingMessage)=>{const origin=actualOrigin();if(!origin||!identityAvailable())return undefined;return identity.actor(readCookie(req,businessCookieName(identity.setupState.serviceId,origin)))}
+        const termScope=new AbortController()
+        disposers.push(()=>termScope.abort(),identityContext.webServer.register({kind:'prefix',path:termApi,auth:'anonymous',
+          handler:withPeer(createTermHandler(storage.terms,reader,()=>ai,actualOrigin,sessionFor,termScope.signal))}))
         const handler=libraryHandler(storage.assets,originals,actualOrigin,sessionFor,storage.parses,storage.office,()=>!!officeMount,storage.archives,reader,storage.search)
         const notes=createNoteHandler(storage.notes,actualOrigin,sessionFor)
         const projectTasks=withPeer(createProjectTaskHandler(storage.projectTasks,actualOrigin,sessionFor))

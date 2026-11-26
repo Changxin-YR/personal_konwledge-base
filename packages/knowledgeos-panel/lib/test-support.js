@@ -1,5 +1,5 @@
 // src/host/ai-service.ts
-import { randomUUID } from "node:crypto";
+import { randomUUID as randomUUID2 } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 // src/host/ai-tools.ts
@@ -87,6 +87,119 @@ function getProbeRecord(port, id) {
   return port.getById(id);
 }
 
+// src/host/asset-store.ts
+import { createHash as createHash3, randomUUID } from "node:crypto";
+var ASSET_SCHEMA = `CREATE TABLE blobs (
+  id TEXT PRIMARY KEY, storage_key TEXT UNIQUE NOT NULL, sha256 TEXT NOT NULL CHECK(length(sha256)=64),
+  byte_length INTEGER NOT NULL CHECK(byte_length>0), media_type TEXT NOT NULL CHECK(media_type='application/pdf')
+) STRICT;
+CREATE TABLE assets (id TEXT PRIMARY KEY REFERENCES knowledge_objects(id)) STRICT;
+CREATE TABLE asset_versions (
+  id TEXT PRIMARY KEY, asset_id TEXT NOT NULL REFERENCES assets(id), version INTEGER NOT NULL CHECK(version>0),
+  parent_version_id TEXT REFERENCES asset_versions(id), blob_id TEXT NOT NULL UNIQUE REFERENCES blobs(id),
+  original_name TEXT NOT NULL, created_by TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL, request_digest TEXT NOT NULL, UNIQUE(asset_id,version), UNIQUE(created_by,idempotency_key)
+) STRICT;`;
+var AssetError = class extends Error {
+  constructor(status, code) {
+    super(code);
+    this.status = status;
+    this.code = code;
+  }
+};
+var receiptSQL = `SELECT v.asset_id AS id,v.original_name AS title,v.id AS version_id,v.version,b.sha256,b.byte_length,b.media_type FROM asset_versions v JOIN blobs b ON b.id=v.blob_id `;
+function receipt(row) {
+  const { media_type, ...rest } = row;
+  return media_type === "application/pdf" ? rest : { ...rest, media_type };
+}
+var AssetStore = class {
+  constructor(tx, current, allowed) {
+    this.tx = tx;
+    this.current = current;
+    this.allowed = allowed;
+  }
+  actor(prior, now) {
+    const actor = this.current(prior, now);
+    if (!actor) throw new AssetError(401, "AUTH_REQUIRED");
+    return actor;
+  }
+  check(actor, id, action, now) {
+    if (!this.allowed(actor, id, action, now)) throw new AssetError(404, "ASSET_NOT_FOUND");
+  }
+  publish(prior, spec, blob, format, onPublish) {
+    const text2 = format && "blocks" in format ? format : void 0;
+    return this.tx("write", (db, now) => {
+      const actor = this.actor(prior, now), digest3 = createHash3("sha256").update(JSON.stringify([spec.title, spec.assetId ?? null, spec.expectedVersion ?? null, blob.sha256, blob.byteLength, ...text2 ? [text2.media, text2.encoding] : format ? [format.media] : []])).digest("hex");
+      const prev = db.prepare("SELECT id,asset_id,request_digest FROM asset_versions WHERE created_by=? AND idempotency_key=?").get(actor.userId, spec.key);
+      if (prev) {
+        this.check(actor, String(prev.asset_id), "read", now);
+        this.check(actor, String(prev.asset_id), "edit", now);
+        if (prev.request_digest !== digest3) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        const r = receipt(db.prepare(receiptSQL + "WHERE v.id=?").get(prev.id));
+        onPublish?.(db, actor, r);
+        return { receipt: r, replayed: true };
+      }
+      const id = spec.assetId ?? randomUUID(), vid = randomUUID(), bid = randomUUID();
+      let version = 1, parent = null;
+      if (spec.assetId) {
+        this.check(actor, id, "read", now);
+        this.check(actor, id, "edit", now);
+        const last = db.prepare("SELECT id,version FROM asset_versions WHERE asset_id=? ORDER BY version DESC LIMIT 1").get(id);
+        if (!last) throw new AssetError(404, "ASSET_NOT_FOUND");
+        if (last.version !== spec.expectedVersion) throw new AssetError(409, "VERSION_CONFLICT");
+        version = Number(last.version) + 1;
+        parent = String(last.id);
+        db.prepare("UPDATE knowledge_objects SET revision=revision+1,updated_at=? WHERE id=?").run(now, id);
+        db.prepare("UPDATE office_conversions SET state='superseded',lease_token=NULL,lease_until=NULL,failure_code='SOURCE_CHANGED',updated_at=? WHERE version_id=? AND state IN ('queued','running')").run(now, parent);
+      } else {
+        db.prepare(`INSERT INTO knowledge_objects (id,service_id,space_id,scope_kind,project_id,owner_user_id,object_type,title,body,status,revision,created_at,updated_at) VALUES (?,?,?,'personal',NULL,?,'asset',?,'','active',1,?,?)`).run(id, actor.serviceId, actor.personalSpaceId, actor.userId, spec.title, now, now);
+        db.prepare("INSERT INTO assets VALUES (?)").run(id);
+      }
+      db.prepare("INSERT INTO blobs VALUES (?,?,?,?,?)").run(bid, blob.key, blob.sha256, blob.byteLength, format?.media ?? "application/pdf");
+      db.prepare("INSERT INTO asset_versions VALUES (?,?,?,?,?,?,?,?,?,?)").run(vid, id, version, parent, bid, spec.title, actor.userId, now, spec.key, digest3);
+      if (text2) {
+        db.prepare("INSERT INTO text_versions VALUES(?,?,?)").run(vid, text2.encoding, text2.blocks.length);
+        const insert = db.prepare("INSERT INTO text_blocks VALUES(?,?,?,?,?,?,?)");
+        text2.blocks.forEach((b, i) => insert.run(vid, i + 1, b.kind, b.start, b.end, b.text, b.anchor));
+      }
+      const published = { id, title: spec.title, version_id: vid, version, sha256: blob.sha256, byte_length: blob.byteLength, ...format ? { media_type: format.media } : {} };
+      onPublish?.(db, actor, published);
+      return { receipt: published, replayed: false };
+    });
+  }
+  list(prior) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(prior, now);
+      return db.prepare(receiptSQL + `JOIN knowledge_objects o ON o.id=v.asset_id
+      WHERE o.service_id=? AND o.status='active' AND (o.owner_user_id=? OR EXISTS(
+        SELECT 1 FROM invitations i JOIN invitation_redemptions r ON r.invitation_id=i.id
+        WHERE i.object_id=o.id AND i.service_id=o.service_id AND r.user_id=? AND i.revoked_at IS NULL
+          AND r.revoked_at IS NULL AND r.expires_at=i.expires_at AND r.expires_at>?))
+      ORDER BY v.created_at DESC,v.version DESC,v.id`).all(actor.serviceId, actor.userId, actor.userId, now).filter((v) => this.allowed(actor, String(v.id), "read", now)).map(receipt);
+    });
+  }
+  original(prior, id, versionId, download) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(prior, now);
+      this.check(actor, id, "read", now);
+      if (download) this.check(actor, id, "export", now);
+      const r = db.prepare("SELECT b.storage_key,b.sha256,b.byte_length,b.media_type,t.encoding FROM asset_versions v JOIN blobs b ON b.id=v.blob_id LEFT JOIN text_versions t ON t.version_id=v.id WHERE v.asset_id=? AND v.id=?").get(id, versionId);
+      if (!r) throw new AssetError(404, "ASSET_NOT_FOUND");
+      return { key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length), ...r.media_type === "application/pdf" ? {} : { media: String(r.media_type) }, ...typeof r.encoding === "string" ? { encoding: r.encoding } : {} };
+    });
+  }
+  blocks(prior, id, v, from, limit) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(prior, now);
+      this.check(actor, id, "read", now);
+      if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit) || limit < 1 || limit > 10) throw new AssetError(422, "INVALID_BLOCK_RANGE");
+      const meta = db.prepare("SELECT encoding,block_count AS total FROM text_versions t JOIN asset_versions a ON a.id=t.version_id WHERE a.asset_id=? AND a.id=?").get(id, v);
+      if (!meta) throw new AssetError(404, "ASSET_NOT_FOUND");
+      return { version_id: v, ...meta, blocks: db.prepare("SELECT ordinal,kind,start,end,text,anchor FROM text_blocks WHERE version_id=? AND ordinal>=? ORDER BY ordinal LIMIT ?").all(v, from, limit) };
+    });
+  }
+};
+
 // src/host/ai-service.ts
 var SYSTEM = "Choose exactly one provided KnowledgeOS tool for the user instruction. Use only the specified target object and revision. Do not invent identities, permissions, SQL, paths or commands. Reading uses knowledgeos_read_object. Updating title/body uses knowledgeos_update_object. Do not claim success; the server will execute the tool. Return one tool call.";
 function modelFailure(error) {
@@ -159,11 +272,29 @@ var AiService = class {
     onlyKeys(raw, ["request_id", "instruction", "object_id", "expected_revision", "idempotency_key"]);
     const instruction = aiText(raw.instruction, 2e3), objectId = aiText(raw.object_id, 80), requestId = aiText(raw.request_id, 80), key = aiText(raw.idempotency_key, 128);
     if (!Number.isSafeInteger(raw.expected_revision) || Number(raw.expected_revision) < 1) throw new AiError(422, "INPUT_INVALID");
-    if (this.#closed || !this.llm || !this.tools || !this.routeAllowed || !this.config.provider || !this.config.model) throw new AiError(503, "MODEL_NOT_CONFIGURED");
-    if (signal.aborted) throw new AiError(409, "CANCELLED");
+    if (!this.tools) throw new AiError(503, "MODEL_NOT_CONFIGURED");
     this.#sweep();
+    if (this.#prepared.size >= 100) throw new AiError(429, "REQUEST_LIMIT");
+    const userText = JSON.stringify({ instruction, target_object_id: objectId, expected_revision: raw.expected_revision });
+    const { calls, finish, usage } = await this.#infer(actor, requestId, SYSTEM, userText, signal, TOOL_SCHEMAS);
+    if (finish !== "tool-calls" || calls.length !== 1) throw new AiError(502, "MODEL_OUTPUT_INVALID");
+    const call = calls[0], args2 = toolArguments(call);
+    if (args2.object_id !== objectId || call.name === TOOL_NAMES[1] && args2.expected_revision !== raw.expected_revision) throw new AiError(422, "MODEL_TARGET_MISMATCH");
+    const prepared = { id: randomUUID2(), requestId, actor, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
+    if (this.#closed || signal.aborted) throw new AiError(409, "CANCELLED");
+    this.#prepared.set(prepared.id, prepared);
+    return { ...this.#view(prepared), usage: usage ?? null };
+  }
+  async explainSelection(actor, system, userText, signal, authorize2) {
+    const { text: text2, calls, finish } = await this.#infer(actor, randomUUID2(), system, userText, signal, [], authorize2);
+    if (finish !== "stop" || calls.length !== 0 || !text2 || Buffer.byteLength(text2) > 12e3) throw new AiError(502, "MODEL_OUTPUT_INVALID");
+    return { text: text2, provider: this.config.provider, model: this.config.model };
+  }
+  async #infer(actor, requestId, system, userText, signal, tools, authorize2) {
+    if (this.#closed || !this.llm || !this.routeAllowed || !this.config.provider || !this.config.model) throw new AiError(503, "MODEL_NOT_CONFIGURED");
+    if (signal.aborted) throw new AiError(409, "CANCELLED");
     if (this.#pending.has(requestId)) throw new AiError(409, "REQUEST_CONFLICT");
-    if (this.#pending.size >= 4 || this.#prepared.size >= 100 || [...this.#pending.values()].some((p) => p.actor.userId === actor.userId)) throw new AiError(429, "REQUEST_LIMIT");
+    if (this.#pending.size >= 4 || [...this.#pending.values()].some((p) => p.actor.userId === actor.userId)) throw new AiError(429, "REQUEST_LIMIT");
     const controller = new AbortController();
     this.#pending.set(requestId, { actor, controller });
     const onAbort = () => controller.abort(new AiError(409, "CANCELLED"));
@@ -176,16 +307,28 @@ var AiService = class {
       if (!available2) throw new AiError(503, "MODEL_NOT_CONFIGURED");
       const catalog = await this.#abortable(this.llm.listModels(this.config.provider), controller.signal);
       if (catalog.length > 0 && !catalog.some((m) => m.id === this.config.model)) throw new AiError(404, "MODEL_NOT_FOUND");
-      const userText = JSON.stringify({ instruction, target_object_id: objectId, expected_revision: raw.expected_revision });
+      authorize2?.();
+      controller.signal.throwIfAborted();
       this.#calls++;
       attempted = true;
       const calls = [];
-      let finish, outputBytes = 0;
-      const stream = this.llm.stream({ provider: this.config.provider, model: this.config.model, system: SYSTEM, messages: [{ role: "user", content: [{ type: "text", text: userText }] }], tools: TOOL_SCHEMAS, signal: controller.signal })[Symbol.asyncIterator]();
+      let finish, outputBytes = 0, text2 = "", streamDone = false;
+      const stream = this.llm.stream({
+        provider: this.config.provider,
+        model: this.config.model,
+        system,
+        messages: [{ role: "user", content: [{ type: "text", text: userText }] }],
+        tools,
+        signal: controller.signal,
+        ...tools.length ? {} : { maxTokens: 512 }
+      })[Symbol.asyncIterator]();
       try {
         while (true) {
           const next = await this.#abortable(stream.next(), controller.signal);
-          if (next.done) break;
+          if (next.done) {
+            streamDone = true;
+            break;
+          }
           const chunk = next.value;
           outputBytes += Buffer.byteLength(JSON.stringify(chunk), "utf8");
           if (outputBytes > 96e3 || finish !== void 0) throw new AiError(502, "MODEL_OUTPUT_INVALID");
@@ -194,6 +337,7 @@ var AiService = class {
             if (!b.id || !b.name || typeof b.arguments !== "string") throw new AiError(502, "MODEL_OUTPUT_INVALID");
             calls.push({ id: b.id, name: b.name, arguments: b.arguments });
           }
+          if (chunk.type === "block-end" && chunk.block?.type === "text" && typeof chunk.block.text === "string") text2 += chunk.block.text;
           if (chunk.type === "usage") usage = chunk.usage;
           if (chunk.type === "finish") {
             finish = chunk.reason?.kind;
@@ -202,18 +346,15 @@ var AiService = class {
           }
         }
       } finally {
-        if (controller.signal.aborted) void stream.return?.().catch(() => {
+        if (!streamDone) void stream.return?.().catch(() => {
         });
       }
       if (controller.signal.aborted) throw controller.signal.reason;
-      if (finish !== "tool-calls" || calls.length !== 1) throw new AiError(502, "MODEL_OUTPUT_INVALID");
-      const call = calls[0], args2 = toolArguments(call);
-      if (args2.object_id !== objectId || call.name === TOOL_NAMES[1] && args2.expected_revision !== raw.expected_revision) throw new AiError(422, "MODEL_TARGET_MISMATCH");
-      const prepared = { id: randomUUID(), requestId, actor, key, call, expiresAt: Date.now() + 12e4, state: "prepared" };
-      this.#prepared.set(prepared.id, prepared);
-      return { ...this.#view(prepared), usage: usage ?? null };
+      return { finish, calls, text: text2, usage };
     } catch (error) {
-      throw controller.signal.aborted ? controller.signal.reason : modelFailure(error);
+      if (controller.signal.aborted) throw controller.signal.reason;
+      if (error instanceof AssetError) throw error;
+      throw modelFailure(error);
     } finally {
       if (attempted) {
         const counts = usage;
@@ -317,7 +458,7 @@ import { createHash as createHash17, randomUUID as randomUUID17 } from "node:cry
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
-import { randomUUID as randomUUID2 } from "node:crypto";
+import { randomUUID as randomUUID3 } from "node:crypto";
 var JOB_SCHEMA = `CREATE TABLE jobs (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), session_id TEXT NOT NULL REFERENCES auth_sessions(id),
   object_id TEXT NOT NULL REFERENCES knowledge_objects(id), expected_revision INTEGER NOT NULL, idempotency_key TEXT NOT NULL,
@@ -357,7 +498,7 @@ var JobStore = class {
         return String(prior.id);
       }
       if (current !== revision) throw new JobError(409, "REVISION_CONFLICT");
-      const id = randomUUID2();
+      const id = randomUUID3();
       db.prepare("INSERT INTO jobs(id,user_id,session_id,object_id,expected_revision,idempotency_key,state,available_at) VALUES(?,?,?,?,?,?,'queued',?)").run(id, actor.userId, actor.sessionId, object, revision, key, now);
       return id;
     });
@@ -384,7 +525,7 @@ var JobStore = class {
       if (lost) this.end(db, lost, lost.attempts >= 3 ? "failed" : "queued", "LEASE_EXPIRED", now);
       const row = db.prepare("SELECT * FROM jobs WHERE state='queued' AND available_at<=? ORDER BY available_at,id LIMIT 1").get(now);
       if (!row) return void 0;
-      const token2 = randomUUID2();
+      const token2 = randomUUID3();
       db.prepare("UPDATE jobs SET state='running',attempts=attempts+1,lease_token=?,lease_until=? WHERE id=?").run(token2, now + 3e3, row.id);
       db.prepare("INSERT INTO job_runs(job_id,attempt,worker,started_at,start_checkpoint) VALUES(?,?,?,?,?)").run(row.id, row.attempts + 1, worker, now, row.checkpoint);
       return { id: row.id, token: token2, checkpoint: row.checkpoint };
@@ -408,7 +549,7 @@ var JobStore = class {
       }
       db.prepare("INSERT INTO job_results(job_id,input_revision) VALUES(?,?)").run(row.id, revision);
       this.fault("job:after-result");
-      db.prepare("INSERT INTO outbox(event_id,job_id,created_at) VALUES(?,?,?)").run(randomUUID2(), row.id, now);
+      db.prepare("INSERT INTO outbox(event_id,job_id,created_at) VALUES(?,?,?)").run(randomUUID3(), row.id, now);
       this.fault("job:after-outbox");
       this.end(db, row, "succeeded", null, now);
       return "succeeded";
@@ -477,119 +618,6 @@ function authorizationHorizon(actor, target2, action, now, grants = [], membersh
 function authorize(...args2) {
   return authorizationHorizon(...args2) !== void 0;
 }
-
-// src/host/asset-store.ts
-import { createHash as createHash3, randomUUID as randomUUID3 } from "node:crypto";
-var ASSET_SCHEMA = `CREATE TABLE blobs (
-  id TEXT PRIMARY KEY, storage_key TEXT UNIQUE NOT NULL, sha256 TEXT NOT NULL CHECK(length(sha256)=64),
-  byte_length INTEGER NOT NULL CHECK(byte_length>0), media_type TEXT NOT NULL CHECK(media_type='application/pdf')
-) STRICT;
-CREATE TABLE assets (id TEXT PRIMARY KEY REFERENCES knowledge_objects(id)) STRICT;
-CREATE TABLE asset_versions (
-  id TEXT PRIMARY KEY, asset_id TEXT NOT NULL REFERENCES assets(id), version INTEGER NOT NULL CHECK(version>0),
-  parent_version_id TEXT REFERENCES asset_versions(id), blob_id TEXT NOT NULL UNIQUE REFERENCES blobs(id),
-  original_name TEXT NOT NULL, created_by TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL,
-  idempotency_key TEXT NOT NULL, request_digest TEXT NOT NULL, UNIQUE(asset_id,version), UNIQUE(created_by,idempotency_key)
-) STRICT;`;
-var AssetError = class extends Error {
-  constructor(status, code) {
-    super(code);
-    this.status = status;
-    this.code = code;
-  }
-};
-var receiptSQL = `SELECT v.asset_id AS id,v.original_name AS title,v.id AS version_id,v.version,b.sha256,b.byte_length,b.media_type FROM asset_versions v JOIN blobs b ON b.id=v.blob_id `;
-function receipt(row) {
-  const { media_type, ...rest } = row;
-  return media_type === "application/pdf" ? rest : { ...rest, media_type };
-}
-var AssetStore = class {
-  constructor(tx, current, allowed) {
-    this.tx = tx;
-    this.current = current;
-    this.allowed = allowed;
-  }
-  actor(prior, now) {
-    const actor = this.current(prior, now);
-    if (!actor) throw new AssetError(401, "AUTH_REQUIRED");
-    return actor;
-  }
-  check(actor, id, action, now) {
-    if (!this.allowed(actor, id, action, now)) throw new AssetError(404, "ASSET_NOT_FOUND");
-  }
-  publish(prior, spec, blob, format, onPublish) {
-    const text2 = format && "blocks" in format ? format : void 0;
-    return this.tx("write", (db, now) => {
-      const actor = this.actor(prior, now), digest3 = createHash3("sha256").update(JSON.stringify([spec.title, spec.assetId ?? null, spec.expectedVersion ?? null, blob.sha256, blob.byteLength, ...text2 ? [text2.media, text2.encoding] : format ? [format.media] : []])).digest("hex");
-      const prev = db.prepare("SELECT id,asset_id,request_digest FROM asset_versions WHERE created_by=? AND idempotency_key=?").get(actor.userId, spec.key);
-      if (prev) {
-        this.check(actor, String(prev.asset_id), "read", now);
-        this.check(actor, String(prev.asset_id), "edit", now);
-        if (prev.request_digest !== digest3) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
-        const r = receipt(db.prepare(receiptSQL + "WHERE v.id=?").get(prev.id));
-        onPublish?.(db, actor, r);
-        return { receipt: r, replayed: true };
-      }
-      const id = spec.assetId ?? randomUUID3(), vid = randomUUID3(), bid = randomUUID3();
-      let version = 1, parent = null;
-      if (spec.assetId) {
-        this.check(actor, id, "read", now);
-        this.check(actor, id, "edit", now);
-        const last = db.prepare("SELECT id,version FROM asset_versions WHERE asset_id=? ORDER BY version DESC LIMIT 1").get(id);
-        if (!last) throw new AssetError(404, "ASSET_NOT_FOUND");
-        if (last.version !== spec.expectedVersion) throw new AssetError(409, "VERSION_CONFLICT");
-        version = Number(last.version) + 1;
-        parent = String(last.id);
-        db.prepare("UPDATE knowledge_objects SET revision=revision+1,updated_at=? WHERE id=?").run(now, id);
-        db.prepare("UPDATE office_conversions SET state='superseded',lease_token=NULL,lease_until=NULL,failure_code='SOURCE_CHANGED',updated_at=? WHERE version_id=? AND state IN ('queued','running')").run(now, parent);
-      } else {
-        db.prepare(`INSERT INTO knowledge_objects (id,service_id,space_id,scope_kind,project_id,owner_user_id,object_type,title,body,status,revision,created_at,updated_at) VALUES (?,?,?,'personal',NULL,?,'asset',?,'','active',1,?,?)`).run(id, actor.serviceId, actor.personalSpaceId, actor.userId, spec.title, now, now);
-        db.prepare("INSERT INTO assets VALUES (?)").run(id);
-      }
-      db.prepare("INSERT INTO blobs VALUES (?,?,?,?,?)").run(bid, blob.key, blob.sha256, blob.byteLength, format?.media ?? "application/pdf");
-      db.prepare("INSERT INTO asset_versions VALUES (?,?,?,?,?,?,?,?,?,?)").run(vid, id, version, parent, bid, spec.title, actor.userId, now, spec.key, digest3);
-      if (text2) {
-        db.prepare("INSERT INTO text_versions VALUES(?,?,?)").run(vid, text2.encoding, text2.blocks.length);
-        const insert = db.prepare("INSERT INTO text_blocks VALUES(?,?,?,?,?,?,?)");
-        text2.blocks.forEach((b, i) => insert.run(vid, i + 1, b.kind, b.start, b.end, b.text, b.anchor));
-      }
-      const published = { id, title: spec.title, version_id: vid, version, sha256: blob.sha256, byte_length: blob.byteLength, ...format ? { media_type: format.media } : {} };
-      onPublish?.(db, actor, published);
-      return { receipt: published, replayed: false };
-    });
-  }
-  list(prior) {
-    return this.tx("read", (db, now) => {
-      const actor = this.actor(prior, now);
-      return db.prepare(receiptSQL + `JOIN knowledge_objects o ON o.id=v.asset_id
-      WHERE o.service_id=? AND o.status='active' AND (o.owner_user_id=? OR EXISTS(
-        SELECT 1 FROM invitations i JOIN invitation_redemptions r ON r.invitation_id=i.id
-        WHERE i.object_id=o.id AND i.service_id=o.service_id AND r.user_id=? AND i.revoked_at IS NULL
-          AND r.revoked_at IS NULL AND r.expires_at=i.expires_at AND r.expires_at>?))
-      ORDER BY v.created_at DESC,v.version DESC,v.id`).all(actor.serviceId, actor.userId, actor.userId, now).filter((v) => this.allowed(actor, String(v.id), "read", now)).map(receipt);
-    });
-  }
-  original(prior, id, versionId, download) {
-    return this.tx("read", (db, now) => {
-      const actor = this.actor(prior, now);
-      this.check(actor, id, "read", now);
-      if (download) this.check(actor, id, "export", now);
-      const r = db.prepare("SELECT b.storage_key,b.sha256,b.byte_length,b.media_type,t.encoding FROM asset_versions v JOIN blobs b ON b.id=v.blob_id LEFT JOIN text_versions t ON t.version_id=v.id WHERE v.asset_id=? AND v.id=?").get(id, versionId);
-      if (!r) throw new AssetError(404, "ASSET_NOT_FOUND");
-      return { key: String(r.storage_key), sha256: String(r.sha256), byteLength: Number(r.byte_length), ...r.media_type === "application/pdf" ? {} : { media: String(r.media_type) }, ...typeof r.encoding === "string" ? { encoding: r.encoding } : {} };
-    });
-  }
-  blocks(prior, id, v, from, limit) {
-    return this.tx("read", (db, now) => {
-      const actor = this.actor(prior, now);
-      this.check(actor, id, "read", now);
-      if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(limit) || limit < 1 || limit > 10) throw new AssetError(422, "INVALID_BLOCK_RANGE");
-      const meta = db.prepare("SELECT encoding,block_count AS total FROM text_versions t JOIN asset_versions a ON a.id=t.version_id WHERE a.asset_id=? AND a.id=?").get(id, v);
-      if (!meta) throw new AssetError(404, "ASSET_NOT_FOUND");
-      return { version_id: v, ...meta, blocks: db.prepare("SELECT ordinal,kind,start,end,text,anchor FROM text_blocks WHERE version_id=? AND ordinal>=? ORDER BY ordinal LIMIT ?").all(v, from, limit) };
-    });
-  }
-};
 
 // src/host/search-store.ts
 import { createHash as createHash4, randomUUID as randomUUID4 } from "node:crypto";
@@ -1710,6 +1738,25 @@ var CitationStore = class {
     if (!w || w.conversion_id !== s.conversion_id || w.sha256 !== s.ref?.sha256 || w.ordinal !== s.ordinal) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
     return w.text;
   }
+  verifySelection(db, actor, spec, now, w) {
+    const source = this.read(db, actor, spec, now);
+    if (source.kind === "office" && !spec.conversion_id) throw new AssetError(422, "INVALID_CITATION");
+    const text2 = this.text(source, w);
+    const range = citationAnchor(text2, spec.start, spec.end);
+    if (range.source_hash !== spec.source_hash) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
+    return { title: source.title, kind: source.kind, text: text2, ...range };
+  }
+  selection(prior, spec, w) {
+    return this.tx("read", (db, now) => this.verifySelection(db, this.actor(prior, now), spec, now, w));
+  }
+  checkStoredSelection(db, actor, spec, now) {
+    const source = this.read(db, actor, spec, now);
+    if (source.kind === "office") {
+      if (!spec.conversion_id || source.conversion_id !== spec.conversion_id) throw notFound2();
+      return;
+    }
+    resolveCitationText(this.text(source), spec);
+  }
   locator(db, id) {
     const r = db.prepare("SELECT snapshot FROM citation_locators WHERE citation_id=?").get(id);
     return r ? JSON.parse(String(r.snapshot)) : null;
@@ -2084,6 +2131,133 @@ var NoteStore = class {
       JOIN notes n ON n.id=r.note_id WHERE r.project_id=? AND n.service_id=? AND n.owner_user_id=? AND n.id>?
       ORDER BY n.id LIMIT 51`).all(project, a.serviceId, a.userId, after);
       return { items: rows.slice(0, 50), next: rows.length > 50 ? rows[49].id : null };
+    });
+  }
+};
+
+// src/host/term-store.ts
+var TERM_SCHEMA = `
+CREATE TABLE saved_terms (
+  id TEXT PRIMARY KEY, service_id TEXT NOT NULL, owner_id TEXT NOT NULL REFERENCES users(id),
+  asset_id TEXT NOT NULL REFERENCES assets(id), version_id TEXT NOT NULL REFERENCES asset_versions(id),
+  conversion_id TEXT REFERENCES office_conversions(id), ordinal INTEGER NOT NULL CHECK(ordinal>=1),
+  start INTEGER NOT NULL CHECK(start>=0), end INTEGER NOT NULL CHECK(end>start),
+  source_hash TEXT NOT NULL CHECK(length(source_hash)=64), quote_hash TEXT NOT NULL CHECK(length(quote_hash)=64),
+  explanation_json TEXT NOT NULL, supplement TEXT NOT NULL, provider TEXT NOT NULL, model TEXT NOT NULL, created_at TEXT NOT NULL
+) STRICT;
+CREATE INDEX saved_terms_owner_source ON saved_terms(service_id,owner_id,asset_id,version_id,created_at,id);
+`;
+var sourceUrl = (spec) => "/knowledgeos/reader?" + new URLSearchParams({
+  asset: spec.asset_id,
+  version: spec.version_id,
+  unit: String(spec.ordinal),
+  match: spec.start + ":" + spec.end + ":" + spec.source_hash,
+  ...spec.conversion_id ? { conversion: spec.conversion_id } : {}
+});
+function trimBoundary(text2, offset, delta) {
+  if (offset > 0 && offset < text2.length && /[\uD800-\uDBFF]/.test(text2.charAt(offset - 1)) && /[\uDC00-\uDFFF]/.test(text2.charAt(offset))) return offset + delta;
+  return offset;
+}
+function termWindow(spec, verified) {
+  const { text: text2, start, end, title, kind, quote_hash } = verified;
+  const from = trimBoundary(text2, Math.max(0, start - 220), 1);
+  const to = trimBoundary(text2, Math.min(text2.length, end + 220), -1);
+  const quote = text2.slice(start, end), before = text2.slice(from, start), after = text2.slice(end, to);
+  const source = { ...spec, quote_hash, quote, excerpt: text2.slice(from, to), title, kind, origin: sourceUrl(spec) };
+  return { source, before, after };
+}
+var TermStore = class {
+  constructor(tx, current, citations) {
+    this.tx = tx;
+    this.current = current;
+    this.citations = citations;
+  }
+  actor(session, now) {
+    const actor = this.current(session, now);
+    if (!actor) throw new AssetError(401, "AUTH_REQUIRED");
+    return actor;
+  }
+  selection(session, spec, witness) {
+    return termWindow(spec, this.citations.selection(session, spec, witness));
+  }
+  row(db, actor, id) {
+    return db.prepare("SELECT * FROM saved_terms WHERE service_id=? AND owner_id=? AND id=?").get(actor.serviceId, actor.userId, id);
+  }
+  view(db, actor, row, now) {
+    const spec = {
+      asset_id: row.asset_id,
+      version_id: row.version_id,
+      ordinal: row.ordinal,
+      start: row.start,
+      end: row.end,
+      source_hash: row.source_hash,
+      ...row.conversion_id ? { conversion_id: row.conversion_id } : {}
+    };
+    this.citations.checkStoredSelection(db, actor, { ...spec, quote_hash: row.quote_hash }, now);
+    const { term, explanation } = JSON.parse(row.explanation_json);
+    return {
+      id: row.id,
+      term,
+      explanation,
+      supplement: row.supplement,
+      provider: row.provider,
+      model: row.model,
+      source: { ...spec, quote_hash: row.quote_hash, origin: sourceUrl(spec) },
+      created_at: row.created_at
+    };
+  }
+  find(session, id) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(session, now), row = this.row(db, actor, id);
+      return row ? this.view(db, actor, row, now) : void 0;
+    });
+  }
+  list(session, asset, version) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(session, now);
+      this.citations.validateTaskMaterial(db, actor, { asset_id: asset, version_id: version, ordinal: 1 }, now);
+      const rows = db.prepare("SELECT * FROM saved_terms WHERE service_id=? AND owner_id=? AND asset_id=? AND version_id=? ORDER BY created_at DESC,id DESC LIMIT 100").all(actor.serviceId, actor.userId, asset, version);
+      return rows.flatMap((row) => {
+        try {
+          return [this.view(db, actor, row, now)];
+        } catch (error) {
+          if (error instanceof AssetError && ["CITATION_SOURCE_CHANGED", "SOURCE_NOT_READY", "SOURCE_NOT_FOUND"].includes(error.code)) return [];
+          throw error;
+        }
+      });
+    });
+  }
+  save(session, card, supplement, witness) {
+    return this.tx("write", (db, now) => {
+      const actor = this.actor(session, now), source = card.source;
+      const verified = this.citations.verifySelection(db, actor, source, now, witness);
+      if (verified.quote_hash !== source.quote_hash) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
+      const existing = this.row(db, actor, card.explanation_id);
+      if (existing) {
+        if (existing.supplement !== supplement) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+        return { term: this.view(db, actor, existing, now), replayed: true };
+      }
+      const count = db.prepare("SELECT count(*) n FROM saved_terms WHERE service_id=? AND owner_id=? AND asset_id=? AND version_id=?").get(actor.serviceId, actor.userId, source.asset_id, source.version_id)?.n;
+      if (Number(count) >= 100) throw new AssetError(409, "TERM_QUOTA");
+      db.prepare("INSERT INTO saved_terms VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(
+        card.explanation_id,
+        actor.serviceId,
+        actor.userId,
+        source.asset_id,
+        source.version_id,
+        source.conversion_id ?? null,
+        source.ordinal,
+        source.start,
+        source.end,
+        source.source_hash,
+        source.quote_hash,
+        JSON.stringify({ term: card.term, explanation: card.explanation }),
+        supplement,
+        card.provider,
+        card.model,
+        now
+      );
+      return { term: this.view(db, actor, this.row(db, actor, card.explanation_id), now), replayed: false };
     });
   }
 };
@@ -2470,7 +2644,7 @@ var checkSignal = (signal) => {
   if (signal.aborted) throw new AssetError(409, "REPOSITORY_CANCELLED");
 };
 var encodePath = (path) => path.split("/").map(encodeURIComponent).join("/");
-var sourceUrl = (row, type) => {
+var sourceUrl2 = (row, type) => {
   const repository = encodePath(row.owner_name + "/" + row.repository_name);
   const provider = providers[row.platform];
   return provider.origin + "/" + repository + provider.sourcePrefix + "/" + type + "/" + row.commit_sha;
@@ -2486,7 +2660,7 @@ var summarize = (row) => ({
   commit: row.commit_sha,
   tree: row.tree_sha,
   created_at: row.created_at,
-  source_url: sourceUrl(row, "tree")
+  source_url: sourceUrl2(row, "tree")
 });
 var fileView = (row, path, sha4, bytes) => {
   let text2 = null;
@@ -2501,7 +2675,7 @@ var fileView = (row, path, sha4, bytes) => {
     sha: sha4,
     size: bytes.length,
     text: text2,
-    source_url: sourceUrl(row, "blob") + "/" + encodePath(path)
+    source_url: sourceUrl2(row, "blob") + "/" + encodePath(path)
   };
 };
 var RepositoryStore = class {
@@ -3798,7 +3972,8 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 35;
+var SCHEMA_VERSION = 36;
+var MIGRATION_V36_CHECKSUM = createHash17("sha256").update(TERM_SCHEMA).digest("hex");
 var MIGRATION_V35_CHECKSUM = createHash17("sha256").update(REPOSITORY_GITEE_SCHEMA).digest("hex");
 var MIGRATION_V34_CHECKSUM = createHash17("sha256").update(REPOSITORY_PLATFORM_SCHEMA).digest("hex");
 var MIGRATION_V33_CHECKSUM = createHash17("sha256").update(PROJECT_TASK_APPEAL_SCHEMA).digest("hex");
@@ -4103,6 +4278,7 @@ var ProbeStorage = class {
     const object = this.#loadObject(id);
     return object && this.#authorizationHorizon(a, object, "read", now);
   });
+  terms = new TermStore(this.#assetTx, (s, now) => this.#currentActor(s, now), this.citations);
   recall = new RecallStore(
     this.#assetTx,
     (s, now) => this.#currentActor(s, now),
@@ -4220,6 +4396,7 @@ var ProbeStorage = class {
       if (priorVersion < 33) this.#migrateV33(db);
       if (priorVersion < 34) this.#migrateV34(db);
       if (priorVersion < 35) this.#migrateV35(db);
+      if (priorVersion < 36) this.#migrateV36(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -4872,9 +5049,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "Gitee repository migration failed", false, { cause: e });
     }
   }
+  #migrateV36(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(TERM_SCHEMA);
+      this.#injectFailure("v36:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(36,?,?)").run(MIGRATION_V36_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=36; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "personal terms migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM, MIGRATION_V35_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM, MIGRATION_V35_CHECKSUM, MIGRATION_V36_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash2, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash2)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -4908,6 +5097,7 @@ var ProbeStorage = class {
       if (version >= 31) reference.exec(PROJECT_TASK_MATERIAL_SCHEMA);
       if (version >= 32) reference.exec(PROJECT_TASK_CORRECTION_SCHEMA);
       if (version >= 33) reference.exec(PROJECT_TASK_APPEAL_SCHEMA);
+      if (version >= 36) reference.exec(TERM_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");

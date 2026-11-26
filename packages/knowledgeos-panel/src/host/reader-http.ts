@@ -99,6 +99,12 @@ export class ReaderService {
       if(deadline.aborted)throw new AssetError(503,'WORD_STRUCTURE_UNAVAILABLE')
     }
   }
+  async selectionWitness(current:Current,spec:CitationSpec,signal:AbortSignal){
+    const source=this.store.source(current(),spec)
+    const rendered=source.kind==='office'?await this.witness(current,spec,signal):undefined
+    if(signal.aborted)throw new AssetError(409,'READ_CANCELLED')
+    return rendered
+  }
   async create(current:Current,spec:CitationSpec,key:string,signal:AbortSignal){
     const w=await this.witness(current,spec,signal)
     if(w?.conversion_id){

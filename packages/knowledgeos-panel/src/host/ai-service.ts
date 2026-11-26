@@ -4,12 +4,13 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import type { SessionActor } from './identity.ts'
 import { AiError, TOOL_NAMES, TOOL_SCHEMAS, aiText, onlyKeys, runBusinessTool, toolArguments, toolDigest, type AiStore, type ToolCall, type ToolResult } from './ai-tools.ts'
 import { RecordsError } from './records.ts'
+import { AssetError } from './asset-store.ts'
 
 /** Structural subset verified against the pinned dsh-llm and dsh-tools APIs. */
 export interface LlmPort {
   listProviders(): Array<{ id: string; name?: string }>
   listModels(provider: string): Promise<readonly { id: string; name?: string }[]>
-  stream(options: { provider: string; model: string; system: string; messages: Array<{ role: 'user'; content: Array<{ type: 'text'; text: string }> }>; tools: typeof TOOL_SCHEMAS; signal: AbortSignal }): AsyncIterable<{ type: string; block?: { type: string; id?: string; name?: string; arguments?: string }; usage?: unknown; reason?: { kind: string; failure?: { code?: string; status?: number; message?: string } } }>
+  stream(options: { provider: string; model: string; system: string; messages: Array<{ role: 'user'; content: Array<{ type: 'text'; text: string }> }>; tools: typeof TOOL_SCHEMAS | []; maxTokens?: number; signal: AbortSignal }): AsyncIterable<{ type: string; block?: { type: string; id?: string; name?: string; arguments?: string; text?: string }; usage?: unknown; reason?: { kind: string; failure?: { code?: string; status?: number; message?: string } } }>
 }
 export interface ToolsPort {
   register(definition: typeof TOOL_SCHEMAS[number] & { output: { schema: { type: 'object' }; render(args: unknown, value: unknown): Array<{ type: 'text'; text: string }> }; execute(args: unknown, exec: { callId: string; name: string; signal: AbortSignal }): Promise<unknown> }): () => void
@@ -83,11 +84,30 @@ export class AiService {
     onlyKeys(raw, ['request_id', 'instruction', 'object_id', 'expected_revision', 'idempotency_key'])
     const instruction = aiText(raw.instruction, 2000), objectId = aiText(raw.object_id, 80), requestId = aiText(raw.request_id, 80), key = aiText(raw.idempotency_key, 128)
     if (!Number.isSafeInteger(raw.expected_revision) || Number(raw.expected_revision) < 1) throw new AiError(422, 'INPUT_INVALID')
-    if (this.#closed || !this.llm || !this.tools || !this.routeAllowed || !this.config.provider || !this.config.model) throw new AiError(503, 'MODEL_NOT_CONFIGURED')
-    if (signal.aborted) throw new AiError(409, 'CANCELLED')
+    if (!this.tools) throw new AiError(503, 'MODEL_NOT_CONFIGURED')
     this.#sweep()
+    if (this.#prepared.size >= 100) throw new AiError(429, 'REQUEST_LIMIT')
+    const userText = JSON.stringify({ instruction, target_object_id: objectId, expected_revision: raw.expected_revision })
+    const { calls, finish, usage } = await this.#infer(actor, requestId, SYSTEM, userText, signal, TOOL_SCHEMAS)
+    if (finish !== 'tool-calls' || calls.length !== 1) throw new AiError(502, 'MODEL_OUTPUT_INVALID')
+    const call = calls[0]!, args = toolArguments(call)
+    if (args.object_id !== objectId || call.name === TOOL_NAMES[1] && args.expected_revision !== raw.expected_revision) throw new AiError(422, 'MODEL_TARGET_MISMATCH')
+    const prepared: Prepared = { id: randomUUID(), requestId, actor, key, call, expiresAt: Date.now() + 120_000, state: 'prepared' }
+    if (this.#closed || signal.aborted) throw new AiError(409, 'CANCELLED')
+    this.#prepared.set(prepared.id, prepared)
+    return { ...this.#view(prepared), usage: usage ?? null }
+  }
+  async explainSelection(actor: SessionActor, system: string, userText: string, signal: AbortSignal, authorize: () => void) {
+    const { text, calls, finish } = await this.#infer(actor, randomUUID(), system, userText, signal, [], authorize)
+    if (finish !== 'stop' || calls.length !== 0 || !text || Buffer.byteLength(text) > 12_000) throw new AiError(502, 'MODEL_OUTPUT_INVALID')
+    return { text, provider: this.config.provider!, model: this.config.model! }
+  }
+  async #infer(actor: SessionActor, requestId: string, system: string, userText: string, signal: AbortSignal,
+    tools: typeof TOOL_SCHEMAS | [], authorize?: () => void) {
+    if (this.#closed || !this.llm || !this.routeAllowed || !this.config.provider || !this.config.model) throw new AiError(503, 'MODEL_NOT_CONFIGURED')
+    if (signal.aborted) throw new AiError(409, 'CANCELLED')
     if (this.#pending.has(requestId)) throw new AiError(409, 'REQUEST_CONFLICT')
-    if (this.#pending.size >= 4 || this.#prepared.size >= 100 || [...this.#pending.values()].some(p => p.actor.userId === actor.userId)) throw new AiError(429, 'REQUEST_LIMIT')
+    if (this.#pending.size >= 4 || [...this.#pending.values()].some(p => p.actor.userId === actor.userId)) throw new AiError(429, 'REQUEST_LIMIT')
     const controller = new AbortController()
     this.#pending.set(requestId, { actor, controller })
     const onAbort = (): void => controller.abort(new AiError(409, 'CANCELLED'))
@@ -102,15 +122,19 @@ export class AiService {
       // Pinned pi-ai hides its entire catalog when the named credential is missing.
       // An empty advisory catalog must reach exact-model/credential validation in stream.
       if (catalog.length > 0 && !catalog.some(m => m.id === this.config.model)) throw new AiError(404, 'MODEL_NOT_FOUND')
-      const userText = JSON.stringify({ instruction, target_object_id: objectId, expected_revision: raw.expected_revision })
+      authorize?.()
+      controller.signal.throwIfAborted()
       this.#calls++; attempted = true
       const calls: ToolCall[] = []
-      let finish: string | undefined, outputBytes = 0
-      const stream = this.llm.stream({ provider: this.config.provider, model: this.config.model, system: SYSTEM, messages: [{ role: 'user', content: [{ type: 'text', text: userText }] }], tools: TOOL_SCHEMAS, signal: controller.signal })[Symbol.asyncIterator]()
+      let finish: string | undefined, outputBytes = 0, text = '', streamDone = false
+      const stream = this.llm.stream({
+        provider: this.config.provider, model: this.config.model, system, messages: [{ role: 'user', content: [{ type: 'text', text: userText }] }],
+        tools, signal: controller.signal, ...(tools.length ? {} : { maxTokens: 512 }),
+      })[Symbol.asyncIterator]()
       try {
         while (true) {
           const next = await this.#abortable(stream.next(), controller.signal)
-          if (next.done) break
+          if (next.done) { streamDone = true; break }
           const chunk = next.value
           outputBytes += Buffer.byteLength(JSON.stringify(chunk), 'utf8')
           if (outputBytes > 96_000 || finish !== undefined) throw new AiError(502, 'MODEL_OUTPUT_INVALID')
@@ -119,6 +143,7 @@ export class AiService {
             if (!b.id || !b.name || typeof b.arguments !== 'string') throw new AiError(502, 'MODEL_OUTPUT_INVALID')
             calls.push({ id: b.id, name: b.name, arguments: b.arguments })
           }
+          if (chunk.type === 'block-end' && chunk.block?.type === 'text' && typeof chunk.block.text === 'string') text += chunk.block.text
           if (chunk.type === 'usage') usage = chunk.usage
           if (chunk.type === 'finish') {
             finish = chunk.reason?.kind
@@ -126,15 +151,14 @@ export class AiService {
             if (finish === 'error' || finish === 'aborted') throw modelFailure(chunk.reason?.failure)
           }
         }
-      } finally { if (controller.signal.aborted) void stream.return?.().catch(() => {}) }
+      } finally { if (!streamDone) void stream.return?.().catch(() => {}) }
       if (controller.signal.aborted) throw controller.signal.reason
-      if (finish !== 'tool-calls' || calls.length !== 1) throw new AiError(502, 'MODEL_OUTPUT_INVALID')
-      const call = calls[0]!, args = toolArguments(call)
-      if (args.object_id !== objectId || call.name === TOOL_NAMES[1] && args.expected_revision !== raw.expected_revision) throw new AiError(422, 'MODEL_TARGET_MISMATCH')
-      const prepared: Prepared = { id: randomUUID(), requestId, actor, key, call, expiresAt: Date.now() + 120_000, state: 'prepared' }
-      this.#prepared.set(prepared.id, prepared)
-      return { ...this.#view(prepared), usage: usage ?? null }
-    } catch (error: unknown) { throw controller.signal.aborted ? controller.signal.reason : modelFailure(error) }
+      return { finish, calls, text, usage }
+    } catch (error: unknown) {
+      if (controller.signal.aborted) throw controller.signal.reason
+      if (error instanceof AssetError) throw error
+      throw modelFailure(error)
+    }
     finally {
       if (attempted) {
         const counts = usage as {inputTokens?:number; outputTokens?:number} | undefined
