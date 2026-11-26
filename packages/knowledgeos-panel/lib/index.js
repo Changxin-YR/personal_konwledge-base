@@ -8608,7 +8608,10 @@ var AiService = class {
   async explainSelection(actor2, system, userText, signal, authorize2) {
     const { text: text4, calls, finish } = await this.#infer(actor2, randomUUID21(), system, userText, signal, [], authorize2);
     if (finish === "max-tokens") throw new AiError(502, "MODEL_OUTPUT_TRUNCATED");
-    if (finish !== "stop" || calls.length !== 0 || !text4 || Buffer.byteLength(text4) > 12e3) throw new AiError(502, "MODEL_OUTPUT_INVALID");
+    if (calls.length !== 0 || finish === "tool-calls") throw new AiError(502, "MODEL_OUTPUT_INVALID");
+    if (finish !== "stop") throw new AiError(502, "MODEL_OUTPUT_INCOMPLETE");
+    if (!text4.trim()) throw new AiError(502, "MODEL_OUTPUT_EMPTY");
+    if (Buffer.byteLength(text4) > 12e3) throw new AiError(502, "MODEL_OUTPUT_INVALID");
     return { text: text4, provider: this.config.provider, model: this.config.model };
   }
   async #infer(actor2, requestId, system, userText, signal, tools, authorize2) {
@@ -8628,6 +8631,8 @@ var AiService = class {
       if (!available2) throw new AiError(503, "MODEL_NOT_CONFIGURED");
       const catalog = await this.#abortable(this.llm.listModels(this.config.provider), controller.signal);
       if (catalog.length > 0 && !catalog.some((m) => m.id === this.config.model)) throw new AiError(404, "MODEL_NOT_FOUND");
+      const info = tools.length === 0 && this.llm.resolveModelInfo ? await this.#abortable(this.llm.resolveModelInfo(this.config.provider, this.config.model, controller.signal), controller.signal) : void 0;
+      const canDisableThinking = info?.reasoning?.efforts.some((effort) => effort.id === "off") === true;
       authorize2?.();
       controller.signal.throwIfAborted();
       this.#calls++;
@@ -8641,7 +8646,8 @@ var AiService = class {
         messages: [{ role: "user", content: [{ type: "text", text: userText }] }],
         tools,
         signal: controller.signal,
-        ...tools.length ? {} : { maxTokens: 512, reasoningEffort: "off" }
+        ...tools.length ? {} : { maxTokens: 512 },
+        ...canDisableThinking ? { reasoningEffort: "off" } : {}
       })[Symbol.asyncIterator]();
       try {
         while (true) {
@@ -12133,7 +12139,8 @@ function termError(e,run){
   if([401,403,404].includes(e.http)&&['AUTH_REQUIRED','SOURCE_NOT_FOUND','READER_ACTOR_CHANGED','CSRF_REJECTED'].includes(e.code)){failure(e,run.g);return}
   const errors={TERM_SOURCE_INSUFFICIENT:'来源不足，无法解释这处用法。请选择包含更多语境的术语。',
     MODEL_NOT_CONFIGURED:'暂未配置术语解释模型。',CREDENTIALS_MISSING:'模型凭据未配置。',MODEL_OUTPUT_INVALID:'模型返回的解释无法核验。',
-    MODEL_TIMEOUT:'解释请求超时。',MODEL_OUTPUT_TRUNCATED:'模型输出被截断，请缩小选区后重试。',CITATION_SOURCE_CHANGED:'固定来源已变化，请重新选择。',TERM_EXPLANATION_NOT_FOUND:'临时解释已过期，请重新选择。',
+    MODEL_TIMEOUT:'解释请求超时。',MODEL_OUTPUT_TRUNCATED:'模型未在输出上限内完成解释。',MODEL_OUTPUT_EMPTY:'模型未返回解释。',MODEL_OUTPUT_INCOMPLETE:'模型未完成解释。',
+    CITATION_SOURCE_CHANGED:'固定来源已变化，请重新选择。',TERM_EXPLANATION_NOT_FOUND:'临时解释已过期，请重新选择。',
     TERM_QUOTA:'此版本的个人术语已达上限。',PROVIDER_RATE_LIMITED:'模型请求过多，请稍后再试。'};
   $('term-status').textContent=errors[e.code]||'当前无法读取或保存术语。';
 }
@@ -13075,16 +13082,17 @@ function readTermAnswer(text4) {
     const raw = text4.trim().replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/i, "$1");
     const data = fields3(JSON.parse(raw), ["status", "context", "plain", "professional", "confusions", "uncertainty"]);
     if (data.status === "insufficient" && Object.keys(data).length === 1) throw insufficient();
-    if (data.status !== "explained" || !Array.isArray(data.confusions) || data.confusions.length > 2) throw invalid12();
+    const confusions = data.confusions ?? [];
+    if (data.status !== void 0 && data.status !== "explained" || !Array.isArray(confusions) || confusions.length > 2) throw invalid12();
     return {
       context: textField(data.context, 400),
       plain: textField(data.plain, 400),
       professional: textField(data.professional, 500),
-      confusions: data.confusions.map((item) => {
+      confusions: confusions.map((item) => {
         const detail = fields3(item, ["term", "distinction"]);
         return { term: textField(detail.term, 80), distinction: textField(detail.distinction, 320) };
       }),
-      uncertainty: textField(data.uncertainty, 320, true)
+      uncertainty: textField(data.uncertainty ?? "", 320, true)
     };
   } catch (error) {
     if (error instanceof AssetError && error.code === "TERM_SOURCE_INSUFFICIENT") throw error;

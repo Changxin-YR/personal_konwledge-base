@@ -15,6 +15,45 @@ const records = file => {
   return existsSync(name) ? readFileSync(name, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)) : []
 }
 
+async function observeResponse(response, stage) {
+  let bytes = 0, content = '', reasoningChars = 0, finish = '', pending = '', inputTokens, outputTokens
+  const decoder = new TextDecoder()
+  const finishCodes = new Set(['stop','length','tool_calls','content_filter','aborted','insufficient_system_resource'])
+  const type = value => value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value
+  try {
+    if (response.body) for await (const part of response.body) {
+      bytes += part.byteLength
+      if (bytes > 350_000) break
+      pending += decoder.decode(part, { stream: true })
+      const lines = pending.split('\n')
+      pending = lines.pop()
+      for (const line of lines) {
+        if (!line.startsWith('data:') || line.includes('[DONE]')) continue
+        let frame
+        try { frame = JSON.parse(line.slice(5).trim()) } catch { continue }
+        for (const choice of frame.choices ?? []) {
+          if (typeof choice.delta?.content === 'string') content += choice.delta.content
+          if (typeof choice.delta?.reasoning_content === 'string') reasoningChars += choice.delta.reasoning_content.length
+          if (choice.finish_reason) finish = finishCodes.has(choice.finish_reason) ? choice.finish_reason : 'other'
+        }
+        if (Number.isInteger(frame.usage?.prompt_tokens)) inputTokens = frame.usage.prompt_tokens
+        if (Number.isInteger(frame.usage?.completion_tokens)) outputTokens = frame.usage.completion_tokens
+      }
+    }
+  } finally {
+    let fields
+    try {
+      const value = JSON.parse(content.trim().replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/i, '$1'))
+      const expected = ['status','context','plain','professional','confusions','uncertainty']
+      fields = { root: type(value), unexpected_fields: Object.keys(value ?? {}).filter(key => !expected.includes(key)).length,
+        expected: Object.fromEntries(expected.map(key => [key, type(value?.[key])])),
+        lengths: Object.fromEntries(expected.filter(key => typeof value?.[key] === 'string').map(key => [key,value[key].length])) }
+    } catch { fields = { root: 'non-json' } }
+    append('term-response-shapes.jsonl', { stage, status: response.status, finish, bytes, content_chars: content.length,
+      reasoning_chars: reasoningChars, fields, input_tokens: inputTokens, output_tokens: outputTokens })
+  }
+}
+
 if (mode === 'live') {
   // The launcher only supplies this value after its explicit live activation.
   const credential = process.env.KOS_TOKEASE_ACCEPTANCE_KEY
@@ -28,7 +67,15 @@ if (mode === 'live') {
     priceApproval, live: true, record: event => append('term-dispatches.jsonl', event),
   })
   globalThis.fetch = async (input, init) => {
-    try { return await guarded(input, init) }
+    try {
+      const response = await guarded(input, init)
+      const url = new URL(input instanceof Request ? input.url : input)
+      if (url.href === completionURL) {
+        const dispatched = records('term-dispatches.jsonl').at(-1)
+        void observeResponse(response.clone(), dispatched?.stage).catch(() => {})
+      }
+      return response
+    }
     catch (error) {
       if (error?.message === 'KNOW001_ACCEPTANCE_EGRESS_DENIED') append('term-denials.jsonl', { scope: 'live', result: 'DENIED_BEFORE_DISPATCH' })
       throw error

@@ -27,6 +27,7 @@ test('text-only inference shares call accounting, checks before dispatch, and cl
   const runner = new AiService({}, profile, {
     listProviders: () => [{ id: profile.provider }],
     listModels: async () => [{ id: profile.model }],
+    resolveModelInfo: async () => ({ reasoning: { efforts: [{ id: 'off' }] } }),
     async *stream(options) {
       dispatched++
       assert.deepEqual(options.tools, [])

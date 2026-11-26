@@ -46,14 +46,15 @@ export function readTermAnswer(text: string): TermExplanation {
     const raw = text.trim().replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/i, '$1')
     const data = fields(JSON.parse(raw), ['status', 'context', 'plain', 'professional', 'confusions', 'uncertainty'])
     if (data.status === 'insufficient' && Object.keys(data).length === 1) throw insufficient()
-    if (data.status !== 'explained' || !Array.isArray(data.confusions) || data.confusions.length > 2) throw invalid()
+    const confusions = data.confusions ?? []
+    if (data.status !== undefined && data.status !== 'explained' || !Array.isArray(confusions) || confusions.length > 2) throw invalid()
     return {
       context: textField(data.context, 400), plain: textField(data.plain, 400), professional: textField(data.professional, 500),
-      confusions: data.confusions.map(item => {
+      confusions: confusions.map(item => {
         const detail = fields(item, ['term', 'distinction'])
         return { term: textField(detail.term, 80), distinction: textField(detail.distinction, 320) }
       }),
-      uncertainty: textField(data.uncertainty, 320, true),
+      uncertainty: textField(data.uncertainty ?? '', 320, true),
     }
   } catch (error) {
     if (error instanceof AssetError && error.code === 'TERM_SOURCE_INSUFFICIENT') throw error

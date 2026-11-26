@@ -288,7 +288,10 @@ var AiService = class {
   async explainSelection(actor, system, userText, signal, authorize2) {
     const { text: text2, calls, finish } = await this.#infer(actor, randomUUID2(), system, userText, signal, [], authorize2);
     if (finish === "max-tokens") throw new AiError(502, "MODEL_OUTPUT_TRUNCATED");
-    if (finish !== "stop" || calls.length !== 0 || !text2 || Buffer.byteLength(text2) > 12e3) throw new AiError(502, "MODEL_OUTPUT_INVALID");
+    if (calls.length !== 0 || finish === "tool-calls") throw new AiError(502, "MODEL_OUTPUT_INVALID");
+    if (finish !== "stop") throw new AiError(502, "MODEL_OUTPUT_INCOMPLETE");
+    if (!text2.trim()) throw new AiError(502, "MODEL_OUTPUT_EMPTY");
+    if (Buffer.byteLength(text2) > 12e3) throw new AiError(502, "MODEL_OUTPUT_INVALID");
     return { text: text2, provider: this.config.provider, model: this.config.model };
   }
   async #infer(actor, requestId, system, userText, signal, tools, authorize2) {
@@ -308,6 +311,8 @@ var AiService = class {
       if (!available2) throw new AiError(503, "MODEL_NOT_CONFIGURED");
       const catalog = await this.#abortable(this.llm.listModels(this.config.provider), controller.signal);
       if (catalog.length > 0 && !catalog.some((m) => m.id === this.config.model)) throw new AiError(404, "MODEL_NOT_FOUND");
+      const info = tools.length === 0 && this.llm.resolveModelInfo ? await this.#abortable(this.llm.resolveModelInfo(this.config.provider, this.config.model, controller.signal), controller.signal) : void 0;
+      const canDisableThinking = info?.reasoning?.efforts.some((effort) => effort.id === "off") === true;
       authorize2?.();
       controller.signal.throwIfAborted();
       this.#calls++;
@@ -321,7 +326,8 @@ var AiService = class {
         messages: [{ role: "user", content: [{ type: "text", text: userText }] }],
         tools,
         signal: controller.signal,
-        ...tools.length ? {} : { maxTokens: 512, reasoningEffort: "off" }
+        ...tools.length ? {} : { maxTokens: 512 },
+        ...canDisableThinking ? { reasoningEffort: "off" } : {}
       })[Symbol.asyncIterator]();
       try {
         while (true) {
