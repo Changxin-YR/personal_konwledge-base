@@ -136,10 +136,28 @@ async function jump(page, source) {
   assert.equal(await ordinal(page), source.ordinal)
 }
 async function httpWrite(page, path, selector) {
-  const pending = page.waitForResponse(r => r.url() === host.base + path && r.request().method() === 'POST', { timeout: 65000 })
-  await page.locator(selector).click()
-  const response = await pending
-  return { status: response.status(), data: await response.json(), request: response.request() }
+  const matches = r => r.url() === host.base + path && r.method() === 'POST'
+  const events = []
+  const start = request => { if (matches(request)) events.push({ event: 'request' }) }
+  const failure = request => { if (matches(request)) events.push({ event: 'requestfailed', code: request.failure()?.errorText }) }
+  page.on('request', start)
+  page.on('requestfailed', failure)
+  try {
+    const [response] = await Promise.all([
+      page.waitForResponse(r => matches(r.request()), { timeout: 35000 }),
+      page.locator(selector).click(),
+    ])
+    return { status: response.status(), data: await response.json(), request: response.request() }
+  } catch (error) {
+    const state = await page.evaluate(() => ({ hidden: document.hidden, ordinal: document.getElementById('number').value,
+      term_hidden: document.getElementById('term-panel').hidden, status: document.getElementById('term-status').textContent })).catch(() => ({}))
+    facts.http_failure = { path, events, ...state }
+    await capture(page, 'term-request-failure.png').catch(() => {})
+    throw error
+  } finally {
+    page.off('request', start)
+    page.off('requestfailed', failure)
+  }
 }
 async function capture(page, name) {
   const pixels = await page.screenshot({ path: join(out, name), fullPage: true, animations: 'disabled' })
