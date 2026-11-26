@@ -120,7 +120,7 @@ try {
   const { ProbeStorage, SCHEMA_VERSION } = await fromRoot('packages/knowledgeos-panel/lib/storage.js')
   controller = await fromRoot(controllerPath)
   releaseSlot = await acquireRunSlot()
-  host = await controller.createExplainFixture({ root, candidate, entry, out, helperPrefix, mode })
+  host = await controller.createFixture({ root, candidate, entry, out, helperPrefix, mode })
   const base = new URL(host.base)
   assert.equal(base.protocol, 'http:'); assert.equal(base.hostname, '127.0.0.1'); assert.equal(base.origin, host.base)
   assert.equal(Number(base.port), host.port)
