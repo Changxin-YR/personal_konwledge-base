@@ -44,7 +44,7 @@ import { buildInvitationHtml } from './invitation-page.ts'
 import { createRepositoryHandler, repositoryApi } from './repository-http.ts'
 import { RepositoryService } from './repository-store.ts'
 import { buildRepositoryHtml } from './repository-page.ts'
-import { createProjectTaskHandler, taskApi } from './project-task-http.ts'
+import { appealApi, createProjectTaskHandler, decisionApi, taskApi } from './project-task-http.ts'
 import { buildProjectTaskHtml } from './project-task-page.ts'
 
 export { Config }
@@ -285,8 +285,8 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
         const sessionFor=(req:import('node:http').IncomingMessage)=>{const origin=actualOrigin();if(!origin||!identityAvailable())return undefined;return identity.actor(readCookie(req,businessCookieName(identity.setupState.serviceId,origin)))}
         const handler=libraryHandler(storage.assets,originals,actualOrigin,sessionFor,storage.parses,storage.office,()=>!!officeMount,storage.archives,reader,storage.search)
         const notes=createNoteHandler(storage.notes,actualOrigin,sessionFor)
-        disposers.push(identityContext.webServer.register({kind:'prefix',path:taskApi,auth:'anonymous',
-          handler:withPeer(createProjectTaskHandler(storage.projectTasks,actualOrigin,sessionFor))}))
+        const projectTasks=withPeer(createProjectTaskHandler(storage.projectTasks,actualOrigin,sessionFor))
+        for(const path of [taskApi,decisionApi,appealApi])disposers.push(identityContext.webServer.register({kind:'prefix',path,auth:'anonymous',handler:projectTasks}))
         disposers.push(identityContext.webServer.register({kind:'exact',path:'/knowledgeos/projects',auth:'anonymous',handler:(req,res)=>{
           if(req.method!=='GET'){res.writeHead(405,{allow:'GET'});res.end();return}
           const nonce=randomUUID()

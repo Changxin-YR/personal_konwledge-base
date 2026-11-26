@@ -25,6 +25,7 @@ const states={assigned:'已派发',in_progress:'进行中',submitted:'待审核'
 const verdicts={pass:'通过预审',accept:'终审通过',return:'退回',fail:'终审未通过'};
 labels.TASK_REVISION_CONFLICT='任务已更新，请重新打开查看。';labels.TASK_SUBMISSION_CONFLICT='提交版本已变更，请重新打开任务。';
 labels.TASK_REVIEW_CONFLICT='生效裁决已变更，请核对最新审核历史。';
+labels.TASK_APPEAL_CONFLICT='复议状态已变更，请核对最新记录。';labels.TASK_APPEAL_PENDING='复议待处理，请查看当前复议记录。';
 labels.TASK_STATE_CONFLICT='当前任务状态不允许此操作。';labels.TASK_REQUEST_CONFLICT='原操作结果未确定，请保留本次内容重试或重新读取。';
 labels.TASK_MATERIAL_UNAVAILABLE='材料不可读、版本无效或不属于当前项目。';labels.TASK_MATERIAL_ACCESS_REQUIRED='材料授权已改变，审核未保存。';
 labels.TASK_MATERIAL_REPLACEMENT_REQUIRED='请提供不同的固定版本材料。';labels.INVALID_MATERIAL_LINK='请输入本站的固定版本阅读链接。';
@@ -88,16 +89,17 @@ async function openTask(id){const openedEpoch=epoch,response=await request(api+'
  $('task-title').textContent=t.title;$('task-facts').replaceChildren();
  const shownState=t.state==='submitted'&&t.peer_reviewer_id?'待同伴预审':t.state==='submitted'&&t.task_kind==='project_admin'?'待管理员终审':states[t.state]??t.state;
  for(const [key,value] of [['目标',t.goal],['截止时间',date(t.due_at)],['状态',shownState],['负责人',name(t.assignee_id)],['下一处理人',t.next_actor_id?name(t.next_actor_id):'无'],['审核路径',kinds[t.task_kind]],['终审人',name(t.final_reviewer_id)],['同伴预审',t.peer_reviewer_id?name(t.peer_reviewer_id):'无']])$('task-facts').append(el('dt',key),el('dd',value));
+ if(t.settlement_state)$('task-facts').append(el('dt','结算状态'),el('dd',t.settlement_state==='disputed'?'争议中':'等待重新结算'));
  $('history').replaceChildren();for(const version of t.criteria_history){const row=el('div');row.className='history';row.append(el('strong','第 '+version.version+' 版'+(t.criteria_revision===version.version?' · 适用下次提交':' · 历史版本')));const ul=el('ol');for(const item of version.items)ul.append(el('li',item.description+' · 权重 '+item.weight));row.append(ul);$('history').append(row);}
  $('revise').hidden=t.issuer_id!==actor||!['assigned','returned'].includes(t.state);$('revision-form').hidden=true;renderWorkflow(t,timeline);$('task-detail').hidden=false;showTasks();}
 function control(label,kind,max){const wrap=el('label',label),input=el(kind);input.required=true;input.maxLength=max;wrap.append(input);return [wrap,input];}
 async function workflowWrite(t,suffix,draft,done){
- const path=api+'/'+t.id+'/'+suffix,digest=JSON.stringify([path,draft]);
+ const path=suffix.startsWith('/')?suffix:api+'/'+t.id+'/'+suffix,digest=JSON.stringify([path,draft]);
  if(pendingWorkflow?.id===t.id&&pendingWorkflow.digest!==digest)throw Error('TASK_REQUEST_CONFLICT');
  if(!pendingWorkflow||pendingWorkflow.id!==t.id)pendingWorkflow={id:t.id,digest,key:crypto.randomUUID()};
  try{await request(path,'POST',draft,pendingWorkflow.key);}catch(e){
   if(labels[e.message]&&e.message!=='TASK_REQUEST_CONFLICT')pendingWorkflow=undefined;
-  if(['TASK_MATERIAL_ACCESS_REQUIRED','TASK_REVISION_CONFLICT','TASK_SUBMISSION_CONFLICT','TASK_REVIEW_CONFLICT'].includes(e.message)){
+  if(['TASK_MATERIAL_ACCESS_REQUIRED','TASK_REVISION_CONFLICT','TASK_SUBMISSION_CONFLICT','TASK_REVIEW_CONFLICT','TASK_APPEAL_CONFLICT','TASK_APPEAL_PENDING'].includes(e.message)){
    clearWorkflow();await openTask(t.id);
   }
   throw e;
@@ -125,11 +127,23 @@ function renderWorkflow(t,timeline){clearWorkflow();if(!timeline)return;
    for(const r of decision.criteria_results){const item=el('li',(standard?.items[r.criterion-1]?.description??'标准 '+r.criterion)+' · '+(r.met?'达标':'未达标')+'：'+r.evidence);item.className='review-evidence';items.append(item);}
    block.append(items);row.append(block);
   }
+  for(const appeal of (timeline.appeals??[]).filter(r=>r.submission_id===attempt.id)){
+   const block=el('div');block.className='review-item';block.append(el('strong',appeal.status==='pending'?'复议待处理':'复议已处理'),
+    el('p',name(appeal.requester_id)+' · '+date(appeal.requested_at)),el('p',appeal.reason??'材料不可读，复议正文已隐藏。'));
+   if(appeal.resolution_decision_id){const link=el('a','查看复议裁决');link.href='#task-decision-'+appeal.resolution_decision_id;block.append(link);}
+   row.append(block);
+  }
   attempts.append(row);
+ }
+ if(timeline.appeal_target_id){
+  const requestForm=el('form'),[label,reason]=control('复议理由','textarea',4000),submit=el('button','提交复议');
+  submit.className='primary';submit.type='submit';requestForm.append(label,submit);
+  requestForm.onsubmit=e=>{e.preventDefault();void operation(()=>workflowWrite(t,'/knowledge/v1/decisions/'+timeline.appeal_target_id+'/appeals',
+   {actor_id:actor,expected_revision:t.revision,reason:reason.value},'复议已提交。'));};actions.append(requestForm);
  }
  const form=el('form'),send=el('button');send.className='primary';send.type='submit';
  const waiting=t.state==='awaiting_material_access';
- if(t.assignee_id===actor&&(['assigned','in_progress','returned'].includes(t.state)||waiting)){
+ if(t.assignee_id===actor&&t.settlement_state!=='disputed'&&(['assigned','in_progress','returned'].includes(t.state)||waiting)){
   const [wrap,input]=control('提交内容','textarea',16000),[materialWrap,material]=control('固定材料链接（每行一条）','textarea',4000);
   input.id='submission-content';material.id='submission-materials';material.required=waiting;
   send.textContent=waiting?'替换材料并重新提交':t.state==='returned'?'重新提交':'提交成果';form.append(wrap,materialWrap,send);
@@ -140,9 +154,10 @@ function renderWorkflow(t,timeline){clearWorkflow();if(!timeline)return;
   (t.state==='awaiting_admin_review'||t.state==='submitted'&&!t.peer_reviewer_id);
  const ordinary=t.task_kind==='project_collaboration'&&t.state==='submitted'&&t.final_reviewer_id===actor;
  const correction=timeline.correction;
- if(!current||!peer&&!admin&&!ordinary&&!correction)return;
+ const resolution=timeline.appeal_resolution_id;
+ if(!current||!peer&&!admin&&!ordinary&&!correction&&!resolution)return;
  const standard=t.criteria_history.find(v=>v.version===current.criteria_version);if(!standard)return;
- const actionLabel=peer?'预审':correction?'改判':ordinary?'审核':'终审';
+ const actionLabel=resolution?'复议处理':peer?'预审':correction?'改判':ordinary?'审核':'终审';
  const options=el('select');options.id='review-verdict';const selectLabel=el('label',actionLabel+'结论');selectLabel.append(options);
  for(const [id,name] of peer?[['peer_pass','通过预审'],['peer_return','退回']]:[['final_accept',admin?'通过终审':'通过'],['final_return','退回'],['final_fail',admin?'终审未通过':'未通过']])options.append(option(id,name));
  form.append(selectLabel);
@@ -150,10 +165,11 @@ function renderWorkflow(t,timeline){clearWorkflow();if(!timeline)return;
   const label=el('label',item.description+' · 权重 '+item.weight),check=el('input');check.type='checkbox';label.className='checkline';label.prepend(check);
   const [wrap,proof]=control('标准 '+(index+1)+' 依据','textarea',1000);const row=el('div');row.className='review-item';row.append(label,wrap);form.append(row);return [check,proof];
  });
- const [why,reason]=control(correction?'改判理由':'审核理由','textarea',4000),[more,work]=control('需补充内容','textarea',4000);
+ const [why,reason]=control(resolution?'复议处理理由':correction?'改判理由':'审核理由','textarea',4000),[more,work]=control('需补充内容','textarea',4000);
  const selection=()=>{const returned=options.value.endsWith('_return');more.hidden=!returned;work.required=returned;};options.onchange=selection;selection();
  send.textContent='保存'+actionLabel;form.append(why,more,send);
- form.onsubmit=e=>{e.preventDefault();void operation(()=>workflowWrite(t,'reviews',{actor_id:actor,expected_revision:t.revision,submission_id:current.id,action:options.value,
+ form.onsubmit=e=>{e.preventDefault();void operation(()=>workflowWrite(t,resolution?'/knowledge/v1/appeals/'+resolution+'/resolution':'reviews',{actor_id:actor,expected_revision:t.revision,
+  ...(resolution?{}:{submission_id:current.id}),action:options.value,
   results:inputs.map(([check,proof],i)=>({criterion:i+1,met:check.checked,evidence:proof.value})),reason:reason.value,
   ...(correction?{supersedes_id:correction.supersedes_id}:{}),...(work.required?{requested_work:work.value}:{})},actionLabel+'已保存。'));};actions.append(form);
 }

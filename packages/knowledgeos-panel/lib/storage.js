@@ -2019,8 +2019,8 @@ function decideTaskWorkflow(task, actor, action) {
   if (task.state !== (task.peerReviewer ? "awaiting_admin_review" : "submitted")) return { error: "TASK_STATE_CONFLICT" };
   return finalOutcome(task, action);
 }
-function decideTaskCorrection(task, actor, action) {
-  if (task.kind !== "project_collaboration" || actor.role !== "admin" || actor.id === task.assignee) return { error: "NOT_FOUND" };
+function decideTaskCorrection(task, actor, action, appeal = false) {
+  if (task.kind === "personal" || !appeal && task.kind !== "project_collaboration" || actor.role !== "admin" || actor.id === task.assignee) return { error: "NOT_FOUND" };
   if (action === "peer_pass" || action === "peer_return") return { error: "INVALID_TASK_INPUT" };
   if (!["accepted", "failed", "returned"].includes(task.state)) return { error: "TASK_STATE_CONFLICT" };
   return finalOutcome(task, action);
@@ -2040,6 +2040,7 @@ function submissionTiming(submittedAt, dueAt) {
 }
 var validText = (value, limit) => typeof value === "string" && value.trim().length > 0 && value.length <= limit && !/[\p{Cf}\p{Cs}\x00-\x08\x0b-\x1f\x7f]/u.test(value);
 var validTaskSubmission = (content) => validText(content, 16e3);
+var validTaskAppeal = (reason) => validText(reason, 4e3);
 function validTaskReview(action, criterionCount, input) {
   if (!isTaskReviewAction(action) || !input || !Number.isSafeInteger(criterionCount) || criterionCount < 1 || criterionCount > 20 || !Array.isArray(input.results) || input.results.length !== criterionCount || !validText(input.reason, 4e3)) return false;
   const isReturn = action === "peer_return" || action === "final_return";
@@ -2085,6 +2086,7 @@ CREATE TABLE task_criteria_versions (
 `;
 var waiting = "awaiting_material_access";
 var isReviewPhase = (state) => state === "submitted" || state === "awaiting_admin_review";
+var hasFormalDecision = (state) => ["accepted", "failed", "returned"].includes(state);
 var uuid3 = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
 var validId = (id) => typeof id === "string" && uuid3.test(id);
 var materialUnavailable = () => new AssetError(404, "TASK_MATERIAL_UNAVAILABLE");
@@ -2113,6 +2115,19 @@ var reviewView = (r) => ({
   decided_at: r.decided_at,
   ...r.supersedes_id ? { supersedes_id: r.supersedes_id } : {}
 });
+var appealDecisionId = (r) => r.against_review_id ?? r.against_correction_id;
+var appealView = (r) => ({
+  id: r.id,
+  submission_id: r.submission_id,
+  decision_id: appealDecisionId(r),
+  requester_id: r.requester_id,
+  reason: r.reason,
+  status: r.status,
+  requested_at: r.requested_at,
+  resolved_by: r.resolved_by,
+  resolution_decision_id: r.resolution_decision_id,
+  resolved_at: r.resolved_at
+});
 var requestDigest = (value) => createHash11("sha256").update(JSON.stringify(value)).digest("hex");
 var workflow = (t) => ({
   kind: t.task_kind,
@@ -2136,6 +2151,15 @@ var nextActor = (t, state = t.current_state) => {
   }
 };
 var materialWait = (db, id) => db.prepare("SELECT submission_version,resume_state FROM task_material_waits WHERE task_id=?").get(id);
+var pendingAppeal = (db, taskId) => db.prepare("SELECT * FROM task_appeals WHERE task_id=? AND status='pending'").get(taskId);
+var appealById = (db, id) => db.prepare("SELECT * FROM task_appeals WHERE id=?").get(id);
+var decisionImpact = (db, id) => {
+  const flags = db.prepare(`SELECT EXISTS(SELECT 1 FROM task_appeals WHERE task_id=? AND status='pending') AS disputed,
+    EXISTS(SELECT 1 FROM task_decision_impacts WHERE task_id=? AND recalculation_required=1) AS recalculation`).get(id, id);
+  const disputed = Boolean(flags.disputed), recalculation = Boolean(flags.recalculation);
+  if (!disputed && !recalculation) return {};
+  return { settlement_state: disputed ? "disputed" : "pending_recalculation", recalculation_required: recalculation };
+};
 var taskSummary = (db, t) => ({
   id: t.id,
   project_id: t.project_id,
@@ -2152,7 +2176,8 @@ var taskSummary = (db, t) => ({
   next_actor_id: nextActor(t, t.current_state === waiting ? materialWait(db, t.id)?.resume_state : void 0),
   revision: t.revision,
   issued_at: t.issued_at,
-  updated_at: t.updated_at
+  updated_at: t.updated_at,
+  ...decisionImpact(db, t.id)
 });
 var taskView = (db, t) => ({ ...taskSummary(db, t), criteria_history: db.prepare(
   "SELECT version,acceptance_items,effective_submission_rule,created_by,created_at FROM task_criteria_versions WHERE task_id=? ORDER BY version"
@@ -2166,7 +2191,11 @@ var latestSubmission = (db, id) => db.prepare("SELECT * FROM task_submissions WH
 var correctionColumns = `id,submission_id,reviewer_id,'final' AS stage,verdict,criteria_results,reason,requested_work,decided_at,request_digest,
   COALESCE(previous_review_id,previous_correction_id) AS supersedes_id`;
 var latestFormalReview = (db, submission) => db.prepare("SELECT id,1 AS correction FROM task_review_corrections WHERE submission_id=? ORDER BY rowid DESC LIMIT 1").get(submission) ?? db.prepare("SELECT id,0 AS correction FROM task_review_decisions WHERE submission_id=? AND stage='final'").get(submission);
-var canCorrect = (actor, task) => actor.role === "admin" && task.task_kind === "project_collaboration" && actor.userId !== task.assignee_id;
+var formalDecisionSubmission = (db, id) => db.prepare(`SELECT s.* FROM task_submissions s
+  WHERE s.id=(SELECT submission_id FROM task_review_decisions WHERE id=? AND stage='final')
+    OR s.id=(SELECT submission_id FROM task_review_corrections WHERE id=?)`).get(id, id);
+var canResolveAppeal = (actor, task) => actor.role === "admin" && task.project_id !== null && actor.userId !== task.assignee_id;
+var canCorrect = (actor, task) => task.task_kind === "project_collaboration" && canResolveAppeal(actor, task);
 var pinnedTargets = (db, submission) => db.prepare(`SELECT asset_id,version_id,ordinal,conversion_id
   FROM task_submission_materials WHERE task_id=? AND submission_version=? ORDER BY position`).all(submission.task_id, submission.version).map((r) => ({ asset_id: String(r.asset_id), version_id: String(r.version_id), ordinal: Number(r.ordinal), ...r.conversion_id ? { conversion_id: String(r.conversion_id) } : {} }));
 var materialList = (input) => {
@@ -2187,12 +2216,32 @@ var advance = (db, task, state, now) => {
   const result = db.prepare("UPDATE tasks SET current_state=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?").run(state, now, task.id, task.revision);
   if (Number(result.changes) !== 1) throw new AssetError(409, "TASK_REVISION_CONFLICT");
 };
-var transition = (task, a, action, correction = false) => {
+var transition = (task, a, action, correction = false, appeal = false) => {
   const actor = { id: a.userId, role: a.role };
-  const next = correction && action !== "submit" ? decideTaskCorrection(workflow(task), actor, action) : decideTaskWorkflow(workflow(task), actor, action);
+  const next = correction && action !== "submit" ? decideTaskCorrection(workflow(task), actor, action, appeal) : decideTaskWorkflow(workflow(task), actor, action);
   if ("error" in next) throw new AssetError(next.error === "NOT_FOUND" ? 404 : next.error === "INVALID_TASK_INPUT" ? 422 : 409, next.error);
   return next.state;
 };
+function recordDecisionImpact(db, task, actor, now, correlation, event, payload) {
+  const eventId = randomUUID13(), revision = task.revision + 1, recalculation = event !== "appeal.opened";
+  if (recalculation) db.prepare(`INSERT INTO task_decision_impacts(task_id,task_revision,recalculation_required,updated_at) VALUES(?,?,1,?)
+    ON CONFLICT(task_id) DO UPDATE SET task_revision=excluded.task_revision,recalculation_required=1,updated_at=excluded.updated_at`).run(task.id, revision, now);
+  const causation = event === "appeal.resolved" ? db.prepare(`SELECT event_id FROM domain_events WHERE aggregate_type='project_task'
+    AND aggregate_id=? AND correlation_id=? AND event_type='knowledgeos.task.appeal.opened'`).get(task.id, correlation)?.event_id ?? null : null;
+  db.prepare(`INSERT INTO domain_events(event_id,aggregate_type,aggregate_id,aggregate_revision,actor_id,event_type,payload_schema_version,payload,
+    occurred_at,causation_id,correlation_id) VALUES(?,'project_task',?,?,?,?,1,?,?,?,?)`).run(
+    eventId,
+    task.id,
+    revision,
+    actor.userId,
+    "knowledgeos.task." + event,
+    JSON.stringify({ ...payload, recalculation_required: recalculation, disputed: !recalculation }),
+    now,
+    causation,
+    correlation
+  );
+  db.prepare("INSERT INTO domain_event_outbox(event_id,created_at) VALUES(?,?)").run(eventId, now);
+}
 var ProjectTaskStore = class {
   constructor(tx, current, memberships, canReadMaterial, validateMaterial) {
     this.tx = tx;
@@ -2388,7 +2437,12 @@ var ProjectTaskStore = class {
         FROM task_review_corrections c JOIN task_submissions s ON s.id=c.submission_id WHERE s.task_id=?
         ORDER BY submission_version,correction,sequence`).all(id, id);
       const active2 = visible.at(-1)?.attempt;
-      const correctable = active2 && canCorrect(a, task) && !restricted.has(active2.id) && ["accepted", "failed", "returned"].includes(task.current_state) ? latestFormalReview(db, active2.id) : void 0;
+      const appeals = db.prepare("SELECT * FROM task_appeals WHERE task_id=? ORDER BY rowid").all(id);
+      const pending = appeals.find((r) => r.status === "pending");
+      const formal = active2 && !restricted.has(active2.id) && hasFormalDecision(task.current_state) ? latestFormalReview(db, active2.id) : void 0;
+      const correctable = formal && !pending && canCorrect(a, task);
+      const appealable = formal && !pending && a.userId === task.assignee_id && !appeals.some((r) => appealDecisionId(r) === formal.id);
+      const resolvable = formal && pending && canResolveAppeal(a, task) && appealDecisionId(pending) === formal.id;
       return {
         task_revision: task.revision,
         access_revision,
@@ -2398,9 +2452,48 @@ var ProjectTaskStore = class {
           ...restricted.has(attempt.id) ? { content: null } : {}
         })),
         reviews: reviews.map((r) => ({ ...reviewView(r), ...restricted.has(r.submission_id) ? { criteria_results: [], reason: null, requested_work: null } : {} })),
-        ...correctable ? { correction: { supersedes_id: correctable.id } } : {}
+        ...appeals.length ? { appeals: appeals.map((r) => ({ ...appealView(r), ...restricted.has(r.submission_id) ? { reason: null } : {} })) } : {},
+        ...correctable ? { correction: { supersedes_id: formal.id } } : {},
+        ...appealable ? { appeal_target_id: formal.id } : {},
+        ...resolvable ? { appeal_resolution_id: pending.id } : {}
       };
     });
+  }
+  requestAppeal(s, expected, decisionId, key, revision, reason) {
+    if (!validRevision(revision) || !validTaskAppeal(reason)) throw invalid3();
+    const text2 = reason.trim(), digest3 = requestDigest([decisionId, revision, text2]);
+    return this.tx("write", (db, now) => {
+      const a = this.actor(s, now, expected), submission = formalDecisionSubmission(db, decisionId);
+      if (!submission) throw hidden3();
+      const task = this.lookup(db, a, submission.task_id, now);
+      if (task.assignee_id !== a.userId) throw hidden3();
+      if (pinnedTargets(db, submission).some((m) => !this.readable(a, task, m, now))) throw materialAccessRequired();
+      const old = db.prepare("SELECT * FROM task_appeals WHERE task_id=? AND requester_id=? AND request_key=?").get(task.id, a.userId, key);
+      if (old) {
+        if (old.request_digest !== digest3) throw new AssetError(409, "TASK_REQUEST_CONFLICT");
+        return { task: taskView(db, task), appeal: appealView(old), replayed: true };
+      }
+      requireRevision(task, revision);
+      if (latestSubmission(db, task.id)?.id !== submission.id) throw new AssetError(409, "TASK_SUBMISSION_CONFLICT");
+      const current = latestFormalReview(db, submission.id);
+      if (!hasFormalDecision(task.current_state) || current?.id !== decisionId) throw new AssetError(409, "TASK_REVIEW_CONFLICT");
+      if (pendingAppeal(db, task.id) || db.prepare("SELECT 1 FROM task_appeals WHERE against_review_id=? OR against_correction_id=?").get(decisionId, decisionId))
+        throw new AssetError(409, "TASK_APPEAL_CONFLICT");
+      const appealId = randomUUID13();
+      db.prepare(`INSERT INTO task_appeals(id,task_id,submission_id,requester_id,reason,against_review_id,against_correction_id,
+        status,requested_at,request_key,request_digest) VALUES(?,?,?,?,?,?,?,'pending',?,?,?)`).run(appealId, task.id, submission.id, a.userId, text2, current.correction ? null : current.id, current.correction ? current.id : null, now, key, digest3);
+      advance(db, task, task.current_state, now);
+      recordDecisionImpact(db, task, a, now, appealId, "appeal.opened", { submission_id: submission.id, decision_id: decisionId, appeal_id: appealId });
+      return { task: taskView(db, this.lookup(db, a, task.id, now)), appeal: appealView(appealById(db, appealId)), replayed: false };
+    });
+  }
+  resolveAppeal(s, expected, appealId, key, revision, action, input) {
+    const target2 = this.tx("read", (db, now) => {
+      const a = this.actor(s, now, expected), appeal = appealById(db, appealId);
+      if (!appeal || !canResolveAppeal(a, this.lookup(db, a, appeal.task_id, now))) throw hidden3();
+      return appeal;
+    });
+    return this.review(s, expected, target2.task_id, key, revision, target2.submission_id, action, input, appealDecisionId(target2), target2.id);
   }
   submit(s, expected, id, key, revision, content, materials = []) {
     if (!validRevision(revision) || !validTaskSubmission(content)) throw invalid3();
@@ -2418,6 +2511,7 @@ var ProjectTaskStore = class {
       }
       if (before.revision !== task.revision) return new AssetError(409, "TASK_REVISION_CONFLICT");
       requireRevision(task, revision);
+      if (pendingAppeal(db, id)) throw new AssetError(409, "TASK_APPEAL_PENDING");
       const previous = latestSubmission(db, id);
       const state = transition(task.current_state === waiting ? { ...task, current_state: "returned" } : task, a, "submit");
       if (task.current_state === waiting && (!targets.length || requestDigest(targets) === requestDigest(pinnedTargets(db, previous)))) throw new AssetError(409, "TASK_MATERIAL_REPLACEMENT_REQUIRED");
@@ -2444,14 +2538,16 @@ var ProjectTaskStore = class {
     if (result instanceof AssetError) throw result;
     return result;
   }
-  review(s, expected, id, key, revision, submissionId, action, input, supersedes) {
+  review(s, expected, id, key, revision, submissionId, action, input, supersedes, appealId) {
     if (!validRevision(revision) || !isTaskReviewAction(action)) throw invalid3();
     const stage = action.startsWith("peer_") ? "peer" : "final", verdict = action.slice(stage.length + 1), correction = supersedes !== void 0;
     if (correction && (!validId(supersedes) || stage !== "final")) throw invalid3();
     const result = this.tx("write", (db, now) => {
       const a = this.actor(s, now, expected), before = this.lookup(db, a, id, now);
+      const appeal = appealId === void 0 ? void 0 : appealById(db, appealId);
+      if (appealId !== void 0 && (!appeal || appeal.task_id !== id || appeal.submission_id !== submissionId || appealDecisionId(appeal) !== supersedes)) throw hidden3();
       if (correction) {
-        if (!canCorrect(a, before)) throw hidden3();
+        if (!(appeal ? canResolveAppeal(a, before) : canCorrect(a, before))) throw hidden3();
       } else if (stage === "peer" ? a.userId !== before.peer_reviewer_id : a.userId !== before.final_reviewer_id || before.task_kind === "project_admin" && a.role !== "admin") throw hidden3();
       if (before.task_kind === "personal") throw new AssetError(409, "TASK_WORKFLOW_UNAVAILABLE");
       const submission = db.prepare("SELECT * FROM task_submissions WHERE task_id=? AND id=?").get(id, submissionId);
@@ -2463,18 +2559,24 @@ var ProjectTaskStore = class {
       if (!validTaskReview(action, JSON.parse(String(acceptance_items)).length, input)) throw invalid3();
       const results = input.results.map((r) => ({ criterion: r.criterion, met: r.met, evidence: r.evidence.trim() })).sort((l, r) => l.criterion - r.criterion);
       const reason = input.reason.trim(), requested = input.requested_work?.trim() ?? null;
-      const digest3 = requestDigest(correction ? [revision, action, results, reason, requested, supersedes] : [revision, action, results, reason, requested]);
+      const digestFields = [revision, action, results, reason, requested];
+      if (correction) digestFields.push(supersedes);
+      if (appeal) digestFields.push(appeal.id);
+      const digest3 = requestDigest(digestFields);
       const old = db.prepare(correction ? `SELECT ${correctionColumns} FROM task_review_corrections WHERE submission_id=? AND reviewer_id=? AND request_key=?` : "SELECT * FROM task_review_decisions WHERE submission_id=? AND reviewer_id=? AND request_key=?").get(submissionId, a.userId, key);
       if (old) {
         if (old.request_digest !== digest3) throw new AssetError(409, "TASK_REQUEST_CONFLICT");
-        return { task: taskView(db, task), review: reviewView(old), replayed: true };
+        return { task: taskView(db, task), review: reviewView(old), ...appeal ? { appeal: appealView(appeal) } : {}, replayed: true };
       }
       const otherReceipt = correction ? "task_review_decisions" : "task_review_corrections";
       if (db.prepare(`SELECT 1 FROM ${otherReceipt} WHERE submission_id=? AND reviewer_id=? AND request_key=?`).get(submissionId, a.userId, key))
         throw new AssetError(409, "TASK_REQUEST_CONFLICT");
       requireRevision(task, revision);
       if (latestSubmission(db, id)?.id !== submissionId) throw new AssetError(409, "TASK_SUBMISSION_CONFLICT");
-      const state = transition(task, a, action, correction), reviewId = randomUUID13();
+      const pending = pendingAppeal(db, id);
+      if (pending && pending.id !== appeal?.id) throw new AssetError(409, "TASK_APPEAL_PENDING");
+      if (appeal && appeal.status !== "pending") throw new AssetError(409, "TASK_APPEAL_CONFLICT");
+      const state = transition(task, a, action, correction, Boolean(appeal)), reviewId = randomUUID13();
       if (correction) {
         const current = latestFormalReview(db, submissionId);
         if (!current || current.id !== supersedes) throw new AssetError(409, "TASK_REVIEW_CONFLICT");
@@ -2485,8 +2587,22 @@ var ProjectTaskStore = class {
           VALUES(?,?,?,?,?,?,?,?,?,?,?)`).run(reviewId, submissionId, a.userId, stage, verdict, JSON.stringify(results), reason, requested, now, key, digest3);
       }
       this.advancePhase(db, task, state, submission, now);
+      if (appeal) {
+        const resolved = db.prepare(`UPDATE task_appeals SET status='resolved',resolved_by=?,resolution_decision_id=?,resolved_at=?
+          WHERE id=? AND status='pending'`).run(a.userId, reviewId, now, appeal.id);
+        if (Number(resolved.changes) !== 1) throw new AssetError(409, "TASK_APPEAL_CONFLICT");
+      }
+      if (correction) recordDecisionImpact(
+        db,
+        task,
+        a,
+        now,
+        appeal?.id ?? key,
+        appeal ? "appeal.resolved" : "decision.corrected",
+        { submission_id: submissionId, decision_id: reviewId, supersedes_id: supersedes, ...appeal ? { appeal_id: appeal.id } : {} }
+      );
       const saved = db.prepare(correction ? `SELECT ${correctionColumns} FROM task_review_corrections WHERE id=?` : "SELECT * FROM task_review_decisions WHERE id=?").get(reviewId);
-      return { task: taskView(db, this.lookup(db, a, id, now)), review: reviewView(saved), replayed: false };
+      return { task: taskView(db, this.lookup(db, a, id, now)), review: reviewView(saved), ...appeal ? { appeal: appealView(appealById(db, appeal.id)) } : {}, replayed: false };
     });
     if (result instanceof AssetError) throw result;
     return result;
@@ -2550,6 +2666,29 @@ CREATE TABLE task_material_waits (
   task_id TEXT PRIMARY KEY, submission_version INTEGER NOT NULL,
   resume_state TEXT NOT NULL CHECK(resume_state IN ('submitted','awaiting_admin_review')),
   FOREIGN KEY(task_id,submission_version) REFERENCES task_submissions(task_id,version)
+) STRICT;
+`;
+
+// src/host/project-task-appeal-schema.ts
+var PROJECT_TASK_APPEAL_SCHEMA = `
+CREATE TABLE task_appeals (
+  id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id), submission_id TEXT NOT NULL REFERENCES task_submissions(id),
+  requester_id TEXT NOT NULL REFERENCES users(id), reason TEXT NOT NULL CHECK(length(reason) BETWEEN 1 AND 4000),
+  against_review_id TEXT UNIQUE REFERENCES task_review_decisions(id),
+  against_correction_id TEXT UNIQUE REFERENCES task_review_corrections(id),
+  status TEXT NOT NULL CHECK(status IN ('pending','resolved')), requested_at TEXT NOT NULL,
+  resolved_by TEXT REFERENCES users(id), resolution_decision_id TEXT UNIQUE REFERENCES task_review_corrections(id), resolved_at TEXT,
+  request_key TEXT NOT NULL, request_digest TEXT NOT NULL CHECK(length(request_digest)=64),
+  UNIQUE(task_id,requester_id,request_key),
+  CHECK((against_review_id IS NULL) != (against_correction_id IS NULL)),
+  CHECK((status='pending' AND resolved_by IS NULL AND resolution_decision_id IS NULL AND resolved_at IS NULL)
+    OR (status='resolved' AND resolved_by IS NOT NULL AND resolution_decision_id IS NOT NULL AND resolved_at IS NOT NULL))
+) STRICT;
+CREATE INDEX task_appeals_history ON task_appeals(task_id,requested_at);
+CREATE UNIQUE INDEX task_appeals_pending ON task_appeals(task_id) WHERE status='pending';
+CREATE TABLE task_decision_impacts (
+  task_id TEXT PRIMARY KEY REFERENCES tasks(id), task_revision INTEGER NOT NULL CHECK(task_revision>0),
+  recalculation_required INTEGER NOT NULL CHECK(recalculation_required IN (0,1)), updated_at TEXT NOT NULL
 ) STRICT;
 `;
 
@@ -2999,7 +3138,8 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 32;
+var SCHEMA_VERSION = 33;
+var MIGRATION_V33_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_APPEAL_SCHEMA).digest("hex");
 var MIGRATION_V32_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_CORRECTION_SCHEMA).digest("hex");
 var MIGRATION_V31_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_MATERIAL_SCHEMA).digest("hex");
 var MIGRATION_V30_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_REVIEW_SCHEMA).digest("hex");
@@ -3417,6 +3557,7 @@ var ProbeStorage = class {
       if (priorVersion < 30) this.#migrateV30(db);
       if (priorVersion < 31) this.#migrateV31(db);
       if (priorVersion < 32) this.#migrateV32(db);
+      if (priorVersion < 33) this.#migrateV33(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -4033,9 +4174,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "task correction migration failed", false, { cause: e });
     }
   }
+  #migrateV33(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(PROJECT_TASK_APPEAL_SCHEMA);
+      this.#injectFailure("v33:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(33,?,?)").run(MIGRATION_V33_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=33; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "task appeal migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash2, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash2)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -4066,6 +4219,7 @@ var ProbeStorage = class {
       if (version >= 30) reference.exec(PROJECT_TASK_REVIEW_SCHEMA);
       if (version >= 31) reference.exec(PROJECT_TASK_MATERIAL_SCHEMA);
       if (version >= 32) reference.exec(PROJECT_TASK_CORRECTION_SCHEMA);
+      if (version >= 33) reference.exec(PROJECT_TASK_APPEAL_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -4595,6 +4749,7 @@ export {
   MIGRATION_V30_CHECKSUM,
   MIGRATION_V31_CHECKSUM,
   MIGRATION_V32_CHECKSUM,
+  MIGRATION_V33_CHECKSUM,
   MIGRATION_V3_CHECKSUM,
   MIGRATION_V3_SQL,
   MIGRATION_V4,

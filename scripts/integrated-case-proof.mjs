@@ -14,6 +14,12 @@ export const integrationCases = new Map([
   ['P08', {units: ['PROJECT-002','SCORE-001'], checks: ['PEER_PREVIEW_WAITS_FOR_ADMIN','NO_PREMATURE_COMPLETION_OR_SCORE','FINAL_SCORE_USES_ACTUAL_SUBMISSION_TIME']}],
   ['A16', {units: ['FEEDBACK-001','LIFE-001'], checks: ['ACTUAL_31_DAY_CLEANUP','NORMAL_RECORDS_REMAIN','DISTINCT_EVIDENCE_AND_INSUFFICIENT_DATA','ORIGIN_AND_VERSION_LINKS']}],
   ['A17', {units: ['FND-004','LIB-001','READ-001','NOTE-001','NOTE-002','NOTE-003'], checks: ['BIDIRECTIONAL_SHARED_TREE','PREVIEW_DELETE_AND_UNDO','CONFLICT_PRESERVES_DRAFT','LAYOUT_RESTART_AND_FIXED_SOURCE']}],
+  ['A32', {units: ['PROJECT-003','PROJECT-004'], checks: [
+    'original_ordinary_decision_and_real_contributor_appeal',
+    'authorized_resolution_scope_and_transaction_rollback',
+    'effective_correction_and_versioned_outbox_are_atomic_and_idempotent',
+    'concurrent_open_and_resolution_revocation_and_restart',
+  ]}],
   ['A34', {units: ['FND-004','LIB-001','READ-001','SEARCH-001','SHARE-001'], checks: ['SEVEN_DAY_CUTOFF_AND_STRADDLING_EDIT','EDIT_WITHOUT_MANAGEMENT','REVOKE_BLOCKS_READER_AND_SEARCH','GROUP_RENEWAL_AND_TRANSACTIONAL_RECEIPTS']}],
   ['A46', {units: ['FND-004','READ-001','READ-003','SEARCH-001','NOTE-001','AI-001','LIFE-004','EXPORT-001'], checks: ['SEARCH','DIRECT_URL','TOOL','SUMMARY','ANSWER','EXPORT','ORIGINAL_NOTE_WITHOUT_RESTRICTED_CITATION']}],
 ]);

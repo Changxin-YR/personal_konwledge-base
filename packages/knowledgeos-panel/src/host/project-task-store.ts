@@ -6,7 +6,7 @@ import type { ReaderTarget } from './citation-store.ts'
 import type { SessionActor } from './identity.ts'
 import type { ParseTx } from './parse-store.ts'
 import { decideAssignment, validTaskCriteria, validTaskDraft, type TaskCriteria, type TaskDraft, type TaskKind, type TaskMember } from './project-task-policy.ts'
-import { decideTaskCorrection, decideTaskWorkflow, isTaskReviewAction, submissionTiming, validTaskReview, validTaskSubmission, type ReviewAction, type TaskReview } from './project-task-workflow.ts'
+import { decideTaskCorrection, decideTaskWorkflow, isTaskReviewAction, submissionTiming, validTaskAppeal, validTaskReview, validTaskSubmission, type ReviewAction, type TaskReview } from './project-task-workflow.ts'
 
 export const PROJECT_TASK_SCHEMA = `
 CREATE TABLE project_membership_removals (
@@ -53,10 +53,16 @@ interface ReviewRow {
   id:string; submission_id:string; reviewer_id:string; stage:string; verdict:string; criteria_results:string;
   reason:string; requested_work:string|null; decided_at:string; request_digest:string; supersedes_id?:string|null
 }
+interface AppealRow {
+  id:string; task_id:string; submission_id:string; requester_id:string; reason:string;
+  against_review_id:string|null; against_correction_id:string|null; status:'pending'|'resolved'; requested_at:string;
+  resolved_by:string|null; resolution_decision_id:string|null; resolved_at:string|null; request_digest:string
+}
 type ReviewPhase = 'submitted'|'awaiting_admin_review'
 interface MaterialWait { submission_version:number;resume_state:ReviewPhase }
 const waiting='awaiting_material_access'
 const isReviewPhase=(state:string):state is ReviewPhase=>state==='submitted'||state==='awaiting_admin_review'
+const hasFormalDecision=(state:string)=>['accepted','failed','returned'].includes(state)
 const uuid=/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i
 const validId=(id:unknown):id is string=>typeof id==='string'&&uuid.test(id)
 const materialUnavailable=()=>new AssetError(404,'TASK_MATERIAL_UNAVAILABLE')
@@ -68,6 +74,9 @@ const submissionView = (t:TaskRow,r:SubmissionRow) => ({id:r.id,version:r.versio
 const reviewView = (r:ReviewRow) => ({id:r.id,submission_id:r.submission_id,reviewer_id:r.reviewer_id,stage:r.stage,verdict:r.verdict,
   criteria_results:JSON.parse(r.criteria_results),reason:r.reason,requested_work:r.requested_work,decided_at:r.decided_at,
   ...(r.supersedes_id?{supersedes_id:r.supersedes_id}:{})})
+const appealDecisionId = (r:AppealRow) => r.against_review_id??r.against_correction_id!
+const appealView = (r:AppealRow) => ({id:r.id,submission_id:r.submission_id,decision_id:appealDecisionId(r),requester_id:r.requester_id,
+  reason:r.reason,status:r.status,requested_at:r.requested_at,resolved_by:r.resolved_by,resolution_decision_id:r.resolution_decision_id,resolved_at:r.resolved_at})
 const requestDigest = (value:unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex')
 const workflow = (t:TaskRow) => ({kind:t.task_kind,assignee:t.assignee_id,peerReviewer:t.peer_reviewer_id,
   finalReviewer:t.final_reviewer_id,state:t.current_state})
@@ -81,11 +90,21 @@ const nextActor = (t:TaskRow,state=t.current_state) => {
 }
 const materialWait=(db:DatabaseSync,id:string)=>db.prepare('SELECT submission_version,resume_state FROM task_material_waits WHERE task_id=?')
   .get(id) as unknown as MaterialWait|undefined
+const pendingAppeal=(db:DatabaseSync,taskId:string)=>db.prepare("SELECT * FROM task_appeals WHERE task_id=? AND status='pending'")
+  .get(taskId) as unknown as AppealRow|undefined
+const appealById=(db:DatabaseSync,id:string)=>db.prepare('SELECT * FROM task_appeals WHERE id=?').get(id) as unknown as AppealRow|undefined
+const decisionImpact=(db:DatabaseSync,id:string)=>{
+  const flags=db.prepare(`SELECT EXISTS(SELECT 1 FROM task_appeals WHERE task_id=? AND status='pending') AS disputed,
+    EXISTS(SELECT 1 FROM task_decision_impacts WHERE task_id=? AND recalculation_required=1) AS recalculation`).get(id,id)!
+  const disputed=Boolean(flags.disputed),recalculation=Boolean(flags.recalculation)
+  if(!disputed&&!recalculation)return {}
+  return {settlement_state:disputed?'disputed':'pending_recalculation',recalculation_required:recalculation}
+}
 const taskSummary = (db:DatabaseSync,t:TaskRow) => ({
   id:t.id, project_id:t.project_id, task_kind:t.task_kind, title:t.title, goal:t.goal, due_at:t.due_at,
   issuer_id:t.issuer_id, assignee_id:t.assignee_id, final_reviewer_id:t.final_reviewer_id, peer_reviewer_id:t.peer_reviewer_id,
   criteria_revision:t.criteria_revision, state:t.current_state, next_actor_id:nextActor(t,t.current_state===waiting?materialWait(db,t.id)?.resume_state:undefined),
-  revision:t.revision, issued_at:t.issued_at, updated_at:t.updated_at,
+  revision:t.revision, issued_at:t.issued_at, updated_at:t.updated_at,...decisionImpact(db,t.id),
 })
 const taskView = (db:DatabaseSync,t:TaskRow) => ({...taskSummary(db,t),criteria_history:db.prepare(
   'SELECT version,acceptance_items,effective_submission_rule,created_by,created_at FROM task_criteria_versions WHERE task_id=? ORDER BY version'
@@ -103,7 +122,11 @@ const latestFormalReview = (db:DatabaseSync,submission:string) => (
   db.prepare('SELECT id,1 AS correction FROM task_review_corrections WHERE submission_id=? ORDER BY rowid DESC LIMIT 1').get(submission)
   ??db.prepare("SELECT id,0 AS correction FROM task_review_decisions WHERE submission_id=? AND stage='final'").get(submission)
 ) as {id:string;correction:0|1}|undefined
-const canCorrect = (actor:SessionActor,task:TaskRow) => actor.role==='admin'&&task.task_kind==='project_collaboration'&&actor.userId!==task.assignee_id
+const formalDecisionSubmission=(db:DatabaseSync,id:string)=>db.prepare(`SELECT s.* FROM task_submissions s
+  WHERE s.id=(SELECT submission_id FROM task_review_decisions WHERE id=? AND stage='final')
+    OR s.id=(SELECT submission_id FROM task_review_corrections WHERE id=?)`).get(id,id) as unknown as SubmissionRow|undefined
+const canResolveAppeal = (actor:SessionActor,task:TaskRow) => actor.role==='admin'&&task.project_id!==null&&actor.userId!==task.assignee_id
+const canCorrect = (actor:SessionActor,task:TaskRow) => task.task_kind==='project_collaboration'&&canResolveAppeal(actor,task)
 const pinnedTargets=(db:DatabaseSync,submission:SubmissionRow):ReaderTarget[]=>db.prepare(`SELECT asset_id,version_id,ordinal,conversion_id
   FROM task_submission_materials WHERE task_id=? AND submission_version=? ORDER BY position`).all(submission.task_id,submission.version)
   .map(r=>({asset_id:String(r.asset_id),version_id:String(r.version_id),ordinal:Number(r.ordinal),...(r.conversion_id?{conversion_id:String(r.conversion_id)}:{})}))
@@ -123,11 +146,24 @@ const advance = (db:DatabaseSync,task:TaskRow,state:string,now:string) => {
   const result=db.prepare('UPDATE tasks SET current_state=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?').run(state,now,task.id,task.revision)
   if(Number(result.changes)!==1)throw new AssetError(409,'TASK_REVISION_CONFLICT')
 }
-const transition = (task:TaskRow,a:SessionActor,action:'submit'|ReviewAction,correction=false) => {
+const transition = (task:TaskRow,a:SessionActor,action:'submit'|ReviewAction,correction=false,appeal=false) => {
   const actor={id:a.userId,role:a.role}
-  const next=correction&&action!=='submit'?decideTaskCorrection(workflow(task),actor,action):decideTaskWorkflow(workflow(task),actor,action)
+  const next=correction&&action!=='submit'?decideTaskCorrection(workflow(task),actor,action,appeal):decideTaskWorkflow(workflow(task),actor,action)
   if('error' in next)throw new AssetError(next.error==='NOT_FOUND'?404:next.error==='INVALID_TASK_INPUT'?422:409,next.error)
   return next.state
+}
+
+function recordDecisionImpact(db:DatabaseSync,task:TaskRow,actor:SessionActor,now:string,correlation:string,
+  event:'appeal.opened'|'appeal.resolved'|'decision.corrected',payload:{submission_id:string;decision_id:string;appeal_id?:string;supersedes_id?:string}) {
+  const eventId=randomUUID(),revision=task.revision+1,recalculation=event!=='appeal.opened'
+  if(recalculation)db.prepare(`INSERT INTO task_decision_impacts(task_id,task_revision,recalculation_required,updated_at) VALUES(?,?,1,?)
+    ON CONFLICT(task_id) DO UPDATE SET task_revision=excluded.task_revision,recalculation_required=1,updated_at=excluded.updated_at`).run(task.id,revision,now)
+  const causation=event==='appeal.resolved'?db.prepare(`SELECT event_id FROM domain_events WHERE aggregate_type='project_task'
+    AND aggregate_id=? AND correlation_id=? AND event_type='knowledgeos.task.appeal.opened'`).get(task.id,correlation)?.event_id??null:null
+  db.prepare(`INSERT INTO domain_events(event_id,aggregate_type,aggregate_id,aggregate_revision,actor_id,event_type,payload_schema_version,payload,
+    occurred_at,causation_id,correlation_id) VALUES(?,'project_task',?,?,?,?,1,?,?,?,?)`).run(eventId,task.id,revision,actor.userId,'knowledgeos.task.'+event,
+      JSON.stringify({...payload,recalculation_required:recalculation,disputed:!recalculation}),now,causation,correlation)
+  db.prepare('INSERT INTO domain_event_outbox(event_id,created_at) VALUES(?,?)').run(eventId,now)
 }
 
 export class ProjectTaskStore {
@@ -342,13 +378,58 @@ export class ProjectTaskStore {
         FROM task_review_corrections c JOIN task_submissions s ON s.id=c.submission_id WHERE s.task_id=?
         ORDER BY submission_version,correction,sequence`).all(id,id) as unknown as ReviewRow[]
       const active=visible.at(-1)?.attempt
-      const correctable=active&&canCorrect(a,task)&&!restricted.has(active.id)&&['accepted','failed','returned'].includes(task.current_state)
-        ?latestFormalReview(db,active.id):undefined
+      const appeals=db.prepare('SELECT * FROM task_appeals WHERE task_id=? ORDER BY rowid').all(id) as unknown as AppealRow[]
+      const pending=appeals.find(r=>r.status==='pending')
+      const formal=active&&!restricted.has(active.id)&&hasFormalDecision(task.current_state)?latestFormalReview(db,active.id):undefined
+      const correctable=formal&&!pending&&canCorrect(a,task)
+      const appealable=formal&&!pending&&a.userId===task.assignee_id&&!appeals.some(r=>appealDecisionId(r)===formal.id)
+      const resolvable=formal&&pending&&canResolveAppeal(a,task)&&appealDecisionId(pending)===formal.id
       return {task_revision:task.revision,access_revision,submissions:visible.map(({attempt,materials})=>({
         ...submissionView(task,attempt),...(materials.length?{materials}:{}),...(restricted.has(attempt.id)?{content:null}:{}),
       })),reviews:reviews.map(r=>({...reviewView(r),...(restricted.has(r.submission_id)?{criteria_results:[],reason:null,requested_work:null}:{} )})),
-      ...(correctable?{correction:{supersedes_id:correctable.id}}:{})}
+      ...(appeals.length?{appeals:appeals.map(r=>({...appealView(r),...(restricted.has(r.submission_id)?{reason:null}:{})}))}:{}),
+      ...(correctable?{correction:{supersedes_id:formal.id}}:{}),...(appealable?{appeal_target_id:formal.id}:{}),
+      ...(resolvable?{appeal_resolution_id:pending.id}:{})}
     })
+  }
+
+  requestAppeal(s:SessionActor,expected:string,decisionId:string,key:string,revision:number,reason:unknown) {
+    if(!validRevision(revision)||!validTaskAppeal(reason))throw invalid()
+    const text=reason.trim(),digest=requestDigest([decisionId,revision,text])
+    return this.tx('write',(db,now)=>{
+      const a=this.actor(s,now,expected),submission=formalDecisionSubmission(db,decisionId)
+      if(!submission)throw hidden()
+      const task=this.lookup(db,a,submission.task_id,now)
+      if(task.assignee_id!==a.userId)throw hidden()
+      if(pinnedTargets(db,submission).some(m=>!this.readable(a,task,m,now)))throw materialAccessRequired()
+      const old=db.prepare('SELECT * FROM task_appeals WHERE task_id=? AND requester_id=? AND request_key=?').get(task.id,a.userId,key) as unknown as AppealRow|undefined
+      if(old){
+        if(old.request_digest!==digest)throw new AssetError(409,'TASK_REQUEST_CONFLICT')
+        return {task:taskView(db,task),appeal:appealView(old),replayed:true}
+      }
+      requireRevision(task,revision)
+      if(latestSubmission(db,task.id)?.id!==submission.id)throw new AssetError(409,'TASK_SUBMISSION_CONFLICT')
+      const current=latestFormalReview(db,submission.id)
+      if(!hasFormalDecision(task.current_state)||current?.id!==decisionId)throw new AssetError(409,'TASK_REVIEW_CONFLICT')
+      if(pendingAppeal(db,task.id)||db.prepare('SELECT 1 FROM task_appeals WHERE against_review_id=? OR against_correction_id=?').get(decisionId,decisionId))
+        throw new AssetError(409,'TASK_APPEAL_CONFLICT')
+      const appealId=randomUUID()
+      db.prepare(`INSERT INTO task_appeals(id,task_id,submission_id,requester_id,reason,against_review_id,against_correction_id,
+        status,requested_at,request_key,request_digest) VALUES(?,?,?,?,?,?,?,'pending',?,?,?)`)
+        .run(appealId,task.id,submission.id,a.userId,text,current.correction?null:current.id,current.correction?current.id:null,now,key,digest)
+      advance(db,task,task.current_state,now)
+      recordDecisionImpact(db,task,a,now,appealId,'appeal.opened',{submission_id:submission.id,decision_id:decisionId,appeal_id:appealId})
+      return {task:taskView(db,this.lookup(db,a,task.id,now)),appeal:appealView(appealById(db,appealId)!),replayed:false}
+    })
+  }
+
+  resolveAppeal(s:SessionActor,expected:string,appealId:string,key:string,revision:number,action:ReviewAction,input:TaskReview) {
+    const target=this.tx('read',(db,now)=>{
+      const a=this.actor(s,now,expected),appeal=appealById(db,appealId)
+      if(!appeal||!canResolveAppeal(a,this.lookup(db,a,appeal.task_id,now)))throw hidden()
+      return appeal
+    })
+    return this.review(s,expected,target.task_id,key,revision,target.submission_id,action,input,appealDecisionId(target),target.id)
   }
 
   submit(s:SessionActor,expected:string,id:string,key:string,revision:number,content:unknown,materials:unknown=[]) {
@@ -368,6 +449,7 @@ export class ProjectTaskStore {
       }
       if(before.revision!==task.revision)return new AssetError(409,'TASK_REVISION_CONFLICT')
       requireRevision(task,revision)
+      if(pendingAppeal(db,id))throw new AssetError(409,'TASK_APPEAL_PENDING')
       const previous=latestSubmission(db,id)
       const state=transition(task.current_state===waiting?{...task,current_state:'returned'}:task,a,'submit')
       if(task.current_state===waiting&&(!targets.length||requestDigest(targets)===requestDigest(pinnedTargets(db,previous!))))throw new AssetError(409,'TASK_MATERIAL_REPLACEMENT_REQUIRED')
@@ -391,13 +473,15 @@ export class ProjectTaskStore {
     return result
   }
 
-  review(s:SessionActor,expected:string,id:string,key:string,revision:number,submissionId:string,action:ReviewAction,input:TaskReview,supersedes?:string) {
+  review(s:SessionActor,expected:string,id:string,key:string,revision:number,submissionId:string,action:ReviewAction,input:TaskReview,supersedes?:string,appealId?:string) {
     if(!validRevision(revision)||!isTaskReviewAction(action))throw invalid()
     const stage=action.startsWith('peer_')?'peer':'final', verdict=action.slice(stage.length+1), correction=supersedes!==undefined
     if(correction&&(!validId(supersedes)||stage!=='final'))throw invalid()
     const result=this.tx('write',(db,now)=>{
       const a=this.actor(s,now,expected),before=this.lookup(db,a,id,now)
-      if(correction){if(!canCorrect(a,before))throw hidden()}
+      const appeal=appealId===undefined?undefined:appealById(db,appealId)
+      if(appealId!==undefined&&(!appeal||appeal.task_id!==id||appeal.submission_id!==submissionId||appealDecisionId(appeal)!==supersedes))throw hidden()
+      if(correction){if(!(appeal?canResolveAppeal(a,before):canCorrect(a,before)))throw hidden()}
       else if(stage==='peer'?a.userId!==before.peer_reviewer_id:
         a.userId!==before.final_reviewer_id||before.task_kind==='project_admin'&&a.role!=='admin')throw hidden()
       if(before.task_kind==='personal')throw new AssetError(409,'TASK_WORKFLOW_UNAVAILABLE')
@@ -411,20 +495,26 @@ export class ProjectTaskStore {
       if(!validTaskReview(action,JSON.parse(String(acceptance_items)).length,input))throw invalid()
       const results=input.results.map(r=>({criterion:r.criterion,met:r.met,evidence:r.evidence.trim()})).sort((l,r)=>l.criterion-r.criterion)
       const reason=input.reason.trim(),requested=input.requested_work?.trim()??null
-      const digest=requestDigest(correction?[revision,action,results,reason,requested,supersedes]:[revision,action,results,reason,requested])
+      const digestFields=[revision,action,results,reason,requested]
+      if(correction)digestFields.push(supersedes!)
+      if(appeal)digestFields.push(appeal.id)
+      const digest=requestDigest(digestFields)
       const old=db.prepare(correction?`SELECT ${correctionColumns} FROM task_review_corrections WHERE submission_id=? AND reviewer_id=? AND request_key=?`:
         'SELECT * FROM task_review_decisions WHERE submission_id=? AND reviewer_id=? AND request_key=?')
         .get(submissionId,a.userId,key) as unknown as ReviewRow|undefined
       if(old){
         if(old.request_digest!==digest)throw new AssetError(409,'TASK_REQUEST_CONFLICT')
-        return {task:taskView(db,task),review:reviewView(old),replayed:true}
+        return {task:taskView(db,task),review:reviewView(old),...(appeal?{appeal:appealView(appeal)}:{}),replayed:true}
       }
       const otherReceipt=correction?'task_review_decisions':'task_review_corrections'
       if(db.prepare(`SELECT 1 FROM ${otherReceipt} WHERE submission_id=? AND reviewer_id=? AND request_key=?`).get(submissionId,a.userId,key))
         throw new AssetError(409,'TASK_REQUEST_CONFLICT')
       requireRevision(task,revision)
       if(latestSubmission(db,id)?.id!==submissionId)throw new AssetError(409,'TASK_SUBMISSION_CONFLICT')
-      const state=transition(task,a,action,correction), reviewId=randomUUID()
+      const pending=pendingAppeal(db,id)
+      if(pending&&pending.id!==appeal?.id)throw new AssetError(409,'TASK_APPEAL_PENDING')
+      if(appeal&&appeal.status!=='pending')throw new AssetError(409,'TASK_APPEAL_CONFLICT')
+      const state=transition(task,a,action,correction,Boolean(appeal)), reviewId=randomUUID()
       if(correction){
         const current=latestFormalReview(db,submissionId)
         if(!current||current.id!==supersedes)throw new AssetError(409,'TASK_REVIEW_CONFLICT')
@@ -436,9 +526,16 @@ export class ProjectTaskStore {
           VALUES(?,?,?,?,?,?,?,?,?,?,?)`).run(reviewId,submissionId,a.userId,stage,verdict,JSON.stringify(results),reason,requested,now,key,digest)
       }
       this.advancePhase(db,task,state,submission,now)
+      if(appeal){
+        const resolved=db.prepare(`UPDATE task_appeals SET status='resolved',resolved_by=?,resolution_decision_id=?,resolved_at=?
+          WHERE id=? AND status='pending'`).run(a.userId,reviewId,now,appeal.id)
+        if(Number(resolved.changes)!==1)throw new AssetError(409,'TASK_APPEAL_CONFLICT')
+      }
+      if(correction)recordDecisionImpact(db,task,a,now,appeal?.id??key,appeal?'appeal.resolved':'decision.corrected',
+        {submission_id:submissionId,decision_id:reviewId,supersedes_id:supersedes,...(appeal?{appeal_id:appeal.id}:{})})
       const saved=db.prepare(correction?`SELECT ${correctionColumns} FROM task_review_corrections WHERE id=?`:
         'SELECT * FROM task_review_decisions WHERE id=?').get(reviewId) as unknown as ReviewRow
-      return {task:taskView(db,this.lookup(db,a,id,now)),review:reviewView(saved),replayed:false}
+      return {task:taskView(db,this.lookup(db,a,id,now)),review:reviewView(saved),...(appeal?{appeal:appealView(appealById(db,appeal.id)!)}:{}),replayed:false}
     })
     if(result instanceof AssetError)throw result
     return result

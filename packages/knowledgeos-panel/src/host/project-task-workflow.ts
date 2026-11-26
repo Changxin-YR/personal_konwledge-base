@@ -38,8 +38,8 @@ export function decideTaskWorkflow(task:TaskWorkflow, actor:TaskMember, action:A
   return finalOutcome(task,action)
 }
 
-export function decideTaskCorrection(task:TaskWorkflow,actor:TaskMember,action:ReviewAction):Decision {
-  if(task.kind!=='project_collaboration'||actor.role!=='admin'||actor.id===task.assignee)return {error:'NOT_FOUND'}
+export function decideTaskCorrection(task:TaskWorkflow,actor:TaskMember,action:ReviewAction,appeal=false):Decision {
+  if(task.kind==='personal'||!appeal&&task.kind!=='project_collaboration'||actor.role!=='admin'||actor.id===task.assignee)return {error:'NOT_FOUND'}
   if(action==='peer_pass'||action==='peer_return')return {error:'INVALID_TASK_INPUT'}
   if(!['accepted','failed','returned'].includes(task.state))return {error:'TASK_STATE_CONFLICT'}
   return finalOutcome(task,action)
@@ -61,6 +61,7 @@ export function submissionTiming(submittedAt:string,dueAt:string):'on_time'|'lat
 const validText=(value:unknown,limit:number)=>typeof value==='string'&&value.trim().length>0&&value.length<=limit&&
   !/[\p{Cf}\p{Cs}\x00-\x08\x0b-\x1f\x7f]/u.test(value)
 export const validTaskSubmission=(content:unknown):content is string=>validText(content,16000)
+export const validTaskAppeal=(reason:unknown):reason is string=>validText(reason,4000)
 
 export function validTaskReview(action:ReviewAction,criterionCount:number,input:TaskReview):boolean {
   if(!isTaskReviewAction(action)||!input||!Number.isSafeInteger(criterionCount)||criterionCount<1||criterionCount>20||

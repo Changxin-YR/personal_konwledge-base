@@ -7,6 +7,8 @@ import type { ProjectTaskStore } from './project-task-store.ts'
 import { isTaskReviewAction, type TaskReview } from './project-task-workflow.ts'
 
 export const taskApi = '/knowledge/v1/project-tasks'
+export const decisionApi = '/knowledge/v1/decisions'
+export const appealApi = '/knowledge/v1/appeals'
 const invalid = () => new AssetError(422,'INVALID_TASK_INPUT')
 const id = (v:unknown) => { if(typeof v!=='string'||!UUID_PATTERN.test(v))throw invalid();return v }
 const text = (v:unknown) => { if(typeof v!=='string')throw invalid();return v }
@@ -68,6 +70,20 @@ export function createProjectTaskHandler(store:ProjectTaskStore,origin:()=>strin
           url.searchParams.has('task_id')?id(url.searchParams.get('task_id')):undefined,req.headers['x-knowledgeos-material-view']==='1'))
       }
       if(url.search)throw invalid()
+      const appealRequest=/^\/knowledge\/v1\/decisions\/([^/]+)\/appeals$/.exec(path)
+      if(appealRequest&&method==='POST'){
+        const input=await body(req,['actor_id','expected_revision','reason'])
+        if(typeof input.expected_revision!=='number')throw invalid()
+        const result=store.requestAppeal(a,id(input.actor_id),id(appealRequest[1]),id(req.headers['idempotency-key']),input.expected_revision,input.reason)
+        return sendData(result.replayed?200:201,result)
+      }
+      const resolution=/^\/knowledge\/v1\/appeals\/([^/]+)\/resolution$/.exec(path)
+      if(resolution&&method==='POST'){
+        const input=await body(req,['actor_id','expected_revision','action','results','reason','requested_work'])
+        if(typeof input.expected_revision!=='number'||!isTaskReviewAction(input.action))throw invalid()
+        const result=store.resolveAppeal(a,id(input.actor_id),id(resolution[1]),id(req.headers['idempotency-key']),input.expected_revision,input.action,taskReview(input))
+        return sendData(result.replayed?200:201,result)
+      }
       if(path===taskApi+'/projects'&&method==='GET')return sendData(200,{projects:store.projects(a)})
       const project=/^\/knowledge\/v1\/project-tasks\/projects\/([^/]+)\/members$/.exec(path)
       if(project&&method==='GET')return sendData(200,{project:store.members(a,id(project[1]))})
