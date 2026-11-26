@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { AssetError } from './asset-store.ts'
 import type { SessionActor } from './identity.ts'
 import type { ParseTx } from './parse-store.ts'
-import { GitHubRepository, repositoryLimits, repositorySlug, type RepositoryEntry, type RepositoryIdentity, type RepositoryName, type RepositoryRef } from './github-repository.ts'
+import { GitHubRepository, repositoryBlobSha, repositoryLimits, repositorySlug, type RepositoryEntry, type RepositoryIdentity, type RepositoryName, type RepositoryRef } from './github-repository.ts'
 import { GitLabRepository } from './gitlab-repository.ts'
 import { GiteeRepository } from './gitee-repository.ts'
 
@@ -102,11 +102,12 @@ const summarize = (row: Omit<SnapshotRow, 'tree_json'>) => ({
 })
 
 const fileView = (row: Source, path: string, sha: string, bytes: Uint8Array) => {
+  if (repositoryBlobSha(bytes) !== sha) throw new AssetError(409, 'CODE_SOURCE_CHANGED')
   let text: string | null = null
   if (!bytes.includes(0)) {
     try { text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes) } catch { /* Binary, not executable or rendered. */ }
   }
-  return { path, sha, size: bytes.length, text,
+  return { path, sha, commit: row.commit_sha, size: bytes.length, text,
     source_url: sourceUrl(row, 'blob') + '/' + encodePath(path) }
 }
 
@@ -147,9 +148,9 @@ export class RepositoryStore {
     })
   }
 
-  file(session: SessionActor, id: string, path: string) {
+  file(session: SessionActor, id: string, path: string, expected = session.userId) {
     return this.tx('read', (db, now) => {
-      const row = this.row(db, this.actor(session, now), id)
+      const row = this.row(db, this.actor(session, now, expected), id)
       const saved = db.prepare('SELECT blob_sha,payload FROM repository_files WHERE snapshot_id=? AND path=?').get(id, path)
       if (!saved) throw hidden()
       return fileView(row, path, String(saved.blob_sha), saved.payload as Uint8Array)

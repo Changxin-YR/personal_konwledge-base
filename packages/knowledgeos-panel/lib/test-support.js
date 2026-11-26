@@ -305,7 +305,7 @@ var AiService = class {
     signal.addEventListener("abort", onAbort, { once: true });
     const timer = setTimeout(() => controller.abort(new AiError(504, "MODEL_TIMEOUT")), this.config.timeoutMs ?? 3e4);
     let usage;
-    let attempted = false;
+    let attempted = false, checkingAccess = false;
     try {
       const available2 = this.llm.listProviders().some((p) => p.id === this.config.provider);
       if (!available2) throw new AiError(503, "MODEL_NOT_CONFIGURED");
@@ -314,7 +314,9 @@ var AiService = class {
       const info = tools.length === 0 && this.llm.resolveModelInfo ? await this.#abortable(this.llm.resolveModelInfo(this.config.provider, this.config.model, controller.signal), controller.signal) : void 0;
       const canDisableThinking = info?.reasoning?.efforts.some((effort) => effort.id === "off") === true;
       const maxExplanationTokens = Math.min(1536, info?.defaultMaxTokens ?? 1536);
+      checkingAccess = true;
       authorize2?.();
+      checkingAccess = false;
       controller.signal.throwIfAborted();
       this.#calls++;
       attempted = true;
@@ -361,7 +363,7 @@ var AiService = class {
       return { finish, calls, text: text2, usage };
     } catch (error) {
       if (controller.signal.aborted) throw controller.signal.reason;
-      if (error instanceof AssetError) throw error;
+      if (checkingAccess || error instanceof AssetError) throw error;
       throw modelFailure(error);
     } finally {
       if (attempted) {
@@ -3961,11 +3963,14 @@ function parseRepositoryTree(row, sha4, directoryMode = "040000", verifyDigest =
   if (verifyDigest && validateRepositoryTree(seen) !== sha4) throw invalidRemote();
   return entries.map(({ mode: _mode, ...entry }) => entry);
 }
+function repositoryBlobSha(bytes) {
+  return createHash15("sha1").update("blob " + bytes.length + "\0").update(bytes).digest("hex");
+}
 function decodeRepositoryBlob(row, entry) {
   if (row.sha !== entry.sha || typeof row.size !== "number" || !Number.isSafeInteger(row.size) || row.size < 0 || row.encoding !== "base64" || typeof row.content !== "string") throw invalidRemote();
   if (row.size > repositoryLimits.blob) throw oversized();
   const encoded = row.content.replace(/\r?\n/g, ""), bytes = Buffer.from(encoded, "base64");
-  if (bytes.toString("base64") !== encoded || bytes.length !== row.size || entry.size !== null && entry.size !== bytes.length || createHash15("sha1").update("blob " + bytes.length + "\0").update(bytes).digest("hex") !== entry.sha) throw invalidRemote();
+  if (bytes.toString("base64") !== encoded || bytes.length !== row.size || entry.size !== null && entry.size !== bytes.length || repositoryBlobSha(bytes) !== entry.sha) throw invalidRemote();
   return bytes;
 }
 var GitHubRepository = class {
@@ -4232,6 +4237,7 @@ var summarize = (row) => ({
   source_url: sourceUrl2(row, "tree")
 });
 var fileView = (row, path, sha4, bytes) => {
+  if (repositoryBlobSha(bytes) !== sha4) throw new AssetError(409, "CODE_SOURCE_CHANGED");
   let text2 = null;
   if (!bytes.includes(0)) {
     try {
@@ -4242,6 +4248,7 @@ var fileView = (row, path, sha4, bytes) => {
   return {
     path,
     sha: sha4,
+    commit: row.commit_sha,
     size: bytes.length,
     text: text2,
     source_url: sourceUrl2(row, "blob") + "/" + encodePath(path)
@@ -4280,9 +4287,9 @@ var RepositoryStore = class {
       return { snapshot: summarize(row), entries, files };
     });
   }
-  file(session, id, path) {
+  file(session, id, path, expected = session.userId) {
     return this.tx("read", (db, now) => {
-      const row = this.row(db, this.actor(session, now), id);
+      const row = this.row(db, this.actor(session, now, expected), id);
       const saved = db.prepare("SELECT blob_sha,payload FROM repository_files WHERE snapshot_id=? AND path=?").get(id, path);
       if (!saved) throw hidden3();
       return fileView(row, path, String(saved.blob_sha), saved.payload);

@@ -1,4 +1,8 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { CodeExplanationError } from '../domain/code-explanation.ts'
+import type { AiService } from './ai-service.ts'
+import { AiError } from './ai-tools.ts'
+import { codeLocation, explainPinnedCode, readCodeCitation } from './repository-explanation.ts'
 import { AssetError } from './asset-store.ts'
 import { badRepository, isRepositoryPath, repositoryName, repositoryRef } from './github-repository.ts'
 import { gitLabName } from './gitlab-repository.ts'
@@ -9,8 +13,7 @@ import type { PeerScope } from './identity-peer.ts'
 import { credentialAlias, type RepositoryService } from './repository-store.ts'
 
 export const repositoryApi = '/knowledge/v1/repositories'
-const maximumBody = 4096
-async function body(req: IncomingMessage, fields: string[]): Promise<Record<string, unknown>> {
+async function body(req: IncomingMessage, fields: string[], maximumBody = 4096): Promise<Record<string, unknown>> {
   if (req.headers['content-type']?.split(';')[0] !== 'application/json') throw new AssetError(415, 'JSON_REQUIRED')
   if (Number(req.headers['content-length']) > maximumBody) throw new AssetError(413, 'BODY_TOO_LARGE')
   const chunks: Buffer[] = []
@@ -30,7 +33,7 @@ const pathValue = (value: unknown) => { if (!isRepositoryPath(value)) throw badR
 const names = { github: repositoryName, gitlab: gitLabName, gitee: giteeName }
 
 export function createRepositoryHandler(service: RepositoryService, origin: () => string | undefined,
-  actorFor: (req: IncomingMessage) => SessionActor | undefined, hostSignal: AbortSignal) {
+  actorFor: (req: IncomingMessage) => SessionActor | undefined, hostSignal: AbortSignal, ai: () => AiService) {
   return async (req: IncomingMessage, res: ServerResponse, peer?: PeerScope) => {
     const disconnected = new AbortController()
     const close = () => { if (!res.writableFinished) disconnected.abort() }
@@ -66,19 +69,40 @@ export function createRepositoryHandler(service: RepositoryService, origin: () =
             'path' in input ? pathValue(input.path) : undefined, platform)
           return result(saved.replayed ? 200 : 201, saved)
         }
-      } else if (url.pathname.startsWith(repositoryApi + '/') && (parts.length === 2 || parts.length === 3 && parts[2] === 'files')) {
+      } else if (parts.length === 3 && url.pathname.startsWith(repositoryApi + '/')) {
         const snapshot = id(parts[1])
-        if (method === 'GET' && parts.length === 2 && !url.search) return result(200, service.store.detail(actor, snapshot))
-        if (parts.length === 3 && method === 'GET' && url.searchParams.size === 1 && url.searchParams.has('path'))
+        if (parts[2] === 'explain' && method === 'POST' && !url.search) {
+          const input = await body(req, ['actor_id', 'path', 'commit', 'blob_sha', 'start_line', 'end_line', 'question'], 8192)
+          const current = () => {
+            const live = actorFor(req)
+            if (!live || live.sessionId !== actor.sessionId || live.userId !== actor.userId || live.serviceId !== actor.serviceId) throw new AssetError(401, 'AUTH_REQUIRED')
+            return live
+          }
+          const explanation = await explainPinnedCode(service.store, ai(), current, id(input.actor_id), snapshot, codeLocation(input), input.question, signal)
+          return result(200, { explanation })
+        }
+        if (parts[2] === 'citation' && method === 'GET') {
+          const keys = ['path', 'commit', 'blob_sha', 'start_line', 'end_line']
+          const query = url.searchParams
+          if (query.size !== keys.length || !keys.every(key => query.has(key))) throw badRepository()
+          const number = (key: string) => /^[1-9]\d{0,8}$/.test(query.get(key)!) ? Number(query.get(key)) : NaN
+          const location = codeLocation({ ...Object.fromEntries(query), start_line: number('start_line'), end_line: number('end_line') })
+          return result(200, { citation: readCodeCitation(service.store, actor, snapshot, location) })
+        }
+        if (parts[2] !== 'files') throw new AssetError(404, 'NOT_FOUND')
+        if (method === 'GET' && url.searchParams.size === 1 && url.searchParams.has('path'))
           return result(200, { file: service.store.file(actor, snapshot, pathValue(url.searchParams.get('path'))) })
-        if (parts.length === 3 && method === 'POST' && !url.search) {
+        if (method === 'POST' && !url.search) {
           const input = await body(req, ['actor_id', 'path'])
           return result(200, { file: await service.pin(actor, id(input.actor_id), snapshot, pathValue(input.path), signal) })
         }
+      } else if (parts.length === 2 && url.pathname.startsWith(repositoryApi + '/') && method === 'GET' && !url.search) {
+        return result(200, service.store.detail(actor, id(parts[1])))
       }
       throw new AssetError(404, 'NOT_FOUND')
     } catch (error) {
-      send(error instanceof AssetError ? error.status : 503, { code: error instanceof AssetError ? error.code : 'REPOSITORY_UNAVAILABLE' })
+      const known = error instanceof AssetError || error instanceof AiError || error instanceof CodeExplanationError
+      send(known ? error.status : 503, { code: known ? error.code : 'REPOSITORY_UNAVAILABLE' })
     } finally { res.off('close', close) }
   }
 }

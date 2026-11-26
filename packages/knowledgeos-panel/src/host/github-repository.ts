@@ -116,13 +116,17 @@ export function parseRepositoryTree(row: Record<string, unknown>, sha: string, d
   return entries.map(({ mode: _mode, ...entry }) => entry)
 }
 
+export function repositoryBlobSha(bytes: Uint8Array) {
+  return createHash('sha1').update('blob ' + bytes.length + '\0').update(bytes).digest('hex')
+}
+
 export function decodeRepositoryBlob(row: Record<string, unknown>, entry: RepositoryEntry): Buffer {
   if (row.sha !== entry.sha || typeof row.size !== 'number' || !Number.isSafeInteger(row.size) || row.size < 0 ||
       row.encoding !== 'base64' || typeof row.content !== 'string') throw invalidRemote()
   if (row.size > repositoryLimits.blob) throw oversized()
   const encoded = row.content.replace(/\r?\n/g, ''), bytes = Buffer.from(encoded, 'base64')
   if (bytes.toString('base64') !== encoded || bytes.length !== row.size || (entry.size !== null && entry.size !== bytes.length) ||
-      createHash('sha1').update('blob ' + bytes.length + '\0').update(bytes).digest('hex') !== entry.sha) throw invalidRemote()
+      repositoryBlobSha(bytes) !== entry.sha) throw invalidRemote()
   return bytes
 }
 

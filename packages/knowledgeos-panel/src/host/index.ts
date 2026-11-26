@@ -332,7 +332,7 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
           (await ctx.get('credentials')?.resolve(ref))?.value)
         disposers.push(() => repositoryScope.abort())
         disposers.push(identityContext.webServer.register({kind:'prefix',path:repositoryApi,auth:'anonymous',
-          handler:withPeer(createRepositoryHandler(repositories,actualOrigin,sessionFor,repositoryScope.signal))}))
+          handler:withPeer(createRepositoryHandler(repositories,actualOrigin,sessionFor,repositoryScope.signal,()=>ai))}))
         disposers.push(identityContext.webServer.register({kind:'exact',path:'/knowledgeos/repositories',auth:'anonymous',handler:(req,res)=>{
           if(req.method!=='GET'){res.writeHead(405,{allow:'GET'});res.end();return}
           const nonce=randomUUID()

@@ -119,7 +119,7 @@ export class AiService {
     signal.addEventListener('abort', onAbort, { once: true })
     const timer = setTimeout(() => controller.abort(new AiError(504, 'MODEL_TIMEOUT')), this.config.timeoutMs ?? 30_000)
     let usage: unknown
-    let attempted = false
+    let attempted = false, checkingAccess = false
     try {
       const available = this.llm.listProviders().some(p => p.id === this.config.provider)
       if (!available) throw new AiError(503, 'MODEL_NOT_CONFIGURED')
@@ -132,7 +132,9 @@ export class AiService {
         : undefined
       const canDisableThinking = info?.reasoning?.efforts.some(effort => effort.id === 'off') === true
       const maxExplanationTokens = Math.min(1536, info?.defaultMaxTokens ?? 1536)
+      checkingAccess = true
       authorize?.()
+      checkingAccess = false
       controller.signal.throwIfAborted()
       this.#calls++; attempted = true
       const calls: ToolCall[] = []
@@ -167,7 +169,8 @@ export class AiService {
       return { finish, calls, text, usage }
     } catch (error: unknown) {
       if (controller.signal.aborted) throw controller.signal.reason
-      if (error instanceof AssetError) throw error
+      // An error from the local access/version check is not a provider failure.
+      if (checkingAccess || error instanceof AssetError) throw error
       throw modelFailure(error)
     }
     finally {
