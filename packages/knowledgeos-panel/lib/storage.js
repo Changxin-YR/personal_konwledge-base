@@ -1,7 +1,7 @@
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash18, randomUUID as randomUUID18 } from "node:crypto";
+import { createHash as createHash19, randomUUID as randomUUID19 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -383,11 +383,11 @@ var SearchStore = class {
     if (!current) throw new AssetError(401, "AUTH_REQUIRED");
     return current;
   }
-  indexed(hash4, text2) {
-    const hit = this.cache.get(hash4);
+  indexed(hash5, text2) {
+    const hit = this.cache.get(hash5);
     if (hit) {
-      this.cache.delete(hash4);
-      this.cache.set(hash4, hit);
+      this.cache.delete(hash5);
+      this.cache.set(hash5, hit);
       return hit.index;
     }
     const index = indexSearchText(text2), weight = index.ranges.length;
@@ -397,7 +397,7 @@ var SearchStore = class {
       this.weight -= this.cache.get(key).weight;
       this.cache.delete(key);
     }
-    this.cache.set(hash4, { index, weight });
+    this.cache.set(hash5, { index, weight });
     this.weight += weight;
     return index;
   }
@@ -1084,8 +1084,8 @@ import { createHash as createHash5 } from "node:crypto";
 function citationAnchor(text2, start, end) {
   const split = (n) => n > 0 && n < text2.length && text2.charCodeAt(n - 1) >= 55296 && text2.charCodeAt(n - 1) <= 56319 && text2.charCodeAt(n) >= 56320 && text2.charCodeAt(n) <= 57343;
   if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end <= start || end > text2.length || split(start) || split(end)) throw new AssetError(422, "INVALID_CITATION_RANGE");
-  const quote = text2.slice(start, end), hash4 = (s) => createHash5("sha256").update(s, "utf8").digest("hex");
-  return { start, end, quote_hash: hash4(quote), source_hash: hash4(text2) };
+  const quote = text2.slice(start, end), hash5 = (s) => createHash5("sha256").update(s, "utf8").digest("hex");
+  return { start, end, quote_hash: hash5(quote), source_hash: hash5(text2) };
 }
 function resolveCitationText(text2, anchor) {
   const digest3 = createHash5("sha256").update(text2, "utf8").digest("hex");
@@ -2488,14 +2488,326 @@ var OntologyStore = class {
   }
 };
 
+// src/host/practice-store.ts
+import { createHash as createHash12, randomUUID as randomUUID14 } from "node:crypto";
+
+// src/host/practice-policy.ts
+var fillRule = "nfkc-space-case-v1";
+var exactRule = "exact-v1";
+function normalizeFill(answer) {
+  return answer.normalize("NFKC").trim().replace(/\s+/gu, " ").toLowerCase();
+}
+function scoreAnswer(kind, answer, accepted) {
+  if (kind === "fill") {
+    return typeof answer === "string" && accepted.some((value) => normalizeFill(String(value)) === normalizeFill(answer)) ? "correct" : "disputed";
+  }
+  return answer === accepted[0] ? "correct" : "incorrect";
+}
+
+// src/host/practice-store.ts
+var PRACTICE_SCHEMA = `
+CREATE TABLE questions (
+  id TEXT PRIMARY KEY, service_id TEXT NOT NULL REFERENCES service_identity(service_id),
+  author_id TEXT NOT NULL REFERENCES users(id), project_id TEXT REFERENCES knowledge_projects(id),
+  current_version_id TEXT NOT NULL, created_at TEXT NOT NULL, request_key TEXT NOT NULL, request_digest TEXT NOT NULL CHECK(length(request_digest)=64),
+  FOREIGN KEY(id,current_version_id) REFERENCES question_versions(question_id,id) DEFERRABLE INITIALLY DEFERRED,
+  UNIQUE(service_id,author_id,request_key)
+) STRICT;
+CREATE INDEX question_service ON questions(service_id,project_id,created_at,id);
+CREATE TABLE question_versions (
+  id TEXT PRIMARY KEY, question_id TEXT NOT NULL REFERENCES questions(id), version INTEGER NOT NULL CHECK(version>=1),
+  kind TEXT NOT NULL CHECK(kind IN ('choice','judgment','fill')), prompt TEXT NOT NULL,
+  options_json TEXT NOT NULL, answers_json TEXT NOT NULL, explanation TEXT NOT NULL, evidence_json TEXT NOT NULL,
+  citation_id TEXT NOT NULL REFERENCES citations(id), grading_rule TEXT NOT NULL,
+  created_by TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL,
+  UNIQUE(question_id,version), UNIQUE(question_id,id)
+) STRICT;
+CREATE TABLE practice_sessions (
+  id TEXT PRIMARY KEY, service_id TEXT NOT NULL REFERENCES service_identity(service_id),
+  user_id TEXT NOT NULL REFERENCES users(id), started_at TEXT NOT NULL, request_key TEXT NOT NULL,
+  request_digest TEXT NOT NULL CHECK(length(request_digest)=64),
+  UNIQUE(service_id,user_id,request_key), UNIQUE(id,service_id,user_id)
+) STRICT;
+CREATE INDEX practice_owner ON practice_sessions(service_id,user_id,started_at,id);
+CREATE TABLE practice_session_questions (
+  session_id TEXT NOT NULL REFERENCES practice_sessions(id), question_version_id TEXT NOT NULL REFERENCES question_versions(id),
+  position INTEGER NOT NULL CHECK(position>=0), PRIMARY KEY(session_id,question_version_id), UNIQUE(session_id,position)
+) STRICT;
+CREATE TABLE practice_attempts (
+  id TEXT PRIMARY KEY, session_id TEXT NOT NULL, question_version_id TEXT NOT NULL,
+  service_id TEXT NOT NULL, user_id TEXT NOT NULL, sequence INTEGER NOT NULL CHECK(sequence>=1),
+  answer_json TEXT NOT NULL, confidence TEXT NOT NULL CHECK(confidence IN ('sure','unsure')),
+  grading_state TEXT NOT NULL CHECK(grading_state IN ('correct','incorrect','disputed')),
+  independent INTEGER NOT NULL CHECK(independent IN (0,1)), submitted_at TEXT NOT NULL,
+  FOREIGN KEY(session_id,question_version_id) REFERENCES practice_session_questions(session_id,question_version_id),
+  FOREIGN KEY(session_id,service_id,user_id) REFERENCES practice_sessions(id,service_id,user_id),
+  UNIQUE(session_id,question_version_id,sequence), UNIQUE(id,service_id,user_id)
+) STRICT;
+CREATE INDEX practice_answer_exposure ON practice_attempts(service_id,user_id,question_version_id);
+CREATE TABLE practice_attempt_receipts (
+  service_id TEXT NOT NULL, user_id TEXT NOT NULL, request_key TEXT NOT NULL, digest TEXT NOT NULL CHECK(length(digest)=64),
+  attempt_id TEXT NOT NULL, FOREIGN KEY(attempt_id,service_id,user_id) REFERENCES practice_attempts(id,service_id,user_id),
+  PRIMARY KEY(service_id,user_id,request_key)
+) STRICT;
+`;
+var hash4 = (value) => createHash12("sha256").update(JSON.stringify(value)).digest("hex");
+var missingQuestion = () => new AssetError(404, "QUESTION_NOT_FOUND");
+var missingPractice = () => new AssetError(404, "PRACTICE_NOT_FOUND");
+var conflict3 = () => new AssetError(409, "IDEMPOTENCY_CONFLICT");
+var gradingExplanation = {
+  [exactRule]: "\u6309\u5F53\u524D\u9898\u76EE\u7248\u672C\u7684\u56FA\u5B9A\u6807\u51C6\u7B54\u6848\u5224\u5206\u3002",
+  [fillRule]: "\u6309 NFKC \u89C4\u8303\u5316\u3001\u5408\u5E76\u7A7A\u767D\u5E76\u5FFD\u7565\u5927\u5C0F\u5199\u540E\u4E0E\u4FDD\u5B58\u7684\u7B54\u6848\u9010\u4E00\u6BD4\u8F83\uFF0C\u672A\u5339\u914D\u7684\u8868\u8FBE\u7B49\u5F85\u590D\u6838\u3002"
+};
+var PracticeStore = class {
+  constructor(tx, current, canUseProject, citations) {
+    this.tx = tx;
+    this.current = current;
+    this.canUseProject = canUseProject;
+    this.citations = citations;
+  }
+  actor(prior, now) {
+    const actor = this.current(prior, now);
+    if (!actor) throw new AssetError(401, "AUTH_REQUIRED");
+    return actor;
+  }
+  visible(actor, question, now) {
+    return question.project_id ? this.canUseProject(actor, question.project_id, now) : question.author_id === actor.userId;
+  }
+  version(db, id) {
+    const row = db.prepare("SELECT * FROM question_versions WHERE id=?").get(id);
+    if (!row) throw missingQuestion();
+    return row;
+  }
+  source(db, actor, version, now) {
+    const pinned = JSON.parse(version.evidence_json);
+    try {
+      this.citations.checkStoredSelection(db, actor, pinned, now);
+      return pinned;
+    } catch (error) {
+      if (error instanceof AssetError && (error.status === 404 || error.status === 409)) throw missingQuestion();
+      throw error;
+    }
+  }
+  learner(question, version) {
+    return {
+      id: question.id,
+      version_id: version.id,
+      version: version.version,
+      kind: version.kind,
+      prompt: version.prompt,
+      options: JSON.parse(version.options_json),
+      project_id: question.project_id,
+      author_id: question.author_id
+    };
+  }
+  feedback(version, citation) {
+    const accepted = JSON.parse(version.answers_json);
+    return {
+      accepted_answer: version.kind === "fill" ? accepted : accepted[0],
+      explanation: version.explanation,
+      grading_rule: version.grading_rule,
+      grading_basis: gradingExplanation[version.grading_rule],
+      evidence: { ...citation, href: "/knowledgeos/reader?" + new URLSearchParams({ asset: citation.asset_id, version: citation.version_id, citation: citation.id }) }
+    };
+  }
+  accessVersion(db, actor, id, now) {
+    const version = this.version(db, id);
+    const question = db.prepare("SELECT * FROM questions WHERE id=? AND service_id=?").get(version.question_id, actor.serviceId);
+    if (!question || !this.visible(actor, question, now)) throw missingQuestion();
+    return { question, version, citation: this.source(db, actor, version, now) };
+  }
+  catalog(prior) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(prior, now);
+      const rows = db.prepare("SELECT * FROM questions WHERE service_id=? AND (author_id=? OR project_id IS NOT NULL) ORDER BY created_at DESC,id").all(actor.serviceId, actor.userId);
+      const questions = rows.flatMap((question) => {
+        if (!this.visible(actor, question, now)) return [];
+        const version = this.version(db, question.current_version_id);
+        try {
+          this.source(db, actor, version, now);
+          return [this.learner(question, version)];
+        } catch (error) {
+          if (error instanceof AssetError && error.status === 404) return [];
+          throw error;
+        }
+      });
+      const projects = db.prepare("SELECT id,name AS title FROM knowledge_projects WHERE service_id=? AND status='active' ORDER BY name,id").all(actor.serviceId).filter((project) => this.canUseProject(actor, String(project.id), now));
+      return { questions, projects };
+    });
+  }
+  authored(prior, id) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(prior, now);
+      const row = db.prepare("SELECT current_version_id FROM questions WHERE id=? AND service_id=? AND author_id=?").get(id, actor.serviceId, actor.userId);
+      if (!row) throw missingQuestion();
+      const { question, version, citation } = this.accessVersion(db, actor, String(row.current_version_id), now);
+      return { question: this.learner(question, version), feedback: this.feedback(version, citation) };
+    });
+  }
+  createQuestion(prior, key, draft) {
+    return this.tx("write", (db, now) => {
+      const actor = this.actor(prior, now), digest3 = hash4(draft);
+      const old = db.prepare("SELECT * FROM questions WHERE service_id=? AND author_id=? AND request_key=?").get(actor.serviceId, actor.userId, key);
+      if (old) {
+        const { question: question2, version } = this.accessVersion(db, actor, old.current_version_id, now);
+        if (old.request_digest !== digest3) throw conflict3();
+        return { question: this.learner(question2, version), replayed: true };
+      }
+      if (draft.project_id && !this.canUseProject(actor, draft.project_id, now)) throw missingQuestion();
+      const citation = this.citations.knowledgeSource(db, actor, draft.source_citation_id, now);
+      const id = randomUUID14(), versionId = randomUUID14();
+      db.prepare("INSERT INTO questions VALUES(?,?,?,?,?,?,?,?)").run(id, actor.serviceId, actor.userId, draft.project_id, versionId, now, key, digest3);
+      db.prepare("INSERT INTO question_versions VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run(
+        versionId,
+        id,
+        1,
+        draft.kind,
+        draft.prompt,
+        JSON.stringify(draft.options),
+        JSON.stringify(draft.accepted),
+        draft.explanation,
+        JSON.stringify(citation),
+        citation.id,
+        draft.kind === "fill" ? fillRule : exactRule,
+        actor.userId,
+        now
+      );
+      const question = { id, author_id: actor.userId, project_id: draft.project_id, current_version_id: versionId, request_digest: digest3 };
+      return { question: this.learner(question, this.version(db, versionId)), replayed: false };
+    });
+  }
+  practice(db, actor, id) {
+    const row = db.prepare("SELECT id,started_at,request_digest FROM practice_sessions WHERE id=? AND service_id=? AND user_id=?").get(id, actor.serviceId, actor.userId);
+    if (!row) throw missingPractice();
+    return row;
+  }
+  inSession(db, actor, id, now) {
+    return db.prepare("SELECT question_version_id FROM practice_session_questions WHERE session_id=? ORDER BY position").all(id).map((row) => this.accessVersion(db, actor, String(row.question_version_id), now));
+  }
+  session(row) {
+    return { id: row.id, started_at: row.started_at };
+  }
+  listSessions(prior) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(prior, now);
+      const rows = db.prepare("SELECT id,started_at,request_digest FROM practice_sessions WHERE service_id=? AND user_id=? ORDER BY started_at DESC,id").all(actor.serviceId, actor.userId);
+      return rows.flatMap((row) => {
+        try {
+          const questions = this.inSession(db, actor, row.id, now);
+          return [{ ...this.session(row), count: questions.length, title: questions[0]?.version.prompt }];
+        } catch (error) {
+          if (error instanceof AssetError && error.status === 404) return [];
+          throw error;
+        }
+      });
+    });
+  }
+  createSession(prior, key, versions) {
+    return this.tx("write", (db, now) => {
+      const actor = this.actor(prior, now), digest3 = hash4(versions);
+      const old = db.prepare("SELECT id,started_at,request_digest FROM practice_sessions WHERE service_id=? AND user_id=? AND request_key=?").get(actor.serviceId, actor.userId, key);
+      if (old) {
+        this.inSession(db, actor, old.id, now);
+        if (old.request_digest !== digest3) throw conflict3();
+        return { session: this.session(old), replayed: true };
+      }
+      for (const id2 of versions) this.accessVersion(db, actor, id2, now);
+      const id = randomUUID14();
+      db.prepare("INSERT INTO practice_sessions VALUES(?,?,?,?,?,?)").run(id, actor.serviceId, actor.userId, now, key, digest3);
+      const add = db.prepare("INSERT INTO practice_session_questions VALUES(?,?,?)");
+      versions.forEach((version, i) => add.run(id, version, i));
+      return { session: this.session({ id, started_at: now, request_digest: digest3 }), replayed: false };
+    });
+  }
+  attempt(row) {
+    return {
+      id: row.id,
+      question_version_id: row.question_version_id,
+      sequence: row.sequence,
+      answer: JSON.parse(row.answer_json),
+      confidence: row.confidence,
+      grading_state: row.grading_state,
+      independent: row.independent === 1,
+      submitted_at: row.submitted_at
+    };
+  }
+  attempts(db, session, version) {
+    return db.prepare("SELECT * FROM practice_attempts WHERE session_id=? AND question_version_id=? ORDER BY sequence").all(session, version);
+  }
+  questions(prior, id) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(prior, now), practice = this.practice(db, actor, id);
+      const questions = this.inSession(db, actor, practice.id, now).map(({ question, version, citation }) => {
+        const attempts = this.attempts(db, id, version.id);
+        return {
+          ...this.learner(question, version),
+          attempts: attempts.map((row) => this.attempt(row)),
+          feedback: attempts.length ? this.feedback(version, citation) : null
+        };
+      });
+      return { session: this.session(practice), questions };
+    });
+  }
+  submit(prior, key, id, input) {
+    return this.tx("write", (db, now) => {
+      const actor = this.actor(prior, now), practice = this.practice(db, actor, id);
+      const authorized = this.inSession(db, actor, practice.id, now).find((item) => item.version.id === input.question_version_id);
+      if (!authorized) throw missingQuestion();
+      const { question, version, citation } = authorized;
+      const digest3 = hash4([id, input]);
+      const priorReceipt = db.prepare("SELECT attempt_id,digest FROM practice_attempt_receipts WHERE service_id=? AND user_id=? AND request_key=?").get(actor.serviceId, actor.userId, key);
+      if (priorReceipt) {
+        if (priorReceipt.digest !== digest3) throw conflict3();
+        const old = db.prepare("SELECT * FROM practice_attempts WHERE id=? AND session_id=? AND service_id=? AND user_id=? AND question_version_id=?").get(String(priorReceipt.attempt_id), id, actor.serviceId, actor.userId, version.id);
+        if (!old) throw missingPractice();
+        return { attempt: this.attempt(old), feedback: this.feedback(version, citation), replayed: true };
+      }
+      const { answer, confidence } = input;
+      if (version.kind === "choice" && (typeof answer !== "number" || !Number.isInteger(answer) || answer < 1 || answer > JSON.parse(version.options_json).length) || version.kind === "judgment" && typeof answer !== "boolean" || version.kind === "fill" && (typeof answer !== "string" || !normalizeFill(answer)))
+        throw new AssetError(422, "INVALID_PRACTICE_ANSWER");
+      const last = db.prepare("SELECT max(sequence) AS last FROM practice_attempts WHERE session_id=? AND question_version_id=?").get(id, version.id);
+      const sequence = Number(last?.last ?? 0);
+      if (sequence !== input.expected_sequence || sequence >= Number.MAX_SAFE_INTEGER) throw new AssetError(409, "ATTEMPT_SEQUENCE_CONFLICT");
+      const exposure = db.prepare("SELECT 1 FROM practice_attempts WHERE service_id=? AND user_id=? AND question_version_id=? LIMIT 1").get(actor.serviceId, actor.userId, version.id);
+      const accepted = JSON.parse(version.answers_json);
+      const row = {
+        id: randomUUID14(),
+        session_id: id,
+        question_version_id: version.id,
+        sequence: sequence + 1,
+        submitted_at: now,
+        answer_json: JSON.stringify(answer),
+        confidence,
+        grading_state: scoreAnswer(version.kind, answer, accepted),
+        independent: !exposure && question.author_id !== actor.userId ? 1 : 0
+      };
+      db.prepare("INSERT INTO practice_attempts VALUES(?,?,?,?,?,?,?,?,?,?,?)").run(
+        row.id,
+        id,
+        version.id,
+        actor.serviceId,
+        actor.userId,
+        row.sequence,
+        row.answer_json,
+        confidence,
+        row.grading_state,
+        row.independent,
+        now
+      );
+      db.prepare("INSERT INTO practice_attempt_receipts VALUES(?,?,?,?,?)").run(actor.serviceId, actor.userId, key, digest3, row.id);
+      return { attempt: this.attempt(row), feedback: this.feedback(version, citation), replayed: false };
+    });
+  }
+};
+
 // src/host/repository-store.ts
-import { randomUUID as randomUUID14 } from "node:crypto";
+import { randomUUID as randomUUID15 } from "node:crypto";
 
 // src/host/github-repository.ts
-import { createHash as createHash13 } from "node:crypto";
+import { createHash as createHash14 } from "node:crypto";
 
 // src/host/repository-tree.ts
-import { createHash as createHash12 } from "node:crypto";
+import { createHash as createHash13 } from "node:crypto";
 function treeDigest(entries) {
   const sorted = entries.map((entry) => {
     const name = entry.path.slice(entry.path.lastIndexOf("/") + 1);
@@ -2505,7 +2817,7 @@ function treeDigest(entries) {
     Buffer.from(entry.mode.replace(/^0/, "") + " " + name + "\0"),
     Buffer.from(entry.sha, "hex")
   ]));
-  return createHash12("sha1").update("tree " + bytes.length + "\0").update(bytes).digest("hex");
+  return createHash13("sha1").update("tree " + bytes.length + "\0").update(bytes).digest("hex");
 }
 function validateRepositoryTree(entries) {
   const children = /* @__PURE__ */ new Map();
@@ -2622,7 +2934,7 @@ function decodeRepositoryBlob(row, entry) {
   if (row.sha !== entry.sha || typeof row.size !== "number" || !Number.isSafeInteger(row.size) || row.size < 0 || row.encoding !== "base64" || typeof row.content !== "string") throw invalidRemote();
   if (row.size > repositoryLimits.blob) throw oversized();
   const encoded = row.content.replace(/\r?\n/g, ""), bytes = Buffer.from(encoded, "base64");
-  if (bytes.toString("base64") !== encoded || bytes.length !== row.size || entry.size !== null && entry.size !== bytes.length || createHash13("sha1").update("blob " + bytes.length + "\0").update(bytes).digest("hex") !== entry.sha) throw invalidRemote();
+  if (bytes.toString("base64") !== encoded || bytes.length !== row.size || entry.size !== null && entry.size !== bytes.length || createHash14("sha1").update("blob " + bytes.length + "\0").update(bytes).digest("hex") !== entry.sha) throw invalidRemote();
   return bytes;
 }
 var GitHubRepository = class {
@@ -2966,7 +3278,7 @@ var RepositoryStore = class {
       if (Number(db.prepare("SELECT count(*) AS total FROM repository_snapshots WHERE service_id=? AND owner_id=?").get(serviceId, userId)?.total) >= 25)
         throw new AssetError(409, "REPOSITORY_SNAPSHOT_QUOTA");
       const row = {
-        id: randomUUID14(),
+        id: randomUUID15(),
         platform,
         remote_id: remote.id,
         owner_name: remote.owner,
@@ -3023,7 +3335,7 @@ var RepositoryStore = class {
 };
 
 // src/host/project-task-store.ts
-import { createHash as createHash14, randomUUID as randomUUID15 } from "node:crypto";
+import { createHash as createHash15, randomUUID as randomUUID16 } from "node:crypto";
 
 // src/host/project-task-policy.ts
 var unacceptable = /[\p{Cf}\p{Cs}\x00-\x08\x0b-\x1f\x7f]/u;
@@ -3188,7 +3500,7 @@ var appealView = (r) => ({
   resolution_decision_id: r.resolution_decision_id,
   resolved_at: r.resolved_at
 });
-var requestDigest = (value) => createHash14("sha256").update(JSON.stringify(value)).digest("hex");
+var requestDigest = (value) => createHash15("sha256").update(JSON.stringify(value)).digest("hex");
 var workflow = (t) => ({
   kind: t.task_kind,
   assignee: t.assignee_id,
@@ -3283,7 +3595,7 @@ var transition = (task, a, action, correction = false, appeal = false) => {
   return next.state;
 };
 function recordDecisionImpact(db, task, actor, now, correlation, event, payload) {
-  const eventId = randomUUID15(), revision = task.revision + 1, recalculation = event !== "appeal.opened";
+  const eventId = randomUUID16(), revision = task.revision + 1, recalculation = event !== "appeal.opened";
   if (recalculation) db.prepare(`INSERT INTO task_decision_impacts(task_id,task_revision,recalculation_required,updated_at) VALUES(?,?,1,?)
     ON CONFLICT(task_id) DO UPDATE SET task_revision=excluded.task_revision,recalculation_required=1,updated_at=excluded.updated_at`).run(task.id, revision, now);
   const causation = event === "appeal.resolved" ? db.prepare(`SELECT event_id FROM domain_events WHERE aggregate_type='project_task'
@@ -3357,7 +3669,7 @@ var ProjectTaskStore = class {
           WHERE i.service_id=? AND (i.project_id=? OR o.project_id=?))`).run(now, memberId, a.serviceId, projectId, projectId);
       db.prepare(`UPDATE resource_grants SET revoked_at=? WHERE service_id=? AND subject_type='user' AND subject_id=? AND revoked_at IS NULL
         AND resource_type='knowledge_object' AND resource_id IN (SELECT id FROM knowledge_objects WHERE project_id=?)`).run(now, a.serviceId, memberId, projectId);
-      db.prepare("INSERT INTO project_membership_removals VALUES(?,?,?,?,?)").run(randomUUID15(), projectId, memberId, a.userId, now);
+      db.prepare("INSERT INTO project_membership_removals VALUES(?,?,?,?,?)").run(randomUUID16(), projectId, memberId, a.userId, now);
       return { removed: true };
     });
   }
@@ -3448,7 +3760,7 @@ var ProjectTaskStore = class {
   assign(s, expected, projectId, key, d) {
     if (!validTaskDraft(d)) throw invalid3();
     const title = d.title.trim(), goal = d.goal.trim(), items = clean(d.criteria), peer = d.peer_reviewer_id ?? null;
-    const digest3 = createHash14("sha256").update(JSON.stringify([projectId, title, goal, d.due_at, d.assignee_id, d.final_reviewer_id, peer, items])).digest("hex");
+    const digest3 = createHash15("sha256").update(JSON.stringify([projectId, title, goal, d.due_at, d.assignee_id, d.final_reviewer_id, peer, items])).digest("hex");
     return this.tx("write", (db, now) => {
       const a = this.actor(s, now, expected), project = projectId === null ? null : this.project(db, a, projectId, now);
       if (project && project.row.owner_user_id !== a.userId) throw hidden4();
@@ -3459,7 +3771,7 @@ var ProjectTaskStore = class {
       }
       const decision = decideAssignment(d, { id: a.userId, role: a.role }, project && this.participants(db, a, project.active), now);
       if ("error" in decision) throw new AssetError(decision.error === "TASK_MEMBER_UNAVAILABLE" ? 409 : 422, decision.error);
-      const id = randomUUID15();
+      const id = randomUUID16();
       db.prepare(`INSERT INTO tasks(id,service_id,project_id,issuer_id,personal_space_id,assignee_id,task_kind,title,goal,due_at,final_reviewer_id,
         peer_reviewer_id,criteria_revision,current_state,revision,issued_at,updated_at,request_key,request_digest) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,'assigned',1,?,?,?,?)`).run(id, a.serviceId, projectId, a.userId, projectId === null ? a.personalSpaceId : null, d.assignee_id, decision.kind, title, goal, d.due_at, d.final_reviewer_id, peer, now, now, key, digest3);
       db.prepare("INSERT INTO task_criteria_versions VALUES(?,1,?,'next_submission',?,?)").run(id, JSON.stringify(items), a.userId, now);
@@ -3539,7 +3851,7 @@ var ProjectTaskStore = class {
       if (!hasFormalDecision(task.current_state) || current?.id !== decisionId) throw new AssetError(409, "TASK_REVIEW_CONFLICT");
       if (pendingAppeal(db, task.id) || db.prepare("SELECT 1 FROM task_appeals WHERE against_review_id=? OR against_correction_id=?").get(decisionId, decisionId))
         throw new AssetError(409, "TASK_APPEAL_CONFLICT");
-      const appealId = randomUUID15();
+      const appealId = randomUUID16();
       db.prepare(`INSERT INTO task_appeals(id,task_id,submission_id,requester_id,reason,against_review_id,against_correction_id,
         status,requested_at,request_key,request_digest) VALUES(?,?,?,?,?,?,?,'pending',?,?,?)`).run(appealId, task.id, submission.id, a.userId, text2, current.correction ? null : current.id, current.correction ? current.id : null, now, key, digest3);
       advance(db, task, task.current_state, now);
@@ -3586,7 +3898,7 @@ var ProjectTaskStore = class {
       }
       const version = (previous?.version ?? 0) + 1;
       if (version > 50) throw new AssetError(409, "TASK_SUBMISSION_LIMIT");
-      const submissionId = randomUUID15();
+      const submissionId = randomUUID16();
       db.prepare(`INSERT INTO task_submissions(id,task_id,version,criteria_version,author_id,content,submitted_at,previous_version,request_key,request_digest)
         VALUES(?,?,?,?,?,?,?,?,?,?)`).run(submissionId, id, version, task.criteria_revision, a.userId, normalized, now, previous?.version ?? null, key, digest3);
       const saved = latestSubmission(db, id);
@@ -3636,7 +3948,7 @@ var ProjectTaskStore = class {
       const pending = pendingAppeal(db, id);
       if (pending && pending.id !== appeal?.id) throw new AssetError(409, "TASK_APPEAL_PENDING");
       if (appeal && appeal.status !== "pending") throw new AssetError(409, "TASK_APPEAL_CONFLICT");
-      const state = transition(task, a, action, correction, Boolean(appeal)), reviewId = randomUUID15();
+      const state = transition(task, a, action, correction, Boolean(appeal)), reviewId = randomUUID16();
       if (correction) {
         const current = latestFormalReview(db, submissionId);
         if (!current || current.id !== supersedes) throw new AssetError(409, "TASK_REVIEW_CONFLICT");
@@ -3753,11 +4065,11 @@ CREATE TABLE task_decision_impacts (
 `;
 
 // src/host/recall-store.ts
-import { createHash as createHash16, randomUUID as randomUUID16 } from "node:crypto";
+import { createHash as createHash17, randomUUID as randomUUID17 } from "node:crypto";
 
 // src/host/recall-range.ts
-import { createHash as createHash15 } from "node:crypto";
-var digest = (text2) => createHash15("sha256").update(text2, "utf8").digest("hex");
+import { createHash as createHash16 } from "node:crypto";
+var digest = (text2) => createHash16("sha256").update(text2, "utf8").digest("hex");
 var invalid4 = () => new AssetError(422, "INVALID_RECALL_RANGE");
 var changed = () => new AssetError(409, "RECALL_SOURCE_CHANGED");
 var available = (text2) => {
@@ -3855,7 +4167,7 @@ CREATE TABLE recall_events (
   CHECK(event IN ('move','hint','reveal','recall','rating'))
 ) STRICT;
 CREATE INDEX recall_events_groups ON recall_events(material_id,event,value);`;
-var sha3 = (text2) => createHash16("sha256").update(text2).digest("hex");
+var sha3 = (text2) => createHash17("sha256").update(text2).digest("hex");
 var invalid5 = () => new AssetError(422, "INVALID_RECALL");
 var notFound4 = () => new AssetError(404, "RECALL_NOT_FOUND");
 var point2 = (t, ordinal) => ({ asset_id: t.asset_id, version_id: t.version_id, ordinal, ...t.conversion_id ? { conversion_id: t.conversion_id } : {} });
@@ -3943,7 +4255,7 @@ var RecallStore = class {
       if (!draft.title.trim() || draft.title.length > 200 || !draft.masks.length) throw invalid5();
       const first = this.source(db, a, point2(draft, draft.first.ordinal), now);
       const read = (n) => n === first.ordinal ? first.text : this.source(db, a, point2(draft, n), now).text;
-      const segments = recallSelection(draft.first, draft.last, draft.interior_hashes, first.total, read), masks = recallMasks(segments, draft.masks, read), id = randomUUID16();
+      const segments = recallSelection(draft.first, draft.last, draft.interior_hashes, first.total, read), masks = recallMasks(segments, draft.masks, read), id = randomUUID17();
       const m = { id, title: draft.title, asset_id: draft.asset_id, version_id: draft.version_id, conversion_id: draft.conversion_id ?? null };
       db.prepare("INSERT INTO recall_materials VALUES(?,?,?,?,?,?,?,?,?,?)").run(id, a.userId, a.serviceId, m.asset_id, m.version_id, m.conversion_id, m.title, now, key, digest3);
       const insert = db.prepare("INSERT INTO recall_segments VALUES(?,?,?,?,?)");
@@ -3982,7 +4294,7 @@ var RecallStore = class {
 };
 
 // src/host/invitation-store.ts
-import { createHash as createHash17, randomBytes, randomUUID as randomUUID17 } from "node:crypto";
+import { createHash as createHash18, randomBytes, randomUUID as randomUUID18 } from "node:crypto";
 var INVITATION_SCHEMA = `CREATE TABLE invitations (
   id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE CHECK(length(token_hash)=64),
   service_id TEXT NOT NULL, issuer_id TEXT NOT NULL REFERENCES users(id),
@@ -4027,10 +4339,10 @@ var INVITATION_CHANGE_SCHEMA = `CREATE TABLE invitation_change_receipts (
   result_json TEXT NOT NULL CHECK(json_valid(result_json)), PRIMARY KEY(service_id,actor_id,request_key)
 ) STRICT;`;
 var day = 864e5;
-var digest2 = (value) => createHash17("sha256").update(value).digest("hex");
+var digest2 = (value) => createHash18("sha256").update(value).digest("hex");
 var invalid6 = () => new AssetError(422, "INVALID_INVITATION");
 var unavailable2 = () => new AssetError(404, "INVITATION_UNAVAILABLE");
-var conflict3 = () => new AssetError(409, "INVITATION_CHANGED");
+var conflict4 = () => new AssetError(409, "INVITATION_CHANGED");
 var target = (r) => r.project_id ? { scope: "project", id: r.project_id, permission: "member" } : { scope: "object", id: r.object_id, permission: r.permission };
 function duration(days = 7) {
   if (!Number.isInteger(days) || days < 1 || days > 90) throw invalid6();
@@ -4055,7 +4367,7 @@ function receipt2(r) {
 var active = (r, now) => r.revoked_at === null && now < r.expires_at;
 function recordEvent(db, r, a, event, now, before, affected, correlation) {
   db.prepare("INSERT INTO invitation_audit VALUES(?,?,?,?,?,?,?,?)").run(r.id, r.revision, a.userId, event, now, before, r.expires_at, affected.length);
-  const eventId = randomUUID17(), payload = JSON.stringify({
+  const eventId = randomUUID18(), payload = JSON.stringify({
     target: target(r),
     prior_expires_at: before,
     expires_at: r.expires_at,
@@ -4100,7 +4412,7 @@ var InvitationStore = class {
       return this.issueSpec(this.actor(prior, now, expected), s, now);
     });
   }
-  create(prior, expected, s, key, correlation = randomUUID17()) {
+  create(prior, expected, s, key, correlation = randomUUID18()) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now, expected), p = this.issueSpec(a, s, now);
       const req = digest2(JSON.stringify([p.target, s.days ?? 7, p.max_redemptions]));
@@ -4111,7 +4423,7 @@ var InvitationStore = class {
       }
       const token2 = randomBytes(32).toString("base64url");
       const r = {
-        id: randomUUID17(),
+        id: randomUUID18(),
         service_id: a.serviceId,
         issuer_id: a.userId,
         object_id: s.scope === "object" ? s.id : null,
@@ -4130,7 +4442,7 @@ var InvitationStore = class {
       return { ...receipt2(r), title: p.title, token: token2, server_time: now, replayed: false };
     });
   }
-  redeem(prior, expected, token2, correlation = randomUUID17()) {
+  redeem(prior, expected, token2, correlation = randomUUID18()) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now, expected);
       if (!/^[a-zA-Z0-9_-]{43}$/.test(token2)) throw unavailable2();
@@ -4147,10 +4459,10 @@ var InvitationStore = class {
         return { id: priorRedemption.id, target: t, title: info.title, expires_at: priorRedemption.expires_at, server_time: now, replayed: true };
       }
       if (r.redeemed_count >= r.max_redemptions) throw new AssetError(409, "INVITATION_FULL");
-      const grant = randomUUID17();
+      const grant = randomUUID18();
       db.prepare("INSERT INTO invitation_redemptions VALUES(?,?,?,?,?,NULL)").run(grant, r.id, a.userId, now, r.expires_at);
       const change = db.prepare("UPDATE invitations SET redeemed_count=redeemed_count+1,revision=revision+1 WHERE id=? AND revision=? AND redeemed_count<max_redemptions").run(r.id, r.revision);
-      if (change.changes !== 1) throw conflict3();
+      if (change.changes !== 1) throw conflict4();
       recordEvent(db, { ...r, revision: r.revision + 1 }, a, "redeem", now, null, [grant], correlation);
       return { id: grant, target: t, title: info.title, expires_at: r.expires_at, server_time: now, replayed: false };
     });
@@ -4173,7 +4485,7 @@ var InvitationStore = class {
       return { actor_id: a.userId, server_time: now, items };
     });
   }
-  change(prior, expected, id, expectedRevision, event, days, key = randomUUID17(), correlation = randomUUID17()) {
+  change(prior, expected, id, expectedRevision, event, days, key = randomUUID18(), correlation = randomUUID18()) {
     return this.tx("write", (db, now) => {
       const a = this.actor(prior, now, expected), { r } = this.managed(db, a, id, now);
       const extension = event === "renew" ? duration(days) : 0, req = digest2(JSON.stringify([id, expectedRevision, event, extension]));
@@ -4183,7 +4495,7 @@ var InvitationStore = class {
         return { ...JSON.parse(String(priorReceipt.result_json)), replayed: true };
       }
       if (!active(r, now)) throw unavailable2();
-      if (expectedRevision !== r.revision) throw conflict3();
+      if (expectedRevision !== r.revision) throw conflict4();
       const expires_at = event === "renew" ? new Date(Date.parse(r.expires_at) + extension).toISOString() : r.expires_at;
       const changed2 = (event === "renew" ? db.prepare("UPDATE invitation_redemptions SET expires_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? RETURNING id").all(expires_at, id, now) : db.prepare("UPDATE invitation_redemptions SET revoked_at=? WHERE invitation_id=? AND revoked_at IS NULL AND expires_at>? RETURNING id").all(now, id, now)).map((r2) => String(r2.id));
       const next = { ...r, expires_at, revoked_at: event === "revoke" ? now : null, revision: r.revision + 1 };
@@ -4198,42 +4510,43 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 38;
-var MIGRATION_V38_CHECKSUM = createHash18("sha256").update(ONTOLOGY_SCHEMA).digest("hex");
-var MIGRATION_V37_CHECKSUM = createHash18("sha256").update(KNOWLEDGE_SCHEMA).digest("hex");
-var MIGRATION_V36_CHECKSUM = createHash18("sha256").update(TERM_SCHEMA).digest("hex");
-var MIGRATION_V35_CHECKSUM = createHash18("sha256").update(REPOSITORY_GITEE_SCHEMA).digest("hex");
-var MIGRATION_V34_CHECKSUM = createHash18("sha256").update(REPOSITORY_PLATFORM_SCHEMA).digest("hex");
-var MIGRATION_V33_CHECKSUM = createHash18("sha256").update(PROJECT_TASK_APPEAL_SCHEMA).digest("hex");
-var MIGRATION_V32_CHECKSUM = createHash18("sha256").update(PROJECT_TASK_CORRECTION_SCHEMA).digest("hex");
-var MIGRATION_V31_CHECKSUM = createHash18("sha256").update(PROJECT_TASK_MATERIAL_SCHEMA).digest("hex");
-var MIGRATION_V30_CHECKSUM = createHash18("sha256").update(PROJECT_TASK_REVIEW_SCHEMA).digest("hex");
-var MIGRATION_V29_CHECKSUM = createHash18("sha256").update(PROJECT_TASK_SCHEMA).digest("hex");
-var MIGRATION_V28_CHECKSUM = createHash18("sha256").update(REPOSITORY_SCHEMA).digest("hex");
-var MIGRATION_V27_CHECKSUM = createHash18("sha256").update(NOTE_LAYOUT_SCHEMA).digest("hex");
-var MIGRATION_V26_CHECKSUM = createHash18("sha256").update(NOTE_OUTLINE_SCHEMA).digest("hex");
-var MIGRATION_V25_CHECKSUM = createHash18("sha256").update(INVITATION_CHANGE_SCHEMA).digest("hex");
-var MIGRATION_V24_CHECKSUM = createHash18("sha256").update(INVITATION_EVENT_SCHEMA).digest("hex");
-var MIGRATION_V23_CHECKSUM = createHash18("sha256").update(INVITATION_SCHEMA).digest("hex");
-var MIGRATION_V22_CHECKSUM = createHash18("sha256").update(RECALL_SCHEMA).digest("hex");
-var MIGRATION_V21_CHECKSUM = createHash18("sha256").update(NOTE_SCHEMA).digest("hex");
-var MIGRATION_V20_CHECKSUM = createHash18("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
-var MIGRATION_V19_CHECKSUM = createHash18("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V18_CHECKSUM = createHash18("sha256").update(SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V17_CHECKSUM = createHash18("sha256").update(ANNOTATION_SCHEMA).digest("hex");
-var MIGRATION_V16_CHECKSUM = createHash18("sha256").update(READING_STATE_SCHEMA).digest("hex");
-var MIGRATION_V15_CHECKSUM = createHash18("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
-var MIGRATION_V13_CHECKSUM = createHash18("sha256").update(ZIP_SCHEMA).digest("hex");
-var MIGRATION_V14_CHECKSUM = createHash18("sha256").update(CITATION_SCHEMA).digest("hex");
-var MIGRATION_V12_CHECKSUM = createHash18("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
-var MIGRATION_V11_CHECKSUM = createHash18("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
-var MIGRATION_V10_CHECKSUM = createHash18("sha256").update(OFFICE_SCHEMA).digest("hex");
-var MIGRATION_V9_CHECKSUM = createHash18("sha256").update(TEXT_SCHEMA).digest("hex");
-var MIGRATION_V8_CHECKSUM = createHash18("sha256").update(PARSE_SCHEMA).digest("hex");
+var SCHEMA_VERSION = 39;
+var MIGRATION_V39_CHECKSUM = createHash19("sha256").update(PRACTICE_SCHEMA).digest("hex");
+var MIGRATION_V38_CHECKSUM = createHash19("sha256").update(ONTOLOGY_SCHEMA).digest("hex");
+var MIGRATION_V37_CHECKSUM = createHash19("sha256").update(KNOWLEDGE_SCHEMA).digest("hex");
+var MIGRATION_V36_CHECKSUM = createHash19("sha256").update(TERM_SCHEMA).digest("hex");
+var MIGRATION_V35_CHECKSUM = createHash19("sha256").update(REPOSITORY_GITEE_SCHEMA).digest("hex");
+var MIGRATION_V34_CHECKSUM = createHash19("sha256").update(REPOSITORY_PLATFORM_SCHEMA).digest("hex");
+var MIGRATION_V33_CHECKSUM = createHash19("sha256").update(PROJECT_TASK_APPEAL_SCHEMA).digest("hex");
+var MIGRATION_V32_CHECKSUM = createHash19("sha256").update(PROJECT_TASK_CORRECTION_SCHEMA).digest("hex");
+var MIGRATION_V31_CHECKSUM = createHash19("sha256").update(PROJECT_TASK_MATERIAL_SCHEMA).digest("hex");
+var MIGRATION_V30_CHECKSUM = createHash19("sha256").update(PROJECT_TASK_REVIEW_SCHEMA).digest("hex");
+var MIGRATION_V29_CHECKSUM = createHash19("sha256").update(PROJECT_TASK_SCHEMA).digest("hex");
+var MIGRATION_V28_CHECKSUM = createHash19("sha256").update(REPOSITORY_SCHEMA).digest("hex");
+var MIGRATION_V27_CHECKSUM = createHash19("sha256").update(NOTE_LAYOUT_SCHEMA).digest("hex");
+var MIGRATION_V26_CHECKSUM = createHash19("sha256").update(NOTE_OUTLINE_SCHEMA).digest("hex");
+var MIGRATION_V25_CHECKSUM = createHash19("sha256").update(INVITATION_CHANGE_SCHEMA).digest("hex");
+var MIGRATION_V24_CHECKSUM = createHash19("sha256").update(INVITATION_EVENT_SCHEMA).digest("hex");
+var MIGRATION_V23_CHECKSUM = createHash19("sha256").update(INVITATION_SCHEMA).digest("hex");
+var MIGRATION_V22_CHECKSUM = createHash19("sha256").update(RECALL_SCHEMA).digest("hex");
+var MIGRATION_V21_CHECKSUM = createHash19("sha256").update(NOTE_SCHEMA).digest("hex");
+var MIGRATION_V20_CHECKSUM = createHash19("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
+var MIGRATION_V19_CHECKSUM = createHash19("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V18_CHECKSUM = createHash19("sha256").update(SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V17_CHECKSUM = createHash19("sha256").update(ANNOTATION_SCHEMA).digest("hex");
+var MIGRATION_V16_CHECKSUM = createHash19("sha256").update(READING_STATE_SCHEMA).digest("hex");
+var MIGRATION_V15_CHECKSUM = createHash19("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
+var MIGRATION_V13_CHECKSUM = createHash19("sha256").update(ZIP_SCHEMA).digest("hex");
+var MIGRATION_V14_CHECKSUM = createHash19("sha256").update(CITATION_SCHEMA).digest("hex");
+var MIGRATION_V12_CHECKSUM = createHash19("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
+var MIGRATION_V11_CHECKSUM = createHash19("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
+var MIGRATION_V10_CHECKSUM = createHash19("sha256").update(OFFICE_SCHEMA).digest("hex");
+var MIGRATION_V9_CHECKSUM = createHash19("sha256").update(TEXT_SCHEMA).digest("hex");
+var MIGRATION_V8_CHECKSUM = createHash19("sha256").update(PARSE_SCHEMA).digest("hex");
 var MIGRATION_V7_SQL = ASSET_SCHEMA;
-var MIGRATION_V7_CHECKSUM = createHash18("sha256").update(ASSET_SCHEMA).digest("hex");
+var MIGRATION_V7_CHECKSUM = createHash19("sha256").update(ASSET_SCHEMA).digest("hex");
 var MIGRATION_V6_SQL = JOB_SCHEMA;
-var MIGRATION_V6_CHECKSUM = createHash18("sha256").update(JOB_SCHEMA).digest("hex");
+var MIGRATION_V6_CHECKSUM = createHash19("sha256").update(JOB_SCHEMA).digest("hex");
 var PROBE_SCHEMA_VERSION = 1;
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
@@ -4250,7 +4563,7 @@ CREATE TABLE storage_probe_records (
   created_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V1_CHECKSUM = createHash18("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
+var MIGRATION_V1_CHECKSUM = createHash19("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
 var MIGRATION_V2_SQL = `CREATE TABLE password_credentials (
   id TEXT PRIMARY KEY,
   algorithm TEXT NOT NULL,
@@ -4304,7 +4617,7 @@ CREATE TABLE spaces (
   updated_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V2_CHECKSUM = createHash18("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
+var MIGRATION_V2_CHECKSUM = createHash19("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
 var MIGRATION_V3_SQL = `CREATE TABLE knowledge_projects (
   id TEXT PRIMARY KEY,
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
@@ -4354,7 +4667,7 @@ CREATE TABLE resource_grants (
   UNIQUE (resource_id, subject_type, subject_id, action)
 ) STRICT;
 `;
-var MIGRATION_V3_CHECKSUM = createHash18("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
+var MIGRATION_V3_CHECKSUM = createHash19("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
 var MIGRATION_V4_SQL = `ALTER TABLE resource_grants RENAME TO resource_grants_v3;
 CREATE TABLE resource_grants (
   id TEXT PRIMARY KEY,
@@ -4376,7 +4689,7 @@ CREATE UNIQUE INDEX resource_grants_active_subject_action_uq
   WHERE revoked_at IS NULL;
 DROP TABLE resource_grants_v3;
 `;
-var MIGRATION_V4_CHECKSUM = createHash18("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
+var MIGRATION_V4_CHECKSUM = createHash19("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
 var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -4388,7 +4701,7 @@ var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   PRIMARY KEY (service_id, user_id, idempotency_key)
 ) STRICT;
 `;
-var MIGRATION_V5_CHECKSUM = createHash18("sha256").update(MIGRATION_V5_SQL).digest("hex");
+var MIGRATION_V5_CHECKSUM = createHash19("sha256").update(MIGRATION_V5_SQL).digest("hex");
 var PROBE_SUPPORTED_TABLES = ["schema_migrations", "storage_probe_records"];
 var IDENTITY_SUPPORTED_TABLES = [
   "auth_sessions",
@@ -4511,6 +4824,7 @@ var ProbeStorage = class {
   terms = new TermStore(this.#assetTx, (s, now) => this.#currentActor(s, now), this.citations);
   knowledge = new KnowledgeStore(this.#assetTx, (s, now) => this.#currentActor(s, now), this.citations, this.notes, this.terms);
   ontology = new OntologyStore(this.#assetTx, (s, now) => this.#currentActor(s, now), this.knowledge, this.citations);
+  practice = new PracticeStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, p, now) => this.canCreateProjectObject(a, p, now), this.citations);
   recall = new RecallStore(
     this.#assetTx,
     (s, now) => this.#currentActor(s, now),
@@ -4631,6 +4945,7 @@ var ProbeStorage = class {
       if (priorVersion < 36) this.#migrateV36(db);
       if (priorVersion < 37) this.#migrateV37(db);
       if (priorVersion < 38) this.#migrateV38(db);
+      if (priorVersion < 39) this.#migrateV39(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -4857,7 +5172,7 @@ var ProbeStorage = class {
     try {
       db.exec(MIGRATION_V2_SQL);
       this.#injectFailure("v2:after-schema");
-      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID18());
+      db.prepare("INSERT INTO service_identity (id, service_id, bootstrap_admin_user_id, initialized_at) VALUES (1, ?, NULL, NULL)").run(randomUUID19());
       this.#injectFailure("v2:after-identity");
       db.prepare("INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)").run(2, MIGRATION_V2_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
       this.#injectFailure("v2:after-ledger");
@@ -5319,10 +5634,22 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "ontology migration failed", false, { cause: e });
     }
   }
+  #migrateV39(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(PRACTICE_SCHEMA);
+      this.#injectFailure("v39:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(39,?,?)").run(MIGRATION_V39_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=39; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "practice migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM, MIGRATION_V35_CHECKSUM, MIGRATION_V36_CHECKSUM, MIGRATION_V37_CHECKSUM, MIGRATION_V38_CHECKSUM].slice(0, version - 5);
-    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash4, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash4)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM, MIGRATION_V35_CHECKSUM, MIGRATION_V36_CHECKSUM, MIGRATION_V37_CHECKSUM, MIGRATION_V38_CHECKSUM, MIGRATION_V39_CHECKSUM].slice(0, version - 5);
+    if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash5, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash5)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
       reference.exec(JOB_SCHEMA);
@@ -5358,6 +5685,7 @@ var ProbeStorage = class {
       if (version >= 36) reference.exec(TERM_SCHEMA);
       if (version >= 37) reference.exec(KNOWLEDGE_SCHEMA);
       if (version >= 38) reference.exec(ONTOLOGY_SCHEMA);
+      if (version >= 39) reference.exec(PRACTICE_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -5460,9 +5788,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID18();
-      const spaceId = randomUUID18();
-      const credentialId = randomUUID18();
+      const userId = randomUUID19();
+      const spaceId = randomUUID19();
+      const credentialId = randomUUID19();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("bootstrap:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -5496,9 +5824,9 @@ var ProbeStorage = class {
       }
       const serviceId = String(state.service_id);
       const now = input.now;
-      const userId = randomUUID18();
-      const spaceId = randomUUID18();
-      const credentialId = randomUUID18();
+      const userId = randomUUID19();
+      const spaceId = randomUUID19();
+      const credentialId = randomUUID19();
       db.prepare("INSERT INTO password_credentials (id, algorithm, version, n, r, p, maxmem, salt, derived_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(credentialId, input.credential.algorithm, input.credential.version, input.credential.n, input.credential.r, input.credential.p, input.credential.maxmem, input.credential.salt, input.credential.derivedKey, now);
       this.#injectFailure("register:after-credential");
       db.prepare(`INSERT INTO users (id, login_name, display_name, credential_ref, role, status, timezone, planning_home_service_id, domains, learning_tracks, goal_text, revision, created_at, updated_at) VALUES (?, ?, ?, ?, 'member', 'active', ?, ?, ?, ?, ?, 1, ?, ?)`).run(userId, input.loginName, input.displayName, credentialId, input.timezone, serviceId, JSON.stringify(input.domains), JSON.stringify(input.learningTracks), input.goalText, now, now);
@@ -5696,7 +6024,7 @@ var ProbeStorage = class {
       tx = true;
       db.prepare("INSERT INTO knowledge_objects (id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)").run(input.id, input.serviceId, input.spaceId, input.scope, input.projectId ?? null, input.ownerUserId, input.objectType, input.title, input.body, input.now, input.now);
       if (input.scope === "project" && input.projectId !== void 0) {
-        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID18(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
+        for (const action of ["read", "comment", "edit", "export", "manage_share", "delete", "review", "view_learning_records"]) db.prepare("INSERT INTO resource_grants (id, service_id, resource_type, resource_id, subject_type, subject_id, action, valid_from, created_at) VALUES (?, ?, 'knowledge_object', ?, 'user', ?, ?, ?, ?)").run(randomUUID19(), input.serviceId, input.id, input.ownerUserId, action, input.now, input.now);
       }
       ;
       db.exec("COMMIT");
@@ -5795,8 +6123,8 @@ var ProbeStorage = class {
     let primaryCode;
     let failed = false;
     try {
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash18("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash18("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash19("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash19("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
     } catch (error) {
       failed = true;
       primaryCode = primarySqliteCode(error);
@@ -5893,6 +6221,7 @@ export {
   MIGRATION_V36_CHECKSUM,
   MIGRATION_V37_CHECKSUM,
   MIGRATION_V38_CHECKSUM,
+  MIGRATION_V39_CHECKSUM,
   MIGRATION_V3_CHECKSUM,
   MIGRATION_V3_SQL,
   MIGRATION_V4,

@@ -47,6 +47,8 @@ import { createKnowledgeHandler, knowledgeApi } from './knowledge-http.ts'
 import { buildKnowledgeHtml } from './knowledge-page.ts'
 import { createOntologyHandler, ontologyApi } from './ontology-http.ts'
 import { buildOntologyHtml } from './ontology-page.ts'
+import { createPracticeHandler, practiceApi, questionApi } from './practice-http.ts'
+import { buildPracticeHtml } from './practice-page.ts'
 import { RepositoryService } from './repository-store.ts'
 import { buildRepositoryHtml } from './repository-page.ts'
 import { appealApi, createProjectTaskHandler, decisionApi, taskApi } from './project-task-http.ts'
@@ -295,7 +297,11 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
           handler:withPeer(createKnowledgeHandler(storage.knowledge,actualOrigin,sessionFor))}))
         disposers.push(identityContext.webServer.register({kind:'prefix',path:ontologyApi,auth:'anonymous',
           handler:withPeer(createOntologyHandler(storage.ontology,reader,()=>ai,actualOrigin,sessionFor,termScope.signal))}))
-        for (const [path, page] of [['/knowledgeos/knowledge',buildKnowledgeHtml],['/knowledgeos/ontology',buildOntologyHtml]] as const)
+        const practiceHandler=withPeer(createPracticeHandler(storage.practice,actualOrigin,sessionFor))
+        for(const path of [questionApi,practiceApi])disposers.push(identityContext.webServer.register({kind:'prefix',path,auth:'anonymous',handler:practiceHandler}))
+        for (const [path, page] of [
+          ['/knowledgeos/knowledge',buildKnowledgeHtml],['/knowledgeos/ontology',buildOntologyHtml],['/knowledgeos/practice',buildPracticeHtml],
+        ] as const)
           disposers.push(identityContext.webServer.register({kind:'exact',path,auth:'anonymous',handler:(req,res)=>{
             if(req.method!=='GET'){res.writeHead(405,{allow:'GET'});res.end();return}
             const nonce=randomUUID()
