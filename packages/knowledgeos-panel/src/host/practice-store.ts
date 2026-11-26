@@ -7,6 +7,7 @@ import type { ParseTx } from './parse-store.ts'
 import { exactRule, fillRule, normalizeFill, scoreAnswer, type Answer, type Confidence, type GradingState, type QuestionKind } from './practice-policy.ts'
 import type { GeneratedQuestion, QuickCoverage, QuickRange } from './quick-practice.ts'
 import { classifyPractice, hintText, type PersonalState, type ReviewDraft } from './practice-review.ts'
+import type { Difficulty, PracticeMode, TransferDraft } from './practice-transfer.ts'
 
 export const PRACTICE_SCHEMA = `
 CREATE TABLE questions (
@@ -71,7 +72,7 @@ CREATE TABLE quick_practice_questions (
 
 export interface QuestionDraft {
   kind: QuestionKind; prompt: string; options: string[]; accepted: Answer[]; explanation: string
-  source_citation_id: string; project_id: string | null
+  source_citation_id: string; project_id: string | null; difficulty?:Difficulty
 }
 export interface AttemptInput { question_version_id: string; expected_sequence: number; answer: Answer; confidence: Confidence }
 export interface CorrectionInput { expected_version:number; answer:Answer|Answer[]; explanation:string; reason:string }
@@ -79,9 +80,14 @@ type Citation = ReturnType<CitationStore['knowledgeSource']>
 interface Question { id: string; author_id: string; project_id: string | null; current_version_id: string; request_digest: string }
 interface Version {
   id: string; question_id: string; version: number; kind: QuestionKind; prompt: string; options_json: string
-  answers_json: string; explanation: string; evidence_json: string; citation_id: string; grading_rule: string
+  answers_json: string; explanation: string; evidence_json: string; citation_id: string; grading_rule: string; difficulty:Difficulty
 }
-interface Practice { id: string; started_at: string; request_digest: string }
+interface Practice { id: string; started_at: string; request_digest: string; mode:PracticeMode }
+interface Transfer {
+  id:string;source_session_id:string;source_version_id:string;first_attempt_id:string;guided_attempt_id:string
+  target_version_id:string;available_at:string;created_at:string;request_digest:string
+  started_session_id:string|null;start_key:string|null;started_at:string|null
+}
 interface Attempt {
   id: string; session_id: string; question_version_id: string; sequence: number; answer_json: string
   confidence: Confidence; grading_state: GradingState; independent: number; submitted_at: string
@@ -135,7 +141,7 @@ export class PracticeStore {
   private learner(db:DatabaseSync,question: Question, version: Version) {
     const generated=this.quickQuestion(db,version.id)
     const disputed=this.openDispute(db,question.current_version_id)
-    return { id: question.id, version_id: version.id, version: version.version, kind: version.kind, prompt: version.prompt,
+    return { id: question.id, version_id: version.id, version: version.version, kind: version.kind, prompt: version.prompt,difficulty:version.difficulty,
       options: JSON.parse(version.options_json) as string[], project_id: question.project_id, author_id: question.author_id,
       quality_state:generated?.quality??'ready',origin_kind:generated?'generated':'author',
       evaluation_eligible:!generated&&!disputed,has_open_dispute:disputed }
@@ -210,15 +216,15 @@ export class PracticeStore {
     const id=randomUUID(),versionId=randomUUID()
     db.prepare('INSERT INTO questions VALUES(?,?,?,?,?,?,?,?)').run(id,actor.serviceId,actor.userId,draft.project_id,versionId,now,key,digest)
     db.prepare(`INSERT INTO question_versions
-      (id,question_id,version,kind,prompt,options_json,answers_json,explanation,evidence_json,citation_id,grading_rule,created_by,created_at)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+      (id,question_id,version,kind,prompt,options_json,answers_json,explanation,evidence_json,citation_id,grading_rule,created_by,created_at,difficulty)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
       versionId,id,1,draft.kind,draft.prompt,JSON.stringify(draft.options),JSON.stringify(draft.accepted),draft.explanation,
-      JSON.stringify(citation),citation.id,draft.kind==='fill'?fillRule:exactRule,actor.userId,now)
+      JSON.stringify(citation),citation.id,draft.kind==='fill'?fillRule:exactRule,actor.userId,now,draft.difficulty??'basic')
     return {id,author_id:actor.userId,project_id:draft.project_id,current_version_id:versionId,request_digest:digest}
   }
 
   private practice(db: DatabaseSync, actor: SessionActor, id: string) {
-    const row = db.prepare('SELECT id,started_at,request_digest FROM practice_sessions WHERE id=? AND service_id=? AND user_id=?')
+    const row = db.prepare('SELECT id,started_at,request_digest,mode FROM practice_sessions WHERE id=? AND service_id=? AND user_id=?')
       .get(id, actor.serviceId, actor.userId) as unknown as Practice | undefined
     if (!row) throw missingPractice()
     return row
@@ -231,13 +237,13 @@ export class PracticeStore {
 
   private session(db:DatabaseSync,row: Practice) {
     const quick=db.prepare('SELECT coverage_json FROM quick_practice_runs WHERE session_id=?').get(row.id)
-    return { id:row.id,started_at:row.started_at,...(quick?{quick_coverage:JSON.parse(String(quick.coverage_json)) as QuickCoverage}:{}) }
+    return {id:row.id,started_at:row.started_at,mode:row.mode,...(quick?{quick_coverage:JSON.parse(String(quick.coverage_json)) as QuickCoverage}:{})}
   }
 
   listSessions(prior: SessionActor) {
     return this.tx('read', (db, now) => {
       const actor = this.actor(prior, now)
-      const rows = db.prepare('SELECT id,started_at,request_digest FROM practice_sessions WHERE service_id=? AND user_id=? ORDER BY started_at DESC,id')
+      const rows = db.prepare('SELECT id,started_at,request_digest,mode FROM practice_sessions WHERE service_id=? AND user_id=? ORDER BY started_at DESC,id')
         .all(actor.serviceId, actor.userId) as unknown as Practice[]
       return rows.flatMap(row => {
         try {
@@ -248,10 +254,10 @@ export class PracticeStore {
     })
   }
 
-  createSession(prior: SessionActor, key: string, versions: string[]) {
+  createSession(prior: SessionActor, key: string, versions: string[], mode:'standard'|'guided'='standard') {
     return this.tx('write', (db, now) => {
-      const actor = this.actor(prior, now), digest = hash(versions)
-      const old = db.prepare('SELECT id,started_at,request_digest FROM practice_sessions WHERE service_id=? AND user_id=? AND request_key=?')
+      const actor=this.actor(prior,now),digest=hash(mode==='standard'?versions:[mode,versions])
+      const old = db.prepare('SELECT id,started_at,request_digest,mode FROM practice_sessions WHERE service_id=? AND user_id=? AND request_key=?')
         .get(actor.serviceId, actor.userId, key) as unknown as Practice | undefined
       if (old) {
         this.inSession(db, actor, old.id, now)
@@ -259,17 +265,19 @@ export class PracticeStore {
         return { session: this.session(db,old), replayed: true }
       }
       for (const id of versions) this.accessVersion(db, actor, id, now)
-      const row=this.insertSession(db,actor,now,key,digest,versions)
+      if(mode==='guided'&&versions.length!==1)throw new AssetError(422,'GUIDED_REQUIRES_ONE_QUESTION')
+      const row=this.insertSession(db,actor,now,key,digest,versions,mode)
       return { session:this.session(db,row),replayed:false }
     })
   }
 
-  private insertSession(db:DatabaseSync,actor:SessionActor,now:string,key:string,digest:string,versions:string[]):Practice {
+  private insertSession(db:DatabaseSync,actor:SessionActor,now:string,key:string,digest:string,versions:string[],mode:PracticeMode='standard'):Practice {
     const id=randomUUID()
-    db.prepare('INSERT INTO practice_sessions VALUES(?,?,?,?,?,?)').run(id,actor.serviceId,actor.userId,now,key,digest)
+    db.prepare('INSERT INTO practice_sessions(id,service_id,user_id,started_at,request_key,request_digest,mode) VALUES(?,?,?,?,?,?,?)')
+      .run(id,actor.serviceId,actor.userId,now,key,digest,mode)
     const add=db.prepare('INSERT INTO practice_session_questions VALUES(?,?,?)')
     versions.forEach((version,i)=>add.run(id,version,i))
-    return {id,started_at:now,request_digest:digest}
+    return {id,started_at:now,request_digest:digest,mode}
   }
 
   private checkQuickSources(db:DatabaseSync,actor:SessionActor,pinned:QuickRange,now:string){
@@ -285,10 +293,10 @@ export class PracticeStore {
   }
 
   private hints(db:DatabaseSync,sessionId:string,versionId:string){
-    return db.prepare('SELECT level FROM practice_hint_events WHERE session_id=? AND question_version_id=? ORDER BY level')
+    return db.prepare('SELECT level,for_sequence FROM practice_hint_events WHERE session_id=? AND question_version_id=? ORDER BY level')
       .all(sessionId,versionId).map(row=>{
         const level=Number(row.level) as 1|2
-        return {level,text:hintText[level]}
+        return {level,text:hintText[level],for_sequence:Number(row.for_sequence)}
       })
   }
 
@@ -296,19 +304,171 @@ export class PracticeStore {
     return this.tx('write',(db,now)=>{
       const actor=this.actor(prior,now),practice=this.practice(db,actor,sessionId)
       if(!this.inSession(db,actor,practice.id,now).some(item=>item.version.id===versionId))throw missingQuestion()
-      const old=db.prepare('SELECT session_id,question_version_id,level FROM practice_hint_events WHERE service_id=? AND user_id=? AND request_key=?')
+      const old=db.prepare('SELECT session_id,question_version_id,level,for_sequence FROM practice_hint_events WHERE service_id=? AND user_id=? AND request_key=?')
         .get(actor.serviceId,actor.userId,key)
       const hint={level,text:hintText[level]}
       if(old){
         if(old.session_id!==sessionId||old.question_version_id!==versionId||old.level!==level)throw conflict()
-        return {hint,replayed:true}
+        return {hint:{...hint,for_sequence:Number(old.for_sequence)},replayed:true}
       }
-      if(this.attempts(db,sessionId,versionId).length)throw new AssetError(409,'HINT_AFTER_ANSWER')
+      const answers=this.attempts(db,sessionId,versionId)
+      if(practice.mode==='transfer')throw new AssetError(409,'TRANSFER_HINTS_DISABLED')
+      if(practice.mode==='guided'&&!answers.length)throw new AssetError(409,'FIRST_ANSWER_REQUIRED')
+      if(practice.mode==='standard'&&answers.length)throw new AssetError(409,'HINT_AFTER_ANSWER')
       const priorLevels=this.hints(db,sessionId,versionId)
       if(level!==priorLevels.length+1)throw new AssetError(409,'HINT_LEVEL_CONFLICT')
-      db.prepare('INSERT INTO practice_hint_events VALUES(?,?,?,?,?,?,?,?)')
-        .run(randomUUID(),actor.serviceId,actor.userId,sessionId,versionId,level,key,now)
-      return {hint,replayed:false}
+      const for_sequence=(answers.at(-1)?.sequence??0)+1
+      db.prepare('INSERT INTO practice_hint_events(id,service_id,user_id,session_id,question_version_id,level,request_key,requested_at,for_sequence) VALUES(?,?,?,?,?,?,?,?,?)')
+        .run(randomUUID(),actor.serviceId,actor.userId,sessionId,versionId,level,key,now,for_sequence)
+      return {hint:{...hint,for_sequence},replayed:false}
+    })
+  }
+
+  private solutionReveal(db:DatabaseSync,sessionId:string,versionId:string){
+    return db.prepare('SELECT after_sequence,revealed_at FROM practice_solution_reveals WHERE session_id=? AND question_version_id=?')
+      .get(sessionId,versionId)
+  }
+
+  private visibleFeedback(db:DatabaseSync,session:Practice,version:Version,citation:Citation,answers:Attempt[],through?:number){
+    const latest=through??answers.at(-1)?.sequence??0
+    if(!latest)return null
+    if(session.mode!=='guided')return this.feedback(version,citation)
+    if(through===1)return null
+    if(this.solutionReveal(db,session.id,version.id))return this.feedback(version,citation)
+    const hinted=new Set(this.hints(db,session.id,version.id).map(hint=>hint.for_sequence))
+    return answers.some(row=>row.sequence<=latest&&row.sequence>1&&row.grading_state==='correct'&&hinted.has(row.sequence))
+      ? this.feedback(version,citation) : null
+  }
+
+  reveal(prior:SessionActor,key:string,id:string,versionId:string){
+    return this.tx('write',(db,now)=>{
+      const actor=this.actor(prior,now),session=this.practice(db,actor,id)
+      const target=this.inSession(db,actor,id,now).find(item=>item.version.id===versionId)
+      if(!target)throw missingQuestion()
+      if(session.mode!=='guided')throw new AssetError(404,'NOT_FOUND')
+      const answer=this.attempts(db,id,versionId).at(-1)
+      if(!answer)throw new AssetError(409,'FIRST_ANSWER_REQUIRED')
+      const old=db.prepare('SELECT session_id,question_version_id FROM practice_solution_reveals WHERE service_id=? AND user_id=? AND request_key=?')
+        .get(actor.serviceId,actor.userId,key)
+      if(old&&(old.session_id!==id||old.question_version_id!==versionId))throw conflict()
+      const previous=this.solutionReveal(db,id,versionId)
+      if(!previous)db.prepare('INSERT INTO practice_solution_reveals VALUES(?,?,?,?,?,?,?)')
+        .run(actor.serviceId,actor.userId,id,versionId,answer.sequence,key,now)
+      return {feedback:this.feedback(target.version,target.citation),replayed:!!previous}
+    })
+  }
+
+  private transfer(db:DatabaseSync,actor:SessionActor,id:string){
+    const row=db.prepare('SELECT * FROM practice_transfers WHERE id=? AND service_id=? AND user_id=?')
+      .get(id,actor.serviceId,actor.userId) as unknown as Transfer|undefined
+    if(!row)throw missingPractice()
+    return row
+  }
+
+  private compareTransfer(db:DatabaseSync,actor:SessionActor,source:string,destination:string,now:string){
+    const first=this.accessVersion(db,actor,source,now),next=this.accessVersion(db,actor,destination,now)
+    const a=first.version,b=next.version
+    if(a.id!==first.question.current_version_id||b.id!==next.question.current_version_id)return 'QUESTION_VERSION_CHANGED'
+    if(this.openDispute(db,a.id)||this.openDispute(db,b.id))return 'TRANSFER_QUESTION_DISPUTED'
+    if(this.quickQuestion(db,a.id)||this.quickQuestion(db,b.id))return 'TRANSFER_NEEDS_REVIEWED_SOURCE'
+    if(a.kind!==b.kind||a.difficulty!==b.difficulty)return 'TRANSFER_NOT_COMPARABLE'
+    if(first.question.id===next.question.id||first.citation.quote_hash===next.citation.quote_hash||normalizeFill(a.prompt)===normalizeFill(b.prompt))
+      return 'TRANSFER_CONTEXT_REQUIRED'
+    if(next.question.author_id===actor.userId)return 'TRANSFER_PRIOR_EXPOSURE'
+    return null
+  }
+
+  private transferExposure(db:DatabaseSync,actor:SessionActor,versionId:string,allowedSession:string|null,observed?:Attempt){
+    const q=this.version(db,versionId)
+    const attempted=db.prepare(`SELECT 1 FROM practice_attempts a JOIN question_versions v ON v.id=a.question_version_id
+      WHERE a.service_id=? AND a.user_id=? AND v.question_id=? AND (? IS NULL OR a.session_id<>?)
+        AND (? IS NULL OR a.rowid<(SELECT rowid FROM practice_attempts WHERE id=?)) LIMIT 1`)
+      .get(actor.serviceId,actor.userId,q.question_id,allowedSession,allowedSession,observed?.id??null,observed?.id??null)
+    const aided=db.prepare(`SELECT 1 FROM practice_hint_events h JOIN question_versions v ON v.id=h.question_version_id
+      WHERE h.service_id=? AND h.user_id=? AND v.question_id=? AND (? IS NULL OR h.requested_at<?) LIMIT 1`)
+      .get(actor.serviceId,actor.userId,q.question_id,observed?.submitted_at??null,observed?.submitted_at??null)
+    return !!(attempted||aided)
+  }
+
+  private transferView(db:DatabaseSync,actor:SessionActor,row:Transfer,now:string){
+    let limit=this.compareTransfer(db,actor,row.source_version_id,row.target_version_id,now)
+    const attempt=row.started_session_id?this.attempts(db,row.started_session_id,row.target_version_id)[0]:undefined
+    if(!limit&&this.transferExposure(db,actor,row.target_version_id,row.started_session_id,attempt))limit='TRANSFER_PRIOR_EXPOSURE'
+    if(!limit&&attempt&&(!attempt.independent||attempt.confidence!=='sure'||attempt.grading_state==='disputed'))limit='TRANSFER_RESULT_INSUFFICIENT'
+    const eligible=!!attempt&&!limit&&attempt.grading_state==='correct'
+    const primary=this.version(db,row.source_version_id),target=this.version(db,row.target_version_id)
+    const prior=this.attempts(db,row.source_session_id,row.source_version_id)
+    const observe=(answer:Attempt|undefined)=>answer?{sequence:answer.sequence,grading_state:answer.grading_state,independent:answer.independent===1,submitted_at:answer.submitted_at}:null
+    return {id:row.id,primary_session_id:row.source_session_id,target_version_id:row.target_version_id,
+      first_attempt_id:row.first_attempt_id,guided_attempt_id:row.guided_attempt_id,transfer_attempt_id:attempt?.id??null,
+      available_at:row.available_at,started_at:row.started_at,started_session_id:row.started_session_id,
+      status:limit?'limited':attempt?'observed':row.started_session_id?'started':row.available_at<=now?'ready':'scheduled',
+      evidence_state:eligible?'independent_transfer_supported':attempt&&!limit?'not_demonstrated':'insufficient',
+      limit_reason:limit,evaluation_eligible:eligible,difficulty:target.difficulty,source_title:primary.prompt,target_title:target.prompt,
+      first_observation:observe(prior.find(item=>item.id===row.first_attempt_id)),
+      guided_observation:observe(prior.find(item=>item.id===row.guided_attempt_id)),
+      transfer_observation:observe(attempt)}
+  }
+
+  listTransfers(prior:SessionActor){
+    return this.tx('read',(db,now)=>{
+      const actor=this.actor(prior,now)
+      const rows=db.prepare('SELECT * FROM practice_transfers WHERE service_id=? AND user_id=? ORDER BY available_at,id')
+        .all(actor.serviceId,actor.userId) as unknown as Transfer[]
+      const items=rows.flatMap(row=>{
+        try{return [this.transferView(db,actor,row,now)]}
+        catch(error){if(error instanceof AssetError&&error.status===404)return [];throw error}
+      })
+      return {items,server_time:now}
+    })
+  }
+
+  scheduleTransfer(prior:SessionActor,key:string,input:TransferDraft){
+    return this.tx('write',(db,now)=>{
+      const actor=this.actor(prior,now),digest=hash(input)
+      const old=db.prepare('SELECT * FROM practice_transfers WHERE service_id=? AND user_id=? AND request_key=?')
+        .get(actor.serviceId,actor.userId,key) as unknown as Transfer|undefined
+      if(old){
+        const view=this.transferView(db,actor,old,now)
+        if(old.request_digest!==digest)throw conflict()
+        return {transfer:view,replayed:true}
+      }
+      const session=this.practice(db,actor,input.primary_session_id)
+      const range=this.inSession(db,actor,session.id,now)
+      if(session.mode!=='guided'||range.length!==1)throw new AssetError(409,'TRANSFER_NEEDS_GUIDED_PRACTICE')
+      const version=range[0]!.version
+      const comparison=this.compareTransfer(db,actor,version.id,input.target_version_id,now)
+      if(comparison)throw new AssetError(409,comparison)
+      if(this.transferExposure(db,actor,input.target_version_id,null))throw new AssetError(409,'TRANSFER_PRIOR_EXPOSURE')
+      if(input.available_at<=now)throw new AssetError(422,'TRANSFER_DELAY_REQUIRED')
+      const answers=this.attempts(db,session.id,version.id),first=answers[0]
+      const hinted=new Set(this.hints(db,session.id,version.id).map(hint=>hint.for_sequence))
+      const reveal=this.solutionReveal(db,session.id,version.id)
+      const guided=answers.find(row=>row.sequence>1&&!row.independent&&row.grading_state==='correct'&&hinted.has(row.sequence)&&
+        (!reveal||Number(reveal.after_sequence)>=row.sequence))
+      if(!first||!first.independent||first.grading_state!=='incorrect'||!guided)throw new AssetError(409,'TRANSFER_EVIDENCE_INSUFFICIENT')
+      const duplicate=db.prepare('SELECT 1 FROM practice_transfers WHERE source_session_id=? AND target_version_id=?').get(session.id,input.target_version_id)
+      if(duplicate)throw new AssetError(409,'TRANSFER_ALREADY_PLANNED')
+      const id=randomUUID()
+      db.prepare(`INSERT INTO practice_transfers
+        (id,service_id,user_id,source_session_id,source_version_id,first_attempt_id,guided_attempt_id,target_version_id,available_at,created_at,request_key,request_digest)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`).run(id,actor.serviceId,actor.userId,session.id,version.id,first.id,guided.id,input.target_version_id,input.available_at,now,key,digest)
+      return {transfer:this.transferView(db,actor,this.transfer(db,actor,id),now),replayed:false}
+    })
+  }
+
+  startTransfer(prior:SessionActor,key:string,id:string){
+    return this.tx('write',(db,now)=>{
+      const actor=this.actor(prior,now),row=this.transfer(db,actor,id),view=this.transferView(db,actor,row,now)
+      const reused=db.prepare('SELECT id FROM practice_transfers WHERE service_id=? AND user_id=? AND start_key=?').get(actor.serviceId,actor.userId,key)
+      if(reused&&reused.id!==id)throw conflict()
+      if(view.limit_reason)throw new AssetError(409,view.limit_reason)
+      if(row.started_session_id)return {session:this.session(db,this.practice(db,actor,row.started_session_id)),transfer:view,replayed:true}
+      if(row.available_at>now)throw new AssetError(409,'TRANSFER_NOT_DUE')
+      const session=this.insertSession(db,actor,now,randomUUID(),hash([id,'transfer']),[row.target_version_id],'transfer')
+      if(Number(db.prepare('UPDATE practice_transfers SET started_session_id=?,start_key=?,started_at=? WHERE id=? AND started_session_id IS NULL')
+        .run(session.id,key,now,id).changes)!==1)throw new AssetError(409,'REVISION_CONFLICT')
+      return {session:this.session(db,session),transfer:this.transferView(db,actor,this.transfer(db,actor,id),now),replayed:false}
     })
   }
 
@@ -370,9 +530,9 @@ export class PracticeStore {
       const answers=this.correctedAnswers(version,input.answer)
       const next=randomUUID(),correctionId=randomUUID()
       db.prepare(`INSERT INTO question_versions
-        (id,question_id,version,kind,prompt,options_json,answers_json,explanation,evidence_json,citation_id,grading_rule,created_by,created_at)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(next,id,version.version+1,version.kind,version.prompt,version.options_json,JSON.stringify(answers),
-          input.explanation,version.evidence_json,citation.id,version.grading_rule,actor.userId,now)
+        (id,question_id,version,kind,prompt,options_json,answers_json,explanation,evidence_json,citation_id,grading_rule,created_by,created_at,difficulty)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(next,id,version.version+1,version.kind,version.prompt,version.options_json,JSON.stringify(answers),
+          input.explanation,version.evidence_json,citation.id,version.grading_rule,actor.userId,now,version.difficulty)
       db.prepare('INSERT INTO question_corrections VALUES(?,?,?,?,?,?,?,?,?)')
         .run(correctionId,id,version.id,next,actor.userId,input.reason,key,digest,now)
       const affected=db.prepare(`SELECT a.id,a.answer_json FROM practice_attempts a JOIN question_versions v ON v.id=a.question_version_id
@@ -398,11 +558,22 @@ export class PracticeStore {
         effective=(revised?.grading_state as GradingState|undefined)??null
       }catch(error){if(error instanceof AssetError&&error.status===404)effective=null;else throw error}
     }
-    const paused=effective===null||effective==='disputed'||this.openDispute(db,question.current_version_id)
+    const trial=db.prepare('SELECT id FROM practice_transfers WHERE started_session_id=? AND service_id=? AND user_id=?')
+      .get(row.session_id,actor.serviceId,actor.userId)
+    let transferable=true
+    let transferLimited=false
+    if(trial){
+      try{
+        const result=this.transferView(db,actor,this.transfer(db,actor,String(trial.id)),now)
+        transferable=result.evaluation_eligible&&result.transfer_attempt_id===row.id
+        transferLimited=Boolean(result.limit_reason)
+      }catch(error){if(error instanceof AssetError&&error.status===404){transferable=false;transferLimited=true}else throw error}
+    }
+    const paused=effective===null||effective==='disputed'||this.openDispute(db,question.current_version_id)||transferLimited
     const confident=row.confidence==='sure', independent=row.independent===1
     return {classification:classifyPractice(effective,paused,independent,confident),original_grading:row.grading_state,
       effective_grading:effective,evaluation_status:paused?'paused':corrected?'corrected':'recorded',
-      evaluation_eligible:!this.quickQuestion(db,version.id)&&!paused&&independent&&confident}
+      evaluation_eligible:!this.quickQuestion(db,version.id)&&!paused&&independent&&confident&&transferable}
   }
 
   private personalState(db:DatabaseSync,actor:SessionActor,questionId:string):PersonalState{
@@ -536,7 +707,7 @@ export class PracticeStore {
         const view=this.learner(db,question,version)
         return { ...view, attempts: attempts.map(row => ({...this.attempt(row,view.origin_kind==='generated'),
             ...this.evaluation(db,actor,question,version,row,now)})),
-          hints:this.hints(db,id,version.id),feedback: attempts.length ? this.feedback(version, citation) : null }
+          hints:this.hints(db,id,version.id),feedback:this.visibleFeedback(db,practice,version,citation,attempts) }
       })
       return { session: this.session(db,practice), questions }
     })
@@ -549,6 +720,12 @@ export class PracticeStore {
       if (!authorized) throw missingQuestion()
       const { question, version, citation } = authorized
       const generated=Boolean(this.quickQuestion(db,version.id))
+      if(practice.mode==='transfer'){
+        const ref=db.prepare('SELECT id FROM practice_transfers WHERE started_session_id=? AND service_id=? AND user_id=?').get(id,actor.serviceId,actor.userId)
+        if(!ref)throw missingPractice()
+        const evaluation=this.transferView(db,actor,this.transfer(db,actor,String(ref.id)),now)
+        if(evaluation.limit_reason)throw new AssetError(409,evaluation.limit_reason)
+      }
       const digest = hash([id, input])
       const priorReceipt = db.prepare('SELECT attempt_id,digest FROM practice_attempt_receipts WHERE service_id=? AND user_id=? AND request_key=?')
         .get(actor.serviceId, actor.userId, key)
@@ -558,7 +735,7 @@ export class PracticeStore {
           .get(String(priorReceipt.attempt_id), id, actor.serviceId, actor.userId, version.id) as unknown as Attempt | undefined
         if (!old) throw missingPractice()
         return { attempt:{...this.attempt(old,generated),...this.evaluation(db,actor,question,version,old,now)},
-          feedback:this.feedback(version,citation),replayed:true }
+          feedback:this.visibleFeedback(db,practice,version,citation,this.attempts(db,id,version.id),old.sequence),replayed:true }
       }
       const { answer, confidence } = input
       if (version.kind === 'choice' && (typeof answer !== 'number' || !Number.isInteger(answer) || answer < 1 || answer > (JSON.parse(version.options_json) as string[]).length) ||
@@ -570,7 +747,7 @@ export class PracticeStore {
       if (sequence !== input.expected_sequence || sequence >= Number.MAX_SAFE_INTEGER) throw new AssetError(409, 'ATTEMPT_SEQUENCE_CONFLICT')
       const exposure=db.prepare(`SELECT 1 FROM practice_attempts a JOIN question_versions v ON v.id=a.question_version_id
         WHERE a.service_id=? AND a.user_id=? AND v.question_id=? LIMIT 1`).get(actor.serviceId,actor.userId,question.id)
-      const assisted=this.hints(db,id,version.id).length>0
+      const assisted=this.hints(db,id,version.id).some(hint=>hint.for_sequence===sequence+1)
       const accepted = JSON.parse(version.answers_json) as Answer[]
       const row: Attempt = { id: randomUUID(), session_id: id, question_version_id: version.id, sequence: sequence + 1,
         submitted_at: now, answer_json: JSON.stringify(answer), confidence, grading_state: scoreAnswer(version.kind, answer, accepted),
@@ -585,7 +762,8 @@ export class PracticeStore {
           scoreAnswer(current.kind,answer,JSON.parse(current.answers_json) as Answer[]),now)
       }
       db.prepare('INSERT INTO practice_attempt_receipts VALUES(?,?,?,?,?)').run(actor.serviceId, actor.userId, key, digest, row.id)
-      return {attempt:{...this.attempt(row,generated),...this.evaluation(db,actor,question,version,row,now)},feedback:this.feedback(version,citation),replayed:false}
+      return {attempt:{...this.attempt(row,generated),...this.evaluation(db,actor,question,version,row,now)},
+        feedback:this.visibleFeedback(db,practice,version,citation,this.attempts(db,id,version.id),row.sequence),replayed:false}
     })
   }
 }

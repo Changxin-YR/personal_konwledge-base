@@ -7,12 +7,14 @@ import type { SessionActor } from './identity.ts'
 import { normalizeFill, questionKinds, type Answer, type QuestionKind } from './practice-policy.ts'
 import type { ReviewDraft } from './practice-review.ts'
 import type { AttemptInput, CorrectionInput, PracticeStore, QuestionDraft } from './practice-store.ts'
+import { difficultyBands,type Difficulty,type TransferDraft } from './practice-transfer.ts'
 import type { QuickInput, QuickPracticeService } from './quick-practice.ts'
 
 export const questionApi = '/knowledge/v1/questions'
 export const practiceApi = '/knowledge/v1/practice-sessions'
 export const reviewApi = '/knowledge/v1/me/wrong-questions'
 export const stateApi = '/knowledge/v1/me/question-states'
+export const transferApi = '/knowledge/v1/me/transfer-practice'
 const invalid = () => new AssetError(422, 'INVALID_PRACTICE_INPUT')
 
 function fields(value: unknown, allowed: string[]) {
@@ -43,7 +45,7 @@ function distinct<T>(value: unknown, max: number, parse: (value: unknown) => T, 
 }
 
 function questionDraft(raw: unknown): QuestionDraft {
-  const values = fields(raw, ['kind','prompt','options','answer','explanation','source_citation_id','project_id'])
+  const values = fields(raw, ['kind','prompt','options','answer','explanation','source_citation_id','project_id','difficulty'])
   const kind = values.kind as QuestionKind
   if (!questionKinds.includes(kind)) throw invalid()
   const prompt = text(values.prompt, 2000), explanation = text(values.explanation, 4000)
@@ -61,7 +63,10 @@ function questionDraft(raw: unknown): QuestionDraft {
       accepted = [values.answer]
     } else accepted = distinct(values.answer, 12, value => text(value, 320), normalizeFill)
   }
-  return { kind, prompt, options, accepted, explanation, source_citation_id, project_id }
+  const difficulty=values.difficulty
+  if(difficulty!==undefined&&!difficultyBands.includes(difficulty as Difficulty))throw invalid()
+  return {kind,prompt,options,accepted,explanation,source_citation_id,project_id,
+    ...(difficulty===undefined?{}:{difficulty:difficulty as Difficulty})}
 }
 
 function attemptInput(raw: unknown): AttemptInput {
@@ -99,10 +104,19 @@ function reviewInput(raw:unknown):ReviewDraft{
   }
   if('next_review_at' in input){
     const date=input.next_review_at
-    if(date!==null&&(typeof date!=='string'||!/^\d{4}-\d\d-\d\dT\d\d:\d\d(?::\d\d(?:\.\d{1,3})?)?(?:Z|[+-]\d\d:\d\d)$/.test(date)||!Number.isFinite(Date.parse(date))))throw invalid()
-    draft.next_review_at=date===null?null:new Date(date).toISOString()
+    draft.next_review_at=date===null?null:timestamp(date)
   }
   return draft
+}
+
+function timestamp(value:unknown){
+  if(typeof value!=='string'||!/^\d{4}-\d\d-\d\dT\d\d:\d\d(?::\d\d(?:\.\d{1,3})?)?(?:Z|[+-]\d\d:\d\d)$/.test(value)||!Number.isFinite(Date.parse(value)))throw invalid()
+  return new Date(value).toISOString()
+}
+
+function transferInput(raw:unknown):TransferDraft{
+  const value=fields(raw,['primary_session_id','target_version_id','available_at'])
+  return {primary_session_id:uuid(value.primary_session_id),target_version_id:uuid(value.target_version_id),available_at:timestamp(value.available_at)}
 }
 
 function quickInput(raw: unknown, preview: boolean) {
@@ -172,18 +186,20 @@ export function createPracticeHandler(store: PracticeStore, quick: QuickPractice
       const success = (status: number, value: object) => send(status, { data: { actor_id: prior.userId, ...value } })
       const path = url.pathname
       const preview=path===practiceApi+'/generate/preview', generate=path===practiceApi+'/generate'
-      const session=path.startsWith(practiceApi+'/')&&/^\/([a-f0-9-]+)\/(questions|attempts|hints|disputes)$/.exec(path.slice(practiceApi.length))
+      const session=path.startsWith(practiceApi+'/')&&/^\/([a-f0-9-]+)\/(questions|attempts|hints|disputes|reveal)$/.exec(path.slice(practiceApi.length))
       const correction=path.startsWith(questionApi+'/')&&/^\/([a-f0-9-]+)\/corrections$/.exec(path.slice(questionApi.length))
       const state=path.startsWith(stateApi+'/')&&/^\/([a-f0-9-]+)$/.exec(path.slice(stateApi.length))
+      const transferStart=path.startsWith(transferApi+'/')&&/^\/([a-f0-9-]+)\/start$/.exec(path.slice(transferApi.length))
       if (method === 'GET') {
         if (path === questionApi) return success(200, store.catalog(prior))
         if (path === practiceApi) return success(200, { sessions: store.listSessions(prior) })
         if(path===reviewApi)return success(200,store.review(prior))
+        if(path===transferApi)return success(200,store.listTransfers(prior))
         const author = path.startsWith(questionApi + '/') && /^\/([a-f0-9-]+)\/author$/.exec(path.slice(questionApi.length))
         if (author) return success(200, store.authored(prior, uuid(author[1])))
         if (session && session[2] === 'questions') return success(200, store.questions(prior, uuid(session[1])))
       }
-      const post=method==='POST'&&(preview||generate||path===questionApi||path===practiceApi||correction||session&&session[2]!=='questions')
+      const post=method==='POST'&&(preview||generate||path===questionApi||path===practiceApi||path===transferApi||transferStart||correction||session&&session[2]!=='questions')
       if(post||method==='PATCH'&&state){
         if (uuid(req.headers['x-knowledgeos-reader-actor']) !== prior.userId) throw new AssetError(409, 'ACTOR_CHANGED')
         const body=await json(req)
@@ -197,14 +213,17 @@ export function createPracticeHandler(store: PracticeStore, quick: QuickPractice
         const recorded = (output: { replayed: boolean }) => success(output.replayed ? 200 : 201, output)
         if(method==='PATCH'&&state)return success(200,store.updateReview(actor,key,uuid(state[1]),reviewInput(body)))
         if(correction)return recorded(store.correct(actor,key,uuid(correction[1]),correctionInput(body)))
+        if(path===transferApi)return recorded(store.scheduleTransfer(actor,key,transferInput(body)))
+        if(transferStart){fields(body,[]);return recorded(store.startTransfer(actor,key,uuid(transferStart[1])))}
         if(generate){
           const {input,fingerprint}=quickInput(body,false)
           return recorded(await quick.generate(current,key,input,fingerprint,signal))
         }
         if (path === questionApi) return recorded(store.createQuestion(actor, key, questionDraft(body)))
         if (path === practiceApi) {
-          const { question_version_ids } = fields(body, ['question_version_ids'])
-          return recorded(store.createSession(actor, key, distinct(question_version_ids, 20, uuid, id => id)))
+          const {question_version_ids,mode}=fields(body,['question_version_ids','mode'])
+          if(mode!==undefined&&mode!=='standard'&&mode!=='guided')throw invalid()
+          return recorded(store.createSession(actor,key,distinct(question_version_ids,20,uuid,id=>id),mode))
         }
         if(session){
           const id=uuid(session[1])
@@ -216,6 +235,10 @@ export function createPracticeHandler(store: PracticeStore, quick: QuickPractice
           if(session[2]==='disputes'){
             const input=fields(body,['question_version_id','reason'])
             return recorded(store.dispute(actor,key,id,uuid(input.question_version_id),text(input.reason,1000)))
+          }
+          if(session[2]==='reveal'){
+            const input=fields(body,['question_version_id'])
+            return recorded(store.reveal(actor,key,id,uuid(input.question_version_id)))
           }
           return recorded(store.submit(actor,key,id,attemptInput(body)))
         }

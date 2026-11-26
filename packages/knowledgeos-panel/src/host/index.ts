@@ -47,10 +47,11 @@ import { createKnowledgeHandler, knowledgeApi } from './knowledge-http.ts'
 import { buildKnowledgeHtml } from './knowledge-page.ts'
 import { createOntologyHandler, ontologyApi } from './ontology-http.ts'
 import { buildOntologyHtml } from './ontology-page.ts'
-import { createPracticeHandler, practiceApi, questionApi, reviewApi, stateApi } from './practice-http.ts'
+import { createPracticeHandler, practiceApi, questionApi, reviewApi, stateApi, transferApi } from './practice-http.ts'
 import { buildPracticeHtml } from './practice-page.ts'
 import { QuickPracticeService } from './quick-practice.ts'
 import { buildPracticeReviewHtml } from './practice-review-page.ts'
+import { buildPracticeTransferHtml } from './practice-transfer-page.ts'
 import { RepositoryService } from './repository-store.ts'
 import { buildRepositoryHtml } from './repository-page.ts'
 import { appealApi, createProjectTaskHandler, decisionApi, taskApi } from './project-task-http.ts'
@@ -301,10 +302,11 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
           handler:withPeer(createOntologyHandler(storage.ontology,reader,()=>ai,actualOrigin,sessionFor,termScope.signal))}))
         const quick=new QuickPracticeService(storage.practice,reader,()=>ai)
         const practiceHandler=withPeer(createPracticeHandler(storage.practice,quick,actualOrigin,sessionFor,termScope.signal))
-        for(const path of [questionApi,practiceApi,reviewApi,stateApi])disposers.push(identityContext.webServer.register({kind:'prefix',path,auth:'anonymous',handler:practiceHandler}))
+        for(const path of [questionApi,practiceApi,reviewApi,stateApi,transferApi])disposers.push(identityContext.webServer.register({kind:'prefix',path,auth:'anonymous',handler:practiceHandler}))
         for (const [path, page] of [
           ['/knowledgeos/knowledge',buildKnowledgeHtml],['/knowledgeos/ontology',buildOntologyHtml],
           ['/knowledgeos/practice',buildPracticeHtml],['/knowledgeos/review',buildPracticeReviewHtml],
+          ['/knowledgeos/transfer',buildPracticeTransferHtml],
         ] as const)
           disposers.push(identityContext.webServer.register({kind:'exact',path,auth:'anonymous',handler:(req,res)=>{
             if(req.method!=='GET'){res.writeHead(405,{allow:'GET'});res.end();return}

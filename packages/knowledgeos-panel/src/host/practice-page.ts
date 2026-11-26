@@ -17,10 +17,10 @@ fieldset{border:0;margin:0;padding:0;display:grid;gap:8px;min-width:0}label{disp
 #practice-prompt-text{white-space:pre-wrap}summary{cursor:pointer;font-weight:600}details form{margin-top:10px}
 :focus-visible{outline:2px solid #1d7392;outline-offset:2px}
 @media(max-width:700px){main,nav{padding:12px 14px}.layout{grid-template-columns:minmax(0,1fr)}}
-</style></head><body><header><nav aria-label="业务导航"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">知识库</a><a href="/knowledgeos/knowledge">知识条目</a><a href="/knowledgeos/practice" aria-current="page">题库与练习</a><a href="/knowledgeos/review">错题与复习</a><a href="/knowledgeos/account">账号</a></nav></header>
+</style></head><body><header><nav aria-label="业务导航"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">知识库</a><a href="/knowledgeos/knowledge">知识条目</a><a href="/knowledgeos/practice" aria-current="page">题库与练习</a><a href="/knowledgeos/review">错题与复习</a><a href="/knowledgeos/transfer">迁移复测</a><a href="/knowledgeos/account">账号</a></nav></header>
 <main><h1>题库与练习</h1><p id="practice-status" role="status">正在读取…</p><a id="practice-login" href="/knowledgeos/account" hidden>登录</a>
 <div id="practice-workspace" class="layout" hidden><aside>
-<section class="card"><h2>可用题目</h2><p class="subtle" id="practice-empty">暂无可练习题目。</p><ul id="practice-questions"></ul><button id="practice-start" type="button" disabled>开始练习</button></section>
+<section class="card"><h2>可用题目</h2><p class="subtle" id="practice-empty">暂无可练习题目。</p><ul id="practice-questions"></ul><div class="actions"><button id="practice-start" type="button" disabled>开始练习</button><button id="practice-start-guided" type="button" disabled>开始独立与提示练习</button></div></section>
 <section class="card"><h2>我的练习</h2><p class="subtle" id="practice-no-history">暂无练习记录。</p><ul id="practice-history"></ul></section>
 </aside><div>
 <section class="card" id="quick-practice" hidden><h2>阅读快答</h2><p id="quick-scope"></p>
@@ -28,17 +28,18 @@ fieldset{border:0;margin:0;padding:0;display:grid;gap:8px;min-width:0}label{disp
 <label id="quick-units-label">章节最多单元<input id="quick-units" type="number" min="1" max="6" value="4"></label></div>
 <p id="quick-coverage" class="subtle"></p><div class="actions"><button id="quick-preview" type="button">检查范围</button><button id="quick-generate" type="button" disabled>生成并开始</button></div>
 <p><small>开始后会将检查范围内的原文摘录发送给已配置的模型。</small></p></section>
-<section class="card" id="practice-detail" hidden><h2>当前练习</h2><ul id="practice-session-questions"></ul>
+<section class="card" id="practice-detail" hidden><h2 id="practice-mode">当前练习</h2><ul id="practice-session-questions"></ul>
 <p id="quick-session-coverage" class="subtle" hidden></p><a id="quick-return-reader" hidden>回到原阅读位置</a>
 <h3 id="practice-prompt-text"></h3><p id="practice-quality" class="subtle" hidden></p><form id="practice-answer-form"><fieldset id="practice-fields">
 <label id="practice-answer-field">我的答案</label><label>作答把握<select id="practice-confidence"><option value="sure">确定</option><option value="unsure">不确定</option></select></label><button type="submit" id="practice-submit">提交首次答案</button></fieldset></form>
-<p id="practice-hint-text" aria-live="polite" hidden></p><button id="practice-hint" type="button">查看提示</button>
+<p id="practice-hint-text" aria-live="polite" hidden></p><div class="actions"><button id="practice-hint" type="button">查看提示</button><button id="practice-reveal" type="button" hidden>查看标准答案</button><a id="practice-transfer-link" href="/knowledgeos/transfer" hidden>安排迁移复测</a></div>
 <section id="practice-feedback" aria-labelledby="practice-feedback-title" hidden><h3 id="practice-feedback-title">答案与解析</h3><p id="practice-accepted"></p><p id="practice-explanation-text"></p><p id="practice-grading"></p><p id="practice-evaluation"></p><a id="practice-source" href="/knowledgeos/library">查看固定引用</a>
 <form id="practice-dispute-form"><label>争议原因<textarea id="practice-dispute-reason" required maxlength="1000"></textarea></label><button id="practice-dispute" type="submit">报告题目争议</button></form></section>
 <section id="practice-attempt-panel" hidden><h3>我的作答记录</h3><ol id="practice-attempts"></ol></section>
 </section>
 <details class="card" id="practice-author"><summary>新建题目</summary><form id="practice-author-form"><fieldset id="practice-author-fields">
 <label>题型<select id="practice-kind"><option value="choice">选择题</option><option value="judgment">判断题</option><option value="fill">填空题</option></select></label>
+<label>声明难度<select id="practice-difficulty"><option value="basic">基础</option><option value="intermediate">进阶</option><option value="advanced">高级</option></select></label>
 <label>题干<textarea id="practice-prompt" required maxlength="2000"></textarea></label>
 <label id="practice-options-label">选项（每行一个）<textarea id="practice-options"></textarea></label>
 <label><span id="practice-author-answer-label">正确选项序号</span><textarea id="practice-author-answer" required></textarea></label>
@@ -61,10 +62,12 @@ const errors={INVALID_PRACTICE_INPUT:'请核对题型、题干、答案和固定
   QUICK_TERM_TOO_LONG:'请选择不超过 64 个字符的术语。',QUICK_MODEL_OUTPUT_INVALID:'模型生成的题目或引用无法核对。',
   MODEL_NOT_CONFIGURED:'当前没有可用的模型。',MODEL_OUTPUT_TRUNCATED:'模型输出未完成，请减少题量后重试。',
   QUESTION_VERSION_CHANGED:'题目版本已修订，请从题库打开当前版本。',DISPUTE_ALREADY_OPEN:'你已报告这一题目版本的争议。',
-  HINT_AFTER_ANSWER:'首次作答已记录。',HINT_LEVEL_CONFLICT:'请先查看前一级提示。'};
+  HINT_AFTER_ANSWER:'首次作答已记录。',HINT_LEVEL_CONFLICT:'请先查看前一级提示。',
+  FIRST_ANSWER_REQUIRED:'请先提交独立首答。',TRANSFER_HINTS_DISABLED:'迁移复测独立完成。'};
 const address=new URL(location.href), validId=/^[a-f0-9-]{36}$/;let citation=address.searchParams.get('citation');
 let active=address.searchParams.get('session');if(!validId.test(active||''))active=null;
 let actor=null, versions=[], sessions=[], questions=[], picked=new Set(), version=null, busy=false, waiting=false;
+let practiceMode='standard';
 let epoch=0, reads=0, receipt=null, signature='', catalogSignature='', controller=null;
 const scopeLabels={paragraph:'选区段落',chapter:'当前章节',term:'术语语境'};
 let quickScope=Object.hasOwn(scopeLabels,address.searchParams.get('quick'))?address.searchParams.get('quick'):null, quickPreview=null;
@@ -83,7 +86,7 @@ async function http(path,init={}){
   return json.data
 }
 function clearDetail(){
-  signature='';version=null;questions=[];$('practice-detail').hidden=true;$('practice-feedback').hidden=true;$('practice-attempt-panel').hidden=true;
+  signature='';version=null;questions=[];practiceMode='standard';$('practice-detail').hidden=true;$('practice-feedback').hidden=true;$('practice-attempt-panel').hidden=true;
   for(const id of ['practice-session-questions','practice-attempts','practice-prompt-text','practice-accepted','practice-explanation-text','practice-grading','practice-quality','quick-session-coverage','practice-hint-text','practice-evaluation'])
     $(id).replaceChildren();
   $('practice-dispute-reason').value='';
@@ -99,9 +102,10 @@ function clearAll(){
 function setControls(){
   $('practice-fields').disabled=$('practice-author-fields').disabled=busy;
   $('practice-start').disabled=busy||!picked.size;
+  $('practice-start-guided').disabled=busy||picked.size!==1;
   $('quick-count').disabled=$('quick-units').disabled=$('quick-preview').disabled=busy;
   $('quick-generate').disabled=busy||!quickPreview?.available;
-  $('practice-hint').disabled=$('practice-dispute').disabled=busy;
+  $('practice-hint').disabled=$('practice-dispute').disabled=$('practice-reveal').disabled=busy;
 }
 function renderCatalog(projects){
   const changed=JSON.stringify([versions,sessions,projects]);
@@ -140,6 +144,7 @@ function paintQuestion(){
   const question=currentQuestion();
   if(!question){$('practice-detail').hidden=true;return}
   $('practice-detail').hidden=false;$('practice-prompt-text').textContent=kinds[question.kind]+' · '+question.prompt;
+  $('practice-mode').textContent=practiceMode==='guided'?'独立与提示练习':practiceMode==='transfer'?'独立迁移复测':'当前练习';
   $('practice-quality').hidden=question.origin_kind!=='generated';
   $('practice-quality').textContent=question.origin_kind==='generated'?(question.quality_state==='needs_review'?'题目待复核，仅用于练习。':'引用已匹配，仅用于练习。'):'';
   const input=document.createElement(question.kind==='fill'?'input':'select');
@@ -155,7 +160,11 @@ function paintQuestion(){
   }
   const feedback=question.feedback;
   $('practice-feedback').hidden=!feedback;$('practice-attempt-panel').hidden=question.attempts.length===0;
-  $('practice-hint').hidden=question.attempts.length!==0||question.hints.length>=2;
+  const hasFirst=question.attempts.length!==0;
+  const guided=practiceMode==='guided';
+  $('practice-hint').hidden=practiceMode==='transfer'||question.hints.length>=2||(guided?(!hasFirst||!!feedback):hasFirst);
+  $('practice-reveal').hidden=!guided||!hasFirst||!!feedback;
+  $('practice-transfer-link').hidden=!guided||!hasFirst||!feedback;
   $('practice-hint').textContent=question.hints.length?'查看下一提示':'查看提示';
   $('practice-hint-text').hidden=question.hints.length===0;
   $('practice-hint-text').textContent=question.hints.map(hint=>hint.text).join(' ');
@@ -204,7 +213,7 @@ async function load(force=false){
     if(covered)$('quick-return-reader').href=covered.return_href;else $('quick-return-reader').removeAttribute('href');
     const next=JSON.stringify(current?.questions||[]);
     if(next!==signature){
-      signature=next;questions=current?.questions||[];
+      signature=next;questions=current?.questions||[];practiceMode=current?.session.mode||'standard';
       if(!currentQuestion())version=questions[0]?.version_id;
       paintQuestion()
     }
@@ -241,6 +250,7 @@ async function write(path,payload){
     }
     else if(path===bank){$('practice-author-form').reset();authorControls();await load(true);if(g===epoch)status('题目已创建。')}
     else if(path.endsWith('/hints')){await load(true);if(g===epoch&&currentQuestion())status('已记录提示。')}
+    else if(path.endsWith('/reveal')){await load(true);if(g===epoch&&currentQuestion())status('已记录查看标准答案。')}
     else if(path.endsWith('/disputes')){$('practice-dispute-reason').value='';await load(true);if(g===epoch&&currentQuestion())status('争议已记录，当前评价暂停。')}
     else {await load(true);if(g===epoch&&currentQuestion())status('作答已保存 · '+grades[result.attempt.grading_state])}
   }catch(error){
@@ -303,7 +313,7 @@ function authorControls(){
 $('practice-kind').onchange=authorControls;
 $('practice-author-form').onsubmit=event=>{
   event.preventDefault();const kind=$('practice-kind').value, raw=$('practice-author-answer').value.trim();
-  const payload={kind,prompt:$('practice-prompt').value,explanation:$('practice-explanation').value,source_citation_id:$('practice-citation').value.trim()};
+  const payload={kind,prompt:$('practice-prompt').value,explanation:$('practice-explanation').value,source_citation_id:$('practice-citation').value.trim(),difficulty:$('practice-difficulty').value};
   if($('practice-project').value)payload.project_id=$('practice-project').value;
   if(kind==='choice'){
     payload.options=lines($('practice-options').value);payload.answer=Number(raw);
@@ -315,10 +325,15 @@ $('practice-author-form').onsubmit=event=>{
   void write(bank,payload)
 };
 $('practice-start').onclick=()=>{if(picked.size)void write(api,{question_version_ids:[...picked]})};
+$('practice-start-guided').onclick=()=>{if(picked.size===1)void write(api,{question_version_ids:[...picked],mode:'guided'})};
 $('practice-hint').onclick=()=>{
   const question=currentQuestion();
-  if(question&&active&&!question.attempts.length&&question.hints.length<2)
+  if(question&&active&&!$('practice-hint').hidden&&question.hints.length<2)
     void write(api+'/'+active+'/hints',{question_version_id:question.version_id,level:question.hints.length+1})
+};
+$('practice-reveal').onclick=()=>{
+  const question=currentQuestion();
+  if(question&&active&&!$('practice-reveal').hidden)void write(api+'/'+active+'/reveal',{question_version_id:question.version_id})
 };
 $('practice-dispute-form').onsubmit=event=>{
   event.preventDefault();const question=currentQuestion();

@@ -44,6 +44,7 @@ import {KNOWLEDGE_SCHEMA,KnowledgeStore} from './knowledge-store.ts'
 import {ONTOLOGY_SCHEMA,OntologyStore} from './ontology-store.ts'
 import {PRACTICE_SCHEMA,PracticeStore,QUICK_PRACTICE_SCHEMA} from './practice-store.ts'
 import {PRACTICE_REVIEW_SCHEMA} from './practice-review.ts'
+import {PRACTICE_TRANSFER_SCHEMA} from './practice-transfer.ts'
 import {REPOSITORY_GITEE_SCHEMA,REPOSITORY_GITEE_TABLES,REPOSITORY_PLATFORM_SCHEMA,REPOSITORY_PLATFORM_TABLES,REPOSITORY_SCHEMA,RepositoryStore} from './repository-store.ts'
 import {PROJECT_TASK_SCHEMA,ProjectTaskStore} from './project-task-store.ts'
 import {PROJECT_TASK_CORRECTION_SCHEMA,PROJECT_TASK_REVIEW_SCHEMA} from './project-task-review-schema.ts'
@@ -55,8 +56,9 @@ import {INVITATION_CHANGE_SCHEMA,INVITATION_EVENT_SCHEMA,INVITATION_SCHEMA,Invit
 /** Fixed application identity written to PRAGMA application_id (KOS1). */
 export const APPLICATION_ID = 0x4b4f5331
 /** Current application schema version. */
-export const SCHEMA_VERSION = 41
-type VerifiedSchema = 6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37|38|39|40|41
+export const SCHEMA_VERSION = 42
+type VerifiedSchema = 6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37|38|39|40|41|42
+export const MIGRATION_V42_CHECKSUM = createHash('sha256').update(PRACTICE_TRANSFER_SCHEMA).digest('hex')
 export const MIGRATION_V41_CHECKSUM = createHash('sha256').update(PRACTICE_REVIEW_SCHEMA).digest('hex')
 export const MIGRATION_V40_CHECKSUM = createHash('sha256').update(QUICK_PRACTICE_SCHEMA).digest('hex')
 export const MIGRATION_V39_CHECKSUM = createHash('sha256').update(PRACTICE_SCHEMA).digest('hex')
@@ -325,6 +327,7 @@ export interface ProbeStorageOptions {
     | 'v39:after-schema'
     | 'v40:after-schema'
     | 'v41:after-schema'
+    | 'v42:after-schema'
 }
 
 export interface DatabaseFacts {
@@ -573,6 +576,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       if (priorVersion<39) this.#migrateV39(db)
       if (priorVersion<40) this.#migrateV40(db)
       if (priorVersion<41) this.#migrateV41(db)
+      if (priorVersion<42) this.#migrateV42(db)
       this.#verify(db,SCHEMA_VERSION)
       const facts = readDatabaseFacts(path)
       const pragmas = this.#readPragmas(db)
@@ -1227,9 +1231,22 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
     }
   }
 
+  #migrateV42(db:DatabaseSync):void {
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      db.exec(PRACTICE_TRANSFER_SCHEMA)
+      this.#injectFailure('v42:after-schema')
+      db.prepare('INSERT INTO schema_migrations VALUES(42,?,?)').run(MIGRATION_V42_CHECKSUM,new Date().toISOString())
+      db.exec('PRAGMA user_version=42; COMMIT')
+    } catch(e) {
+      if(!this.#rollback(db))throw this.#failure
+      throw new RecordsError('STORAGE_INCOMPATIBLE','practice transfer migration failed',false,{cause:e})
+    }
+  }
+
   #verify(db: DatabaseSync, version:VerifiedSchema): void {
     const facts = readDatabaseFacts(this.databasePath)
-    const checks=[MIGRATION_V6_CHECKSUM,MIGRATION_V7_CHECKSUM,MIGRATION_V8_CHECKSUM,MIGRATION_V9_CHECKSUM,MIGRATION_V10_CHECKSUM,MIGRATION_V11_CHECKSUM,MIGRATION_V12_CHECKSUM,MIGRATION_V13_CHECKSUM,MIGRATION_V14_CHECKSUM,MIGRATION_V15_CHECKSUM,MIGRATION_V16_CHECKSUM,MIGRATION_V17_CHECKSUM,MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM,MIGRATION_V20_CHECKSUM,MIGRATION_V21_CHECKSUM,MIGRATION_V22_CHECKSUM,MIGRATION_V23_CHECKSUM,MIGRATION_V24_CHECKSUM,MIGRATION_V25_CHECKSUM,MIGRATION_V26_CHECKSUM,MIGRATION_V27_CHECKSUM,MIGRATION_V28_CHECKSUM,MIGRATION_V29_CHECKSUM,MIGRATION_V30_CHECKSUM,MIGRATION_V31_CHECKSUM,MIGRATION_V32_CHECKSUM,MIGRATION_V33_CHECKSUM,MIGRATION_V34_CHECKSUM,MIGRATION_V35_CHECKSUM,MIGRATION_V36_CHECKSUM,MIGRATION_V37_CHECKSUM,MIGRATION_V38_CHECKSUM,MIGRATION_V39_CHECKSUM,MIGRATION_V40_CHECKSUM,MIGRATION_V41_CHECKSUM].slice(0,version-5)
+    const checks=[MIGRATION_V6_CHECKSUM,MIGRATION_V7_CHECKSUM,MIGRATION_V8_CHECKSUM,MIGRATION_V9_CHECKSUM,MIGRATION_V10_CHECKSUM,MIGRATION_V11_CHECKSUM,MIGRATION_V12_CHECKSUM,MIGRATION_V13_CHECKSUM,MIGRATION_V14_CHECKSUM,MIGRATION_V15_CHECKSUM,MIGRATION_V16_CHECKSUM,MIGRATION_V17_CHECKSUM,MIGRATION_V18_CHECKSUM,MIGRATION_V19_CHECKSUM,MIGRATION_V20_CHECKSUM,MIGRATION_V21_CHECKSUM,MIGRATION_V22_CHECKSUM,MIGRATION_V23_CHECKSUM,MIGRATION_V24_CHECKSUM,MIGRATION_V25_CHECKSUM,MIGRATION_V26_CHECKSUM,MIGRATION_V27_CHECKSUM,MIGRATION_V28_CHECKSUM,MIGRATION_V29_CHECKSUM,MIGRATION_V30_CHECKSUM,MIGRATION_V31_CHECKSUM,MIGRATION_V32_CHECKSUM,MIGRATION_V33_CHECKSUM,MIGRATION_V34_CHECKSUM,MIGRATION_V35_CHECKSUM,MIGRATION_V36_CHECKSUM,MIGRATION_V37_CHECKSUM,MIGRATION_V38_CHECKSUM,MIGRATION_V39_CHECKSUM,MIGRATION_V40_CHECKSUM,MIGRATION_V41_CHECKSUM,MIGRATION_V42_CHECKSUM].slice(0,version-5)
     if(facts.applicationId!==APPLICATION_ID || facts.userVersion!==version || facts.ledger.length!==version || checks.some((hash,i)=>facts.ledger[i+5]?.version!==i+6||facts.ledger[i+5]?.checksum!==hash))throw new RecordsError('STORAGE_INCOMPATIBLE','database ownership/version verification failed')
     const reference = new DatabaseSync(':memory:')
     try {
@@ -1269,6 +1286,7 @@ export class ProbeStorage implements ProbeStorePort, IdentityStore {
       if(version>=39)reference.exec(PRACTICE_SCHEMA)
       if(version>=40)reference.exec(QUICK_PRACTICE_SCHEMA)
       if(version>=41)reference.exec(PRACTICE_REVIEW_SCHEMA)
+      if(version>=42)reference.exec(PRACTICE_TRANSFER_SCHEMA)
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all()
       for (const {name,sql} of definitions) {
         if (db.prepare('SELECT sql FROM sqlite_master WHERE name=?').get(name!)?.sql!==sql) throw new RecordsError('STORAGE_INCOMPATIBLE','jobs schema definition mismatch')
