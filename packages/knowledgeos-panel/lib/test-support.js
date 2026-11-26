@@ -313,6 +313,7 @@ var AiService = class {
       if (catalog.length > 0 && !catalog.some((m) => m.id === this.config.model)) throw new AiError(404, "MODEL_NOT_FOUND");
       const info = tools.length === 0 && this.llm.resolveModelInfo ? await this.#abortable(this.llm.resolveModelInfo(this.config.provider, this.config.model, controller.signal), controller.signal) : void 0;
       const canDisableThinking = info?.reasoning?.efforts.some((effort) => effort.id === "off") === true;
+      const maxExplanationTokens = Math.min(1536, info?.defaultMaxTokens ?? 1536);
       authorize2?.();
       controller.signal.throwIfAborted();
       this.#calls++;
@@ -326,7 +327,7 @@ var AiService = class {
         messages: [{ role: "user", content: [{ type: "text", text: userText }] }],
         tools,
         signal: controller.signal,
-        ...tools.length ? {} : { maxTokens: 512 },
+        ...tools.length ? {} : { maxTokens: maxExplanationTokens },
         ...canDisableThinking ? { reasoningEffort: "off" } : {}
       })[Symbol.asyncIterator]();
       try {

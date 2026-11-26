@@ -263,10 +263,13 @@ async function proof() {
     assert.equal(provider, 'tokease'); assert.equal(model, 'deepseek-v4.1-flash-1017'); assert.equal(endpoint, 'https://tokease.cn/v1')
     assert.match(manifest_sha256, /^[a-f0-9]{64}$/)
     assert.deepEqual(requests.map(r => r.stage), ['database-index','array-index'])
-    assert(requests.every(r => r.output_token_cap === 512 && /^[a-f0-9]{64}$/.test(r.request_sha256)))
+    assert(requests.every(r => r.output_token_cap === 1536 && /^[a-f0-9]{64}$/.test(r.request_sha256)))
   }
   if (mode === 'CONTROLLED_FIXTURE') assert.equal(fixture_dispatches, 2)
-  if (mode === 'dry') assert.equal(wire_calibrations, 2)
+  if (mode === 'dry') {
+    assert.equal(wire_calibrations, 2)
+    assert(requests.every(r => r.output_token_cap === 1536))
+  }
   return { mode, provider, model, real_inference_requests, fixture_dispatches, wire_calibrations, requests, endpoint, manifest_sha256 }
 }
 

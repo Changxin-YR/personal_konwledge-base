@@ -14,7 +14,7 @@ const database = '{"term":"索引","context":"数据库用B-tree索引查找记�
 const array = '{"term":"索引","context":"数组索引0是第一个元素。"}'
 const packet = context => ({
   model: route.model, stream: true, stream_options: { include_usage: true }, store: false,
-  max_completion_tokens: 512, thinking: { type: 'disabled' }, messages: [{ role: 'system', content: system }, { role: 'user', content: context }],
+  max_completion_tokens: 1536, thinking: { type: 'disabled' }, messages: [{ role: 'system', content: system }, { role: 'user', content: context }],
 })
 
 function supply() {
@@ -44,7 +44,7 @@ test('exact reviewed text-only completion validates and identifies its source st
       permit: permitFor(manifest, step), manifest, manifestHash: sha(JSON.stringify(manifest)), step, now,
     })
     assert.equal(parsed.stage, manifest.steps[step - 1].stage)
-    assert.equal(parsed.output_token_cap, 512)
+    assert.equal(parsed.output_token_cap, 1536)
   }
 })
 
@@ -70,7 +70,7 @@ test('even a reviewed digest cannot authorize non-text tools, attachments, or ov
     { tools: [] },
     { tools: [{ name: 'never-allowed' }] },
     { tool_choice: 'none' },
-    { max_completion_tokens: 513 },
+    { max_completion_tokens: 1537 },
     { n: 2 },
     { store: true },
     { thinking: { type: 'enabled' } },

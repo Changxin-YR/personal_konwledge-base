@@ -39,7 +39,7 @@ export function apply(ctx) {
     async *stream(options) {
       assert.equal(options.provider, provider)
       assert.equal(options.model, model)
-      assert.equal(options.maxTokens, 512)
+      assert.equal(options.maxTokens, 1536)
       assert.deepEqual(options.tools, [])
       assert.equal(options.messages.length, 1)
       const payload = options.messages[0].content[0].text

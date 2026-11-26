@@ -10,7 +10,7 @@ import { AssetError } from './asset-store.ts'
 export interface LlmPort {
   listProviders(): Array<{ id: string; name?: string }>
   listModels(provider: string): Promise<readonly { id: string; name?: string }[]>
-  resolveModelInfo?(provider: string, model: string, signal?: AbortSignal): Promise<{ reasoning?: { efforts: readonly { id: string }[] } }>
+  resolveModelInfo?(provider: string, model: string, signal?: AbortSignal): Promise<{ defaultMaxTokens?: number; reasoning?: { efforts: readonly { id: string }[] } }>
   stream(options: { provider: string; model: string; system: string; messages: Array<{ role: 'user'; content: Array<{ type: 'text'; text: string }> }>; tools: typeof TOOL_SCHEMAS | []; maxTokens?: number; reasoningEffort?: 'off'; signal: AbortSignal }): AsyncIterable<{ type: string; block?: { type: string; id?: string; name?: string; arguments?: string; text?: string }; usage?: unknown; reason?: { kind: string; failure?: { code?: string; status?: number; message?: string } } }>
 }
 export interface ToolsPort {
@@ -131,6 +131,7 @@ export class AiService {
         ? await this.#abortable(this.llm.resolveModelInfo(this.config.provider, this.config.model, controller.signal), controller.signal)
         : undefined
       const canDisableThinking = info?.reasoning?.efforts.some(effort => effort.id === 'off') === true
+      const maxExplanationTokens = Math.min(1536, info?.defaultMaxTokens ?? 1536)
       authorize?.()
       controller.signal.throwIfAborted()
       this.#calls++; attempted = true
@@ -138,7 +139,7 @@ export class AiService {
       let finish: string | undefined, outputBytes = 0, text = '', streamDone = false
       const stream = this.llm.stream({
         provider: this.config.provider, model: this.config.model, system, messages: [{ role: 'user', content: [{ type: 'text', text: userText }] }],
-        tools, signal: controller.signal, ...(tools.length ? {} : { maxTokens: 512 }),
+        tools, signal: controller.signal, ...(tools.length ? {} : { maxTokens: maxExplanationTokens }),
         ...(canDisableThinking ? { reasoningEffort: 'off' as const } : {}),
       })[Symbol.asyncIterator]()
       try {

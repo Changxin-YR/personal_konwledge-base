@@ -70,7 +70,7 @@ export function checkTermCompletion({ url, method, body, permit, manifest, manif
   if (packet.store !== undefined) assert.equal(packet.store, false)
   assert.deepEqual(packet.thinking, { type: 'disabled' })
   const limits = [packet.max_tokens, packet.max_completion_tokens].filter(value => value !== undefined)
-  assert(limits.length && limits.every(value => Number.isInteger(value) && value >= 1 && value <= 512))
+  assert(limits.length && limits.every(value => Number.isInteger(value) && value >= 1 && value <= 1536))
   assert(Array.isArray(packet.messages) && packet.messages.length === 2)
   const [system, user] = packet.messages
   exact(system, ['role', 'content'])

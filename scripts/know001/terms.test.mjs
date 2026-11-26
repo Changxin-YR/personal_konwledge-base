@@ -31,7 +31,7 @@ test('text-only inference shares call accounting, checks before dispatch, and cl
     async *stream(options) {
       dispatched++
       assert.deepEqual(options.tools, [])
-      assert.equal(options.maxTokens, 512)
+      assert.equal(options.maxTokens, 1536)
       assert.equal(options.reasoningEffort, 'off')
       assert.equal(options.system, termSystem)
       try { yield* chunks }
