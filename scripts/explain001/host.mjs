@@ -50,6 +50,7 @@ function within(parent, child) {
   const rel = relative(realpathSync(parent), realpathSync(child))
   return rel !== '' && rel !== '..' && !rel.startsWith('..' + sep) && !isAbsolute(rel)
 }
+let controller, host, browser, releaseSlot
 function chromeEnv() {
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) =>
     /^(systemroot|windir|comspec|path|pathext|programfiles.*|processor_.*|number_of_processors|systemdrive|localappdata|appdata|userprofile|home|temp|tmp|lang|display|xdg_runtime_dir)$/i.test(name)))
