@@ -58,6 +58,10 @@ async function boot() {
   assert(Number.isInteger(first.pid) && first.pid > 0)
   run.boots.push({ pid: first.pid }); return first
 }
+async function capture(page, name) {
+  const bytes = await page.screenshot({ path: join(out, name + '.png'), fullPage: true, animations: 'disabled' })
+  run.screens.push({ file: name + '.png', sha256: sha(bytes) })
+}
 function chromeEnv() {
   return Object.fromEntries(Object.entries(process.env).filter(([name]) =>
     /^(systemroot|windir|comspec|path|pathext|programfiles.*|localappdata|appdata|userprofile|home|temp|tmp|lang|display|xdg_runtime_dir)$/i.test(name)))
