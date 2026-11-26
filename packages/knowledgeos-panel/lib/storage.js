@@ -1450,26 +1450,27 @@ var CitationStore = class {
       return this.receipt(db, a, now, spec, key, citationAnchor(text2, spec.start, spec.end));
     });
   }
+  createPinned(db, a, spec, key, now, w) {
+    const src = this.read(db, a, spec, now);
+    if (!uuid2.test(key) || src.kind === "office" && !spec.conversion_id) throw new AssetError(422, "INVALID_CITATION");
+    const text2 = this.text(src, w);
+    if (sha2(text2) !== spec.source_hash) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
+    const range = citationAnchor(text2, spec.start, spec.end);
+    const old = this.receipt(db, a, now, spec, key, range);
+    if (old) return old;
+    const neighbor = (n) => {
+      if (src.kind !== "text") return null;
+      const r = db.prepare("SELECT anchor FROM text_blocks WHERE version_id=? AND ordinal=?").get(src.version_id, n);
+      return r ? String(r.anchor) : null;
+    };
+    const locator = makeLocator(src, text2, spec.start, spec.end, { previous: neighbor(src.ordinal - 1), next: neighbor(src.ordinal + 1) }, w);
+    const id = randomUUID10();
+    db.prepare("INSERT INTO citations VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run(id, a.userId, key, spec.asset_id, spec.version_id, spec.conversion_id ?? null, spec.ordinal, range.start, range.end, range.source_hash, range.quote_hash, now);
+    db.prepare("INSERT INTO citation_locators(citation_id,snapshot) VALUES(?,?)").run(id, JSON.stringify(locator));
+    return { data: { ...spec, ...range, id, locator }, replayed: false };
+  }
   create(prior, spec, key, w) {
-    return this.tx("write", (db, now) => {
-      const a = this.actor(prior, now), src = this.read(db, a, spec, now);
-      if (!uuid2.test(key) || src.kind === "office" && !spec.conversion_id) throw new AssetError(422, "INVALID_CITATION");
-      const text2 = this.text(src, w);
-      if (sha2(text2) !== spec.source_hash) throw new AssetError(409, "CITATION_SOURCE_CHANGED");
-      const range = citationAnchor(text2, spec.start, spec.end);
-      const old = this.receipt(db, a, now, spec, key, range);
-      if (old) return old;
-      const neighbor = (n) => {
-        if (src.kind !== "text") return null;
-        const r = db.prepare("SELECT anchor FROM text_blocks WHERE version_id=? AND ordinal=?").get(src.version_id, n);
-        return r ? String(r.anchor) : null;
-      };
-      const locator = makeLocator(src, text2, spec.start, spec.end, { previous: neighbor(src.ordinal - 1), next: neighbor(src.ordinal + 1) }, w);
-      const id = randomUUID10();
-      db.prepare("INSERT INTO citations VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run(id, a.userId, key, spec.asset_id, spec.version_id, spec.conversion_id ?? null, spec.ordinal, range.start, range.end, range.source_hash, range.quote_hash, now);
-      db.prepare("INSERT INTO citation_locators(citation_id,snapshot) VALUES(?,?)").run(id, JSON.stringify(locator));
-      return { data: { ...spec, ...range, id, locator }, replayed: false };
-    });
+    return this.tx("write", (db, now) => this.createPinned(db, this.actor(prior, now), spec, key, now, w));
   }
   lookup(db, a, id, now) {
     const r = db.prepare(`SELECT ${fields} FROM citations WHERE id=?`).get(id);
@@ -2550,6 +2551,20 @@ CREATE TABLE practice_attempt_receipts (
   PRIMARY KEY(service_id,user_id,request_key)
 ) STRICT;
 `;
+var QUICK_PRACTICE_SCHEMA = `
+CREATE TABLE quick_practice_runs (
+  service_id TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES users(id), request_key TEXT NOT NULL,
+  fingerprint TEXT NOT NULL CHECK(length(fingerprint)=64), session_id TEXT UNIQUE,
+  coverage_json TEXT NOT NULL, provider TEXT, model TEXT, created_at TEXT NOT NULL,
+  CHECK((provider IS NULL)=(model IS NULL)), CHECK(session_id IS NULL OR provider IS NOT NULL),
+  FOREIGN KEY(session_id,service_id,user_id) REFERENCES practice_sessions(id,service_id,user_id),
+  PRIMARY KEY(service_id,user_id,request_key)
+) STRICT;
+CREATE TABLE quick_practice_questions (
+  version_id TEXT PRIMARY KEY REFERENCES question_versions(id), session_id TEXT NOT NULL REFERENCES quick_practice_runs(session_id),
+  quality TEXT NOT NULL CHECK(quality IN ('ready','needs_review'))
+) STRICT;
+`;
 var hash4 = (value) => createHash12("sha256").update(JSON.stringify(value)).digest("hex");
 var missingQuestion = () => new AssetError(404, "QUESTION_NOT_FOUND");
 var missingPractice = () => new AssetError(404, "PRACTICE_NOT_FOUND");
@@ -2588,7 +2603,11 @@ var PracticeStore = class {
       throw error;
     }
   }
-  learner(question, version) {
+  quickQuestion(db, id) {
+    return db.prepare("SELECT quality FROM quick_practice_questions WHERE version_id=?").get(id);
+  }
+  learner(db, question, version) {
+    const generated = this.quickQuestion(db, version.id);
     return {
       id: question.id,
       version_id: version.id,
@@ -2597,7 +2616,10 @@ var PracticeStore = class {
       prompt: version.prompt,
       options: JSON.parse(version.options_json),
       project_id: question.project_id,
-      author_id: question.author_id
+      author_id: question.author_id,
+      quality_state: generated?.quality ?? "ready",
+      origin_kind: generated ? "generated" : "author",
+      evaluation_eligible: !generated
     };
   }
   feedback(version, citation) {
@@ -2625,7 +2647,7 @@ var PracticeStore = class {
         const version = this.version(db, question.current_version_id);
         try {
           this.source(db, actor, version, now);
-          return [this.learner(question, version)];
+          return [this.learner(db, question, version)];
         } catch (error) {
           if (error instanceof AssetError && error.status === 404) return [];
           throw error;
@@ -2641,7 +2663,8 @@ var PracticeStore = class {
       const row = db.prepare("SELECT current_version_id FROM questions WHERE id=? AND service_id=? AND author_id=?").get(id, actor.serviceId, actor.userId);
       if (!row) throw missingQuestion();
       const { question, version, citation } = this.accessVersion(db, actor, String(row.current_version_id), now);
-      return { question: this.learner(question, version), feedback: this.feedback(version, citation) };
+      if (this.quickQuestion(db, version.id)) throw missingQuestion();
+      return { question: this.learner(db, question, version), feedback: this.feedback(version, citation) };
     });
   }
   createQuestion(prior, key, draft) {
@@ -2651,32 +2674,35 @@ var PracticeStore = class {
       if (old) {
         const { question: question2, version } = this.accessVersion(db, actor, old.current_version_id, now);
         if (old.request_digest !== digest3) throw conflict3();
-        return { question: this.learner(question2, version), replayed: true };
+        return { question: this.learner(db, question2, version), replayed: true };
       }
       if (draft.project_id && !this.canUseProject(actor, draft.project_id, now)) throw missingQuestion();
       const citation = this.citations.knowledgeSource(db, actor, draft.source_citation_id, now);
-      const id = randomUUID14(), versionId = randomUUID14();
-      db.prepare("INSERT INTO questions VALUES(?,?,?,?,?,?,?,?)").run(id, actor.serviceId, actor.userId, draft.project_id, versionId, now, key, digest3);
-      db.prepare(`INSERT INTO question_versions
-        (id,question_id,version,kind,prompt,options_json,answers_json,explanation,evidence_json,citation_id,grading_rule,created_by,created_at)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
-        versionId,
-        id,
-        1,
-        draft.kind,
-        draft.prompt,
-        JSON.stringify(draft.options),
-        JSON.stringify(draft.accepted),
-        draft.explanation,
-        JSON.stringify(citation),
-        citation.id,
-        draft.kind === "fill" ? fillRule : exactRule,
-        actor.userId,
-        now
-      );
-      const question = { id, author_id: actor.userId, project_id: draft.project_id, current_version_id: versionId, request_digest: digest3 };
-      return { question: this.learner(question, this.version(db, versionId)), replayed: false };
+      const question = this.insertQuestion(db, actor, now, key, digest3, draft, citation);
+      return { question: this.learner(db, question, this.version(db, question.current_version_id)), replayed: false };
     });
+  }
+  insertQuestion(db, actor, now, key, digest3, draft, citation) {
+    const id = randomUUID14(), versionId = randomUUID14();
+    db.prepare("INSERT INTO questions VALUES(?,?,?,?,?,?,?,?)").run(id, actor.serviceId, actor.userId, draft.project_id, versionId, now, key, digest3);
+    db.prepare(`INSERT INTO question_versions
+      (id,question_id,version,kind,prompt,options_json,answers_json,explanation,evidence_json,citation_id,grading_rule,created_by,created_at)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+      versionId,
+      id,
+      1,
+      draft.kind,
+      draft.prompt,
+      JSON.stringify(draft.options),
+      JSON.stringify(draft.accepted),
+      draft.explanation,
+      JSON.stringify(citation),
+      citation.id,
+      draft.kind === "fill" ? fillRule : exactRule,
+      actor.userId,
+      now
+    );
+    return { id, author_id: actor.userId, project_id: draft.project_id, current_version_id: versionId, request_digest: digest3 };
   }
   practice(db, actor, id) {
     const row = db.prepare("SELECT id,started_at,request_digest FROM practice_sessions WHERE id=? AND service_id=? AND user_id=?").get(id, actor.serviceId, actor.userId);
@@ -2686,8 +2712,9 @@ var PracticeStore = class {
   inSession(db, actor, id, now) {
     return db.prepare("SELECT question_version_id FROM practice_session_questions WHERE session_id=? ORDER BY position").all(id).map((row) => this.accessVersion(db, actor, String(row.question_version_id), now));
   }
-  session(row) {
-    return { id: row.id, started_at: row.started_at };
+  session(db, row) {
+    const quick = db.prepare("SELECT coverage_json FROM quick_practice_runs WHERE session_id=?").get(row.id);
+    return { id: row.id, started_at: row.started_at, ...quick ? { quick_coverage: JSON.parse(String(quick.coverage_json)) } : {} };
   }
   listSessions(prior) {
     return this.tx("read", (db, now) => {
@@ -2696,7 +2723,7 @@ var PracticeStore = class {
       return rows.flatMap((row) => {
         try {
           const questions = this.inSession(db, actor, row.id, now);
-          return [{ ...this.session(row), count: questions.length, title: questions[0]?.version.prompt }];
+          return [{ ...this.session(db, row), count: questions.length, title: questions[0]?.version.prompt }];
         } catch (error) {
           if (error instanceof AssetError && error.status === 404) return [];
           throw error;
@@ -2711,17 +2738,81 @@ var PracticeStore = class {
       if (old) {
         this.inSession(db, actor, old.id, now);
         if (old.request_digest !== digest3) throw conflict3();
-        return { session: this.session(old), replayed: true };
+        return { session: this.session(db, old), replayed: true };
       }
-      for (const id2 of versions) this.accessVersion(db, actor, id2, now);
-      const id = randomUUID14();
-      db.prepare("INSERT INTO practice_sessions VALUES(?,?,?,?,?,?)").run(id, actor.serviceId, actor.userId, now, key, digest3);
-      const add = db.prepare("INSERT INTO practice_session_questions VALUES(?,?,?)");
-      versions.forEach((version, i) => add.run(id, version, i));
-      return { session: this.session({ id, started_at: now, request_digest: digest3 }), replayed: false };
+      for (const id of versions) this.accessVersion(db, actor, id, now);
+      const row = this.insertSession(db, actor, now, key, digest3, versions);
+      return { session: this.session(db, row), replayed: false };
     });
   }
-  attempt(row) {
+  insertSession(db, actor, now, key, digest3, versions) {
+    const id = randomUUID14();
+    db.prepare("INSERT INTO practice_sessions VALUES(?,?,?,?,?,?)").run(id, actor.serviceId, actor.userId, now, key, digest3);
+    const add = db.prepare("INSERT INTO practice_session_questions VALUES(?,?,?)");
+    versions.forEach((version, i) => add.run(id, version, i));
+    return { id, started_at: now, request_digest: digest3 };
+  }
+  checkQuickSources(db, actor, pinned, now) {
+    if (!this.citations.validateTaskMaterial(db, actor, pinned.target, now)) throw missingQuestion();
+    for (const item of [...pinned.sources, ...pinned.anchor ? [pinned.anchor] : []]) {
+      const witness = this.citations.verifySelection(db, actor, item.spec, now, item.witness);
+      if (witness.text.slice(witness.start, witness.end) !== item.text) throw new AssetError(409, "QUICK_RANGE_CHANGED");
+    }
+  }
+  checkQuick(prior, pinned) {
+    return this.tx("read", (db, now) => this.checkQuickSources(db, this.actor(prior, now), pinned, now));
+  }
+  replayQuick(db, actor, key, pinned, now) {
+    const run = db.prepare("SELECT fingerprint,session_id,coverage_json FROM quick_practice_runs WHERE service_id=? AND user_id=? AND request_key=?").get(actor.serviceId, actor.userId, key);
+    if (!run) return;
+    if (run.fingerprint !== pinned.fingerprint) throw conflict3();
+    const coverage = JSON.parse(String(run.coverage_json));
+    if (!run.session_id) return { status: "insufficient", coverage, replayed: true };
+    const session = this.practice(db, actor, String(run.session_id));
+    this.inSession(db, actor, session.id, now);
+    return { status: "ready", session: this.session(db, session), coverage, replayed: true };
+  }
+  quickReplay(prior, key, pinned) {
+    return this.tx("read", (db, now) => {
+      const actor = this.actor(prior, now);
+      this.checkQuickSources(db, actor, pinned, now);
+      return this.replayQuick(db, actor, key, pinned, now);
+    });
+  }
+  saveQuick(prior, key, pinned, generated, model) {
+    return this.tx("write", (db, now) => {
+      const actor = this.actor(prior, now);
+      this.checkQuickSources(db, actor, pinned, now);
+      const old = this.replayQuick(db, actor, key, pinned, now);
+      if (old) return old;
+      if (generated.length && !model) throw new AssetError(503, "PRACTICE_UNAVAILABLE");
+      const coverage = { ...pinned.coverage };
+      const insertRun = (id) => db.prepare("INSERT INTO quick_practice_runs VALUES(?,?,?,?,?,?,?,?,?)").run(actor.serviceId, actor.userId, key, pinned.fingerprint, id, JSON.stringify(coverage), model?.provider ?? null, model?.model ?? null, now);
+      if (!generated.length) {
+        insertRun(null);
+        return { status: "insufficient", coverage, replayed: false };
+      }
+      const pin = (item) => {
+        const { data } = this.citations.createPinned(db, actor, item.spec, randomUUID14(), now, item.witness);
+        return this.citations.knowledgeSource(db, actor, data.id, now);
+      };
+      if (pinned.anchor) {
+        const citation = pin(pinned.anchor);
+        coverage.return_href = "/knowledgeos/reader?" + new URLSearchParams({ asset: citation.asset_id, version: citation.version_id, citation: citation.id });
+      }
+      const ids = generated.map((item) => {
+        const citation = pin(item.source);
+        const draft = { kind: "choice", prompt: item.prompt, options: item.options, accepted: [item.answer], explanation: item.explanation, project_id: null, source_citation_id: citation.id };
+        return this.insertQuestion(db, actor, now, randomUUID14(), hash4(draft), draft, citation).current_version_id;
+      });
+      const session = this.insertSession(db, actor, now, randomUUID14(), pinned.fingerprint, ids);
+      insertRun(session.id);
+      const metadata = db.prepare("INSERT INTO quick_practice_questions VALUES(?,?,?)");
+      ids.forEach((id, i) => metadata.run(id, session.id, generated[i].quality));
+      return { status: "ready", session: this.session(db, session), coverage, replayed: false };
+    });
+  }
+  attempt(row, generated) {
     return {
       id: row.id,
       question_version_id: row.question_version_id,
@@ -2730,7 +2821,8 @@ var PracticeStore = class {
       confidence: row.confidence,
       grading_state: row.grading_state,
       independent: row.independent === 1,
-      submitted_at: row.submitted_at
+      submitted_at: row.submitted_at,
+      evaluation_eligible: !generated && row.independent === 1 && row.confidence === "sure" && row.grading_state !== "disputed"
     };
   }
   attempts(db, session, version) {
@@ -2741,13 +2833,14 @@ var PracticeStore = class {
       const actor = this.actor(prior, now), practice = this.practice(db, actor, id);
       const questions = this.inSession(db, actor, practice.id, now).map(({ question, version, citation }) => {
         const attempts = this.attempts(db, id, version.id);
+        const view = this.learner(db, question, version);
         return {
-          ...this.learner(question, version),
-          attempts: attempts.map((row) => this.attempt(row)),
+          ...view,
+          attempts: attempts.map((row) => this.attempt(row, view.origin_kind === "generated")),
           feedback: attempts.length ? this.feedback(version, citation) : null
         };
       });
-      return { session: this.session(practice), questions };
+      return { session: this.session(db, practice), questions };
     });
   }
   submit(prior, key, id, input) {
@@ -2756,13 +2849,14 @@ var PracticeStore = class {
       const authorized = this.inSession(db, actor, practice.id, now).find((item) => item.version.id === input.question_version_id);
       if (!authorized) throw missingQuestion();
       const { question, version, citation } = authorized;
+      const generated = Boolean(this.quickQuestion(db, version.id));
       const digest3 = hash4([id, input]);
       const priorReceipt = db.prepare("SELECT attempt_id,digest FROM practice_attempt_receipts WHERE service_id=? AND user_id=? AND request_key=?").get(actor.serviceId, actor.userId, key);
       if (priorReceipt) {
         if (priorReceipt.digest !== digest3) throw conflict3();
         const old = db.prepare("SELECT * FROM practice_attempts WHERE id=? AND session_id=? AND service_id=? AND user_id=? AND question_version_id=?").get(String(priorReceipt.attempt_id), id, actor.serviceId, actor.userId, version.id);
         if (!old) throw missingPractice();
-        return { attempt: this.attempt(old), feedback: this.feedback(version, citation), replayed: true };
+        return { attempt: this.attempt(old, generated), feedback: this.feedback(version, citation), replayed: true };
       }
       const { answer, confidence } = input;
       if (version.kind === "choice" && (typeof answer !== "number" || !Number.isInteger(answer) || answer < 1 || answer > JSON.parse(version.options_json).length) || version.kind === "judgment" && typeof answer !== "boolean" || version.kind === "fill" && (typeof answer !== "string" || !normalizeFill(answer)))
@@ -2781,7 +2875,7 @@ var PracticeStore = class {
         answer_json: JSON.stringify(answer),
         confidence,
         grading_state: scoreAnswer(version.kind, answer, accepted),
-        independent: !exposure && question.author_id !== actor.userId ? 1 : 0
+        independent: !exposure && (generated || question.author_id !== actor.userId) ? 1 : 0
       };
       db.prepare("INSERT INTO practice_attempts VALUES(?,?,?,?,?,?,?,?,?,?,?)").run(
         row.id,
@@ -2797,7 +2891,7 @@ var PracticeStore = class {
         now
       );
       db.prepare("INSERT INTO practice_attempt_receipts VALUES(?,?,?,?,?)").run(actor.serviceId, actor.userId, key, digest3, row.id);
-      return { attempt: this.attempt(row), feedback: this.feedback(version, citation), replayed: false };
+      return { attempt: this.attempt(row, generated), feedback: this.feedback(version, citation), replayed: false };
     });
   }
 };
@@ -4512,7 +4606,8 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 39;
+var SCHEMA_VERSION = 40;
+var MIGRATION_V40_CHECKSUM = createHash19("sha256").update(QUICK_PRACTICE_SCHEMA).digest("hex");
 var MIGRATION_V39_CHECKSUM = createHash19("sha256").update(PRACTICE_SCHEMA).digest("hex");
 var MIGRATION_V38_CHECKSUM = createHash19("sha256").update(ONTOLOGY_SCHEMA).digest("hex");
 var MIGRATION_V37_CHECKSUM = createHash19("sha256").update(KNOWLEDGE_SCHEMA).digest("hex");
@@ -4948,6 +5043,7 @@ var ProbeStorage = class {
       if (priorVersion < 37) this.#migrateV37(db);
       if (priorVersion < 38) this.#migrateV38(db);
       if (priorVersion < 39) this.#migrateV39(db);
+      if (priorVersion < 40) this.#migrateV40(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -5648,9 +5744,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "practice migration failed", false, { cause: e });
     }
   }
+  #migrateV40(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(QUICK_PRACTICE_SCHEMA);
+      this.#injectFailure("v40:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(40,?,?)").run(MIGRATION_V40_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=40; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "quick practice migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM, MIGRATION_V35_CHECKSUM, MIGRATION_V36_CHECKSUM, MIGRATION_V37_CHECKSUM, MIGRATION_V38_CHECKSUM, MIGRATION_V39_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM, MIGRATION_V35_CHECKSUM, MIGRATION_V36_CHECKSUM, MIGRATION_V37_CHECKSUM, MIGRATION_V38_CHECKSUM, MIGRATION_V39_CHECKSUM, MIGRATION_V40_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash5, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash5)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -5688,6 +5796,7 @@ var ProbeStorage = class {
       if (version >= 37) reference.exec(KNOWLEDGE_SCHEMA);
       if (version >= 38) reference.exec(ONTOLOGY_SCHEMA);
       if (version >= 39) reference.exec(PRACTICE_SCHEMA);
+      if (version >= 40) reference.exec(QUICK_PRACTICE_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -6227,6 +6336,7 @@ export {
   MIGRATION_V3_CHECKSUM,
   MIGRATION_V3_SQL,
   MIGRATION_V4,
+  MIGRATION_V40_CHECKSUM,
   MIGRATION_V4_CHECKSUM,
   MIGRATION_V4_SQL,
   MIGRATION_V5,

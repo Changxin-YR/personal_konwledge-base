@@ -23,8 +23,14 @@ fieldset{border:0;margin:0;padding:0;display:grid;gap:8px;min-width:0}label{disp
 <section class="card"><h2>可用题目</h2><p class="subtle" id="practice-empty">暂无可练习题目。</p><ul id="practice-questions"></ul><button id="practice-start" type="button" disabled>开始练习</button></section>
 <section class="card"><h2>我的练习</h2><p class="subtle" id="practice-no-history">暂无练习记录。</p><ul id="practice-history"></ul></section>
 </aside><div>
+<section class="card" id="quick-practice" hidden><h2>阅读快答</h2><p id="quick-scope"></p>
+<div class="actions"><label>题量<input id="quick-count" type="number" min="1" max="4" value="2"></label>
+<label id="quick-units-label">章节最多单元<input id="quick-units" type="number" min="1" max="6" value="4"></label></div>
+<p id="quick-coverage" class="subtle"></p><div class="actions"><button id="quick-preview" type="button">检查范围</button><button id="quick-generate" type="button" disabled>生成并开始</button></div>
+<p><small>开始后会将检查范围内的原文摘录发送给已配置的模型。</small></p></section>
 <section class="card" id="practice-detail" hidden><h2>当前练习</h2><ul id="practice-session-questions"></ul>
-<h3 id="practice-prompt-text"></h3><form id="practice-answer-form"><fieldset id="practice-fields">
+<p id="quick-session-coverage" class="subtle" hidden></p><a id="quick-return-reader" hidden>回到原阅读位置</a>
+<h3 id="practice-prompt-text"></h3><p id="practice-quality" class="subtle" hidden></p><form id="practice-answer-form"><fieldset id="practice-fields">
 <label id="practice-answer-field">我的答案</label><label>作答把握<select id="practice-confidence"><option value="sure">确定</option><option value="unsure">不确定</option></select></label><button type="submit" id="practice-submit">提交首次答案</button></fieldset></form>
 <section id="practice-feedback" aria-labelledby="practice-feedback-title" hidden><h3 id="practice-feedback-title">答案与解析</h3><p id="practice-accepted"></p><p id="practice-explanation-text"></p><p id="practice-grading"></p><a id="practice-source" href="/knowledgeos/library">查看固定引用</a></section>
 <section id="practice-attempt-panel" hidden><h3>我的作答记录</h3><ol id="practice-attempts"></ol></section>
@@ -47,11 +53,17 @@ const grades={correct:'正确',incorrect:'错误',disputed:'待复核'};
 const errors={INVALID_PRACTICE_INPUT:'请核对题型、题干、答案和固定引用。',INVALID_PRACTICE_ANSWER:'请按当前题型填写答案。',
   PRACTICE_NOT_FOUND:'此练习当前不可访问。',QUESTION_NOT_FOUND:'此题目或引用当前不可访问。',
   ATTEMPT_SEQUENCE_CONFLICT:'答案记录已更新，请核对最新作答后再提交。',IDEMPOTENCY_CONFLICT:'同一次提交的内容已变化。',
-  AUTH_REQUIRED:'请先登录。',ACTOR_CHANGED:'登录身份已变化，请刷新。'};
+  AUTH_REQUIRED:'请先登录。',ACTOR_CHANGED:'登录身份已变化，请刷新。',
+  QUICK_RANGE_CHANGED:'原文、选区或题量已变化，请重新检查范围。',QUICK_SOURCE_NOT_READY:'当前原文尚未可用，请等解析完成。',
+  QUICK_CHAPTER_UNAVAILABLE:'当前版本没有可定位的章节目录。可从选区启动快答。',QUICK_SELECTION_TOO_LONG:'请选择不超过 960 个字符的段落。',
+  QUICK_TERM_TOO_LONG:'请选择不超过 64 个字符的术语。',QUICK_MODEL_OUTPUT_INVALID:'模型生成的题目或引用无法核对。',
+  MODEL_NOT_CONFIGURED:'当前没有可用的模型。',MODEL_OUTPUT_TRUNCATED:'模型输出未完成，请减少题量后重试。'};
 const address=new URL(location.href), validId=/^[a-f0-9-]{36}$/;let citation=address.searchParams.get('citation');
 let active=address.searchParams.get('session');if(!validId.test(active||''))active=null;
 let actor=null, versions=[], sessions=[], questions=[], picked=new Set(), version=null, busy=false, waiting=false;
 let epoch=0, reads=0, receipt=null, signature='', catalogSignature='', controller=null;
+const scopeLabels={paragraph:'选区段落',chapter:'当前章节',term:'术语语境'};
+let quickScope=Object.hasOwn(scopeLabels,address.searchParams.get('quick'))?address.searchParams.get('quick'):null, quickPreview=null;
 const status=value=>$('practice-status').textContent=value;
 const option=(label,value)=>{const node=document.createElement('option');node.textContent=label;node.value=value;return node};
 function button(label,key,handler){
@@ -68,18 +80,22 @@ async function http(path,init={}){
 }
 function clearDetail(){
   signature='';version=null;questions=[];$('practice-detail').hidden=true;$('practice-feedback').hidden=true;$('practice-attempt-panel').hidden=true;
-  for(const id of ['practice-session-questions','practice-attempts','practice-prompt-text','practice-accepted','practice-explanation-text','practice-grading'])
+  for(const id of ['practice-session-questions','practice-attempts','practice-prompt-text','practice-accepted','practice-explanation-text','practice-grading','practice-quality','quick-session-coverage'])
     $(id).replaceChildren();
-  $('practice-answer')?.remove();$('practice-source').removeAttribute('href')
+  $('practice-answer')?.remove();$('practice-source').removeAttribute('href');$('quick-return-reader').removeAttribute('href');
+  $('quick-session-coverage').hidden=$('quick-return-reader').hidden=true;
 }
 function clearAll(){
   epoch++;reads++;actor=null;catalogSignature='';versions=[];sessions=[];picked.clear();receipt=null;busy=false;waiting=false;
   controller?.abort();controller=null;clearDetail();$('practice-workspace').hidden=true;$('practice-author-form').reset();
+  quickPreview=null;$('quick-coverage').textContent='';
   for(const id of ['practice-questions','practice-history','practice-project'])$(id).replaceChildren()
 }
 function setControls(){
   $('practice-fields').disabled=$('practice-author-fields').disabled=busy;
-  $('practice-start').disabled=busy||!picked.size
+  $('practice-start').disabled=busy||!picked.size;
+  $('quick-count').disabled=$('quick-units').disabled=$('quick-preview').disabled=busy;
+  $('quick-generate').disabled=busy||!quickPreview?.available;
 }
 function renderCatalog(projects){
   const changed=JSON.stringify([versions,sessions,projects]);
@@ -118,6 +134,8 @@ function paintQuestion(){
   const question=currentQuestion();
   if(!question){$('practice-detail').hidden=true;return}
   $('practice-detail').hidden=false;$('practice-prompt-text').textContent=kinds[question.kind]+' · '+question.prompt;
+  $('practice-quality').hidden=question.origin_kind!=='generated';
+  $('practice-quality').textContent=question.origin_kind==='generated'?(question.quality_state==='needs_review'?'题目待复核，仅用于练习。':'引用已匹配，仅用于练习。'):'';
   const input=document.createElement(question.kind==='fill'?'input':'select');
   input.id='practice-answer';input.required=true;
   if(question.kind==='choice')input.append(option('选择答案',''),...question.options.map((value,i)=>option(value,String(i+1))));
@@ -144,24 +162,33 @@ function paintQuestion(){
 }
 async function load(force=false){
   if(waiting&&!force)return;
-  waiting=true;const turn=++reads, g=epoch,id=active;
+  waiting=true;const turn=++reads, g=epoch,id=active,checkedQuick=quickPreview;
   try{
     const details=id?http(api+'/'+id+'/questions').catch(error=>{
       if(error.status===404||error.status===409)return null;
       throw error;
     }):null;
-    const [catalog,history,current]=await Promise.all([http(bank),http(api),details]);
+    const [catalog,history,current,keepsQuick]=await Promise.all([http(bank),http(api),details,checkedQuick?quickAccess(checkedQuick.input,actor):true]);
     if(g!==epoch||turn!==reads)return;
     if(catalog.actor_id!==history.actor_id||current&&current.actor_id!==catalog.actor_id||actor&&actor!==catalog.actor_id){
       clearAll();status(errors.ACTOR_CHANGED);return
     }
     if(!actor)status('');
     actor=catalog.actor_id;versions=catalog.questions;sessions=history.sessions;$('practice-login').hidden=true;$('practice-workspace').hidden=false;
+    if(checkedQuick&&checkedQuick===quickPreview&&!keepsQuick){
+      quickPreview=null;controller?.abort();$('quick-coverage').textContent='';status('原文范围已不可访问。');setControls()
+    }
+    $('quick-practice').hidden=!quickScope;
+    if(quickScope){$('quick-scope').textContent=scopeLabels[quickScope];$('quick-units-label').hidden=quickScope!=='chapter'}
     if(citation&&validId.test(citation)){$('practice-citation').value=citation;$('practice-author').open=true;citation=null}
     renderCatalog(catalog.projects);
     if(id&&!current){
       clearDetail();active=null;receipt=null;status('练习、题目或来源已不可访问。');return
     }
+    const covered=current?.session.quick_coverage;
+    $('quick-session-coverage').hidden=$('quick-return-reader').hidden=!covered;
+    $('quick-session-coverage').textContent=covered?coverageText(covered):'';
+    if(covered)$('quick-return-reader').href=covered.return_href;else $('quick-return-reader').removeAttribute('href');
     const next=JSON.stringify(current?.questions||[]);
     if(next!==signature){
       signature=next;questions=current?.questions||[];
@@ -176,6 +203,10 @@ async function load(force=false){
 async function open(id){
   if(!validId.test(id))return;
   reads++;clearDetail();active=id;receipt=null;address.searchParams.delete('citation');address.searchParams.set('session',id);
+  if(quickScope){
+    for(const name of ['quick','asset','version','unit','conversion','start','end','anchor'])address.searchParams.delete(name);
+    quickScope=quickPreview=null;
+  }
   history.replaceState(null,'',address);catalogSignature='';await load(true)
 }
 async function write(path,payload){
@@ -185,20 +216,69 @@ async function write(path,payload){
   busy=true;setControls();status('正在提交…');
   const abort=new AbortController();controller=abort;
   try{
-    const result=await http(path,{method:'POST',signal:AbortSignal.any([abort.signal,AbortSignal.timeout(12000)]),
+    const result=await http(path,{method:'POST',signal:AbortSignal.any([abort.signal,AbortSignal.timeout(path===api+'/generate'?45000:12000)]),
       headers:{'content-type':'application/json','x-knowledgeos-request':'1','x-knowledgeos-reader-actor':user,'idempotency-key':receipt.key},body:JSON.stringify(payload)});
     if(g!==epoch)return;
     if(result.actor_id!==actor){clearAll();status(errors.ACTOR_CHANGED);return}
     receipt=null;
     if(path===api){picked.clear();await open(result.session.id);if(g===epoch&&active===result.session.id)status('练习已开始。')}
+    else if(path===api+'/generate'){
+      if(result.status==='insufficient')status('当前范围依据不足，请返回原文扩大或更换选区。');
+      else {await open(result.session.id);if(g===epoch&&active===result.session.id)status('快答练习已开始。')}
+    }
     else if(path===bank){$('practice-author-form').reset();authorControls();await load(true);if(g===epoch)status('题目已创建。')}
     else {await load(true);if(g===epoch&&currentQuestion())status('作答已保存 · '+grades[result.attempt.grading_state])}
   }catch(error){
     if(g!==epoch)return;
     status(errors[error.message]||'未收到有效回执，可以重试本次提交。');
+    if(path===api+'/generate'&&[404,409].includes(error.status)){quickPreview=null;$('quick-coverage').textContent='请重新检查原文范围。'}
     if([401,404,409].includes(error.status))await load(true)
   }finally{if(g===epoch){controller=null;busy=false;setControls()}}
 }
+function coverageText(c){
+  const units=c.first===c.last?'第 '+c.first+' 单元':'第 '+c.first+'–'+c.last+' 单元';
+  const actual=c.included.length?' · 原文单元 '+c.included.join('、'):' · 无足够的原文摘录';
+  return scopeLabels[c.scope]+' · '+c.title+' · '+units+actual+(c.clipped?' · 按显示范围取样':'')+(c.unavailable.length?' · 跳过 '+c.unavailable.join('、'):'')
+}
+function quickInput(){
+  const q=address.searchParams,count=Number($('quick-count').value),units=Number($('quick-units').value);
+  if(!Number.isInteger(count)||count<1||count>4||quickScope==='chapter'&&(!Number.isInteger(units)||units<1||units>6))return;
+  const value={scope:quickScope,count,asset_id:q.get('asset'),version_id:q.get('version'),ordinal:Number(q.get('unit'))};
+  if(q.get('conversion'))value.conversion_id=q.get('conversion');
+  if(quickScope==='chapter')value.units=units;
+  else {value.start=Number(q.get('start'));value.end=Number(q.get('end'));value.source_hash=q.get('anchor')}
+  return value
+}
+async function quickAccess(input,user){
+  try{
+    const path='/knowledge/v1/assets/'+input.asset_id+'/versions/'+input.version_id+'/reader-access';
+    return (await http(path)).actor_id===user
+  }catch(error){if([401,403,404,409].includes(error.status))return false;throw error}
+}
+async function previewQuick(){
+  if(busy||!actor||!quickScope)return;
+  const input=quickInput();
+  if(!input){status('请调整题量或章节单元数。');return}
+  const g=epoch,user=actor;quickPreview=null;busy=true;setControls();status('正在核对原文范围…');
+  const abort=new AbortController();controller=abort;
+  try{
+    const result=await http(api+'/generate/preview',{method:'POST',signal:AbortSignal.any([abort.signal,AbortSignal.timeout(20000)]),
+      headers:{'content-type':'application/json','x-knowledgeos-request':'1','x-knowledgeos-reader-actor':user},body:JSON.stringify(input)});
+    const visible=await quickAccess(input,user);
+    if(g!==epoch)return;
+    if(result.actor_id!==actor){clearAll();status(errors.ACTOR_CHANGED);return}
+    if(!visible){status('原文范围已不可访问。');return}
+    quickPreview={...result,input};
+    $('quick-coverage').textContent=coverageText(result.coverage);
+    status(result.available?'已核对原文范围。':'当前范围的原文不足。');
+  }catch(error){if(g===epoch){$('quick-coverage').textContent='';status(errors[error.message]||'无法核对原文范围。')}}
+  finally{if(g===epoch){controller=null;busy=false;setControls()}}
+}
+$('quick-preview').onclick=()=>void previewQuick();
+$('quick-generate').onclick=()=>{
+  if(quickPreview?.available)void write(api+'/generate',{...quickPreview.input,fingerprint:quickPreview.fingerprint})
+};
+for(const id of ['quick-count','quick-units'])$(id).oninput=()=>{quickPreview=null;$('quick-coverage').textContent='';setControls()};
 function lines(value){return value.split(/\\r?\\n/u).map(item=>item.trim()).filter(Boolean)}
 function authorControls(){
   const kind=$('practice-kind').value;

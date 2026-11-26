@@ -8,7 +8,7 @@ export function buildReaderHtml(): string {
 </style></head><body><header><strong>KnowledgeOS</strong><a href="/knowledgeos/library">资料库</a><a href="/knowledgeos/account">账号与登录</a></header><main>
 <h1 id="title">版本阅读</h1><p id="version"></p><div class="tools"><button id="refresh">刷新</button><form id="jump"><button type="button" id="prev" aria-label="上一位置">←</button><input type="number" min="1" step="1" required id="number" aria-label="跳转位置"><button>跳转</button><button type="button" id="next" aria-label="下一位置">→</button></form><span id="count"></span><a id="task-material-link" hidden>固定材料链接</a></div><p id="status" role="status"></p>
 <section id="continuity" aria-label="阅读导航" hidden><details id="toc-details" open><summary>目录</summary><ul id="toc"></ul></details><details id="bookmarks-details" open><summary>我的书签</summary><ul id="bookmarks"></ul><form id="bookmark-form"><input id="bookmark-title" maxlength="120" required placeholder="书签名称" aria-label="书签名称"><button id="bookmark-add">添加书签</button></form></details><p id="reading-status" role="status"></p></section>
-<div class="layout"><nav id="rail" aria-label="页与文本块" hidden><div id="window"></div></nav><article><h2 id="anchor"></h2><div class="modes" id="modes" hidden><button id="paper">原页</button><button id="structured">结构文本</button><button id="cite" disabled>生成引用链接</button><button id="annotate" disabled>选区批注</button><button id="term-explain" disabled>解释术语</button><button id="terms-open" disabled>我的术语</button><button id="annotations-toggle" aria-controls="annotations" aria-expanded="false">本处批注</button><a id="link" hidden>打开引用</a><a id="note-link" hidden>记笔记</a><a id="knowledge-link" hidden>形成知识条目</a><a id="relation-source-link" hidden>用作关系证据</a><a id="practice-source-link" hidden>用作题目引用</a><a id="recall-link" hidden>制作遮挡练习</a></div><div id="original" hidden></div><pre id="text" tabindex="-1" hidden></pre><section id="term-panel" aria-labelledby="term-title" tabindex="-1" hidden>
+<div class="layout"><nav id="rail" aria-label="页与文本块" hidden><div id="window"></div></nav><article><h2 id="anchor"></h2><div class="modes" id="modes" hidden><button id="paper">原页</button><button id="structured">结构文本</button><button id="cite" disabled>生成引用链接</button><button id="quick-paragraph" disabled>选区快答</button><button id="quick-chapter" disabled>章节快答</button><button id="quick-term" disabled>术语快答</button><button id="annotate" disabled>选区批注</button><button id="term-explain" disabled>解释术语</button><button id="terms-open" disabled>我的术语</button><button id="annotations-toggle" aria-controls="annotations" aria-expanded="false">本处批注</button><a id="link" hidden>打开引用</a><a id="note-link" hidden>记笔记</a><a id="knowledge-link" hidden>形成知识条目</a><a id="relation-source-link" hidden>用作关系证据</a><a id="practice-source-link" hidden>用作题目引用</a><a id="recall-link" hidden>制作遮挡练习</a></div><div id="original" hidden></div><pre id="text" tabindex="-1" hidden></pre><section id="term-panel" aria-labelledby="term-title" tabindex="-1" hidden>
 <header><h2 id="term-title">语境术语</h2><button id="term-close" type="button">返回阅读</button></header>
 <p id="term-status" role="status"></p><div id="term-result" hidden><dl>
 <dt>当前语境</dt><dd id="term-context"></dd><dt>通俗说明</dt><dd id="term-plain"></dd>
@@ -58,6 +58,7 @@ function clearPage(){
   for(const id of ['text','original','anchor'])$(id).replaceChildren();
   for(const id of ['text','original','modes','link'])$(id).hidden=true;
   $('link').removeAttribute('href');$('note-link').hidden=true;$('note-link').removeAttribute('href');$('knowledge-link').hidden=true;$('knowledge-link').removeAttribute('href');$('relation-source-link').hidden=true;$('relation-source-link').removeAttribute('href');$('practice-source-link').hidden=true;$('practice-source-link').removeAttribute('href');$('cite').disabled=true;
+  for(const scope of ['paragraph','chapter','term'])$('quick-'+scope).disabled=true;
   $('recall-link').hidden=true;$('recall-link').removeAttribute('href');
   $('task-material-link').hidden=true;$('task-material-link').removeAttribute('href');
   clearAnnotations();clearTerms();$('term-explain').disabled=$('terms-open').disabled=true;
@@ -251,7 +252,7 @@ function draw(){
   }else if(available){
     if(s){const mark=document.createElement('mark');mark.textContent=d.text.slice(s.start,s.end);text.append(d.text.slice(0,s.start),mark,d.text.slice(s.end))}else text.textContent=d.text;
   }
-  $('cite').disabled=!available||!s||posting;
+  $('cite').disabled=!available||!s||posting;quickButtons(d,s,showOriginal);
   if(available){$('recall-link').href='/knowledgeos/recall?'+new URLSearchParams({asset,version,unit:String(d.ordinal),...(d.conversion_id?{conversion:d.conversion_id}:{})});$('recall-link').hidden=false}
   $('annotate').disabled=!available||!s||posting||annotationBusy;$('annotations-toggle').disabled=!available;
   $('term-explain').disabled=!available||!s||showOriginal;$('terms-open').disabled=!available;
@@ -259,10 +260,23 @@ function draw(){
   const layout=d.kind==='pdf'&&available&&!showOriginal?' 提取文本不等同于原页版式。':'';
   status((states[d.state] || (!available?'本处尚未就绪。':showOriginal&&s&&!boxes.length?'原页缺少精确选区坐标，请查看结构文本中的高亮。':resolved?'已定位到固定版本引用。':'已打开固定版本。'))+layout);
 }
+function quickButtons(d,s,showOriginal=false){
+  const usable=d?.state==='ready'&&(d.kind!=='office'||!!d.conversion_id);
+  $('quick-paragraph').disabled=!usable||showOriginal||!s||s.end-s.start>960;
+  $('quick-term').disabled=!usable||showOriginal||!s||s.end-s.start>64;
+  $('quick-chapter').disabled=!usable;
+}
+async function openQuick(scope){
+  const d=page,g=gen,s=selection;
+  if(!d||$('quick-'+scope).disabled||!await access(g)||g!==gen||page!==d)return;
+  const params=new URLSearchParams({quick:scope,asset,version,unit:String(d.ordinal),...(d.conversion_id?{conversion:d.conversion_id}:{})});
+  if(scope!=='chapter'&&s){params.set('start',String(s.start));params.set('end',String(s.end));params.set('anchor',d.anchor)}
+  location.assign('/knowledgeos/practice?'+params);
+}
 function capture(){
   if(!page||!ready(page)||posting||$('text').hidden)return;
-  const sel=getSelection();if(!sel.rangeCount||sel.isCollapsed){$('term-explain').disabled=true;return}
-  const r=sel.getRangeAt(0),text=$('text');if(!text.contains(r.startContainer)||!text.contains(r.endContainer)){selection=null;pending=null;$('cite').disabled=true;$('annotate').disabled=true;$('term-explain').disabled=true;return}
+  const sel=getSelection();if(!sel.rangeCount||sel.isCollapsed){$('term-explain').disabled=true;quickButtons(page,null);return}
+  const r=sel.getRangeAt(0),text=$('text');if(!text.contains(r.startContainer)||!text.contains(r.endContainer)){selection=null;pending=null;$('cite').disabled=true;$('annotate').disabled=true;$('term-explain').disabled=true;quickButtons(page,null);return}
   // Measure from the container, not indexOf(quote): repeated passages and split mark nodes are legal.
   const prefix=r.cloneRange();prefix.selectNodeContents(text);prefix.setEnd(r.startContainer,r.startOffset);
   const start=prefix.toString().length,end=start+r.toString().length;
@@ -271,7 +285,7 @@ function capture(){
     if(!$('term-panel').hidden&&validRange(page.text,start,end))clearTerms();
   }
   selection=validRange(page.text,start,end)?{start,end}:null;$('cite').disabled=!selection;$('annotate').disabled=!selection||annotationBusy;
-  $('term-explain').disabled=!selection||end-start>64;
+  $('term-explain').disabled=!selection||end-start>64;quickButtons(page,selection);
 }
 function clearTerms(restore=false){
   const control=termTrigger;termTrigger=null;termSequence++;termRequest?.abort();termRequest=null;termResult=null;
@@ -470,6 +484,9 @@ async function recheck(){
   try{if(await access(g)&&page)$('version').textContent=versionLabel+' · '+version}finally{polling=false}
 }
 $('paper').onclick=()=>switchMode('paper');$('structured').onclick=()=>switchMode('text');
+for(const scope of ['paragraph','chapter','term']){
+  $('quick-'+scope).onpointerdown=e=>e.preventDefault();$('quick-'+scope).onclick=()=>void openQuick(scope);
+}
 $('cite').onpointerdown=e=>e.preventDefault();$('cite').onclick=()=>createCitation();document.addEventListener('selectionchange',capture);
 $('annotate').onpointerdown=e=>e.preventDefault();$('annotate').onclick=()=>{if(selection)void openAnnotations({...selection})};
 $('term-explain').onpointerdown=e=>e.preventDefault();$('term-explain').onclick=()=>void explainTerms();

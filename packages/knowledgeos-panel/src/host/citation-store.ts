@@ -199,8 +199,8 @@ export class CitationStore {
     if(sha(text)!==spec.source_hash)throw new AssetError(409,'CITATION_SOURCE_CHANGED')
     return this.receipt(db,a,now,spec,key,citationAnchor(text,spec.start,spec.end))
   })}
-  create(prior:SessionActor,spec:CitationSpec,key:string,w?:RenderWitness){return this.tx('write',(db,now)=>{
-    const a=this.actor(prior,now),src=this.read(db,a,spec,now)
+  createPinned(db:DatabaseSync,a:SessionActor,spec:CitationSpec,key:string,now:string,w?:RenderWitness){
+    const src=this.read(db,a,spec,now)
     if(!uuid.test(key)||src.kind==='office'&&!spec.conversion_id)throw new AssetError(422,'INVALID_CITATION')
     const text=this.text(src,w);if(sha(text)!==spec.source_hash)throw new AssetError(409,'CITATION_SOURCE_CHANGED')
     const range=citationAnchor(text,spec.start,spec.end)
@@ -210,7 +210,10 @@ export class CitationStore {
     const id=randomUUID();db.prepare('INSERT INTO citations VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').run(id,a.userId,key,spec.asset_id,spec.version_id,spec.conversion_id??null,spec.ordinal,range.start,range.end,range.source_hash,range.quote_hash,now)
     db.prepare('INSERT INTO citation_locators(citation_id,snapshot) VALUES(?,?)').run(id,JSON.stringify(locator))
     return {data:{...spec,...range,id,locator},replayed:false}
-  })}
+  }
+  create(prior:SessionActor,spec:CitationSpec,key:string,w?:RenderWitness){
+    return this.tx('write',(db,now)=>this.createPinned(db,this.actor(prior,now),spec,key,now,w))
+  }
   private lookup(db:DatabaseSync,a:SessionActor,id:string,now:string){
     const r=db.prepare(`SELECT ${fields} FROM citations WHERE id=?`).get(id);if(!r||!this.allowed(a,String(r.asset_id),now))throw notFound();return dto(r)
   }

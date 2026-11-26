@@ -105,6 +105,13 @@ export class ReaderService {
     if(signal.aborted)throw new AssetError(409,'READ_CANCELLED')
     return rendered
   }
+  async quickText(current:Current,target:ReaderTarget,signal:AbortSignal){
+    const source=this.store.source(current(),target)
+    if(source.state!=='ready'||source.kind==='office'&&!target.conversion_id)throw new AssetError(409,'QUICK_SOURCE_NOT_READY')
+    const witness=source.kind==='office'?await this.witness(current,target,signal):undefined
+    if(signal.aborted)throw new AssetError(409,'READ_CANCELLED')
+    return {text:witness?.text??source.text,title:source.title,total:source.total,kind:source.kind,witness}
+  }
   async create(current:Current,spec:CitationSpec,key:string,signal:AbortSignal){
     const w=await this.witness(current,spec,signal)
     if(w?.conversion_id){

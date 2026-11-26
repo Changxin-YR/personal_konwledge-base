@@ -1,9 +1,12 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { AiError } from './ai-tools.ts'
 import { AssetError } from './asset-store.ts'
 import { UUID_PATTERN } from './http.ts'
+import type { PeerScope } from './identity-peer.ts'
 import type { SessionActor } from './identity.ts'
 import { normalizeFill, questionKinds, type Answer, type QuestionKind } from './practice-policy.ts'
 import type { AttemptInput, PracticeStore, QuestionDraft } from './practice-store.ts'
+import type { QuickInput, QuickPracticeService } from './quick-practice.ts'
 
 export const questionApi = '/knowledge/v1/questions'
 export const practiceApi = '/knowledge/v1/practice-sessions'
@@ -67,6 +70,27 @@ function attemptInput(raw: unknown): AttemptInput {
   return { question_version_id: uuid(values.question_version_id), expected_sequence: sequence(values.expected_sequence), answer, confidence }
 }
 
+function quickInput(raw: unknown, preview: boolean) {
+  const value=fields(raw,['scope','asset_id','version_id','ordinal','conversion_id','start','end','source_hash','count','units',...(preview?[]:['fingerprint'])])
+  const {scope}=value
+  if(scope!=='paragraph'&&scope!=='chapter'&&scope!=='term')throw invalid()
+  const count=sequence(value.count),ordinal=sequence(value.ordinal)
+  const units=value.units===undefined?(scope==='chapter'?4:1):sequence(value.units)
+  if(count<1||count>4||ordinal<1||ordinal>1_000_000||units<1||units>6||scope!=='chapter'&&units!==1)throw invalid()
+  const input:QuickInput={scope,count,units,ordinal,asset_id:uuid(value.asset_id),version_id:uuid(value.version_id)}
+  if(value.conversion_id!==undefined)input.conversion_id=uuid(value.conversion_id)
+  if(scope==='chapter'){
+    if(['start','end','source_hash'].some(key=>Object.hasOwn(value,key)))throw invalid()
+  }else{
+    const start=sequence(value.start),end=sequence(value.end)
+    if(end<=start||typeof value.source_hash!=='string'||!/^[a-f0-9]{64}$/.test(value.source_hash))throw invalid()
+    input.selection={start,end,source_hash:value.source_hash}
+  }
+  const fingerprint=value.fingerprint
+  if(!preview&&(typeof fingerprint!=='string'||!/^[a-f0-9]{64}$/.test(fingerprint)))throw invalid()
+  return {input,fingerprint:fingerprint as string}
+}
+
 async function json(req: IncomingMessage) {
   const max = 24000, parts: Buffer[] = []
   if (req.headers['content-type']?.split(';')[0] !== 'application/json') throw new AssetError(415, 'JSON_REQUIRED')
@@ -82,8 +106,13 @@ async function json(req: IncomingMessage) {
   catch { throw invalid() }
 }
 
-export function createPracticeHandler(store: PracticeStore, origin: () => string | undefined, actorFor: (req: IncomingMessage) => SessionActor | undefined) {
-  return async (req: IncomingMessage, res: ServerResponse) => {
+export function createPracticeHandler(store: PracticeStore, quick: QuickPracticeService, origin: () => string | undefined,
+  actorFor: (req: IncomingMessage) => SessionActor | undefined, stopping:AbortSignal) {
+  return async (req: IncomingMessage, res: ServerResponse, peer?:PeerScope) => {
+    const disconnected=new AbortController()
+    const close=()=>{if(!res.writableFinished)disconnected.abort()}
+    res.once('close',close)
+    const signal=AbortSignal.any([disconnected.signal,stopping,...(peer?.signal?[peer.signal]:[])])
     const send = (status: number, body: object) => {
       if (res.destroyed) return
       res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' })
@@ -99,8 +128,15 @@ export function createPracticeHandler(store: PracticeStore, origin: () => string
       if (url.search) throw invalid()
       const prior = actorFor(req)
       if (!prior) throw new AssetError(401, 'AUTH_REQUIRED')
+      const current=()=>{
+        const actor=actorFor(req)
+        if(!actor||actor.sessionId!==prior.sessionId||actor.userId!==prior.userId||actor.serviceId!==prior.serviceId)
+          throw new AssetError(401,'AUTH_REQUIRED')
+        return actor
+      }
       const success = (status: number, value: object) => send(status, { data: { actor_id: prior.userId, ...value } })
       const path = url.pathname
+      const preview=path===practiceApi+'/generate/preview', generate=path===practiceApi+'/generate'
       const session = path.startsWith(practiceApi + '/') && /^\/([a-f0-9-]+)\/(questions|attempts)$/.exec(path.slice(practiceApi.length))
       if (method === 'GET') {
         if (path === questionApi) return success(200, store.catalog(prior))
@@ -109,14 +145,21 @@ export function createPracticeHandler(store: PracticeStore, origin: () => string
         if (author) return success(200, store.authored(prior, uuid(author[1])))
         if (session && session[2] === 'questions') return success(200, store.questions(prior, uuid(session[1])))
       }
-      if (method === 'POST' && (path === questionApi || path === practiceApi || session && session[2] === 'attempts')) {
+      if (method === 'POST' && (preview||generate||path === questionApi || path === practiceApi || session && session[2] === 'attempts')) {
         if (uuid(req.headers['x-knowledgeos-reader-actor']) !== prior.userId) throw new AssetError(409, 'ACTOR_CHANGED')
-        const key = uuid(req.headers['idempotency-key']), body = await json(req)
-        if (res.destroyed) return
-        const actor = actorFor(req)
-        if (!actor || actor.sessionId !== prior.sessionId || actor.userId !== prior.userId || actor.serviceId !== prior.serviceId)
-          throw new AssetError(401, 'AUTH_REQUIRED')
+        const body=await json(req)
+        if(res.destroyed)return
+        if(signal.aborted)throw new AiError(409,'CANCELLED')
+        if(preview){
+          const {input}=quickInput(body,true)
+          return success(200,await quick.preview(current,input,signal))
+        }
+        const key=uuid(req.headers['idempotency-key']),actor=current()
         const recorded = (output: { replayed: boolean }) => success(output.replayed ? 200 : 201, output)
+        if(generate){
+          const {input,fingerprint}=quickInput(body,false)
+          return recorded(await quick.generate(current,key,input,fingerprint,signal))
+        }
         if (path === questionApi) return recorded(store.createQuestion(actor, key, questionDraft(body)))
         if (path === practiceApi) {
           const { question_version_ids } = fields(body, ['question_version_ids'])
@@ -126,7 +169,8 @@ export function createPracticeHandler(store: PracticeStore, origin: () => string
       }
       throw new AssetError(404, 'NOT_FOUND')
     } catch (error) {
-      send(error instanceof AssetError ? error.status : 503, { code: error instanceof AssetError ? error.code : 'PRACTICE_UNAVAILABLE' })
-    }
+      const known=error instanceof AssetError||error instanceof AiError
+      send(known?error.status:503,{code:known?error.code:'PRACTICE_UNAVAILABLE'})
+    }finally{res.off('close',close)}
   }
 }
