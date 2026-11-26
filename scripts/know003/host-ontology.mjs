@@ -236,12 +236,22 @@ try {
   console.error(facts.failure)
   process.exitCode = 1
 } finally {
-  try { await browser?.close() }
-  finally {
-    try { if (host?.close) await host.close(); else await host?.stop() }
-    finally {
-      writeFileSync(join(out, 'summary.json'), JSON.stringify(facts, null, 2) + '\n')
-      console.log(JSON.stringify({ status: facts.status, dir: out }))
-    }
-  }
+  const save = () => writeFileSync(join(out, 'summary.json'), JSON.stringify(facts, null, 2) + '\n')
+  facts.cleanup = 'NOT_RUN'
+  save()
+  const cleanup = Promise.allSettled([
+    (async () => {
+      if (!browser) return
+      await Promise.all(browser.contexts().map(context => context.unrouteAll({ behavior: 'ignoreErrors' })))
+      await browser.close()
+    })(),
+    (async () => { if (host?.close) await host.close(); else await host?.stop() })(),
+  ])
+  let timer
+  const closed = await Promise.race([cleanup, new Promise(resolve => { timer = setTimeout(() => resolve(null), 25000) })])
+  clearTimeout(timer)
+  facts.cleanup = closed?.every(result => result.status === 'fulfilled') ? 'PASS' : 'FAIL'
+  save()
+  console.log(JSON.stringify({ status: facts.status, cleanup: facts.cleanup, dir: out }))
+  if (facts.cleanup === 'FAIL') process.exit(1)
 }
