@@ -1,0 +1,17 @@
+{
+  "unit_id": "LEARN-001",
+  "candidate_sha": "e389ad3d15f376ca2e7cc2b225f684581c97d6b4",
+  "entry_sha256": "86f60021e7675674475c6405061ab649c6ac7883e976167e6576b55a18dae9a8",
+  "run_kind": "main",
+  "status": "FAIL",
+  "cleanup": "PASS",
+  "failure": {
+    "phase": "T01 author creates three sourced question types in the real Chrome workspace",
+    "message": "STORAGE_UNAVAILABLE\n\n503 !== 201\n"
+  },
+  "egress": {
+    "browser_denied": 0,
+    "host_non_loopback_requests": 0,
+    "real_model_requests": 0
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "unit_id": "LEARN-001",
+  "candidate_sha": "0e7c900a7d0a922be46b8b6c59fbf08375f8b91c",
+  "tree": "d9848aef174a7229ea839f4ebd330d6110e1e064",
+  "source_tree": "408a04fc8cf667353e81cc62fb1d842530bf9027",
+  "entry_sha256": "dec5881be4aa183363ae0702dd0bdca04ab8997b4003780e1576b7aec8472c91",
+  "build_sha256": "d25ecef4643c69b126424524f69f2ab1933d022299401de2b3edf1d0b73b24f5",
+  "runner_sha256": "ce281345536bafee744ece96ed1e8e6277cab641e2b019b727b5c84adfd513b3",
+  "scenario_sha256": "1d4f31a37bb31a4575108f2807f2754953795ba0a40b119b09e52e8ab9d5f99d",
+  "run_kind": "independent",
+  "model_phase": "offline",
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "A13": "NOT_RUN",
+  "A14": "NOT_RUN",
+  "checks": [
+    {
+      "id": "real_project_acl_and_reader_source",
+      "status": "PASS",
+      "sqlite_schema": 39,
+      "source_quote_sha256": "d7ae6918e92c2917c94fc2d39416d23a10ea9726738763cbfc39c145bc5a4352"
+    },
+    {
+      "id": "T01_first_answer_and_members",
+      "status": "PASS",
+      "first_sequence": 1,
+      "correction_sequence": 2,
+      "peer_sequence": 1,
+      "shared_question_versions": 3
+    },
+    {
+      "id": "T01",
+      "status": "PASS",
+      "all_three_types": true,
+      "normalized_fill_alias": true,
+      "ambiguous_fill_disputed": true,
+      "cross_learner_answers_distinct": true
+    },
+    {
+      "id": "T02_fault_before_answer",
+      "status": "PASS",
+      "abort_leaves_no_attempt": true,
+      "reveal_blocked": true,
+      "same_key_retry_one_attempt": true
+    },
+    {
+      "id": "restart_preserves_attempts_and_version_ids",
+      "status": "PASS",
+      "exact_count": 9,
+      "private_history_retained": true
+    },
+    {
+      "id": "T02",
+      "status": "PASS",
+      "idempotency_preserves_history": true,
+      "cross_session_404": true,
+      "revoked_receipt_404": true,
+      "independent_source_and_membership_revoke": true,
+      "unrelated_project_continues": true
+    }
+  ],
+  "screens": [
+    {
+      "file": "learner-first-view-blind.png",
+      "sha256": "eff207131e5437de0d2f94604342aaea141e7c2f30a9a96525534de3dc3f558e",
+      "bytes": 42700
+    },
+    {
+      "file": "learner-first-and-second.png",
+      "sha256": "c4214ef43a6276cdf623148b2761d2272596431bc1afee9ff615887f4aa3e3c3",
+      "bytes": 59786
+    },
+    {
+      "file": "learner-fixed-v1-source-after-update.png",
+      "sha256": "743ce0649c24b753795085fb1c54dde028058066e3d9659d0a30ab32e58b7e1b",
+      "bytes": 40428
+    },
+    {
+      "file": "learner-source-revoked.png",
+      "sha256": "35e05e5c90a5b0f0e065d66e354f910f23b6edaafa2f3f0cf391d21af0bbbeba",
+      "bytes": 25425
+    },
+    {
+      "file": "learner-bank-after-restart.png",
+      "sha256": "eae6161132fd197c691aaefc56cf927fcce0e2740ad7ee8946005cec0fe09057",
+      "bytes": 55842
+    }
+  ],
+  "boots": [
+    43256,
+    35272
+  ],
+  "egress": {
+    "browser_denied": 0,
+    "host_non_loopback_requests": 0,
+    "real_model_requests": 0
+  },
+  "chrome": "158.0.8127.88",
+  "cleanup": "PASS"
+}

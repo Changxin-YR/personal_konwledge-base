@@ -1,0 +1,69 @@
+{
+  "unit_id": "LEARN-001",
+  "candidate_sha": "0e7c900a7d0a922be46b8b6c59fbf08375f8b91c",
+  "tree": "d9848aef174a7229ea839f4ebd330d6110e1e064",
+  "source_tree": "408a04fc8cf667353e81cc62fb1d842530bf9027",
+  "entry_sha256": "dec5881be4aa183363ae0702dd0bdca04ab8997b4003780e1576b7aec8472c91",
+  "build_sha256": "d25ecef4643c69b126424524f69f2ab1933d022299401de2b3edf1d0b73b24f5",
+  "runner_sha256": "ce281345536bafee744ece96ed1e8e6277cab641e2b019b727b5c84adfd513b3",
+  "scenario_sha256": "100391ca3aea7f2bb68719f8128c89bdaac726e5f0614bda20f5e76dbe23d5ac",
+  "run_kind": "main",
+  "model_phase": "offline",
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "A13": "NOT_RUN",
+  "A14": "NOT_RUN",
+  "checks": [
+    {
+      "id": "real_project_acl_and_reader_source",
+      "status": "PASS",
+      "sqlite_schema": 39,
+      "source_quote_sha256": "d7ae6918e92c2917c94fc2d39416d23a10ea9726738763cbfc39c145bc5a4352"
+    },
+    {
+      "id": "T01",
+      "status": "PASS",
+      "shared_version_count": 3,
+      "independent_first_attempts": 2,
+      "later_correction_append": true,
+      "fill_dispute_retained": true
+    },
+    {
+      "id": "T02",
+      "status": "PASS",
+      "replay_same_receipt": true,
+      "concurrent_one_write": true,
+      "prior_no_reveal": true,
+      "other_actor_denied": true,
+      "source_revoke_hides_own_feedback": true
+    }
+  ],
+  "screens": [
+    {
+      "file": "learner-before-first-answer.png",
+      "sha256": "7958c95fc1923f204549060cc0a92b7ec8305e93401f4c6e1cd399fc0ba7a2c3",
+      "bytes": 47228
+    },
+    {
+      "file": "learner-first-and-later.png",
+      "sha256": "fa7b3ed09c7fefccd83c2ad792a69499367756b1735f7b18305930de3489a1b9",
+      "bytes": 63265
+    },
+    {
+      "file": "learner-source-revoked.png",
+      "sha256": "35e05e5c90a5b0f0e065d66e354f910f23b6edaafa2f3f0cf391d21af0bbbeba",
+      "bytes": 25425
+    }
+  ],
+  "boots": [
+    26852
+  ],
+  "egress": {
+    "browser_denied": 0,
+    "host_non_loopback_requests": 0,
+    "real_model_requests": 0
+  },
+  "chrome": "158.0.8127.88",
+  "cleanup": "PASS"
+}

@@ -1,0 +1,51 @@
+{
+  "unit_id": "LEARN-001",
+  "candidate_sha": "0e7c900a7d0a922be46b8b6c59fbf08375f8b91c",
+  "entry_sha256": "dec5881be4aa183363ae0702dd0bdca04ab8997b4003780e1576b7aec8472c91",
+  "frozen_v38": "0517de9ab7a3799d3ce8463db9de068257c5c41c",
+  "old_bundle_sha256": "04e9eea7dcaea3a4f5cb7deb987f44ceb13b44392405bbd240ed5bbec44a0fe2",
+  "test_support_sha256": "de2b278e6bd75c6ec21e0686de8ead73b81029908b59d20d126691582347386e",
+  "runner_sha256": "0089f4c9ecf3af4d171ac3fcd61171bd79b7667c8d399498f62ee36901671737",
+  "scope": "INDEPENDENT_OFFLINE_V39_STORAGE",
+  "command": "node --experimental-transform-types v39-regression.mjs <checkout> <candidate SHA> <entry SHA-256>",
+  "status": "PASS",
+  "exit_code": 0,
+  "real_inference_requests": 0,
+  "results": [
+    {
+      "id": "v38_exact_populated_workflow_baseline",
+      "status": "PASS",
+      "actual": "Production v38 created a confirmed relation with version history, pinned citation, knowledge records, note, project membership and redeemed source access."
+    },
+    {
+      "id": "v39_injected_post_schema_failure_preserved_v38",
+      "status": "PASS",
+      "actual": "After the real v39 schema fault, the exact v38 schema, 38 ledger rows and every pre-existing table were unchanged."
+    },
+    {
+      "id": "v39_single_checksum_receipt_and_v38_round_trip",
+      "status": "PASS",
+      "actual": "Two successful opens produced one correct v39 ledger record, with prior relation, knowledge and citation projections intact."
+    },
+    {
+      "id": "failed_attempt_and_receipt_transactions_release_no_feedback",
+      "status": "PASS",
+      "actual": "Faults at the attempt insert and after that insert left both tables unchanged; the official learner projection returned no feedback or attempted answer."
+    },
+    {
+      "id": "first_commit_binds_feedback_and_exactly_one_idempotent_receipt",
+      "status": "PASS",
+      "actual": "The same request key succeeded after rollback, returned the stored first answer and pinned feedback, replayed without changes and rejected a changed payload and stale sequence."
+    },
+    {
+      "id": "two_sqlite_connections_one_winner_and_immutable_first_attempt",
+      "status": "PASS",
+      "actual": "Two worker connections started from sequence 1. One stored the follow-up with a matching receipt, the other hit a sequence conflict and left no row. The first answer and all v38 data remained unchanged."
+    },
+    {
+      "id": "v39_practice_history_and_receipts_survive_reopen",
+      "status": "PASS",
+      "actual": "A new storage instance read the same owning user history; the author could not read it and rows and ledger were unchanged."
+    }
+  ]
+}

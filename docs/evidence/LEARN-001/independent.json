@@ -1,0 +1,34 @@
+{
+  "unit_id": "LEARN-001",
+  "candidate_sha": "0e7c900a7d0a922be46b8b6c59fbf08375f8b91c",
+  "tree": "d9848aef174a7229ea839f4ebd330d6110e1e064",
+  "source_tree": "408a04fc8cf667353e81cc62fb1d842530bf9027",
+  "entry_sha256": "dec5881be4aa183363ae0702dd0bdca04ab8997b4003780e1576b7aec8472c91",
+  "build_sha256": "d25ecef4643c69b126424524f69f2ab1933d022299401de2b3edf1d0b73b24f5",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/learn001/host-practice.mjs <frozen-checkout> 0e7c900a7d0a922be46b8b6c59fbf08375f8b91c dec5881be4aa183363ae0702dd0bdca04ab8997b4003780e1576b7aec8472c91 scripts/learn001/independent-scenario.mjs independent",
+  "reviewer": "Independent Chrome/Host and SQLite regression agents",
+  "results": [
+    {
+      "id": "LEARN-001-T01",
+      "status": "PASS",
+      "actual": "Shared immutable question version, two private answers, later attempt, boolean and normalized alias/dispute grades, fixed V1 source and restart."
+    },
+    {
+      "id": "LEARN-001-T02",
+      "status": "PASS",
+      "actual": "No answer before a durable first submit, precise retry and concurrent conflict, fault rollback, private scope, separate source and project revoke."
+    }
+  ],
+  "records": [
+    {
+      "path": "docs/evidence/LEARN-001/runs/independent.json",
+      "sha256": "46b04722929e2fc51db429ae7e640a0325972d657aad1b2fd128d07d804774bc"
+    },
+    {
+      "path": "docs/evidence/LEARN-001/runs/v39-storage.json",
+      "sha256": "23a88a6abf7503e795c7697034669eede5efb4ffcef88e014754660ae2bccf17"
+    }
+  ]
+}
