@@ -5,11 +5,14 @@ import { UUID_PATTERN } from './http.ts'
 import type { PeerScope } from './identity-peer.ts'
 import type { SessionActor } from './identity.ts'
 import { normalizeFill, questionKinds, type Answer, type QuestionKind } from './practice-policy.ts'
-import type { AttemptInput, PracticeStore, QuestionDraft } from './practice-store.ts'
+import type { ReviewDraft } from './practice-review.ts'
+import type { AttemptInput, CorrectionInput, PracticeStore, QuestionDraft } from './practice-store.ts'
 import type { QuickInput, QuickPracticeService } from './quick-practice.ts'
 
 export const questionApi = '/knowledge/v1/questions'
 export const practiceApi = '/knowledge/v1/practice-sessions'
+export const reviewApi = '/knowledge/v1/me/wrong-questions'
+export const stateApi = '/knowledge/v1/me/question-states'
 const invalid = () => new AssetError(422, 'INVALID_PRACTICE_INPUT')
 
 function fields(value: unknown, allowed: string[]) {
@@ -68,6 +71,38 @@ function attemptInput(raw: unknown): AttemptInput {
   if (typeof answer === 'string') text(answer, 500)
   else if (typeof answer !== 'boolean' && (typeof answer !== 'number' || !Number.isSafeInteger(answer))) throw invalid()
   return { question_version_id: uuid(values.question_version_id), expected_sequence: sequence(values.expected_sequence), answer, confidence }
+}
+
+function correctionInput(raw:unknown):CorrectionInput{
+  const input=fields(raw,['expected_version','answer','explanation','reason'])
+  const expected_version=sequence(input.expected_version)
+  if(expected_version<1)throw invalid()
+  let answer:Answer|Answer[]
+  if(Array.isArray(input.answer))answer=distinct(input.answer,12,value=>text(value,320),normalizeFill)
+  else if(typeof input.answer==='boolean'||typeof input.answer==='number'&&Number.isSafeInteger(input.answer))answer=input.answer
+  else throw invalid()
+  return {expected_version,answer,explanation:text(input.explanation,4000),reason:text(input.reason,1000)}
+}
+
+function reviewInput(raw:unknown):ReviewDraft{
+  const input=fields(raw,['expected_revision','wrong_reason','mastery_state','next_review_at'])
+  const draft:ReviewDraft={expected_revision:sequence(input.expected_revision)}
+  if(Object.keys(input).length<2)throw invalid()
+  if('wrong_reason' in input){
+    if(typeof input.wrong_reason!=='string'||input.wrong_reason.length>1000||input.wrong_reason.includes('\0'))throw invalid()
+    draft.wrong_reason=input.wrong_reason.trim()
+  }
+  if('mastery_state' in input){
+    const mastery=input.mastery_state
+    if(mastery!=='new'&&mastery!=='reviewing'&&mastery!=='mastered')throw invalid()
+    draft.mastery_state=mastery
+  }
+  if('next_review_at' in input){
+    const date=input.next_review_at
+    if(date!==null&&(typeof date!=='string'||!/^\d{4}-\d\d-\d\dT\d\d:\d\d(?::\d\d(?:\.\d{1,3})?)?(?:Z|[+-]\d\d:\d\d)$/.test(date)||!Number.isFinite(Date.parse(date))))throw invalid()
+    draft.next_review_at=date===null?null:new Date(date).toISOString()
+  }
+  return draft
 }
 
 function quickInput(raw: unknown, preview: boolean) {
@@ -137,15 +172,19 @@ export function createPracticeHandler(store: PracticeStore, quick: QuickPractice
       const success = (status: number, value: object) => send(status, { data: { actor_id: prior.userId, ...value } })
       const path = url.pathname
       const preview=path===practiceApi+'/generate/preview', generate=path===practiceApi+'/generate'
-      const session = path.startsWith(practiceApi + '/') && /^\/([a-f0-9-]+)\/(questions|attempts)$/.exec(path.slice(practiceApi.length))
+      const session=path.startsWith(practiceApi+'/')&&/^\/([a-f0-9-]+)\/(questions|attempts|hints|disputes)$/.exec(path.slice(practiceApi.length))
+      const correction=path.startsWith(questionApi+'/')&&/^\/([a-f0-9-]+)\/corrections$/.exec(path.slice(questionApi.length))
+      const state=path.startsWith(stateApi+'/')&&/^\/([a-f0-9-]+)$/.exec(path.slice(stateApi.length))
       if (method === 'GET') {
         if (path === questionApi) return success(200, store.catalog(prior))
         if (path === practiceApi) return success(200, { sessions: store.listSessions(prior) })
+        if(path===reviewApi)return success(200,store.review(prior))
         const author = path.startsWith(questionApi + '/') && /^\/([a-f0-9-]+)\/author$/.exec(path.slice(questionApi.length))
         if (author) return success(200, store.authored(prior, uuid(author[1])))
         if (session && session[2] === 'questions') return success(200, store.questions(prior, uuid(session[1])))
       }
-      if (method === 'POST' && (preview||generate||path === questionApi || path === practiceApi || session && session[2] === 'attempts')) {
+      const post=method==='POST'&&(preview||generate||path===questionApi||path===practiceApi||correction||session&&session[2]!=='questions')
+      if(post||method==='PATCH'&&state){
         if (uuid(req.headers['x-knowledgeos-reader-actor']) !== prior.userId) throw new AssetError(409, 'ACTOR_CHANGED')
         const body=await json(req)
         if(res.destroyed)return
@@ -156,6 +195,8 @@ export function createPracticeHandler(store: PracticeStore, quick: QuickPractice
         }
         const key=uuid(req.headers['idempotency-key']),actor=current()
         const recorded = (output: { replayed: boolean }) => success(output.replayed ? 200 : 201, output)
+        if(method==='PATCH'&&state)return success(200,store.updateReview(actor,key,uuid(state[1]),reviewInput(body)))
+        if(correction)return recorded(store.correct(actor,key,uuid(correction[1]),correctionInput(body)))
         if(generate){
           const {input,fingerprint}=quickInput(body,false)
           return recorded(await quick.generate(current,key,input,fingerprint,signal))
@@ -165,7 +206,19 @@ export function createPracticeHandler(store: PracticeStore, quick: QuickPractice
           const { question_version_ids } = fields(body, ['question_version_ids'])
           return recorded(store.createSession(actor, key, distinct(question_version_ids, 20, uuid, id => id)))
         }
-        if (session) return recorded(store.submit(actor, key, uuid(session[1]), attemptInput(body)))
+        if(session){
+          const id=uuid(session[1])
+          if(session[2]==='hints'){
+            const input=fields(body,['question_version_id','level'])
+            if(input.level!==1&&input.level!==2)throw invalid()
+            return recorded(store.hint(actor,key,id,uuid(input.question_version_id),input.level))
+          }
+          if(session[2]==='disputes'){
+            const input=fields(body,['question_version_id','reason'])
+            return recorded(store.dispute(actor,key,id,uuid(input.question_version_id),text(input.reason,1000)))
+          }
+          return recorded(store.submit(actor,key,id,attemptInput(body)))
+        }
       }
       throw new AssetError(404, 'NOT_FOUND')
     } catch (error) {

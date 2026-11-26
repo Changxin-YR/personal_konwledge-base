@@ -17,7 +17,7 @@ fieldset{border:0;margin:0;padding:0;display:grid;gap:8px;min-width:0}label{disp
 #practice-prompt-text{white-space:pre-wrap}summary{cursor:pointer;font-weight:600}details form{margin-top:10px}
 :focus-visible{outline:2px solid #1d7392;outline-offset:2px}
 @media(max-width:700px){main,nav{padding:12px 14px}.layout{grid-template-columns:minmax(0,1fr)}}
-</style></head><body><header><nav aria-label="业务导航"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">知识库</a><a href="/knowledgeos/knowledge">知识条目</a><a href="/knowledgeos/practice" aria-current="page">题库与练习</a><a href="/knowledgeos/account">账号</a></nav></header>
+</style></head><body><header><nav aria-label="业务导航"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">知识库</a><a href="/knowledgeos/knowledge">知识条目</a><a href="/knowledgeos/practice" aria-current="page">题库与练习</a><a href="/knowledgeos/review">错题与复习</a><a href="/knowledgeos/account">账号</a></nav></header>
 <main><h1>题库与练习</h1><p id="practice-status" role="status">正在读取…</p><a id="practice-login" href="/knowledgeos/account" hidden>登录</a>
 <div id="practice-workspace" class="layout" hidden><aside>
 <section class="card"><h2>可用题目</h2><p class="subtle" id="practice-empty">暂无可练习题目。</p><ul id="practice-questions"></ul><button id="practice-start" type="button" disabled>开始练习</button></section>
@@ -32,7 +32,9 @@ fieldset{border:0;margin:0;padding:0;display:grid;gap:8px;min-width:0}label{disp
 <p id="quick-session-coverage" class="subtle" hidden></p><a id="quick-return-reader" hidden>回到原阅读位置</a>
 <h3 id="practice-prompt-text"></h3><p id="practice-quality" class="subtle" hidden></p><form id="practice-answer-form"><fieldset id="practice-fields">
 <label id="practice-answer-field">我的答案</label><label>作答把握<select id="practice-confidence"><option value="sure">确定</option><option value="unsure">不确定</option></select></label><button type="submit" id="practice-submit">提交首次答案</button></fieldset></form>
-<section id="practice-feedback" aria-labelledby="practice-feedback-title" hidden><h3 id="practice-feedback-title">答案与解析</h3><p id="practice-accepted"></p><p id="practice-explanation-text"></p><p id="practice-grading"></p><a id="practice-source" href="/knowledgeos/library">查看固定引用</a></section>
+<p id="practice-hint-text" aria-live="polite" hidden></p><button id="practice-hint" type="button">查看提示</button>
+<section id="practice-feedback" aria-labelledby="practice-feedback-title" hidden><h3 id="practice-feedback-title">答案与解析</h3><p id="practice-accepted"></p><p id="practice-explanation-text"></p><p id="practice-grading"></p><p id="practice-evaluation"></p><a id="practice-source" href="/knowledgeos/library">查看固定引用</a>
+<form id="practice-dispute-form"><label>争议原因<textarea id="practice-dispute-reason" required maxlength="1000"></textarea></label><button id="practice-dispute" type="submit">报告题目争议</button></form></section>
 <section id="practice-attempt-panel" hidden><h3>我的作答记录</h3><ol id="practice-attempts"></ol></section>
 </section>
 <details class="card" id="practice-author"><summary>新建题目</summary><form id="practice-author-form"><fieldset id="practice-author-fields">
@@ -57,7 +59,9 @@ const errors={INVALID_PRACTICE_INPUT:'请核对题型、题干、答案和固定
   QUICK_RANGE_CHANGED:'原文、选区或题量已变化，请重新检查范围。',QUICK_SOURCE_NOT_READY:'当前原文尚未可用，请等解析完成。',
   QUICK_CHAPTER_UNAVAILABLE:'当前版本没有可定位的章节目录。可从选区启动快答。',QUICK_SELECTION_TOO_LONG:'请选择不超过 960 个字符的段落。',
   QUICK_TERM_TOO_LONG:'请选择不超过 64 个字符的术语。',QUICK_MODEL_OUTPUT_INVALID:'模型生成的题目或引用无法核对。',
-  MODEL_NOT_CONFIGURED:'当前没有可用的模型。',MODEL_OUTPUT_TRUNCATED:'模型输出未完成，请减少题量后重试。'};
+  MODEL_NOT_CONFIGURED:'当前没有可用的模型。',MODEL_OUTPUT_TRUNCATED:'模型输出未完成，请减少题量后重试。',
+  QUESTION_VERSION_CHANGED:'题目版本已修订，请从题库打开当前版本。',DISPUTE_ALREADY_OPEN:'你已报告这一题目版本的争议。',
+  HINT_AFTER_ANSWER:'首次作答已记录。',HINT_LEVEL_CONFLICT:'请先查看前一级提示。'};
 const address=new URL(location.href), validId=/^[a-f0-9-]{36}$/;let citation=address.searchParams.get('citation');
 let active=address.searchParams.get('session');if(!validId.test(active||''))active=null;
 let actor=null, versions=[], sessions=[], questions=[], picked=new Set(), version=null, busy=false, waiting=false;
@@ -80,8 +84,9 @@ async function http(path,init={}){
 }
 function clearDetail(){
   signature='';version=null;questions=[];$('practice-detail').hidden=true;$('practice-feedback').hidden=true;$('practice-attempt-panel').hidden=true;
-  for(const id of ['practice-session-questions','practice-attempts','practice-prompt-text','practice-accepted','practice-explanation-text','practice-grading','practice-quality','quick-session-coverage'])
+  for(const id of ['practice-session-questions','practice-attempts','practice-prompt-text','practice-accepted','practice-explanation-text','practice-grading','practice-quality','quick-session-coverage','practice-hint-text','practice-evaluation'])
     $(id).replaceChildren();
+  $('practice-dispute-reason').value='';
   $('practice-answer')?.remove();$('practice-source').removeAttribute('href');$('quick-return-reader').removeAttribute('href');
   $('quick-session-coverage').hidden=$('quick-return-reader').hidden=true;
 }
@@ -96,6 +101,7 @@ function setControls(){
   $('practice-start').disabled=busy||!picked.size;
   $('quick-count').disabled=$('quick-units').disabled=$('quick-preview').disabled=busy;
   $('quick-generate').disabled=busy||!quickPreview?.available;
+  $('practice-hint').disabled=$('practice-dispute').disabled=busy;
 }
 function renderCatalog(projects){
   const changed=JSON.stringify([versions,sessions,projects]);
@@ -149,6 +155,10 @@ function paintQuestion(){
   }
   const feedback=question.feedback;
   $('practice-feedback').hidden=!feedback;$('practice-attempt-panel').hidden=question.attempts.length===0;
+  $('practice-hint').hidden=question.attempts.length!==0||question.hints.length>=2;
+  $('practice-hint').textContent=question.hints.length?'查看下一提示':'查看提示';
+  $('practice-hint-text').hidden=question.hints.length===0;
+  $('practice-hint-text').textContent=question.hints.map(hint=>hint.text).join(' ');
   $('practice-accepted').textContent=feedback?'参考答案：'+formatAnswer(question,feedback.accepted_answer):'';
   $('practice-explanation-text').textContent=feedback?.explanation||'';$('practice-grading').textContent=feedback?.grading_basis||'';
   if(feedback)$('practice-source').href=feedback.evidence.href;else $('practice-source').removeAttribute('href');
@@ -158,6 +168,9 @@ function paintQuestion(){
     content.textContent=(attempt.sequence===1?'首次作答':'后续作答 '+attempt.sequence)+' · '+formatAnswer(question,attempt.answer)+' · '+grades[attempt.grading_state]+(attempt.confidence==='unsure'?' · 不确定':'');
     add($('practice-attempts'),content)
   }
+  const first=question.attempts[0];
+  $('practice-evaluation').textContent=first?.evaluation_status==='paused'?'当前评价暂停，原作答已保留。':
+    first?.evaluation_status==='corrected'?'当前重判：'+grades[first.effective_grading]+'。上方解析属于作答时的题目版本。':'';
   $('practice-submit').textContent=question.attempts.length?'提交重答':'提交首次答案';setControls()
 }
 async function load(force=false){
@@ -227,6 +240,8 @@ async function write(path,payload){
       else {await open(result.session.id);if(g===epoch&&active===result.session.id)status('快答练习已开始。')}
     }
     else if(path===bank){$('practice-author-form').reset();authorControls();await load(true);if(g===epoch)status('题目已创建。')}
+    else if(path.endsWith('/hints')){await load(true);if(g===epoch&&currentQuestion())status('已记录提示。')}
+    else if(path.endsWith('/disputes')){$('practice-dispute-reason').value='';await load(true);if(g===epoch&&currentQuestion())status('争议已记录，当前评价暂停。')}
     else {await load(true);if(g===epoch&&currentQuestion())status('作答已保存 · '+grades[result.attempt.grading_state])}
   }catch(error){
     if(g!==epoch)return;
@@ -300,6 +315,16 @@ $('practice-author-form').onsubmit=event=>{
   void write(bank,payload)
 };
 $('practice-start').onclick=()=>{if(picked.size)void write(api,{question_version_ids:[...picked]})};
+$('practice-hint').onclick=()=>{
+  const question=currentQuestion();
+  if(question&&active&&!question.attempts.length&&question.hints.length<2)
+    void write(api+'/'+active+'/hints',{question_version_id:question.version_id,level:question.hints.length+1})
+};
+$('practice-dispute-form').onsubmit=event=>{
+  event.preventDefault();const question=currentQuestion();
+  if(question&&active&&question.attempts.length)
+    void write(api+'/'+active+'/disputes',{question_version_id:question.version_id,reason:$('practice-dispute-reason').value})
+};
 $('practice-answer-form').onsubmit=event=>{
   event.preventDefault();const question=currentQuestion();if(!question||!active)return;
   const raw=$('practice-answer').value;

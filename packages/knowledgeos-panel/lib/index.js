@@ -4787,6 +4787,60 @@ function scoreAnswer(kind, answer, accepted) {
   return answer === accepted[0] ? "correct" : "incorrect";
 }
 
+// src/host/practice-review.ts
+var PRACTICE_REVIEW_SCHEMA = `
+CREATE TABLE practice_hint_events (
+  id TEXT PRIMARY KEY, service_id TEXT NOT NULL, user_id TEXT NOT NULL, session_id TEXT NOT NULL, question_version_id TEXT NOT NULL,
+  level INTEGER NOT NULL CHECK(level IN (1,2)), request_key TEXT NOT NULL, requested_at TEXT NOT NULL,
+  FOREIGN KEY(session_id,service_id,user_id) REFERENCES practice_sessions(id,service_id,user_id),
+  FOREIGN KEY(session_id,question_version_id) REFERENCES practice_session_questions(session_id,question_version_id),
+  UNIQUE(service_id,user_id,request_key), UNIQUE(session_id,question_version_id,level)
+) STRICT;
+CREATE TABLE practice_disputes (
+  id TEXT PRIMARY KEY, service_id TEXT NOT NULL, user_id TEXT NOT NULL, attempt_id TEXT NOT NULL,
+  question_version_id TEXT NOT NULL REFERENCES question_versions(id), reason TEXT NOT NULL,
+  request_key TEXT NOT NULL, opened_at TEXT NOT NULL,
+  FOREIGN KEY(attempt_id,service_id,user_id) REFERENCES practice_attempts(id,service_id,user_id),
+  UNIQUE(service_id,user_id,request_key), UNIQUE(service_id,user_id,question_version_id)
+) STRICT;
+CREATE INDEX practice_dispute_version ON practice_disputes(question_version_id);
+CREATE TABLE question_corrections (
+  id TEXT PRIMARY KEY, question_id TEXT NOT NULL REFERENCES questions(id), from_version_id TEXT NOT NULL, to_version_id TEXT UNIQUE NOT NULL,
+  author_id TEXT NOT NULL REFERENCES users(id), reason TEXT NOT NULL, request_key TEXT NOT NULL,
+  request_digest TEXT NOT NULL CHECK(length(request_digest)=64), created_at TEXT NOT NULL,
+  FOREIGN KEY(question_id,from_version_id) REFERENCES question_versions(question_id,id),
+  FOREIGN KEY(question_id,to_version_id) REFERENCES question_versions(question_id,id),
+  UNIQUE(question_id,from_version_id), UNIQUE(author_id,request_key)
+) STRICT;
+CREATE TABLE practice_attempt_regrades (
+  attempt_id TEXT NOT NULL REFERENCES practice_attempts(id), corrected_version_id TEXT NOT NULL REFERENCES question_versions(id),
+  correction_id TEXT NOT NULL REFERENCES question_corrections(id), grading_state TEXT NOT NULL CHECK(grading_state IN ('correct','incorrect','disputed')),
+  evaluated_at TEXT NOT NULL, PRIMARY KEY(attempt_id,corrected_version_id)
+) STRICT;
+CREATE TABLE personal_question_states (
+  service_id TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES users(id), question_id TEXT NOT NULL REFERENCES questions(id),
+  revision INTEGER NOT NULL CHECK(revision>=1), wrong_reason TEXT NOT NULL,
+  mastery_state TEXT NOT NULL CHECK(mastery_state IN ('new','reviewing','mastered')), next_review_at TEXT,
+  updated_at TEXT NOT NULL, PRIMARY KEY(service_id,user_id,question_id)
+) STRICT;
+CREATE TABLE personal_question_receipts (
+  service_id TEXT NOT NULL, user_id TEXT NOT NULL, request_key TEXT NOT NULL,
+  question_id TEXT NOT NULL, digest TEXT NOT NULL CHECK(length(digest)=64), result_json TEXT NOT NULL,
+  FOREIGN KEY(service_id,user_id,question_id) REFERENCES personal_question_states(service_id,user_id,question_id),
+  PRIMARY KEY(service_id,user_id,request_key)
+) STRICT;
+`;
+function classifyPractice(grade, paused, independent, confident) {
+  if (paused || grade === null || grade === "disputed") return "disputed";
+  if (grade === "incorrect") return "wrong";
+  if (!independent) return "assisted";
+  return confident ? "independent_correct" : "uncertain";
+}
+var hintText = {
+  1: "\u5148\u627E\u51FA\u9898\u5E72\u4E2D\u7684\u5BF9\u8C61\u3001\u9650\u5236\u548C\u9700\u8981\u5224\u65AD\u7684\u6761\u4EF6\u3002",
+  2: "\u9010\u4E00\u6838\u5BF9\u4F60\u7684\u5019\u9009\u7B54\u6848\u662F\u5426\u6EE1\u8DB3\u6240\u6709\u9650\u5236\u3002\u5199\u4E0B\u6BCF\u9879\u80FD\u6210\u7ACB\u6216\u5E94\u6392\u9664\u7684\u7406\u7531\u3002"
+};
+
 // src/host/practice-store.ts
 var PRACTICE_SCHEMA = `
 CREATE TABLE questions (
@@ -4851,6 +4905,7 @@ var hash4 = (value) => createHash12("sha256").update(JSON.stringify(value)).dige
 var missingQuestion = () => new AssetError(404, "QUESTION_NOT_FOUND");
 var missingPractice = () => new AssetError(404, "PRACTICE_NOT_FOUND");
 var conflict3 = () => new AssetError(409, "IDEMPOTENCY_CONFLICT");
+var initialState = { revision: 0, wrong_reason: "", mastery_state: "new", next_review_at: null, updated_at: null };
 var gradingExplanation = {
   [exactRule]: "\u6309\u5F53\u524D\u9898\u76EE\u7248\u672C\u7684\u56FA\u5B9A\u6807\u51C6\u7B54\u6848\u5224\u5206\u3002",
   [fillRule]: "\u6309 NFKC \u89C4\u8303\u5316\u3001\u5408\u5E76\u7A7A\u767D\u5E76\u5FFD\u7565\u5927\u5C0F\u5199\u540E\u4E0E\u4FDD\u5B58\u7684\u7B54\u6848\u9010\u4E00\u6BD4\u8F83\uFF0C\u672A\u5339\u914D\u7684\u8868\u8FBE\u7B49\u5F85\u590D\u6838\u3002"
@@ -4890,6 +4945,7 @@ var PracticeStore = class {
   }
   learner(db, question, version) {
     const generated = this.quickQuestion(db, version.id);
+    const disputed = this.openDispute(db, question.current_version_id);
     return {
       id: question.id,
       version_id: version.id,
@@ -4901,7 +4957,8 @@ var PracticeStore = class {
       author_id: question.author_id,
       quality_state: generated?.quality ?? "ready",
       origin_kind: generated ? "generated" : "author",
-      evaluation_eligible: !generated
+      evaluation_eligible: !generated && !disputed,
+      has_open_dispute: disputed
     };
   }
   feedback(version, citation) {
@@ -4942,19 +4999,24 @@ var PracticeStore = class {
   authored(prior, id6) {
     return this.tx("read", (db, now) => {
       const actor2 = this.actor(prior, now);
-      const row = db.prepare("SELECT current_version_id FROM questions WHERE id=? AND service_id=? AND author_id=?").get(id6, actor2.serviceId, actor2.userId);
-      if (!row) throw missingQuestion();
-      const { question, version, citation } = this.accessVersion(db, actor2, String(row.current_version_id), now);
-      if (this.quickQuestion(db, version.id)) throw missingQuestion();
+      const { question, version, citation } = this.authorQuestion(db, actor2, id6, now);
       return { question: this.learner(db, question, version), feedback: this.feedback(version, citation) };
     });
+  }
+  authorQuestion(db, actor2, id6, now) {
+    const row = db.prepare("SELECT current_version_id FROM questions WHERE id=? AND service_id=? AND author_id=?").get(id6, actor2.serviceId, actor2.userId);
+    if (!row) throw missingQuestion();
+    const target3 = this.accessVersion(db, actor2, String(row.current_version_id), now);
+    if (this.quickQuestion(db, target3.version.id)) throw missingQuestion();
+    return target3;
   }
   createQuestion(prior, key, draft3) {
     return this.tx("write", (db, now) => {
       const actor2 = this.actor(prior, now), digest5 = hash4(draft3);
       const old = db.prepare("SELECT * FROM questions WHERE service_id=? AND author_id=? AND request_key=?").get(actor2.serviceId, actor2.userId, key);
       if (old) {
-        const { question: question2, version } = this.accessVersion(db, actor2, old.current_version_id, now);
+        const initial = db.prepare("SELECT id FROM question_versions WHERE question_id=? AND version=1").get(old.id);
+        const { question: question2, version } = this.accessVersion(db, actor2, String(initial?.id), now);
         if (old.request_digest !== digest5) throw conflict3();
         return { question: this.learner(db, question2, version), replayed: true };
       }
@@ -5041,6 +5103,200 @@ var PracticeStore = class {
       if (witness.text.slice(witness.start, witness.end) !== item.text) throw new AssetError(409, "QUICK_RANGE_CHANGED");
     }
   }
+  openDispute(db, versionId) {
+    return Boolean(db.prepare("SELECT 1 FROM practice_disputes WHERE question_version_id=? LIMIT 1").get(versionId));
+  }
+  hints(db, sessionId, versionId) {
+    return db.prepare("SELECT level FROM practice_hint_events WHERE session_id=? AND question_version_id=? ORDER BY level").all(sessionId, versionId).map((row) => {
+      const level = Number(row.level);
+      return { level, text: hintText[level] };
+    });
+  }
+  hint(prior, key, sessionId, versionId, level) {
+    return this.tx("write", (db, now) => {
+      const actor2 = this.actor(prior, now), practice = this.practice(db, actor2, sessionId);
+      if (!this.inSession(db, actor2, practice.id, now).some((item) => item.version.id === versionId)) throw missingQuestion();
+      const old = db.prepare("SELECT session_id,question_version_id,level FROM practice_hint_events WHERE service_id=? AND user_id=? AND request_key=?").get(actor2.serviceId, actor2.userId, key);
+      const hint = { level, text: hintText[level] };
+      if (old) {
+        if (old.session_id !== sessionId || old.question_version_id !== versionId || old.level !== level) throw conflict3();
+        return { hint, replayed: true };
+      }
+      if (this.attempts(db, sessionId, versionId).length) throw new AssetError(409, "HINT_AFTER_ANSWER");
+      const priorLevels = this.hints(db, sessionId, versionId);
+      if (level !== priorLevels.length + 1) throw new AssetError(409, "HINT_LEVEL_CONFLICT");
+      db.prepare("INSERT INTO practice_hint_events VALUES(?,?,?,?,?,?,?,?)").run(randomUUID15(), actor2.serviceId, actor2.userId, sessionId, versionId, level, key, now);
+      return { hint, replayed: false };
+    });
+  }
+  dispute(prior, key, sessionId, versionId, reason) {
+    return this.tx("write", (db, now) => {
+      const actor2 = this.actor(prior, now), practice = this.practice(db, actor2, sessionId);
+      const target3 = this.inSession(db, actor2, practice.id, now).find((item) => item.version.id === versionId);
+      if (!target3) throw missingQuestion();
+      const old = db.prepare(`SELECT d.id,d.question_version_id,d.reason,a.session_id FROM practice_disputes d
+        JOIN practice_attempts a ON a.id=d.attempt_id WHERE d.service_id=? AND d.user_id=? AND d.request_key=?`).get(actor2.serviceId, actor2.userId, key);
+      const isCurrent = target3.question.current_version_id === versionId;
+      if (old) {
+        if (old.question_version_id !== versionId || old.session_id !== sessionId || old.reason !== reason) throw conflict3();
+        return { dispute: { id: String(old.id), status: isCurrent ? "open" : "resolved", question_version_id: versionId }, replayed: true };
+      }
+      if (!isCurrent) throw new AssetError(409, "QUESTION_VERSION_CHANGED");
+      const attempt = this.attempts(db, sessionId, versionId)[0];
+      if (!attempt) throw new AssetError(409, "FIRST_ANSWER_REQUIRED");
+      const priorReport = db.prepare("SELECT 1 FROM practice_disputes WHERE service_id=? AND user_id=? AND question_version_id=?").get(actor2.serviceId, actor2.userId, versionId);
+      if (priorReport) throw new AssetError(409, "DISPUTE_ALREADY_OPEN");
+      const id6 = randomUUID15();
+      db.prepare("INSERT INTO practice_disputes VALUES(?,?,?,?,?,?,?,?)").run(id6, actor2.serviceId, actor2.userId, attempt.id, versionId, reason, key, now);
+      return { dispute: { id: id6, status: "open", question_version_id: versionId }, replayed: false };
+    });
+  }
+  correctedAnswers(version, answer) {
+    let answers;
+    if (version.kind === "fill") {
+      if (!Array.isArray(answer) || !answer.length || answer.length > 12 || answer.some((value) => typeof value !== "string" || !normalizeFill(value)))
+        throw new AssetError(422, "INVALID_PRACTICE_ANSWER");
+      answers = answer.map((value) => String(value).trim());
+      if (new Set(answers.map((value) => normalizeFill(String(value)))).size !== answers.length) throw new AssetError(422, "INVALID_PRACTICE_ANSWER");
+    } else {
+      const options = JSON.parse(version.options_json);
+      if (version.kind === "judgment" ? typeof answer !== "boolean" : typeof answer !== "number" || !Number.isInteger(answer) || answer < 1 || answer > options.length)
+        throw new AssetError(422, "INVALID_PRACTICE_ANSWER");
+      answers = [answer];
+    }
+    return answers;
+  }
+  correct(prior, key, id6, input) {
+    return this.tx("write", (db, now) => {
+      const actor2 = this.actor(prior, now), { question, version, citation } = this.authorQuestion(db, actor2, id6, now);
+      const digest5 = hash4([id6, input]);
+      const previous = db.prepare("SELECT * FROM question_corrections WHERE author_id=? AND request_key=?").get(actor2.userId, key);
+      const correctionView = (entry) => ({
+        id: String(entry.id),
+        from_version_id: String(entry.from_version_id),
+        to_version_id: String(entry.to_version_id),
+        reason: String(entry.reason),
+        created_at: String(entry.created_at)
+      });
+      if (previous) {
+        if (previous.question_id !== id6 || previous.request_digest !== digest5) throw conflict3();
+        const fixed = this.accessVersion(db, actor2, String(previous.to_version_id), now);
+        return { question: this.learner(db, fixed.question, fixed.version), correction: correctionView(previous), replayed: true };
+      }
+      if (input.expected_version !== version.version || version.version >= Number.MAX_SAFE_INTEGER) throw new AssetError(409, "QUESTION_VERSION_CHANGED");
+      const answers = this.correctedAnswers(version, input.answer);
+      const next = randomUUID15(), correctionId = randomUUID15();
+      db.prepare(`INSERT INTO question_versions
+        (id,question_id,version,kind,prompt,options_json,answers_json,explanation,evidence_json,citation_id,grading_rule,created_by,created_at)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+        next,
+        id6,
+        version.version + 1,
+        version.kind,
+        version.prompt,
+        version.options_json,
+        JSON.stringify(answers),
+        input.explanation,
+        version.evidence_json,
+        citation.id,
+        version.grading_rule,
+        actor2.userId,
+        now
+      );
+      db.prepare("INSERT INTO question_corrections VALUES(?,?,?,?,?,?,?,?,?)").run(correctionId, id6, version.id, next, actor2.userId, input.reason, key, digest5, now);
+      const affected = db.prepare(`SELECT a.id,a.answer_json FROM practice_attempts a JOIN question_versions v ON v.id=a.question_version_id
+        WHERE v.question_id=? AND a.service_id=?`).all(id6, actor2.serviceId);
+      const add = db.prepare("INSERT INTO practice_attempt_regrades VALUES(?,?,?,?,?)");
+      for (const row of affected) add.run(String(row.id), next, correctionId, scoreAnswer(version.kind, JSON.parse(String(row.answer_json)), answers), now);
+      if (Number(db.prepare("UPDATE questions SET current_version_id=? WHERE id=? AND current_version_id=?").run(next, id6, version.id).changes) !== 1)
+        throw new AssetError(409, "QUESTION_VERSION_CHANGED");
+      const updated = { ...question, current_version_id: next };
+      return { question: this.learner(db, updated, this.version(db, next)), correction: correctionView({
+        id: correctionId,
+        from_version_id: version.id,
+        to_version_id: next,
+        reason: input.reason,
+        created_at: now
+      }), replayed: false };
+    });
+  }
+  evaluation(db, actor2, question, version, row, now) {
+    const corrected = question.current_version_id !== version.id;
+    let effective = row.grading_state;
+    if (corrected) {
+      try {
+        this.accessVersion(db, actor2, question.current_version_id, now);
+        const revised = db.prepare("SELECT grading_state FROM practice_attempt_regrades WHERE attempt_id=? AND corrected_version_id=?").get(row.id, question.current_version_id);
+        effective = revised?.grading_state ?? null;
+      } catch (error) {
+        if (error instanceof AssetError && error.status === 404) effective = null;
+        else throw error;
+      }
+    }
+    const paused = effective === null || effective === "disputed" || this.openDispute(db, question.current_version_id);
+    const confident = row.confidence === "sure", independent = row.independent === 1;
+    return {
+      classification: classifyPractice(effective, paused, independent, confident),
+      original_grading: row.grading_state,
+      effective_grading: effective,
+      evaluation_status: paused ? "paused" : corrected ? "corrected" : "recorded",
+      evaluation_eligible: !this.quickQuestion(db, version.id) && !paused && independent && confident
+    };
+  }
+  personalState(db, actor2, questionId) {
+    return db.prepare("SELECT revision,wrong_reason,mastery_state,next_review_at,updated_at FROM personal_question_states WHERE service_id=? AND user_id=? AND question_id=?").get(actor2.serviceId, actor2.userId, questionId) ?? initialState;
+  }
+  review(prior) {
+    return this.tx("read", (db, now) => {
+      const actor2 = this.actor(prior, now);
+      const attempts = db.prepare(`SELECT a.*,v.question_id FROM practice_attempts a JOIN question_versions v ON v.id=a.question_version_id
+        WHERE a.service_id=? AND a.user_id=? ORDER BY a.submitted_at,a.rowid`).all(actor2.serviceId, actor2.userId);
+      const seen = /* @__PURE__ */ new Set();
+      const items = attempts.flatMap((row) => {
+        if (seen.has(row.question_id)) return [];
+        try {
+          const { question, version } = this.accessVersion(db, actor2, row.question_version_id, now);
+          seen.add(question.id);
+          const evaluation = this.evaluation(db, actor2, question, version, row, now);
+          return [{
+            question: this.learner(db, question, version),
+            attempt: { ...this.attempt(row, !!this.quickQuestion(db, version.id)), ...evaluation },
+            session_id: row.session_id,
+            ...evaluation,
+            state: this.personalState(db, actor2, question.id)
+          }];
+        } catch (error) {
+          if (error instanceof AssetError && error.status === 404) return [];
+          throw error;
+        }
+      });
+      const review_queue = items.filter((item) => item.state.next_review_at && item.classification !== "disputed").map((item) => ({ question_id: item.question.id, title: item.question.prompt, next_review_at: item.state.next_review_at, session_id: item.session_id })).sort((left, right) => left.next_review_at.localeCompare(right.next_review_at));
+      return { items, review_queue };
+    });
+  }
+  updateReview(prior, key, id6, input) {
+    return this.tx("write", (db, now) => {
+      const actor2 = this.actor(prior, now), digest5 = hash4([id6, input]);
+      const row = db.prepare(`SELECT a.question_version_id FROM practice_attempts a JOIN question_versions v ON v.id=a.question_version_id
+        WHERE a.service_id=? AND a.user_id=? AND v.question_id=? ORDER BY a.submitted_at,a.rowid LIMIT 1`).get(actor2.serviceId, actor2.userId, id6);
+      if (!row) throw missingQuestion();
+      this.accessVersion(db, actor2, String(row.question_version_id), now);
+      const old = db.prepare("SELECT question_id,digest,result_json FROM personal_question_receipts WHERE service_id=? AND user_id=? AND request_key=?").get(actor2.serviceId, actor2.userId, key);
+      if (old) {
+        if (old.question_id !== id6 || old.digest !== digest5) throw conflict3();
+        return { state: JSON.parse(String(old.result_json)), replayed: true };
+      }
+      const currentState = this.personalState(db, actor2, id6);
+      if (input.expected_revision !== currentState.revision || currentState.revision >= Number.MAX_SAFE_INTEGER) throw new AssetError(409, "REVISION_CONFLICT");
+      const { expected_revision, ...values } = input;
+      const state = { ...currentState, ...values, revision: expected_revision + 1, updated_at: now };
+      db.prepare(`INSERT INTO personal_question_states VALUES(?,?,?,?,?,?,?,?)
+        ON CONFLICT(service_id,user_id,question_id) DO UPDATE SET revision=excluded.revision,wrong_reason=excluded.wrong_reason,
+        mastery_state=excluded.mastery_state,next_review_at=excluded.next_review_at,updated_at=excluded.updated_at`).run(actor2.serviceId, actor2.userId, id6, state.revision, state.wrong_reason, state.mastery_state, state.next_review_at, now);
+      db.prepare("INSERT INTO personal_question_receipts VALUES(?,?,?,?,?,?)").run(actor2.serviceId, actor2.userId, key, id6, digest5, JSON.stringify(state));
+      return { state, replayed: false };
+    });
+  }
   checkQuick(prior, pinned) {
     return this.tx("read", (db, now) => this.checkQuickSources(db, this.actor(prior, now), pinned, now));
   }
@@ -5118,7 +5374,11 @@ var PracticeStore = class {
         const view = this.learner(db, question, version);
         return {
           ...view,
-          attempts: attempts.map((row) => this.attempt(row, view.origin_kind === "generated")),
+          attempts: attempts.map((row) => ({
+            ...this.attempt(row, view.origin_kind === "generated"),
+            ...this.evaluation(db, actor2, question, version, row, now)
+          })),
+          hints: this.hints(db, id6, version.id),
           feedback: attempts.length ? this.feedback(version, citation) : null
         };
       });
@@ -5138,7 +5398,11 @@ var PracticeStore = class {
         if (priorReceipt.digest !== digest5) throw conflict3();
         const old = db.prepare("SELECT * FROM practice_attempts WHERE id=? AND session_id=? AND service_id=? AND user_id=? AND question_version_id=?").get(String(priorReceipt.attempt_id), id6, actor2.serviceId, actor2.userId, version.id);
         if (!old) throw missingPractice();
-        return { attempt: this.attempt(old, generated), feedback: this.feedback(version, citation), replayed: true };
+        return {
+          attempt: { ...this.attempt(old, generated), ...this.evaluation(db, actor2, question, version, old, now) },
+          feedback: this.feedback(version, citation),
+          replayed: true
+        };
       }
       const { answer, confidence } = input;
       if (version.kind === "choice" && (typeof answer !== "number" || !Number.isInteger(answer) || answer < 1 || answer > JSON.parse(version.options_json).length) || version.kind === "judgment" && typeof answer !== "boolean" || version.kind === "fill" && (typeof answer !== "string" || !normalizeFill(answer)))
@@ -5146,7 +5410,9 @@ var PracticeStore = class {
       const last = db.prepare("SELECT max(sequence) AS last FROM practice_attempts WHERE session_id=? AND question_version_id=?").get(id6, version.id);
       const sequence2 = Number(last?.last ?? 0);
       if (sequence2 !== input.expected_sequence || sequence2 >= Number.MAX_SAFE_INTEGER) throw new AssetError(409, "ATTEMPT_SEQUENCE_CONFLICT");
-      const exposure = db.prepare("SELECT 1 FROM practice_attempts WHERE service_id=? AND user_id=? AND question_version_id=? LIMIT 1").get(actor2.serviceId, actor2.userId, version.id);
+      const exposure = db.prepare(`SELECT 1 FROM practice_attempts a JOIN question_versions v ON v.id=a.question_version_id
+        WHERE a.service_id=? AND a.user_id=? AND v.question_id=? LIMIT 1`).get(actor2.serviceId, actor2.userId, question.id);
+      const assisted = this.hints(db, id6, version.id).length > 0;
       const accepted = JSON.parse(version.answers_json);
       const row = {
         id: randomUUID15(),
@@ -5157,7 +5423,7 @@ var PracticeStore = class {
         answer_json: JSON.stringify(answer),
         confidence,
         grading_state: scoreAnswer(version.kind, answer, accepted),
-        independent: !exposure && (generated || question.author_id !== actor2.userId) ? 1 : 0
+        independent: !exposure && !assisted && (generated || question.author_id !== actor2.userId) ? 1 : 0
       };
       db.prepare("INSERT INTO practice_attempts VALUES(?,?,?,?,?,?,?,?,?,?,?)").run(
         row.id,
@@ -5172,8 +5438,20 @@ var PracticeStore = class {
         row.independent,
         now
       );
+      if (question.current_version_id !== version.id) {
+        const current = this.accessVersion(db, actor2, question.current_version_id, now).version;
+        const correction = db.prepare("SELECT id FROM question_corrections WHERE to_version_id=?").get(current.id);
+        if (!correction) throw new AssetError(409, "QUESTION_VERSION_CHANGED");
+        db.prepare("INSERT INTO practice_attempt_regrades VALUES(?,?,?,?,?)").run(
+          row.id,
+          current.id,
+          String(correction.id),
+          scoreAnswer(current.kind, answer, JSON.parse(current.answers_json)),
+          now
+        );
+      }
       db.prepare("INSERT INTO practice_attempt_receipts VALUES(?,?,?,?,?)").run(actor2.serviceId, actor2.userId, key, digest5, row.id);
-      return { attempt: this.attempt(row, generated), feedback: this.feedback(version, citation), replayed: false };
+      return { attempt: { ...this.attempt(row, generated), ...this.evaluation(db, actor2, question, version, row, now) }, feedback: this.feedback(version, citation), replayed: false };
     });
   }
 };
@@ -6965,7 +7243,8 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 40;
+var SCHEMA_VERSION = 41;
+var MIGRATION_V41_CHECKSUM = createHash19("sha256").update(PRACTICE_REVIEW_SCHEMA).digest("hex");
 var MIGRATION_V40_CHECKSUM = createHash19("sha256").update(QUICK_PRACTICE_SCHEMA).digest("hex");
 var MIGRATION_V39_CHECKSUM = createHash19("sha256").update(PRACTICE_SCHEMA).digest("hex");
 var MIGRATION_V38_CHECKSUM = createHash19("sha256").update(ONTOLOGY_SCHEMA).digest("hex");
@@ -7396,6 +7675,7 @@ var ProbeStorage = class {
       if (priorVersion < 38) this.#migrateV38(db);
       if (priorVersion < 39) this.#migrateV39(db);
       if (priorVersion < 40) this.#migrateV40(db);
+      if (priorVersion < 41) this.#migrateV41(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path2);
       const pragmas = this.#readPragmas(db);
@@ -8108,9 +8388,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "quick practice migration failed", false, { cause: e });
     }
   }
+  #migrateV41(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(PRACTICE_REVIEW_SCHEMA);
+      this.#injectFailure("v41:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(41,?,?)").run(MIGRATION_V41_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=41; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "practice review migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM, MIGRATION_V35_CHECKSUM, MIGRATION_V36_CHECKSUM, MIGRATION_V37_CHECKSUM, MIGRATION_V38_CHECKSUM, MIGRATION_V39_CHECKSUM, MIGRATION_V40_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM, MIGRATION_V35_CHECKSUM, MIGRATION_V36_CHECKSUM, MIGRATION_V37_CHECKSUM, MIGRATION_V38_CHECKSUM, MIGRATION_V39_CHECKSUM, MIGRATION_V40_CHECKSUM, MIGRATION_V41_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash7, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash7)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -8149,6 +8441,7 @@ var ProbeStorage = class {
       if (version >= 38) reference.exec(ONTOLOGY_SCHEMA);
       if (version >= 39) reference.exec(PRACTICE_SCHEMA);
       if (version >= 40) reference.exec(QUICK_PRACTICE_SCHEMA);
+      if (version >= 41) reference.exec(PRACTICE_REVIEW_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name: name2, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name2)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -12274,7 +12567,7 @@ function buildLibraryHtml() {
 #zip{overflow-wrap:anywhere}#zip-resume{max-width:36rem}#zip-entries{list-style:none;padding:0}#zip-entries li{border-bottom:1px solid #dde5e2;padding:8px 0}#zip-entries label{display:flex;align-items:center;gap:8px}#zip-entries input{width:18px;height:18px;flex:none}#zip-entries small{display:block}
 #search-form{grid-template-columns:minmax(0,1fr) auto}#search-results{list-style:none;padding:0;margin:4px 0;overflow-wrap:anywhere}#search-results li{padding:8px 0;border-bottom:1px solid #dde5e2}#search-results small{margin-inline-start:8px}#search-results p{white-space:pre-wrap}#search-status{min-height:1.55em;margin-top:6px;color:#536866}
 </style></head><body>
-<header><div><strong>KnowledgeOS</strong><nav aria-label="业务导航"><a href="/knowledgeos/knowledge">知识条目</a><a href="/knowledgeos/ontology">知识关系</a><a href="/knowledgeos/practice">题库与练习</a><a href="/knowledgeos/notes">笔记</a><a href="/knowledgeos/recall">遮挡背诵</a><a href="/knowledgeos/repositories">仓库与代码</a><a href="/knowledgeos/projects">项目协作</a><a href="/knowledgeos/invitations">邀请码</a><a href="/knowledgeos/account">账号与登录</a><a href="/knowledgeos/ai">AI 工具</a></nav></div></header>
+<header><div><strong>KnowledgeOS</strong><nav aria-label="业务导航"><a href="/knowledgeos/knowledge">知识条目</a><a href="/knowledgeos/ontology">知识关系</a><a href="/knowledgeos/practice">题库与练习</a><a href="/knowledgeos/review">错题与复习</a><a href="/knowledgeos/notes">笔记</a><a href="/knowledgeos/recall">遮挡背诵</a><a href="/knowledgeos/repositories">仓库与代码</a><a href="/knowledgeos/projects">项目协作</a><a href="/knowledgeos/invitations">邀请码</a><a href="/knowledgeos/account">账号与登录</a><a href="/knowledgeos/ai">AI 工具</a></nav></div></header>
 <main><div class="bar"><h1>PDF 资料库</h1><span id="who" class="muted"></span></div>
 <section aria-labelledby="search-heading"><h2 id="search-heading">全文检索</h2>
 <form id="search-form"><label>关键词<input id="search-query" type="search" maxlength="128" disabled required></label><button id="search-submit" type="submit" disabled>检索</button></form>
@@ -14984,6 +15277,8 @@ setInterval(()=>{if(!document.hidden)void load(true)},1750);void load();
 // src/host/practice-http.ts
 var questionApi = "/knowledge/v1/questions";
 var practiceApi = "/knowledge/v1/practice-sessions";
+var reviewApi = "/knowledge/v1/me/wrong-questions";
+var stateApi = "/knowledge/v1/me/question-states";
 var invalid15 = () => new AssetError(422, "INVALID_PRACTICE_INPUT");
 function fields4(value, allowed) {
   if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((key) => !allowed.includes(key))) throw invalid15();
@@ -15035,6 +15330,36 @@ function attemptInput(raw) {
   if (typeof answer === "string") text4(answer, 500);
   else if (typeof answer !== "boolean" && (typeof answer !== "number" || !Number.isSafeInteger(answer))) throw invalid15();
   return { question_version_id: uuid11(values.question_version_id), expected_sequence: sequence(values.expected_sequence), answer, confidence };
+}
+function correctionInput(raw) {
+  const input = fields4(raw, ["expected_version", "answer", "explanation", "reason"]);
+  const expected_version = sequence(input.expected_version);
+  if (expected_version < 1) throw invalid15();
+  let answer;
+  if (Array.isArray(input.answer)) answer = distinct(input.answer, 12, (value) => text4(value, 320), normalizeFill);
+  else if (typeof input.answer === "boolean" || typeof input.answer === "number" && Number.isSafeInteger(input.answer)) answer = input.answer;
+  else throw invalid15();
+  return { expected_version, answer, explanation: text4(input.explanation, 4e3), reason: text4(input.reason, 1e3) };
+}
+function reviewInput(raw) {
+  const input = fields4(raw, ["expected_revision", "wrong_reason", "mastery_state", "next_review_at"]);
+  const draft3 = { expected_revision: sequence(input.expected_revision) };
+  if (Object.keys(input).length < 2) throw invalid15();
+  if ("wrong_reason" in input) {
+    if (typeof input.wrong_reason !== "string" || input.wrong_reason.length > 1e3 || input.wrong_reason.includes("\0")) throw invalid15();
+    draft3.wrong_reason = input.wrong_reason.trim();
+  }
+  if ("mastery_state" in input) {
+    const mastery = input.mastery_state;
+    if (mastery !== "new" && mastery !== "reviewing" && mastery !== "mastered") throw invalid15();
+    draft3.mastery_state = mastery;
+  }
+  if ("next_review_at" in input) {
+    const date = input.next_review_at;
+    if (date !== null && (typeof date !== "string" || !/^\d{4}-\d\d-\d\dT\d\d:\d\d(?::\d\d(?:\.\d{1,3})?)?(?:Z|[+-]\d\d:\d\d)$/.test(date) || !Number.isFinite(Date.parse(date)))) throw invalid15();
+    draft3.next_review_at = date === null ? null : new Date(date).toISOString();
+  }
+  return draft3;
 }
 function quickInput(raw, preview) {
   const value = fields4(raw, ["scope", "asset_id", "version_id", "ordinal", "conversion_id", "start", "end", "source_hash", "count", "units", ...preview ? [] : ["fingerprint"]]);
@@ -15107,15 +15432,19 @@ function createPracticeHandler(store, quick, origin4, actorFor, stopping) {
       const success = (status, value) => send(status, { data: { actor_id: prior.userId, ...value } });
       const path2 = url.pathname;
       const preview = path2 === practiceApi + "/generate/preview", generate = path2 === practiceApi + "/generate";
-      const session = path2.startsWith(practiceApi + "/") && /^\/([a-f0-9-]+)\/(questions|attempts)$/.exec(path2.slice(practiceApi.length));
+      const session = path2.startsWith(practiceApi + "/") && /^\/([a-f0-9-]+)\/(questions|attempts|hints|disputes)$/.exec(path2.slice(practiceApi.length));
+      const correction = path2.startsWith(questionApi + "/") && /^\/([a-f0-9-]+)\/corrections$/.exec(path2.slice(questionApi.length));
+      const state = path2.startsWith(stateApi + "/") && /^\/([a-f0-9-]+)$/.exec(path2.slice(stateApi.length));
       if (method === "GET") {
         if (path2 === questionApi) return success(200, store.catalog(prior));
         if (path2 === practiceApi) return success(200, { sessions: store.listSessions(prior) });
+        if (path2 === reviewApi) return success(200, store.review(prior));
         const author = path2.startsWith(questionApi + "/") && /^\/([a-f0-9-]+)\/author$/.exec(path2.slice(questionApi.length));
         if (author) return success(200, store.authored(prior, uuid11(author[1])));
         if (session && session[2] === "questions") return success(200, store.questions(prior, uuid11(session[1])));
       }
-      if (method === "POST" && (preview || generate || path2 === questionApi || path2 === practiceApi || session && session[2] === "attempts")) {
+      const post = method === "POST" && (preview || generate || path2 === questionApi || path2 === practiceApi || correction || session && session[2] !== "questions");
+      if (post || method === "PATCH" && state) {
         if (uuid11(req.headers["x-knowledgeos-reader-actor"]) !== prior.userId) throw new AssetError(409, "ACTOR_CHANGED");
         const body6 = await json3(req);
         if (res.destroyed) return;
@@ -15126,6 +15455,8 @@ function createPracticeHandler(store, quick, origin4, actorFor, stopping) {
         }
         const key = uuid11(req.headers["idempotency-key"]), actor2 = current();
         const recorded = (output) => success(output.replayed ? 200 : 201, output);
+        if (method === "PATCH" && state) return success(200, store.updateReview(actor2, key, uuid11(state[1]), reviewInput(body6)));
+        if (correction) return recorded(store.correct(actor2, key, uuid11(correction[1]), correctionInput(body6)));
         if (generate) {
           const { input, fingerprint } = quickInput(body6, false);
           return recorded(await quick.generate(current, key, input, fingerprint, signal));
@@ -15135,7 +15466,19 @@ function createPracticeHandler(store, quick, origin4, actorFor, stopping) {
           const { question_version_ids } = fields4(body6, ["question_version_ids"]);
           return recorded(store.createSession(actor2, key, distinct(question_version_ids, 20, uuid11, (id6) => id6)));
         }
-        if (session) return recorded(store.submit(actor2, key, uuid11(session[1]), attemptInput(body6)));
+        if (session) {
+          const id6 = uuid11(session[1]);
+          if (session[2] === "hints") {
+            const input = fields4(body6, ["question_version_id", "level"]);
+            if (input.level !== 1 && input.level !== 2) throw invalid15();
+            return recorded(store.hint(actor2, key, id6, uuid11(input.question_version_id), input.level));
+          }
+          if (session[2] === "disputes") {
+            const input = fields4(body6, ["question_version_id", "reason"]);
+            return recorded(store.dispute(actor2, key, id6, uuid11(input.question_version_id), text4(input.reason, 1e3)));
+          }
+          return recorded(store.submit(actor2, key, id6, attemptInput(body6)));
+        }
       }
       throw new AssetError(404, "NOT_FOUND");
     } catch (error) {
@@ -15167,7 +15510,7 @@ fieldset{border:0;margin:0;padding:0;display:grid;gap:8px;min-width:0}label{disp
 #practice-prompt-text{white-space:pre-wrap}summary{cursor:pointer;font-weight:600}details form{margin-top:10px}
 :focus-visible{outline:2px solid #1d7392;outline-offset:2px}
 @media(max-width:700px){main,nav{padding:12px 14px}.layout{grid-template-columns:minmax(0,1fr)}}
-</style></head><body><header><nav aria-label="\u4E1A\u52A1\u5BFC\u822A"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">\u77E5\u8BC6\u5E93</a><a href="/knowledgeos/knowledge">\u77E5\u8BC6\u6761\u76EE</a><a href="/knowledgeos/practice" aria-current="page">\u9898\u5E93\u4E0E\u7EC3\u4E60</a><a href="/knowledgeos/account">\u8D26\u53F7</a></nav></header>
+</style></head><body><header><nav aria-label="\u4E1A\u52A1\u5BFC\u822A"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">\u77E5\u8BC6\u5E93</a><a href="/knowledgeos/knowledge">\u77E5\u8BC6\u6761\u76EE</a><a href="/knowledgeos/practice" aria-current="page">\u9898\u5E93\u4E0E\u7EC3\u4E60</a><a href="/knowledgeos/review">\u9519\u9898\u4E0E\u590D\u4E60</a><a href="/knowledgeos/account">\u8D26\u53F7</a></nav></header>
 <main><h1>\u9898\u5E93\u4E0E\u7EC3\u4E60</h1><p id="practice-status" role="status">\u6B63\u5728\u8BFB\u53D6\u2026</p><a id="practice-login" href="/knowledgeos/account" hidden>\u767B\u5F55</a>
 <div id="practice-workspace" class="layout" hidden><aside>
 <section class="card"><h2>\u53EF\u7528\u9898\u76EE</h2><p class="subtle" id="practice-empty">\u6682\u65E0\u53EF\u7EC3\u4E60\u9898\u76EE\u3002</p><ul id="practice-questions"></ul><button id="practice-start" type="button" disabled>\u5F00\u59CB\u7EC3\u4E60</button></section>
@@ -15182,7 +15525,9 @@ fieldset{border:0;margin:0;padding:0;display:grid;gap:8px;min-width:0}label{disp
 <p id="quick-session-coverage" class="subtle" hidden></p><a id="quick-return-reader" hidden>\u56DE\u5230\u539F\u9605\u8BFB\u4F4D\u7F6E</a>
 <h3 id="practice-prompt-text"></h3><p id="practice-quality" class="subtle" hidden></p><form id="practice-answer-form"><fieldset id="practice-fields">
 <label id="practice-answer-field">\u6211\u7684\u7B54\u6848</label><label>\u4F5C\u7B54\u628A\u63E1<select id="practice-confidence"><option value="sure">\u786E\u5B9A</option><option value="unsure">\u4E0D\u786E\u5B9A</option></select></label><button type="submit" id="practice-submit">\u63D0\u4EA4\u9996\u6B21\u7B54\u6848</button></fieldset></form>
-<section id="practice-feedback" aria-labelledby="practice-feedback-title" hidden><h3 id="practice-feedback-title">\u7B54\u6848\u4E0E\u89E3\u6790</h3><p id="practice-accepted"></p><p id="practice-explanation-text"></p><p id="practice-grading"></p><a id="practice-source" href="/knowledgeos/library">\u67E5\u770B\u56FA\u5B9A\u5F15\u7528</a></section>
+<p id="practice-hint-text" aria-live="polite" hidden></p><button id="practice-hint" type="button">\u67E5\u770B\u63D0\u793A</button>
+<section id="practice-feedback" aria-labelledby="practice-feedback-title" hidden><h3 id="practice-feedback-title">\u7B54\u6848\u4E0E\u89E3\u6790</h3><p id="practice-accepted"></p><p id="practice-explanation-text"></p><p id="practice-grading"></p><p id="practice-evaluation"></p><a id="practice-source" href="/knowledgeos/library">\u67E5\u770B\u56FA\u5B9A\u5F15\u7528</a>
+<form id="practice-dispute-form"><label>\u4E89\u8BAE\u539F\u56E0<textarea id="practice-dispute-reason" required maxlength="1000"></textarea></label><button id="practice-dispute" type="submit">\u62A5\u544A\u9898\u76EE\u4E89\u8BAE</button></form></section>
 <section id="practice-attempt-panel" hidden><h3>\u6211\u7684\u4F5C\u7B54\u8BB0\u5F55</h3><ol id="practice-attempts"></ol></section>
 </section>
 <details class="card" id="practice-author"><summary>\u65B0\u5EFA\u9898\u76EE</summary><form id="practice-author-form"><fieldset id="practice-author-fields">
@@ -15207,7 +15552,9 @@ const errors={INVALID_PRACTICE_INPUT:'\u8BF7\u6838\u5BF9\u9898\u578B\u3001\u9898
   QUICK_RANGE_CHANGED:'\u539F\u6587\u3001\u9009\u533A\u6216\u9898\u91CF\u5DF2\u53D8\u5316\uFF0C\u8BF7\u91CD\u65B0\u68C0\u67E5\u8303\u56F4\u3002',QUICK_SOURCE_NOT_READY:'\u5F53\u524D\u539F\u6587\u5C1A\u672A\u53EF\u7528\uFF0C\u8BF7\u7B49\u89E3\u6790\u5B8C\u6210\u3002',
   QUICK_CHAPTER_UNAVAILABLE:'\u5F53\u524D\u7248\u672C\u6CA1\u6709\u53EF\u5B9A\u4F4D\u7684\u7AE0\u8282\u76EE\u5F55\u3002\u53EF\u4ECE\u9009\u533A\u542F\u52A8\u5FEB\u7B54\u3002',QUICK_SELECTION_TOO_LONG:'\u8BF7\u9009\u62E9\u4E0D\u8D85\u8FC7 960 \u4E2A\u5B57\u7B26\u7684\u6BB5\u843D\u3002',
   QUICK_TERM_TOO_LONG:'\u8BF7\u9009\u62E9\u4E0D\u8D85\u8FC7 64 \u4E2A\u5B57\u7B26\u7684\u672F\u8BED\u3002',QUICK_MODEL_OUTPUT_INVALID:'\u6A21\u578B\u751F\u6210\u7684\u9898\u76EE\u6216\u5F15\u7528\u65E0\u6CD5\u6838\u5BF9\u3002',
-  MODEL_NOT_CONFIGURED:'\u5F53\u524D\u6CA1\u6709\u53EF\u7528\u7684\u6A21\u578B\u3002',MODEL_OUTPUT_TRUNCATED:'\u6A21\u578B\u8F93\u51FA\u672A\u5B8C\u6210\uFF0C\u8BF7\u51CF\u5C11\u9898\u91CF\u540E\u91CD\u8BD5\u3002'};
+  MODEL_NOT_CONFIGURED:'\u5F53\u524D\u6CA1\u6709\u53EF\u7528\u7684\u6A21\u578B\u3002',MODEL_OUTPUT_TRUNCATED:'\u6A21\u578B\u8F93\u51FA\u672A\u5B8C\u6210\uFF0C\u8BF7\u51CF\u5C11\u9898\u91CF\u540E\u91CD\u8BD5\u3002',
+  QUESTION_VERSION_CHANGED:'\u9898\u76EE\u7248\u672C\u5DF2\u4FEE\u8BA2\uFF0C\u8BF7\u4ECE\u9898\u5E93\u6253\u5F00\u5F53\u524D\u7248\u672C\u3002',DISPUTE_ALREADY_OPEN:'\u4F60\u5DF2\u62A5\u544A\u8FD9\u4E00\u9898\u76EE\u7248\u672C\u7684\u4E89\u8BAE\u3002',
+  HINT_AFTER_ANSWER:'\u9996\u6B21\u4F5C\u7B54\u5DF2\u8BB0\u5F55\u3002',HINT_LEVEL_CONFLICT:'\u8BF7\u5148\u67E5\u770B\u524D\u4E00\u7EA7\u63D0\u793A\u3002'};
 const address=new URL(location.href), validId=/^[a-f0-9-]{36}$/;let citation=address.searchParams.get('citation');
 let active=address.searchParams.get('session');if(!validId.test(active||''))active=null;
 let actor=null, versions=[], sessions=[], questions=[], picked=new Set(), version=null, busy=false, waiting=false;
@@ -15230,8 +15577,9 @@ async function http(path,init={}){
 }
 function clearDetail(){
   signature='';version=null;questions=[];$('practice-detail').hidden=true;$('practice-feedback').hidden=true;$('practice-attempt-panel').hidden=true;
-  for(const id of ['practice-session-questions','practice-attempts','practice-prompt-text','practice-accepted','practice-explanation-text','practice-grading','practice-quality','quick-session-coverage'])
+  for(const id of ['practice-session-questions','practice-attempts','practice-prompt-text','practice-accepted','practice-explanation-text','practice-grading','practice-quality','quick-session-coverage','practice-hint-text','practice-evaluation'])
     $(id).replaceChildren();
+  $('practice-dispute-reason').value='';
   $('practice-answer')?.remove();$('practice-source').removeAttribute('href');$('quick-return-reader').removeAttribute('href');
   $('quick-session-coverage').hidden=$('quick-return-reader').hidden=true;
 }
@@ -15246,6 +15594,7 @@ function setControls(){
   $('practice-start').disabled=busy||!picked.size;
   $('quick-count').disabled=$('quick-units').disabled=$('quick-preview').disabled=busy;
   $('quick-generate').disabled=busy||!quickPreview?.available;
+  $('practice-hint').disabled=$('practice-dispute').disabled=busy;
 }
 function renderCatalog(projects){
   const changed=JSON.stringify([versions,sessions,projects]);
@@ -15299,6 +15648,10 @@ function paintQuestion(){
   }
   const feedback=question.feedback;
   $('practice-feedback').hidden=!feedback;$('practice-attempt-panel').hidden=question.attempts.length===0;
+  $('practice-hint').hidden=question.attempts.length!==0||question.hints.length>=2;
+  $('practice-hint').textContent=question.hints.length?'\u67E5\u770B\u4E0B\u4E00\u63D0\u793A':'\u67E5\u770B\u63D0\u793A';
+  $('practice-hint-text').hidden=question.hints.length===0;
+  $('practice-hint-text').textContent=question.hints.map(hint=>hint.text).join(' ');
   $('practice-accepted').textContent=feedback?'\u53C2\u8003\u7B54\u6848\uFF1A'+formatAnswer(question,feedback.accepted_answer):'';
   $('practice-explanation-text').textContent=feedback?.explanation||'';$('practice-grading').textContent=feedback?.grading_basis||'';
   if(feedback)$('practice-source').href=feedback.evidence.href;else $('practice-source').removeAttribute('href');
@@ -15308,6 +15661,9 @@ function paintQuestion(){
     content.textContent=(attempt.sequence===1?'\u9996\u6B21\u4F5C\u7B54':'\u540E\u7EED\u4F5C\u7B54 '+attempt.sequence)+' \xB7 '+formatAnswer(question,attempt.answer)+' \xB7 '+grades[attempt.grading_state]+(attempt.confidence==='unsure'?' \xB7 \u4E0D\u786E\u5B9A':'');
     add($('practice-attempts'),content)
   }
+  const first=question.attempts[0];
+  $('practice-evaluation').textContent=first?.evaluation_status==='paused'?'\u5F53\u524D\u8BC4\u4EF7\u6682\u505C\uFF0C\u539F\u4F5C\u7B54\u5DF2\u4FDD\u7559\u3002':
+    first?.evaluation_status==='corrected'?'\u5F53\u524D\u91CD\u5224\uFF1A'+grades[first.effective_grading]+'\u3002\u4E0A\u65B9\u89E3\u6790\u5C5E\u4E8E\u4F5C\u7B54\u65F6\u7684\u9898\u76EE\u7248\u672C\u3002':'';
   $('practice-submit').textContent=question.attempts.length?'\u63D0\u4EA4\u91CD\u7B54':'\u63D0\u4EA4\u9996\u6B21\u7B54\u6848';setControls()
 }
 async function load(force=false){
@@ -15377,6 +15733,8 @@ async function write(path,payload){
       else {await open(result.session.id);if(g===epoch&&active===result.session.id)status('\u5FEB\u7B54\u7EC3\u4E60\u5DF2\u5F00\u59CB\u3002')}
     }
     else if(path===bank){$('practice-author-form').reset();authorControls();await load(true);if(g===epoch)status('\u9898\u76EE\u5DF2\u521B\u5EFA\u3002')}
+    else if(path.endsWith('/hints')){await load(true);if(g===epoch&&currentQuestion())status('\u5DF2\u8BB0\u5F55\u63D0\u793A\u3002')}
+    else if(path.endsWith('/disputes')){$('practice-dispute-reason').value='';await load(true);if(g===epoch&&currentQuestion())status('\u4E89\u8BAE\u5DF2\u8BB0\u5F55\uFF0C\u5F53\u524D\u8BC4\u4EF7\u6682\u505C\u3002')}
     else {await load(true);if(g===epoch&&currentQuestion())status('\u4F5C\u7B54\u5DF2\u4FDD\u5B58 \xB7 '+grades[result.attempt.grading_state])}
   }catch(error){
     if(g!==epoch)return;
@@ -15450,6 +15808,16 @@ $('practice-author-form').onsubmit=event=>{
   void write(bank,payload)
 };
 $('practice-start').onclick=()=>{if(picked.size)void write(api,{question_version_ids:[...picked]})};
+$('practice-hint').onclick=()=>{
+  const question=currentQuestion();
+  if(question&&active&&!question.attempts.length&&question.hints.length<2)
+    void write(api+'/'+active+'/hints',{question_version_id:question.version_id,level:question.hints.length+1})
+};
+$('practice-dispute-form').onsubmit=event=>{
+  event.preventDefault();const question=currentQuestion();
+  if(question&&active&&question.attempts.length)
+    void write(api+'/'+active+'/disputes',{question_version_id:question.version_id,reason:$('practice-dispute-reason').value})
+};
 $('practice-answer-form').onsubmit=event=>{
   event.preventDefault();const question=currentQuestion();if(!question||!active)return;
   const raw=$('practice-answer').value;
@@ -15622,6 +15990,193 @@ var QuickPracticeService = class {
     return this.store.saveQuick(current(), key, pinned, parse3(result.text, pinned), { provider: result.provider, model: result.model });
   }
 };
+
+// src/host/practice-review-page.ts
+function buildPracticeReviewHtml(nonce) {
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>\u9519\u9898\u4E0E\u590D\u4E60 \xB7 KnowledgeOS</title><style nonce="${nonce}">
+*{box-sizing:border-box}body{margin:0;background:#f6faf8;color:#243936;font:15px/1.6 "Segoe UI","Microsoft YaHei UI",sans-serif}[hidden]{display:none!important}
+header{background:white;border-bottom:1px solid #cbdcd5}nav,main{max-width:1120px;margin:auto;padding:14px 22px}
+nav,.row{display:flex;align-items:center;flex-wrap:wrap;gap:12px}a{color:#146255;text-underline-offset:3px}
+h1,h2,h3,p{margin:0 0 8px}h1{font-size:26px}h2{font-size:19px}h3{font-size:16px}
+.layout{display:grid;grid-template-columns:minmax(13rem,1fr) minmax(0,2fr);gap:20px}
+.card{padding:16px;background:#fff;border:1px solid #cbdcd5;border-radius:8px;margin-bottom:14px;overflow-wrap:anywhere}
+ul{list-style:none;padding:0;margin:10px 0}li{margin-bottom:5px}label{display:grid;gap:4px}
+fieldset{display:grid;gap:9px;border:0;padding:0;margin:0;min-width:0}
+input,select,textarea,button{max-width:100%;min-width:0;font:inherit;color:inherit;background:white;border:1px solid #90aaa1;border-radius:5px;padding:6px 9px}
+textarea{width:100%;min-height:4rem}button{cursor:pointer}button:disabled{opacity:.55;cursor:default}
+button[type=submit]{background:#225f51;color:white;border-color:#225f51}button[aria-current=true]{background:#e1efe9}
+#review-questions button{width:100%;text-align:left;overflow-wrap:anywhere}#review-status{min-height:1.6em}.subtle{color:#46685f}
+summary{cursor:pointer;font-weight:600}details>div{margin-top:10px}
+:focus-visible{outline:2px solid #1d7392;outline-offset:2px}
+@media(max-width:700px){main,nav{padding:12px 14px}.layout{grid-template-columns:minmax(0,1fr)}}
+</style></head><body><header><nav aria-label="\u4E1A\u52A1\u5BFC\u822A"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">\u77E5\u8BC6\u5E93</a><a href="/knowledgeos/practice">\u9898\u5E93\u4E0E\u7EC3\u4E60</a><a href="/knowledgeos/review" aria-current="page">\u9519\u9898\u4E0E\u590D\u4E60</a><a href="/knowledgeos/account">\u8D26\u53F7</a></nav></header>
+<main><h1>\u9519\u9898\u4E0E\u590D\u4E60</h1><p id="review-status" role="status">\u6B63\u5728\u8BFB\u53D6\u2026</p><a id="review-login" href="/knowledgeos/account" hidden>\u767B\u5F55</a>
+<div class="layout" id="review-workspace" hidden><aside>
+<section class="card"><h2>\u6211\u7684\u4F5C\u7B54\u5206\u7C7B</h2><label>\u7B5B\u9009<select id="review-filter"><option value="">\u5168\u90E8</option><option value="wrong">\u9519\u9898</option><option value="uncertain">\u7B54\u5BF9\u4F46\u4E0D\u786E\u5B9A</option><option value="assisted">\u6709\u8F85\u52A9</option><option value="disputed">\u5F85\u590D\u6838</option><option value="independent_correct">\u72EC\u7ACB\u7B54\u5BF9</option></select></label>
+<p id="review-empty" class="subtle" hidden>\u6682\u65E0\u7B26\u5408\u6761\u4EF6\u7684\u4F5C\u7B54\u3002</p><ul id="review-questions"></ul></section>
+<section class="card"><h2>\u6211\u7684\u540E\u7EED\u590D\u4E60</h2><p class="subtle" id="review-no-queue">\u6682\u65E0\u5DF2\u5B89\u6392\u7684\u590D\u4E60\u3002</p><ul id="review-queue"></ul></section>
+</aside><div>
+<section class="card"><h2>\u5B66\u4E60\u65B9\u5411\u4E0E\u76EE\u6807</h2><p id="review-tracks"></p><p id="review-goal"></p><a href="/knowledgeos/account">\u8C03\u6574\u4E2A\u4EBA\u76EE\u6807</a></section>
+<section class="card" id="review-detail" hidden><h2 id="review-title"></h2><p id="review-classification"></p><p id="review-first"></p><p id="review-effective"></p><p><a id="review-attempt-link">\u67E5\u770B\u539F\u4F5C\u7B54</a></p>
+<form id="review-form"><fieldset id="review-fields"><label>\u4E2A\u4EBA\u9519\u56E0\u6216\u590D\u4E60\u7B14\u8BB0<textarea id="review-reason" maxlength="1000"></textarea></label>
+<label>\u590D\u4E60\u72B6\u6001<select id="review-mastery"><option value="new">\u672A\u5F00\u59CB</option><option value="reviewing">\u590D\u4E60\u4E2D</option><option value="mastered">\u5DF2\u638C\u63E1</option></select></label>
+<label>\u4E0B\u6B21\u590D\u4E60\u65F6\u95F4<input id="review-date" type="datetime-local"></label><button id="review-save" type="submit">\u4FDD\u5B58\u4E2A\u4EBA\u5B89\u6392</button></fieldset></form></section>
+<details class="card" id="review-author" hidden><summary>\u590D\u6838\u6211\u521B\u5EFA\u7684\u9898\u76EE</summary><div>
+<label>\u9898\u76EE<select id="review-author-question"></select></label>
+<form id="review-correction" hidden><fieldset id="review-correction-fields"><p id="review-old-rubric"></p>
+<label><span id="review-answer-label">\u65B0\u7684\u6807\u51C6\u7B54\u6848</span><textarea id="review-answer" required></textarea></label>
+<label>\u65B0\u89E3\u6790<textarea id="review-explanation" maxlength="4000" required></textarea></label>
+<label>\u4FEE\u8BA2\u539F\u56E0<textarea id="review-correction-reason" maxlength="1000" required></textarea></label>
+<button type="submit" id="review-correct">\u53D1\u5E03\u65B0\u7B54\u6848\u7248\u672C</button></fieldset></form></div></details>
+</div></div></main>
+<script nonce="${nonce}">
+'use strict';
+const $=id=>document.getElementById(id), api='/knowledge/v1/me/wrong-questions',states='/knowledge/v1/me/question-states',bank='/knowledge/v1/questions';
+const groups={wrong:'\u9519\u9898',uncertain:'\u7B54\u5BF9\u4F46\u4E0D\u786E\u5B9A',assisted:'\u6709\u8F85\u52A9',disputed:'\u5F85\u590D\u6838',independent_correct:'\u72EC\u7ACB\u7B54\u5BF9'};
+const grades={correct:'\u6B63\u786E',incorrect:'\u9519\u8BEF',disputed:'\u5F85\u590D\u6838'};
+const tracks={engineering_practice:'\u5DE5\u7A0B\u5B9E\u8DF5',architecture_exam:'\u67B6\u6784\u5E08\u8003\u8BD5',knowledge_accumulation:'\u77E5\u8BC6\u79EF\u7D2F'};
+const errors={AUTH_REQUIRED:'\u8BF7\u5148\u767B\u5F55\u3002',QUESTION_NOT_FOUND:'\u9898\u76EE\u6216\u539F\u4F5C\u7B54\u5F53\u524D\u4E0D\u53EF\u8BBF\u95EE\u3002',ACTOR_CHANGED:'\u767B\u5F55\u8EAB\u4EFD\u5DF2\u53D8\u5316\uFF0C\u8BF7\u5237\u65B0\u3002',
+  REVISION_CONFLICT:'\u4E2A\u4EBA\u5B89\u6392\u5DF2\u66F4\u65B0\uFF0C\u8BF7\u6838\u5BF9\u6700\u65B0\u7248\u672C\u3002',QUESTION_VERSION_CHANGED:'\u9898\u76EE\u7248\u672C\u5DF2\u66F4\u65B0\uFF0C\u8BF7\u91CD\u65B0\u9009\u62E9\u9898\u76EE\u3002',
+  INVALID_PRACTICE_INPUT:'\u8BF7\u6838\u5BF9\u6240\u586B\u5185\u5BB9\u3002',INVALID_PRACTICE_ANSWER:'\u8BF7\u6309\u9898\u578B\u586B\u5199\u6807\u51C6\u7B54\u6848\u3002',IDEMPOTENCY_CONFLICT:'\u540C\u4E00\u6B21\u63D0\u4EA4\u7684\u5185\u5BB9\u5DF2\u53D8\u5316\u3002'};
+const status=value=>$('review-status').textContent=value;
+const option=(label,value)=>{const element=document.createElement('option');element.value=value;element.textContent=label;return element};
+const put=(list,element)=>{const li=document.createElement('li');li.append(element);list.append(li)};
+let actor=null,items=[],queue=[],authored=[],selected=null,managed=null,busy=false,polling=false,epoch=0,managedToken=0,receipt=null,signature='';
+const choice=()=>items.find(item=>item.question.id===selected);
+async function http(path,init={}){
+  const response=await fetch(path,{cache:'no-store',credentials:'same-origin',signal:AbortSignal.timeout(6000),...init});
+  const json=await response.json().catch(()=>null);
+  if(!response.ok||!json?.data){const error=new Error(json?.code||'PRACTICE_UNAVAILABLE');error.status=response.status;throw error}
+  return json.data;
+}
+function clearOwn(){
+  selected=null;$('review-detail').hidden=true;$('review-form').reset();
+  for(const id of ['review-title','review-classification','review-first','review-effective'])$(id).textContent='';
+  $('review-attempt-link').removeAttribute('href');
+}
+function clearAuthor(){
+  managedToken++;managed=null;$('review-correction').hidden=true;$('review-correction').reset();$('review-old-rubric').textContent='';
+}
+function clear(){
+  epoch++;actor=null;items=[];queue=[];authored=[];receipt=null;busy=false;signature='';clearOwn();clearAuthor();
+  $('review-fields').disabled=$('review-correction-fields').disabled=false;
+  $('review-workspace').hidden=true;
+  for(const id of ['review-questions','review-queue','review-author-question','review-tracks','review-goal'])$(id).replaceChildren();
+}
+const formatDate=value=>new Date(value).toLocaleString('zh-CN');
+function inputDate(value){if(!value)return '';const date=new Date(value);return new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16)}
+function renderItem(reset=true){
+  const item=choice();if(!item){clearOwn();return}
+  $('review-detail').hidden=false;$('review-title').textContent=item.question.prompt;
+  $('review-classification').textContent=groups[item.classification];
+  $('review-first').textContent='\u9996\u7B54\u539F\u5224\uFF1A'+grades[item.original_grading]+' \xB7 '+formatDate(item.attempt.submitted_at);
+  $('review-effective').textContent=item.evaluation_status==='paused'?'\u5F53\u524D\u8BC4\u4EF7\u6682\u505C':
+    item.evaluation_status==='corrected'?'\u4FEE\u8BA2\u540E\u5224\u5B9A\uFF1A'+grades[item.effective_grading]:'\u5F53\u524D\u5224\u5B9A\uFF1A'+grades[item.effective_grading];
+  $('review-attempt-link').href='/knowledgeos/practice?'+new URLSearchParams({session:item.session_id});
+  if(reset){
+    $('review-reason').value=item.state.wrong_reason;$('review-mastery').value=item.state.mastery_state;$('review-date').value=inputDate(item.state.next_review_at);
+  }
+}
+function renderLists(){
+  const filter=$('review-filter').value;
+  const visible=items.filter(item=>!filter||item.classification===filter);
+  $('review-questions').replaceChildren();$('review-empty').hidden=visible.length!==0;
+  for(const item of visible){
+    const node=document.createElement('button');node.type='button';node.textContent=groups[item.classification]+' \xB7 '+item.question.prompt;
+    node.dataset.questionId=item.question.id;node.dataset.classification=item.classification;
+    node.setAttribute('aria-current',String(item.question.id===selected));
+    node.onclick=()=>{if(!busy){selected=item.question.id;renderItem();renderLists()}};
+    put($('review-questions'),node);
+  }
+  $('review-queue').replaceChildren();$('review-no-queue').hidden=queue.length!==0;
+  for(const item of queue){
+    const link=document.createElement('a');link.href='/knowledgeos/practice?'+new URLSearchParams({session:item.session_id});
+    link.textContent=formatDate(item.next_review_at)+' \xB7 '+item.title;link.dataset.questionId=item.question_id;put($('review-queue'),link);
+  }
+}
+async function load(){
+  if(polling)return;polling=true;const g=epoch,previous=choice()?.state.revision;
+  try{
+    const [review,questionBank,profile]=await Promise.all([http(api),http(bank),http('/knowledge/v1/me')]);
+    if(g!==epoch)return;
+    if(review.actor_id!==profile.id||questionBank.actor_id!==profile.id||actor&&actor!==profile.id){clear();status(errors.ACTOR_CHANGED);return}
+    if(!actor)status('');
+    actor=profile.id;items=review.items;queue=review.review_queue;
+    authored=questionBank.questions.filter(question=>question.author_id===actor&&question.origin_kind==='author');
+    $('review-tracks').textContent=profile.learning_tracks.map(value=>tracks[value]||value).join('\u3001')||'\u5C1A\u672A\u8BBE\u7F6E\u5B66\u4E60\u65B9\u5411';
+    $('review-goal').textContent=profile.goal_text||'\u5C1A\u672A\u586B\u5199\u4E2A\u4EBA\u76EE\u6807';
+    $('review-login').hidden=true;$('review-workspace').hidden=false;
+    const next=JSON.stringify([items,queue,authored]);
+    if(next===signature)return;signature=next;
+    if(selected&&!choice()){clearOwn();status('\u539F\u4F5C\u7B54\u6216\u6765\u6E90\u5F53\u524D\u4E0D\u53EF\u8BBF\u95EE\u3002')}
+    const select=$('review-author-question'),old=select.value;
+    select.replaceChildren(option('\u9009\u62E9\u81EA\u5EFA\u9898\u76EE',''),...authored.map(question=>option(question.prompt+' \xB7 \u7248\u672C '+question.version,question.id)));
+    if(authored.some(question=>question.id===old))select.value=old;else clearAuthor();
+    $('review-author').hidden=authored.length===0;
+    renderLists();if(selected)renderItem(previous!==choice()?.state.revision);
+  }catch(error){
+    if(g!==epoch)return;
+    clear();$('review-login').hidden=error.status!==401;status(errors[error.message]||'\u6682\u65F6\u65E0\u6CD5\u8BFB\u53D6\u590D\u4E60\u8BB0\u5F55\u3002');
+  }finally{polling=false}
+}
+async function chooseAuthor(){
+  clearAuthor();const id=$('review-author-question').value,g=epoch,token=managedToken;
+  if(!id||!actor)return;
+  try{
+    const result=await http(bank+'/'+id+'/author');
+    if(g!==epoch||token!==managedToken)return;
+    if(result.actor_id!==actor){clear();status(errors.ACTOR_CHANGED);return}
+    if(!authored.some(question=>question.id===id&&question.version_id===result.question.version_id))return;
+    managed=result.question;const answer=result.feedback.accepted_answer;
+    $('review-old-rubric').textContent='\u5F53\u524D\u7248\u672C '+managed.version+' \xB7 \u6807\u51C6\u7B54\u6848 '+(Array.isArray(answer)?answer.join('\u3001'):typeof answer==='boolean'?(answer?'\u6B63\u786E':'\u9519\u8BEF'):String(answer));
+    $('review-answer-label').textContent=managed.kind==='choice'?'\u65B0\u6807\u51C6\u7B54\u6848\u5E8F\u53F7':managed.kind==='judgment'?'\u65B0\u6807\u51C6\u7B54\u6848\uFF08\u6B63\u786E\u6216\u9519\u8BEF\uFF09':'\u65B0\u6807\u51C6\u7B54\u6848\uFF08\u6BCF\u884C\u4E00\u4E2A\uFF09';
+    $('review-explanation').value=result.feedback.explanation;$('review-correction').hidden=false;
+  }catch(error){if(g===epoch&&token===managedToken)status(errors[error.message]||'\u65E0\u6CD5\u8BFB\u53D6\u9898\u76EE\u590D\u6838\u4FE1\u606F\u3002')}
+}
+async function write(path,method,data){
+  if(!actor||busy)return;
+  const g=epoch,user=actor,digest=JSON.stringify([path,method,data]);
+  if(receipt?.digest!==digest)receipt={digest,key:crypto.randomUUID()};
+  busy=true;$('review-fields').disabled=$('review-correction-fields').disabled=true;status('\u6B63\u5728\u4FDD\u5B58\u2026');
+  try{
+    const result=await http(path,{method,headers:{'content-type':'application/json','x-knowledgeos-request':'1',
+      'x-knowledgeos-reader-actor':user,'idempotency-key':receipt.key},body:JSON.stringify(data)});
+    if(g!==epoch)return;
+    if(result.actor_id!==actor){clear();status(errors.ACTOR_CHANGED);return}
+    receipt=null;await load();
+    if(g!==epoch)return;
+    if(result.correction){await chooseAuthor();status('\u5DF2\u53D1\u5E03\u4FEE\u8BA2\uFF0C\u53D7\u5F71\u54CD\u7684\u4E2A\u4EBA\u5224\u5B9A\u5DF2\u91CD\u7B97\u3002')}
+    else status('\u4E2A\u4EBA\u590D\u4E60\u5B89\u6392\u5DF2\u4FDD\u5B58\u3002');
+  }catch(error){
+    if(g!==epoch)return;
+    status(errors[error.message]||'\u4FDD\u5B58\u5931\u8D25\uFF0C\u53EF\u91CD\u8BD5\u672C\u6B21\u8BF7\u6C42\u3002');
+    if([401,404,409].includes(error.status))await load();
+  }finally{if(g===epoch){busy=false;$('review-fields').disabled=$('review-correction-fields').disabled=false}}
+}
+$('review-filter').onchange=renderLists;$('review-author-question').onchange=()=>void chooseAuthor();
+$('review-form').onsubmit=event=>{
+  event.preventDefault();const item=choice();if(!item)return;
+  const date=$('review-date').value;
+  void write(states+'/'+item.question.id,'PATCH',{expected_revision:item.state.revision,wrong_reason:$('review-reason').value,
+    mastery_state:$('review-mastery').value,next_review_at:date?new Date(date).toISOString():null});
+};
+$('review-correction').onsubmit=event=>{
+  event.preventDefault();if(!managed)return;
+  const raw=$('review-answer').value.trim();let answer;
+  if(managed.kind==='choice')answer=Number(raw);
+  else if(managed.kind==='judgment'){
+    if(!['\u6B63\u786E','\u9519\u8BEF','true','false'].includes(raw)){status('\u8BF7\u8F93\u5165\u6B63\u786E\u6216\u9519\u8BEF\u3002');return}
+    answer=raw==='\u6B63\u786E'||raw==='true';
+  }else answer=raw.split(/\\r?\\n/u).map(value=>value.trim()).filter(Boolean);
+  void write(bank+'/'+managed.id+'/corrections','POST',{expected_version:managed.version,answer,explanation:$('review-explanation').value,reason:$('review-correction-reason').value});
+};
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)void load()});
+window.addEventListener('focus',()=>void load());window.addEventListener('pagehide',clear);
+window.addEventListener('pageshow',event=>{if(event.persisted)void load()});
+setInterval(()=>{if(!document.hidden)void load()},1750);void load();
+</script></body></html>`;
+}
 
 // src/host/repository-page.ts
 function buildRepositoryHtml(nonce) {
@@ -16350,11 +16905,12 @@ function apply(ctx, config = {}) {
         }));
         const quick = new QuickPracticeService(storage.practice, reader, () => ai);
         const practiceHandler = withPeer(createPracticeHandler(storage.practice, quick, actualOrigin, sessionFor, termScope.signal));
-        for (const path2 of [questionApi, practiceApi]) disposers.push(identityContext.webServer.register({ kind: "prefix", path: path2, auth: "anonymous", handler: practiceHandler }));
+        for (const path2 of [questionApi, practiceApi, reviewApi, stateApi]) disposers.push(identityContext.webServer.register({ kind: "prefix", path: path2, auth: "anonymous", handler: practiceHandler }));
         for (const [path2, page] of [
           ["/knowledgeos/knowledge", buildKnowledgeHtml],
           ["/knowledgeos/ontology", buildOntologyHtml],
-          ["/knowledgeos/practice", buildPracticeHtml]
+          ["/knowledgeos/practice", buildPracticeHtml],
+          ["/knowledgeos/review", buildPracticeReviewHtml]
         ])
           disposers.push(identityContext.webServer.register({ kind: "exact", path: path2, auth: "anonymous", handler: (req, res) => {
             if (req.method !== "GET") {
