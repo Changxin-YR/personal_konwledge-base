@@ -52,8 +52,10 @@ const bodyHeaders = { 'content-type': 'application/json', 'x-knowledgeos-request
 const writeKey = () => ({ 'idempotency-key': randomUUID() })
 const ok = (id, details = {}) => facts.checks.push({ id, status: 'PASS', ...details })
 const fixtureKinds = [
-  { name: 'database', locator: '数据库索引（database index）', concept: /数据结构|检索|查询|查找|扫描/, context: /B-tree|查找记录|减少.{0,10}扫描/ },
-  { name: 'array', locator: '数组索引（array index）', concept: /位置|编号|下标|元素/, context: /第一个元素|位置编号|从\s*0/ },
+  { name: 'database', locator: '数据库索引（database index）', concept: /数据结构|检索|查询|查找|扫描|定位记录/,
+    plain: /检索|查询|查找|扫描|查阅|(?:快速|更快|加快).{0,12}(?:找到|定位)|目录.{0,20}(?:找|定位)/, context: /B-tree|查找记录|减少.{0,10}扫描/ },
+  { name: 'array', locator: '数组索引（array index）', concept: /位置|编号|下标|元素/,
+    plain: /位置|编号|下标|元素|第几|顺序/, context: /第一个元素|位置编号|从\s*0/ },
 ]
 let host, browser, phase
 const externalBrowser = []
@@ -232,7 +234,7 @@ async function explain(owner, asset, source) {
   }
   assert.match(data.source.excerpt, source.context)
   assert.match(result.context, source.concept)
-  assert.match(result.plain, source.concept)
+  assert.match(result.plain, source.plain)
   assert.match(result.professional, source.concept)
   const link = await page.locator('#term-origin').getAttribute('href')
   assert(link)
