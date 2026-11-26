@@ -51,31 +51,13 @@ function within(parent, child) {
   return rel !== '' && rel !== '..' && !rel.startsWith('..' + sep) && !isAbsolute(rel)
 }
 function chromeEnv() {
-  const env = {}
-  for (const key of ['SystemRoot','WINDIR','COMSPEC','Path','PATHEXT','ProgramFiles','ProgramFiles(x86)','ProgramW6432','SystemDrive','NUMBER_OF_PROCESSORS']) {
-    if (process.env[key]) env[key] = process.env[key]
-  }
+  const env = Object.fromEntries(Object.entries(process.env).filter(([name]) =>
+    /^(systemroot|windir|comspec|path|pathext|programfiles.*|processor_.*|number_of_processors|systemdrive|localappdata|appdata|userprofile|home|temp|tmp|lang|display|xdg_runtime_dir)$/i.test(name)))
   for (const key of ['HOME','USERPROFILE','LOCALAPPDATA','APPDATA','TEMP','TMP']) {
-    env[key] = join(out, 'chrome-env', key); mkdirSync(env[key], { recursive: true })
+    env[key] = join(out, 'chrome-env', key)
+    mkdirSync(env[key], { recursive: true })
   }
   return env
-}
-const packet = { path: PATH, question: QUESTION, lines: LINES.slice(FIRST - 1, LAST).map((text, i) => ({ line: FIRST + i, text })) }
-let controller, host, browser, releaseSlot
-async function boot() {
-  const first = await host.start()
-  assert.equal(new URL(first.entry).origin, host.base, 'isolated Host entry')
-  assert(Number.isInteger(first.pid) && first.pid > 0)
-  run.boots.push({ pid: first.pid }); return first
-}
-async function capture(page, name) {
-  const bytes = await page.screenshot({ path: join(out, name + '.png'), fullPage: true, animations: 'disabled' })
-  run.screens.push({ file: name + '.png', sha256: sha(bytes) })
-}
-async function closeBrowser() {
-  if (!browser) return
-  for (const ctx of browser.contexts()) await ctx.unrouteAll({ behavior: 'ignoreErrors' })
-  await browser.close(); browser = undefined
 }
 const launchChrome = chromium => chromium.launch({ channel: 'chrome', headless: true, env: chromeEnv(),
   args: ['--disable-background-networking','--disable-component-update','--disable-sync','--no-proxy-server'] })
