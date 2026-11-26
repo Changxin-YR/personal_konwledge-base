@@ -3,8 +3,8 @@ import { AssetError } from './asset-store.ts'
 
 export const repositoryLimits = { files: 5000, blob: 512 * 1024, tree: 2 * 1024 * 1024 } as const
 export const badRepository = () => new AssetError(422, 'INVALID_REPOSITORY_INPUT')
-const invalidRemote = () => new AssetError(502, 'REPOSITORY_INVALID_RESPONSE')
-const oversized = () => new AssetError(413, 'REPOSITORY_LIMIT_EXCEEDED')
+export const invalidRemote = () => new AssetError(502, 'REPOSITORY_INVALID_RESPONSE')
+export const oversized = () => new AssetError(413, 'REPOSITORY_LIMIT_EXCEEDED')
 const unavailable = () => new AssetError(503, 'REPOSITORY_UNAVAILABLE')
 export const sha40 = /^[a-f0-9]{40}$/
 const ownerPattern = /^[a-z0-9](?:[a-z0-9-]{0,37}[a-z0-9])?$/i
@@ -19,8 +19,7 @@ export interface RepositoryEntry {
 }
 export interface RepositoryPort {
   resolveRepository(name: RepositoryName): Promise<RepositoryIdentity>
-  resolveRef(repo: RepositoryIdentity, ref: RepositoryRef): Promise<{ commit: string; tree: string }>
-  readTree(repo: RepositoryIdentity, sha: string): Promise<RepositoryEntry[]>
+  resolveSnapshot(repo: RepositoryIdentity, ref: RepositoryRef): Promise<{ commit: string; tree: string; entries: RepositoryEntry[] }>
   readBlob(repo: RepositoryIdentity, entry: RepositoryEntry): Promise<Buffer>
 }
 
@@ -45,54 +44,59 @@ export function isRepositoryPath(value: unknown): value is string {
     value.split('/').every(part => part && part !== '.' && part !== '..')
 }
 
-const object = (value: unknown): Record<string, unknown> => {
+export const remoteObject = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw invalidRemote()
   return value as Record<string, unknown>
 }
-const remoteSha = (value: unknown) => {
+export const remoteSha = (value: unknown) => {
   if (typeof value !== 'string' || !sha40.test(value)) throw invalidRemote()
   return value
 }
 export const repositorySlug = (repo: RepositoryName) => repo.owner + '/' + repo.name
 const repoPath = (repo: RepositoryName) => '/repos/' + encodeURIComponent(repo.owner) + '/' + encodeURIComponent(repo.name)
 
+export async function repositoryJson(url: string, limit: number, operation: AbortSignal, headers: Record<string,string>, transport: typeof fetch) {
+  const signal = AbortSignal.any([operation, AbortSignal.timeout(12_000)])
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
+  try {
+    signal.throwIfAborted()
+    const response = await transport(url, { method: 'GET', redirect: 'manual', cache: 'no-store', signal, headers })
+    reader = response.body?.getReader()
+    if (response.status >= 300 && response.status < 400) throw new AssetError(502, 'REPOSITORY_REDIRECT_REJECTED')
+    if (response.status === 429 || response.status === 403 && (response.headers.get('x-ratelimit-remaining') === '0' ||
+        response.headers.get('ratelimit-remaining') === '0' || response.headers.has('retry-after')))
+      throw new AssetError(429, 'REPOSITORY_RATE_LIMIT')
+    if ([401, 403, 404].includes(response.status)) throw new AssetError(404, 'REMOTE_REPOSITORY_NOT_FOUND')
+    if (!response.ok || !reader) throw unavailable()
+    if (Number(response.headers.get('content-length')) > limit) throw oversized()
+    let size = 0
+    const parts: Uint8Array[] = []
+    while (true) {
+      signal.throwIfAborted()
+      const treePart = await reader.read()
+      if (treePart.done) break
+      size += treePart.value.length
+      if (size > limit) throw oversized()
+      parts.push(treePart.value)
+    }
+    signal.throwIfAborted()
+    try { return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(parts, size))) as unknown }
+    catch { throw invalidRemote() }
+  } catch (error) {
+    if (operation.aborted) throw new AssetError(409, 'REPOSITORY_CANCELLED')
+    if (signal.aborted) throw new AssetError(504, 'REPOSITORY_TIMEOUT')
+    if (error instanceof AssetError) throw error
+    throw unavailable()
+  } finally { if (reader) void reader.cancel().catch(() => {}) }
+}
+
 export class GitHubRepository implements RepositoryPort {
   constructor(private readonly operation: AbortSignal, private readonly token?: string, private readonly transport: typeof fetch = fetch) {}
 
   private async get(path: string, limit: number) {
-    const signal = AbortSignal.any([this.operation, AbortSignal.timeout(12_000)])
-    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
-    try {
-      signal.throwIfAborted()
-      const headers: Record<string, string> = { accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', 'user-agent': 'KnowledgeOS' }
-      if (this.token) headers.authorization = 'Bearer ' + this.token
-      const response = await this.transport('https://api.github.com' + path, { method: 'GET', redirect: 'manual', cache: 'no-store', signal, headers })
-      reader = response.body?.getReader()
-      if (response.status >= 300 && response.status < 400) throw new AssetError(502, 'REPOSITORY_REDIRECT_REJECTED')
-      if (response.status === 429 || response.status === 403 && (response.headers.get('x-ratelimit-remaining') === '0' || response.headers.has('retry-after')))
-        throw new AssetError(429, 'REPOSITORY_RATE_LIMIT')
-      if ([401, 403, 404].includes(response.status)) throw new AssetError(404, 'REMOTE_REPOSITORY_NOT_FOUND')
-      if (!response.ok || !reader) throw unavailable()
-      if (Number(response.headers.get('content-length')) > limit) throw oversized()
-      let size = 0
-      const parts: Uint8Array[] = []
-      while (true) {
-        signal.throwIfAborted()
-        const treePart = await reader.read()
-        if (treePart.done) break
-        size += treePart.value.length
-        if (size > limit) throw oversized()
-        parts.push(treePart.value)
-      }
-      signal.throwIfAborted()
-      try { return object(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(parts, size)))) }
-      catch { throw invalidRemote() }
-    } catch (error) {
-      if (this.operation.aborted) throw new AssetError(409, 'REPOSITORY_CANCELLED')
-      if (signal.aborted) throw new AssetError(504, 'REPOSITORY_TIMEOUT')
-      if (error instanceof AssetError) throw error
-      throw unavailable()
-    } finally { if (reader) void reader.cancel().catch(() => {}) }
+    const headers: Record<string, string> = { accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', 'user-agent': 'KnowledgeOS' }
+    if (this.token) headers.authorization = 'Bearer ' + this.token
+    return remoteObject(await repositoryJson('https://api.github.com' + path, limit, this.operation, headers, this.transport))
   }
 
   async resolveRepository(name: RepositoryName) {
@@ -110,7 +114,7 @@ export class GitHubRepository implements RepositoryPort {
     const row = await this.get(repoPath(repo) + '/commits/' + encodeURIComponent(spec), 2 * 1024 * 1024)
     const commit = remoteSha(row.sha)
     if (ref.kind === 'commit' && commit !== ref.value) throw invalidRemote()
-    return { commit, tree: remoteSha(object(object(row.commit).tree).sha) }
+    return { commit, tree: remoteSha(remoteObject(remoteObject(row.commit).tree).sha) }
   }
 
   async readTree(repo: RepositoryIdentity, sha: string): Promise<RepositoryEntry[]> {
@@ -119,7 +123,7 @@ export class GitHubRepository implements RepositoryPort {
     if (row.truncated || row.tree.length > repositoryLimits.files) throw oversized()
     const seen = new Map<string, RepositoryEntry['kind']>()
     const entries = row.tree.map((candidate: unknown): RepositoryEntry => {
-      const { path, sha, mode, type, size } = object(candidate)
+      const { path, sha, mode, type, size } = remoteObject(candidate)
       if (!isRepositoryPath(path) || seen.has(path)) throw invalidRemote()
       const kind = type === 'tree' && mode === '040000' ? 'directory' :
         type === 'commit' && mode === '160000' ? 'submodule' :
@@ -146,5 +150,10 @@ export class GitHubRepository implements RepositoryPort {
     if (bytes.toString('base64') !== encoded || bytes.length !== entry.size ||
         createHash('sha1').update('blob ' + bytes.length + '\0').update(bytes).digest('hex') !== entry.sha) throw invalidRemote()
     return bytes
+  }
+
+  async resolveSnapshot(repo: RepositoryIdentity, ref: RepositoryRef) {
+    const revision=await this.resolveRef(repo,ref)
+    return {...revision,entries:await this.readTree(repo,revision.tree)}
   }
 }

@@ -23,7 +23,10 @@ export interface Config {
 /** Cordis validates the row config against this schema before `apply`. */
 export const Config: Schema<Config> = Schema.object({
   dataDir: Schema.string(),
-  repositoryCredentials: Schema.array(Schema.object({ actorId: Schema.string().required(), repository: Schema.string().required(), alias: Schema.string().required(), credentialRef: Schema.string().required() })),
+  repositoryCredentials: Schema.array(Schema.object({
+    actorId: Schema.string().required(), repository: Schema.string().required(), alias: Schema.string().required(), credentialRef: Schema.string().required(),
+    platform: Schema.union(['github', 'gitlab'] as const),
+  })),
   ai: Schema.object({ provider: Schema.string(), model: Schema.string(), maxCalls: Schema.number().min(1), timeoutMs: Schema.number().min(20).max(60000), budgetUsd: Schema.number().min(0), inputUsdPerMillion: Schema.number().min(0), outputUsdPerMillion: Schema.number().min(0) }),
 })
 

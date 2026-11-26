@@ -10,11 +10,28 @@ const content='<b>Literal Git content</b>\n[external](https://example.invalid/no
 const bytes=Buffer.from(content),blob=createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex')
 const sample=/^\/repos\/octocat\/Hello-World(?:\/commits\/refs%2Fheads%2F(?:master|test)|\/git\/(?:trees|blobs)\/[a-f0-9]{40})?$/
 const mocked=/^\/repos\/synthetic\/(sample|redirect|truncated|unsafe-path|missing|broken-blob|unavailable|cancel|rate|secondary-rate|too-large|transport)(?:\/(.*))?$/
+const labBase='/api/v4/projects/72724/repository/'
+const labCommits=['ddd0f15ae83993f5cb66a927a28673882e99100b','498214de67004b1da3d820901307bed2a68a8ef6']
+const labBlobs=['ea20973903d3800ac659d503596f9105f0a7423f','faaf198af3a36dbf41961466703cc1d47c61d051']
+const labResource=['branches/master','branches/branch-merged','branches/knowledgeos-repo002-missing-ref',
+  ...labCommits.map(id=>'commits/'+id),...labBlobs.map(id=>'blobs/'+id)]
+function allowedLab(url){
+  if(url.origin!=='https://gitlab.com')return false
+  if(!url.search)return url.pathname.toLowerCase()==='/api/v4/projects/gitlab-org%2fgitlab-test'||labResource.some(resource=>url.pathname===labBase+resource)
+  return url.pathname===labBase+'tree'&&labCommits.some(sha=>url.search==='?ref='+sha+'&recursive=true&per_page=100&page=1')
+}
 const save=(outcome,path,status)=>appendFileSync(trace,JSON.stringify({method:'GET',outcome,path,status})+'\n')
 globalThis.fetch=async (input,init)=>{
   const url=new URL(input instanceof Request?input.url:input)
   if(url.origin===process.env.KO_TEST_LOOPBACK&&!url.username&&!url.password)return real(input,init)
   const path=url.pathname, method=init?.method??(input instanceof Request?input.method:'GET'),headers=new Headers(init?.headers)
+  if(process.env.KO_REPOSITORY_TRAFFIC==='gitlab-public'){
+    if(!allowedLab(url)||url.username||url.password||url.hash||method!=='GET'||init?.redirect!=='manual'||init?.body||
+      ['authorization','private-token','cookie','job-token'].some(name=>headers.has(name))){
+      save('denied','UNEXPECTED',0);throw Error('REPO002_FETCH_DENIED')
+    }
+    const response=await real(input,{...init,redirect:'error'});save('gitlab',path+url.search,response.status);return response
+  }
   const allowedTree=path.includes('/git/trees/')?url.search==='?recursive=1':!url.search
   if(url.origin!=='https://api.github.com'||url.username||url.password||url.hash||!allowedTree||method!=='GET'||init?.redirect!=='manual'||init?.body||headers.has('authorization')){
     save('denied','UNEXPECTED',0);throw Error('REPO001_FETCH_DENIED')

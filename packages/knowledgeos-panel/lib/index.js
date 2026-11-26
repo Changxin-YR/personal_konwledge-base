@@ -1963,7 +1963,13 @@ import { isAbsolute } from "node:path";
 import Schema from "@deepseek-ai/schemastery";
 var Config = Schema.object({
   dataDir: Schema.string(),
-  repositoryCredentials: Schema.array(Schema.object({ actorId: Schema.string().required(), repository: Schema.string().required(), alias: Schema.string().required(), credentialRef: Schema.string().required() })),
+  repositoryCredentials: Schema.array(Schema.object({
+    actorId: Schema.string().required(),
+    repository: Schema.string().required(),
+    alias: Schema.string().required(),
+    credentialRef: Schema.string().required(),
+    platform: Schema.union(["github", "gitlab"])
+  })),
   ai: Schema.object({ provider: Schema.string(), model: Schema.string(), maxCalls: Schema.number().min(1), timeoutMs: Schema.number().min(20).max(6e4), budgetUsd: Schema.number().min(0), inputUsdPerMillion: Schema.number().min(0), outputUsdPerMillion: Schema.number().min(0) })
 });
 function resolveDataDir(config) {
@@ -2222,7 +2228,7 @@ function createRecordsHandlers(service, basePath2, log) {
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash15, randomUUID as randomUUID17 } from "node:crypto";
+import { createHash as createHash16, randomUUID as randomUUID17 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -2256,18 +2262,18 @@ var JobStore = class {
     this.revision = revision;
     this.fault = fault;
   }
-  enqueue(actor2, object4, revision, key) {
+  enqueue(actor2, object3, revision, key) {
     return this.tx((db, now) => {
-      const current = this.revision(actor2.sessionId, actor2.userId, object4, now);
+      const current = this.revision(actor2.sessionId, actor2.userId, object3, now);
       if (current === void 0) throw new JobError(404, "NOT_FOUND");
       const prior = db.prepare("SELECT id,object_id,expected_revision FROM jobs WHERE user_id=? AND idempotency_key=?").get(actor2.userId, key);
       if (prior) {
-        if (prior.object_id !== object4 || prior.expected_revision !== revision) throw new JobError(409, "IDEMPOTENCY_CONFLICT");
+        if (prior.object_id !== object3 || prior.expected_revision !== revision) throw new JobError(409, "IDEMPOTENCY_CONFLICT");
         return String(prior.id);
       }
       if (current !== revision) throw new JobError(409, "REVISION_CONFLICT");
       const id6 = randomUUID2();
-      db.prepare("INSERT INTO jobs(id,user_id,session_id,object_id,expected_revision,idempotency_key,state,available_at) VALUES(?,?,?,?,?,?,'queued',?)").run(id6, actor2.userId, actor2.sessionId, object4, revision, key, now);
+      db.prepare("INSERT INTO jobs(id,user_id,session_id,object_id,expected_revision,idempotency_key,state,available_at) VALUES(?,?,?,?,?,?,'queued',?)").run(id6, actor2.userId, actor2.sessionId, object3, revision, key, now);
       return id6;
     });
   }
@@ -2545,10 +2551,10 @@ function compileSearchQuery(raw) {
 }
 function indexSearchText(source) {
   const parts = [], ranges = [];
-  for (const { segment, index } of segmenter.segment(source)) {
-    const value = normalize(segment);
+  for (const { segment: segment2, index } of segmenter.segment(source)) {
+    const value = normalize(segment2);
     parts.push(value);
-    const range = { start: index, end: index + segment.length };
+    const range = { start: index, end: index + segment2.length };
     for (let i = 0; i < value.length; i++) ranges.push(range);
   }
   return { normalized: parts.join(""), ranges };
@@ -4094,7 +4100,7 @@ function repositoryRef(kind, value) {
 function isRepositoryPath(value) {
   return typeof value === "string" && !!value.length && Buffer.byteLength(value) <= 1024 && !forbiddenPath.test(value) && value.split("/").every((part) => part && part !== "." && part !== "..");
 }
-var object = (value) => {
+var remoteObject = (value) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw invalidRemote();
   return value;
 };
@@ -4104,6 +4110,45 @@ var remoteSha = (value) => {
 };
 var repositorySlug = (repo) => repo.owner + "/" + repo.name;
 var repoPath = (repo) => "/repos/" + encodeURIComponent(repo.owner) + "/" + encodeURIComponent(repo.name);
+async function repositoryJson(url, limit5, operation, headers, transport) {
+  const signal = AbortSignal.any([operation, AbortSignal.timeout(12e3)]);
+  let reader;
+  try {
+    signal.throwIfAborted();
+    const response = await transport(url, { method: "GET", redirect: "manual", cache: "no-store", signal, headers });
+    reader = response.body?.getReader();
+    if (response.status >= 300 && response.status < 400) throw new AssetError(502, "REPOSITORY_REDIRECT_REJECTED");
+    if (response.status === 429 || response.status === 403 && (response.headers.get("x-ratelimit-remaining") === "0" || response.headers.get("ratelimit-remaining") === "0" || response.headers.has("retry-after")))
+      throw new AssetError(429, "REPOSITORY_RATE_LIMIT");
+    if ([401, 403, 404].includes(response.status)) throw new AssetError(404, "REMOTE_REPOSITORY_NOT_FOUND");
+    if (!response.ok || !reader) throw unavailable();
+    if (Number(response.headers.get("content-length")) > limit5) throw oversized();
+    let size = 0;
+    const parts = [];
+    while (true) {
+      signal.throwIfAborted();
+      const treePart = await reader.read();
+      if (treePart.done) break;
+      size += treePart.value.length;
+      if (size > limit5) throw oversized();
+      parts.push(treePart.value);
+    }
+    signal.throwIfAborted();
+    try {
+      return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(parts, size)));
+    } catch {
+      throw invalidRemote();
+    }
+  } catch (error) {
+    if (operation.aborted) throw new AssetError(409, "REPOSITORY_CANCELLED");
+    if (signal.aborted) throw new AssetError(504, "REPOSITORY_TIMEOUT");
+    if (error instanceof AssetError) throw error;
+    throw unavailable();
+  } finally {
+    if (reader) void reader.cancel().catch(() => {
+    });
+  }
+}
 var GitHubRepository = class {
   constructor(operation, token2, transport = fetch) {
     this.operation = operation;
@@ -4111,45 +4156,9 @@ var GitHubRepository = class {
     this.transport = transport;
   }
   async get(path2, limit5) {
-    const signal = AbortSignal.any([this.operation, AbortSignal.timeout(12e3)]);
-    let reader;
-    try {
-      signal.throwIfAborted();
-      const headers = { accept: "application/vnd.github+json", "x-github-api-version": "2022-11-28", "user-agent": "KnowledgeOS" };
-      if (this.token) headers.authorization = "Bearer " + this.token;
-      const response = await this.transport("https://api.github.com" + path2, { method: "GET", redirect: "manual", cache: "no-store", signal, headers });
-      reader = response.body?.getReader();
-      if (response.status >= 300 && response.status < 400) throw new AssetError(502, "REPOSITORY_REDIRECT_REJECTED");
-      if (response.status === 429 || response.status === 403 && (response.headers.get("x-ratelimit-remaining") === "0" || response.headers.has("retry-after")))
-        throw new AssetError(429, "REPOSITORY_RATE_LIMIT");
-      if ([401, 403, 404].includes(response.status)) throw new AssetError(404, "REMOTE_REPOSITORY_NOT_FOUND");
-      if (!response.ok || !reader) throw unavailable();
-      if (Number(response.headers.get("content-length")) > limit5) throw oversized();
-      let size = 0;
-      const parts = [];
-      while (true) {
-        signal.throwIfAborted();
-        const treePart = await reader.read();
-        if (treePart.done) break;
-        size += treePart.value.length;
-        if (size > limit5) throw oversized();
-        parts.push(treePart.value);
-      }
-      signal.throwIfAborted();
-      try {
-        return object(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(parts, size))));
-      } catch {
-        throw invalidRemote();
-      }
-    } catch (error) {
-      if (this.operation.aborted) throw new AssetError(409, "REPOSITORY_CANCELLED");
-      if (signal.aborted) throw new AssetError(504, "REPOSITORY_TIMEOUT");
-      if (error instanceof AssetError) throw error;
-      throw unavailable();
-    } finally {
-      if (reader) void reader.cancel().catch(() => {
-      });
-    }
+    const headers = { accept: "application/vnd.github+json", "x-github-api-version": "2022-11-28", "user-agent": "KnowledgeOS" };
+    if (this.token) headers.authorization = "Bearer " + this.token;
+    return remoteObject(await repositoryJson("https://api.github.com" + path2, limit5, this.operation, headers, this.transport));
   }
   async resolveRepository(name2) {
     const row = await this.get(repoPath(name2), 128 * 1024);
@@ -4169,7 +4178,7 @@ var GitHubRepository = class {
     const row = await this.get(repoPath(repo) + "/commits/" + encodeURIComponent(spec2), 2 * 1024 * 1024);
     const commit = remoteSha(row.sha);
     if (ref.kind === "commit" && commit !== ref.value) throw invalidRemote();
-    return { commit, tree: remoteSha(object(object(row.commit).tree).sha) };
+    return { commit, tree: remoteSha(remoteObject(remoteObject(row.commit).tree).sha) };
   }
   async readTree(repo, sha5) {
     const row = await this.get(repoPath(repo) + "/git/trees/" + remoteSha(sha5) + "?recursive=1", repositoryLimits.tree);
@@ -4177,7 +4186,7 @@ var GitHubRepository = class {
     if (row.truncated || row.tree.length > repositoryLimits.files) throw oversized();
     const seen = /* @__PURE__ */ new Map();
     const entries = row.tree.map((candidate) => {
-      const { path: path2, sha: sha6, mode, type, size } = object(candidate);
+      const { path: path2, sha: sha6, mode, type, size } = remoteObject(candidate);
       if (!isRepositoryPath(path2) || seen.has(path2)) throw invalidRemote();
       const kind = type === "tree" && mode === "040000" ? "directory" : type === "commit" && mode === "160000" ? "submodule" : type === "blob" && mode === "120000" ? "symlink" : type === "blob" && (mode === "100644" || mode === "100755") ? "file" : void 0;
       if (!kind || kind === "file" && (typeof size !== "number" || !Number.isSafeInteger(size) || size < 0)) throw invalidRemote();
@@ -4200,6 +4209,116 @@ var GitHubRepository = class {
     if (bytes.toString("base64") !== encoded || bytes.length !== entry.size || createHash10("sha1").update("blob " + bytes.length + "\0").update(bytes).digest("hex") !== entry.sha) throw invalidRemote();
     return bytes;
   }
+  async resolveSnapshot(repo, ref) {
+    const revision = await this.resolveRef(repo, ref);
+    return { ...revision, entries: await this.readTree(repo, revision.tree) };
+  }
+};
+
+// src/host/gitlab-repository.ts
+import { createHash as createHash11 } from "node:crypto";
+var origin = "https://gitlab.com/api/v4";
+var segment = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,99}$/;
+function gitLabName(value) {
+  if (typeof value !== "string" || value.length > 255) throw badRepository();
+  const parts = value.replace(/^https:\/\/gitlab\.com\//i, "").split("/");
+  if (parts.length < 2 || parts.some((part) => !segment.test(part) || /\.(?:git|atom)$/i.test(part))) throw badRepository();
+  const name2 = parts.pop();
+  return { owner: parts.join("/"), name: name2 };
+}
+function parseTreeEntry(value) {
+  const { id: id6, path: path2, mode, type, name: name2 } = remoteObject(value);
+  if (!isRepositoryPath(path2) || name2 !== path2.split("/").at(-1)) throw invalidRemote();
+  const kind = type === "tree" && mode === "040000" ? "directory" : type === "commit" && mode === "160000" ? "submodule" : type === "blob" && mode === "120000" ? "symlink" : type === "blob" && (mode === "100644" || mode === "100755") ? "file" : void 0;
+  if (!kind || typeof mode !== "string") throw invalidRemote();
+  return { path: path2, mode, sha: remoteSha(id6), kind, size: null };
+}
+function treeDigest(entries) {
+  const sorted = entries.map((entry) => {
+    const name2 = entry.path.slice(entry.path.lastIndexOf("/") + 1);
+    return { entry, name: name2, order: Buffer.from(name2 + (entry.kind === "directory" ? "/" : "\0")) };
+  }).sort((a, b) => Buffer.compare(a.order, b.order));
+  const bytes = Buffer.concat(sorted.flatMap(({ entry, name: name2 }) => [
+    Buffer.from(entry.mode.replace(/^0/, "") + " " + name2 + "\0"),
+    Buffer.from(entry.sha, "hex")
+  ]));
+  return createHash11("sha1").update("tree " + bytes.length + "\0").update(bytes).digest("hex");
+}
+function validateTree(entries) {
+  const children = /* @__PURE__ */ new Map();
+  for (const entry of entries.values()) {
+    const slash = entry.path.lastIndexOf("/");
+    const parent = slash < 0 ? "" : entry.path.slice(0, slash);
+    if (parent && entries.get(parent)?.kind !== "directory") throw invalidRemote();
+    const group = children.get(parent) ?? [];
+    group.push(entry);
+    children.set(parent, group);
+  }
+  for (const entry of entries.values()) {
+    if (entry.kind === "directory" && entry.sha !== treeDigest(children.get(entry.path) ?? [])) throw invalidRemote();
+  }
+  return treeDigest(children.get("") ?? []);
+}
+var GitLabRepository = class {
+  constructor(operation, token2, transport = fetch) {
+    this.operation = operation;
+    this.token = token2;
+    this.transport = transport;
+  }
+  get(path2, limit5) {
+    const headers = { accept: "application/json", "user-agent": "KnowledgeOS" };
+    if (this.token) headers["private-token"] = this.token;
+    return repositoryJson(origin + path2, limit5, this.operation, headers, this.transport);
+  }
+  async resolveRepository(name2) {
+    const data = remoteObject(await this.get("/projects/" + encodeURIComponent(repositorySlug(name2)), 128 * 1024));
+    if (typeof data.id !== "number" || !Number.isSafeInteger(data.id) || data.id <= 0 || !["public", "internal", "private"].includes(String(data.visibility))) throw invalidRemote();
+    const isPrivate = data.visibility !== "public";
+    if (!this.token && isPrivate) throw new AssetError(404, "REMOTE_REPOSITORY_NOT_FOUND");
+    let canonical;
+    try {
+      canonical = gitLabName(data.path_with_namespace);
+    } catch {
+      throw invalidRemote();
+    }
+    if (data.path_with_namespace !== repositorySlug(canonical) || repositorySlug(canonical).toLowerCase() !== repositorySlug(name2).toLowerCase())
+      throw invalidRemote();
+    return { ...canonical, id: data.id, private: isPrivate };
+  }
+  async resolveSnapshot(repo, ref) {
+    const base = "/projects/" + repo.id + "/repository/";
+    const kind = ref.kind === "commit" ? "commits" : ref.kind === "branch" ? "branches" : "tags";
+    const selected = remoteObject(await this.get(base + kind + "/" + encodeURIComponent(ref.value), 128 * 1024));
+    if (ref.kind !== "commit" && selected.name !== ref.value) throw invalidRemote();
+    const commit = remoteSha(ref.kind === "commit" ? selected.id : remoteObject(selected.commit).id);
+    if (ref.kind === "commit" && commit !== ref.value) throw invalidRemote();
+    const entries = /* @__PURE__ */ new Map();
+    let used = 0;
+    for (let page = 1; ; page++) {
+      const query = new URLSearchParams({ ref: commit, recursive: "true", per_page: "100", page: String(page) });
+      const batch = await this.get(base + "tree?" + query, repositoryLimits.tree - used);
+      if (!Array.isArray(batch) || batch.length > 100) throw invalidRemote();
+      used += Buffer.byteLength(JSON.stringify(batch));
+      if (used > repositoryLimits.tree || entries.size + batch.length > repositoryLimits.files) throw oversized();
+      for (const item of batch) {
+        const parsed = parseTreeEntry(item);
+        if (entries.has(parsed.path)) throw invalidRemote();
+        entries.set(parsed.path, parsed);
+      }
+      if (batch.length < 100) break;
+    }
+    return { commit, tree: validateTree(entries), entries: Array.from(entries.values(), ({ mode: _mode, ...entry }) => entry) };
+  }
+  async readBlob(repo, entry) {
+    if (entry.kind !== "file") throw new AssetError(422, "REPOSITORY_NOT_REGULAR_FILE");
+    const row = remoteObject(await this.get("/projects/" + repo.id + "/repository/blobs/" + remoteSha(entry.sha), 800 * 1024));
+    if (row.sha !== entry.sha || typeof row.size !== "number" || !Number.isSafeInteger(row.size) || row.size < 0 || row.encoding !== "base64" || typeof row.content !== "string") throw invalidRemote();
+    if (row.size > repositoryLimits.blob) throw oversized();
+    const encoded = row.content.replace(/\r?\n/g, ""), bytes = Buffer.from(encoded, "base64");
+    if (bytes.toString("base64") !== encoded || bytes.length !== row.size || entry.size !== null && entry.size !== bytes.length || createHash11("sha1").update("blob " + bytes.length + "\0").update(bytes).digest("hex") !== entry.sha)
+      throw invalidRemote();
+    return bytes;
+  }
 };
 
 // src/host/repository-store.ts
@@ -4219,15 +4338,49 @@ CREATE TABLE repository_files (
   PRIMARY KEY(snapshot_id,path)
 ) STRICT;
 `;
-var credentialAlias = /^github_[a-z0-9_]{1,48}$/;
-var summaryColumns = "id,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,created_at";
+var REPOSITORY_PLATFORM_TABLES = `
+CREATE TABLE repository_snapshots (
+  id TEXT PRIMARY KEY, service_id TEXT NOT NULL, owner_id TEXT NOT NULL REFERENCES users(id),
+  platform TEXT NOT NULL CHECK(platform IN ('github','gitlab')),
+  remote_id INTEGER NOT NULL, owner_name TEXT NOT NULL, repository_name TEXT NOT NULL,
+  is_private INTEGER NOT NULL CHECK(is_private IN (0,1)), credential_ref TEXT NOT NULL,
+  ref_kind TEXT NOT NULL CHECK(ref_kind IN ('branch','tag','commit')), ref_value TEXT NOT NULL,
+  commit_sha TEXT NOT NULL CHECK(length(commit_sha)=40), tree_sha TEXT NOT NULL CHECK(length(tree_sha)=40),
+  tree_json TEXT NOT NULL, created_at TEXT NOT NULL,
+  UNIQUE(service_id,owner_id,platform,remote_id,is_private,credential_ref,commit_sha)
+) STRICT;
+CREATE TABLE repository_files (
+  snapshot_id TEXT NOT NULL REFERENCES repository_snapshots(id), path TEXT NOT NULL,
+  blob_sha TEXT NOT NULL CHECK(length(blob_sha)=40), payload BLOB NOT NULL,
+  PRIMARY KEY(snapshot_id,path)
+) STRICT;
+`;
+var REPOSITORY_PLATFORM_SCHEMA = `
+ALTER TABLE repository_files RENAME TO repository_files_v33;
+ALTER TABLE repository_snapshots RENAME TO repository_snapshots_v33;
+${REPOSITORY_PLATFORM_TABLES}
+INSERT INTO repository_snapshots(id,service_id,owner_id,platform,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,tree_json,created_at)
+SELECT id,service_id,owner_id,'github',remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,tree_json,created_at
+FROM repository_snapshots_v33;
+INSERT INTO repository_files SELECT snapshot_id,path,blob_sha,payload FROM repository_files_v33;
+DROP TABLE repository_files_v33;
+DROP TABLE repository_snapshots_v33;
+`;
+var credentialAlias = /^(?:github|gitlab)_[a-z0-9_]{1,48}$/;
+var summaryColumns = "id,platform,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,created_at";
 var hidden2 = () => new AssetError(404, "NOT_FOUND");
 var checkSignal = (signal) => {
   if (signal.aborted) throw new AssetError(409, "REPOSITORY_CANCELLED");
 };
+var encodePath = (path2) => path2.split("/").map(encodeURIComponent).join("/");
+var sourceUrl = (row, type) => {
+  const repository = encodePath(row.owner_name + "/" + row.repository_name);
+  const base = row.platform === "gitlab" ? "https://gitlab.com/" + repository + "/-" : "https://github.com/" + repository;
+  return base + "/" + type + "/" + row.commit_sha;
+};
 var summarize = (row) => ({
   id: row.id,
-  platform: "github",
+  platform: row.platform,
   repository: row.owner_name + "/" + row.repository_name,
   private: !!row.is_private,
   credential_ref: row.credential_ref || null,
@@ -4236,7 +4389,7 @@ var summarize = (row) => ({
   commit: row.commit_sha,
   tree: row.tree_sha,
   created_at: row.created_at,
-  source_url: "https://github.com/" + row.owner_name + "/" + row.repository_name + "/tree/" + row.commit_sha
+  source_url: sourceUrl(row, "tree")
 });
 var fileView = (row, path2, sha5, bytes) => {
   let text4 = null;
@@ -4251,7 +4404,7 @@ var fileView = (row, path2, sha5, bytes) => {
     sha: sha5,
     size: bytes.length,
     text: text4,
-    source_url: "https://github.com/" + row.owner_name + "/" + row.repository_name + "/blob/" + row.commit_sha + "/" + path2.split("/").map(encodeURIComponent).join("/")
+    source_url: sourceUrl(row, "blob") + "/" + encodePath(path2)
   };
 };
 var RepositoryStore = class {
@@ -4303,11 +4456,11 @@ var RepositoryStore = class {
       return { row, entry };
     });
   }
-  saveSnapshot(session, expected, remote, ref, alias, revision, entries, signal, pinned) {
+  saveSnapshot(session, expected, remote, ref, alias, revision, entries, signal, pinned, platform = "github") {
     return this.tx("write", (db, now) => {
       checkSignal(signal);
       const { userId, serviceId } = this.actor(session, now, expected);
-      const existing = db.prepare("SELECT * FROM repository_snapshots WHERE service_id=? AND owner_id=? AND remote_id=? AND is_private=? AND credential_ref=? AND commit_sha=?").get(serviceId, userId, remote.id, Number(remote.private), alias, revision.commit);
+      const existing = db.prepare("SELECT * FROM repository_snapshots WHERE service_id=? AND owner_id=? AND platform=? AND remote_id=? AND is_private=? AND credential_ref=? AND commit_sha=?").get(serviceId, userId, platform, remote.id, Number(remote.private), alias, revision.commit);
       if (existing) {
         if (existing.tree_sha !== revision.tree) throw new AssetError(502, "REPOSITORY_INVALID_RESPONSE");
         if (pinned) this.insertFile(db, { userId, serviceId }, existing, pinned.entry, pinned.bytes);
@@ -4317,6 +4470,7 @@ var RepositoryStore = class {
         throw new AssetError(409, "REPOSITORY_SNAPSHOT_QUOTA");
       const row = {
         id: randomUUID13(),
+        platform,
         remote_id: remote.id,
         owner_name: remote.owner,
         repository_name: remote.name,
@@ -4329,10 +4483,11 @@ var RepositoryStore = class {
         tree_json: JSON.stringify(entries),
         created_at: now
       };
-      db.prepare("INSERT INTO repository_snapshots(id,service_id,owner_id,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,tree_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(
+      db.prepare("INSERT INTO repository_snapshots(id,service_id,owner_id,platform,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,tree_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(
         row.id,
         serviceId,
         userId,
+        platform,
         row.remote_id,
         row.owner_name,
         row.repository_name,
@@ -4359,7 +4514,9 @@ var RepositoryStore = class {
   }
   insertFile(db, actor2, row, entry, bytes) {
     const treeEntry = JSON.parse(row.tree_json).find((candidate) => candidate.path === entry.path);
-    if (!treeEntry || treeEntry.kind !== "file" || treeEntry.sha !== entry.sha || treeEntry.size !== bytes.length) throw new AssetError(502, "REPOSITORY_INVALID_RESPONSE");
+    const sizeMatches = treeEntry?.size === bytes.length || row.platform === "gitlab" && treeEntry?.size === null;
+    if (!treeEntry || treeEntry.kind !== "file" || treeEntry.sha !== entry.sha || !sizeMatches || bytes.length > repositoryLimits.blob)
+      throw new AssetError(502, "REPOSITORY_INVALID_RESPONSE");
     if (db.prepare("SELECT 1 FROM repository_files WHERE snapshot_id=? AND path=?").get(row.id, entry.path)) return;
     const count = Number(db.prepare("SELECT count(*) AS total FROM repository_files WHERE snapshot_id=?").get(row.id)?.total);
     const used = Number(db.prepare("SELECT coalesce(sum(length(f.payload)),0) AS total FROM repository_files f JOIN repository_snapshots s ON s.id=f.snapshot_id WHERE s.service_id=? AND s.owner_id=?").get(actor2.serviceId, actor2.userId)?.total);
@@ -4374,19 +4531,23 @@ var RepositoryService = class {
     this.resolve = resolve2;
   }
   busy = /* @__PURE__ */ new Set();
-  async client(actor2, name2, alias, signal) {
-    if (!alias) return new GitHubRepository(signal);
-    const allowed = this.bindings.filter((binding) => binding.actorId === actor2.userId && binding.alias === alias && typeof binding.repository === "string" && binding.repository.toLowerCase() === repositorySlug(name2).toLowerCase());
+  async client(actor2, platform, name2, alias, signal) {
+    const Client = platform === "gitlab" ? GitLabRepository : GitHubRepository;
+    if (!alias) return new Client(signal);
+    if (!alias.startsWith(platform + "_")) throw hidden2();
+    const allowed = this.bindings.filter((binding) => binding.actorId === actor2.userId && binding.alias === alias && (binding.platform ?? "github") === platform && typeof binding.repository === "string" && binding.repository.toLowerCase() === repositorySlug(name2).toLowerCase());
     if (allowed.length !== 1) throw hidden2();
     const ref = allowed[0].credentialRef;
-    if (!/^KO_GITHUB_[A-Z0-9_]{1,64}$/.test(ref)) throw new AssetError(503, "REPOSITORY_CREDENTIAL_UNCONFIGURED");
+    const refPattern = platform === "gitlab" ? /^KO_GITLAB_[A-Z0-9_]{1,64}$/ : /^KO_GITHUB_[A-Z0-9_]{1,64}$/;
+    const tokenPattern = platform === "gitlab" ? /^glpat-[A-Za-z0-9_-]{16,250}$/ : /^(?:github_pat_|ghp_)[A-Za-z0-9_]{16,250}$/;
+    if (!refPattern.test(ref)) throw new AssetError(503, "REPOSITORY_CREDENTIAL_UNCONFIGURED");
     let token2;
     try {
       token2 = await this.resolve(ref);
     } catch {
     }
-    if (!token2 || !/^(?:github_pat_|ghp_)[A-Za-z0-9_]{16,250}$/.test(token2)) throw new AssetError(503, "REPOSITORY_CREDENTIAL_UNCONFIGURED");
-    return new GitHubRepository(signal, token2);
+    if (!token2 || !tokenPattern.test(token2)) throw new AssetError(503, "REPOSITORY_CREDENTIAL_UNCONFIGURED");
+    return new Client(signal, token2);
   }
   async run(session, expected, operation) {
     const actor2 = this.store.check(session, expected);
@@ -4399,13 +4560,12 @@ var RepositoryService = class {
       this.busy.delete(key);
     }
   }
-  connect(session, expected, name2, ref, alias, signal, path2) {
+  connect(session, expected, name2, ref, alias, signal, path2, platform = "github") {
     return this.run(session, expected, async (actor2) => {
-      const source = await this.client(actor2, name2, alias, signal);
+      const source = await this.client(actor2, platform, name2, alias, signal);
       this.store.check(session, expected);
       const repository = await source.resolveRepository(name2);
-      const revision = await source.resolveRef(repository, ref);
-      const entries = await source.readTree(repository, revision.tree);
+      const { entries, ...revision } = await source.resolveSnapshot(repository, ref);
       let pinned;
       if (path2 !== void 0) {
         const entry = entries.find((candidate) => candidate.path === path2);
@@ -4414,7 +4574,7 @@ var RepositoryService = class {
       }
       const confirmed = await source.resolveRepository(repository);
       if (confirmed.id !== repository.id || confirmed.private !== repository.private) throw new AssetError(409, "REPOSITORY_CHANGED");
-      return this.store.saveSnapshot(session, expected, repository, ref, alias, revision, entries, signal, pinned);
+      return this.store.saveSnapshot(session, expected, repository, ref, alias, revision, entries, signal, pinned, platform);
     });
   }
   pin(session, expected, id6, path2, signal) {
@@ -4427,7 +4587,7 @@ var RepositoryService = class {
         if (!(error instanceof AssetError) || error.status !== 404) throw error;
       }
       const name2 = { owner: row.owner_name, name: row.repository_name };
-      const source = await this.client(actor2, name2, row.credential_ref, signal);
+      const source = await this.client(actor2, row.platform, name2, row.credential_ref, signal);
       this.store.check(session, expected);
       const repository = await source.resolveRepository(name2);
       if (repository.id !== row.remote_id || Number(repository.private) !== row.is_private) throw new AssetError(409, "REPOSITORY_CHANGED");
@@ -4438,7 +4598,7 @@ var RepositoryService = class {
 };
 
 // src/host/project-task-store.ts
-import { createHash as createHash11, randomUUID as randomUUID14 } from "node:crypto";
+import { createHash as createHash12, randomUUID as randomUUID14 } from "node:crypto";
 
 // src/host/project-task-policy.ts
 var unacceptable = /[\p{Cf}\p{Cs}\x00-\x08\x0b-\x1f\x7f]/u;
@@ -4603,7 +4763,7 @@ var appealView = (r) => ({
   resolution_decision_id: r.resolution_decision_id,
   resolved_at: r.resolved_at
 });
-var requestDigest = (value) => createHash11("sha256").update(JSON.stringify(value)).digest("hex");
+var requestDigest = (value) => createHash12("sha256").update(JSON.stringify(value)).digest("hex");
 var workflow = (t) => ({
   kind: t.task_kind,
   assignee: t.assignee_id,
@@ -4863,7 +5023,7 @@ var ProjectTaskStore = class {
   assign(s, expected, projectId, key, d) {
     if (!validTaskDraft(d)) throw invalid3();
     const title = d.title.trim(), goal = d.goal.trim(), items = clean(d.criteria), peer = d.peer_reviewer_id ?? null;
-    const digest4 = createHash11("sha256").update(JSON.stringify([projectId, title, goal, d.due_at, d.assignee_id, d.final_reviewer_id, peer, items])).digest("hex");
+    const digest4 = createHash12("sha256").update(JSON.stringify([projectId, title, goal, d.due_at, d.assignee_id, d.final_reviewer_id, peer, items])).digest("hex");
     return this.tx("write", (db, now) => {
       const a = this.actor(s, now, expected), project = projectId === null ? null : this.project(db, a, projectId, now);
       if (project && project.row.owner_user_id !== a.userId) throw hidden3();
@@ -5168,11 +5328,11 @@ CREATE TABLE task_decision_impacts (
 `;
 
 // src/host/recall-store.ts
-import { createHash as createHash13, randomUUID as randomUUID15 } from "node:crypto";
+import { createHash as createHash14, randomUUID as randomUUID15 } from "node:crypto";
 
 // src/host/recall-range.ts
-import { createHash as createHash12 } from "node:crypto";
-var digest = (text4) => createHash12("sha256").update(text4, "utf8").digest("hex");
+import { createHash as createHash13 } from "node:crypto";
+var digest = (text4) => createHash13("sha256").update(text4, "utf8").digest("hex");
 var invalid4 = () => new AssetError(422, "INVALID_RECALL_RANGE");
 var changed = () => new AssetError(409, "RECALL_SOURCE_CHANGED");
 var available = (text4) => {
@@ -5213,21 +5373,21 @@ function recallMasks(segments, masks, read) {
   }
   return normalized;
 }
-function recallPractice(segment, masks, revealed, text4) {
-  if (digest(text4) !== segment.source_hash) throw changed();
+function recallPractice(segment2, masks, revealed, text4) {
+  if (digest(text4) !== segment2.source_hash) throw changed();
   const runs = [];
-  let offset = segment.start;
+  let offset = segment2.start;
   const visible = (start, end) => {
     if (end > start) runs.push({ kind: "text", text: text4.slice(start, end) });
   };
   for (const m of masks) {
-    if (m.ordinal !== segment.ordinal) continue;
+    if (m.ordinal !== segment2.ordinal) continue;
     visible(offset, m.start);
     if (revealed.has(m.group)) visible(m.start, m.end);
     else runs.push({ kind: "hidden", group: m.group, length: m.end - m.start });
     offset = m.end;
   }
-  visible(offset, segment.end);
+  visible(offset, segment2.end);
   return runs;
 }
 
@@ -5270,7 +5430,7 @@ CREATE TABLE recall_events (
   CHECK(event IN ('move','hint','reveal','recall','rating'))
 ) STRICT;
 CREATE INDEX recall_events_groups ON recall_events(material_id,event,value);`;
-var sha3 = (text4) => createHash13("sha256").update(text4).digest("hex");
+var sha3 = (text4) => createHash14("sha256").update(text4).digest("hex");
 var invalid5 = () => new AssetError(422, "INVALID_RECALL");
 var notFound4 = () => new AssetError(404, "RECALL_NOT_FOUND");
 var point2 = (t, ordinal) => ({ asset_id: t.asset_id, version_id: t.version_id, ordinal, ...t.conversion_id ? { conversion_id: t.conversion_id } : {} });
@@ -5295,7 +5455,7 @@ var RecallStore = class {
   practice(db, a, m, now) {
     const attempt = db.prepare("SELECT active_ordinal,revision FROM recall_attempts WHERE material_id=?").get(m.id);
     const ordinal = Number(attempt.active_ordinal);
-    const segment = db.prepare("SELECT ordinal,start,end,source_hash FROM recall_segments WHERE material_id=? AND ordinal=?").get(m.id, ordinal);
+    const segment2 = db.prepare("SELECT ordinal,start,end,source_hash FROM recall_segments WHERE material_id=? AND ordinal=?").get(m.id, ordinal);
     const source = this.source(db, a, point2(m, ordinal), now);
     const masks = db.prepare('SELECT ordinal,start,end,mask_group AS "group" FROM recall_masks WHERE material_id=? AND ordinal=? ORDER BY start').all(m.id, ordinal);
     const events = db.prepare(`SELECT event,value,count(*) AS count FROM recall_events WHERE material_id=? AND event IN ('hint','reveal','recall') GROUP BY event,value`).all(m.id);
@@ -5312,9 +5472,9 @@ var RecallStore = class {
       first: Number(bounds.first),
       last: Number(bounds.last),
       length: Number(bounds.length),
-      page_length: segment.end - segment.start,
+      page_length: segment2.end - segment2.start,
       source_changed: head?.id !== m.version_id || Boolean(m.conversion_id && conversion?.id !== m.conversion_id),
-      runs: recallPractice(segment, masks, revealed, source.text),
+      runs: recallPractice(segment2, masks, revealed, source.text),
       progress: {
         hints: events.filter((e) => e.event === "hint").map((e) => ({ group: Number(e.value), count: Number(e.count) })),
         revealed: [...revealed],
@@ -5397,7 +5557,7 @@ var RecallStore = class {
 };
 
 // src/host/invitation-store.ts
-import { createHash as createHash14, randomBytes, randomUUID as randomUUID16 } from "node:crypto";
+import { createHash as createHash15, randomBytes, randomUUID as randomUUID16 } from "node:crypto";
 var INVITATION_SCHEMA = `CREATE TABLE invitations (
   id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE CHECK(length(token_hash)=64),
   service_id TEXT NOT NULL, issuer_id TEXT NOT NULL REFERENCES users(id),
@@ -5442,7 +5602,7 @@ var INVITATION_CHANGE_SCHEMA = `CREATE TABLE invitation_change_receipts (
   result_json TEXT NOT NULL CHECK(json_valid(result_json)), PRIMARY KEY(service_id,actor_id,request_key)
 ) STRICT;`;
 var day = 864e5;
-var digest2 = (value) => createHash14("sha256").update(value).digest("hex");
+var digest2 = (value) => createHash15("sha256").update(value).digest("hex");
 var invalid6 = () => new AssetError(422, "INVALID_INVITATION");
 var unavailable2 = () => new AssetError(404, "INVITATION_UNAVAILABLE");
 var conflict2 = () => new AssetError(409, "INVITATION_CHANGED");
@@ -5613,35 +5773,36 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 33;
-var MIGRATION_V33_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_APPEAL_SCHEMA).digest("hex");
-var MIGRATION_V32_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_CORRECTION_SCHEMA).digest("hex");
-var MIGRATION_V31_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_MATERIAL_SCHEMA).digest("hex");
-var MIGRATION_V30_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_REVIEW_SCHEMA).digest("hex");
-var MIGRATION_V29_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_SCHEMA).digest("hex");
-var MIGRATION_V28_CHECKSUM = createHash15("sha256").update(REPOSITORY_SCHEMA).digest("hex");
-var MIGRATION_V27_CHECKSUM = createHash15("sha256").update(NOTE_LAYOUT_SCHEMA).digest("hex");
-var MIGRATION_V26_CHECKSUM = createHash15("sha256").update(NOTE_OUTLINE_SCHEMA).digest("hex");
-var MIGRATION_V25_CHECKSUM = createHash15("sha256").update(INVITATION_CHANGE_SCHEMA).digest("hex");
-var MIGRATION_V24_CHECKSUM = createHash15("sha256").update(INVITATION_EVENT_SCHEMA).digest("hex");
-var MIGRATION_V23_CHECKSUM = createHash15("sha256").update(INVITATION_SCHEMA).digest("hex");
-var MIGRATION_V22_CHECKSUM = createHash15("sha256").update(RECALL_SCHEMA).digest("hex");
-var MIGRATION_V21_CHECKSUM = createHash15("sha256").update(NOTE_SCHEMA).digest("hex");
-var MIGRATION_V20_CHECKSUM = createHash15("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
-var MIGRATION_V19_CHECKSUM = createHash15("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V18_CHECKSUM = createHash15("sha256").update(SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V17_CHECKSUM = createHash15("sha256").update(ANNOTATION_SCHEMA).digest("hex");
-var MIGRATION_V16_CHECKSUM = createHash15("sha256").update(READING_STATE_SCHEMA).digest("hex");
-var MIGRATION_V15_CHECKSUM = createHash15("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
-var MIGRATION_V13_CHECKSUM = createHash15("sha256").update(ZIP_SCHEMA).digest("hex");
-var MIGRATION_V14_CHECKSUM = createHash15("sha256").update(CITATION_SCHEMA).digest("hex");
-var MIGRATION_V12_CHECKSUM = createHash15("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
-var MIGRATION_V11_CHECKSUM = createHash15("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
-var MIGRATION_V10_CHECKSUM = createHash15("sha256").update(OFFICE_SCHEMA).digest("hex");
-var MIGRATION_V9_CHECKSUM = createHash15("sha256").update(TEXT_SCHEMA).digest("hex");
-var MIGRATION_V8_CHECKSUM = createHash15("sha256").update(PARSE_SCHEMA).digest("hex");
-var MIGRATION_V7_CHECKSUM = createHash15("sha256").update(ASSET_SCHEMA).digest("hex");
-var MIGRATION_V6_CHECKSUM = createHash15("sha256").update(JOB_SCHEMA).digest("hex");
+var SCHEMA_VERSION = 34;
+var MIGRATION_V34_CHECKSUM = createHash16("sha256").update(REPOSITORY_PLATFORM_SCHEMA).digest("hex");
+var MIGRATION_V33_CHECKSUM = createHash16("sha256").update(PROJECT_TASK_APPEAL_SCHEMA).digest("hex");
+var MIGRATION_V32_CHECKSUM = createHash16("sha256").update(PROJECT_TASK_CORRECTION_SCHEMA).digest("hex");
+var MIGRATION_V31_CHECKSUM = createHash16("sha256").update(PROJECT_TASK_MATERIAL_SCHEMA).digest("hex");
+var MIGRATION_V30_CHECKSUM = createHash16("sha256").update(PROJECT_TASK_REVIEW_SCHEMA).digest("hex");
+var MIGRATION_V29_CHECKSUM = createHash16("sha256").update(PROJECT_TASK_SCHEMA).digest("hex");
+var MIGRATION_V28_CHECKSUM = createHash16("sha256").update(REPOSITORY_SCHEMA).digest("hex");
+var MIGRATION_V27_CHECKSUM = createHash16("sha256").update(NOTE_LAYOUT_SCHEMA).digest("hex");
+var MIGRATION_V26_CHECKSUM = createHash16("sha256").update(NOTE_OUTLINE_SCHEMA).digest("hex");
+var MIGRATION_V25_CHECKSUM = createHash16("sha256").update(INVITATION_CHANGE_SCHEMA).digest("hex");
+var MIGRATION_V24_CHECKSUM = createHash16("sha256").update(INVITATION_EVENT_SCHEMA).digest("hex");
+var MIGRATION_V23_CHECKSUM = createHash16("sha256").update(INVITATION_SCHEMA).digest("hex");
+var MIGRATION_V22_CHECKSUM = createHash16("sha256").update(RECALL_SCHEMA).digest("hex");
+var MIGRATION_V21_CHECKSUM = createHash16("sha256").update(NOTE_SCHEMA).digest("hex");
+var MIGRATION_V20_CHECKSUM = createHash16("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
+var MIGRATION_V19_CHECKSUM = createHash16("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V18_CHECKSUM = createHash16("sha256").update(SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V17_CHECKSUM = createHash16("sha256").update(ANNOTATION_SCHEMA).digest("hex");
+var MIGRATION_V16_CHECKSUM = createHash16("sha256").update(READING_STATE_SCHEMA).digest("hex");
+var MIGRATION_V15_CHECKSUM = createHash16("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
+var MIGRATION_V13_CHECKSUM = createHash16("sha256").update(ZIP_SCHEMA).digest("hex");
+var MIGRATION_V14_CHECKSUM = createHash16("sha256").update(CITATION_SCHEMA).digest("hex");
+var MIGRATION_V12_CHECKSUM = createHash16("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
+var MIGRATION_V11_CHECKSUM = createHash16("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
+var MIGRATION_V10_CHECKSUM = createHash16("sha256").update(OFFICE_SCHEMA).digest("hex");
+var MIGRATION_V9_CHECKSUM = createHash16("sha256").update(TEXT_SCHEMA).digest("hex");
+var MIGRATION_V8_CHECKSUM = createHash16("sha256").update(PARSE_SCHEMA).digest("hex");
+var MIGRATION_V7_CHECKSUM = createHash16("sha256").update(ASSET_SCHEMA).digest("hex");
+var MIGRATION_V6_CHECKSUM = createHash16("sha256").update(JOB_SCHEMA).digest("hex");
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
 var MIGRATION_V1_SQL = `CREATE TABLE schema_migrations (
@@ -5657,7 +5818,7 @@ CREATE TABLE storage_probe_records (
   created_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V1_CHECKSUM = createHash15("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
+var MIGRATION_V1_CHECKSUM = createHash16("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
 var MIGRATION_V2_SQL = `CREATE TABLE password_credentials (
   id TEXT PRIMARY KEY,
   algorithm TEXT NOT NULL,
@@ -5711,7 +5872,7 @@ CREATE TABLE spaces (
   updated_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V2_CHECKSUM = createHash15("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
+var MIGRATION_V2_CHECKSUM = createHash16("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
 var MIGRATION_V3_SQL = `CREATE TABLE knowledge_projects (
   id TEXT PRIMARY KEY,
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
@@ -5761,7 +5922,7 @@ CREATE TABLE resource_grants (
   UNIQUE (resource_id, subject_type, subject_id, action)
 ) STRICT;
 `;
-var MIGRATION_V3_CHECKSUM = createHash15("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
+var MIGRATION_V3_CHECKSUM = createHash16("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
 var MIGRATION_V4_SQL = `ALTER TABLE resource_grants RENAME TO resource_grants_v3;
 CREATE TABLE resource_grants (
   id TEXT PRIMARY KEY,
@@ -5783,7 +5944,7 @@ CREATE UNIQUE INDEX resource_grants_active_subject_action_uq
   WHERE revoked_at IS NULL;
 DROP TABLE resource_grants_v3;
 `;
-var MIGRATION_V4_CHECKSUM = createHash15("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
+var MIGRATION_V4_CHECKSUM = createHash16("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
 var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -5795,7 +5956,7 @@ var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   PRIMARY KEY (service_id, user_id, idempotency_key)
 ) STRICT;
 `;
-var MIGRATION_V5_CHECKSUM = createHash15("sha256").update(MIGRATION_V5_SQL).digest("hex");
+var MIGRATION_V5_CHECKSUM = createHash16("sha256").update(MIGRATION_V5_SQL).digest("hex");
 var PROBE_SUPPORTED_TABLES = ["schema_migrations", "storage_probe_records"];
 var IDENTITY_SUPPORTED_TABLES = [
   "auth_sessions",
@@ -5819,7 +5980,7 @@ function toRecord(row) {
   return { id: row.id, content: row.content, created_at: row.created_at };
 }
 function readSchemaObjects(db) {
-  return db.prepare("SELECT type, name FROM sqlite_master ORDER BY type, name").all().filter((object4) => !object4.name.startsWith("sqlite_"));
+  return db.prepare("SELECT type, name FROM sqlite_master ORDER BY type, name").all().filter((object3) => !object3.name.startsWith("sqlite_"));
 }
 function readDatabaseFacts(path2) {
   const db = new DatabaseSync(path2, { readOnly: true });
@@ -5827,7 +5988,7 @@ function readDatabaseFacts(path2) {
     const applicationId = Number(db.prepare("PRAGMA application_id").get()?.application_id ?? 0);
     const userVersion = Number(db.prepare("PRAGMA user_version").get()?.user_version ?? 0);
     const objects = readSchemaObjects(db);
-    const tables = objects.filter((object4) => object4.type === "table").map((object4) => object4.name);
+    const tables = objects.filter((object3) => object3.type === "table").map((object3) => object3.name);
     const ledger = tables.includes("schema_migrations") ? db.prepare("SELECT version, checksum, applied_at FROM schema_migrations ORDER BY version").all() : [];
     return { applicationId, userVersion, tables, objects, ledger };
   } finally {
@@ -5908,8 +6069,8 @@ var ProbeStorage = class {
     const source = this.authorizeObject(a, id6, "read", now);
     return source && { ...source.projectId ? { project_id: source.projectId } : {}, canComment: Boolean(this.authorizeObject(a, id6, "comment", now)) };
   }, (a, id6, now) => {
-    const object4 = this.#loadObject(id6);
-    return object4 && this.#authorizationHorizon(a, object4, "read", now);
+    const object3 = this.#loadObject(id6);
+    return object3 && this.#authorizationHorizon(a, object3, "read", now);
   });
   recall = new RecallStore(
     this.#assetTx,
@@ -5945,11 +6106,11 @@ var ProbeStorage = class {
       if (!this.#rollback(db)) throw this.#failure;
       throw err instanceof JobError ? err : this.#mapError(err);
     }
-  }, (session, user, object4, ms) => {
+  }, (session, user, object3, ms) => {
     const now = new Date(ms).toISOString();
     const ref = this.#ensureReady().prepare("SELECT token_hash FROM auth_sessions WHERE id=? AND user_id=?").get(session, user);
     const actor2 = ref && this.findActor(String(ref.token_hash), now);
-    return actor2 && this.authorizeObject(actor2, object4, "read", now)?.revision;
+    return actor2 && this.authorizeObject(actor2, object3, "read", now)?.revision;
   }, (point4) => this.#injectFailure(point4));
   constructor(options) {
     this.#dataDir = options.dataDir;
@@ -6026,6 +6187,7 @@ var ProbeStorage = class {
       if (priorVersion < 31) this.#migrateV31(db);
       if (priorVersion < 32) this.#migrateV32(db);
       if (priorVersion < 33) this.#migrateV33(db);
+      if (priorVersion < 34) this.#migrateV34(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path2);
       const pragmas = this.#readPragmas(db);
@@ -6107,23 +6269,23 @@ var ProbeStorage = class {
   }
   #assertV1Schema(facts) {
     const expected = [...PROBE_SUPPORTED_TABLES].sort();
-    const actual = facts.objects.filter((object4) => object4.type === "table").map((object4) => object4.name).sort();
-    if (facts.objects.some((object4) => object4.type !== "table") || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v1 schema");
+    const actual = facts.objects.filter((object3) => object3.type === "table").map((object3) => object3.name).sort();
+    if (facts.objects.some((object3) => object3.type !== "table") || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v1 schema");
     const entry = facts.ledger[0];
     if (facts.ledger.length !== 1 || entry?.version !== 1 || entry.checksum !== MIGRATION_V1_CHECKSUM) throw new RecordsError("STORAGE_INCOMPATIBLE", "v1 migration ledger does not match this build");
   }
   #assertV2Schema(facts) {
     const expected = ["auth_sessions", "password_credentials", "schema_migrations", "service_identity", "spaces", "storage_probe_records", "users"].sort();
-    const actual = facts.objects.filter((object4) => object4.type === "table").map((object4) => object4.name).sort();
-    if (facts.objects.some((object4) => object4.type !== "table") || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v2 schema");
+    const actual = facts.objects.filter((object3) => object3.type === "table").map((object3) => object3.name).sort();
+    if (facts.objects.some((object3) => object3.type !== "table") || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v2 schema");
     const v1 = facts.ledger.find((entry) => entry.version === 1);
     const v2 = facts.ledger.find((entry) => entry.version === 2);
     if (facts.ledger.length !== 2 || v1?.checksum !== MIGRATION_V1_CHECKSUM || v2?.checksum !== MIGRATION_V2_CHECKSUM) throw new RecordsError("STORAGE_INCOMPATIBLE", "v2 migration ledger does not match this build");
   }
   #assertV3Schema(facts) {
     const expected = [...IDENTITY_SUPPORTED_TABLES].sort();
-    const actual = facts.objects.filter((object4) => object4.type === "table").map((object4) => object4.name).sort();
-    if (facts.objects.some((object4) => object4.type !== "table") || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v3 schema");
+    const actual = facts.objects.filter((object3) => object3.type === "table").map((object3) => object3.name).sort();
+    if (facts.objects.some((object3) => object3.type !== "table") || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v3 schema");
     const v1 = facts.ledger.find((entry) => entry.version === 1);
     const v2 = facts.ledger.find((entry) => entry.version === 2);
     const v3 = facts.ledger.find((entry) => entry.version === 3);
@@ -6131,8 +6293,8 @@ var ProbeStorage = class {
   }
   #assertV4Schema(facts) {
     const expected = [...IDENTITY_SUPPORTED_TABLES].sort();
-    const actual = facts.objects.filter((object4) => object4.type === "table").map((object4) => object4.name).sort();
-    const unexpected = facts.objects.filter((object4) => object4.type !== "table" && !(object4.type === "index" && object4.name === "resource_grants_active_subject_action_uq"));
+    const actual = facts.objects.filter((object3) => object3.type === "table").map((object3) => object3.name).sort();
+    const unexpected = facts.objects.filter((object3) => object3.type !== "table" && !(object3.type === "index" && object3.name === "resource_grants_active_subject_action_uq"));
     if (unexpected.length !== 0 || actual.join(",") !== expected.join(",")) throw new RecordsError("STORAGE_INCOMPATIBLE", "database contains an unknown v4 schema");
     const v1 = facts.ledger.find((entry) => entry.version === 1);
     const v2 = facts.ledger.find((entry) => entry.version === 2);
@@ -6654,9 +6816,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "task appeal migration failed", false, { cause: e });
     }
   }
+  #migrateV34(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(REPOSITORY_PLATFORM_SCHEMA);
+      this.#injectFailure("v34:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(34,?,?)").run(MIGRATION_V34_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=34; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "repository platform migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash4, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash4)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -6682,7 +6856,8 @@ var ProbeStorage = class {
       if (version >= 25) reference.exec(INVITATION_CHANGE_SCHEMA);
       if (version >= 26) reference.exec(NOTE_OUTLINE_SCHEMA);
       if (version >= 27) reference.exec(NOTE_LAYOUT_SCHEMA);
-      if (version >= 28) reference.exec(REPOSITORY_SCHEMA);
+      if (version >= 34) reference.exec(REPOSITORY_PLATFORM_TABLES);
+      else if (version >= 28) reference.exec(REPOSITORY_SCHEMA);
       if (version >= 29) reference.exec(PROJECT_TASK_SCHEMA);
       if (version >= 30) reference.exec(PROJECT_TASK_REVIEW_SCHEMA);
       if (version >= 31) reference.exec(PROJECT_TASK_MATERIAL_SCHEMA);
@@ -6933,11 +7108,11 @@ var ProbeStorage = class {
       JOIN knowledge_projects p ON p.id=i.project_id AND p.service_id=i.service_id AND p.status='active'
       WHERE i.project_id=? AND i.permission='member' AND i.revoked_at IS NULL AND r.expires_at=i.expires_at`).all(projectId, projectId).map((row) => ({ projectId: String(row.project_id), userId: String(row.user_id), role: String(row.role), validFrom: String(row.valid_from), expiresAt: row.expires_at == null ? void 0 : String(row.expires_at), revokedAt: row.revoked_at == null ? void 0 : String(row.revoked_at) }));
   }
-  #invitedActions(db, actor2, object4, action2, now) {
-    if (action2 !== "read" && action2 !== "edit" || object4.objectType !== "asset") return [];
+  #invitedActions(db, actor2, object3, action2, now) {
+    if (action2 !== "read" && action2 !== "edit" || object3.objectType !== "asset") return [];
     return db.prepare(`SELECT r.redeemed_at,r.expires_at FROM invitations i JOIN invitation_redemptions r ON r.invitation_id=i.id
       WHERE i.object_id=? AND i.service_id=? AND r.user_id=? AND r.revoked_at IS NULL AND i.revoked_at IS NULL
-      AND i.expires_at=r.expires_at AND r.expires_at>? AND (i.permission='edit' OR i.permission=?)`).all(object4.id, actor2.serviceId, actor2.userId, now, action2).map((r) => ({ subjectType: "user", subjectId: actor2.userId, action: action2, validFrom: String(r.redeemed_at), expiresAt: String(r.expires_at) }));
+      AND i.expires_at=r.expires_at AND r.expires_at>? AND (i.permission='edit' OR i.permission=?)`).all(object3.id, actor2.serviceId, actor2.userId, now, action2).map((r) => ({ subjectType: "user", subjectId: actor2.userId, action: action2, validFrom: String(r.redeemed_at), expiresAt: String(r.expires_at) }));
   }
   #canIssue(actor2, t, now) {
     if (t.scope === "project") {
@@ -6946,34 +7121,34 @@ var ProbeStorage = class {
       return row && { title: String(row.name) };
     }
     if (t.permission !== "read" && t.permission !== "edit") return;
-    const object4 = this.authorizeObject(actor2, t.id, "manage_share", now);
-    if (object4?.objectType !== "asset" || !this.authorizeObject(actor2, t.id, "read", now) || t.permission === "edit" && !this.authorizeObject(actor2, t.id, "edit", now)) return;
-    return { title: object4.title, project_id: object4.projectId };
+    const object3 = this.authorizeObject(actor2, t.id, "manage_share", now);
+    if (object3?.objectType !== "asset" || !this.authorizeObject(actor2, t.id, "read", now) || t.permission === "edit" && !this.authorizeObject(actor2, t.id, "edit", now)) return;
+    return { title: object3.title, project_id: object3.projectId };
   }
   #loadObject(id6) {
     const row = this.#ensureReady().prepare("SELECT id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at FROM knowledge_objects WHERE id = ?").get(id6);
     return row === void 0 ? void 0 : this.#objectRow(row);
   }
-  #authorizationHorizon(actor2, object4, action2, now) {
+  #authorizationHorizon(actor2, object3, action2, now) {
     const db = this.#ensureReady();
     return authorizationHorizon(
       actor2,
-      this.#objectTarget(object4),
+      this.#objectTarget(object3),
       action2,
       now,
-      this.#grants(db, object4.id),
-      object4.projectId === void 0 ? [] : this.#memberships(db, object4.projectId),
-      this.#invitedActions(db, actor2, object4, action2, now)
+      this.#grants(db, object3.id),
+      object3.projectId === void 0 ? [] : this.#memberships(db, object3.projectId),
+      this.#invitedActions(db, actor2, object3, action2, now)
     );
   }
   authorizeObject(actor2, objectId, action2, now) {
-    const object4 = this.#loadObject(objectId);
-    return object4 && this.#authorizationHorizon(actor2, object4, action2, now) !== void 0 ? object4 : void 0;
+    const object3 = this.#loadObject(objectId);
+    return object3 && this.#authorizationHorizon(actor2, object3, action2, now) !== void 0 ? object3 : void 0;
   }
   listObjects(actor2, action2, now) {
     const db = this.#ensureReady();
     const rows = db.prepare("SELECT id, service_id, space_id, scope_kind, project_id, owner_user_id, object_type, title, body, status, revision, created_at, updated_at FROM knowledge_objects WHERE service_id = ? AND status = 'active' ORDER BY created_at, id").all(actor2.serviceId);
-    return rows.map((row) => this.#objectRow(row)).filter((object4) => authorize(actor2, this.#objectTarget(object4), action2, now, this.#grants(db, object4.id), object4.projectId === void 0 ? [] : this.#memberships(db, object4.projectId), this.#invitedActions(db, actor2, object4, action2, now)));
+    return rows.map((row) => this.#objectRow(row)).filter((object3) => authorize(actor2, this.#objectTarget(object3), action2, now, this.#grants(db, object3.id), object3.projectId === void 0 ? [] : this.#memberships(db, object3.projectId), this.#invitedActions(db, actor2, object3, action2, now)));
   }
   createProject(input) {
     const db = this.#ensureReady();
@@ -7079,24 +7254,24 @@ var ProbeStorage = class {
       const changed2 = db.prepare("UPDATE knowledge_objects SET title = ?, body = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ? AND status = 'active'").run(input.title ?? current.title, input.body ?? current.body, now, input.objectId, input.expectedRevision);
       if (Number(changed2.changes) !== 1) return finish({ kind: "conflict" });
       this.#injectFailure("ai:after-update");
-      const object4 = this.#loadObject(input.objectId);
-      db.prepare("INSERT INTO ai_tool_mutations (service_id, user_id, idempotency_key, request_digest, object_id, result_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(actor2.serviceId, actor2.userId, input.key, input.digest, input.objectId, JSON.stringify(object4), now);
-      return finish({ kind: "updated", object: object4 });
+      const object3 = this.#loadObject(input.objectId);
+      db.prepare("INSERT INTO ai_tool_mutations (service_id, user_id, idempotency_key, request_digest, object_id, result_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(actor2.serviceId, actor2.userId, input.key, input.digest, input.objectId, JSON.stringify(object3), now);
+      return finish({ kind: "updated", object: object3 });
     } catch (error) {
       if (tx && !this.#rollback(db)) throw new RecordsError("STORAGE_UNAVAILABLE", "storage transaction state is unknown", false, { cause: error });
       throw this.#mapError(error);
     }
   }
   deleteObject(actor2, objectId, now) {
-    const object4 = this.authorizeObject(actor2, objectId, "delete", now);
-    if (object4 === void 0) return false;
+    const object3 = this.authorizeObject(actor2, objectId, "delete", now);
+    if (object3 === void 0) return false;
     const result = this.#ensureReady().prepare("UPDATE knowledge_objects SET status = 'deleted', revision = revision + 1, updated_at = ? WHERE id = ? AND status = 'active'").run(now, objectId);
     return Number(result.changes) === 1;
   }
   grantObject(actor2, input) {
     const db = this.#ensureReady();
-    const object4 = this.authorizeObject(actor2, input.objectId, "manage_share", input.now);
-    if (object4 === void 0 || input.serviceId !== actor2.serviceId) return void 0;
+    const object3 = this.authorizeObject(actor2, input.objectId, "manage_share", input.now);
+    if (object3 === void 0 || input.serviceId !== actor2.serviceId) return void 0;
     if (input.subjectType === "project") {
       const project = db.prepare("SELECT service_id, status FROM knowledge_projects WHERE id = ?").get(input.subjectId);
       if (project === void 0 || String(project.service_id) !== actor2.serviceId || String(project.status) !== "active") return void 0;
@@ -7125,8 +7300,8 @@ var ProbeStorage = class {
     let primaryCode;
     let failed = false;
     try {
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash15("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash15("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash16("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash16("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
     } catch (error) {
       failed = true;
       primaryCode = primarySqliteCode(error);
@@ -7184,7 +7359,7 @@ var ProbeStorage = class {
 };
 
 // src/host/identity.ts
-import { createHash as createHash16, randomBytes as randomBytes2, randomUUID as randomUUID18, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
+import { createHash as createHash17, randomBytes as randomBytes2, randomUUID as randomUUID18, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
 var DOMAINS = ["software_engineering", "system_architecture", "hardware_engineering", "ai_development"];
 var LEARNING_TRACKS = ["engineering_practice", "architecture_exam", "knowledge_accumulation"];
 var DEFAULT_TIMEZONE = "Asia/Shanghai";
@@ -7260,7 +7435,7 @@ function validateExpectedRevision(value) {
   return Number(value);
 }
 function tokenHash(token2) {
-  return createHash16("sha256").update(token2, "utf8").digest("hex");
+  return createHash17("sha256").update(token2, "utf8").digest("hex");
 }
 function makeToken() {
   return randomBytes2(32).toString("base64url");
@@ -7493,7 +7668,7 @@ var IdentityService = class {
 };
 
 // src/host/identity-http.ts
-import { createHash as createHash17, randomUUID as randomUUID19 } from "node:crypto";
+import { createHash as createHash18, randomUUID as randomUUID19 } from "node:crypto";
 import { isIP } from "node:net";
 var HttpError = class extends Error {
   constructor(status, code, message, retryable = false, headers = {}) {
@@ -7569,8 +7744,8 @@ function isIdentityRuntimeAvailable(facts) {
     return false;
   }
 }
-function businessCookieName(serviceId, origin) {
-  return `kos_session_${createHash17("sha256").update(`${serviceId}|${origin}`).digest("hex").slice(0, 16)}`;
+function businessCookieName(serviceId, origin2) {
+  return `kos_session_${createHash18("sha256").update(`${serviceId}|${origin2}`).digest("hex").slice(0, 16)}`;
 }
 function readCookie(req, name2) {
   const raw = req.headers.cookie;
@@ -7581,11 +7756,11 @@ function readCookie(req, name2) {
   }
   return void 0;
 }
-function sessionCookie(name2, token2, origin, protocol, maxAge) {
+function sessionCookie(name2, token2, origin2, protocol, maxAge) {
   const secure = protocol === "https:" ? "; Secure" : "";
   return `${name2}=${token2}; Path=/knowledge/v1; HttpOnly; SameSite=Strict${secure}; Max-Age=${String(maxAge)}`;
 }
-function clearCookie(name2, origin, protocol) {
+function clearCookie(name2, origin2, protocol) {
   const secure = protocol === "https:" ? "; Secure" : "";
   return `${name2}=; Path=/knowledge/v1; HttpOnly; SameSite=Strict${secure}; Max-Age=0`;
 }
@@ -7669,10 +7844,10 @@ function createIdentityHandlers(options) {
   const meta = (requestId) => ({ request_id: requestId, service_id: service.setupState.serviceId, server_time: (/* @__PURE__ */ new Date()).toISOString() });
   const withMeta = (requestId, data) => ({ data, meta: meta(requestId) });
   const tokenFor = (req) => {
-    const origin = options.origin();
-    if (origin === void 0) return void 0;
+    const origin2 = options.origin();
+    if (origin2 === void 0) return void 0;
     const state = service.setupState;
-    return readCookie(req, businessCookieName(state.serviceId, origin));
+    return readCookie(req, businessCookieName(state.serviceId, origin2));
   };
   const assertAvailable = () => {
     if (!options.isAvailable() || options.origin() === void 0 || options.host() === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
@@ -7682,12 +7857,12 @@ function createIdentityHandlers(options) {
     if ([...url.searchParams.keys()].length > 0) throw new HttpError(422, "INPUT_INVALID", "query parameters are not supported");
   };
   const assertTrust = (req, mutation) => {
-    const origin = options.origin();
-    if (origin === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
-    const expectedHost = new URL(origin).host;
+    const origin2 = options.origin();
+    if (origin2 === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
+    const expectedHost = new URL(origin2).host;
     if (req.headers.host !== expectedHost) throw new HttpError(403, "CSRF_REJECTED", "request authority is not trusted");
     const suppliedOrigin = req.headers.origin;
-    if (suppliedOrigin !== void 0 && suppliedOrigin !== origin) throw new HttpError(403, "CSRF_REJECTED", "request origin is not trusted");
+    if (suppliedOrigin !== void 0 && suppliedOrigin !== origin2) throw new HttpError(403, "CSRF_REJECTED", "request origin is not trusted");
     if (suppliedOrigin === "null") throw new HttpError(403, "CSRF_REJECTED", "opaque origin is not trusted");
     const fetchSite = req.headers["sec-fetch-site"];
     if (typeof fetchSite === "string" && fetchSite.toLowerCase() === "cross-site") throw new HttpError(403, "CSRF_REJECTED", "cross-site request is not trusted");
@@ -7760,12 +7935,12 @@ function createIdentityHandlers(options) {
     const body4 = bodyObject(await readBody2(req));
     assertKeys(body4, ["login_name", "password"]);
     const result = await service.login({ loginName: body4.login_name, password: body4.password, oldToken: tokenFor(req), source: requestSource(req), signal });
-    const origin = options.origin();
-    if (origin === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
+    const origin2 = options.origin();
+    if (origin2 === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
     const state = service.setupState;
-    const name2 = businessCookieName(state.serviceId, origin);
+    const name2 = businessCookieName(state.serviceId, origin2);
     const maxAge = Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1e3);
-    sendJson2(res, 200, withMeta(randomUUID19(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin, options.protocol(), maxAge) });
+    sendJson2(res, 200, withMeta(randomUUID19(), safeProfile(result.user)), { "set-cookie": sessionCookie(name2, result.token, origin2, options.protocol(), maxAge) });
   });
   const logout = async (req, res) => dispatch(req, res, async () => {
     requireMethod(req, "POST");
@@ -7774,11 +7949,11 @@ function createIdentityHandlers(options) {
     const body4 = bodyObject(await readBody2(req));
     assertKeys(body4, []);
     service.logout(tokenFor(req));
-    const origin = options.origin();
-    if (origin === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
+    const origin2 = options.origin();
+    if (origin2 === void 0) throw new HttpError(503, "IDENTITY_UNAVAILABLE", "identity service is unavailable", true);
     const state = service.setupState;
-    const name2 = businessCookieName(state.serviceId, origin);
-    sendEmpty(res, 204, { "set-cookie": clearCookie(name2, origin, options.protocol()) });
+    const name2 = businessCookieName(state.serviceId, origin2);
+    sendEmpty(res, 204, { "set-cookie": clearCookie(name2, origin2, options.protocol()) });
   });
   const me = async (req, res) => dispatch(req, res, () => {
     requireMethod(req, "GET");
@@ -7843,7 +8018,7 @@ var json = (res, status, data) => {
   res.end(JSON.stringify(data));
 };
 var pathOf = (req) => new URL(req.url ?? "/", "http://localhost").pathname;
-var safeObject = (object4, includeBody = true) => ({ id: object4.id, service_id: object4.serviceId, space_id: object4.spaceId, scope: object4.scope, project_id: object4.projectId, owner_user_id: object4.ownerUserId, object_type: object4.objectType, title: object4.title, ...includeBody ? { body: object4.body } : {}, status: object4.status, revision: object4.revision, created_at: object4.createdAt, updated_at: object4.updatedAt });
+var safeObject = (object3, includeBody = true) => ({ id: object3.id, service_id: object3.serviceId, space_id: object3.spaceId, scope: object3.scope, project_id: object3.projectId, owner_user_id: object3.ownerUserId, object_type: object3.objectType, title: object3.title, ...includeBody ? { body: object3.body } : {}, status: object3.status, revision: object3.revision, created_at: object3.createdAt, updated_at: object3.updatedAt });
 var readBody3 = async (req) => await new Promise((resolve2, reject2) => {
   const chunks = [];
   let size = 0;
@@ -7876,12 +8051,12 @@ var text2 = (value, name2, max2) => {
   if (typeof value !== "string" || value.length < 1 || value.length > max2 || !value.isWellFormed()) throw new ObjectHttpError(422, "INPUT_INVALID", `${name2} is invalid`);
   return value;
 };
-function trust(req, origin, mutation) {
-  if (origin === void 0 || req.headers.host !== new URL(origin).host) throw new ObjectHttpError(403, "CSRF_REJECTED", "request authority is not trusted");
-  if (req.headers.origin !== void 0 && req.headers.origin !== origin) throw new ObjectHttpError(403, "CSRF_REJECTED", "request origin is not trusted");
+function trust(req, origin2, mutation) {
+  if (origin2 === void 0 || req.headers.host !== new URL(origin2).host) throw new ObjectHttpError(403, "CSRF_REJECTED", "request authority is not trusted");
+  if (req.headers.origin !== void 0 && req.headers.origin !== origin2) throw new ObjectHttpError(403, "CSRF_REJECTED", "request origin is not trusted");
   if (req.headers["sec-fetch-site"] === "cross-site") throw new ObjectHttpError(403, "CSRF_REJECTED", "cross-site request is not trusted");
   if (mutation && req.headers["x-knowledgeos-request"] !== "1") throw new ObjectHttpError(403, "CSRF_REJECTED", "missing KnowledgeOS request header");
-  if (new URL(req.url ?? "/", origin).search) throw new ObjectHttpError(422, "INPUT_INVALID", "query parameters are not supported");
+  if (new URL(req.url ?? "/", origin2).search) throw new ObjectHttpError(422, "INPUT_INVALID", "query parameters are not supported");
 }
 function actor(options, req) {
   const value = options.actorFor(req);
@@ -7949,16 +8124,16 @@ function createObjectHandlers(options) {
           if (scope === "project" && !options.storage.canCreateProjectObject(current, projectId, now)) throw new ObjectHttpError(404, "NOT_FOUND", "project not found");
           const title = text2(body4.title, "title", 200);
           const content = text2(body4.body, "body", 1e5);
-          const object4 = options.storage.createObject({ id: randomUUID20(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId, ownerUserId: current.userId, objectType: body4.object_type === void 0 ? "note" : text2(body4.object_type, "object_type", 80), title, body: content, now });
-          json(res, 201, { data: safeObject(object4), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
+          const object3 = options.storage.createObject({ id: randomUUID20(), serviceId: current.serviceId, spaceId: current.personalSpaceId, scope, projectId, ownerUserId: current.userId, objectType: body4.object_type === void 0 ? "note" : text2(body4.object_type, "object_type", 80), title, body: content, now });
+          json(res, 201, { data: safeObject(object3), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
           return;
         }
         const objectId = segments[3];
         if (objectId === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
         if (segments.length === 4 && req.method === "GET") {
-          const object4 = options.storage.authorizeObject(current, objectId, "read", now);
-          if (object4 === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
-          json(res, 200, { data: safeObject(object4), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
+          const object3 = options.storage.authorizeObject(current, objectId, "read", now);
+          if (object3 === void 0) throw new ObjectHttpError(404, "NOT_FOUND", "object not found");
+          json(res, 200, { data: safeObject(object3), meta: { request_id: requestId, service_id: current.serviceId, server_time: now } });
           return;
         }
         if (segments.length === 4 && req.method === "PATCH") {
@@ -8030,7 +8205,7 @@ import { randomUUID as randomUUID21 } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 // src/host/ai-tools.ts
-import { createHash as createHash18 } from "node:crypto";
+import { createHash as createHash19 } from "node:crypto";
 var AiError = class extends Error {
   constructor(status, code) {
     super(code);
@@ -8069,13 +8244,13 @@ function toolArguments(call) {
   return { object_id, expected_revision: Number(args2.expected_revision), ...args2.title === void 0 ? {} : { title: aiText(args2.title, 200) }, ...args2.body === void 0 ? {} : { body: aiText(args2.body, 2e3, true) } };
 }
 function toolDigest(name2, input) {
-  return createHash18("sha256").update(JSON.stringify([name2, input.object_id, input.expected_revision ?? null, input.title ?? null, input.body ?? null])).digest("hex");
+  return createHash19("sha256").update(JSON.stringify([name2, input.object_id, input.expected_revision ?? null, input.title ?? null, input.body ?? null])).digest("hex");
 }
 function runBusinessTool(store, actor2, call, key, now) {
   const input = toolArguments(call);
   if (call.name === TOOL_NAMES[0]) {
-    const object4 = store.authorizeObject(actor2, input.object_id, "read", now);
-    return object4 === void 0 ? { ok: false, status: 404, code: "NOT_FOUND" } : { ok: true, status: 200, code: "READ", object: object4 };
+    const object3 = store.authorizeObject(actor2, input.object_id, "read", now);
+    return object3 === void 0 ? { ok: false, status: 404, code: "NOT_FOUND" } : { ok: true, status: 200, code: "READ", object: object3 };
   }
   const result = store.mutateObjectOnce(actor2, { objectId: input.object_id, expectedRevision: input.expected_revision, title: input.title, body: input.body, key, digest: toolDigest(call.name, input) }, now);
   if (result.kind === "updated" || result.kind === "replayed") return { ok: true, status: 200, code: result.kind === "updated" ? "UPDATED" : "REPLAYED", object: result.object, replayed: result.kind === "replayed" };
@@ -8326,9 +8501,9 @@ function createAiHandler(options) {
       res.end(JSON.stringify(data));
     };
     try {
-      const origin = options.origin();
-      if (!origin || req.headers.host !== new URL(origin).host || req.headers.origin !== void 0 && req.headers.origin !== origin || req.headers["sec-fetch-site"] === "cross-site" || req.method !== "GET" && req.headers["x-knowledgeos-request"] !== "1") throw new AiError(403, "CSRF_REJECTED");
-      const url = new URL(req.url ?? "/", origin);
+      const origin2 = options.origin();
+      if (!origin2 || req.headers.host !== new URL(origin2).host || req.headers.origin !== void 0 && req.headers.origin !== origin2 || req.headers["sec-fetch-site"] === "cross-site" || req.method !== "GET" && req.headers["x-knowledgeos-request"] !== "1") throw new AiError(403, "CSRF_REJECTED");
+      const url = new URL(req.url ?? "/", origin2);
       if (url.search) throw new AiError(422, "INPUT_INVALID");
       const actorNow = () => options.actorFor(req);
       const actor2 = actorNow();
@@ -8395,7 +8570,7 @@ body{margin:0;background:#f4f8f8;color:#23333a;font:15px/1.65 "Segoe UI","Micros
 import { join as join3 } from "node:path";
 
 // src/host/pdf-originals.ts
-import { createHash as createHash19, randomUUID as randomUUID23 } from "node:crypto";
+import { createHash as createHash20, randomUUID as randomUUID23 } from "node:crypto";
 import { constants } from "node:fs";
 import fs from "node:fs/promises";
 import { dirname, join as join2, resolve } from "node:path";
@@ -8483,7 +8658,7 @@ async function verifyWordBytes(b, media) {
 // src/host/pdf-originals.ts
 var MAX = 64 * 1024 * 1024;
 var KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:pdf|txt|docx?|zip)$/;
-var digest3 = (b) => createHash19("sha256").update(b).digest("hex");
+var digest3 = (b) => createHash20("sha256").update(b).digest("hex");
 var PdfInputError = class extends Error {
   code = "PDF_INVALID_INPUT";
   constructor() {
@@ -8721,7 +8896,7 @@ var PdfOriginals = class {
 import { randomUUID as randomUUID24 } from "node:crypto";
 
 // src/host/text-document.ts
-import { createHash as createHash20 } from "node:crypto";
+import { createHash as createHash21 } from "node:crypto";
 var MAX_BYTES = 8 * 1024 * 1024;
 var MAX_BLOCKS = 16384;
 var messages = {
@@ -8763,7 +8938,7 @@ function indexBlocks(source, markdown) {
     if (!pending) return;
     if (blocks.length >= MAX_BLOCKS) throw new TextInputError("TEXT_TOO_LARGE");
     const text4 = source.slice(start, end);
-    const anchor = createHash20("sha256").update(text4, "utf8").digest("hex");
+    const anchor = createHash21("sha256").update(text4, "utf8").digest("hex");
     blocks.push({ kind: pending, start, end, text: text4, anchor });
     start = end;
     pending = void 0;
@@ -8824,12 +8999,12 @@ function decodeText(bytes, media, requestedEncoding) {
 }
 
 // src/host/reader-http.ts
-import { createHash as createHash22 } from "node:crypto";
+import { createHash as createHash23 } from "node:crypto";
 
 // src/host/word-locator.ts
 var import_saxes = __toESM(require_saxes(), 1);
-import { createHash as createHash21 } from "node:crypto";
-var sha4 = (text4) => createHash21("sha256").update(text4, "utf8").digest("hex");
+import { createHash as createHash22 } from "node:crypto";
+var sha4 = (text4) => createHash22("sha256").update(text4, "utf8").digest("hex");
 var wordNs = /* @__PURE__ */ new Set(["http://schemas.openxmlformats.org/wordprocessingml/2006/main", "http://purl.oclc.org/ooxml/wordprocessingml/main"]);
 var bodyLimit = 1e6;
 var wordPageLimit = 512;
@@ -9045,7 +9220,7 @@ function imagePng(api, page, width, height) {
 
 // src/host/reader-http.ts
 var uuid4 = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
-var hash2 = (s) => createHash22("sha256").update(s, "utf8").digest("hex");
+var hash2 = (s) => createHash23("sha256").update(s, "utf8").digest("hex");
 var ReaderService = class {
   constructor(store, originals, render2, wordPages, legacyWord) {
     this.store = store;
@@ -9605,7 +9780,7 @@ async function publishInput(store, originals, current, spec2, bytes, media, enco
   store.original(current(), result.receipt.id, result.receipt.version_id, false);
   return result;
 }
-function libraryHandler(store, originals, origin, actorFor, parses, office, officeAvailable = () => true, archives, reader, search) {
+function libraryHandler(store, originals, origin2, actorFor, parses, office, officeAvailable = () => true, archives, reader, search) {
   let transfers = 0;
   return async (req, res) => {
     const requestId = randomUUID24();
@@ -9640,7 +9815,7 @@ function libraryHandler(store, originals, origin, actorFor, parses, office, offi
       if (res.destroyed || res.writableFinished) sent();
     };
     try {
-      const host = origin();
+      const host = origin2();
       if (!host || req.headers.host !== new URL(host).host || req.headers["sec-fetch-site"] === "cross-site" || req.headers.origin !== void 0 && req.headers.origin !== host || req.method !== "GET" && req.headers["x-knowledgeos-request"] !== "1") throw new AssetError(403, "CSRF_REJECTED");
       const actor2 = actorFor(req);
       if (!actor2) throw new AssetError(401, "AUTH_REQUIRED");
@@ -9974,7 +10149,7 @@ function outlineAction(input) {
       throw invalid9();
   }
 }
-function createNoteHandler(store, origin, actorFor) {
+function createNoteHandler(store, origin2, actorFor) {
   return async (req, res) => {
     const send = (status, data) => {
       if (res.destroyed) return;
@@ -9982,7 +10157,7 @@ function createNoteHandler(store, origin, actorFor) {
       res.end(JSON.stringify(data));
     };
     try {
-      const base = origin(), method = req.method;
+      const base = origin2(), method = req.method;
       if (!base || req.headers.host !== new URL(base).host || req.headers["sec-fetch-site"] === "cross-site" || req.headers.origin !== void 0 && req.headers.origin !== base || method !== "GET" && req.headers["x-knowledgeos-request"] !== "1") throw new AssetError(403, "CSRF_REJECTED");
       const url = new URL(req.url ?? "/", base), path2 = url.pathname;
       if (url.origin !== base) throw new AssetError(403, "CSRF_REJECTED");
@@ -10056,7 +10231,7 @@ function integer(x, min = 1) {
   if (typeof x !== "number" || !Number.isSafeInteger(x) || x < min || x >= Number.MAX_SAFE_INTEGER) throw invalid10();
   return x;
 }
-function object2(x, keys4) {
+function object(x, keys4) {
   if (!x || typeof x !== "object" || Array.isArray(x) || Object.keys(x).some((k) => !keys4.includes(k))) throw invalid10();
   return x;
 }
@@ -10065,7 +10240,7 @@ function hash3(h) {
   return h;
 }
 function point3(value) {
-  const v = object2(value, ["ordinal", "offset", "source_hash"]);
+  const v = object(value, ["ordinal", "offset", "source_hash"]);
   return { ordinal: integer(v.ordinal), offset: integer(v.offset, 0), source_hash: hash3(v.source_hash) };
 }
 function target2(v) {
@@ -10091,7 +10266,7 @@ async function json2(req) {
     throw invalid10();
   }
 }
-function createRecallHandler(store, origin, actorFor) {
+function createRecallHandler(store, origin2, actorFor) {
   return async (req, res) => {
     const send = (http, data) => {
       if (!res.destroyed) {
@@ -10100,7 +10275,7 @@ function createRecallHandler(store, origin, actorFor) {
       }
     };
     try {
-      const base = origin(), method = req.method;
+      const base = origin2(), method = req.method;
       if (!base || req.headers.host !== new URL(base).host || req.headers["sec-fetch-site"] === "cross-site" || req.headers.origin !== void 0 && req.headers.origin !== base || method !== "GET" && req.headers["x-knowledgeos-request"] !== "1") throw new AssetError(403, "CSRF_REJECTED");
       const url = new URL(req.url ?? "/", base);
       if (url.origin !== base) throw new AssetError(403, "CSRF_REJECTED");
@@ -10109,7 +10284,7 @@ function createRecallHandler(store, origin, actorFor) {
       const path2 = url.pathname, q = url.searchParams, info = { actor_id: actor2.userId };
       if (new Set(q.keys()).size !== q.size) throw invalid10();
       if (method === "GET" && path2 === basePath + "/source") {
-        const fields3 = object2(Object.fromEntries(q), ["asset_id", "version_id", "conversion_id", "ordinal"]), n = q.get("ordinal");
+        const fields3 = object(Object.fromEntries(q), ["asset_id", "version_id", "conversion_id", "ordinal"]), n = q.get("ordinal");
         if (n === null || !/^\d+$/.test(n)) throw invalid10();
         return send(200, { data: store.authorPage(actor2, { ...target2(fields3), ordinal: integer(Number(n)) }) });
       }
@@ -10119,10 +10294,10 @@ function createRecallHandler(store, origin, actorFor) {
       }
       if (q.size) throw invalid10();
       if (method === "POST" && path2 === basePath) {
-        const v = object2(await json2(req), ["actor_id", "asset_id", "version_id", "conversion_id", "title", "first", "last", "interior_hashes", "masks"]);
+        const v = object(await json2(req), ["actor_id", "asset_id", "version_id", "conversion_id", "title", "first", "last", "interior_hashes", "masks"]);
         if (typeof v.title !== "string" || v.title.includes("\0") || !Array.isArray(v.masks) || !Array.isArray(v.interior_hashes)) throw invalid10();
         const masks = v.masks.map((raw) => {
-          const m = object2(raw, ["ordinal", "start", "end", "group"]);
+          const m = object(raw, ["ordinal", "start", "end", "group"]);
           return { ordinal: integer(m.ordinal), start: integer(m.start, 0), end: integer(m.end), group: integer(m.group) };
         });
         const saved = store.create(actor2, id2(v.actor_id), id2(req.headers["idempotency-key"]), { ...target2(v), title: v.title.trim(), first: point3(v.first), last: point3(v.last), interior_hashes: v.interior_hashes.map(hash3), masks });
@@ -10131,7 +10306,7 @@ function createRecallHandler(store, origin, actorFor) {
       const row = /^\/knowledge\/v1\/recall\/([^/]+)$/.exec(path2);
       if (row && method === "GET") return send(200, { data: { ...info, ...store.get(actor2, id2(row[1])) } });
       if (row && method === "PATCH") {
-        const v = object2(await json2(req), ["actor_id", "event", "value", "expected_revision"]), event = v.event;
+        const v = object(await json2(req), ["actor_id", "event", "value", "expected_revision"]), event = v.event;
         if (event !== "move" && event !== "hint" && event !== "reveal" && event !== "recall" && event !== "rating") throw invalid10();
         const action2 = { event, value: integer(v.value), expected_revision: integer(v.expected_revision) };
         return send(200, { data: { ...info, ...store.act(actor2, id2(v.actor_id), id2(row[1]), id2(req.headers["idempotency-key"]), action2) } });
@@ -10191,7 +10366,7 @@ async function body(req) {
     throw invalid11();
   }
 }
-function createInvitationHandler(store, origin, actorFor) {
+function createInvitationHandler(store, origin2, actorFor) {
   return async (req, res) => {
     const correlation = randomUUID25();
     const send = (status, data) => {
@@ -10201,7 +10376,7 @@ function createInvitationHandler(store, origin, actorFor) {
       }
     };
     try {
-      const base = origin(), method = req.method;
+      const base = origin2(), method = req.method;
       if (!base || req.headers.host !== new URL(base).host || req.headers["sec-fetch-site"] === "cross-site" || req.headers.origin !== void 0 && req.headers.origin !== base || method !== "GET" && req.headers["x-knowledgeos-request"] !== "1") throw new AssetError(403, "CSRF_REJECTED");
       const url = new URL(req.url ?? "/", base);
       if (url.origin !== base) throw new AssetError(403, "CSRF_REJECTED");
@@ -12391,7 +12566,7 @@ var pathValue = (value) => {
   if (!isRepositoryPath(value)) throw badRepository();
   return value;
 };
-function createRepositoryHandler(service, origin, actorFor, hostSignal) {
+function createRepositoryHandler(service, origin2, actorFor, hostSignal) {
   return async (req, res, peer) => {
     const disconnected = new AbortController();
     const close = () => {
@@ -12405,7 +12580,7 @@ function createRepositoryHandler(service, origin, actorFor, hostSignal) {
       res.end(JSON.stringify(data));
     };
     try {
-      const base = origin(), method = req.method;
+      const base = origin2(), method = req.method;
       if (!base || req.headers.host !== new URL(base).host || req.headers["sec-fetch-site"] === "cross-site" || req.headers.origin !== void 0 && req.headers.origin !== base || method !== "GET" && req.headers["x-knowledgeos-request"] !== "1")
         throw new AssetError(403, "CSRF_REJECTED");
       const url = new URL(req.url ?? "/", base);
@@ -12418,17 +12593,21 @@ function createRepositoryHandler(service, origin, actorFor, hostSignal) {
         if (url.search) throw badRepository();
         if (method === "GET") return result(200, { snapshots: service.store.list(actor2) });
         if (method === "POST") {
-          const input = await body2(req, ["actor_id", "repository", "ref_kind", "ref_value", "credential_ref", "path"]);
+          const input = await body2(req, ["actor_id", "platform", "repository", "ref_kind", "ref_value", "credential_ref", "path"]);
+          const platform = "platform" in input ? input.platform : "github";
+          if (platform !== "github" && platform !== "gitlab") throw badRepository();
           const alias = "credential_ref" in input ? input.credential_ref : "";
           if (typeof alias !== "string" || alias && !credentialAlias.test(alias)) throw badRepository();
+          const name2 = platform === "gitlab" ? gitLabName(input.repository) : repositoryName(input.repository);
           const saved = await service.connect(
             actor2,
             id4(input.actor_id),
-            repositoryName(input.repository),
+            name2,
             repositoryRef(input.ref_kind, input.ref_value),
             alias,
             signal,
-            "path" in input ? pathValue(input.path) : void 0
+            "path" in input ? pathValue(input.path) : void 0,
+            platform
           );
           return result(saved.replayed ? 200 : 201, saved);
         }
@@ -12461,26 +12640,29 @@ function buildRepositoryHtml(nonce) {
 @media(max-width:700px){nav,main{padding:12px 16px}.workspace,.fields{grid-template-columns:minmax(0,1fr)}.side{border:0;padding:0}.tree{max-height:280px}}
 </style></head><body>
 <header><nav aria-label="\u4E1A\u52A1\u5BFC\u822A"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">\u77E5\u8BC6\u5E93</a><a href="/knowledgeos/repositories" aria-current="page">\u4ED3\u5E93\u4E0E\u4EE3\u7801</a><a href="/knowledgeos/account">\u8D26\u53F7</a></nav></header>
-<main><h1>\u4ED3\u5E93\u4E0E\u4EE3\u7801</h1><p class="badge">GitHub \xB7 \u53EA\u8BFB</p><p id="status" role="status">\u6B63\u5728\u8BFB\u53D6\u2026</p><a id="login" href="/knowledgeos/account" hidden>\u767B\u5F55</a>
+<main><h1>\u4ED3\u5E93\u4E0E\u4EE3\u7801</h1><p class="badge">GitHub\u3001GitLab \xB7 \u53EA\u8BFB</p><p id="status" role="status">\u6B63\u5728\u8BFB\u53D6\u2026</p><a id="login" href="/knowledgeos/account" hidden>\u767B\u5F55</a>
 <div class="workspace" id="workspace" hidden>
 <aside class="side"><h2>\u56FA\u5B9A\u5FEB\u7167</h2><ul id="snapshots"></ul></aside>
 <div class="content"><section class="section"><h2>\u8FDE\u63A5\u4ED3\u5E93</h2><form id="connect">
-<fieldset class="fields" id="connect-fields"><label>GitHub \u4ED3\u5E93<input id="repository" placeholder="owner/repository" maxlength="160" required></label>
+<label>\u6258\u7BA1\u5E73\u53F0<select id="platform"><option value="github">GitHub</option><option value="gitlab">GitLab</option></select></label>
+<fieldset class="fields" id="connect-fields"><label>\u4ED3\u5E93<input id="repository" placeholder="owner/repository" maxlength="255" required></label>
 <label>\u5F15\u7528\u7C7B\u578B<select id="ref-kind"><option value="branch">\u5206\u652F</option><option value="tag">\u6807\u7B7E</option><option value="commit">\u5B8C\u6574 SHA</option></select></label>
 <label>\u5F15\u7528<input id="ref" placeholder="main" maxlength="200" required></label></fieldset>
-<details><summary>\u53EF\u9009\u8BBE\u7F6E</summary><div><label>\u539F\u751F GitHub \u51ED\u636E\u522B\u540D<input id="credential" maxlength="55" placeholder="github_example" autocomplete="off"></label><label>\u540C\u65F6\u4FDD\u5B58\u6587\u4EF6<input id="initial-path" maxlength="1024" placeholder="README.md"></label></div></details>
+<details><summary>\u53EF\u9009\u8BBE\u7F6E</summary><div><label>\u539F\u751F\u51ED\u636E\u522B\u540D<input id="credential" maxlength="55" placeholder="github_example" autocomplete="off"></label><label>\u540C\u65F6\u4FDD\u5B58\u6587\u4EF6<input id="initial-path" maxlength="1024" placeholder="README.md"></label></div></details>
 <button id="save" type="submit">\u4FDD\u5B58\u56FA\u5B9A\u5FEB\u7167</button></form></section>
-<section class="section" id="detail" hidden><h2 id="title"></h2><code id="commit"></code><p><a id="tree-link" target="_blank" rel="noopener noreferrer">GitHub \u56FA\u5B9A\u63D0\u4EA4</a></p><p class="badge" id="ref-facts"></p>
+<section class="section" id="detail" hidden><h2 id="title"></h2><code id="commit"></code><p><a id="tree-link" target="_blank" rel="noopener noreferrer">\u67E5\u770B\u56FA\u5B9A\u63D0\u4EA4</a></p><p class="badge" id="ref-facts"></p>
 <label>\u7B5B\u9009\u8DEF\u5F84<input id="filter" type="search" maxlength="160"></label><ul class="tree" id="tree" aria-label="\u4ED3\u5E93\u6587\u4EF6"></ul></section>
-<section class="section" id="file" hidden><h3 id="file-path"></h3><p class="file-facts"><code id="blob"></code><a id="blob-link" target="_blank" rel="noopener noreferrer">GitHub \u56FA\u5B9A\u6587\u4EF6</a></p><pre id="file-text"></pre></section>
+<section class="section" id="file" hidden><h3 id="file-path"></h3><p class="file-facts"><code id="blob"></code><a id="blob-link" target="_blank" rel="noopener noreferrer">\u67E5\u770B\u56FA\u5B9A\u6587\u4EF6</a></p><pre id="file-text"></pre></section>
 </div></div></main>
 <script nonce="${nonce}">
 'use strict';
 const $=id=>document.getElementById(id), api='/knowledge/v1/repositories', status=text=>$('status').textContent=text;
-const errors={ACTOR_MISMATCH:'\u8D26\u53F7\u5DF2\u53D8\u66F4\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00\u9875\u9762\u3002',NOT_FOUND:'\u672A\u627E\u5230\u5FEB\u7167\u6216\u6587\u4EF6\u3002',REMOTE_REPOSITORY_NOT_FOUND:'\u4ED3\u5E93\u6216\u5F15\u7528\u4E0D\u5B58\u5728\uFF0C\u6216\u5165\u53E3\u65E0\u6743\u8BBF\u95EE\u3002',REPOSITORY_REDIRECT_REJECTED:'GitHub \u8FD4\u56DE\u4E86\u91CD\u5B9A\u5411\uFF0C\u672A\u8BFB\u53D6\u3002',REPOSITORY_RATE_LIMIT:'\u5DF2\u8FBE\u5230 GitHub \u8BF7\u6C42\u4E0A\u9650\u3002',REPOSITORY_LIMIT_EXCEEDED:'\u4ED3\u5E93\u6811\u6216\u6587\u4EF6\u8D85\u8FC7\u8BFB\u53D6\u4E0A\u9650\u3002',REPOSITORY_CREDENTIAL_UNCONFIGURED:'\u6307\u5B9A\u7684\u539F\u751F GitHub \u51ED\u636E\u672A\u914D\u7F6E\u3002',INVALID_REPOSITORY_INPUT:'\u68C0\u67E5\u4ED3\u5E93\u3001\u5F15\u7528\u3001\u6587\u4EF6\u8DEF\u5F84\u548C\u51ED\u636E\u522B\u540D\u3002',REPOSITORY_TIMEOUT:'GitHub \u8BFB\u53D6\u8D85\u65F6\u3002',REPOSITORY_CHANGED:'\u8FDC\u7AEF\u4ED3\u5E93\u8EAB\u4EFD\u53D1\u751F\u53D8\u5316\uFF0C\u672A\u4FDD\u5B58\u3002',REPOSITORY_INVALID_RESPONSE:'GitHub \u8FD4\u56DE\u7684\u5BF9\u8C61\u65E0\u6CD5\u9A8C\u8BC1\u3002',REPOSITORY_BUSY:'\u5DF2\u6709\u4ED3\u5E93\u8BF7\u6C42\u6B63\u5728\u6267\u884C\u3002',REPOSITORY_FILE_QUOTA:'\u5DF2\u8FBE\u5230\u672C\u5730\u6587\u4EF6\u5FEB\u7167\u4E0A\u9650\u3002',REPOSITORY_SNAPSHOT_QUOTA:'\u5DF2\u8FBE\u5230\u672C\u5730\u4ED3\u5E93\u5FEB\u7167\u4E0A\u9650\u3002'};
+const errors={ACTOR_MISMATCH:'\u8D26\u53F7\u5DF2\u53D8\u66F4\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00\u9875\u9762\u3002',NOT_FOUND:'\u672A\u627E\u5230\u5FEB\u7167\u6216\u6587\u4EF6\u3002',REMOTE_REPOSITORY_NOT_FOUND:'\u4ED3\u5E93\u6216\u5F15\u7528\u4E0D\u5B58\u5728\uFF0C\u6216\u5165\u53E3\u65E0\u6743\u8BBF\u95EE\u3002',REPOSITORY_REDIRECT_REJECTED:'\u4ED3\u5E93\u5E73\u53F0\u8FD4\u56DE\u4E86\u91CD\u5B9A\u5411\uFF0C\u672A\u8BFB\u53D6\u3002',REPOSITORY_RATE_LIMIT:'\u5DF2\u8FBE\u5230\u4ED3\u5E93\u5E73\u53F0\u8BF7\u6C42\u4E0A\u9650\u3002',REPOSITORY_LIMIT_EXCEEDED:'\u4ED3\u5E93\u6811\u6216\u6587\u4EF6\u8D85\u8FC7\u8BFB\u53D6\u4E0A\u9650\u3002',REPOSITORY_CREDENTIAL_UNCONFIGURED:'\u6307\u5B9A\u7684\u539F\u751F\u51ED\u636E\u672A\u914D\u7F6E\u3002',INVALID_REPOSITORY_INPUT:'\u68C0\u67E5\u4ED3\u5E93\u3001\u5F15\u7528\u3001\u6587\u4EF6\u8DEF\u5F84\u548C\u51ED\u636E\u522B\u540D\u3002',REPOSITORY_TIMEOUT:'\u4ED3\u5E93\u5E73\u53F0\u8BFB\u53D6\u8D85\u65F6\u3002',REPOSITORY_CHANGED:'\u8FDC\u7AEF\u4ED3\u5E93\u8EAB\u4EFD\u53D1\u751F\u53D8\u5316\uFF0C\u672A\u4FDD\u5B58\u3002',REPOSITORY_INVALID_RESPONSE:'\u4ED3\u5E93\u5E73\u53F0\u8FD4\u56DE\u7684\u5BF9\u8C61\u65E0\u6CD5\u9A8C\u8BC1\u3002',REPOSITORY_BUSY:'\u5DF2\u6709\u4ED3\u5E93\u8BF7\u6C42\u6B63\u5728\u6267\u884C\u3002',REPOSITORY_FILE_QUOTA:'\u5DF2\u8FBE\u5230\u672C\u5730\u6587\u4EF6\u5FEB\u7167\u4E0A\u9650\u3002',REPOSITORY_SNAPSHOT_QUOTA:'\u5DF2\u8FBE\u5230\u672C\u5730\u4ED3\u5E93\u5FEB\u7167\u4E0A\u9650\u3002'};
 const kinds={directory:'\u76EE\u5F55',symlink:'\u7B26\u53F7\u94FE\u63A5',submodule:'\u5B50\u6A21\u5757',file:'\u6587\u4EF6'};
+const platforms={github:'GitHub',gitlab:'GitLab'};
+function platformHints(){const selected=$('platform').value;$('repository').placeholder=selected==='gitlab'?'group/subgroup/project':'owner/repository';$('credential').placeholder=selected+'_example';}
 let actor, rows=[], selected, entries=[], files=[], busy=false, gated=false, generation=0, focusEpoch=0, controller=new AbortController();
-function clear(){generation++;focusEpoch++;controller.abort();controller=new AbortController();actor=selected=undefined;rows=[];entries=[];files=[];busy=gated=false;$('connect').reset();$('save').disabled=false;$('filter').value='';$('workspace').hidden=$('detail').hidden=$('file').hidden=true;
+function clear(){generation++;focusEpoch++;controller.abort();controller=new AbortController();actor=selected=undefined;rows=[];entries=[];files=[];busy=gated=false;$('connect').reset();platformHints();$('save').disabled=false;$('filter').value='';$('workspace').hidden=$('detail').hidden=$('file').hidden=true;
  for(const id of ['snapshots','title','commit','ref-facts','tree','file-path','blob','file-text'])$(id).textContent='';for(const id of ['tree-link','blob-link'])$(id).removeAttribute('href');}
 function noAccess(){clear();$('login').hidden=false;status('\u767B\u5F55\u540E\u8BFB\u53D6\u4ED3\u5E93\u5FEB\u7167\u3002');}
 async function request(url,method='GET',payload){const current=generation, response=await fetch(url,{method,redirect:'error',cache:'no-store',signal:controller.signal,headers:method==='GET'?{}:{'content-type':'application/json','x-knowledgeos-request':'1'},body:payload===undefined?undefined:JSON.stringify(payload)});
@@ -12488,14 +12670,14 @@ async function request(url,method='GET',payload){const current=generation, respo
  if(actor&&actor!==result.data.actor_id){noAccess();throw Error('STALE');}return result.data;}
 function button(parent,text,index,callback){const b=document.createElement('button');b.type='button';b.textContent=text;if(index)b.setAttribute('aria-current','true');b.addEventListener('click',callback);parent.append(b);return b;}
 function snapshots(){const ul=$('snapshots');ul.replaceChildren();if(!rows.length){const li=document.createElement('li');li.textContent='\u6CA1\u6709\u5FEB\u7167';ul.append(li);return;}
- for(const s of rows){const li=document.createElement('li');li.className='snapshot-row';const b=button(li,s.repository,s.id===selected,()=>operation(()=>open(s.id)));const small=document.createElement('small');small.textContent=s.commit.slice(0,12)+' \xB7 '+s.ref_value;b.append(small);ul.append(li);}}
+ for(const s of rows){const li=document.createElement('li');li.className='snapshot-row';const b=button(li,s.repository,s.id===selected,()=>operation(()=>open(s.id)));const small=document.createElement('small');small.textContent=platforms[s.platform]+' \xB7 '+s.commit.slice(0,12)+' \xB7 '+s.ref_value;b.append(small);ul.append(li);}}
 function tree(){const raw=$('filter').value.toLowerCase(), ul=$('tree');ul.replaceChildren();for(const e of entries){if(raw&&!e.path.toLowerCase().includes(raw))continue;
- const li=document.createElement('li');if(e.kind==='file'&&e.size<=524288)button(li,e.path,false,()=>operation(()=>show(e.path)));else{const label=document.createElement('span');label.textContent=e.path;li.append(label);}
+ const li=document.createElement('li');if(e.kind==='file'&&(e.size===null||e.size<=524288))button(li,e.path,false,()=>operation(()=>show(e.path)));else{const label=document.createElement('span');label.textContent=e.path;li.append(label);}
  const tag=document.createElement('span');tag.textContent=files.includes(e.path)?'\u5DF2\u4FDD\u5B58':(e.kind==='file'&&e.size>524288?'\u8D85\u51FA\u4E0A\u9650':kinds[e.kind]);li.append(tag);ul.append(li);}}
 async function list(){const data=await request(api);actor=data.actor_id;rows=data.snapshots;$('workspace').hidden=gated;$('login').hidden=true;snapshots();}
 async function open(id){const data=await request(api+'/'+id); selected=id;entries=data.entries;files=data.files;const s=data.snapshot;
  $('detail').hidden=false;$('file').hidden=true;$('file-text').textContent='';$('blob-link').removeAttribute('href');$('title').textContent=s.repository;$('commit').textContent=s.commit;$('tree-link').href=s.source_url;
- $('ref-facts').textContent=s.ref_kind+' \xB7 '+s.ref_value+(s.credential_ref?' \xB7 '+s.credential_ref:' \xB7 \u533F\u540D\u8BFB\u53D6');$('filter').value='';snapshots();tree();status('\u5DF2\u8BFB\u53D6\u56FA\u5B9A\u5FEB\u7167\u3002');}
+ $('ref-facts').textContent=platforms[s.platform]+' \xB7 '+s.ref_kind+' \xB7 '+s.ref_value+(s.credential_ref?' \xB7 '+s.credential_ref:' \xB7 \u533F\u540D\u8BFB\u53D6');$('filter').value='';snapshots();tree();status('\u5DF2\u8BFB\u53D6\u56FA\u5B9A\u5FEB\u7167\u3002');}
 async function show(path){const base=api+'/'+selected+'/files';const data=files.includes(path)?await request(base+'?path='+encodeURIComponent(path)):await request(base,'POST',{actor_id:actor,path});
  if(!files.includes(path)){files.push(path);const line=[...$('tree').children].find(li=>li.firstElementChild.textContent===path);if(line)line.lastElementChild.textContent='\u5DF2\u4FDD\u5B58';}
  const f=data.file;$('file-path').textContent=f.path;$('blob').textContent=f.sha+' \xB7 '+f.size+' \u5B57\u8282';$('blob-link').href=f.source_url;
@@ -12503,8 +12685,8 @@ async function show(path){const base=api+'/'+selected+'/files';const data=files.
 async function operation(work){if(busy)return;busy=true;const current=generation;$('save').disabled=true;
  try{await work();}catch(e){if(current===generation&&e.message!=='STALE')status(errors[e.message]||'\u5F53\u524D\u65E0\u6CD5\u8BFB\u53D6\u4ED3\u5E93\u3002');}
  finally{if(current===generation){busy=false;$('save').disabled=false;}}}
-$('filter').addEventListener('input',tree);$('connect').addEventListener('submit',event=>{event.preventDefault();void operation(async()=>{status('\u6B63\u5728\u6821\u9A8C\u5E76\u4FDD\u5B58\u5FEB\u7167\u2026');
- const body={actor_id:actor,repository:$('repository').value.trim(),ref_kind:$('ref-kind').value,ref_value:$('ref').value.trim()};
+$('platform').addEventListener('change',platformHints);$('filter').addEventListener('input',tree);$('connect').addEventListener('submit',event=>{event.preventDefault();void operation(async()=>{status('\u6B63\u5728\u6821\u9A8C\u5E76\u4FDD\u5B58\u5FEB\u7167\u2026');
+ const body={actor_id:actor,platform:$('platform').value,repository:$('repository').value.trim(),ref_kind:$('ref-kind').value,ref_value:$('ref').value.trim()};
  if($('credential').value)body.credential_ref=$('credential').value;if($('initial-path').value)body.path=$('initial-path').value;
  const data=await request(api,'POST',body);await list();await open(data.snapshot.id);if(body.path)await show(body.path);
 });});
@@ -12532,7 +12714,7 @@ var text3 = (v) => {
   if (typeof v !== "string") throw invalid12();
   return v;
 };
-var object3 = (v, fields3) => {
+var object2 = (v, fields3) => {
   if (!v || typeof v !== "object" || Array.isArray(v) || Object.keys(v).some((k) => !fields3.includes(k))) throw invalid12();
   return v;
 };
@@ -12556,13 +12738,13 @@ async function body3(req, fields3) {
   } catch {
     throw invalid12();
   }
-  return object3(parsed, fields3);
+  return object2(parsed, fields3);
 }
 var criteria = (value) => {
-  const c = object3(value, ["items", "submission_rule"]);
+  const c = object2(value, ["items", "submission_rule"]);
   if (c.submission_rule !== "next_submission" || !Array.isArray(c.items) || c.items.length > 20) throw invalid12();
   return { submission_rule: c.submission_rule, items: c.items.map((value2) => {
-    const row = object3(value2, ["description", "weight"]);
+    const row = object2(value2, ["description", "weight"]);
     if (typeof row.weight !== "number") throw invalid12();
     return { description: text3(row.description), weight: row.weight };
   }) };
@@ -12570,14 +12752,14 @@ var criteria = (value) => {
 var taskReview = (value) => {
   if (!Array.isArray(value.results) || value.results.length > 20) throw invalid12();
   const results = value.results.map((result) => {
-    const row = object3(result, ["criterion", "met", "evidence"]);
+    const row = object2(result, ["criterion", "met", "evidence"]);
     if (typeof row.criterion !== "number" || typeof row.met !== "boolean") throw invalid12();
     return { criterion: row.criterion, met: row.met, evidence: text3(row.evidence) };
   });
   const reason = text3(value.reason);
   return "requested_work" in value ? { results, reason, requested_work: text3(value.requested_work) } : { results, reason };
 };
-function createProjectTaskHandler(store, origin, actorFor) {
+function createProjectTaskHandler(store, origin2, actorFor) {
   return async (req, res) => {
     const send = (status, payload) => {
       if (!res.destroyed) {
@@ -12586,7 +12768,7 @@ function createProjectTaskHandler(store, origin, actorFor) {
       }
     };
     try {
-      const base = origin(), method = req.method;
+      const base = origin2(), method = req.method;
       if (!base || req.headers.host !== new URL(base).host || req.headers["sec-fetch-site"] === "cross-site" || req.headers.origin !== void 0 && req.headers.origin !== base || method !== "GET" && req.headers["x-knowledgeos-request"] !== "1") throw new AssetError(403, "CSRF_REJECTED");
       const url = new URL(req.url ?? "/", base);
       if (url.origin !== base) throw new AssetError(403, "CSRF_REJECTED");
@@ -13150,9 +13332,9 @@ function apply(ctx, config = {}) {
           return readLegacyWord(s, check, signal);
         });
         const sessionFor = (req) => {
-          const origin = actualOrigin();
-          if (!origin || !identityAvailable()) return void 0;
-          return identity.actor(readCookie(req, businessCookieName(identity.setupState.serviceId, origin)));
+          const origin2 = actualOrigin();
+          if (!origin2 || !identityAvailable()) return void 0;
+          return identity.actor(readCookie(req, businessCookieName(identity.setupState.serviceId, origin2)));
         };
         const handler = libraryHandler(storage.assets, originals, actualOrigin, sessionFor, storage.parses, storage.office, () => !!officeMount, storage.archives, reader, storage.search);
         const notes = createNoteHandler(storage.notes, actualOrigin, sessionFor);
@@ -13269,9 +13451,9 @@ function apply(ctx, config = {}) {
         res.end(buildAiHtml());
       } }));
       const aiHandler = createAiHandler({ service: () => ai, origin: actualOrigin, actorFor: (req) => {
-        const origin = actualOrigin();
-        if (origin === void 0 || !identityAvailable()) return void 0;
-        return identity.actor(readCookie(req, businessCookieName(identity.setupState.serviceId, origin)));
+        const origin2 = actualOrigin();
+        if (origin2 === void 0 || !identityAvailable()) return void 0;
+        return identity.actor(readCookie(req, businessCookieName(identity.setupState.serviceId, origin2)));
       } });
       disposers.push(identityContext.webServer.register({ kind: "prefix", path: "/knowledge/v1/ai", auth: "anonymous", handler: withPeer(async (req, res) => aiHandler(req, res)) }));
       disposers.push(identityContext.webServer.register({ kind: "exact", path: SETUP_PATH, auth: "required", handler: ownerSetupPage }));
@@ -13289,9 +13471,9 @@ function apply(ctx, config = {}) {
       const objectHandler = createObjectHandlers({
         storage,
         actorFor: (req) => {
-          const origin = actualOrigin();
-          if (origin === void 0) return void 0;
-          const token2 = readCookie(req, businessCookieName(identity.setupState.serviceId, origin));
+          const origin2 = actualOrigin();
+          if (origin2 === void 0) return void 0;
+          const token2 = readCookie(req, businessCookieName(identity.setupState.serviceId, origin2));
           return identity.actor(token2);
         },
         origin: actualOrigin

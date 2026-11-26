@@ -7,26 +7,29 @@ export function buildRepositoryHtml(nonce: string): string {
 @media(max-width:700px){nav,main{padding:12px 16px}.workspace,.fields{grid-template-columns:minmax(0,1fr)}.side{border:0;padding:0}.tree{max-height:280px}}
 </style></head><body>
 <header><nav aria-label="业务导航"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">知识库</a><a href="/knowledgeos/repositories" aria-current="page">仓库与代码</a><a href="/knowledgeos/account">账号</a></nav></header>
-<main><h1>仓库与代码</h1><p class="badge">GitHub · 只读</p><p id="status" role="status">正在读取…</p><a id="login" href="/knowledgeos/account" hidden>登录</a>
+<main><h1>仓库与代码</h1><p class="badge">GitHub、GitLab · 只读</p><p id="status" role="status">正在读取…</p><a id="login" href="/knowledgeos/account" hidden>登录</a>
 <div class="workspace" id="workspace" hidden>
 <aside class="side"><h2>固定快照</h2><ul id="snapshots"></ul></aside>
 <div class="content"><section class="section"><h2>连接仓库</h2><form id="connect">
-<fieldset class="fields" id="connect-fields"><label>GitHub 仓库<input id="repository" placeholder="owner/repository" maxlength="160" required></label>
+<label>托管平台<select id="platform"><option value="github">GitHub</option><option value="gitlab">GitLab</option></select></label>
+<fieldset class="fields" id="connect-fields"><label>仓库<input id="repository" placeholder="owner/repository" maxlength="255" required></label>
 <label>引用类型<select id="ref-kind"><option value="branch">分支</option><option value="tag">标签</option><option value="commit">完整 SHA</option></select></label>
 <label>引用<input id="ref" placeholder="main" maxlength="200" required></label></fieldset>
-<details><summary>可选设置</summary><div><label>原生 GitHub 凭据别名<input id="credential" maxlength="55" placeholder="github_example" autocomplete="off"></label><label>同时保存文件<input id="initial-path" maxlength="1024" placeholder="README.md"></label></div></details>
+<details><summary>可选设置</summary><div><label>原生凭据别名<input id="credential" maxlength="55" placeholder="github_example" autocomplete="off"></label><label>同时保存文件<input id="initial-path" maxlength="1024" placeholder="README.md"></label></div></details>
 <button id="save" type="submit">保存固定快照</button></form></section>
-<section class="section" id="detail" hidden><h2 id="title"></h2><code id="commit"></code><p><a id="tree-link" target="_blank" rel="noopener noreferrer">GitHub 固定提交</a></p><p class="badge" id="ref-facts"></p>
+<section class="section" id="detail" hidden><h2 id="title"></h2><code id="commit"></code><p><a id="tree-link" target="_blank" rel="noopener noreferrer">查看固定提交</a></p><p class="badge" id="ref-facts"></p>
 <label>筛选路径<input id="filter" type="search" maxlength="160"></label><ul class="tree" id="tree" aria-label="仓库文件"></ul></section>
-<section class="section" id="file" hidden><h3 id="file-path"></h3><p class="file-facts"><code id="blob"></code><a id="blob-link" target="_blank" rel="noopener noreferrer">GitHub 固定文件</a></p><pre id="file-text"></pre></section>
+<section class="section" id="file" hidden><h3 id="file-path"></h3><p class="file-facts"><code id="blob"></code><a id="blob-link" target="_blank" rel="noopener noreferrer">查看固定文件</a></p><pre id="file-text"></pre></section>
 </div></div></main>
 <script nonce="${nonce}">
 'use strict';
 const $=id=>document.getElementById(id), api='/knowledge/v1/repositories', status=text=>$('status').textContent=text;
-const errors={ACTOR_MISMATCH:'账号已变更，请重新打开页面。',NOT_FOUND:'未找到快照或文件。',REMOTE_REPOSITORY_NOT_FOUND:'仓库或引用不存在，或入口无权访问。',REPOSITORY_REDIRECT_REJECTED:'GitHub 返回了重定向，未读取。',REPOSITORY_RATE_LIMIT:'已达到 GitHub 请求上限。',REPOSITORY_LIMIT_EXCEEDED:'仓库树或文件超过读取上限。',REPOSITORY_CREDENTIAL_UNCONFIGURED:'指定的原生 GitHub 凭据未配置。',INVALID_REPOSITORY_INPUT:'检查仓库、引用、文件路径和凭据别名。',REPOSITORY_TIMEOUT:'GitHub 读取超时。',REPOSITORY_CHANGED:'远端仓库身份发生变化，未保存。',REPOSITORY_INVALID_RESPONSE:'GitHub 返回的对象无法验证。',REPOSITORY_BUSY:'已有仓库请求正在执行。',REPOSITORY_FILE_QUOTA:'已达到本地文件快照上限。',REPOSITORY_SNAPSHOT_QUOTA:'已达到本地仓库快照上限。'};
+const errors={ACTOR_MISMATCH:'账号已变更，请重新打开页面。',NOT_FOUND:'未找到快照或文件。',REMOTE_REPOSITORY_NOT_FOUND:'仓库或引用不存在，或入口无权访问。',REPOSITORY_REDIRECT_REJECTED:'仓库平台返回了重定向，未读取。',REPOSITORY_RATE_LIMIT:'已达到仓库平台请求上限。',REPOSITORY_LIMIT_EXCEEDED:'仓库树或文件超过读取上限。',REPOSITORY_CREDENTIAL_UNCONFIGURED:'指定的原生凭据未配置。',INVALID_REPOSITORY_INPUT:'检查仓库、引用、文件路径和凭据别名。',REPOSITORY_TIMEOUT:'仓库平台读取超时。',REPOSITORY_CHANGED:'远端仓库身份发生变化，未保存。',REPOSITORY_INVALID_RESPONSE:'仓库平台返回的对象无法验证。',REPOSITORY_BUSY:'已有仓库请求正在执行。',REPOSITORY_FILE_QUOTA:'已达到本地文件快照上限。',REPOSITORY_SNAPSHOT_QUOTA:'已达到本地仓库快照上限。'};
 const kinds={directory:'目录',symlink:'符号链接',submodule:'子模块',file:'文件'};
+const platforms={github:'GitHub',gitlab:'GitLab'};
+function platformHints(){const selected=$('platform').value;$('repository').placeholder=selected==='gitlab'?'group/subgroup/project':'owner/repository';$('credential').placeholder=selected+'_example';}
 let actor, rows=[], selected, entries=[], files=[], busy=false, gated=false, generation=0, focusEpoch=0, controller=new AbortController();
-function clear(){generation++;focusEpoch++;controller.abort();controller=new AbortController();actor=selected=undefined;rows=[];entries=[];files=[];busy=gated=false;$('connect').reset();$('save').disabled=false;$('filter').value='';$('workspace').hidden=$('detail').hidden=$('file').hidden=true;
+function clear(){generation++;focusEpoch++;controller.abort();controller=new AbortController();actor=selected=undefined;rows=[];entries=[];files=[];busy=gated=false;$('connect').reset();platformHints();$('save').disabled=false;$('filter').value='';$('workspace').hidden=$('detail').hidden=$('file').hidden=true;
  for(const id of ['snapshots','title','commit','ref-facts','tree','file-path','blob','file-text'])$(id).textContent='';for(const id of ['tree-link','blob-link'])$(id).removeAttribute('href');}
 function noAccess(){clear();$('login').hidden=false;status('登录后读取仓库快照。');}
 async function request(url,method='GET',payload){const current=generation, response=await fetch(url,{method,redirect:'error',cache:'no-store',signal:controller.signal,headers:method==='GET'?{}:{'content-type':'application/json','x-knowledgeos-request':'1'},body:payload===undefined?undefined:JSON.stringify(payload)});
@@ -34,14 +37,14 @@ async function request(url,method='GET',payload){const current=generation, respo
  if(actor&&actor!==result.data.actor_id){noAccess();throw Error('STALE');}return result.data;}
 function button(parent,text,index,callback){const b=document.createElement('button');b.type='button';b.textContent=text;if(index)b.setAttribute('aria-current','true');b.addEventListener('click',callback);parent.append(b);return b;}
 function snapshots(){const ul=$('snapshots');ul.replaceChildren();if(!rows.length){const li=document.createElement('li');li.textContent='没有快照';ul.append(li);return;}
- for(const s of rows){const li=document.createElement('li');li.className='snapshot-row';const b=button(li,s.repository,s.id===selected,()=>operation(()=>open(s.id)));const small=document.createElement('small');small.textContent=s.commit.slice(0,12)+' · '+s.ref_value;b.append(small);ul.append(li);}}
+ for(const s of rows){const li=document.createElement('li');li.className='snapshot-row';const b=button(li,s.repository,s.id===selected,()=>operation(()=>open(s.id)));const small=document.createElement('small');small.textContent=platforms[s.platform]+' · '+s.commit.slice(0,12)+' · '+s.ref_value;b.append(small);ul.append(li);}}
 function tree(){const raw=$('filter').value.toLowerCase(), ul=$('tree');ul.replaceChildren();for(const e of entries){if(raw&&!e.path.toLowerCase().includes(raw))continue;
- const li=document.createElement('li');if(e.kind==='file'&&e.size<=524288)button(li,e.path,false,()=>operation(()=>show(e.path)));else{const label=document.createElement('span');label.textContent=e.path;li.append(label);}
+ const li=document.createElement('li');if(e.kind==='file'&&(e.size===null||e.size<=524288))button(li,e.path,false,()=>operation(()=>show(e.path)));else{const label=document.createElement('span');label.textContent=e.path;li.append(label);}
  const tag=document.createElement('span');tag.textContent=files.includes(e.path)?'已保存':(e.kind==='file'&&e.size>524288?'超出上限':kinds[e.kind]);li.append(tag);ul.append(li);}}
 async function list(){const data=await request(api);actor=data.actor_id;rows=data.snapshots;$('workspace').hidden=gated;$('login').hidden=true;snapshots();}
 async function open(id){const data=await request(api+'/'+id); selected=id;entries=data.entries;files=data.files;const s=data.snapshot;
  $('detail').hidden=false;$('file').hidden=true;$('file-text').textContent='';$('blob-link').removeAttribute('href');$('title').textContent=s.repository;$('commit').textContent=s.commit;$('tree-link').href=s.source_url;
- $('ref-facts').textContent=s.ref_kind+' · '+s.ref_value+(s.credential_ref?' · '+s.credential_ref:' · 匿名读取');$('filter').value='';snapshots();tree();status('已读取固定快照。');}
+ $('ref-facts').textContent=platforms[s.platform]+' · '+s.ref_kind+' · '+s.ref_value+(s.credential_ref?' · '+s.credential_ref:' · 匿名读取');$('filter').value='';snapshots();tree();status('已读取固定快照。');}
 async function show(path){const base=api+'/'+selected+'/files';const data=files.includes(path)?await request(base+'?path='+encodeURIComponent(path)):await request(base,'POST',{actor_id:actor,path});
  if(!files.includes(path)){files.push(path);const line=[...$('tree').children].find(li=>li.firstElementChild.textContent===path);if(line)line.lastElementChild.textContent='已保存';}
  const f=data.file;$('file-path').textContent=f.path;$('blob').textContent=f.sha+' · '+f.size+' 字节';$('blob-link').href=f.source_url;
@@ -49,8 +52,8 @@ async function show(path){const base=api+'/'+selected+'/files';const data=files.
 async function operation(work){if(busy)return;busy=true;const current=generation;$('save').disabled=true;
  try{await work();}catch(e){if(current===generation&&e.message!=='STALE')status(errors[e.message]||'当前无法读取仓库。');}
  finally{if(current===generation){busy=false;$('save').disabled=false;}}}
-$('filter').addEventListener('input',tree);$('connect').addEventListener('submit',event=>{event.preventDefault();void operation(async()=>{status('正在校验并保存快照…');
- const body={actor_id:actor,repository:$('repository').value.trim(),ref_kind:$('ref-kind').value,ref_value:$('ref').value.trim()};
+$('platform').addEventListener('change',platformHints);$('filter').addEventListener('input',tree);$('connect').addEventListener('submit',event=>{event.preventDefault();void operation(async()=>{status('正在校验并保存快照…');
+ const body={actor_id:actor,platform:$('platform').value,repository:$('repository').value.trim(),ref_kind:$('ref-kind').value,ref_value:$('ref').value.trim()};
  if($('credential').value)body.credential_ref=$('credential').value;if($('initial-path').value)body.path=$('initial-path').value;
  const data=await request(api,'POST',body);await list();await open(data.snapshot.id);if(body.path)await show(body.path);
 });});

@@ -10,7 +10,7 @@
     "sha256": "a2e5986cfa81189aeae0c4b43ebfe4afd074aae9d5674e7ecf5e069c5d6ab530"
   },
   "active_unit": "REPO-002",
-  "unit_state": "ready",
+  "unit_state": "in_progress",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Selected after PROJECT-004: PASS",
+  "state_reason": "Implement and independently verify GitLab read-only commit, tree and blob snapshots",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -156,31 +156,21 @@
     "next_task": "REPO-002"
   },
   "checkpoint": {
-    "candidate_sha": "de99efb51aa48e69a01c35de8040c8b52e824d59",
-    "tree": "1456ddc7d68ebdb3a3af3365333f82dde026f64f",
-    "source_tree": "2162cb2cb64091841266cd91b0a82361210ac278",
-    "entry_sha256": "a057091a9c8c2a561741260d5fb728cd9256dc4122c91107022fb7d6c76a23be",
-    "build_sha256": "eaee8c2ba1b0ba9d8f118ecc4208a75dfec7a65bf0e3f2a96560ea1e0a6a61d9",
-    "unit_id": "PROJECT-004",
-    "base_commit": "3a26090eba491cdf557895df92ec6598255ee0c1",
+    "unit_id": "REPO-002",
+    "base_commit": "d8c3f91a14d8abfcf8ff2a4cd2fcae5025212e14",
     "completed": [
-      "Contributor appeals and scoped administrator resolution preserve earlier decisions, transactionally flag affected tasks and queue safe recalculation events.",
-      "Main and independent real Host/Chrome/SQLite passed six checks each. Exact material expiry and pinned revision recovery were verified, together with affected PROJECT-003 regression."
+      "Prepared independent acceptance expectations and real public GitLab version and byte oracles for two immutable commits."
     ],
     "test_results": {
-      "unit_acceptance": "PASS",
-      "T01": "PASS",
-      "T02": "PASS",
-      "A32": "PASS",
-      "A33": "PASS",
-      "P11": "NOT_RUN",
-      "independent": "PASS",
-      "PROJECT003_regression": "PASS"
+      "unit_acceptance": "NOT_RUN",
+      "T01": "NOT_RUN",
+      "T02": "NOT_RUN",
+      "A19": "NOT_RUN"
     },
-    "evidence": "docs/evidence/PROJECT-004/acceptance.json",
+    "evidence": "scripts/repo002/acceptance-plan.md",
     "defects": [],
     "blocked_dependencies": [
-      "P11 scoring and reminder consumers are future units."
+      "A19 needs Gitee and actual AI repository write rejection."
     ],
     "next_task": "REPO-002"
   }

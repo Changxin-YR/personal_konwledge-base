@@ -1,7 +1,7 @@
 // src/host/storage.ts
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash as createHash15, randomUUID as randomUUID16 } from "node:crypto";
+import { createHash as createHash16, randomUUID as randomUUID16 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // src/host/jobs.ts
@@ -1797,6 +1797,9 @@ import { randomUUID as randomUUID12 } from "node:crypto";
 import { createHash as createHash10 } from "node:crypto";
 var repositoryLimits = { files: 5e3, blob: 512 * 1024, tree: 2 * 1024 * 1024 };
 
+// src/host/gitlab-repository.ts
+import { createHash as createHash11 } from "node:crypto";
+
 // src/host/repository-store.ts
 var REPOSITORY_SCHEMA = `
 CREATE TABLE repository_snapshots (
@@ -1814,14 +1817,48 @@ CREATE TABLE repository_files (
   PRIMARY KEY(snapshot_id,path)
 ) STRICT;
 `;
-var summaryColumns = "id,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,created_at";
+var REPOSITORY_PLATFORM_TABLES = `
+CREATE TABLE repository_snapshots (
+  id TEXT PRIMARY KEY, service_id TEXT NOT NULL, owner_id TEXT NOT NULL REFERENCES users(id),
+  platform TEXT NOT NULL CHECK(platform IN ('github','gitlab')),
+  remote_id INTEGER NOT NULL, owner_name TEXT NOT NULL, repository_name TEXT NOT NULL,
+  is_private INTEGER NOT NULL CHECK(is_private IN (0,1)), credential_ref TEXT NOT NULL,
+  ref_kind TEXT NOT NULL CHECK(ref_kind IN ('branch','tag','commit')), ref_value TEXT NOT NULL,
+  commit_sha TEXT NOT NULL CHECK(length(commit_sha)=40), tree_sha TEXT NOT NULL CHECK(length(tree_sha)=40),
+  tree_json TEXT NOT NULL, created_at TEXT NOT NULL,
+  UNIQUE(service_id,owner_id,platform,remote_id,is_private,credential_ref,commit_sha)
+) STRICT;
+CREATE TABLE repository_files (
+  snapshot_id TEXT NOT NULL REFERENCES repository_snapshots(id), path TEXT NOT NULL,
+  blob_sha TEXT NOT NULL CHECK(length(blob_sha)=40), payload BLOB NOT NULL,
+  PRIMARY KEY(snapshot_id,path)
+) STRICT;
+`;
+var REPOSITORY_PLATFORM_SCHEMA = `
+ALTER TABLE repository_files RENAME TO repository_files_v33;
+ALTER TABLE repository_snapshots RENAME TO repository_snapshots_v33;
+${REPOSITORY_PLATFORM_TABLES}
+INSERT INTO repository_snapshots(id,service_id,owner_id,platform,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,tree_json,created_at)
+SELECT id,service_id,owner_id,'github',remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,tree_json,created_at
+FROM repository_snapshots_v33;
+INSERT INTO repository_files SELECT snapshot_id,path,blob_sha,payload FROM repository_files_v33;
+DROP TABLE repository_files_v33;
+DROP TABLE repository_snapshots_v33;
+`;
+var summaryColumns = "id,platform,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,created_at";
 var hidden2 = () => new AssetError(404, "NOT_FOUND");
 var checkSignal = (signal) => {
   if (signal.aborted) throw new AssetError(409, "REPOSITORY_CANCELLED");
 };
+var encodePath = (path) => path.split("/").map(encodeURIComponent).join("/");
+var sourceUrl = (row, type) => {
+  const repository = encodePath(row.owner_name + "/" + row.repository_name);
+  const base = row.platform === "gitlab" ? "https://gitlab.com/" + repository + "/-" : "https://github.com/" + repository;
+  return base + "/" + type + "/" + row.commit_sha;
+};
 var summarize = (row) => ({
   id: row.id,
-  platform: "github",
+  platform: row.platform,
   repository: row.owner_name + "/" + row.repository_name,
   private: !!row.is_private,
   credential_ref: row.credential_ref || null,
@@ -1830,7 +1867,7 @@ var summarize = (row) => ({
   commit: row.commit_sha,
   tree: row.tree_sha,
   created_at: row.created_at,
-  source_url: "https://github.com/" + row.owner_name + "/" + row.repository_name + "/tree/" + row.commit_sha
+  source_url: sourceUrl(row, "tree")
 });
 var fileView = (row, path, sha4, bytes) => {
   let text2 = null;
@@ -1845,7 +1882,7 @@ var fileView = (row, path, sha4, bytes) => {
     sha: sha4,
     size: bytes.length,
     text: text2,
-    source_url: "https://github.com/" + row.owner_name + "/" + row.repository_name + "/blob/" + row.commit_sha + "/" + path.split("/").map(encodeURIComponent).join("/")
+    source_url: sourceUrl(row, "blob") + "/" + encodePath(path)
   };
 };
 var RepositoryStore = class {
@@ -1897,11 +1934,11 @@ var RepositoryStore = class {
       return { row, entry };
     });
   }
-  saveSnapshot(session, expected, remote, ref, alias, revision, entries, signal, pinned) {
+  saveSnapshot(session, expected, remote, ref, alias, revision, entries, signal, pinned, platform = "github") {
     return this.tx("write", (db, now) => {
       checkSignal(signal);
       const { userId, serviceId } = this.actor(session, now, expected);
-      const existing = db.prepare("SELECT * FROM repository_snapshots WHERE service_id=? AND owner_id=? AND remote_id=? AND is_private=? AND credential_ref=? AND commit_sha=?").get(serviceId, userId, remote.id, Number(remote.private), alias, revision.commit);
+      const existing = db.prepare("SELECT * FROM repository_snapshots WHERE service_id=? AND owner_id=? AND platform=? AND remote_id=? AND is_private=? AND credential_ref=? AND commit_sha=?").get(serviceId, userId, platform, remote.id, Number(remote.private), alias, revision.commit);
       if (existing) {
         if (existing.tree_sha !== revision.tree) throw new AssetError(502, "REPOSITORY_INVALID_RESPONSE");
         if (pinned) this.insertFile(db, { userId, serviceId }, existing, pinned.entry, pinned.bytes);
@@ -1911,6 +1948,7 @@ var RepositoryStore = class {
         throw new AssetError(409, "REPOSITORY_SNAPSHOT_QUOTA");
       const row = {
         id: randomUUID12(),
+        platform,
         remote_id: remote.id,
         owner_name: remote.owner,
         repository_name: remote.name,
@@ -1923,10 +1961,11 @@ var RepositoryStore = class {
         tree_json: JSON.stringify(entries),
         created_at: now
       };
-      db.prepare("INSERT INTO repository_snapshots(id,service_id,owner_id,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,tree_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(
+      db.prepare("INSERT INTO repository_snapshots(id,service_id,owner_id,platform,remote_id,owner_name,repository_name,is_private,credential_ref,ref_kind,ref_value,commit_sha,tree_sha,tree_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(
         row.id,
         serviceId,
         userId,
+        platform,
         row.remote_id,
         row.owner_name,
         row.repository_name,
@@ -1953,7 +1992,9 @@ var RepositoryStore = class {
   }
   insertFile(db, actor, row, entry, bytes) {
     const treeEntry = JSON.parse(row.tree_json).find((candidate) => candidate.path === entry.path);
-    if (!treeEntry || treeEntry.kind !== "file" || treeEntry.sha !== entry.sha || treeEntry.size !== bytes.length) throw new AssetError(502, "REPOSITORY_INVALID_RESPONSE");
+    const sizeMatches = treeEntry?.size === bytes.length || row.platform === "gitlab" && treeEntry?.size === null;
+    if (!treeEntry || treeEntry.kind !== "file" || treeEntry.sha !== entry.sha || !sizeMatches || bytes.length > repositoryLimits.blob)
+      throw new AssetError(502, "REPOSITORY_INVALID_RESPONSE");
     if (db.prepare("SELECT 1 FROM repository_files WHERE snapshot_id=? AND path=?").get(row.id, entry.path)) return;
     const count = Number(db.prepare("SELECT count(*) AS total FROM repository_files WHERE snapshot_id=?").get(row.id)?.total);
     const used = Number(db.prepare("SELECT coalesce(sum(length(f.payload)),0) AS total FROM repository_files f JOIN repository_snapshots s ON s.id=f.snapshot_id WHERE s.service_id=? AND s.owner_id=?").get(actor.serviceId, actor.userId)?.total);
@@ -1963,7 +2004,7 @@ var RepositoryStore = class {
 };
 
 // src/host/project-task-store.ts
-import { createHash as createHash11, randomUUID as randomUUID13 } from "node:crypto";
+import { createHash as createHash12, randomUUID as randomUUID13 } from "node:crypto";
 
 // src/host/project-task-policy.ts
 var unacceptable = /[\p{Cf}\p{Cs}\x00-\x08\x0b-\x1f\x7f]/u;
@@ -2128,7 +2169,7 @@ var appealView = (r) => ({
   resolution_decision_id: r.resolution_decision_id,
   resolved_at: r.resolved_at
 });
-var requestDigest = (value) => createHash11("sha256").update(JSON.stringify(value)).digest("hex");
+var requestDigest = (value) => createHash12("sha256").update(JSON.stringify(value)).digest("hex");
 var workflow = (t) => ({
   kind: t.task_kind,
   assignee: t.assignee_id,
@@ -2388,7 +2429,7 @@ var ProjectTaskStore = class {
   assign(s, expected, projectId, key, d) {
     if (!validTaskDraft(d)) throw invalid3();
     const title = d.title.trim(), goal = d.goal.trim(), items = clean(d.criteria), peer = d.peer_reviewer_id ?? null;
-    const digest3 = createHash11("sha256").update(JSON.stringify([projectId, title, goal, d.due_at, d.assignee_id, d.final_reviewer_id, peer, items])).digest("hex");
+    const digest3 = createHash12("sha256").update(JSON.stringify([projectId, title, goal, d.due_at, d.assignee_id, d.final_reviewer_id, peer, items])).digest("hex");
     return this.tx("write", (db, now) => {
       const a = this.actor(s, now, expected), project = projectId === null ? null : this.project(db, a, projectId, now);
       if (project && project.row.owner_user_id !== a.userId) throw hidden3();
@@ -2693,11 +2734,11 @@ CREATE TABLE task_decision_impacts (
 `;
 
 // src/host/recall-store.ts
-import { createHash as createHash13, randomUUID as randomUUID14 } from "node:crypto";
+import { createHash as createHash14, randomUUID as randomUUID14 } from "node:crypto";
 
 // src/host/recall-range.ts
-import { createHash as createHash12 } from "node:crypto";
-var digest = (text2) => createHash12("sha256").update(text2, "utf8").digest("hex");
+import { createHash as createHash13 } from "node:crypto";
+var digest = (text2) => createHash13("sha256").update(text2, "utf8").digest("hex");
 var invalid4 = () => new AssetError(422, "INVALID_RECALL_RANGE");
 var changed = () => new AssetError(409, "RECALL_SOURCE_CHANGED");
 var available = (text2) => {
@@ -2795,7 +2836,7 @@ CREATE TABLE recall_events (
   CHECK(event IN ('move','hint','reveal','recall','rating'))
 ) STRICT;
 CREATE INDEX recall_events_groups ON recall_events(material_id,event,value);`;
-var sha3 = (text2) => createHash13("sha256").update(text2).digest("hex");
+var sha3 = (text2) => createHash14("sha256").update(text2).digest("hex");
 var invalid5 = () => new AssetError(422, "INVALID_RECALL");
 var notFound4 = () => new AssetError(404, "RECALL_NOT_FOUND");
 var point2 = (t, ordinal) => ({ asset_id: t.asset_id, version_id: t.version_id, ordinal, ...t.conversion_id ? { conversion_id: t.conversion_id } : {} });
@@ -2922,7 +2963,7 @@ var RecallStore = class {
 };
 
 // src/host/invitation-store.ts
-import { createHash as createHash14, randomBytes, randomUUID as randomUUID15 } from "node:crypto";
+import { createHash as createHash15, randomBytes, randomUUID as randomUUID15 } from "node:crypto";
 var INVITATION_SCHEMA = `CREATE TABLE invitations (
   id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE CHECK(length(token_hash)=64),
   service_id TEXT NOT NULL, issuer_id TEXT NOT NULL REFERENCES users(id),
@@ -2967,7 +3008,7 @@ var INVITATION_CHANGE_SCHEMA = `CREATE TABLE invitation_change_receipts (
   result_json TEXT NOT NULL CHECK(json_valid(result_json)), PRIMARY KEY(service_id,actor_id,request_key)
 ) STRICT;`;
 var day = 864e5;
-var digest2 = (value) => createHash14("sha256").update(value).digest("hex");
+var digest2 = (value) => createHash15("sha256").update(value).digest("hex");
 var invalid6 = () => new AssetError(422, "INVALID_INVITATION");
 var unavailable = () => new AssetError(404, "INVITATION_UNAVAILABLE");
 var conflict2 = () => new AssetError(409, "INVITATION_CHANGED");
@@ -3138,37 +3179,38 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 33;
-var MIGRATION_V33_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_APPEAL_SCHEMA).digest("hex");
-var MIGRATION_V32_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_CORRECTION_SCHEMA).digest("hex");
-var MIGRATION_V31_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_MATERIAL_SCHEMA).digest("hex");
-var MIGRATION_V30_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_REVIEW_SCHEMA).digest("hex");
-var MIGRATION_V29_CHECKSUM = createHash15("sha256").update(PROJECT_TASK_SCHEMA).digest("hex");
-var MIGRATION_V28_CHECKSUM = createHash15("sha256").update(REPOSITORY_SCHEMA).digest("hex");
-var MIGRATION_V27_CHECKSUM = createHash15("sha256").update(NOTE_LAYOUT_SCHEMA).digest("hex");
-var MIGRATION_V26_CHECKSUM = createHash15("sha256").update(NOTE_OUTLINE_SCHEMA).digest("hex");
-var MIGRATION_V25_CHECKSUM = createHash15("sha256").update(INVITATION_CHANGE_SCHEMA).digest("hex");
-var MIGRATION_V24_CHECKSUM = createHash15("sha256").update(INVITATION_EVENT_SCHEMA).digest("hex");
-var MIGRATION_V23_CHECKSUM = createHash15("sha256").update(INVITATION_SCHEMA).digest("hex");
-var MIGRATION_V22_CHECKSUM = createHash15("sha256").update(RECALL_SCHEMA).digest("hex");
-var MIGRATION_V21_CHECKSUM = createHash15("sha256").update(NOTE_SCHEMA).digest("hex");
-var MIGRATION_V20_CHECKSUM = createHash15("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
-var MIGRATION_V19_CHECKSUM = createHash15("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V18_CHECKSUM = createHash15("sha256").update(SEARCH_SCHEMA).digest("hex");
-var MIGRATION_V17_CHECKSUM = createHash15("sha256").update(ANNOTATION_SCHEMA).digest("hex");
-var MIGRATION_V16_CHECKSUM = createHash15("sha256").update(READING_STATE_SCHEMA).digest("hex");
-var MIGRATION_V15_CHECKSUM = createHash15("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
-var MIGRATION_V13_CHECKSUM = createHash15("sha256").update(ZIP_SCHEMA).digest("hex");
-var MIGRATION_V14_CHECKSUM = createHash15("sha256").update(CITATION_SCHEMA).digest("hex");
-var MIGRATION_V12_CHECKSUM = createHash15("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
-var MIGRATION_V11_CHECKSUM = createHash15("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
-var MIGRATION_V10_CHECKSUM = createHash15("sha256").update(OFFICE_SCHEMA).digest("hex");
-var MIGRATION_V9_CHECKSUM = createHash15("sha256").update(TEXT_SCHEMA).digest("hex");
-var MIGRATION_V8_CHECKSUM = createHash15("sha256").update(PARSE_SCHEMA).digest("hex");
+var SCHEMA_VERSION = 34;
+var MIGRATION_V34_CHECKSUM = createHash16("sha256").update(REPOSITORY_PLATFORM_SCHEMA).digest("hex");
+var MIGRATION_V33_CHECKSUM = createHash16("sha256").update(PROJECT_TASK_APPEAL_SCHEMA).digest("hex");
+var MIGRATION_V32_CHECKSUM = createHash16("sha256").update(PROJECT_TASK_CORRECTION_SCHEMA).digest("hex");
+var MIGRATION_V31_CHECKSUM = createHash16("sha256").update(PROJECT_TASK_MATERIAL_SCHEMA).digest("hex");
+var MIGRATION_V30_CHECKSUM = createHash16("sha256").update(PROJECT_TASK_REVIEW_SCHEMA).digest("hex");
+var MIGRATION_V29_CHECKSUM = createHash16("sha256").update(PROJECT_TASK_SCHEMA).digest("hex");
+var MIGRATION_V28_CHECKSUM = createHash16("sha256").update(REPOSITORY_SCHEMA).digest("hex");
+var MIGRATION_V27_CHECKSUM = createHash16("sha256").update(NOTE_LAYOUT_SCHEMA).digest("hex");
+var MIGRATION_V26_CHECKSUM = createHash16("sha256").update(NOTE_OUTLINE_SCHEMA).digest("hex");
+var MIGRATION_V25_CHECKSUM = createHash16("sha256").update(INVITATION_CHANGE_SCHEMA).digest("hex");
+var MIGRATION_V24_CHECKSUM = createHash16("sha256").update(INVITATION_EVENT_SCHEMA).digest("hex");
+var MIGRATION_V23_CHECKSUM = createHash16("sha256").update(INVITATION_SCHEMA).digest("hex");
+var MIGRATION_V22_CHECKSUM = createHash16("sha256").update(RECALL_SCHEMA).digest("hex");
+var MIGRATION_V21_CHECKSUM = createHash16("sha256").update(NOTE_SCHEMA).digest("hex");
+var MIGRATION_V20_CHECKSUM = createHash16("sha256").update(PDF_CHAPTER_SCHEMA).digest("hex");
+var MIGRATION_V19_CHECKSUM = createHash16("sha256").update(WORD_SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V18_CHECKSUM = createHash16("sha256").update(SEARCH_SCHEMA).digest("hex");
+var MIGRATION_V17_CHECKSUM = createHash16("sha256").update(ANNOTATION_SCHEMA).digest("hex");
+var MIGRATION_V16_CHECKSUM = createHash16("sha256").update(READING_STATE_SCHEMA).digest("hex");
+var MIGRATION_V15_CHECKSUM = createHash16("sha256").update(CITATION_LOCATOR_SCHEMA).digest("hex");
+var MIGRATION_V13_CHECKSUM = createHash16("sha256").update(ZIP_SCHEMA).digest("hex");
+var MIGRATION_V14_CHECKSUM = createHash16("sha256").update(CITATION_SCHEMA).digest("hex");
+var MIGRATION_V12_CHECKSUM = createHash16("sha256").update(OFFICE_HISTORY_SCHEMA).digest("hex");
+var MIGRATION_V11_CHECKSUM = createHash16("sha256").update(OFFICE_AUTH_SCHEMA).digest("hex");
+var MIGRATION_V10_CHECKSUM = createHash16("sha256").update(OFFICE_SCHEMA).digest("hex");
+var MIGRATION_V9_CHECKSUM = createHash16("sha256").update(TEXT_SCHEMA).digest("hex");
+var MIGRATION_V8_CHECKSUM = createHash16("sha256").update(PARSE_SCHEMA).digest("hex");
 var MIGRATION_V7_SQL = ASSET_SCHEMA;
-var MIGRATION_V7_CHECKSUM = createHash15("sha256").update(ASSET_SCHEMA).digest("hex");
+var MIGRATION_V7_CHECKSUM = createHash16("sha256").update(ASSET_SCHEMA).digest("hex");
 var MIGRATION_V6_SQL = JOB_SCHEMA;
-var MIGRATION_V6_CHECKSUM = createHash15("sha256").update(JOB_SCHEMA).digest("hex");
+var MIGRATION_V6_CHECKSUM = createHash16("sha256").update(JOB_SCHEMA).digest("hex");
 var PROBE_SCHEMA_VERSION = 1;
 var BUSY_TIMEOUT_MS = 250;
 var DATABASE_FILENAME = "knowledgeos.sqlite";
@@ -3185,7 +3227,7 @@ CREATE TABLE storage_probe_records (
   created_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V1_CHECKSUM = createHash15("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
+var MIGRATION_V1_CHECKSUM = createHash16("sha256").update(Buffer.from(MIGRATION_V1_SQL, "utf8")).digest("hex");
 var MIGRATION_V2_SQL = `CREATE TABLE password_credentials (
   id TEXT PRIMARY KEY,
   algorithm TEXT NOT NULL,
@@ -3239,7 +3281,7 @@ CREATE TABLE spaces (
   updated_at TEXT NOT NULL
 ) STRICT;
 `;
-var MIGRATION_V2_CHECKSUM = createHash15("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
+var MIGRATION_V2_CHECKSUM = createHash16("sha256").update(Buffer.from(MIGRATION_V2_SQL, "utf8")).digest("hex");
 var MIGRATION_V3_SQL = `CREATE TABLE knowledge_projects (
   id TEXT PRIMARY KEY,
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
@@ -3289,7 +3331,7 @@ CREATE TABLE resource_grants (
   UNIQUE (resource_id, subject_type, subject_id, action)
 ) STRICT;
 `;
-var MIGRATION_V3_CHECKSUM = createHash15("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
+var MIGRATION_V3_CHECKSUM = createHash16("sha256").update(Buffer.from(MIGRATION_V3_SQL, "utf8")).digest("hex");
 var MIGRATION_V4_SQL = `ALTER TABLE resource_grants RENAME TO resource_grants_v3;
 CREATE TABLE resource_grants (
   id TEXT PRIMARY KEY,
@@ -3311,7 +3353,7 @@ CREATE UNIQUE INDEX resource_grants_active_subject_action_uq
   WHERE revoked_at IS NULL;
 DROP TABLE resource_grants_v3;
 `;
-var MIGRATION_V4_CHECKSUM = createHash15("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
+var MIGRATION_V4_CHECKSUM = createHash16("sha256").update(Buffer.from(MIGRATION_V4_SQL, "utf8")).digest("hex");
 var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   service_id TEXT NOT NULL REFERENCES service_identity(service_id),
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -3323,7 +3365,7 @@ var MIGRATION_V5_SQL = `CREATE TABLE ai_tool_mutations (
   PRIMARY KEY (service_id, user_id, idempotency_key)
 ) STRICT;
 `;
-var MIGRATION_V5_CHECKSUM = createHash15("sha256").update(MIGRATION_V5_SQL).digest("hex");
+var MIGRATION_V5_CHECKSUM = createHash16("sha256").update(MIGRATION_V5_SQL).digest("hex");
 var PROBE_SUPPORTED_TABLES = ["schema_migrations", "storage_probe_records"];
 var IDENTITY_SUPPORTED_TABLES = [
   "auth_sessions",
@@ -3558,6 +3600,7 @@ var ProbeStorage = class {
       if (priorVersion < 31) this.#migrateV31(db);
       if (priorVersion < 32) this.#migrateV32(db);
       if (priorVersion < 33) this.#migrateV33(db);
+      if (priorVersion < 34) this.#migrateV34(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path);
       const pragmas = this.#readPragmas(db);
@@ -4186,9 +4229,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "task appeal migration failed", false, { cause: e });
     }
   }
+  #migrateV34(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(REPOSITORY_PLATFORM_SCHEMA);
+      this.#injectFailure("v34:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(34,?,?)").run(MIGRATION_V34_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=34; COMMIT");
+    } catch (e) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "repository platform migration failed", false, { cause: e });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash2, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash2)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -4214,7 +4269,8 @@ var ProbeStorage = class {
       if (version >= 25) reference.exec(INVITATION_CHANGE_SCHEMA);
       if (version >= 26) reference.exec(NOTE_OUTLINE_SCHEMA);
       if (version >= 27) reference.exec(NOTE_LAYOUT_SCHEMA);
-      if (version >= 28) reference.exec(REPOSITORY_SCHEMA);
+      if (version >= 34) reference.exec(REPOSITORY_PLATFORM_TABLES);
+      else if (version >= 28) reference.exec(REPOSITORY_SCHEMA);
       if (version >= 29) reference.exec(PROJECT_TASK_SCHEMA);
       if (version >= 30) reference.exec(PROJECT_TASK_REVIEW_SCHEMA);
       if (version >= 31) reference.exec(PROJECT_TASK_MATERIAL_SCHEMA);
@@ -4657,8 +4713,8 @@ var ProbeStorage = class {
     let primaryCode;
     let failed = false;
     try {
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash15("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
-      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash15("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.firstKey, createHash16("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
+      db.prepare("INSERT INTO storage_probe_records (id, idempotency_key, request_digest, content, created_at) VALUES (?, ?, ?, ?, ?)").run(input.firstId, input.failingKey, createHash16("sha256").update(input.content).digest("hex"), input.content, (/* @__PURE__ */ new Date()).toISOString());
     } catch (error) {
       failed = true;
       primaryCode = primarySqliteCode(error);
@@ -4750,6 +4806,7 @@ export {
   MIGRATION_V31_CHECKSUM,
   MIGRATION_V32_CHECKSUM,
   MIGRATION_V33_CHECKSUM,
+  MIGRATION_V34_CHECKSUM,
   MIGRATION_V3_CHECKSUM,
   MIGRATION_V3_SQL,
   MIGRATION_V4,

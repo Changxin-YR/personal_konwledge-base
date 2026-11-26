@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { AssetError } from './asset-store.ts'
 import { badRepository, isRepositoryPath, repositoryName, repositoryRef } from './github-repository.ts'
+import { gitLabName } from './gitlab-repository.ts'
 import { UUID_PATTERN } from './http.ts'
 import type { SessionActor } from './identity.ts'
 import type { PeerScope } from './identity-peer.ts'
@@ -53,11 +54,14 @@ export function createRepositoryHandler(service: RepositoryService, origin: () =
         if (url.search) throw badRepository()
         if (method === 'GET') return result(200, { snapshots: service.store.list(actor) })
         if (method === 'POST') {
-          const input = await body(req, ['actor_id', 'repository', 'ref_kind', 'ref_value', 'credential_ref', 'path'])
+          const input = await body(req, ['actor_id', 'platform', 'repository', 'ref_kind', 'ref_value', 'credential_ref', 'path'])
+          const platform = 'platform' in input ? input.platform : 'github'
+          if (platform !== 'github' && platform !== 'gitlab') throw badRepository()
           const alias = 'credential_ref' in input ? input.credential_ref : ''
           if (typeof alias !== 'string' || alias && !credentialAlias.test(alias)) throw badRepository()
-          const saved = await service.connect(actor, id(input.actor_id), repositoryName(input.repository), repositoryRef(input.ref_kind, input.ref_value), alias, signal,
-            'path' in input ? pathValue(input.path) : undefined)
+          const name = platform === 'gitlab' ? gitLabName(input.repository) : repositoryName(input.repository)
+          const saved = await service.connect(actor, id(input.actor_id), name, repositoryRef(input.ref_kind, input.ref_value), alias, signal,
+            'path' in input ? pathValue(input.path) : undefined, platform)
           return result(saved.replayed ? 200 : 201, saved)
         }
       } else if (url.pathname.startsWith(repositoryApi + '/') && (parts.length === 2 || parts.length === 3 && parts[2] === 'files')) {
