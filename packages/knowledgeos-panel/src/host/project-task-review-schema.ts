@@ -22,3 +22,21 @@ CREATE TABLE task_review_decisions (
     OR (verdict!='return' AND requested_work IS NULL))
 ) STRICT;
 `
+
+export const PROJECT_TASK_CORRECTION_SCHEMA = `
+CREATE TABLE task_review_corrections (
+  id TEXT PRIMARY KEY, submission_id TEXT NOT NULL REFERENCES task_submissions(id),
+  reviewer_id TEXT NOT NULL REFERENCES users(id),
+  previous_review_id TEXT UNIQUE REFERENCES task_review_decisions(id),
+  previous_correction_id TEXT UNIQUE REFERENCES task_review_corrections(id),
+  verdict TEXT NOT NULL CHECK(verdict IN ('accept','return','fail')),
+  criteria_results TEXT NOT NULL CHECK(json_valid(criteria_results) AND json_type(criteria_results)='array'),
+  reason TEXT NOT NULL CHECK(length(reason) BETWEEN 1 AND 4000), requested_work TEXT,
+  decided_at TEXT NOT NULL, request_key TEXT NOT NULL, request_digest TEXT NOT NULL CHECK(length(request_digest)=64),
+  UNIQUE(submission_id,reviewer_id,request_key),
+  CHECK((previous_review_id IS NULL) != (previous_correction_id IS NULL)),
+  CHECK((verdict='return' AND requested_work IS NOT NULL AND length(requested_work) BETWEEN 1 AND 4000)
+    OR (verdict!='return' AND requested_work IS NULL))
+) STRICT;
+CREATE INDEX task_review_corrections_submission ON task_review_corrections(submission_id);
+`

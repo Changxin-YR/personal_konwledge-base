@@ -24,6 +24,7 @@ const kinds={personal:'个人任务',project_admin:'管理员终审',project_col
 const states={assigned:'已派发',in_progress:'进行中',submitted:'待审核',awaiting_admin_review:'待管理员终审',returned:'已退回',accepted:'已完成',failed:'未通过',blocked_pending:'待确认受阻',blocked:'受阻',awaiting_material_access:'待材料授权'};
 const verdicts={pass:'通过预审',accept:'终审通过',return:'退回',fail:'终审未通过'};
 labels.TASK_REVISION_CONFLICT='任务已更新，请重新打开查看。';labels.TASK_SUBMISSION_CONFLICT='提交版本已变更，请重新打开任务。';
+labels.TASK_REVIEW_CONFLICT='生效裁决已变更，请核对最新审核历史。';
 labels.TASK_STATE_CONFLICT='当前任务状态不允许此操作。';labels.TASK_REQUEST_CONFLICT='原操作结果未确定，请保留本次内容重试或重新读取。';
 labels.TASK_MATERIAL_UNAVAILABLE='材料不可读、版本无效或不属于当前项目。';labels.TASK_MATERIAL_ACCESS_REQUIRED='材料授权已改变，审核未保存。';
 labels.TASK_MATERIAL_REPLACEMENT_REQUIRED='请提供不同的固定版本材料。';labels.INVALID_MATERIAL_LINK='请输入本站的固定版本阅读链接。';
@@ -96,7 +97,7 @@ async function workflowWrite(t,suffix,draft,done){
  if(!pendingWorkflow||pendingWorkflow.id!==t.id)pendingWorkflow={id:t.id,digest,key:crypto.randomUUID()};
  try{await request(path,'POST',draft,pendingWorkflow.key);}catch(e){
   if(labels[e.message]&&e.message!=='TASK_REQUEST_CONFLICT')pendingWorkflow=undefined;
-  if(e.message==='TASK_MATERIAL_ACCESS_REQUIRED'||e.message==='TASK_REVISION_CONFLICT'||e.message==='TASK_SUBMISSION_CONFLICT'){
+  if(['TASK_MATERIAL_ACCESS_REQUIRED','TASK_REVISION_CONFLICT','TASK_SUBMISSION_CONFLICT','TASK_REVIEW_CONFLICT'].includes(e.message)){
    clearWorkflow();await openTask(t.id);
   }
   throw e;
@@ -115,7 +116,10 @@ function renderWorkflow(t,timeline){clearWorkflow();if(!timeline)return;
    const item=el('p');item.append(link);row.append(item);
   }
   for(const decision of timeline.reviews.filter(r=>r.submission_id===attempt.id)){
-   const block=el('div');block.className='review-item';block.append(el('strong',(decision.stage==='peer'?'同伴预审':'管理员终审')+' · '+verdicts[decision.verdict]),el('p',name(decision.reviewer_id)+' · '+date(decision.decided_at)),el('p',decision.reason));
+   const block=el('div');block.className='review-item';block.id='task-decision-'+decision.id;
+   const stage=decision.supersedes_id?'管理员改判':decision.stage==='peer'?'同伴预审':t.task_kind==='project_collaboration'?'指定审核':'管理员终审';
+   block.append(el('strong',stage+' · '+verdicts[decision.verdict]),el('p',name(decision.reviewer_id)+' · '+date(decision.decided_at)),el('p',decision.reason));
+   if(decision.supersedes_id){const prior=el('a','查看原裁决');prior.href='#task-decision-'+decision.supersedes_id;block.append(prior);}
    if(decision.requested_work)block.append(el('p','需补充：'+decision.requested_work));
    const items=el('ol'),standard=t.criteria_history.find(v=>v.version===attempt.criteria_version);
    for(const r of decision.criteria_results){const item=el('li',(standard?.items[r.criterion-1]?.description??'标准 '+r.criterion)+' · '+(r.met?'达标':'未达标')+'：'+r.evidence);item.className='review-evidence';items.append(item);}
@@ -134,20 +138,24 @@ function renderWorkflow(t,timeline){clearWorkflow();if(!timeline)return;
  const peer=t.task_kind==='project_admin'&&t.state==='submitted'&&t.peer_reviewer_id===actor;
  const admin=t.task_kind==='project_admin'&&t.final_reviewer_id===actor&&project?.members.some(m=>m.id===actor&&m.role==='admin')&&
   (t.state==='awaiting_admin_review'||t.state==='submitted'&&!t.peer_reviewer_id);
- if(!current||!peer&&!admin)return;
+ const ordinary=t.task_kind==='project_collaboration'&&t.state==='submitted'&&t.final_reviewer_id===actor;
+ const correction=timeline.correction;
+ if(!current||!peer&&!admin&&!ordinary&&!correction)return;
  const standard=t.criteria_history.find(v=>v.version===current.criteria_version);if(!standard)return;
- const options=el('select');options.id='review-verdict';const selectLabel=el('label',peer?'预审结论':'终审结论');selectLabel.append(options);
- for(const [id,name] of peer?[['peer_pass','通过预审'],['peer_return','退回']]:[['final_accept','通过终审'],['final_return','退回'],['final_fail','终审未通过']])options.append(option(id,name));
+ const actionLabel=peer?'预审':correction?'改判':ordinary?'审核':'终审';
+ const options=el('select');options.id='review-verdict';const selectLabel=el('label',actionLabel+'结论');selectLabel.append(options);
+ for(const [id,name] of peer?[['peer_pass','通过预审'],['peer_return','退回']]:[['final_accept',admin?'通过终审':'通过'],['final_return','退回'],['final_fail',admin?'终审未通过':'未通过']])options.append(option(id,name));
  form.append(selectLabel);
  const inputs=standard.items.map((item,index)=>{
   const label=el('label',item.description+' · 权重 '+item.weight),check=el('input');check.type='checkbox';label.className='checkline';label.prepend(check);
   const [wrap,proof]=control('标准 '+(index+1)+' 依据','textarea',1000);const row=el('div');row.className='review-item';row.append(label,wrap);form.append(row);return [check,proof];
  });
- const [why,reason]=control('审核理由','textarea',4000),[more,work]=control('需补充内容','textarea',4000);
+ const [why,reason]=control(correction?'改判理由':'审核理由','textarea',4000),[more,work]=control('需补充内容','textarea',4000);
  const selection=()=>{const returned=options.value.endsWith('_return');more.hidden=!returned;work.required=returned;};options.onchange=selection;selection();
- send.textContent=peer?'保存预审':'保存终审';form.append(why,more,send);
+ send.textContent='保存'+actionLabel;form.append(why,more,send);
  form.onsubmit=e=>{e.preventDefault();void operation(()=>workflowWrite(t,'reviews',{actor_id:actor,expected_revision:t.revision,submission_id:current.id,action:options.value,
-  results:inputs.map(([check,proof],i)=>({criterion:i+1,met:check.checked,evidence:proof.value})),reason:reason.value,...(work.required?{requested_work:work.value}:{})},peer?'预审已保存。':'终审已保存。'));};actions.append(form);
+  results:inputs.map(([check,proof],i)=>({criterion:i+1,met:check.checked,evidence:proof.value})),reason:reason.value,
+  ...(correction?{supersedes_id:correction.supersedes_id}:{}),...(work.required?{requested_work:work.value}:{})},actionLabel+'已保存。'));};actions.append(form);
 }
 function materialTargets(text){
  const id=/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;

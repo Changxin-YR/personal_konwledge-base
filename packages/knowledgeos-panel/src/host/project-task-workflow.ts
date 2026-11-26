@@ -1,6 +1,7 @@
 import type { TaskKind, TaskMember } from './project-task-policy.ts'
 
-export type ReviewAction = 'peer_pass' | 'peer_return' | 'final_accept' | 'final_return' | 'final_fail'
+type FinalAction = 'final_accept' | 'final_return' | 'final_fail'
+export type ReviewAction = 'peer_pass' | 'peer_return' | FinalAction
 type Action = 'submit' | ReviewAction
 type ResultState = 'submitted' | 'awaiting_admin_review' | 'returned' | 'accepted' | 'failed'
 export interface TaskWorkflow {
@@ -26,14 +27,25 @@ export function decideTaskWorkflow(task:TaskWorkflow, actor:TaskMember, action:A
     if(!['assigned','in_progress','returned'].includes(task.state))return {error:'TASK_STATE_CONFLICT'}
     return {state:'submitted',nextActor:task.peerReviewer??task.finalReviewer}
   }
-  if(task.kind!=='project_admin')return {error:'TASK_WORKFLOW_UNAVAILABLE'}
   if(action==='peer_pass'||action==='peer_return'){
+    if(task.kind!=='project_admin')return {error:'TASK_WORKFLOW_UNAVAILABLE'}
     if(actor.id!==task.peerReviewer)return {error:'NOT_FOUND'}
     if(task.state!=='submitted')return {error:'TASK_STATE_CONFLICT'}
     return action==='peer_pass'?{state:'awaiting_admin_review',nextActor:task.finalReviewer}:{state:'returned',nextActor:task.assignee}
   }
-  if(actor.id!==task.finalReviewer||actor.role!=='admin')return {error:'NOT_FOUND'}
+  if(actor.id!==task.finalReviewer||task.kind==='project_admin'&&actor.role!=='admin')return {error:'NOT_FOUND'}
   if(task.state!==(task.peerReviewer?'awaiting_admin_review':'submitted'))return {error:'TASK_STATE_CONFLICT'}
+  return finalOutcome(task,action)
+}
+
+export function decideTaskCorrection(task:TaskWorkflow,actor:TaskMember,action:ReviewAction):Decision {
+  if(task.kind!=='project_collaboration'||actor.role!=='admin'||actor.id===task.assignee)return {error:'NOT_FOUND'}
+  if(action==='peer_pass'||action==='peer_return')return {error:'INVALID_TASK_INPUT'}
+  if(!['accepted','failed','returned'].includes(task.state))return {error:'TASK_STATE_CONFLICT'}
+  return finalOutcome(task,action)
+}
+
+function finalOutcome(task:TaskWorkflow,action:FinalAction):Decision {
   switch(action){
     case 'final_accept':return {state:'accepted',nextActor:null}
     case 'final_return':return {state:'returned',nextActor:task.assignee}

@@ -94,9 +94,10 @@ export function createProjectTaskHandler(store:ProjectTaskStore,origin:()=>strin
           return sendData(result.replayed?200:201,result)
         }
         if(action==='reviews'&&method==='POST'){
-          const input=await body(req,['actor_id','expected_revision','submission_id','action','results','reason','requested_work'])
+          const input=await body(req,['actor_id','expected_revision','submission_id','action','results','reason','requested_work','supersedes_id'])
           if(typeof input.expected_revision!=='number'||!isTaskReviewAction(input.action))throw invalid()
-          const result=store.review(a,id(input.actor_id),taskId,id(req.headers['idempotency-key']),input.expected_revision,id(input.submission_id),input.action,taskReview(input))
+          const supersedes='supersedes_id' in input?id(input.supersedes_id):undefined
+          const result=store.review(a,id(input.actor_id),taskId,id(req.headers['idempotency-key']),input.expected_revision,id(input.submission_id),input.action,taskReview(input),supersedes)
           return sendData(result.replayed?200:201,result)
         }
       }

@@ -8,7 +8,7 @@ import {DatabaseSync} from 'node:sqlite'
 import test from 'node:test'
 import {pathToFileURL} from 'node:url'
 import {IdentityService,ProbeStorage} from '../../packages/knowledgeos-panel/lib/test-support.js'
-import {MIGRATION_V30_CHECKSUM,MIGRATION_V31_CHECKSUM,SCHEMA_VERSION} from '../../packages/knowledgeos-panel/lib/storage.js'
+import {MIGRATION_V30_CHECKSUM,MIGRATION_V31_CHECKSUM,MIGRATION_V32_CHECKSUM,SCHEMA_VERSION} from '../../packages/knowledgeos-panel/lib/storage.js'
 import {seed} from '../fnd006/independent/common.mjs'
 
 const criteria=description=>({items:[{description,weight:2}],submission_rule:'next_submission'})
@@ -41,7 +41,7 @@ test('v30 migration is atomic over populated v29 task and criteria records',asyn
   }finally{storage?.close();db.close()}
 })
 
-test('v31 rolls back over populated v30 task, submission and decision history',async()=>{
+test('v31 and v32 roll back over populated task, submission and decision history',async()=>{
   const dir=mkdtempSync(join(tmpdir(),'kos-task-v31-')),path=join(dir,'knowledgeos.sqlite'),oldPath=join(dir,'v30.mjs')
   writeFileSync(oldPath,execFileSync('git',['show','76fba933296077d8d68caf8b8a29f2f3f0763f20:packages/knowledgeos-panel/lib/test-support.js']))
   const old=await import(pathToFileURL(oldPath).href),{actor}=await seed(old,dir)
@@ -68,9 +68,14 @@ test('v31 rolls back over populated v30 task, submission and decision history',a
     storage=new ProbeStorage({dataDir:dir,failureAt:'v31:after-schema'});assert(!storage.available);assert.match(storage.failure.cause.message,/v31:after-schema/);storage.close()
     assert.equal(db.prepare('PRAGMA user_version').get().user_version,30)
     assert.deepEqual(list('sqlite_schema'),schema);assert.deepEqual(list('schema_migrations'),ledger);assert.deepEqual(tables.map(list),snapshot)
+    storage=new ProbeStorage({dataDir:dir,failureAt:'v32:after-schema'});assert(!storage.available);assert.match(storage.failure.cause.message,/v32:after-schema/);storage.close()
+    assert.equal(db.prepare('PRAGMA user_version').get().user_version,31)
+    assert.equal(db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE name='task_review_corrections'").get().n,0)
+    assert.equal(list('schema_migrations').length,31);assert.deepEqual(tables.map(list),snapshot)
     storage=new ProbeStorage({dataDir:dir});assert(storage.available,storage.failure?.message)
     assert.equal(db.prepare('PRAGMA user_version').get().user_version,SCHEMA_VERSION)
     assert.equal(list('schema_migrations')[30].checksum,MIGRATION_V31_CHECKSUM)
+    assert.equal(list('schema_migrations')[31].checksum,MIGRATION_V32_CHECKSUM)
     assert.deepEqual(list('schema_migrations').slice(0,30),ledger);assert.deepEqual(tables.map(list),snapshot)
     const {access_revision,...migrated}=storage.projectTasks.history(actor,task.id)
     assert.match(access_revision,/^[a-f0-9]{64}$/);assert.deepEqual(migrated,history)

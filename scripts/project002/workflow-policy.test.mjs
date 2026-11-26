@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {decideTaskWorkflow,submissionTiming,validTaskReview} from '../../packages/knowledgeos-panel/src/host/project-task-workflow.ts'
+import {decideTaskCorrection,decideTaskWorkflow,submissionTiming,validTaskReview} from '../../packages/knowledgeos-panel/src/host/project-task-workflow.ts'
 
 const base={kind:'project_admin',assignee:'worker',peerReviewer:'peer',finalReviewer:'admin',state:'assigned'}
 const worker={id:'worker',role:'member'}, peer={id:'peer',role:'member'}, admin={id:'admin',role:'admin'}
@@ -22,16 +22,28 @@ test('the assignee submits or resubmits; an assigned peer gates administrator co
   assert.deepEqual(step('submitted',admin,'final_accept',{peerReviewer:null}),{state:'accepted',nextActor:null})
 })
 
-test('return, blocked, and formal failure remain distinct; ordinary decisions are not enabled',()=>{
+test('return, blocked, and formal failure remain distinct',()=>{
   assert.deepEqual(step('submitted',peer,'peer_return'),{state:'returned',nextActor:'worker'})
   assert.deepEqual(step('awaiting_admin_review',admin,'final_return'),{state:'returned',nextActor:'worker'})
   assert.deepEqual(step('awaiting_admin_review',admin,'final_fail'),{state:'failed',nextActor:null})
   assert.deepEqual(step('blocked',worker,'submit'),{error:'TASK_STATE_CONFLICT'})
   assert.deepEqual(step('awaiting_material_access',admin,'final_fail'),{error:'TASK_STATE_CONFLICT'})
   assert.deepEqual(step('assigned',worker,'submit',{kind:'project_collaboration',peerReviewer:null}),{state:'submitted',nextActor:'admin'})
-  assert.deepEqual(step('submitted',admin,'final_accept',{kind:'project_collaboration'}),{error:'TASK_WORKFLOW_UNAVAILABLE'})
   assert.deepEqual(step('assigned',worker,'submit',{kind:'personal'}),{error:'TASK_WORKFLOW_UNAVAILABLE'})
   assert.deepEqual(step('awaiting_admin_review',admin,'final_force'),{error:'INVALID_TASK_INPUT'})
+})
+
+test('ordinary review belongs to the designated reviewer and a formal decision precedes correction',()=>{
+  const ordinary={kind:'project_collaboration',peerReviewer:null,finalReviewer:peer.id};
+  assert.deepEqual(step('submitted',peer,'final_accept',ordinary),{state:'accepted',nextActor:null})
+  assert.deepEqual(step('submitted',admin,'final_accept',ordinary),{error:'NOT_FOUND'})
+  assert.deepEqual(step('submitted',peer,'peer_pass',ordinary),{error:'TASK_WORKFLOW_UNAVAILABLE'})
+  const task={...base,...ordinary,state:'accepted'};
+  assert.deepEqual(decideTaskCorrection(task,peer,'final_fail'),{error:'NOT_FOUND'})
+  assert.deepEqual(decideTaskCorrection({...task,assignee:admin.id},admin,'final_accept'),{error:'NOT_FOUND'})
+  assert.deepEqual(decideTaskCorrection({...task,state:'submitted'},admin,'final_fail'),{error:'TASK_STATE_CONFLICT'})
+  assert.deepEqual(decideTaskCorrection(task,admin,'final_fail'),{state:'failed',nextActor:null})
+  assert.deepEqual(decideTaskCorrection(task,admin,'final_return'),{state:'returned',nextActor:'worker'})
 })
 
 test('only the server submission timestamp classifies a timely attempt',()=>{
