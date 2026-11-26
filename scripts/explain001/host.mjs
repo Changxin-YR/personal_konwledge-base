@@ -51,6 +51,13 @@ function within(parent, child) {
   return rel !== '' && rel !== '..' && !rel.startsWith('..' + sep) && !isAbsolute(rel)
 }
 let controller, host, browser, releaseSlot
+const packet = { path: PATH, question: QUESTION, lines: LINES.slice(FIRST - 1, LAST).map((text, i) => ({ line: FIRST + i, text })) }
+async function boot() {
+  const first = await host.start()
+  assert.equal(new URL(first.entry).origin, host.base, 'isolated Host entry')
+  assert(Number.isInteger(first.pid) && first.pid > 0)
+  run.boots.push({ pid: first.pid }); return first
+}
 function chromeEnv() {
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) =>
     /^(systemroot|windir|comspec|path|pathext|programfiles.*|processor_.*|number_of_processors|systemdrive|localappdata|appdata|userprofile|home|temp|tmp|lang|display|xdg_runtime_dir)$/i.test(name)))
