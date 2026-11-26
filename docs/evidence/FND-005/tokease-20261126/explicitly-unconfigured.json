@@ -1,0 +1,27 @@
+{
+  "candidate_sha": "aadf13abcb37aa24010af35543062d0551c58955",
+  "scope": "Aadf13a product with an explicitly unconfigured native default; no model fixtures and no external inference",
+  "status": "PASS",
+  "checks": [
+    {
+      "id": "T07.explicitly-unconfigured-native-default",
+      "status": "PASS",
+      "http": 503,
+      "code": "MODEL_NOT_CONFIGURED",
+      "attempts": 0
+    },
+    {
+      "id": "T08.unconfigured-ui-blocked",
+      "status": "PASS",
+      "provider_calls": 0
+    },
+    {
+      "id": "T08.unconfigured-draft-stays-blocked",
+      "status": "PASS"
+    }
+  ],
+  "started_at": "2026-11-26T02:16:17.076Z",
+  "entry_sha256": "2bd4ca6ea0cf1eba6942038e2e7ef9d531a5814461e412d7e01aae329b68dd8a",
+  "probe_sha256": "636976afc5d6e7193ef056e8ccf46a8a36cdbbc9243900d731db9ad25a97ad9f",
+  "finished_at": "2026-11-26T02:16:28.609Z"
+}

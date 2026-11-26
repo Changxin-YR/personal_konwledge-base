@@ -1,0 +1,34 @@
+{
+  "unit_id": "FND-005",
+  "candidate_sha": "aadf13abcb37aa24010af35543062d0551c58955",
+  "tree": "a386c26cf4cc2c76498b8b5a558fbfaef663ca36",
+  "entry_sha256": "2bd4ca6ea0cf1eba6942038e2e7ef9d531a5814461e412d7e01aae329b68dd8a",
+  "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+  "case_id": "A01",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/fnd005/candidate-live.mjs live aadf13abcb37aa24010af35543062d0551c58955 <locked-cache> <fingerprint> <isolated-id> <approval-sha256> --allow-two-prepares",
+  "main": {
+    "path": "docs/evidence/FND-005/tokease-20261126/proof.json",
+    "sha256": "36d87976e760c669a63f4df1dc375e4fc3b33848ff582fa43d0bef61c7961fed"
+  },
+  "independent": {
+    "path": "docs/evidence/FND-005/tokease-20261126/independent/proof.json",
+    "sha256": "4e6d9001550d9ff50c0869d8de5b475600f5c085d183066609dc95846ee11141"
+  },
+  "provider": "tokease",
+  "model": "deepseek-v4.1-flash-1017",
+  "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+  "operations": [
+    {
+      "tool": "knowledgeos_read_object",
+      "revision": 1,
+      "receipts": 0
+    },
+    {
+      "tool": "knowledgeos_update_object",
+      "revision": 2,
+      "receipts": 1
+    }
+  ]
+}

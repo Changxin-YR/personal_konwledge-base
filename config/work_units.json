@@ -1037,27 +1037,28 @@
         "A01"
       ],
       "completion_gate": "T01–T09全部必测项实际通过且独立复核PASS；至少一次真实DeepSeek提供方调用证据；缺真实模型时BLOCKED，不能passed/awaiting_user。",
-      "status": "blocked",
-      "test_plan_status": "detailed_active_unit",
+      "status": "passed",
+      "test_plan_status": "executed_with_evidence",
       "instruction_revision": "3.3.0",
-      "working_branch": "codex/knowledgeos-fnd-005",
+      "working_branch": "codex/knowledgeos-autonomous-20261119",
       "base_commit": "4282b9231a4ac38b0eb87145c337b811aec033e4",
       "activated_at": "2026-11-18",
       "activation_basis": "explicit_user_selection_of_FND005",
-      "test_result_status": "BLOCKED",
-      "independent_review_status": "BLOCKED",
-      "retest_status": "BLOCKED",
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "retest_status": "PASS",
       "completed_test_ids": [
+        "FND-005-T01",
+        "FND-005-T02",
         "FND-005-T03",
         "FND-005-T04",
         "FND-005-T05",
         "FND-005-T06",
         "FND-005-T07",
+        "FND-005-T08",
         "FND-005-T09"
       ],
-      "open_review_items": [
-        "DEEPSEEK_CANDIDATE_INDEPENDENT_ACCEPTANCE"
-      ],
+      "open_review_items": [],
       "closed_review_items": [
         "R1",
         "R2",
@@ -1065,7 +1066,11 @@
         "R4",
         "R5",
         "U02",
-        "PIAI_EMPTY_CATALOG"
+        "PIAI_EMPTY_CATALOG",
+        "DEEPSEEK_CANDIDATE_INDEPENDENT_ACCEPTANCE",
+        "NATIVE_DEFAULT_MODEL_BINDING",
+        "HISTORICAL_SCHEMA_FIXTURE_ASSERTIONS",
+        "UNCONFIGURED_FIXTURE_INPUT"
       ],
       "evidence_paths": [
         "docs/evidence/FND-005/REPORT.md",
@@ -1078,27 +1083,33 @@
         "docs/evidence/FND-005/build-and-gates.json",
         "docs/evidence/FND-005/delivery-safety.json",
         "docs/evidence/FND-005/continuous/discovery-blocked.json",
-        "docs/evidence/FND-005/native-host-egress-20261122.json"
+        "docs/evidence/FND-005/native-host-egress-20261122.json",
+        "docs/evidence/FND-005/tokease-20261126/acceptance.json",
+        "docs/evidence/FND-005/tokease-20261126/independent-summary.json",
+        "docs/evidence/FND-005/tokease-20261126/reviewer-attestation.json",
+        "docs/evidence/FND-005/tokease-20261126/proof.json",
+        "docs/evidence/FND-005/tokease-20261126/route-projection.json",
+        "docs/evidence/FND-005/tokease-20261126/price-approval.json",
+        "docs/evidence/FND-005/tokease-20261126/A01.json",
+        "docs/evidence/FND-005/tokease-20261126/REPORT.md"
       ],
-      "real_provider_status": "BLOCKED",
-      "real_provider_evidence": "docs/evidence/FND-005/live-hs14-Oaxv9B/summary.json",
-      "blocked_reason": "原生 Host 零出站预检已通过；仍缺当前候选受约束 Messages 正向放行、隔离原生凭据配置，以及真实读写和独立验收",
+      "real_provider_status": "PASS",
+      "real_provider_evidence": "docs/evidence/FND-005/tokease-20261126/proof.json",
       "technical_test_result_status": "PASS",
       "independent_technical_review_status": "PASS",
       "technical_retest_status": "PASS",
       "candidate": "FND-005-d0ec209b8161e14e",
-      "blocked_test_ids": [
-        "FND-005-T01",
-        "FND-005-T02",
-        "FND-005-T08"
-      ],
+      "blocked_test_ids": [],
       "stopped_at": "2026-11-18T09:27:51.274Z",
       "stop_reason": "修复前 HS14 的两次真实调用不等于修复后的独立模型验收。",
       "historical_gpt_stop": {
         "reason": "No authorized usable GPT API. Technical checks and independent technical review pass; actual GPT T01/T02/T08 remain BLOCKED with zero provider calls.",
         "record": "docs/evidence/FND-005/real-provider/summary.json",
         "calls": 0
-      }
+      },
+      "candidate_commit": "aadf13abcb37aa24010af35543062d0551c58955",
+      "completed_at": "2026-11-26T02:18:33.864Z",
+      "acceptance_record": "docs/evidence/FND-005/tokease-20261126/acceptance.json"
     },
     {
       "id": "FND-006",

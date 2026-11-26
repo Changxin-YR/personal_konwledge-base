@@ -1,0 +1,12 @@
+{
+  "unit_id": "FND-005",
+  "candidate_sha": "aadf13abcb37aa24010af35543062d0551c58955",
+  "category": "INDEPENDENT_REVIEWER_ATTESTATION",
+  "status": "PASS",
+  "reviewer": "Codex independent verifier",
+  "findings": "Reviewed exact bytes and both synthetic UI screenshots of the main exported proof, route and price approval. Reproduced two bounded native Tokease calls on a separate private DSH Host, Chrome profile and SQLite database with the same frozen candidate and observed both authenticated rereads, revisions and mutation receipts. All nine obligations ran. Explicit no-default profile supplemental results cover the two legacy fixture assumptions. Actual supplier billing was outside this check.",
+  "reviewed_at": "2026-11-26T02:17:42.068Z",
+  "real_provider_sha256": "36d87976e760c669a63f4df1dc375e4fc3b33848ff582fa43d0bef61c7961fed",
+  "route_projection_sha256": "ffb544d8659e3161a462fc8e642aec749c148db3614a052258fec3acac95326c",
+  "independent_sha256": "5be9c8cd2dee8b2eb97305f10ac0d111b7d0ec12213e2a581e309ad9796b75a8"
+}

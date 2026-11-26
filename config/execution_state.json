@@ -10,7 +10,7 @@
     "sha256": "a2e5986cfa81189aeae0c4b43ebfe4afd074aae9d5674e7ecf5e069c5d6ab530"
   },
   "active_unit": "FND-005",
-  "unit_state": "blocked",
+  "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "The exact user-supplied Tokease model is listed using its authorized environment credential. Validate confined real Host read and update, then independent verification.",
+  "state_reason": "Real Tokease read/write and the independent candidate review passed",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,69 +127,53 @@
     }
   },
   "last_accepted_checkpoint": {
-    "unit_id": "PROJECT-002",
-    "candidate_sha": "8645b69cc246752b4b44e5404afecb9b582982b7",
-    "tree": "1c3611a3e524114afb8a3149068c0261b7a6228c",
-    "source_tree": "366acd291571f6a1b546a59f11a5374b2dba136a",
-    "entry_sha256": "03466e020230561776f218a2d1e5ec8cc1f9a317c9487d72c0695161c15862d0",
-    "build_sha256": "0911952ff543168d5015df690521f555052bf2ebc9e38893f33fd88da2684b15",
-    "runner_sha256": "60abed88a1d56923efbdea9372155a184ebe3aee384a56569920593d631045d1",
-    "base_commit": "135693f2dbd6d7c2e37be1db47bc79fd063cbe77",
+    "unit_id": "FND-005",
+    "candidate_sha": "aadf13abcb37aa24010af35543062d0551c58955",
+    "tree": "a386c26cf4cc2c76498b8b5a558fbfaef663ca36",
+    "entry_sha256": "2bd4ca6ea0cf1eba6942038e2e7ef9d531a5814461e412d7e01aae329b68dd8a",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "base_commit": "4a41640054d6624ebf027cd633e1ba2592b089a8",
     "completed": [
-      "Fixed-version shared materials, reauthorization and resume, immutable replacement, and in-flight and delayed-response access checks.",
-      "Main and independent Host/Chrome/SQLite each passed 10 checks. A30, sharing and reader regressions passed on the frozen candidate. All 29 affected test cases passed."
+      "Connected the product to the native default-model service while preserving trusted explicit configurations.",
+      "Tokease exact-route main and independent real Host / Chrome / SQLite runs each selected one read and one write in two native requests.",
+      "Validated current schema regressions, old migration checksums, tools authorization, cancellation, and bounded no-retry route dispatch."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
-      "T01": "PASS",
-      "T02": "PASS",
-      "independent": "PASS",
-      "A31": "PASS",
-      "P08": "NOT_RUN",
-      "A30_regression": "PASS",
-      "sharing_regression": "PASS",
-      "reader_regression": "PASS"
+      "A01": "PASS",
+      "main_live": "PASS",
+      "independent_live": "PASS",
+      "independent_fixtures": "PASS",
+      "A41": "NOT_RUN"
     },
-    "evidence": "docs/evidence/PROJECT-002/acceptance.json",
+    "evidence": "docs/evidence/FND-005/tokease-20261126/acceptance.json",
     "defects": [],
-    "blocked_dependencies": [
-      "P08 requires daily scoring on SCORE-001."
-    ],
-    "next_task": "FND-005",
-    "retry_basis": "The exact user-supplied Tokease model is listed using its authorized environment credential. Validate confined real Host read and update, then independent verification.",
-    "retry_evidence": "docs/evidence/FND-005/tokease-preflight-20261126.json"
+    "blocked_dependencies": [],
+    "next_task": "PROJECT-003"
   },
   "checkpoint": {
-    "unit_id": "PROJECT-002",
-    "candidate_sha": "8645b69cc246752b4b44e5404afecb9b582982b7",
-    "tree": "1c3611a3e524114afb8a3149068c0261b7a6228c",
-    "source_tree": "366acd291571f6a1b546a59f11a5374b2dba136a",
-    "entry_sha256": "03466e020230561776f218a2d1e5ec8cc1f9a317c9487d72c0695161c15862d0",
-    "build_sha256": "0911952ff543168d5015df690521f555052bf2ebc9e38893f33fd88da2684b15",
-    "runner_sha256": "60abed88a1d56923efbdea9372155a184ebe3aee384a56569920593d631045d1",
-    "base_commit": "135693f2dbd6d7c2e37be1db47bc79fd063cbe77",
+    "unit_id": "FND-005",
+    "candidate_sha": "aadf13abcb37aa24010af35543062d0551c58955",
+    "tree": "a386c26cf4cc2c76498b8b5a558fbfaef663ca36",
+    "entry_sha256": "2bd4ca6ea0cf1eba6942038e2e7ef9d531a5814461e412d7e01aae329b68dd8a",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "base_commit": "4a41640054d6624ebf027cd633e1ba2592b089a8",
     "completed": [
-      "Fixed-version shared materials, reauthorization and resume, immutable replacement, and in-flight and delayed-response access checks.",
-      "Main and independent Host/Chrome/SQLite each passed 10 checks. A30, sharing and reader regressions passed on the frozen candidate. All 29 affected test cases passed."
+      "Connected the product to the native default-model service while preserving trusted explicit configurations.",
+      "Tokease exact-route main and independent real Host / Chrome / SQLite runs each selected one read and one write in two native requests.",
+      "Validated current schema regressions, old migration checksums, tools authorization, cancellation, and bounded no-retry route dispatch."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
-      "T01": "PASS",
-      "T02": "PASS",
-      "independent": "PASS",
-      "A31": "PASS",
-      "P08": "NOT_RUN",
-      "A30_regression": "PASS",
-      "sharing_regression": "PASS",
-      "reader_regression": "PASS"
+      "A01": "PASS",
+      "main_live": "PASS",
+      "independent_live": "PASS",
+      "independent_fixtures": "PASS",
+      "A41": "NOT_RUN"
     },
-    "evidence": "docs/evidence/PROJECT-002/acceptance.json",
+    "evidence": "docs/evidence/FND-005/tokease-20261126/acceptance.json",
     "defects": [],
-    "blocked_dependencies": [
-      "P08 requires daily scoring on SCORE-001."
-    ],
-    "next_task": "FND-005",
-    "retry_basis": "The exact user-supplied Tokease model is listed using its authorized environment credential. Validate confined real Host read and update, then independent verification.",
-    "retry_evidence": "docs/evidence/FND-005/tokease-preflight-20261126.json"
+    "blocked_dependencies": [],
+    "next_task": "PROJECT-003"
   }
 }

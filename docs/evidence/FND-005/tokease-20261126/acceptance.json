@@ -1,0 +1,35 @@
+{
+  "unit_id": "FND-005",
+  "candidate_sha": "aadf13abcb37aa24010af35543062d0551c58955",
+  "tree": "a386c26cf4cc2c76498b8b5a558fbfaef663ca36",
+  "entry_sha256": "2bd4ca6ea0cf1eba6942038e2e7ef9d531a5814461e412d7e01aae329b68dd8a",
+  "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+  "unit_acceptance": "PASS",
+  "passed_test_ids": [
+    "FND-005-T01",
+    "FND-005-T02",
+    "FND-005-T03",
+    "FND-005-T04",
+    "FND-005-T05",
+    "FND-005-T06",
+    "FND-005-T07",
+    "FND-005-T08",
+    "FND-005-T09"
+  ],
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/FND-005/tokease-20261126/independent-summary.json",
+  "real_provider_record": "docs/evidence/FND-005/tokease-20261126/proof.json",
+  "route_projection_record": "docs/evidence/FND-005/tokease-20261126/route-projection.json",
+  "price_approval_record": "docs/evidence/FND-005/tokease-20261126/price-approval.json",
+  "reviewer_attestation_record": "docs/evidence/FND-005/tokease-20261126/reviewer-attestation.json",
+  "independent_real_provider_record": "docs/evidence/FND-005/tokease-20261126/independent/proof.json",
+  "technical_results": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "plan_gate_regressions": 148,
+    "fixture_scope": "Synthetic negative and fault cases, not real model replies; see independent summary."
+  },
+  "final_cases": [
+    "docs/evidence/FND-005/tokease-20261126/A01.json"
+  ]
+}

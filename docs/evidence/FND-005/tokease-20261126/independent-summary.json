@@ -1,0 +1,108 @@
+{
+  "unit_id": "FND-005",
+  "candidate_sha": "aadf13abcb37aa24010af35543062d0551c58955",
+  "status": "PASS",
+  "exit": 0,
+  "command": "Candidate-live freeze, discover and live --allow-two-prepares. Independent loopback fixtures run-all, storage-checks, acl-regression, barrier-checks, browser-checks, configuration-checks and explicit-unconfigured-native-fixture. Guard/capture Node tests, noEmit types and verify-plan.",
+  "results": [
+    {
+      "id": "FND-005-T01",
+      "status": "PASS",
+      "result": "真实普通成员从 Chrome 发起只读，模型选择 read，SQLite 与授权 HTTP/界面复读一致，revision 1、零变更回执。"
+    },
+    {
+      "id": "FND-005-T02",
+      "status": "PASS",
+      "result": "真实模型选择 update，预审参数绑定既有对象和 revision 1。业务提交后保持同一对象，revision 2、恰好一条变更回执，UI/HTTP/SQLite 一致。"
+    },
+    {
+      "id": "FND-005-T03",
+      "status": "PASS",
+      "result": "冻结 Host 的原生执行无业务上下文拒绝。私人对象隔离和客户端/模型伪造身份均拒绝，授权矩阵另行实测。"
+    },
+    {
+      "id": "FND-005-T04",
+      "status": "PASS",
+      "result": "准备后撤权、成员到期、退出、已完成工具发布前撤权和真实 SQLite 锁等待均验证，失败不暴露对象。"
+    },
+    {
+      "id": "FND-005-T05",
+      "status": "PASS",
+      "result": "真实 SQLite 和重启回读证明相同请求回放一次提交，变参及不同对象复用键冲突，并发和故障回滚保持唯一回执。"
+    },
+    {
+      "id": "FND-005-T06",
+      "status": "PASS",
+      "result": "真实 Host 与 Chrome 显示旧版本 409，保留草稿，数据库内容、版本和回执无误写。"
+    },
+    {
+      "id": "FND-005-T07",
+      "status": "PASS",
+      "result": "受控分类、真实原生 pi-ai 缺凭据与未知模型、取消、无默认模型 503 与零尝试通过。没有故意触发供应商余额/权限故障。"
+    },
+    {
+      "id": "FND-005-T08",
+      "status": "PASS",
+      "result": "真实 Chrome 两次读回、模型名与 revision 截图和状态用量一致。草稿或切换账号清除待执行项，真正无默认模型时按钮始终禁用。"
+    },
+    {
+      "id": "FND-005-T09",
+      "status": "PASS",
+      "result": "独立冻结候选、固定上游和实际加载入口相符。类型检查、重启及 v4 故障复位、历史 v5 账本、迁移至 v31 与受影响权限回归通过。"
+    }
+  ],
+  "independent_live": {
+    "proof_sha256": "4e6d9001550d9ff50c0869d8de5b475600f5c085d183066609dc95846ee11141",
+    "route_projection_sha256": "ba7f34b1c5a08f0f4d5bdc87400d96b4b5c00db21364c8cb30258ae3b12e5c9a",
+    "price_approval_sha256": "087d8a04cf177ff93859eec221449091bd612758d49833987b870fd0030a2945",
+    "native_dispatches": 2,
+    "distinct_host_and_synthetic_object": true,
+    "only_fixture_traffic_outside_live": true
+  },
+  "supporting_records": {
+    "integration": {
+      "passed": 14,
+      "sha256": "c5397c486aeb3c95f5a06e40414f89baa7a333ef58330064344d0212e9387fc1"
+    },
+    "storage": {
+      "passed": 6,
+      "sha256": "2f275ad5d4155051f3d2bb66590493df4d6ece1db8efcd997d139f08ee66ba8b"
+    },
+    "acl": {
+      "passed": 7,
+      "sha256": "a8ffec414cb3dd5a63cb4286295511c2127fea723307633f4e4e1724c423a662"
+    },
+    "barriers": {
+      "passed": 5,
+      "sha256": "d3bcd99a71cf0ba8f78bc475a5f3fbdb604a7cf5ba00edab4307fb7531a0d956"
+    },
+    "browser": {
+      "passed": 8,
+      "legacy_default_assumption": "Timeout on BLOCKED assertion because a native default route was selected.",
+      "sha256": "075e0459a817350c8f42a3ddbf02afa6db130fc3984ffaf7edc98085caf36e52"
+    },
+    "configuration": {
+      "passed": 21,
+      "legacy_default_assumption": "The inherited selected native route correctly returned CREDENTIALS_MISSING.",
+      "sha256": "19b17b62db9a2048f4eaa09f3c6ddfcae39d99cc8e61b02885af1b8d40dc7ad1"
+    },
+    "explicit_unconfigured": {
+      "passed": 3,
+      "sha256": "ed0514968e1561e7cb00860b0c73236358029dbbcb6fc094587b13df065db57c",
+      "probe_sha256": "636976afc5d6e7193ef056e8ccf46a8a36cdbbc9243900d731db9ad25a97ad9f"
+    },
+    "transport_and_capture": {
+      "passed": 13,
+      "sha256": "34238d48be77666fddae029dbb48f60ec4b55a5a5bc2ee65aa1c8b7950bfde6a"
+    },
+    "no_emit_typecheck": {
+      "status": "PASS",
+      "sha256": "8ad8c3a1d5790708cc08e33740324016633c9ff2423590f25e37cf2649b90964"
+    },
+    "plan_structure": {
+      "status": "PASS",
+      "sha256": "7df6a7f7295cb9f606f064ba977e33f0302582bae440fb9fdaaf1f12345db1fe"
+    }
+  },
+  "limitations": "T08 旧夹具中默认 Host 已有原生模型，仍以为未配置。一项配置断言与两项浏览器断言已在同一候选上使用显式无默认模型的私有配置补验。供应商账单和真实余额未查询。"
+}

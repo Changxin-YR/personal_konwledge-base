@@ -32,8 +32,10 @@
         "A50",
         "A51"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/FND-005/tokease-20261126/A01.json"
+      ]
     },
     {
       "id": "F02",
@@ -553,8 +555,10 @@
         "A37",
         "A52"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/FND-005/tokease-20261126/A01.json"
+      ]
     },
     {
       "id": "F38",
@@ -598,8 +602,10 @@
         "A40",
         "A41"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/FND-005/tokease-20261126/A01.json"
+      ]
     },
     {
       "id": "F41",
@@ -911,8 +917,11 @@
       "expected": "入口与调用链真实存在；身份到达业务层；结果回到UI；工具权限有效；记录真实模型/适配器。",
       "level": "real_environment",
       "evidence_required": "上游提交、扩展入口、调用请求/响应脱敏记录、真实UI及持久化结果",
-      "status": "NOT_RUN",
-      "final_milestone": "M0"
+      "status": "PASS",
+      "final_milestone": "M0",
+      "evidence_paths": [
+        "docs/evidence/FND-005/tokease-20261126/A01.json"
+      ]
     },
     {
       "id": "A02",

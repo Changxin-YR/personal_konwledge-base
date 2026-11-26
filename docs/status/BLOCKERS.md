@@ -2,7 +2,7 @@
 
 ## 当前阻塞与在制缺口
 
-2026-11-26，PROJECT-002 和 A31 已通过。[冻结候选与验收](../evidence/PROJECT-002/REPORT.md) 包含材料失权等待和恢复、已打开页面清屏及迟到响应处理。P08 等待 SCORE-001。FND-005 改用用户确认的词易 OpenAI-compatible 路由。授权环境变量可读取，精确模型已出现在 [外部目录](../evidence/FND-005/tokease-preflight-20261126.json)。剩余真实读写、独立复跑和候选证据绑定。后续记录只依据本路由的实际运行。
+2026-11-26，[PROJECT-002 和 A31](../evidence/PROJECT-002/REPORT.md) 已通过，P08 等待 SCORE-001。[FND-005 和 A01](../evidence/FND-005/tokease-20261126/REPORT.md) 已通过，真实业务读写在同一冻结候选主跑及独立复跑。A41 仍待 MODEL-001 的全套配置与用量验收。下一单元 PROJECT-003 的 A32 需要 PROJECT-004 完成正式复议后再整体验收。
 
 GitLab、Gitee、真实 AI 写入拒绝及 GitHub 私库认证仍待各自验收。Windows 安装、升级、回退、卸载和 CHECK-004 未启动。
 
