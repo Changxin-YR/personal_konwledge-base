@@ -101,7 +101,9 @@ try {
 
   phase = 'library navigation and initial snapshot'
   const owner = await login('owner'), peer = await login('peer'), { page } = owner
-  await page.goto(origin + '/knowledgeos/library'); await page.getByRole('link', { name: '仓库与代码' }).click()
+  await page.goto(origin + '/knowledgeos/library')
+  await page.getByText('更多知识库工具', { exact: true }).click()
+  await page.getByRole('link', { name: '仓库与代码' }).click()
   await page.locator('#workspace').waitFor()
   let first, restored
   const initialPath = fixtureOnly ? 'README.md' : readme
