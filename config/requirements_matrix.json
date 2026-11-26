@@ -203,8 +203,11 @@
         "P05",
         "A13"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/LEARN-002/acceptance.json",
+        "docs/evidence/LEARN-002/A13.json"
+      ]
     },
     {
       "id": "F13",
@@ -304,7 +307,9 @@
       ],
       "implementation_status": "in_progress",
       "evidence_paths": [
-        "docs/evidence/LEARN-001/acceptance.json"
+        "docs/evidence/LEARN-001/acceptance.json",
+        "docs/evidence/LEARN-002/acceptance.json",
+        "docs/evidence/LEARN-002/A13.json"
       ]
     },
     {
@@ -348,7 +353,9 @@
       ],
       "implementation_status": "in_progress",
       "evidence_paths": [
-        "docs/evidence/LEARN-001/acceptance.json"
+        "docs/evidence/LEARN-001/acceptance.json",
+        "docs/evidence/LEARN-002/acceptance.json",
+        "docs/evidence/LEARN-002/A13.json"
       ]
     },
     {
@@ -1156,8 +1163,11 @@
       "expected": "首次答案保留；二次作答区分；判分规则透明；有争议的开放表达不凭模型强行计错。",
       "level": "integration",
       "evidence_required": "测试记录、关键状态与操作证据",
-      "status": "NOT_RUN",
-      "final_milestone": "M2"
+      "status": "PASS",
+      "final_milestone": "M2",
+      "evidence_paths": [
+        "docs/evidence/LEARN-002/A13.json"
+      ]
     },
     {
       "id": "A14",

@@ -1,0 +1,90 @@
+{
+  "unit_id": "LEARN-002",
+  "candidate_sha": "6929c502c454a6eda41889ee396f14c0ee0705b0",
+  "tree": "6fdb4da85d9ea6bef73497b7a80a310db4b892c6",
+  "source_tree": "5752fec42aa0e6d908d7637f2a4ad0cf1e11c8d7",
+  "entry_sha256": "2c26218889a85351fe6947986f3d5aefe8fac7d983036b303801b72707607663",
+  "build_sha256": "5299f65072768bf9a28aa485a8df75a80f399f7f1a16ee94d939a72b3119f1f4",
+  "case_id": "A13",
+  "participants": [
+    {
+      "unit_id": "FND-005",
+      "candidate_sha": "aadf13abcb37aa24010af35543062d0551c58955"
+    },
+    {
+      "unit_id": "READ-002",
+      "candidate_sha": "08889f97a612b34ae205f0dfa3af6064c3585f19"
+    },
+    {
+      "unit_id": "LEARN-001",
+      "candidate_sha": "0e7c900a7d0a922be46b8b6c59fbf08375f8b91c"
+    },
+    {
+      "unit_id": "LEARN-002",
+      "candidate_sha": "6929c502c454a6eda41889ee396f14c0ee0705b0"
+    }
+  ],
+  "kind": "regression",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node --experimental-transform-types scripts/learn002/v40-regression.mjs <frozen-checkout> <candidate> <entry> + node scripts/learn001/host-practice.mjs <frozen-checkout> 6929c502c454a6eda41889ee396f14c0ee0705b0 2c26218889a85351fe6947986f3d5aefe8fac7d983036b303801b72707607663 scripts/learn001/main-scenario.mjs main",
+  "runner": "Independent v40 migration and batch rollback and Chrome practice regression",
+  "environment": "Windows isolated native DSH Host, Chrome and SQLite, with separate guarded model adapter for scope demonstrations.",
+  "inputs": "Fixed synthetic text and identities. Native Tokease used only the single reviewed synthetic paragraph per live run.",
+  "run_id": "kos-learn002-v40-ejWiDk",
+  "results": [
+    {
+      "id": "populated_frozen_v39_practice_and_provenance",
+      "actual": "Observed on production SQLite with independent regression.",
+      "status": "PASS"
+    },
+    {
+      "id": "post_schema_v40_fault_preserved_every_v39_row",
+      "actual": "Observed on production SQLite with independent regression.",
+      "status": "PASS"
+    },
+    {
+      "id": "one_v40_checksum_and_old_answer_round_trip",
+      "actual": "Observed on production SQLite with independent regression.",
+      "status": "PASS"
+    },
+    {
+      "id": "quick_run_or_second_metadata_abort_rolls_back_entire_batch",
+      "actual": "Observed on production SQLite with independent regression.",
+      "status": "PASS"
+    },
+    {
+      "id": "generated_batch_reused_same_key_without_any_duplicate",
+      "actual": "Observed on production SQLite with independent regression.",
+      "status": "PASS"
+    },
+    {
+      "id": "quality_gate_insufficient_receipt_and_old_rows_unchanged",
+      "actual": "Observed on production SQLite with independent regression.",
+      "status": "PASS"
+    },
+    {
+      "id": "durable_generated_history_and_revoked_source_blocks_commit",
+      "actual": "Observed on production SQLite with independent regression.",
+      "status": "PASS"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/LEARN-002/runs/v40-storage.json",
+      "sha256": "be13765e4e534391554d99951605e644e5cdb8f293532b6f8ac60ac21d5f3999"
+    },
+    {
+      "path": "docs/evidence/LEARN-002/runs/three-types-regression-learner-before-first-answer.png",
+      "sha256": "7958c95fc1923f204549060cc0a92b7ec8305e93401f4c6e1cd399fc0ba7a2c3"
+    },
+    {
+      "path": "docs/evidence/LEARN-002/runs/three-types-regression-learner-first-and-later.png",
+      "sha256": "fa7b3ed09c7fefccd83c2ad792a69499367756b1735f7b18305930de3489a1b9"
+    },
+    {
+      "path": "docs/evidence/LEARN-002/runs/three-types-regression-learner-source-revoked.png",
+      "sha256": "35e05e5c90a5b0f0e065d66e354f910f23b6edaafa2f3f0cf391d21af0bbbeba"
+    }
+  ]
+}

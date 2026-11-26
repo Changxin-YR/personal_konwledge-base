@@ -1,0 +1,16 @@
+{
+  "unit": "LEARN-002",
+  "candidate": "6929c502c454a6eda41889ee396f14c0ee0705b0",
+  "entry_sha256": "2c26218889a85351fe6947986f3d5aefe8fac7d983036b303801b72707607663",
+  "route": {
+    "provider": "tokease",
+    "model": "deepseek-v4.1-flash-1017",
+    "endpoint": "https://tokease.cn/v1"
+  },
+  "stage": "valid-quick-paragraph",
+  "fixture_sha256": "77abf3b031bf7b9c7b76072ebecb2485d1acd56b0402230330640642852bf8c9",
+  "system_sha256": "3ff2ba37bf357f645035c840b4a23df756617c483533d107c935f1bf07a90b56",
+  "user_sha256": "e8d4a17defbccc027eda7ae38810b97b0f9d6861d5c4fa15b0117ebe61cf97e2",
+  "wire_sha256": "006e620ddb180333dde67ffc224aa9510ad846a32b4b2517433e2489ac19f684",
+  "approval_sha256": "0ef43612adea854380622ebcda6704f55cbd3d52b04e74275a9bfb4248221957"
+}

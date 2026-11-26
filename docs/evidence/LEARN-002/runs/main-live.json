@@ -1,0 +1,117 @@
+{
+  "unit_id": "LEARN-002",
+  "candidate_sha": "6929c502c454a6eda41889ee396f14c0ee0705b0",
+  "tree": "6fdb4da85d9ea6bef73497b7a80a310db4b892c6",
+  "source_tree": "5752fec42aa0e6d908d7637f2a4ad0cf1e11c8d7",
+  "entry_sha256": "2c26218889a85351fe6947986f3d5aefe8fac7d983036b303801b72707607663",
+  "build_sha256": "5299f65072768bf9a28aa485a8df75a80f399f7f1a16ee94d939a72b3119f1f4",
+  "runner_sha256": "62ddce73ba6f3f5472ddf3bf68147cda08aaa930765660062af728fd60593096",
+  "controller_sha256": "1a1e3d78c202aedb0bf4e4e56b7e766a5b368e99d336f3175112d65854b1b60a",
+  "scenario_sha256": "981f0031ebbd618d9c93851c51743c91db4c22b75922be8acf1ae1377f0a4648",
+  "run_kind": "main",
+  "model_phase": "live",
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "A13": "NOT_RUN",
+  "P05": "NOT_RUN",
+  "checks": [
+    {
+      "id": "T01",
+      "status": "PASS",
+      "generated": 1,
+      "durable_first": true,
+      "appended_again": true,
+      "same_original_selection": true
+    },
+    {
+      "id": "T02",
+      "status": "PASS",
+      "insufficient_zero_sessions": true,
+      "hidden_owner_answers": true,
+      "stale_preview_denied": true,
+      "generated_evaluation_eligible": false
+    }
+  ],
+  "screens": [
+    {
+      "file": "quick-paragraph-request-scope.png",
+      "sha256": "a2179a6ee0325135ff481e7007d0c27894cdfc05da331049796c4acb4256d4db",
+      "bytes": 38821
+    },
+    {
+      "file": "quick-first-source-feedback.png",
+      "sha256": "0c63eccea0f0c224de3a9bd458a0db796a9eb08e46b378b209d68b006923cb82",
+      "bytes": 59613
+    },
+    {
+      "file": "quick-return-to-original-selection.png",
+      "sha256": "da52d9487b4a7c7d7083001be2264f7aeb470697c2b561f4553a70638cc5b08c",
+      "bytes": 47699
+    }
+  ],
+  "boots": [
+    44796
+  ],
+  "browser_denials": 0,
+  "chrome": "158.0.8127.88",
+  "model": {
+    "mode": "live",
+    "unit": "LEARN-002",
+    "candidate_sha": "6929c502c454a6eda41889ee396f14c0ee0705b0",
+    "tree": "6fdb4da85d9ea6bef73497b7a80a310db4b892c6",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "2c26218889a85351fe6947986f3d5aefe8fac7d983036b303801b72707607663",
+    "provider": "tokease",
+    "model": "deepseek-v4.1-flash-1017",
+    "endpoint": "https://tokease.cn/v1",
+    "manifest_sha256": "2e07f32362a0c13ce6745092361270a707aa700994e2a93c82a38dc626397dc9",
+    "helpers": {
+      "controller.mjs": "1a1e3d78c202aedb0bf4e4e56b7e766a5b368e99d336f3175112d65854b1b60a",
+      "guard.mjs": "947dbc9198564ba4b8a445d947fee554becabdd32388b25730126ed4ae534e17",
+      "native.mjs": "9e9ca393e59e4e2ec17e4b292564548665bdae1b244e3c00650b19c94d303270",
+      "preload.mjs": "d898bcd3e1347f662addc3c5a8a55120f72fab97e4c35138fbe9a34407e209e4",
+      "seal.mjs": "726215cd73d7cb080a71baa76a712826937a141d320f32febabfdd41637348e9",
+      "synthetic.mjs": "77abf3b031bf7b9c7b76072ebecb2485d1acd56b0402230330640642852bf8c9"
+    },
+    "real_inference_requests": 1,
+    "outbound_tls_connect_attempts": 1,
+    "wire_calibrations": 0,
+    "expectations_armed": 1,
+    "permit_consumed": true,
+    "native_denials": 0,
+    "network_denials": [
+      {
+        "scope": "tcp",
+        "destination": "windows_local_pipe",
+        "result": "DENIED_BEFORE_DISPATCH"
+      }
+    ],
+    "transport_errors": [],
+    "requests": [
+      {
+        "stage": "valid-quick-paragraph",
+        "request_sha256": "006e620ddb180333dde67ffc224aa9510ad846a32b4b2517433e2489ac19f684",
+        "system_sha256": "3ff2ba37bf357f645035c840b4a23df756617c483533d107c935f1bf07a90b56",
+        "user_sha256": "e8d4a17defbccc027eda7ae38810b97b0f9d6861d5c4fa15b0117ebe61cf97e2",
+        "output_token_cap": 1536,
+        "tools": 0
+      }
+    ],
+    "response_usage": [
+      {
+        "http_status": 200,
+        "bytes": 28729,
+        "content_chars": 166,
+        "reasoning_chars": 556,
+        "finish": "stop",
+        "response_sha256": "afbaa86afeb88a5ec4cf4b16dd6726063033a8aeb63da484a5c774998ecf3cf1",
+        "input_tokens": 212,
+        "output_tokens": 286,
+        "total_tokens": 498
+      }
+    ]
+  },
+  "cleanup": "PASS"
+}

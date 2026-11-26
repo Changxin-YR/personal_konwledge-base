@@ -1,0 +1,42 @@
+{
+  "unit_id": "LEARN-002",
+  "candidate_sha": "6929c502c454a6eda41889ee396f14c0ee0705b0",
+  "tree": "6fdb4da85d9ea6bef73497b7a80a310db4b892c6",
+  "source_tree": "5752fec42aa0e6d908d7637f2a4ad0cf1e11c8d7",
+  "entry_sha256": "2c26218889a85351fe6947986f3d5aefe8fac7d983036b303801b72707607663",
+  "build_sha256": "5299f65072768bf9a28aa485a8df75a80f399f7f1a16ee94d939a72b3119f1f4",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/learn002/host-quick-practice.mjs <frozen-checkout> 6929c502c454a6eda41889ee396f14c0ee0705b0 2c26218889a85351fe6947986f3d5aefe8fac7d983036b303801b72707607663 scripts/know003/local-model/fixture.mjs scripts/learn002/independent-quick-scenario.mjs independent + node scripts/learn002/host-quick-practice.mjs <frozen-checkout> 6929c502c454a6eda41889ee396f14c0ee0705b0 2c26218889a85351fe6947986f3d5aefe8fac7d983036b303801b72707607663 scripts/learn002/tokease/controller.mjs scripts/learn002/main-quick-scenario.mjs independent",
+  "reviewer": "Independent Chrome/Host and SQLite regression agents",
+  "results": [
+    {
+      "id": "LEARN-002-T01",
+      "actual": "Actual Reader paragraph, chapter and term scopes, adjusted count, first submit and later retry, pinned reading return after new source version.",
+      "status": "PASS"
+    },
+    {
+      "id": "LEARN-002-T02",
+      "actual": "No unsafe output or writes after held revocation, insufficient coverage or untrusted quote; generated review exercise is excluded.",
+      "status": "PASS"
+    }
+  ],
+  "records": [
+    {
+      "path": "docs/evidence/LEARN-002/runs/independent-local.json",
+      "sha256": "1f9b431bb9edf8e76cfd572d4caa5c95ced202b889afc1bc855e013948989c13"
+    },
+    {
+      "path": "docs/evidence/LEARN-002/runs/independent-live.json",
+      "sha256": "c81ebb2a08c4d2cf69e69c110df73df24833a2b682278d59bf31b21fa1e07d56"
+    },
+    {
+      "path": "docs/evidence/LEARN-002/runs/three-types-regression.json",
+      "sha256": "c99ec9482e4c5607915441ea824d7ae708b13c616fd8a011d3595c1214df05c8"
+    },
+    {
+      "path": "docs/evidence/LEARN-002/runs/v40-storage.json",
+      "sha256": "be13765e4e534391554d99951605e644e5cdb8f293532b6f8ac60ac21d5f3999"
+    }
+  ]
+}

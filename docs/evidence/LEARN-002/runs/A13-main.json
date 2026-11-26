@@ -1,0 +1,79 @@
+{
+  "unit_id": "LEARN-002",
+  "candidate_sha": "6929c502c454a6eda41889ee396f14c0ee0705b0",
+  "tree": "6fdb4da85d9ea6bef73497b7a80a310db4b892c6",
+  "source_tree": "5752fec42aa0e6d908d7637f2a4ad0cf1e11c8d7",
+  "entry_sha256": "2c26218889a85351fe6947986f3d5aefe8fac7d983036b303801b72707607663",
+  "build_sha256": "5299f65072768bf9a28aa485a8df75a80f399f7f1a16ee94d939a72b3119f1f4",
+  "case_id": "A13",
+  "participants": [
+    {
+      "unit_id": "FND-005",
+      "candidate_sha": "aadf13abcb37aa24010af35543062d0551c58955"
+    },
+    {
+      "unit_id": "READ-002",
+      "candidate_sha": "08889f97a612b34ae205f0dfa3af6064c3585f19"
+    },
+    {
+      "unit_id": "LEARN-001",
+      "candidate_sha": "0e7c900a7d0a922be46b8b6c59fbf08375f8b91c"
+    },
+    {
+      "unit_id": "LEARN-002",
+      "candidate_sha": "6929c502c454a6eda41889ee396f14c0ee0705b0"
+    }
+  ],
+  "kind": "main",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/learn002/host-quick-practice.mjs <frozen-checkout> 6929c502c454a6eda41889ee396f14c0ee0705b0 2c26218889a85351fe6947986f3d5aefe8fac7d983036b303801b72707607663 scripts/learn002/tokease/controller.mjs scripts/learn002/main-quick-scenario.mjs main + node scripts/learn001/host-practice.mjs <frozen-checkout> 6929c502c454a6eda41889ee396f14c0ee0705b0 2c26218889a85351fe6947986f3d5aefe8fac7d983036b303801b72707607663 scripts/learn001/main-scenario.mjs main",
+  "runner": "Primary real section-to-practice runner and same-build three-type Chrome regression",
+  "environment": "Windows isolated native DSH Host, Chrome and SQLite, with separate guarded model adapter for scope demonstrations.",
+  "inputs": "Fixed synthetic text and identities. Native Tokease used only the single reviewed synthetic paragraph per live run.",
+  "run_id": "knowledgeos-learn002-run-KEhrhD",
+  "results": [
+    {
+      "id": "THREE_SOURCE_BOUND_TYPES",
+      "actual": "Same-candidate Chrome practice exercised sourced choice, strict boolean judgment, and fill with fixed answers.",
+      "status": "PASS"
+    },
+    {
+      "id": "QUICK_READER_RANGE_FIRST_ANSWER_AND_RETURN",
+      "actual": "Chrome started in an exact Reader selection. Main and independent Tokease requests created a private practice backed by the selected bytes, only revealing after durable first submit. Offline Reader chapter and term boundaries replayed.",
+      "status": "PASS"
+    },
+    {
+      "id": "APPEND_LATER_AND_LOCAL_GRADING_ALIASES",
+      "actual": "Later answer preserved the first answer row. Fixed normalization and aliases scored only matching fill expressions.",
+      "status": "PASS"
+    },
+    {
+      "id": "INSUFFICIENT_AND_DISPUTED_EXCLUDED",
+      "actual": "Source insufficiency produced no session. Disputed/needs-review answers stayed observable and excluded from formal evaluation. Held source revoke blocked model-result writes and old reads.",
+      "status": "PASS"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/LEARN-002/runs/main-live.json",
+      "sha256": "8dcc8b89d2d806b7193da3272c849219642b9a59a633d608fbe3ef3092e17eb4"
+    },
+    {
+      "path": "docs/evidence/LEARN-002/runs/three-types-regression.json",
+      "sha256": "c99ec9482e4c5607915441ea824d7ae708b13c616fd8a011d3595c1214df05c8"
+    },
+    {
+      "path": "docs/evidence/LEARN-002/runs/main-live-quick-paragraph-request-scope.png",
+      "sha256": "a2179a6ee0325135ff481e7007d0c27894cdfc05da331049796c4acb4256d4db"
+    },
+    {
+      "path": "docs/evidence/LEARN-002/runs/main-live-quick-first-source-feedback.png",
+      "sha256": "0c63eccea0f0c224de3a9bd458a0db796a9eb08e46b378b209d68b006923cb82"
+    },
+    {
+      "path": "docs/evidence/LEARN-002/runs/main-live-quick-return-to-original-selection.png",
+      "sha256": "da52d9487b4a7c7d7083001be2264f7aeb470697c2b561f4553a70638cc5b08c"
+    }
+  ]
+}

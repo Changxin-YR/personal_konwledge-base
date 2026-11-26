@@ -1,0 +1,51 @@
+{
+  "unit_id": "LEARN-002",
+  "candidate_sha": "6929c502c454a6eda41889ee396f14c0ee0705b0",
+  "entry_sha256": "2c26218889a85351fe6947986f3d5aefe8fac7d983036b303801b72707607663",
+  "frozen_v39": "1f02fb6aaaff975ab11100582ddc73e907099220",
+  "old_bundle_sha256": "de2b278e6bd75c6ec21e0686de8ead73b81029908b59d20d126691582347386e",
+  "test_support_sha256": "34beba19564cab0d6c0f963f06e9234e7ade7fe9bdaefba65e3d8794451e96b7",
+  "runner_sha256": "2275f95237e8d012e9e95eed99e5e3e2c15ab457fda631fe6c6d4da3116faeb5",
+  "scope": "INDEPENDENT_OFFLINE_V40_STORAGE",
+  "command": "node --experimental-transform-types v40-regression.mjs <checkout> <candidate SHA> <entry SHA-256>",
+  "status": "PASS",
+  "exit_code": 0,
+  "real_inference_requests": 0,
+  "results": [
+    {
+      "id": "populated_frozen_v39_practice_and_provenance",
+      "status": "PASS",
+      "actual": "Exact v39 persisted an authored question and version, private learner attempt and receipt, original citation and locator, confirmed ontology and source permissions."
+    },
+    {
+      "id": "post_schema_v40_fault_preserved_every_v39_row",
+      "status": "PASS",
+      "actual": "Injected failure after v40 schema application left the exact v39 definitions, contents and ledger unchanged."
+    },
+    {
+      "id": "one_v40_checksum_and_old_answer_round_trip",
+      "status": "PASS",
+      "actual": "Two production storage opens gave a single correct v40 migration receipt. Legacy learner history and source-linked relation remained intact and private."
+    },
+    {
+      "id": "quick_run_or_second_metadata_abort_rolls_back_entire_batch",
+      "status": "PASS",
+      "actual": "Fault after both session-version pins, then separately at second quality row, left no generated citations, locators, questions, versions, sessions, metadata or idempotency receipt."
+    },
+    {
+      "id": "generated_batch_reused_same_key_without_any_duplicate",
+      "status": "PASS",
+      "actual": "A single recovery committed two question-version pins plus actual quote citations, one session and one run receipt. Matching key replay returned that exact session and a changed fingerprint was rejected."
+    },
+    {
+      "id": "quality_gate_insufficient_receipt_and_old_rows_unchanged",
+      "status": "PASS",
+      "actual": "Generated first answers were gated and excluded from formal evaluation even on correct rows. Insufficiency recorded only a replayable null-session receipt; every previous v39 row remained intact."
+    },
+    {
+      "id": "durable_generated_history_and_revoked_source_blocks_commit",
+      "status": "PASS",
+      "actual": "A new connection read the exact generated history before revocation. A source revoked after the range check blocked both the existing view and a subsequent batch commit."
+    }
+  ]
+}

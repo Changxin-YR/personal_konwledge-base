@@ -1,0 +1,185 @@
+{
+  "unit_id": "LEARN-002",
+  "candidate_sha": "6929c502c454a6eda41889ee396f14c0ee0705b0",
+  "tree": "6fdb4da85d9ea6bef73497b7a80a310db4b892c6",
+  "source_tree": "5752fec42aa0e6d908d7637f2a4ad0cf1e11c8d7",
+  "entry_sha256": "2c26218889a85351fe6947986f3d5aefe8fac7d983036b303801b72707607663",
+  "build_sha256": "5299f65072768bf9a28aa485a8df75a80f399f7f1a16ee94d939a72b3119f1f4",
+  "runner_sha256": "62ddce73ba6f3f5472ddf3bf68147cda08aaa930765660062af728fd60593096",
+  "controller_sha256": "76555e95b1240d43c29b061c1ae2bb9e8299d03722b550c9ba3eb574283f3d2e",
+  "scenario_sha256": "cb52472889c0c1eee756d17009d0e44ce69d3d6b4e9088b45be1761a77d5dcfc",
+  "run_kind": "independent",
+  "model_phase": "local",
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "A13": "NOT_RUN",
+  "P05": "NOT_RUN",
+  "checks": [
+    {
+      "id": "T02_guard_before_model",
+      "status": "PASS",
+      "unauthorized_requests": 3,
+      "bad_anchor_no_request": true
+    },
+    {
+      "id": "T01",
+      "status": "PASS",
+      "paragraph_fixed_offsets": true,
+      "chapter_selected_units": true,
+      "term_current_context": true,
+      "first_answer_before_feedback": true
+    },
+    {
+      "id": "T02",
+      "status": "PASS",
+      "no_egress_on_short": true,
+      "bad_quote_not_saved": true,
+      "held_revocation_no_write": true,
+      "review_question_excluded_from_evaluation": true
+    },
+    {
+      "id": "fixed_source_and_attempts_survive_restart",
+      "status": "PASS",
+      "source_version_pin": true,
+      "later_answer_distinct": true
+    }
+  ],
+  "screens": [
+    {
+      "file": "paragraph-preview-range.png",
+      "sha256": "edd631f0ec899b5e57d73fdfa6fd87badd2a1fb3046fce81c5e66d58bce41383",
+      "bytes": 38497
+    },
+    {
+      "file": "quick-session-before-answer.png",
+      "sha256": "24af6dd551084ebb0e20a5fe90c37d1db5ca2a2632eb1afdd43c75bbb817dd1d",
+      "bytes": 47365
+    },
+    {
+      "file": "quick-first-and-second.png",
+      "sha256": "14393f91fbb0d11fed4fecebc0e7144c50e7a6c3a7dafe88be46b1d05fcdbb4d",
+      "bytes": 61777
+    },
+    {
+      "file": "chapter-quick-needs-review.png",
+      "sha256": "ed100016604976a5236cb3f73126d7a017bb7e85135757fcf65fa205334f81dc",
+      "bytes": 51954
+    },
+    {
+      "file": "quick-fixed-v1-after-restart.png",
+      "sha256": "422133b9ccd75ea50c1c6d3681a5655b629cd236d7521c5ee944a0c45a2c6b02",
+      "bytes": 50600
+    }
+  ],
+  "boots": [
+    39976,
+    35680
+  ],
+  "browser_denials": 0,
+  "chrome": "158.0.8127.88",
+  "model": {
+    "mode": "CONTROLLED_LOOPBACK_NATIVE_PI_AI_OPENAI_COMPLETIONS",
+    "candidate_sha": "6929c502c454a6eda41889ee396f14c0ee0705b0",
+    "tree": "6fdb4da85d9ea6bef73497b7a80a310db4b892c6",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "2c26218889a85351fe6947986f3d5aefe8fac7d983036b303801b72707607663",
+    "provider": "knowledgeos-ontology-fixture",
+    "model": "deepseek-ontology-local-fixture",
+    "real_inference_requests": 0,
+    "local_sse_requests": 6,
+    "expectations_armed": 6,
+    "expectation_unconsumed": null,
+    "network_denials": [
+      {
+        "scope": "tcp",
+        "destination": "windows_local_pipe",
+        "result": "DENIED_BEFORE_DISPATCH"
+      },
+      {
+        "scope": "tcp",
+        "destination": "windows_local_pipe",
+        "result": "DENIED_BEFORE_DISPATCH"
+      }
+    ],
+    "fixture_denials": [],
+    "requests": [
+      {
+        "stage": "learn002-para",
+        "result": "LOCAL_HTTP_SSE",
+        "request_sha256": "8f6eb33eabe47a4d2854fadfb64e445a89ba9834830c5807694870a9f8e65de3",
+        "system_sha256": "3ff2ba37bf357f645035c840b4a23df756617c483533d107c935f1bf07a90b56",
+        "user_sha256": "47f7bf46d2803eb2b995fee3d1cc94a247256846dce21433fa8e3aa7c8f7491a",
+        "output_token_cap": 512,
+        "tools": 0,
+        "reply_sha256": "120837c6db2d3a4aa4f81496dc58dcb6221b363c9872e318a3cd75781ab8ba32",
+        "finish": "stop",
+        "held": false
+      },
+      {
+        "stage": "learn002-chapter",
+        "result": "LOCAL_HTTP_SSE",
+        "request_sha256": "fe9b97afc6cd27c0ba4e350ef86760b4ad80cf435adcf0ef362eda8899594d26",
+        "system_sha256": "3ff2ba37bf357f645035c840b4a23df756617c483533d107c935f1bf07a90b56",
+        "user_sha256": "9ceaeaaed281069c5c7624b328c3b74c1e0875522105cc17ecb6c7db19bb595f",
+        "output_token_cap": 512,
+        "tools": 0,
+        "reply_sha256": "a95dee39395f72ad7471e0d1a8c5e39e966dadc51296f9e769bf4e90535851d6",
+        "finish": "stop",
+        "held": false
+      },
+      {
+        "stage": "learn002-term-positive",
+        "result": "LOCAL_HTTP_SSE",
+        "request_sha256": "b2bb70f6a5dd0ed77a81f1cfb85d5dd962c70f732dc38edc186d1cb78f3e2a9b",
+        "system_sha256": "3ff2ba37bf357f645035c840b4a23df756617c483533d107c935f1bf07a90b56",
+        "user_sha256": "8e2bd90e35b72d4761673f7e7b30a355dc0a499d3cbe25b751ea4213f9ece14d",
+        "output_token_cap": 512,
+        "tools": 0,
+        "reply_sha256": "bae774bcf874960a32c103478f4d6f2ed430a66c0bf0533db97b796115466b3b",
+        "finish": "stop",
+        "held": false
+      },
+      {
+        "stage": "learn002-term-insufficient",
+        "result": "LOCAL_HTTP_SSE",
+        "request_sha256": "b2bb70f6a5dd0ed77a81f1cfb85d5dd962c70f732dc38edc186d1cb78f3e2a9b",
+        "system_sha256": "3ff2ba37bf357f645035c840b4a23df756617c483533d107c935f1bf07a90b56",
+        "user_sha256": "8e2bd90e35b72d4761673f7e7b30a355dc0a499d3cbe25b751ea4213f9ece14d",
+        "output_token_cap": 512,
+        "tools": 0,
+        "reply_sha256": "9ebc2777053e21656026d17d3a49515bb4481b139a13e4fcb2c86d7046b46c8b",
+        "finish": "stop",
+        "held": false
+      },
+      {
+        "stage": "learn002-forged-source",
+        "result": "LOCAL_HTTP_SSE",
+        "request_sha256": "8f6eb33eabe47a4d2854fadfb64e445a89ba9834830c5807694870a9f8e65de3",
+        "system_sha256": "3ff2ba37bf357f645035c840b4a23df756617c483533d107c935f1bf07a90b56",
+        "user_sha256": "47f7bf46d2803eb2b995fee3d1cc94a247256846dce21433fa8e3aa7c8f7491a",
+        "output_token_cap": 512,
+        "tools": 0,
+        "reply_sha256": "125fcc60f62602a9106e11a2f55a9b8f51bb83d56287fdf25df0ff719954c277",
+        "finish": "stop",
+        "held": false
+      },
+      {
+        "stage": "learn002-pending-acl",
+        "result": "LOCAL_HTTP_SSE",
+        "request_sha256": "8f6eb33eabe47a4d2854fadfb64e445a89ba9834830c5807694870a9f8e65de3",
+        "system_sha256": "3ff2ba37bf357f645035c840b4a23df756617c483533d107c935f1bf07a90b56",
+        "user_sha256": "47f7bf46d2803eb2b995fee3d1cc94a247256846dce21433fa8e3aa7c8f7491a",
+        "output_token_cap": 512,
+        "tools": 0,
+        "reply_sha256": "120837c6db2d3a4aa4f81496dc58dcb6221b363c9872e318a3cd75781ab8ba32",
+        "finish": "stop",
+        "held": true
+      }
+    ],
+    "fixture_sha256": "76555e95b1240d43c29b061c1ae2bb9e8299d03722b550c9ba3eb574283f3d2e",
+    "fence_sha256": "257aa8fe1358e4bc950988a87455db85e2d54b79814c8e1445d773ce83af34dd"
+  },
+  "cleanup": "PASS"
+}

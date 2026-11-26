@@ -1,0 +1,41 @@
+{
+  "unit_id": "LEARN-002",
+  "candidate_sha": "6929c502c454a6eda41889ee396f14c0ee0705b0",
+  "tree": "6fdb4da85d9ea6bef73497b7a80a310db4b892c6",
+  "source_tree": "5752fec42aa0e6d908d7637f2a4ad0cf1e11c8d7",
+  "entry_sha256": "2c26218889a85351fe6947986f3d5aefe8fac7d983036b303801b72707607663",
+  "build_sha256": "5299f65072768bf9a28aa485a8df75a80f399f7f1a16ee94d939a72b3119f1f4",
+  "schema": "integrated-case-v1",
+  "case_id": "A13",
+  "participants": [
+    {
+      "unit_id": "FND-005",
+      "candidate_sha": "aadf13abcb37aa24010af35543062d0551c58955"
+    },
+    {
+      "unit_id": "READ-002",
+      "candidate_sha": "08889f97a612b34ae205f0dfa3af6064c3585f19"
+    },
+    {
+      "unit_id": "LEARN-001",
+      "candidate_sha": "0e7c900a7d0a922be46b8b6c59fbf08375f8b91c"
+    },
+    {
+      "unit_id": "LEARN-002",
+      "candidate_sha": "6929c502c454a6eda41889ee396f14c0ee0705b0"
+    }
+  ],
+  "status": "PASS",
+  "main": {
+    "path": "docs/evidence/LEARN-002/runs/A13-main.json",
+    "sha256": "1b0ad239ee01976735efb5a0a0b0d359f56a435272206beaa2bfa12f44dc2997"
+  },
+  "independent": {
+    "path": "docs/evidence/LEARN-002/runs/A13-independent.json",
+    "sha256": "06bcfe79fcbad18fa84aa6f99e818b9169b2c1002aa1bc4dcd9de5bdbe7ad036"
+  },
+  "regression": {
+    "path": "docs/evidence/LEARN-002/runs/A13-regression.json",
+    "sha256": "6d3f627a1c00d0e94715ee6196de374e5e74a04ec0a7e6b47b66f48b9ea14450"
+  }
+}
