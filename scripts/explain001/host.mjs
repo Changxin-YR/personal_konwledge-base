@@ -59,6 +59,11 @@ function chromeEnv() {
   }
   return env
 }
+async function closeBrowser() {
+  if (!browser) return
+  for (const ctx of browser.contexts()) await ctx.unrouteAll({ behavior: 'ignoreErrors' })
+  await browser.close(); browser = undefined
+}
 const launchChrome = chromium => chromium.launch({ channel: 'chrome', headless: true, env: chromeEnv(),
   args: ['--disable-background-networking','--disable-component-update','--disable-sync','--no-proxy-server'] })
 function dispatchCount(proof, n) {
