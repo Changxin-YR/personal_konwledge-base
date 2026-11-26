@@ -1,0 +1,39 @@
+{
+  "candidate_sha": "de99efb51aa48e69a01c35de8040c8b52e824d59",
+  "tree": "1456ddc7d68ebdb3a3af3365333f82dde026f64f",
+  "source_tree": "2162cb2cb64091841266cd91b0a82361210ac278",
+  "entry_sha256": "a057091a9c8c2a561741260d5fb728cd9256dc4122c91107022fb7d6c76a23be",
+  "build_sha256": "eaee8c2ba1b0ba9d8f118ecc4208a75dfec7a65bf0e3f2a96560ea1e0a6a61d9",
+  "unit_id": "PROJECT-004",
+  "unit_acceptance": "PASS",
+  "passed_test_ids": [
+    "PROJECT-004-T01",
+    "PROJECT-004-T02"
+  ],
+  "main_command": "node scripts/project004/host-appeals.mjs <frozen-checkout> de99efb51aa48e69a01c35de8040c8b52e824d59 a057091a9c8c2a561741260d5fb728cd9256dc4122c91107022fb7d6c76a23be 3e56c8d426e2bdcb9200a9ca1258385143b99c6d2ed806a70a3b198882b2af34",
+  "main_exit": 0,
+  "main_records": [
+    {
+      "path": "docs/evidence/PROJECT-004/runs/main.json",
+      "sha256": "e784b06af94bafa5341db808f640996d57d5a2aeb94a1b88fa942388434e386b"
+    }
+  ],
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/PROJECT-004/independent.json",
+  "technical_results": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "affected_tests": 18
+  },
+  "regression": {
+    "path": "docs/evidence/PROJECT-004/runs/regression.json",
+    "sha256": "e08f636fc2df6ea3848e67f6a966201270d4a34b70b2a7e6b3e7f296c65eeb72"
+  },
+  "final_cases": [
+    "docs/evidence/PROJECT-004/A32.json",
+    "docs/evidence/PROJECT-004/A33.json"
+  ],
+  "pending_cases": [
+    "P11"
+  ]
+}

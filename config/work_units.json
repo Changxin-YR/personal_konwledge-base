@@ -3329,8 +3329,28 @@
         "A33"
       ],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "in_progress",
-      "test_plan_status": "expanded_for_activation"
+      "status": "passed",
+      "test_plan_status": "executed_with_evidence",
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "retest_status": "PASS",
+      "completed_test_ids": [
+        "PROJECT-004-T01",
+        "PROJECT-004-T02"
+      ],
+      "open_review_items": [],
+      "closed_review_items": [],
+      "completed_at": "2026-11-26T02:44:30.578Z",
+      "candidate_commit": "de99efb51aa48e69a01c35de8040c8b52e824d59",
+      "acceptance_record": "docs/evidence/PROJECT-004/acceptance.json",
+      "evidence_paths": [
+        "docs/evidence/PROJECT-004/REPORT.md",
+        "docs/evidence/PROJECT-004/acceptance.json",
+        "docs/evidence/PROJECT-004/independent.json",
+        "docs/evidence/PROJECT-004/A32.json",
+        "docs/evidence/PROJECT-004/A33.json",
+        "docs/evidence/PROJECT-004/runs/regression.json"
+      ]
     },
     {
       "id": "PLAN-001",

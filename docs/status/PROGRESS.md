@@ -1,6 +1,6 @@
 # 实际进度
 
-2026-11-26，**25/76 工作单元通过、13/66 完整场景通过、4/44 完整需求 verified**。[PROJECT-002](../evidence/PROJECT-002/REPORT.md) 的 T01、T02 和 A31 通过，P08 等 SCORE-001 接入日评分。[FND-005](../evidence/FND-005/tokease-20261126/REPORT.md) 已完成 T01–T09 与 A01。词易模型 `deepseek-v4.1-flash-1017` 的两次独立隔离运行均通过业务读写、Chrome、认证 HTTP 和 SQLite 核对。[PROJECT-003](../evidence/PROJECT-003/REPORT.md) 的普通指定审核及授权管理员改判通过主跑和独立复跑。下一单元 PROJECT-004 将处理正式复议，以及材料授权到期的完整场景。A32 等正式复议的集成验收。
+2026-11-26，**26/76 工作单元通过、15/66 完整场景通过、4/44 完整需求 verified**。[PROJECT-002](../evidence/PROJECT-002/REPORT.md) 和 A31 通过，P08 等 SCORE-001。[FND-005](../evidence/FND-005/tokease-20261126/REPORT.md) 已完成 T01–T09 与 A01，词易模型 `deepseek-v4.1-flash-1017` 通过真实业务读写及独立复跑。[PROJECT-003](../evidence/PROJECT-003/REPORT.md) 与 [PROJECT-004](../evidence/PROJECT-004/REPORT.md) 通过指定审核、权限内改判、正式复议和材料授权自然到期验收，A32/A33 已收口。下一单元 REPO-002，继续 GitLab 只读适配。
 
 ## 2026-11-22 检查点与历史
 

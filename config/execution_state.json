@@ -10,7 +10,7 @@
     "sha256": "a2e5986cfa81189aeae0c4b43ebfe4afd074aae9d5674e7ecf5e069c5d6ab530"
   },
   "active_unit": "PROJECT-004",
-  "unit_state": "in_progress",
+  "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Implement formal appeals, decision re-evaluation events and verify material expiry while the reviewer retains project access",
+  "state_reason": "Formal appeal and exact material expiry verified",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,52 +127,61 @@
     }
   },
   "last_accepted_checkpoint": {
-    "unit_id": "PROJECT-003",
-    "candidate_sha": "0daad20794dcf1ae2eb48d097c851dd8fd867199",
-    "tree": "ca3ce5267b0e9447b4daab4451ea22fbeaaef796",
-    "source_tree": "82bf0638cb28bc0db1d729239db8c0c097988663",
-    "entry_sha256": "641838a3a8a5d129f8799b43c08b09b8fcd36697cca8c19af39de652e2139df3",
-    "build_sha256": "8b31cae45bd81576cf409958e4c4e4f54d67dce15e32030817621159aa9c6a54",
-    "runner_sha256": "e7200f7cf61a3b0221ff8eebad4b7a2de4e1284425a67738cd50418bd055874c",
-    "base_commit": "54189ecf88f28cef949b687dd65c34a5c75d2aa3",
+    "candidate_sha": "de99efb51aa48e69a01c35de8040c8b52e824d59",
+    "tree": "1456ddc7d68ebdb3a3af3365333f82dde026f64f",
+    "source_tree": "2162cb2cb64091841266cd91b0a82361210ac278",
+    "entry_sha256": "a057091a9c8c2a561741260d5fb728cd9256dc4122c91107022fb7d6c76a23be",
+    "build_sha256": "eaee8c2ba1b0ba9d8f118ecc4208a75dfec7a65bf0e3f2a96560ea1e0a6a61d9",
+    "unit_id": "PROJECT-004",
+    "base_commit": "3a26090eba491cdf557895df92ec6598255ee0c1",
     "completed": [
-      "Ordinary scoped task review and append-only administrator correction, with current membership and pinned submission permissions.",
-      "Real Host, Chrome and SQLite main and independent passed. A30 and PROJECT-002 regressions passed on the same frozen build."
+      "Contributor appeals and scoped administrator resolution preserve earlier decisions, transactionally flag affected tasks and queue safe recalculation events.",
+      "Main and independent real Host/Chrome/SQLite passed six checks each. Exact material expiry and pinned revision recovery were verified, together with affected PROJECT-003 regression."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
       "T01": "PASS",
       "T02": "PASS",
+      "A32": "PASS",
+      "A33": "PASS",
+      "P11": "NOT_RUN",
       "independent": "PASS",
-      "A32": "NOT_RUN",
-      "A30_regression": "PASS",
-      "PROJECT002_regression": "PASS"
+      "PROJECT003_regression": "PASS"
     },
-    "evidence": "docs/evidence/PROJECT-003/acceptance.json",
-    "defects": [],
-    "blocked_dependencies": [
-      "Full A32 requires PROJECT-004 formal appeal and resolution."
-    ],
-    "next_task": "PROJECT-004"
-  },
-  "checkpoint": {
-    "unit_id": "PROJECT-004",
-    "base_commit": "3a26090eba491cdf557895df92ec6598255ee0c1",
-    "completed": [
-      "Prepared independent expectations for appeal, correction, event rollback and exact material expiry."
-    ],
-    "test_results": {
-      "unit_acceptance": "NOT_RUN",
-      "T01": "NOT_RUN",
-      "T02": "NOT_RUN",
-      "A32": "NOT_RUN",
-      "A33": "NOT_RUN"
-    },
-    "evidence": "scripts/project004/acceptance-plan.md",
+    "evidence": "docs/evidence/PROJECT-004/acceptance.json",
     "defects": [],
     "blocked_dependencies": [
       "P11 scoring and reminder consumers are future units."
     ],
-    "next_task": "PROJECT-004"
+    "next_task": "REPO-002"
+  },
+  "checkpoint": {
+    "candidate_sha": "de99efb51aa48e69a01c35de8040c8b52e824d59",
+    "tree": "1456ddc7d68ebdb3a3af3365333f82dde026f64f",
+    "source_tree": "2162cb2cb64091841266cd91b0a82361210ac278",
+    "entry_sha256": "a057091a9c8c2a561741260d5fb728cd9256dc4122c91107022fb7d6c76a23be",
+    "build_sha256": "eaee8c2ba1b0ba9d8f118ecc4208a75dfec7a65bf0e3f2a96560ea1e0a6a61d9",
+    "unit_id": "PROJECT-004",
+    "base_commit": "3a26090eba491cdf557895df92ec6598255ee0c1",
+    "completed": [
+      "Contributor appeals and scoped administrator resolution preserve earlier decisions, transactionally flag affected tasks and queue safe recalculation events.",
+      "Main and independent real Host/Chrome/SQLite passed six checks each. Exact material expiry and pinned revision recovery were verified, together with affected PROJECT-003 regression."
+    ],
+    "test_results": {
+      "unit_acceptance": "PASS",
+      "T01": "PASS",
+      "T02": "PASS",
+      "A32": "PASS",
+      "A33": "PASS",
+      "P11": "NOT_RUN",
+      "independent": "PASS",
+      "PROJECT003_regression": "PASS"
+    },
+    "evidence": "docs/evidence/PROJECT-004/acceptance.json",
+    "defects": [],
+    "blocked_dependencies": [
+      "P11 scoring and reminder consumers are future units."
+    ],
+    "next_task": "REPO-002"
   }
 }

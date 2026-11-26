@@ -1,0 +1,75 @@
+{
+  "candidate_sha": "de99efb51aa48e69a01c35de8040c8b52e824d59",
+  "tree": "1456ddc7d68ebdb3a3af3365333f82dde026f64f",
+  "source_tree": "2162cb2cb64091841266cd91b0a82361210ac278",
+  "entry_sha256": "a057091a9c8c2a561741260d5fb728cd9256dc4122c91107022fb7d6c76a23be",
+  "build_sha256": "eaee8c2ba1b0ba9d8f118ecc4208a75dfec7a65bf0e3f2a96560ea1e0a6a61d9",
+  "case_id": "A32",
+  "unit_id": "PROJECT-003",
+  "participants": [
+    {
+      "unit_id": "PROJECT-003",
+      "candidate_sha": "0daad20794dcf1ae2eb48d097c851dd8fd867199"
+    },
+    {
+      "unit_id": "PROJECT-004",
+      "candidate_sha": "de99efb51aa48e69a01c35de8040c8b52e824d59"
+    }
+  ],
+  "kind": "main",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/project004/host-appeals.mjs <frozen-checkout> de99efb51aa48e69a01c35de8040c8b52e824d59 a057091a9c8c2a561741260d5fb728cd9256dc4122c91107022fb7d6c76a23be 3e56c8d426e2bdcb9200a9ca1258385143b99c6d2ed806a70a3b198882b2af34",
+  "environment": "Windows, pinned DSH Host, real Chrome, separate SQLite business database",
+  "inputs": "Synthetic ordinary project, contributor, designated reviewer and explicitly scoped business administrator.",
+  "runner": "Codex project implementation",
+  "run_id": "main-130052-111732-110708",
+  "results": [
+    {
+      "id": "original_ordinary_decision_and_real_contributor_appeal",
+      "status": "PASS",
+      "actual": "A designated reviewer made the original decision, followed by the assignee filing a real appeal in Chrome with unchanged original records."
+    },
+    {
+      "id": "authorized_resolution_scope_and_transaction_rollback",
+      "status": "PASS",
+      "actual": "Unauthorized administrators were denied. A fault in the SQLite event outbox rolled back the entire appeal correction."
+    },
+    {
+      "id": "effective_correction_and_versioned_outbox_are_atomic_and_idempotent",
+      "status": "PASS",
+      "actual": "Admin resolution appended the replacement decision, resolved the appeal and committed a versioned recalculation marker and one linked safe event."
+    },
+    {
+      "id": "concurrent_open_and_resolution_revocation_and_restart",
+      "status": "PASS",
+      "actual": "Concurrent writes and revoked membership did not produce duplicate results. Appeal and correction history survived an isolated Host restart."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/PROJECT-004/runs/main.json",
+      "sha256": "e784b06af94bafa5341db808f640996d57d5a2aeb94a1b88fa942388434e386b"
+    },
+    {
+      "path": "docs/evidence/PROJECT-004/runs/main-pending-appeal.png",
+      "sha256": "052f6367049e479a308a47323061bd9051db28ff83cef336b972d44d3f88df32"
+    },
+    {
+      "path": "docs/evidence/PROJECT-004/runs/main-resolved-appeal-history.png",
+      "sha256": "86b2f35df3fff88ee5268b6e6268c052936ae4e53472a5d70d4fde36026eabab"
+    },
+    {
+      "path": "docs/evidence/PROJECT-004/runs/main-resolved-appeal-mobile.png",
+      "sha256": "0568b800a3ae87e38969e6accbc5ca11360a7dcecd449427a02b06e7067313a6"
+    },
+    {
+      "path": "docs/evidence/PROJECT-004/runs/main-a33-natural-expiry-material-wait.png",
+      "sha256": "369340db1442198132115a1db70992dd8c400621e8d59118101fb517617db96a"
+    },
+    {
+      "path": "docs/evidence/PROJECT-004/runs/main-a33-restored-fixed-review.png",
+      "sha256": "336a384b3873504e8a43a276e1ffa90fa3d4eed090902d10ddb2d601133914f0"
+    }
+  ]
+}

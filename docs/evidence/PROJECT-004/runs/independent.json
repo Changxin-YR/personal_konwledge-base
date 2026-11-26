@@ -1,0 +1,93 @@
+{
+  "unit_id": "PROJECT-004",
+  "candidate_sha": "de99efb51aa48e69a01c35de8040c8b52e824d59",
+  "tree": "1456ddc7d68ebdb3a3af3365333f82dde026f64f",
+  "source_tree": "2162cb2cb64091841266cd91b0a82361210ac278",
+  "entry_sha256": "a057091a9c8c2a561741260d5fb728cd9256dc4122c91107022fb7d6c76a23be",
+  "build_sha256": "eaee8c2ba1b0ba9d8f118ecc4208a75dfec7a65bf0e3f2a96560ea1e0a6a61d9",
+  "runner_sha256": "3e56c8d426e2bdcb9200a9ca1258385143b99c6d2ed806a70a3b198882b2af34",
+  "scope": "Isolated DSH Host, Chrome and SQLite. P11 event/status contract only. Synthetic data.",
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "A32": "PASS",
+  "A33": "PASS",
+  "P11": "NOT_RUN",
+  "checks": [
+    {
+      "id": "original_ordinary_decision_and_real_contributor_appeal",
+      "status": "PASS"
+    },
+    {
+      "id": "authorized_resolution_scope_and_transaction_rollback",
+      "status": "PASS"
+    },
+    {
+      "id": "effective_correction_and_versioned_outbox_are_atomic_and_idempotent",
+      "status": "PASS",
+      "event_type": "knowledgeos.task.appeal.resolved",
+      "payload_schema_version": 1
+    },
+    {
+      "id": "concurrent_open_and_resolution_revocation_and_restart",
+      "status": "PASS"
+    },
+    {
+      "id": "absolute_expiry_does_not_expire_project_or_form_a_review",
+      "status": "PASS",
+      "delta_before_expiry_ms": 1,
+      "rejected_http": 409,
+      "no_decision": true
+    },
+    {
+      "id": "restored_original_fixed_material_and_single_durable_decision",
+      "status": "PASS"
+    }
+  ],
+  "boots": [
+    88100,
+    109672,
+    87708
+  ],
+  "screens": [
+    {
+      "name": "pending-appeal.png",
+      "sha256": "052f6367049e479a308a47323061bd9051db28ff83cef336b972d44d3f88df32"
+    },
+    {
+      "name": "resolved-appeal-history.png",
+      "sha256": "27750aaa276e9bb3d749ecbceede24a884a658e2c4c1cbb55520da414ba4faca"
+    },
+    {
+      "name": "resolved-appeal-mobile.png",
+      "sha256": "9c9786f18a476283ec98f26217f6ae111d65c9190eed859d8a4af9714ded6a29"
+    },
+    {
+      "name": "a33-natural-expiry-material-wait.png",
+      "sha256": "34a7454cb781047e77ff644010badd4d0fe3a04cb6c146d9c7f512ccc5b08d43"
+    },
+    {
+      "name": "a33-restored-fixed-review.png",
+      "sha256": "ce1295262816a98e8de41999f756bcf34159a31f2358365499b63fc8b60f94ec"
+    }
+  ],
+  "binding": {
+    "candidate_sha": "de99efb51aa48e69a01c35de8040c8b52e824d59",
+    "tree": "1456ddc7d68ebdb3a3af3365333f82dde026f64f",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "a057091a9c8c2a561741260d5fb728cd9256dc4122c91107022fb7d6c76a23be",
+    "helpers": {
+      "business-clock": "311bc07497d9a5754853445814532dd6abaf37f1b91d8067dd5a3f21b866c2f2",
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "5278ebf7cc64773560b3b672c9182c65b4e1d82a20b8f569328cb0765a627f10",
+      "a07-isolated-host": "a2a4613f8e0f937bc5f2dd688a23a3087a888deb2f43925617750dcfb053b42f"
+    },
+    "parser": {
+      "pdf-extractor.js": "49fb0588ba0c37486a287a083d9bd2a032d89205d34af615845c4928b1f6745c",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "chrome": "158.0.8127.88"
+}

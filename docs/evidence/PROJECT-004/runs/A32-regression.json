@@ -1,0 +1,63 @@
+{
+  "candidate_sha": "de99efb51aa48e69a01c35de8040c8b52e824d59",
+  "tree": "1456ddc7d68ebdb3a3af3365333f82dde026f64f",
+  "source_tree": "2162cb2cb64091841266cd91b0a82361210ac278",
+  "entry_sha256": "a057091a9c8c2a561741260d5fb728cd9256dc4122c91107022fb7d6c76a23be",
+  "build_sha256": "eaee8c2ba1b0ba9d8f118ecc4208a75dfec7a65bf0e3f2a96560ea1e0a6a61d9",
+  "case_id": "A32",
+  "unit_id": "PROJECT-003",
+  "participants": [
+    {
+      "unit_id": "PROJECT-003",
+      "candidate_sha": "0daad20794dcf1ae2eb48d097c851dd8fd867199"
+    },
+    {
+      "unit_id": "PROJECT-004",
+      "candidate_sha": "de99efb51aa48e69a01c35de8040c8b52e824d59"
+    }
+  ],
+  "kind": "regression",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/project003/host-reviews.mjs <frozen-checkout> de99efb51aa48e69a01c35de8040c8b52e824d59 a057091a9c8c2a561741260d5fb728cd9256dc4122c91107022fb7d6c76a23be",
+  "environment": "Windows, pinned DSH Host, real Chrome, separate SQLite business database",
+  "inputs": "Synthetic ordinary project, contributor, designated reviewer and explicitly scoped business administrator.",
+  "runner": "Codex project implementation",
+  "run_id": "regression-95904-136200",
+  "results": [
+    {
+      "id": "designated_ordinary_reviewer_with_immutable_submission",
+      "status": "PASS",
+      "actual": "The ordinary review kept fixed timing and standards."
+    },
+    {
+      "id": "admin_correction_immutable_history_and_exact_replay",
+      "status": "PASS",
+      "actual": "A direct correction retained the formal history and idempotency."
+    },
+    {
+      "id": "parallel_writers_and_cross_project_scope",
+      "status": "PASS",
+      "actual": "Concurrent stale updates and an administrator outside the project were rejected."
+    },
+    {
+      "id": "membership_revocation_denies_replay_and_restart_preserves_history",
+      "status": "PASS",
+      "actual": "Revocation blocked replay and two starts preserved history."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/PROJECT-004/runs/regression.json",
+      "sha256": "e08f636fc2df6ea3848e67f6a966201270d4a34b70b2a7e6b3e7f296c65eeb72"
+    },
+    {
+      "path": "docs/evidence/PROJECT-004/runs/regression-ordinary-review-accepted.png",
+      "sha256": "41aeac707c219454c8ae78d6c515b204335a33970fe050d45e9bb4df7c8884d2"
+    },
+    {
+      "path": "docs/evidence/PROJECT-004/runs/regression-ordinary-override-history.png",
+      "sha256": "bac31d40438c87cdecd319f5c1b6a8e32dc49b641c0ecb876336b94e572413db"
+    }
+  ]
+}

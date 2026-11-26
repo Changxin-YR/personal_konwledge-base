@@ -1,0 +1,33 @@
+{
+  "schema": "integrated-case-v1",
+  "candidate_sha": "de99efb51aa48e69a01c35de8040c8b52e824d59",
+  "tree": "1456ddc7d68ebdb3a3af3365333f82dde026f64f",
+  "source_tree": "2162cb2cb64091841266cd91b0a82361210ac278",
+  "entry_sha256": "a057091a9c8c2a561741260d5fb728cd9256dc4122c91107022fb7d6c76a23be",
+  "build_sha256": "eaee8c2ba1b0ba9d8f118ecc4208a75dfec7a65bf0e3f2a96560ea1e0a6a61d9",
+  "case_id": "A32",
+  "unit_id": "PROJECT-003",
+  "participants": [
+    {
+      "unit_id": "PROJECT-003",
+      "candidate_sha": "0daad20794dcf1ae2eb48d097c851dd8fd867199"
+    },
+    {
+      "unit_id": "PROJECT-004",
+      "candidate_sha": "de99efb51aa48e69a01c35de8040c8b52e824d59"
+    }
+  ],
+  "status": "PASS",
+  "main": {
+    "path": "docs/evidence/PROJECT-004/runs/A32-main.json",
+    "sha256": "131fbf6d15d03ccaa0e6f95ec84ef5d3395de965b48a39ed65750a272fc8e404"
+  },
+  "independent": {
+    "path": "docs/evidence/PROJECT-004/runs/A32-independent.json",
+    "sha256": "9ed984beb7999fee714a1fbb9fd77c117262cc669fa0a2629f22fb254cf05e2d"
+  },
+  "regression": {
+    "path": "docs/evidence/PROJECT-004/runs/A32-regression.json",
+    "sha256": "718837880eef0e374a0a91d8a41e78a5f22509432c9b2f7d06528b32a7f75ffa"
+  }
+}

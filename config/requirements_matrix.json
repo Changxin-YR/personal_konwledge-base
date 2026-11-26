@@ -477,7 +477,8 @@
       "implementation_status": "in_progress",
       "evidence_paths": [
         "docs/evidence/SHARE-001/acceptance.json",
-        "docs/evidence/SHARE-001/A34.json"
+        "docs/evidence/SHARE-001/A34.json",
+        "docs/evidence/PROJECT-004/A33.json"
       ]
     },
     {
@@ -514,7 +515,9 @@
       "implementation_status": "in_progress",
       "evidence_paths": [
         "docs/evidence/PROJECT-002/A31.json",
-        "docs/evidence/PROJECT-003/acceptance.json"
+        "docs/evidence/PROJECT-003/acceptance.json",
+        "docs/evidence/PROJECT-004/A32.json",
+        "docs/evidence/PROJECT-004/A33.json"
       ]
     },
     {
@@ -530,7 +533,8 @@
       ],
       "implementation_status": "in_progress",
       "evidence_paths": [
-        "docs/evidence/PROJECT-003/acceptance.json"
+        "docs/evidence/PROJECT-003/acceptance.json",
+        "docs/evidence/PROJECT-004/A32.json"
       ]
     },
     {
@@ -671,8 +675,10 @@
         "A48",
         "A52"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/PROJECT-004/A33.json"
+      ]
     }
   ],
   "acceptance_cases": [
@@ -1419,8 +1425,11 @@
       "expected": "原审核路径有效；改判留档且有理由；用户可看结果与复议状态；不得静默覆盖。",
       "level": "integration",
       "evidence_required": "测试记录、关键状态与操作证据",
-      "status": "NOT_RUN",
-      "final_milestone": "M4"
+      "status": "PASS",
+      "final_milestone": "M4",
+      "evidence_paths": [
+        "docs/evidence/PROJECT-004/A32.json"
+      ]
     },
     {
       "id": "A33",
@@ -1435,8 +1444,11 @@
       "expected": "显示等待材料授权；不能因不可见自动判失败；补齐授权后再按标准审核。",
       "level": "integration",
       "evidence_required": "测试记录、关键状态与操作证据",
-      "status": "NOT_RUN",
-      "final_milestone": "M4"
+      "status": "PASS",
+      "final_milestone": "M4",
+      "evidence_paths": [
+        "docs/evidence/PROJECT-004/A33.json"
+      ]
     },
     {
       "id": "A34",

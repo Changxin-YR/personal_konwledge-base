@@ -1,0 +1,50 @@
+{
+  "candidate_sha": "de99efb51aa48e69a01c35de8040c8b52e824d59",
+  "tree": "1456ddc7d68ebdb3a3af3365333f82dde026f64f",
+  "source_tree": "2162cb2cb64091841266cd91b0a82361210ac278",
+  "entry_sha256": "a057091a9c8c2a561741260d5fb728cd9256dc4122c91107022fb7d6c76a23be",
+  "build_sha256": "eaee8c2ba1b0ba9d8f118ecc4208a75dfec7a65bf0e3f2a96560ea1e0a6a61d9",
+  "unit_id": "PROJECT-004",
+  "status": "PASS",
+  "exit": 0,
+  "reviewer": "independent Project acceptance subagent",
+  "command": "node scripts/project004/host-appeals.mjs <frozen-checkout> de99efb51aa48e69a01c35de8040c8b52e824d59 a057091a9c8c2a561741260d5fb728cd9256dc4122c91107022fb7d6c76a23be 3e56c8d426e2bdcb9200a9ca1258385143b99c6d2ed806a70a3b198882b2af34",
+  "results": [
+    {
+      "id": "PROJECT-004-T01",
+      "status": "PASS",
+      "actual": "Real Chrome appeal and authorized resolution, independent SQLite rollback, concurrent rejection and durable history."
+    },
+    {
+      "id": "PROJECT-004-T02",
+      "status": "PASS",
+      "actual": "Material access at expiry minus one millisecond and denial across expiry, project membership retained, original pinned version restored and reviewed."
+    }
+  ],
+  "raw": {
+    "path": "docs/evidence/PROJECT-004/runs/independent.json",
+    "sha256": "8793a460b1f093eb77b1ceb3145870a848e4fa3b992beffa0b2c355723680837"
+  },
+  "screens": [
+    {
+      "path": "docs/evidence/PROJECT-004/runs/independent-pending-appeal.png",
+      "sha256": "052f6367049e479a308a47323061bd9051db28ff83cef336b972d44d3f88df32"
+    },
+    {
+      "path": "docs/evidence/PROJECT-004/runs/independent-resolved-appeal-history.png",
+      "sha256": "27750aaa276e9bb3d749ecbceede24a884a658e2c4c1cbb55520da414ba4faca"
+    },
+    {
+      "path": "docs/evidence/PROJECT-004/runs/independent-resolved-appeal-mobile.png",
+      "sha256": "9c9786f18a476283ec98f26217f6ae111d65c9190eed859d8a4af9714ded6a29"
+    },
+    {
+      "path": "docs/evidence/PROJECT-004/runs/independent-a33-natural-expiry-material-wait.png",
+      "sha256": "34a7454cb781047e77ff644010badd4d0fe3a04cb6c146d9c7f512ccc5b08d43"
+    },
+    {
+      "path": "docs/evidence/PROJECT-004/runs/independent-a33-restored-fixed-review.png",
+      "sha256": "ce1295262816a98e8de41999f756bcf34159a31f2358365499b63fc8b60f94ec"
+    }
+  ]
+}
