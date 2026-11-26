@@ -1,0 +1,34 @@
+{
+  "unit_id": "LEARN-005",
+  "candidate_sha": "8c2edfa904eac4af0c983c22489a9ba516b00278",
+  "tree": "aca29eaf1f7103f04a49e5c8ad22acde80dcfca8",
+  "source_tree": "b89ce1b13db6e7ba4dd3fd2881bf9dfbafd7b226",
+  "entry_sha256": "6195489bc7c55cc8cc06b2cda53f16fbb001cdae1b9173bba9dc327779a109a8",
+  "build_sha256": "4e72521574db10c93e0b310af8e55c87c3ceb401f5bc885bc0c3f08599b9bb61",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/learn005/host-transfer.mjs <frozen-checkout> 8c2edfa904eac4af0c983c22489a9ba516b00278 6195489bc7c55cc8cc06b2cda53f16fbb001cdae1b9173bba9dc327779a109a8 scripts/learn005/independent-transfer-scenario.mjs independent",
+  "reviewer": "Independent Chrome/Host and SQLite replay agents",
+  "results": [
+    {
+      "id": "LEARN-005-T01",
+      "status": "PASS",
+      "actual": "Save blind first, two bound hints and distinct guided correct. Exact due boundary and separate independent transfer remain observable after restart."
+    },
+    {
+      "id": "LEARN-005-T02",
+      "status": "PASS",
+      "actual": "Ineligible difficulty, prior exposure and disputed or revoked sources excluded. Immutable prior attempts and no overall ability inference."
+    }
+  ],
+  "records": [
+    {
+      "path": "docs/evidence/LEARN-005/runs/independent.json",
+      "sha256": "721c7d3e5556ca01e5e5a0ba8ffc4108ac3475a122907017311be6623d2be962"
+    },
+    {
+      "path": "docs/evidence/LEARN-005/runs/v42-storage.json",
+      "sha256": "3644bf5e9f688efb297b3505e8af08f9f752ed8b55f09f2ddd5ec7c79b43b89e"
+    }
+  ]
+}

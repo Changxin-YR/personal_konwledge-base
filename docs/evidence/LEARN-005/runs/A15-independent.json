@@ -1,0 +1,91 @@
+{
+  "unit_id": "LEARN-005",
+  "candidate_sha": "8c2edfa904eac4af0c983c22489a9ba516b00278",
+  "tree": "aca29eaf1f7103f04a49e5c8ad22acde80dcfca8",
+  "source_tree": "b89ce1b13db6e7ba4dd3fd2881bf9dfbafd7b226",
+  "entry_sha256": "6195489bc7c55cc8cc06b2cda53f16fbb001cdae1b9173bba9dc327779a109a8",
+  "build_sha256": "4e72521574db10c93e0b310af8e55c87c3ceb401f5bc885bc0c3f08599b9bb61",
+  "case_id": "A15",
+  "participants": [
+    {
+      "unit_id": "LEARN-001",
+      "candidate_sha": "0e7c900a7d0a922be46b8b6c59fbf08375f8b91c"
+    },
+    {
+      "unit_id": "LEARN-003",
+      "candidate_sha": "dc21d5dc1875d848eaff62f24ef26575deac3443"
+    },
+    {
+      "unit_id": "LEARN-005",
+      "candidate_sha": "8c2edfa904eac4af0c983c22489a9ba516b00278"
+    }
+  ],
+  "kind": "independent",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/learn005/host-transfer.mjs <frozen-checkout> 8c2edfa904eac4af0c983c22489a9ba516b00278 6195489bc7c55cc8cc06b2cda53f16fbb001cdae1b9173bba9dc327779a109a8 scripts/learn005/independent-transfer-scenario.mjs independent",
+  "runner": "Independent actual Host, Chrome, duplicate/reveal/ACL and reopening scenario",
+  "environment": "Isolated Windows native DSH Host, Chrome, SQLite and exact controlled business clock.",
+  "inputs": "Fixed synthetic cited question pairs and independent project accounts.",
+  "run_id": "knowledgeos-learn005-run-SVludM",
+  "results": [
+    {
+      "id": "BLIND_INDEPENDENT_FIRST_ANSWER",
+      "status": "PASS",
+      "actual": "Actual Chrome saved an independent wrong first answer before hints or answer exposure. Its row and exact replay remained unchanged."
+    },
+    {
+      "id": "TARGETED_HINTS_AND_DISTINCT_GUIDED_RESULT",
+      "status": "PASS",
+      "actual": "Chrome requested two explicit levels tied to the next attempt. Correct guided retry appended a separate row, exposed the rubric only afterward and was not independent."
+    },
+    {
+      "id": "DUE_BOUNDARY_AND_SEPARATE_TRANSFER",
+      "status": "PASS",
+      "actual": "Isolated Host business clock blocked due−1 millisecond and opened at due. A different cited question with same type and declared difficulty was independently answered in a separate session."
+    },
+    {
+      "id": "INVALID_OR_INSUFFICIENT_EVIDENCE_EXCLUDED",
+      "status": "PASS",
+      "actual": "Different difficulty, question disputes, prior answer revelation and scope revocation prevented evidence; no overall ability rating was introduced."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/LEARN-005/runs/independent.json",
+      "sha256": "721c7d3e5556ca01e5e5a0ba8ffc4108ac3475a122907017311be6623d2be962"
+    },
+    {
+      "path": "docs/evidence/LEARN-005/runs/independent-initial-independent-wrong-without-disclosure.png",
+      "sha256": "d3673b22feaf7c100dc61b33df99e4e6b94ca05d56f1038dd27299ac71cae84a"
+    },
+    {
+      "path": "docs/evidence/LEARN-005/runs/independent-two-hint-levels-after-first-attempt.png",
+      "sha256": "da65eeb3bc3bb98d4e0db79affc236f0eed22573c544470ca5863ccf9b22f81f"
+    },
+    {
+      "path": "docs/evidence/LEARN-005/runs/independent-guided-retry-separate-after-first.png",
+      "sha256": "7f87513b4e8bca20794284e21a9e89a264b4da2c93a90fc5eeecf0631aae5e5b"
+    },
+    {
+      "path": "docs/evidence/LEARN-005/runs/independent-transfer-disabled-one-millisecond-early.png",
+      "sha256": "d9143b5cda1689c99f9053825974f27bd52c3eccc98ba559906f9a401f9bf43f"
+    },
+    {
+      "path": "docs/evidence/LEARN-005/runs/independent-fresh-transfer-no-answer-or-help.png",
+      "sha256": "1c143383280a0b01a0253a1cc95443595959a1ae276e538e61db050a048a3d1f"
+    },
+    {
+      "path": "docs/evidence/LEARN-005/runs/independent-independent-transfer-observed.png",
+      "sha256": "d3f5ef6db993ebd8df36a2caa4e301e76f8db0b646e51dc0c1980a4bcc6544d5"
+    },
+    {
+      "path": "docs/evidence/LEARN-005/runs/independent-transfer-evidence-paused-after-dispute.png",
+      "sha256": "a7f4f89b5ffc793a27109a8c238b637b5651378f65f308ab2a3e7efe12c87044"
+    },
+    {
+      "path": "docs/evidence/LEARN-005/runs/independent-transfer-source-revoked-no-exposure.png",
+      "sha256": "3255e3a23df18f6fcc3ac05e1feb507c153e88ee2fdfafcef6e206a30d8803fb"
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "unit_id": "LEARN-005",
+  "candidate_sha": "8c2edfa904eac4af0c983c22489a9ba516b00278",
+  "tree": "aca29eaf1f7103f04a49e5c8ad22acde80dcfca8",
+  "source_tree": "b89ce1b13db6e7ba4dd3fd2881bf9dfbafd7b226",
+  "entry_sha256": "6195489bc7c55cc8cc06b2cda53f16fbb001cdae1b9173bba9dc327779a109a8",
+  "build_sha256": "4e72521574db10c93e0b310af8e55c87c3ceb401f5bc885bc0c3f08599b9bb61",
+  "runner_sha256": "975ae59af5dc5c32902d70e7f203a717364db5aabf2fc742a1ad49c1c8de4b8d",
+  "scenario_sha256": "b4b75824ae062413eb68dcdf939f628d0592938dd1280cc22752f56db53535e6",
+  "run_kind": "main",
+  "model_phase": "offline",
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "A15": "NOT_RUN",
+  "checks": [
+    {
+      "id": "real_project_acl_and_reader_source",
+      "status": "PASS",
+      "sqlite_schema": 42,
+      "source_quote_sha256": "b277be649327b7fcda596419b6b2abe7108d020f603f44842099d1ca705a803d"
+    },
+    {
+      "id": "T01",
+      "status": "PASS",
+      "due_boundary_milliseconds": 1,
+      "first_preserved": true,
+      "two_hints": true,
+      "new_independent_attempt": true,
+      "same_declared_difficulty": true
+    },
+    {
+      "id": "T02",
+      "status": "PASS",
+      "wrong_band_denied": true,
+      "dispute_limits_evidence": true,
+      "historical_rows_unchanged": true,
+      "no_general_ability_claim": true
+    }
+  ],
+  "screens": [
+    {
+      "file": "durable-blind-first-answer.png",
+      "sha256": "028a161ede135a9be4bb691c0c36f20f4e3bd1a4e2c0e762283efcd9fba54107",
+      "bytes": 53912
+    },
+    {
+      "file": "three-distinct-observations.png",
+      "sha256": "7d1c700ce09271f1a12db86dc5592bb68bb445bd52696be76dea2c5f41bbdeee",
+      "bytes": 56554
+    },
+    {
+      "file": "transfer-evidence-paused.png",
+      "sha256": "891fe8101f52d90538d5f5e2aaffef83b0acf34c4892aa14fff58acdbbac31e6",
+      "bytes": 56226
+    }
+  ],
+  "boots": [
+    46292
+  ],
+  "egress": {
+    "browser_denied": 0,
+    "host_non_loopback_requests": 0,
+    "real_model_requests": 0
+  },
+  "chrome": "158.0.8127.88",
+  "clock_points": [
+    "2026-11-26T03:59:59.999Z",
+    "2026-11-26T04:00:00.000Z"
+  ],
+  "cleanup": "PASS"
+}

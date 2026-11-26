@@ -1,0 +1,16 @@
+{
+  "unit_id": "LEARN-005",
+  "candidate_sha": "3048016afa736e758b8f428cce070bc39c1546d1",
+  "entry_sha256": "6195489bc7c55cc8cc06b2cda53f16fbb001cdae1b9173bba9dc327779a109a8",
+  "status": "FAIL",
+  "cleanup": "PASS",
+  "failure": {
+    "phase": "T01 actual browser schedules independent transfer and observes exact boundary",
+    "message": "response.json: Protocol error (Network.getResponseBody): No resource with given identifier found"
+  },
+  "egress": {
+    "browser_denied": 0,
+    "host_non_loopback_requests": 0,
+    "real_model_requests": 0
+  }
+}

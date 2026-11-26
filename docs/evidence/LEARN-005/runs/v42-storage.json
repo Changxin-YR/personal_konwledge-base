@@ -1,0 +1,51 @@
+{
+  "unit_id": "LEARN-005",
+  "candidate_sha": "8c2edfa904eac4af0c983c22489a9ba516b00278",
+  "entry_sha256": "6195489bc7c55cc8cc06b2cda53f16fbb001cdae1b9173bba9dc327779a109a8",
+  "frozen_v41": "a70ecfa6303c0000f5c8417ad4d61a365f63652b",
+  "old_bundle_sha256": "b081f7b19706a5601075ed8b15dfa1da0d4ed451182b3b641bc0fd08c816d748",
+  "test_support_sha256": "91affa2441856d4cb28c54c98467beb5109e1aac42b4cef04e6b98a65c7334df",
+  "runner_sha256": "16ddb82c8eb1083759a1735c7bf9b568e2604b84e402c35bcc9308602319f21d",
+  "scope": "INDEPENDENT_OFFLINE_V42_STORAGE",
+  "command": "node --experimental-transform-types v42-regression.mjs <checkout> <candidate SHA> <entry SHA-256>",
+  "status": "PASS",
+  "exit_code": 0,
+  "real_inference_requests": 0,
+  "results": [
+    {
+      "id": "populated_v41_legacy_attempt_hint_personal_state_and_dispute",
+      "status": "PASS",
+      "actual": "Frozen v41 stored a real attempt, hint, private note and open report linked to one fixed citation and two real author/learner accounts."
+    },
+    {
+      "id": "v42_after_ddl_fault_restores_old_table_definitions_and_rows",
+      "status": "PASS",
+      "actual": "Fault after all three ALTERs and new tables left every old definition and legacy row, report, hint, role and receipt exactly unchanged."
+    },
+    {
+      "id": "v42_exact_one_checksum_and_legacy_defaults",
+      "status": "PASS",
+      "actual": "Two v42 opens kept one correctly bound ledger receipt and exposed only documented defaults for existing rows; old v41 feedback and private disputed classification survived."
+    },
+    {
+      "id": "first_independent_wrong_and_real_hints_followed_by_assisted_correct",
+      "status": "PASS",
+      "actual": "The first wrong answer was saved without solution; two real hints were attached to sequence 2, the separate assisted correct record did not overwrite or expose the original first receipt, and mismatch/no-delay were rejected."
+    },
+    {
+      "id": "due_at_exact_millisecond_start_pointer_key_rollback_and_retry",
+      "status": "PASS",
+      "actual": "At due minus one millisecond no transfer session, pin or start key was written. At due the transfer session was staged but a pointer/key fault rolled it all back. Same request then opened one new session and replayed it exactly."
+    },
+    {
+      "id": "distinct_transfer_result_keeps_previous_attempts_and_profile",
+      "status": "PASS",
+      "actual": "Only an independent correct result on the comparable distinct target earned narrow transfer evidence. Three immutable result IDs remained separate, no learning profile changed."
+    },
+    {
+      "id": "reopen_and_source_revocation_never_change_prior_observations",
+      "status": "PASS",
+      "actual": "Reopen retained the separate prior observations, then revoked target source denied old projection and start paths while preserving all saved attempts and producing no new state."
+    }
+  ]
+}

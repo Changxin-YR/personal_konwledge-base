@@ -1,0 +1,74 @@
+{
+  "unit_id": "LEARN-005",
+  "candidate_sha": "8c2edfa904eac4af0c983c22489a9ba516b00278",
+  "tree": "aca29eaf1f7103f04a49e5c8ad22acde80dcfca8",
+  "source_tree": "b89ce1b13db6e7ba4dd3fd2881bf9dfbafd7b226",
+  "entry_sha256": "6195489bc7c55cc8cc06b2cda53f16fbb001cdae1b9173bba9dc327779a109a8",
+  "build_sha256": "4e72521574db10c93e0b310af8e55c87c3ceb401f5bc885bc0c3f08599b9bb61",
+  "case_id": "A15",
+  "participants": [
+    {
+      "unit_id": "LEARN-001",
+      "candidate_sha": "0e7c900a7d0a922be46b8b6c59fbf08375f8b91c"
+    },
+    {
+      "unit_id": "LEARN-003",
+      "candidate_sha": "dc21d5dc1875d848eaff62f24ef26575deac3443"
+    },
+    {
+      "unit_id": "LEARN-005",
+      "candidate_sha": "8c2edfa904eac4af0c983c22489a9ba516b00278"
+    }
+  ],
+  "kind": "regression",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node --experimental-transform-types scripts/learn005/v42-regression.mjs <frozen-checkout> <candidate> <entry>",
+  "runner": "Independent SQLite migration, transactional transfer and calendar boundary regression",
+  "environment": "Isolated Windows native DSH Host, Chrome, SQLite and exact controlled business clock.",
+  "inputs": "Fixed synthetic cited question pairs and independent project accounts.",
+  "run_id": "kos-learn005-v42-mZhNcp",
+  "results": [
+    {
+      "id": "populated_v41_legacy_attempt_hint_personal_state_and_dispute",
+      "status": "PASS",
+      "actual": "Observed in production SQLite isolated replay."
+    },
+    {
+      "id": "v42_after_ddl_fault_restores_old_table_definitions_and_rows",
+      "status": "PASS",
+      "actual": "Observed in production SQLite isolated replay."
+    },
+    {
+      "id": "v42_exact_one_checksum_and_legacy_defaults",
+      "status": "PASS",
+      "actual": "Observed in production SQLite isolated replay."
+    },
+    {
+      "id": "first_independent_wrong_and_real_hints_followed_by_assisted_correct",
+      "status": "PASS",
+      "actual": "Observed in production SQLite isolated replay."
+    },
+    {
+      "id": "due_at_exact_millisecond_start_pointer_key_rollback_and_retry",
+      "status": "PASS",
+      "actual": "Observed in production SQLite isolated replay."
+    },
+    {
+      "id": "distinct_transfer_result_keeps_previous_attempts_and_profile",
+      "status": "PASS",
+      "actual": "Observed in production SQLite isolated replay."
+    },
+    {
+      "id": "reopen_and_source_revocation_never_change_prior_observations",
+      "status": "PASS",
+      "actual": "Observed in production SQLite isolated replay."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/LEARN-005/runs/v42-storage.json",
+      "sha256": "3644bf5e9f688efb297b3505e8af08f9f752ed8b55f09f2ddd5ec7c79b43b89e"
+    }
+  ]
+}

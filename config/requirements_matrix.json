@@ -311,7 +311,9 @@
       "evidence_paths": [
         "docs/evidence/LEARN-001/acceptance.json",
         "docs/evidence/LEARN-002/acceptance.json",
-        "docs/evidence/LEARN-002/A13.json"
+        "docs/evidence/LEARN-002/A13.json",
+        "docs/evidence/LEARN-005/acceptance.json",
+        "docs/evidence/LEARN-005/A15.json"
       ]
     },
     {
@@ -373,7 +375,9 @@
       "implementation_status": "in_progress",
       "evidence_paths": [
         "docs/evidence/LEARN-003/acceptance.json",
-        "docs/evidence/LEARN-003/A14.json"
+        "docs/evidence/LEARN-003/A14.json",
+        "docs/evidence/LEARN-005/acceptance.json",
+        "docs/evidence/LEARN-005/A15.json"
       ]
     },
     {
@@ -1216,8 +1220,11 @@
       "expected": "记录独立和辅助差异；不把提示后答对当首次独立掌握；迁移结果独立保存。",
       "level": "integration",
       "evidence_required": "测试记录、关键状态与操作证据",
-      "status": "NOT_RUN",
-      "final_milestone": "M2"
+      "status": "PASS",
+      "final_milestone": "M2",
+      "evidence_paths": [
+        "docs/evidence/LEARN-005/A15.json"
+      ]
     },
     {
       "id": "A16",

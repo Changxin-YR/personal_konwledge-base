@@ -1,0 +1,112 @@
+{
+  "unit_id": "LEARN-005",
+  "candidate_sha": "8c2edfa904eac4af0c983c22489a9ba516b00278",
+  "tree": "aca29eaf1f7103f04a49e5c8ad22acde80dcfca8",
+  "source_tree": "b89ce1b13db6e7ba4dd3fd2881bf9dfbafd7b226",
+  "entry_sha256": "6195489bc7c55cc8cc06b2cda53f16fbb001cdae1b9173bba9dc327779a109a8",
+  "build_sha256": "4e72521574db10c93e0b310af8e55c87c3ceb401f5bc885bc0c3f08599b9bb61",
+  "runner_sha256": "975ae59af5dc5c32902d70e7f203a717364db5aabf2fc742a1ad49c1c8de4b8d",
+  "scenario_sha256": "c7ab9aa4d1eed300666cf4e19a9d469855f3b73d0e21178fecd1fa4e8e2ede00",
+  "run_kind": "independent",
+  "model_phase": "offline",
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "A15": "NOT_RUN",
+  "checks": [
+    {
+      "id": "real_project_acl_and_reader_source",
+      "status": "PASS",
+      "sqlite_schema": 42,
+      "source_quote_sha256": "b277be649327b7fcda596419b6b2abe7108d020f603f44842099d1ca705a803d"
+    },
+    {
+      "id": "explicit_solution_reveal_blocks_transfer_evidence",
+      "status": "PASS",
+      "after_first_only": true,
+      "separate_participant": true
+    },
+    {
+      "id": "T01",
+      "status": "PASS",
+      "first_unchanged": true,
+      "guided_not_independent": true,
+      "distinct_target_and_difficulty": true,
+      "before_exact_due_denied": true,
+      "exact_due_started_once": true,
+      "transfer_separate": true,
+      "observed_only_no_rating": true
+    },
+    {
+      "id": "T02",
+      "status": "PASS",
+      "restart_exact": true,
+      "dispute_paused": true,
+      "independent_source_revocation": true,
+      "removed_from_evidence": true,
+      "first_and_transfer_history_kept": true,
+      "no_invented_grade": true
+    }
+  ],
+  "screens": [
+    {
+      "file": "initial-independent-wrong-without-disclosure.png",
+      "sha256": "d3673b22feaf7c100dc61b33df99e4e6b94ca05d56f1038dd27299ac71cae84a",
+      "bytes": 57495
+    },
+    {
+      "file": "two-hint-levels-after-first-attempt.png",
+      "sha256": "da65eeb3bc3bb98d4e0db79affc236f0eed22573c544470ca5863ccf9b22f81f",
+      "bytes": 64364
+    },
+    {
+      "file": "guided-retry-separate-after-first.png",
+      "sha256": "7f87513b4e8bca20794284e21a9e89a264b4da2c93a90fc5eeecf0631aae5e5b",
+      "bytes": 81173
+    },
+    {
+      "file": "transfer-disabled-one-millisecond-early.png",
+      "sha256": "d9143b5cda1689c99f9053825974f27bd52c3eccc98ba559906f9a401f9bf43f",
+      "bytes": 49819
+    },
+    {
+      "file": "fresh-transfer-no-answer-or-help.png",
+      "sha256": "1c143383280a0b01a0253a1cc95443595959a1ae276e538e61db050a048a3d1f",
+      "bytes": 53750
+    },
+    {
+      "file": "independent-transfer-observed.png",
+      "sha256": "d3f5ef6db993ebd8df36a2caa4e301e76f8db0b646e51dc0c1980a4bcc6544d5",
+      "bytes": 51523
+    },
+    {
+      "file": "transfer-evidence-paused-after-dispute.png",
+      "sha256": "a7f4f89b5ffc793a27109a8c238b637b5651378f65f308ab2a3e7efe12c87044",
+      "bytes": 51218
+    },
+    {
+      "file": "transfer-source-revoked-no-exposure.png",
+      "sha256": "3255e3a23df18f6fcc3ac05e1feb507c153e88ee2fdfafcef6e206a30d8803fb",
+      "bytes": 32013
+    }
+  ],
+  "boots": [
+    42104,
+    34020
+  ],
+  "egress": {
+    "browser_denied": 0,
+    "host_non_loopback_requests": 0,
+    "real_model_requests": 0
+  },
+  "chrome": "158.0.8127.88",
+  "clock_points": [
+    "2026-11-26T03:00:00.001Z",
+    "2026-11-26T03:00:00.002Z",
+    "2026-11-26T03:00:00.003Z",
+    "2026-11-27T03:00:59.999Z",
+    "2026-11-27T03:01:00.000Z",
+    "2026-11-27T03:01:00.001Z"
+  ],
+  "cleanup": "PASS"
+}

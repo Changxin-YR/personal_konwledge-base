@@ -1,0 +1,33 @@
+{
+  "unit_id": "LEARN-005",
+  "candidate_sha": "8c2edfa904eac4af0c983c22489a9ba516b00278",
+  "tree": "aca29eaf1f7103f04a49e5c8ad22acde80dcfca8",
+  "source_tree": "b89ce1b13db6e7ba4dd3fd2881bf9dfbafd7b226",
+  "entry_sha256": "6195489bc7c55cc8cc06b2cda53f16fbb001cdae1b9173bba9dc327779a109a8",
+  "build_sha256": "4e72521574db10c93e0b310af8e55c87c3ceb401f5bc885bc0c3f08599b9bb61",
+  "unit_acceptance": "PASS",
+  "passed_test_ids": [
+    "LEARN-005-T01",
+    "LEARN-005-T02"
+  ],
+  "main_exit": 0,
+  "main_command": "node scripts/learn005/host-transfer.mjs <frozen-checkout> 8c2edfa904eac4af0c983c22489a9ba516b00278 6195489bc7c55cc8cc06b2cda53f16fbb001cdae1b9173bba9dc327779a109a8 scripts/learn005/main-transfer-scenario.mjs main",
+  "main_records": [
+    {
+      "path": "docs/evidence/LEARN-005/runs/main.json",
+      "sha256": "29328e943e56aa1a2eb62f266d147c3b61b6fa977f5670bb90028fa7b559a362"
+    }
+  ],
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/LEARN-005/independent.json",
+  "technical_results": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "sqlite_checks": 7,
+    "plan_gate_regressions": 148
+  },
+  "final_cases": [
+    "docs/evidence/LEARN-005/A15.json"
+  ],
+  "model_requests": 0
+}

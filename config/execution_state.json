@@ -10,7 +10,7 @@
     "sha256": "a2e5986cfa81189aeae0c4b43ebfe4afd074aae9d5674e7ecf5e069c5d6ab530"
   },
   "active_unit": "LEARN-005",
-  "unit_state": "in_progress",
+  "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Preserve initial independence, targeted hint assistance and delayed transfer evidence.",
+  "state_reason": "Guided practice and separately sourced delayed transfer evidence verified.",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,45 +127,51 @@
     }
   },
   "last_accepted_checkpoint": {
-    "unit_id": "LEARN-003",
-    "candidate_sha": "dc21d5dc1875d848eaff62f24ef26575deac3443",
-    "tree": "2f950a635bb2b56a8ff4448d907dcd6f38f69371",
-    "source_tree": "7ca4620fd4b207c9706f16228711527cdf361a35",
-    "entry_sha256": "f8d57829bb6ce5c3e833a237374b1374cab14de0dee5c7949a3e815e13996b1e",
-    "build_sha256": "44ee8838ac32296842043cdec434489dc4e11cd24bb9377fdeef7f22c91333e6",
-    "base_commit": "b271899f48f785c06aa0fb25e025c36acfa5aa9b",
+    "unit_id": "LEARN-005",
+    "candidate_sha": "8c2edfa904eac4af0c983c22489a9ba516b00278",
+    "tree": "aca29eaf1f7103f04a49e5c8ad22acde80dcfca8",
+    "source_tree": "b89ce1b13db6e7ba4dd3fd2881bf9dfbafd7b226",
+    "entry_sha256": "6195489bc7c55cc8cc06b2cda53f16fbb001cdae1b9173bba9dc327779a109a8",
+    "build_sha256": "4e72521574db10c93e0b310af8e55c87c3ceb401f5bc885bc0c3f08599b9bb61",
+    "base_commit": "0fadfc13025d3748791c1b0ad41c7883c81a3715",
     "completed": [
-      "Personal private wrong reasons, mastery, schedule and assistance indicators.",
-      "Append-only author correction/reevaluation, dispute pause, version/source ACL and independent migration."
+      "Blind first answer, two targeted assistance levels, explicit reveal exposure and separate delayed same-band transfer verified.",
+      "Real due boundary, question/scope limits and v42 storage recovery independently passed."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
       "T01": "PASS",
       "T02": "PASS",
-      "P05": "PASS",
-      "A14": "PASS",
+      "A15": "PASS",
       "independent": "PASS"
     },
-    "evidence": "docs/evidence/LEARN-003/acceptance.json",
+    "evidence": "docs/evidence/LEARN-005/acceptance.json",
     "defects": [],
     "blocked_dependencies": [],
-    "next_task": "LEARN-005"
+    "next_task": "LEARN-006"
   },
   "checkpoint": {
     "unit_id": "LEARN-005",
-    "base_commit": "a70ecfa6303c0000f5c8417ad4d61a365f63652b",
+    "candidate_sha": "8c2edfa904eac4af0c983c22489a9ba516b00278",
+    "tree": "aca29eaf1f7103f04a49e5c8ad22acde80dcfca8",
+    "source_tree": "b89ce1b13db6e7ba4dd3fd2881bf9dfbafd7b226",
+    "entry_sha256": "6195489bc7c55cc8cc06b2cda53f16fbb001cdae1b9173bba9dc327779a109a8",
+    "build_sha256": "4e72521574db10c93e0b310af8e55c87c3ceb401f5bc885bc0c3f08599b9bb61",
+    "base_commit": "0fadfc13025d3748791c1b0ad41c7883c81a3715",
     "completed": [
-      "Independent guided-answer, delayed transfer and evidence limitation expectations prepared."
+      "Blind first answer, two targeted assistance levels, explicit reveal exposure and separate delayed same-band transfer verified.",
+      "Real due boundary, question/scope limits and v42 storage recovery independently passed."
     ],
     "test_results": {
-      "unit_acceptance": "NOT_RUN",
-      "T01": "NOT_RUN",
-      "T02": "NOT_RUN",
-      "A15": "NOT_RUN"
+      "unit_acceptance": "PASS",
+      "T01": "PASS",
+      "T02": "PASS",
+      "A15": "PASS",
+      "independent": "PASS"
     },
-    "evidence": "scripts/learn005/acceptance-plan.md",
+    "evidence": "docs/evidence/LEARN-005/acceptance.json",
     "defects": [],
     "blocked_dependencies": [],
-    "next_task": "LEARN-005"
+    "next_task": "LEARN-006"
   }
 }
