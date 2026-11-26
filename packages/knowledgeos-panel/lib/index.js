@@ -12772,12 +12772,14 @@ function apply(ctx, config = {}) {
       return isIdentityRuntimeAvailable({ connection, host: webFacts.host, port: webFacts.port, protocol: webFacts.protocol, origin: actualOrigin() });
     };
     const identity = new IdentityService(storage);
-    let ai = new AiService(storage, config.ai ?? {});
-    const aiDependencies = config.ai ? ["llm", "tools"] : ["llm", "tools", "agentDefaultModel"];
+    const aiConfig = config.ai ?? {};
+    let ai = new AiService(storage, aiConfig);
+    const hasExplicitAiRoute = aiConfig.provider !== void 0 || aiConfig.model !== void 0;
+    const aiDependencies = hasExplicitAiRoute ? ["llm", "tools"] : ["llm", "tools", "agentDefaultModel"];
     identityContext.inject(aiDependencies, (aiContext) => {
       aiContext.effect(() => {
         ai.close();
-        const route = config.ai ?? aiContext.get("agentDefaultModel")?.currentSelection() ?? {};
+        const route = hasExplicitAiRoute ? aiConfig : { ...aiConfig, ...aiContext.agentDefaultModel.currentSelection() };
         let active4;
         try {
           active4 = new AiService(storage, route, aiContext.llm, aiContext.tools);
@@ -12789,7 +12791,7 @@ function apply(ctx, config = {}) {
         ai = active4;
         return () => {
           active4.close();
-          if (ai === active4) ai = new AiService(storage, config.ai ?? {});
+          if (ai === active4) ai = new AiService(storage, aiConfig);
         };
       }, "knowledgeos-ai: controlled tools");
     });

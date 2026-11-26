@@ -15,12 +15,17 @@ await check('T09.v4-upgrade-preserves-historical-sql-and-ledger',()=>{
  const dir=join(root,'v4');mkdirSync(dir);const db=new DatabaseSync(path(dir));
  for(let i=1;i<=4;i++){db.exec(lib[`MIGRATION_V${i}_SQL`]);if(i===2)db.prepare('INSERT INTO service_identity VALUES (1,?,NULL,NULL)').run('synthetic-service');db.prepare('INSERT INTO schema_migrations VALUES (?,?,?)').run(i,lib[`MIGRATION_V${i}_CHECKSUM`],'2026-01-01T00:00:00.000Z')}
  db.exec(`PRAGMA application_id=${lib.APPLICATION_ID}; PRAGMA user_version=4`);db.close();const before=facts(dir)
- const store=new lib.ProbeStorage({dataDir:dir});assert(store.available,store.failure?.message);store.close();const after=facts(dir);assert.equal(after.userVersion,5);assert.deepEqual(after.ledger.slice(0,4),before.ledger);assert.equal(after.ledger[4].checksum,lib.MIGRATION_V5_CHECKSUM)
- return {before:4,after:5,historical_checksums_unchanged:true,ledger_count:5}
+ const store=new lib.ProbeStorage({dataDir:dir});assert(store.available,store.failure?.message);store.close();const after=facts(dir)
+ assert.equal(after.userVersion,lib.SCHEMA_VERSION);assert.equal(after.ledger.length,lib.SCHEMA_VERSION)
+ assert.deepEqual(after.ledger.slice(0,4),before.ledger);assert.equal(after.ledger[4].version,5);assert.equal(after.ledger[4].checksum,lib.MIGRATION_V5_CHECKSUM);assert(after.tables.includes('ai_tool_mutations'))
+ return {before:4,after:after.userVersion,historical_checksums_unchanged:true,v5_checksum:after.ledger[4].checksum,ledger_count:after.ledger.length}
 })
 await check('T09.v5-migration-fault-rolls-back',()=>{
  const dir=join(root,'migration-fault'),store=new lib.ProbeStorage({dataDir:dir,failureAt:'v5:after-schema'});assert.equal(store.available,false);store.close();const failed=facts(dir);assert.equal(failed.userVersion,4);assert.equal(failed.ledger.length,4);assert(!failed.tables.includes('ai_tool_mutations'))
- const recovered=new lib.ProbeStorage({dataDir:dir});assert(recovered.available);recovered.close();assert.equal(facts(dir).userVersion,5);return {fault_version:4,receipt_table_absent:true,recovery_version:5}
+ const recovered=new lib.ProbeStorage({dataDir:dir});assert(recovered.available);recovered.close();const after=facts(dir)
+ assert.equal(after.userVersion,lib.SCHEMA_VERSION);assert.equal(after.ledger.length,lib.SCHEMA_VERSION)
+ assert.deepEqual(after.ledger.slice(0,4),failed.ledger);assert.equal(after.ledger[4].version,5);assert.equal(after.ledger[4].checksum,lib.MIGRATION_V5_CHECKSUM);assert(after.tables.includes('ai_tool_mutations'))
+ return {fault_version:4,receipt_table_absent:true,recovery_version:after.userVersion,v5_checksum:after.ledger[4].checksum}
 })
 await check('T09.forged-schema-rejected-without-rewrite',()=>{
  const dir=join(root,'forged'),s=new lib.ProbeStorage({dataDir:dir});s.close();const db=new DatabaseSync(path(dir));db.exec('ALTER TABLE ai_tool_mutations ADD COLUMN forged TEXT');db.close();const before=createHash('sha256').update(readFileSync(path(dir))).digest('hex');const bad=new lib.ProbeStorage({dataDir:dir});assert.equal(bad.available,false);assert.equal(bad.failure.code,'STORAGE_INCOMPATIBLE');bad.close();assert.equal(createHash('sha256').update(readFileSync(path(dir))).digest('hex'),before);return {code:'STORAGE_INCOMPATIBLE',unchanged:true}

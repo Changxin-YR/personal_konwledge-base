@@ -5,6 +5,7 @@ import { writeFileSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { randomUUID, createHash } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
+import { MIGRATION_V5_CHECKSUM, SCHEMA_VERSION } from '../../packages/knowledgeos-panel/lib/test-support.js'
 import { prepareRun, accounts, api, login, sql, dbPath, databaseFacts, stopHost, entryCookie } from './harness.mjs'
 const args=process.argv.slice(2), get=(key,fallback)=>{const i=args.indexOf('--'+key);return i<0?fallback:args[i+1]}
 const out=resolve(get('out','docs/evidence/FND-005/runs/integration')), run=prepareRun(out,Number(get('port',3131)))
@@ -94,8 +95,8 @@ try{
   const previousPid=host.child.pid;await stopHost(host);assert(host.child.exitCode!==null||host.child.signalCode!==null);host=await run.start();assert.notEqual(host.child.pid,previousPid)
   alice=(await login(run.port,'alice','甲 synthetic password 2026!')).cookie
   const r=await mutate(alice,object.id,1,'synthetic first update','original-key');assert.equal(r.status,200);assert.deepEqual(r.json.data.result.object,original);assert.equal(row(object.id).revision,3);assert.equal(receiptCount('original-key'),1)
-  const facts=databaseFacts(dbPath(run.dataDir));assert.equal(facts.userVersion,5);assert.equal(facts.ledger.length,5)
-  return {old_pid_stopped:true,new_pid:true,user_version:5,ledger:5,persistent_original_replay:true,current_revision:3}
+  const facts=databaseFacts(dbPath(run.dataDir));assert.equal(facts.userVersion,SCHEMA_VERSION);assert.equal(facts.ledger.length,SCHEMA_VERSION);assert.equal(facts.ledger[4].checksum,MIGRATION_V5_CHECKSUM)
+  return {old_pid_stopped:true,new_pid:true,user_version:facts.userVersion,ledger:facts.ledger.length,persistent_original_replay:true,current_revision:3}
  })
  await check('T09.foundation-record-and-identity',async()=>{
   owner=(await entryCookie(host.entryUrl)).cookie

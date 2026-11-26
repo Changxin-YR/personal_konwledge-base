@@ -1,0 +1,22 @@
+{
+  "unit_id": "FND-005",
+  "category": "REAL_DEEPSEEK_UI_HTTP_SQLITE",
+  "candidate_sha": "4eb3a35b2c2c28b004b9d37e42f889ba5e8cb633",
+  "tree": "f59235b10494f825601a9d15423d167cd433dc3d",
+  "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+  "entry_sha256": "b675aa2cc039c0d75939f924555a786d028672e97489e352ba980b70ffe3c42d",
+  "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+  "price_approval_sha256": "bd01cc5e90b7992192ebdc5ee3069e013b81f181ec15fdfb80e2b2649bf6afb5",
+  "loader_sha256": "b675aa2cc039c0d75939f924555a786d028672e97489e352ba980b70ffe3c42d",
+  "status": "BLOCKED",
+  "phase": "BROWSER",
+  "provider": "tokease",
+  "model": "deepseek-v4.1-flash-1017",
+  "prepare_requests": 0,
+  "successful_model_selections": 0,
+  "native_dispatches": 0,
+  "started_at": "2026-11-26T02:09:46.580Z",
+  "finished_at": "2026-11-26T02:09:59.223Z",
+  "host_pid": 133640,
+  "operations": []
+}

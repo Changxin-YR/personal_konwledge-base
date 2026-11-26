@@ -214,17 +214,20 @@ export function apply(ctx: Context, config: KnowledgeOsConfig = {}): void {
     }
     const identity = new IdentityService(storage as NonNullable<typeof storage>)
     // DSH resolves the endpoint and credentials; the plugin only takes route IDs.
-    let ai = new AiService(storage as NonNullable<typeof storage>, config.ai ?? {})
-    const aiDependencies = config.ai ? ['llm', 'tools'] : ['llm', 'tools', 'agentDefaultModel']
+    const aiConfig = config.ai ?? {}
+    let ai = new AiService(storage as NonNullable<typeof storage>, aiConfig)
+    // The configuration schema materializes an empty AI object even when no route was supplied.
+    const hasExplicitAiRoute = aiConfig.provider !== undefined || aiConfig.model !== undefined
+    const aiDependencies = hasExplicitAiRoute ? ['llm', 'tools'] : ['llm', 'tools', 'agentDefaultModel']
     identityContext.inject(aiDependencies, aiContext => {
       aiContext.effect(() => {
         ai.close()
-        const route = config.ai ?? aiContext.get('agentDefaultModel')?.currentSelection() ?? {}
+        const route = hasExplicitAiRoute ? aiConfig : { ...aiConfig, ...aiContext.agentDefaultModel.currentSelection() }
         let active: AiService
         try { active = new AiService(storage as NonNullable<typeof storage>, route, aiContext.llm, aiContext.tools) }
         catch { console.warn('knowledgeos-ai: TOOL_REGISTRATION_FAILED'); ai = new AiService(storage as NonNullable<typeof storage>, route); return () => ai.close() }
         ai = active
-        return () => { active.close(); if (ai === active) ai = new AiService(storage as NonNullable<typeof storage>, config.ai ?? {}) }
+        return () => { active.close(); if (ai === active) ai = new AiService(storage as NonNullable<typeof storage>, aiConfig) }
       }, 'knowledgeos-ai: controlled tools')
     })
     const identityHandlers = createIdentityHandlers({
