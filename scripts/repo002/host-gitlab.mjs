@@ -98,8 +98,8 @@ function assertOldPin(events, expected) {
   assert(events.every(event => metadata(event) || event === blob[0]))
 }
 
-async function boot() {
-  const started = await host.start()
+async function boot(options) {
+  const started = await host.start([], options)
   facts.boots.push(started.pid)
   return started
 }
@@ -276,7 +276,9 @@ try {
   phase = 'T01 restart reads the previous pinned bytes without new requests'
   facts.traffic.push(...host.repositoryEvents())
   await host.stop()
-  await boot()
+  await boot({ repositoryCredentials: [{
+    actorId: owner.id, platform: 'gitlab', repository: repo, alias: 'gitlab_test_only', credentialRef: 'KO_GITLAB_TEST_ONLY',
+  }] })
   const restarted = await login('owner', { width: 420, height: 920 })
   const narrow = await open(restarted)
   await select(narrow, a)
@@ -298,6 +300,8 @@ try {
   await call(peer, '/' + first.id, 'GET', undefined, 404, 'NOT_FOUND')
   await call(peer, savedRoute(first), 'GET', undefined, 404, 'NOT_FOUND')
   await call(peer, '/' + first.id + '/files', 'POST', { actor_id: peer.id, path: readme }, 404, 'NOT_FOUND')
+  await call(peer, '', 'POST', input(peer, { credential_ref: 'gitlab_test_only' }), 404, 'NOT_FOUND')
+  await call(restarted, '', 'POST', input(restarted, { credential_ref: 'gitlab_test_only' }), 503, 'REPOSITORY_CREDENTIAL_UNCONFIGURED')
   await call(restarted, '', 'POST', input(restarted, { credential_ref: 'gitlab_unbound' }), 404, 'NOT_FOUND')
   const wrongAlias = await call(restarted, '', 'POST', input(restarted, { credential_ref: 'github_unbound' }), [404, 422])
   const wrongToken = await call(restarted, '', 'POST', input(restarted, { token: 'not-a-real-token' }), 422, 'INVALID_REPOSITORY_INPUT')

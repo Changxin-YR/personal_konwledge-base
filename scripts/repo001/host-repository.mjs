@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { api, dbPath, entryCookie } from '../fnd004/harness.mjs'
 import { candidateFacts } from '../integrated-case-proof.mjs'
 import { isolate, until } from '../lib002/a07-isolated-host.mjs'
+import { SCHEMA_VERSION } from '../../packages/knowledgeos-panel/lib/storage.js'
 
 const [candidate, entry, mode] = process.argv.slice(2), root = fileURLToPath(new URL('../../', import.meta.url))
 assert(mode === undefined || mode === '--fixture-regression')
@@ -93,7 +94,7 @@ try {
   const start = await boot(), ownerCookie = await entryCookie(start.entry)
   assert.equal((await api(host.port, ownerCookie.cookie, 'POST', scope + '/auth/bootstrap', { login_name: 'owner', display_name: 'Owner', password })).status, 201)
   assert.equal((await api(host.port, '', 'POST', scope + '/auth/register', { login_name: 'peer', display_name: 'Peer', password })).status, 201)
-  assert.equal(read('PRAGMA user_version')[0].user_version, 28)
+  assert.equal(read('PRAGMA user_version')[0].user_version, SCHEMA_VERSION)
   const { chromium } = await import(pathToFileURL(host.playwright).href)
   browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--disable-background-networking', '--disable-component-update', '--disable-sync', '--no-proxy-server'] })
   facts.chrome = browser.version()

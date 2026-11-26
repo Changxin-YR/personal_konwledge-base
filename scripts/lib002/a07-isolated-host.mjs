@@ -59,7 +59,6 @@ export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrie
   config('cordis.yml',[])
   const patch=[{id:'knowledgeos-host',config:{dataDir:data.replaceAll('\\','/')}}]
   if(nativeEgressProbe)patch.push({insert:[{id:'native-egress-probe',name:fileURLToPath(new URL('../fnd005/native-host-egress-plugin.mjs',import.meta.url)).replaceAll('\\','/')} ]})
-  config('cordis.patch.yml',patch)
   const socket=createServer();await new Promise((ok,no)=>socket.once('error',no).listen(0,'127.0.0.1',ok));const port=socket.address().port;await new Promise(ok=>socket.close(ok))
   const base='http://127.0.0.1:'+port;let host,seq=0,trace
   function events(){
@@ -71,8 +70,12 @@ export async function isolate(commit,entryHash,{officeBarrier=false,searchBarrie
     const f=join(trace,'invite-arrivals.jsonl');if(!existsSync(f))return []
     return readFileSync(f,'utf8').split('\n').slice(0,-1).map(s=>JSON.parse(s))
   }
-  async function start(flags=[],{holdPage}={}){
+  async function start(flags=[],{holdPage,repositoryCredentials}={}){
     assert(!host);trace=join(dir,'boot-'+ ++seq);mkdirSync(trace)
+    assert(repositoryCredentials===undefined||repositoryTraffic)
+    if(repositoryCredentials)patch[0].config.repositoryCredentials=repositoryCredentials
+    else delete patch[0].config.repositoryCredentials
+    config('cordis.patch.yml',patch)
     for(const f of flags){assert(['hold3','fail4'].includes(f));writeFileSync(join(trace,f),'')}
     if(holdPage!==undefined){assert(Number.isSafeInteger(holdPage)&&holdPage>1&&holdPage<=10_000);writeFileSync(join(trace,'hold-page'),String(holdPage))}
     const env={};for(const [k,v] of Object.entries(process.env))if(/^(systemroot|windir|comspec|path|pathext|programfiles.*|processor_.*|number_of_processors)$/i.test(k))env[k]=v
