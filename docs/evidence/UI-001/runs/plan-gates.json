@@ -1,0 +1,900 @@
+{
+  "status": "PASS",
+  "scope": "plan_gate_regressions_only",
+  "started_at": "2026-11-26T08:20:49.307Z",
+  "finished_at": "2026-11-26T08:22:46.129Z",
+  "checks": 148,
+  "results": [
+    {
+      "name": "supplied plan",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    },
+    {
+      "name": "eligible dynamic active unit: ready",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    },
+    {
+      "name": "eligible dynamic active unit: in_progress",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    },
+    {
+      "name": "eligible dynamic active unit: blocked",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    },
+    {
+      "name": "eligible dynamic active unit: failed",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    },
+    {
+      "name": "blocked prerequisite prevents selection",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "inactive passed unit cannot skip prerequisites",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "unknown active unit",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "retired state",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "state mismatch",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "second writer",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "cycle in inactive subgraph",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "unknown dependency",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "duplicate dependency",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "no final case owner",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "prompt hash drift",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "stale active unit metadata despite matching hash",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "wrong unit source despite matching hash",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "missing catalog reference",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "retired root prompt",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "coherent rollback of auto advance",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "rollback of executor",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "rollback of phase",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "stale revision",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "changed migration anchor",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "wrong catalog role",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "parallel implementation enabled",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "extra writers allowed",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "premature product review",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "accepted prerequisite reopened",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "historical R2 closure removed",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "historical FND-006 reopened",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "historical FND-006 obligation removed",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "historical FND-006 run from another tree",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "historical FND-006 unverified Host",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "deleted prerequisite in acyclic catalog",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "document row missing",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "accepted candidate can become inactive",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    },
+    {
+      "name": "inactive candidate: open finding",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "inactive candidate: unclosed required finding",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "inactive candidate: failed tests",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "inactive candidate: no independent review",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "inactive candidate: missing retest",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "inactive candidate: duplicate test",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "inactive candidate: invalid timestamp",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "inactive candidate: missing evidence",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "inactive candidate: non-file evidence",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "inactive candidate: mismatched unit SHA",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "missing acceptance test",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "cross-candidate independent run",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "other unit run",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "nonzero exit",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "missing independent test",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "failed individual test",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "same-candidate independent DeepSeek proof (structure only)",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    },
+    {
+      "name": "pre-fix HS14 proof cannot certify new candidate",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "old provider candidate",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "harness cannot attest independence",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "wrong live provider",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "wrong live model",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "different build",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "loader hash differs",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "wrong HTTP revision",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "missing response hash",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "same response at both revisions",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "incorrect reread body digest",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "screenshot outside export",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "screenshot digest mismatch",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "wrong usage attempts",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "extra raw usage field",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "fractional usage",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "impossible unknown cost",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "negative estimated price",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "missing budget warning",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "usage totals move backwards",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "usage discontinuity between operations",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "additional prepare",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "missing dispatch",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "missing successful selection",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "bad receipt count",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "wrong revision",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "wrong object",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "no authenticated reread",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "UI reread disagrees",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "projection from another candidate",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "self-declared route",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "synthetic model",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "fixture provider",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "non-DeepSeek model",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "unapproved origin",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "credential-bearing endpoint",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "raw profile field in discovery",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "post-run discovery",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "approval not used by live run",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "missing reviewer verdict",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "another candidate review",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "review before live execution",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "run edited after review",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "different discovery reviewed",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "missing capture artifact",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "digest-matching non-PNG",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "offline publisher output validates without adaptation",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    },
+    {
+      "name": "independently reviewed native relay without historical provider/model IDs",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    },
+    {
+      "name": "approved endpoint differs even with matching live price digest",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "live summary cannot double as independent review",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "case requires passed owner",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "full case and associated requirement with owner proof",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    },
+    {
+      "name": "incorrect full case case_id",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "incorrect full case unit_id",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "incorrect full case candidate_sha",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "incorrect full case status",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "incorrect full case exit",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "requirement verified prematurely",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "A09 integrated proof preserves early owner SHA",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    },
+    {
+      "name": "A09 requires actual participation by READ-003",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "P03 integrated proof preserves early owner SHA",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    },
+    {
+      "name": "P03 requires actual participation by LEARN-003",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "P08 integrated proof preserves early owner SHA",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    },
+    {
+      "name": "P08 requires actual participation by SCORE-001",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "A16 integrated proof preserves early owner SHA",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    },
+    {
+      "name": "A16 requires actual participation by LIFE-001",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "A34 integrated proof preserves early owner SHA",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    },
+    {
+      "name": "A34 requires actual participation by SEARCH-001",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "A46 integrated proof preserves early owner SHA",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    },
+    {
+      "name": "A46 requires actual participation by EXPORT-001",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "old single-owner schema rejected for a cross-unit case",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "cannot integrate an unaccepted component",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "integration candidate outside branch rejected",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "owner candidate alone omits role accepted later",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "changed historical participant candidate rejected",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "wrong integration tree",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "wrong integration source_tree",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "wrong integration entry_sha256",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "wrong integration build_sha256",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "prior actual main run not reusable on new integrated commit",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "integrated main rejects status FAIL",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "integrated independent rejects status NOT_RUN",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "integrated regression rejects exit 1",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "integrated independent rejects runner main",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "integrated independent rejects run_id A09-main",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "integrated case cannot omit a negative path or treat NOT_RUN as PASS",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "PASS overall cannot conceal a skipped assertion",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "changed execution record bytes rejected",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "changed screenshot or trace bytes rejected",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "copied main artifact does not constitute independent evidence",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "complete final structure",
+      "status": "PASS",
+      "expectedExitCode": 0,
+      "actualExitCode": 0
+    },
+    {
+      "name": "final acceptance with outstanding case",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    },
+    {
+      "name": "final acceptance with unfinished unrelated unit",
+      "status": "PASS",
+      "expectedExitCode": 1,
+      "actualExitCode": 1
+    }
+  ],
+  "realProjectStatesModified": false,
+  "implementationVerifiedByThisCheck": false,
+  "productTestsExecuted": 0
+}

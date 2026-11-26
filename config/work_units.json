@@ -2784,8 +2784,28 @@
         "P01"
       ],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "in_progress",
-      "test_plan_status": "expanded_for_activation"
+      "status": "passed",
+      "test_plan_status": "executed_with_evidence",
+      "candidate_commit": "cb93964b1c513a9458f353de2dc051c771211dbc",
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "retest_status": "PASS",
+      "completed_test_ids": [
+        "UI-001-T01",
+        "UI-001-T02"
+      ],
+      "open_review_items": [],
+      "closed_review_items": [],
+      "completed_at": "2026-11-26T08:19:32.198287+00:00",
+      "acceptance_record": "docs/evidence/UI-001/acceptance.json",
+      "evidence_paths": [
+        "docs/evidence/UI-001/REPORT.md",
+        "docs/evidence/UI-001/acceptance.json",
+        "docs/evidence/UI-001/independent.json",
+        "docs/evidence/UI-001/P01.json",
+        "docs/evidence/UI-001/runs/term-collection.txt",
+        "docs/evidence/UI-001/runs/library-import.json"
+      ]
     },
     {
       "id": "REPO-001",

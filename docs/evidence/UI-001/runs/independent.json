@@ -1,0 +1,1062 @@
+{
+  "unit_id": "UI-001",
+  "candidate_sha": "cb93964b1c513a9458f353de2dc051c771211dbc",
+  "entry_sha256": "364bc63833e30730bc053f2893ab5b6fabf3b6f334d52dc5a5dd2673cb633a53",
+  "run_kind": "independent",
+  "run_id": "679c7164-b6b4-4db0-8d29-f3983f881671",
+  "node": "v24.22.0",
+  "sqlite": "3.53.4",
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "P01": "PASS",
+  "screens": [
+    {
+      "file": "wide-library.png",
+      "sha256": "8f994513ed742de09476a9b2494c416a2a454ff1a8c99902310222b824d700cf",
+      "bytes": 51099
+    },
+    {
+      "file": "focus-library-wide.png",
+      "sha256": "f9b9fa6b4decb4996f631d149b917555eff536d74a69de7292c6a8c060acc87d",
+      "bytes": 15142
+    },
+    {
+      "file": "wide-today.png",
+      "sha256": "5c1953c286964dc479cfc74ce43ece5bfbed0aba51eb862460c17bb03ddd8a41",
+      "bytes": 31437
+    },
+    {
+      "file": "focus-today-wide.png",
+      "sha256": "9103572b2a2e2750056b6ed8fc4684768539ef7b0006f5bf6982c60e687d22ac",
+      "bytes": 15227
+    },
+    {
+      "file": "narrow-library.png",
+      "sha256": "fa69e1f9dc022ae61c0c1115bded0027f75adf6a9897ed1577613b93b12274f8",
+      "bytes": 35922
+    },
+    {
+      "file": "focus-library-narrow.png",
+      "sha256": "43db7d5bfde75d70b7bc90a64ef81bcd4b7b1b590c3b30775036f617cafbb19d",
+      "bytes": 16154
+    },
+    {
+      "file": "narrow-today.png",
+      "sha256": "b83cd35f571d4a93d8094c704b1bfb377825e158c762fec202c3f64cdde5d2cb",
+      "bytes": 27324
+    },
+    {
+      "file": "focus-today-narrow.png",
+      "sha256": "530456d64e94f6256788f22aa9dbad259b6e2c0b06ccb33c4b1ca2cdd78b696e",
+      "bytes": 16155
+    },
+    {
+      "file": "favorite-from-library.png",
+      "sha256": "c45c1eb08c65e4ef1e7a198543a673b3889ef1786880a524be7d25343823cb5b",
+      "bytes": 28493
+    },
+    {
+      "file": "quick-a.png",
+      "sha256": "434cdb13c9670fc815178333e172d810ce8a12cacf98b3ea31d56ae607d482f8",
+      "bytes": 31134
+    },
+    {
+      "file": "recall-a-library-write.png",
+      "sha256": "8e5151c9e8601390bb859dde843490faefd5bb4921957283b9a6f6b2987cf129",
+      "bytes": 20707
+    },
+    {
+      "file": "review-a-library-write.png",
+      "sha256": "564df4dfd42d678136231cab7126b7d6b4c050f317ed9d0eb7b7a30195820e50",
+      "bytes": 23656
+    },
+    {
+      "file": "favorite-from-today.png",
+      "sha256": "c45c1eb08c65e4ef1e7a198543a673b3889ef1786880a524be7d25343823cb5b",
+      "bytes": 28493
+    },
+    {
+      "file": "recall-a-today-write.png",
+      "sha256": "561aabd373fcadca12b968455952d1eae59f30d217a36620e9cb17263d3f4c96",
+      "bytes": 20655
+    },
+    {
+      "file": "review-a-today-write.png",
+      "sha256": "376a5548d000a45c536917e51fae30c985e5e04c52df16292d267613da47a547",
+      "bytes": 24130
+    },
+    {
+      "file": "peer-review-empty.png",
+      "sha256": "a645009f03b8ea3924be38c277c6e331780a5a54afd63e9f709f3b932756ceec",
+      "bytes": 1721
+    },
+    {
+      "file": "quick-b.png",
+      "sha256": "434cdb13c9670fc815178333e172d810ce8a12cacf98b3ea31d56ae607d482f8",
+      "bytes": 31134
+    },
+    {
+      "file": "recall-b-today-write.png",
+      "sha256": "be0788f89cc98fc7d26d5fb1e1cd822396356cd83511166978c4021dddf9e739",
+      "bytes": 20574
+    },
+    {
+      "file": "review-b-today-write.png",
+      "sha256": "4ca1996c38bc21ab7ac643c88b5c44e5150b714fe118698fa2020ba01278c12a",
+      "bytes": 23431
+    },
+    {
+      "file": "recall-a-library-reopen.png",
+      "sha256": "561aabd373fcadca12b968455952d1eae59f30d217a36620e9cb17263d3f4c96",
+      "bytes": 20655
+    },
+    {
+      "file": "review-a-library-reopen.png",
+      "sha256": "376a5548d000a45c536917e51fae30c985e5e04c52df16292d267613da47a547",
+      "bytes": 24130
+    }
+  ],
+  "navigation": [
+    {
+      "workspace": "library",
+      "size": "wide",
+      "viewport": [
+        1280,
+        900
+      ],
+      "page_width": 1280,
+      "document_width": 1280,
+      "body_width": 1280,
+      "horizontal_offset": 0,
+      "sidebar_columns": 1,
+      "nav_ancestor_depth": 1,
+      "links": [
+        {
+          "name": "专业术语",
+          "href": "/knowledgeos/terms",
+          "x": 316,
+          "y": 78.296875,
+          "width": 203.5,
+          "height": 79.484375,
+          "in_first_view": true,
+          "center_hits_link": true
+        },
+        {
+          "name": "遮挡背诵",
+          "href": "/knowledgeos/recall",
+          "x": 529.5,
+          "y": 78.296875,
+          "width": 203.5,
+          "height": 79.484375,
+          "in_first_view": true,
+          "center_hits_link": true
+        },
+        {
+          "name": "基础快答",
+          "href": "/knowledgeos/practice?track=quick",
+          "x": 743,
+          "y": 78.296875,
+          "width": 203.5,
+          "height": 79.484375,
+          "in_first_view": true,
+          "center_hits_link": true
+        },
+        {
+          "name": "错题复习",
+          "href": "/knowledgeos/review",
+          "x": 956.5,
+          "y": 78.296875,
+          "width": 203.5,
+          "height": 79.484375,
+          "in_first_view": true,
+          "center_hits_link": true
+        }
+      ],
+      "switch_to": "/knowledgeos/today",
+      "workspace_focus": {
+        "tabs": 1,
+        "focus_visible": true,
+        "outline": "solid",
+        "width": 3,
+        "shadow": false
+      },
+      "activations": [
+        {
+          "href": "/knowledgeos/terms",
+          "tabs": 6,
+          "focus_visible": true,
+          "outline": "solid",
+          "width": 3,
+          "shadow": false,
+          "destination": {
+            "viewport": [
+              1280,
+              900
+            ],
+            "page_width": 1280,
+            "document_width": 1280,
+            "body_width": 1280,
+            "horizontal_offset": 0,
+            "sidebar_columns": 1,
+            "nav_ancestor_depth": 1
+          }
+        },
+        {
+          "href": "/knowledgeos/recall",
+          "tabs": 7,
+          "focus_visible": true,
+          "outline": "solid",
+          "width": 3,
+          "shadow": false,
+          "destination": {
+            "viewport": [
+              1280,
+              900
+            ],
+            "page_width": 1280,
+            "document_width": 1280,
+            "body_width": 1280,
+            "horizontal_offset": 0,
+            "sidebar_columns": 0,
+            "nav_ancestor_depth": 0
+          }
+        },
+        {
+          "href": "/knowledgeos/practice?track=quick",
+          "tabs": 8,
+          "focus_visible": true,
+          "outline": "solid",
+          "width": 3,
+          "shadow": false,
+          "destination": {
+            "viewport": [
+              1280,
+              900
+            ],
+            "page_width": 1280,
+            "document_width": 1280,
+            "body_width": 1280,
+            "horizontal_offset": 0,
+            "sidebar_columns": 0,
+            "nav_ancestor_depth": 0
+          }
+        },
+        {
+          "href": "/knowledgeos/review",
+          "tabs": 9,
+          "focus_visible": true,
+          "outline": "solid",
+          "width": 3,
+          "shadow": false,
+          "destination": {
+            "viewport": [
+              1280,
+              900
+            ],
+            "page_width": 1280,
+            "document_width": 1280,
+            "body_width": 1280,
+            "horizontal_offset": 0,
+            "sidebar_columns": 0,
+            "nav_ancestor_depth": 0
+          }
+        }
+      ]
+    },
+    {
+      "workspace": "today",
+      "size": "wide",
+      "viewport": [
+        1280,
+        900
+      ],
+      "page_width": 1280,
+      "document_width": 1280,
+      "body_width": 1280,
+      "horizontal_offset": 0,
+      "sidebar_columns": 1,
+      "nav_ancestor_depth": 1,
+      "links": [
+        {
+          "name": "专业术语",
+          "href": "/knowledgeos/terms",
+          "x": 316,
+          "y": 449.5,
+          "width": 203.5,
+          "height": 80.984375,
+          "in_first_view": true,
+          "center_hits_link": true
+        },
+        {
+          "name": "遮挡背诵",
+          "href": "/knowledgeos/recall",
+          "x": 529.5,
+          "y": 449.5,
+          "width": 203.5,
+          "height": 80.984375,
+          "in_first_view": true,
+          "center_hits_link": true
+        },
+        {
+          "name": "基础快答",
+          "href": "/knowledgeos/practice?track=quick",
+          "x": 743,
+          "y": 449.5,
+          "width": 203.5,
+          "height": 80.984375,
+          "in_first_view": true,
+          "center_hits_link": true
+        },
+        {
+          "name": "错题复习",
+          "href": "/knowledgeos/review",
+          "x": 956.5,
+          "y": 449.5,
+          "width": 203.5,
+          "height": 80.984375,
+          "in_first_view": true,
+          "center_hits_link": true
+        }
+      ],
+      "switch_to": "/knowledgeos/library",
+      "workspace_focus": {
+        "tabs": 2,
+        "focus_visible": true,
+        "outline": "solid",
+        "width": 3,
+        "shadow": false
+      },
+      "activations": [
+        {
+          "href": "/knowledgeos/terms",
+          "tabs": 6,
+          "focus_visible": true,
+          "outline": "solid",
+          "width": 3,
+          "shadow": false,
+          "destination": {
+            "viewport": [
+              1280,
+              900
+            ],
+            "page_width": 1280,
+            "document_width": 1280,
+            "body_width": 1280,
+            "horizontal_offset": 0,
+            "sidebar_columns": 1,
+            "nav_ancestor_depth": 1
+          }
+        },
+        {
+          "href": "/knowledgeos/recall",
+          "tabs": 7,
+          "focus_visible": true,
+          "outline": "solid",
+          "width": 3,
+          "shadow": false,
+          "destination": {
+            "viewport": [
+              1280,
+              900
+            ],
+            "page_width": 1280,
+            "document_width": 1280,
+            "body_width": 1280,
+            "horizontal_offset": 0,
+            "sidebar_columns": 0,
+            "nav_ancestor_depth": 0
+          }
+        },
+        {
+          "href": "/knowledgeos/practice?track=quick",
+          "tabs": 8,
+          "focus_visible": true,
+          "outline": "solid",
+          "width": 3,
+          "shadow": false,
+          "destination": {
+            "viewport": [
+              1280,
+              900
+            ],
+            "page_width": 1280,
+            "document_width": 1280,
+            "body_width": 1280,
+            "horizontal_offset": 0,
+            "sidebar_columns": 0,
+            "nav_ancestor_depth": 0
+          }
+        },
+        {
+          "href": "/knowledgeos/review",
+          "tabs": 9,
+          "focus_visible": true,
+          "outline": "solid",
+          "width": 3,
+          "shadow": false,
+          "destination": {
+            "viewport": [
+              1280,
+              900
+            ],
+            "page_width": 1280,
+            "document_width": 1280,
+            "body_width": 1280,
+            "horizontal_offset": 0,
+            "sidebar_columns": 0,
+            "nav_ancestor_depth": 0
+          }
+        }
+      ]
+    },
+    {
+      "workspace": "library",
+      "size": "narrow",
+      "viewport": [
+        390,
+        844
+      ],
+      "page_width": 390,
+      "document_width": 390,
+      "body_width": 390,
+      "horizontal_offset": 0,
+      "sidebar_columns": 0,
+      "nav_ancestor_depth": 1,
+      "links": [
+        {
+          "name": "专业术语",
+          "href": "/knowledgeos/terms",
+          "x": 14,
+          "y": 169.984375,
+          "width": 176,
+          "height": 99.625,
+          "in_first_view": true,
+          "center_hits_link": true
+        },
+        {
+          "name": "遮挡背诵",
+          "href": "/knowledgeos/recall",
+          "x": 200,
+          "y": 169.984375,
+          "width": 176,
+          "height": 99.625,
+          "in_first_view": true,
+          "center_hits_link": true
+        },
+        {
+          "name": "基础快答",
+          "href": "/knowledgeos/practice?track=quick",
+          "x": 14,
+          "y": 279.609375,
+          "width": 176,
+          "height": 79.484375,
+          "in_first_view": true,
+          "center_hits_link": true
+        },
+        {
+          "name": "错题复习",
+          "href": "/knowledgeos/review",
+          "x": 200,
+          "y": 279.609375,
+          "width": 176,
+          "height": 79.484375,
+          "in_first_view": true,
+          "center_hits_link": true
+        }
+      ],
+      "switch_to": "/knowledgeos/today",
+      "workspace_focus": {
+        "tabs": 1,
+        "focus_visible": true,
+        "outline": "solid",
+        "width": 3,
+        "shadow": false
+      },
+      "activations": [
+        {
+          "href": "/knowledgeos/terms",
+          "tabs": 6,
+          "focus_visible": true,
+          "outline": "solid",
+          "width": 3,
+          "shadow": false,
+          "destination": {
+            "viewport": [
+              390,
+              844
+            ],
+            "page_width": 390,
+            "document_width": 390,
+            "body_width": 390,
+            "horizontal_offset": 0,
+            "sidebar_columns": 0,
+            "nav_ancestor_depth": 1
+          }
+        },
+        {
+          "href": "/knowledgeos/recall",
+          "tabs": 7,
+          "focus_visible": true,
+          "outline": "solid",
+          "width": 3,
+          "shadow": false,
+          "destination": {
+            "viewport": [
+              390,
+              844
+            ],
+            "page_width": 390,
+            "document_width": 390,
+            "body_width": 390,
+            "horizontal_offset": 0,
+            "sidebar_columns": 0,
+            "nav_ancestor_depth": 0
+          }
+        },
+        {
+          "href": "/knowledgeos/practice?track=quick",
+          "tabs": 8,
+          "focus_visible": true,
+          "outline": "solid",
+          "width": 3,
+          "shadow": false,
+          "destination": {
+            "viewport": [
+              390,
+              844
+            ],
+            "page_width": 390,
+            "document_width": 390,
+            "body_width": 390,
+            "horizontal_offset": 0,
+            "sidebar_columns": 0,
+            "nav_ancestor_depth": 0
+          }
+        },
+        {
+          "href": "/knowledgeos/review",
+          "tabs": 9,
+          "focus_visible": true,
+          "outline": "solid",
+          "width": 3,
+          "shadow": false,
+          "destination": {
+            "viewport": [
+              390,
+              844
+            ],
+            "page_width": 390,
+            "document_width": 390,
+            "body_width": 390,
+            "horizontal_offset": 0,
+            "sidebar_columns": 0,
+            "nav_ancestor_depth": 0
+          }
+        }
+      ]
+    },
+    {
+      "workspace": "today",
+      "size": "narrow",
+      "viewport": [
+        390,
+        844
+      ],
+      "page_width": 390,
+      "document_width": 390,
+      "body_width": 390,
+      "horizontal_offset": 0,
+      "sidebar_columns": 0,
+      "nav_ancestor_depth": 1,
+      "links": [
+        {
+          "name": "专业术语",
+          "href": "/knowledgeos/terms",
+          "x": 14,
+          "y": 233.375,
+          "width": 176,
+          "height": 101.78125,
+          "in_first_view": true,
+          "center_hits_link": true
+        },
+        {
+          "name": "遮挡背诵",
+          "href": "/knowledgeos/recall",
+          "x": 200,
+          "y": 233.375,
+          "width": 176,
+          "height": 101.78125,
+          "in_first_view": true,
+          "center_hits_link": true
+        },
+        {
+          "name": "基础快答",
+          "href": "/knowledgeos/practice?track=quick",
+          "x": 14,
+          "y": 345.15625,
+          "width": 176,
+          "height": 80.984375,
+          "in_first_view": true,
+          "center_hits_link": true
+        },
+        {
+          "name": "错题复习",
+          "href": "/knowledgeos/review",
+          "x": 200,
+          "y": 345.15625,
+          "width": 176,
+          "height": 80.984375,
+          "in_first_view": true,
+          "center_hits_link": true
+        }
+      ],
+      "switch_to": "/knowledgeos/library",
+      "workspace_focus": {
+        "tabs": 2,
+        "focus_visible": true,
+        "outline": "solid",
+        "width": 3,
+        "shadow": false
+      },
+      "activations": [
+        {
+          "href": "/knowledgeos/terms",
+          "tabs": 6,
+          "focus_visible": true,
+          "outline": "solid",
+          "width": 3,
+          "shadow": false,
+          "destination": {
+            "viewport": [
+              390,
+              844
+            ],
+            "page_width": 390,
+            "document_width": 390,
+            "body_width": 390,
+            "horizontal_offset": 0,
+            "sidebar_columns": 0,
+            "nav_ancestor_depth": 1
+          }
+        },
+        {
+          "href": "/knowledgeos/recall",
+          "tabs": 7,
+          "focus_visible": true,
+          "outline": "solid",
+          "width": 3,
+          "shadow": false,
+          "destination": {
+            "viewport": [
+              390,
+              844
+            ],
+            "page_width": 390,
+            "document_width": 390,
+            "body_width": 390,
+            "horizontal_offset": 0,
+            "sidebar_columns": 0,
+            "nav_ancestor_depth": 0
+          }
+        },
+        {
+          "href": "/knowledgeos/practice?track=quick",
+          "tabs": 8,
+          "focus_visible": true,
+          "outline": "solid",
+          "width": 3,
+          "shadow": false,
+          "destination": {
+            "viewport": [
+              390,
+              844
+            ],
+            "page_width": 390,
+            "document_width": 390,
+            "body_width": 390,
+            "horizontal_offset": 0,
+            "sidebar_columns": 0,
+            "nav_ancestor_depth": 0
+          }
+        },
+        {
+          "href": "/knowledgeos/review",
+          "tabs": 9,
+          "focus_visible": true,
+          "outline": "solid",
+          "width": 3,
+          "shadow": false,
+          "destination": {
+            "viewport": [
+              390,
+              844
+            ],
+            "page_width": 390,
+            "document_width": 390,
+            "body_width": 390,
+            "horizontal_offset": 0,
+            "sidebar_columns": 0,
+            "nav_ancestor_depth": 0
+          }
+        }
+      ]
+    }
+  ],
+  "objects": [
+    {
+      "from": "/knowledgeos/library",
+      "type": "favorite",
+      "id_sha256": "6cc66a610430134f129d8957f2317851d05077f710511935fa4d4d876c8e1650",
+      "ordinal": 1,
+      "start": 21,
+      "end": 23,
+      "block_sha256": "f2f41f2d8f84ced6f2c45982ff50ec8f578e2b73ec124e17c9ebc0ca334fd32a",
+      "quote_sha256": "5f76b2bf82dd2c5d820c26010d44246643f3010308e8821e7054c6c44f6c9f95",
+      "version_sha256": "04bd089f40ae064c244ced23fedacaef3cde1d463d4f188b133029314fbeff40"
+    },
+    {
+      "from": "/knowledgeos/library",
+      "type": "source-picker",
+      "learner": "A",
+      "source_version_sha256": "04bd089f40ae064c244ced23fedacaef3cde1d463d4f188b133029314fbeff40",
+      "block_sha256": "f2f41f2d8f84ced6f2c45982ff50ec8f578e2b73ec124e17c9ebc0ca334fd32a"
+    },
+    {
+      "from": "/knowledgeos/library",
+      "type": "quick-answer",
+      "learner": "a",
+      "session_sha256": "bb864e9568dee54a895475f65760782d3f15b6d8f98a5dd61aa6b1ef2abfe1b8",
+      "question_version_sha256": "826555e0982808ca0ac6ecc2f758f5e816afc11927314b814abbe6aa1841111a",
+      "attempt_sha256": "95f2b19c6e8d0112352ca764d2f80527b36ce504e404b85788ea18d51e7a9d96",
+      "first_grade": "incorrect"
+    },
+    {
+      "from": "/knowledgeos/library",
+      "type": "recall",
+      "record": "a-library-write",
+      "id_sha256": "d948c8fb121153588924b1279fd9ca739f0edb2f66d1c2c476f857455d781f1c",
+      "version_sha256": "04bd089f40ae064c244ced23fedacaef3cde1d463d4f188b133029314fbeff40",
+      "read": {
+        "revision": 1,
+        "rating": null
+      },
+      "saved": {
+        "revision": 2,
+        "rating": 3
+      }
+    },
+    {
+      "from": "/knowledgeos/library",
+      "type": "review",
+      "record": "a-library-write",
+      "question_sha256": "402a50b04e76a6663cba145ea22ad63c675d5f1043c28bd4867faa653bb4fb52",
+      "question_version_sha256": "826555e0982808ca0ac6ecc2f758f5e816afc11927314b814abbe6aa1841111a",
+      "attempt_sha256": "95f2b19c6e8d0112352ca764d2f80527b36ce504e404b85788ea18d51e7a9d96",
+      "read": {
+        "revision": 0,
+        "mastery": "new",
+        "reason_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "saved": {
+        "revision": 1,
+        "mastery": "reviewing",
+        "reason_sha256": "9d95ff08f01d40bbd074dc28ccc689af62dbfaf30fbe166cc9dc0631b662a6f5"
+      }
+    },
+    {
+      "from": "/knowledgeos/today",
+      "type": "favorite",
+      "id_sha256": "6cc66a610430134f129d8957f2317851d05077f710511935fa4d4d876c8e1650",
+      "ordinal": 1,
+      "start": 21,
+      "end": 23,
+      "block_sha256": "f2f41f2d8f84ced6f2c45982ff50ec8f578e2b73ec124e17c9ebc0ca334fd32a",
+      "quote_sha256": "5f76b2bf82dd2c5d820c26010d44246643f3010308e8821e7054c6c44f6c9f95",
+      "version_sha256": "04bd089f40ae064c244ced23fedacaef3cde1d463d4f188b133029314fbeff40"
+    },
+    {
+      "from": "/knowledgeos/today",
+      "type": "source-picker",
+      "learner": "A",
+      "source_version_sha256": "04bd089f40ae064c244ced23fedacaef3cde1d463d4f188b133029314fbeff40",
+      "block_sha256": "f2f41f2d8f84ced6f2c45982ff50ec8f578e2b73ec124e17c9ebc0ca334fd32a"
+    },
+    {
+      "from": "/knowledgeos/today",
+      "type": "quick-history",
+      "session_sha256": "bb864e9568dee54a895475f65760782d3f15b6d8f98a5dd61aa6b1ef2abfe1b8",
+      "question_version_sha256": "826555e0982808ca0ac6ecc2f758f5e816afc11927314b814abbe6aa1841111a",
+      "attempt_sha256": "95f2b19c6e8d0112352ca764d2f80527b36ce504e404b85788ea18d51e7a9d96"
+    },
+    {
+      "from": "/knowledgeos/today",
+      "type": "recall",
+      "record": "a-today-write",
+      "id_sha256": "d948c8fb121153588924b1279fd9ca739f0edb2f66d1c2c476f857455d781f1c",
+      "version_sha256": "04bd089f40ae064c244ced23fedacaef3cde1d463d4f188b133029314fbeff40",
+      "read": {
+        "revision": 2,
+        "rating": 3
+      },
+      "saved": {
+        "revision": 3,
+        "rating": 5
+      }
+    },
+    {
+      "from": "/knowledgeos/today",
+      "type": "review",
+      "record": "a-today-write",
+      "question_sha256": "402a50b04e76a6663cba145ea22ad63c675d5f1043c28bd4867faa653bb4fb52",
+      "question_version_sha256": "826555e0982808ca0ac6ecc2f758f5e816afc11927314b814abbe6aa1841111a",
+      "attempt_sha256": "95f2b19c6e8d0112352ca764d2f80527b36ce504e404b85788ea18d51e7a9d96",
+      "read": {
+        "revision": 1,
+        "mastery": "reviewing",
+        "reason_sha256": "9d95ff08f01d40bbd074dc28ccc689af62dbfaf30fbe166cc9dc0631b662a6f5"
+      },
+      "saved": {
+        "revision": 2,
+        "mastery": "mastered",
+        "reason_sha256": "296c6d550da10412f98c14061a972f479d2fc63005e00daa50dd794d8774082b"
+      }
+    },
+    {
+      "from": "/knowledgeos/today",
+      "type": "source-picker",
+      "learner": "B",
+      "source_version_sha256": "04bd089f40ae064c244ced23fedacaef3cde1d463d4f188b133029314fbeff40",
+      "block_sha256": "f2f41f2d8f84ced6f2c45982ff50ec8f578e2b73ec124e17c9ebc0ca334fd32a"
+    },
+    {
+      "from": "/knowledgeos/today",
+      "type": "quick-answer",
+      "learner": "b",
+      "session_sha256": "136077f16e9937c5410e5dd0fe4bcd99700d59ee9bf8996b39be593add041228",
+      "question_version_sha256": "826555e0982808ca0ac6ecc2f758f5e816afc11927314b814abbe6aa1841111a",
+      "attempt_sha256": "ad1dfb128971381fcf0654d0354c69d28084cfa6a8796607554d5ff8f0ddd74b",
+      "first_grade": "incorrect"
+    },
+    {
+      "from": "/knowledgeos/today",
+      "type": "recall",
+      "record": "b-today-write",
+      "id_sha256": "ee0620d705163e9bbe7365bde9ed508302e66a54bf9bd760cc3624f8caa8d5eb",
+      "version_sha256": "04bd089f40ae064c244ced23fedacaef3cde1d463d4f188b133029314fbeff40",
+      "read": {
+        "revision": 1,
+        "rating": null
+      },
+      "saved": {
+        "revision": 2,
+        "rating": 1
+      }
+    },
+    {
+      "from": "/knowledgeos/today",
+      "type": "review",
+      "record": "b-today-write",
+      "question_sha256": "402a50b04e76a6663cba145ea22ad63c675d5f1043c28bd4867faa653bb4fb52",
+      "question_version_sha256": "826555e0982808ca0ac6ecc2f758f5e816afc11927314b814abbe6aa1841111a",
+      "attempt_sha256": "ad1dfb128971381fcf0654d0354c69d28084cfa6a8796607554d5ff8f0ddd74b",
+      "read": {
+        "revision": 0,
+        "mastery": "new",
+        "reason_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "saved": {
+        "revision": 1,
+        "mastery": "reviewing",
+        "reason_sha256": "5b823a63eec900da15f25e954e27f6acf5171f885e6436ecc16d67ecf6ea9176"
+      }
+    },
+    {
+      "from": "/knowledgeos/library",
+      "type": "recall",
+      "record": "a-library-reopen",
+      "id_sha256": "d948c8fb121153588924b1279fd9ca739f0edb2f66d1c2c476f857455d781f1c",
+      "version_sha256": "04bd089f40ae064c244ced23fedacaef3cde1d463d4f188b133029314fbeff40",
+      "read": {
+        "revision": 3,
+        "rating": 5
+      },
+      "saved": {
+        "revision": 3,
+        "rating": 5
+      }
+    },
+    {
+      "from": "/knowledgeos/library",
+      "type": "review",
+      "record": "a-library-reopen",
+      "question_sha256": "402a50b04e76a6663cba145ea22ad63c675d5f1043c28bd4867faa653bb4fb52",
+      "question_version_sha256": "826555e0982808ca0ac6ecc2f758f5e816afc11927314b814abbe6aa1841111a",
+      "attempt_sha256": "95f2b19c6e8d0112352ca764d2f80527b36ce504e404b85788ea18d51e7a9d96",
+      "read": {
+        "revision": 2,
+        "mastery": "mastered",
+        "reason_sha256": "296c6d550da10412f98c14061a972f479d2fc63005e00daa50dd794d8774082b"
+      },
+      "saved": {
+        "revision": 2,
+        "mastery": "mastered",
+        "reason_sha256": "296c6d550da10412f98c14061a972f479d2fc63005e00daa50dd794d8774082b"
+      }
+    },
+    {
+      "from": "/knowledgeos/library",
+      "type": "quick-history",
+      "session_sha256": "bb864e9568dee54a895475f65760782d3f15b6d8f98a5dd61aa6b1ef2abfe1b8",
+      "question_version_sha256": "826555e0982808ca0ac6ecc2f758f5e816afc11927314b814abbe6aa1841111a",
+      "attempt_sha256": "95f2b19c6e8d0112352ca764d2f80527b36ce504e404b85788ea18d51e7a9d96"
+    }
+  ],
+  "checks": [
+    {
+      "id": "ISOLATED_FIXTURE",
+      "status": "PASS",
+      "ordinary_learners": 2,
+      "handwritten_terms": 3,
+      "shared_source_sha256": "f2f41f2d8f84ced6f2c45982ff50ec8f578e2b73ec124e17c9ebc0ca334fd32a"
+    },
+    {
+      "id": "FOUR_VISIBLE_ENTRIES",
+      "status": "PASS",
+      "observations": [
+        {
+          "workspace": "library",
+          "width": 1280,
+          "first_view_hit_targets": 4
+        },
+        {
+          "workspace": "today",
+          "width": 1280,
+          "first_view_hit_targets": 4
+        },
+        {
+          "workspace": "library",
+          "width": 390,
+          "first_view_hit_targets": 4
+        },
+        {
+          "workspace": "today",
+          "width": 390,
+          "first_view_hit_targets": 4
+        }
+      ]
+    },
+    {
+      "id": "RESPONSIVE_WORKSPACE_NAVIGATION",
+      "status": "PASS",
+      "tab_enter_activations": 16,
+      "workspace_switches": 4,
+      "max_nav_depth": 1,
+      "max_sidebar_columns": 1,
+      "max_horizontal_overflow": 0
+    },
+    {
+      "id": "PERSISTED_LEARNING_STATE",
+      "status": "PASS",
+      "workspaces": [
+        "/knowledgeos/library",
+        "/knowledgeos/today",
+        "/knowledgeos/library"
+      ],
+      "recall_revisions": [
+        1,
+        2,
+        3
+      ],
+      "ratings": [
+        null,
+        3,
+        5
+      ],
+      "review_revisions": [
+        0,
+        1,
+        2
+      ],
+      "mastery": [
+        "new",
+        "reviewing",
+        "mastered"
+      ]
+    },
+    {
+      "id": "SHARED_PERSONAL_OBJECTS",
+      "status": "PASS",
+      "readable_common_source": true,
+      "shared_question_version_sha256": "826555e0982808ca0ac6ecc2f758f5e816afc11927314b814abbe6aa1841111a",
+      "same_material_sha256": "d948c8fb121153588924b1279fd9ca739f0edb2f66d1c2c476f857455d781f1c",
+      "same_favorite_sha256": "6cc66a610430134f129d8957f2317851d05077f710511935fa4d4d876c8e1650",
+      "same_attempt_sha256": "95f2b19c6e8d0112352ca764d2f80527b36ce504e404b85788ea18d51e7a9d96",
+      "distinct_sessions": 2,
+      "distinct_first_attempts": 2,
+      "peer_initially_empty": [
+        "terms",
+        "history",
+        "recall",
+        "review"
+      ]
+    },
+    {
+      "id": "READABLE_FAVORITES_AND_READER",
+      "status": "PASS",
+      "hidden_archived": true,
+      "hidden_revoked": true,
+      "kept_id_sha256": "6cc66a610430134f129d8957f2317851d05077f710511935fa4d4d876c8e1650"
+    }
+  ],
+  "browser_denied": 0,
+  "model_routes_blocked": 0,
+  "boots": [
+    {
+      "number": 1,
+      "host_non_loopback_requests": 0
+    },
+    {
+      "number": 2,
+      "host_non_loopback_requests": 0
+    }
+  ],
+  "model_observations": [
+    {
+      "point": "before_preparation",
+      "attempts": 0,
+      "configured": true
+    },
+    {
+      "point": "after_http_preparation",
+      "attempts": 0,
+      "configured": true
+    },
+    {
+      "point": "before_navigation",
+      "attempts": 0,
+      "configured": true
+    },
+    {
+      "point": "after_personal_state_roundtrip",
+      "attempts": 0,
+      "configured": true
+    }
+  ],
+  "phase": "complete",
+  "runner_sha256": "1cbdb1e738baffbc1977fba8762aa8f4d26c1575d81f3317ed2efdee6c4dc39f",
+  "helper_set_sha256": "d6928befee66c8f34fa1de426662671e054f2dd464fe1d0041ccbf2d95c61124",
+  "tree": "d3ac3b56675942c0338301327867eb8339f73fd6",
+  "source_tree": "515a71d73118d5f0513434c8d5ce638896662bbf",
+  "build_sha256": "e4bc0d03ad1113aa1d809e2c2318b9599bda0256d1c4354904f65734836a9dba",
+  "dsh_upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+  "dsh_runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+  "chrome": "158.0.8127.88",
+  "sqlite_schema": 43,
+  "last_ui": {
+    "method": "PATCH",
+    "route": "/knowledge/v1/me/question-states/:id",
+    "control": "#review-save"
+  },
+  "real_inference_requests": 0
+}

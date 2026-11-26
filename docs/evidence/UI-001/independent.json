@@ -1,0 +1,30 @@
+{
+  "unit_id": "UI-001",
+  "candidate_sha": "cb93964b1c513a9458f353de2dc051c771211dbc",
+  "tree": "d3ac3b56675942c0338301327867eb8339f73fd6",
+  "source_tree": "515a71d73118d5f0513434c8d5ce638896662bbf",
+  "entry_sha256": "364bc63833e30730bc053f2893ab5b6fabf3b6f334d52dc5a5dd2673cb633a53",
+  "build_sha256": "e4bc0d03ad1113aa1d809e2c2318b9599bda0256d1c4354904f65734836a9dba",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/ui001/host-navigation.mjs <frozen-checkout> cb93964b1c513a9458f353de2dc051c771211dbc 364bc63833e30730bc053f2893ab5b6fabf3b6f334d52dc5a5dd2673cb633a53 independent",
+  "reviewer": "在独立工作树和独立账号环境复跑的验收角色",
+  "results": [
+    {
+      "id": "UI-001-T01",
+      "status": "PASS",
+      "actual": "两入口展示相同个人对象，遮挡揭示与错题安排持久保存。"
+    },
+    {
+      "id": "UI-001-T02",
+      "status": "PASS",
+      "actual": "宽窄屏键盘导航及可视区检查通过，均可实际打开。"
+    }
+  ],
+  "records": [
+    {
+      "path": "docs/evidence/UI-001/runs/independent.json",
+      "sha256": "b7fa36a2bfb1a7b355bb3010971486a648d2f561293baa5285ea7434b298b2ed"
+    }
+  ]
+}

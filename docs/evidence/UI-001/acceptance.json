@@ -1,0 +1,27 @@
+{
+  "unit_id": "UI-001",
+  "candidate_sha": "cb93964b1c513a9458f353de2dc051c771211dbc",
+  "tree": "d3ac3b56675942c0338301327867eb8339f73fd6",
+  "source_tree": "515a71d73118d5f0513434c8d5ce638896662bbf",
+  "entry_sha256": "364bc63833e30730bc053f2893ab5b6fabf3b6f334d52dc5a5dd2673cb633a53",
+  "build_sha256": "e4bc0d03ad1113aa1d809e2c2318b9599bda0256d1c4354904f65734836a9dba",
+  "unit_acceptance": "PASS",
+  "passed_test_ids": [
+    "UI-001-T01",
+    "UI-001-T02"
+  ],
+  "main_command": "node scripts/ui001/host-navigation.mjs <frozen-checkout> cb93964b1c513a9458f353de2dc051c771211dbc 364bc63833e30730bc053f2893ab5b6fabf3b6f334d52dc5a5dd2673cb633a53 main",
+  "main_exit": 0,
+  "main_records": [
+    {
+      "path": "docs/evidence/UI-001/runs/main.json",
+      "sha256": "dae21cebbf1f92958a40de9c315ef29a5b284fc58ec78da25ff56fb1d9e7da0e"
+    }
+  ],
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/UI-001/independent.json",
+  "final_cases": [
+    "docs/evidence/UI-001/P01.json"
+  ],
+  "model_requests": 0
+}

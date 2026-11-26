@@ -1,0 +1,49 @@
+{
+  "unit_id": "UI-001",
+  "candidate_sha": "cb93964b1c513a9458f353de2dc051c771211dbc",
+  "tree": "d3ac3b56675942c0338301327867eb8339f73fd6",
+  "source_tree": "515a71d73118d5f0513434c8d5ce638896662bbf",
+  "entry_sha256": "364bc63833e30730bc053f2893ab5b6fabf3b6f334d52dc5a5dd2673cb633a53",
+  "build_sha256": "e4bc0d03ad1113aa1d809e2c2318b9599bda0256d1c4354904f65734836a9dba",
+  "case_id": "P01",
+  "participants": [
+    {
+      "unit_id": "KNOW-001",
+      "candidate_sha": "4d4275ded7afecc3c4ddec2612ac5006b717308f"
+    },
+    {
+      "unit_id": "LEARN-004",
+      "candidate_sha": "1e567853a5c6fd23330246d4f35990328a96326d"
+    },
+    {
+      "unit_id": "LEARN-002",
+      "candidate_sha": "6929c502c454a6eda41889ee396f14c0ee0705b0"
+    },
+    {
+      "unit_id": "LEARN-003",
+      "candidate_sha": "dc21d5dc1875d848eaff62f24ef26575deac3443"
+    },
+    {
+      "unit_id": "LEARN-006",
+      "candidate_sha": "5b9f50b6d9acb1ecc8ccf7329b2b53aea795685c"
+    },
+    {
+      "unit_id": "UI-001",
+      "candidate_sha": "cb93964b1c513a9458f353de2dc051c771211dbc"
+    }
+  ],
+  "schema": "integrated-case-v1",
+  "status": "PASS",
+  "main": {
+    "path": "docs/evidence/UI-001/runs/P01-main.json",
+    "sha256": "40a7798ff9356fe9b08523746bce5cc97e099879ec21fb42d1042727b7719a02"
+  },
+  "independent": {
+    "path": "docs/evidence/UI-001/runs/P01-independent.json",
+    "sha256": "8610742e24d4664df6599abeeb58848ba645c8f49c75708cc31c9c24b4aef11d"
+  },
+  "regression": {
+    "path": "docs/evidence/UI-001/runs/P01-regression.json",
+    "sha256": "d406fc7c9d7d93086c3529a8be3e7e36832d8fd1a7c8bcc4bba1d5cebb0fb1b0"
+  }
+}

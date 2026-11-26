@@ -1,0 +1,656 @@
+{
+  "category": "REAL_DSH_CHROME_HTTP_SQLITE",
+  "candidate_sha": "cb93964b1c513a9458f353de2dc051c771211dbc",
+  "tree": "d3ac3b56675942c0338301327867eb8339f73fd6",
+  "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+  "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+  "entry_sha256": "364bc63833e30730bc053f2893ab5b6fabf3b6f334d52dc5a5dd2673cb633a53",
+  "runner_sha256": "024cc02a326fe6e200dabf683c0f21e216d1564fa3f77dc43411d54025e98994",
+  "node": "v24.22.0",
+  "scope": {
+    "T01": "import/restart",
+    "T02": "invalid PDF and repeated submission; disk-fault test separate",
+    "T03": "immutable versions and conflicts",
+    "T04": "identity and CSRF",
+    "T05": "NOT_RUN: separate migration test",
+    "T06": "browser round trip"
+  },
+  "status": "PASS",
+  "events": [
+    {
+      "at": "2026-11-26T08:13:47.609Z",
+      "name": "host-loaded",
+      "boot": 1,
+      "pid": 37592,
+      "hash": "364bc63833e30730bc053f2893ab5b6fabf3b6f334d52dc5a5dd2673cb633a53"
+    },
+    {
+      "at": "2026-11-26T08:13:47.617Z",
+      "name": "sql:before-bootstrap",
+      "counts": {
+        "assets": 0,
+        "asset_versions": 0,
+        "blobs": 0
+      },
+      "rows": []
+    },
+    {
+      "at": "2026-11-26T08:13:49.769Z",
+      "name": "chrome",
+      "version": "158.0.8127.88"
+    },
+    {
+      "at": "2026-11-26T08:13:52.368Z",
+      "name": "browser:anonymous",
+      "file": "anonymous.png",
+      "sha256": "08ab02ce2dfa814fe8697649af990144de6d97d31a0f5b910fcfa051f6d49619"
+    },
+    {
+      "at": "2026-11-26T08:13:52.494Z",
+      "name": "browser:empty",
+      "file": "empty.png",
+      "sha256": "f98eef2f67eecd4e9ac12648379c71cc858d000808dd81626c2106762086b7aa"
+    },
+    {
+      "at": "2026-11-26T08:13:52.508Z",
+      "name": "sql:before-v1",
+      "counts": {
+        "assets": 0,
+        "asset_versions": 0,
+        "blobs": 0
+      },
+      "rows": []
+    },
+    {
+      "at": "2026-11-26T08:13:52.583Z",
+      "name": "browser:v1-before-submit",
+      "file": "v1-before-submit.png",
+      "sha256": "a48e56e1df5770aa549609358eb6fa9d54c4df5f3957acde72c257eb27c11e34"
+    },
+    {
+      "at": "2026-11-26T08:13:52.619Z",
+      "name": "http:browser-import",
+      "status": 201,
+      "receipt": {
+        "id": "fcd4d044-4225-42e5-af36-a3ce13df4969",
+        "title": "合成讲义 #1%.pdf",
+        "version_id": "f5a47d98-2f3d-4a21-9170-acad3b690e6a",
+        "version": 1,
+        "sha256": "cda41c13971f373a7b416907acc5c4938d1f358621eb2f6215a55c86346321b9",
+        "byte_length": 367
+      }
+    },
+    {
+      "at": "2026-11-26T08:13:52.631Z",
+      "name": "sql:first-read-after-v1",
+      "counts": {
+        "assets": 1,
+        "asset_versions": 1,
+        "blobs": 1
+      },
+      "rows": [
+        {
+          "id": "fcd4d044-4225-42e5-af36-a3ce13df4969",
+          "version_id": "f5a47d98-2f3d-4a21-9170-acad3b690e6a",
+          "version": 1,
+          "parent_version_id": null,
+          "title": "合成讲义 #1%.pdf",
+          "created_by": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "idempotency_key": "61adcd4c-4812-453f-a4da-b109b6a38299",
+          "sha256": "cda41c13971f373a7b416907acc5c4938d1f358621eb2f6215a55c86346321b9",
+          "byte_length": 367,
+          "media_type": "application/pdf",
+          "owner_user_id": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "space_id": "255ba4ea-ffa8-46e6-a327-efc984ea437a",
+          "scope_kind": "personal",
+          "revision": 1
+        }
+      ]
+    },
+    {
+      "at": "2026-11-26T08:13:52.723Z",
+      "name": "browser:v1-receipt",
+      "file": "v1-receipt.png",
+      "sha256": "c3e522f2841b8eb742637e434282c6a00bac44aa1c3761140443ba19eb076dd6"
+    },
+    {
+      "at": "2026-11-26T08:13:52.732Z",
+      "name": "http:original",
+      "version": 1,
+      "download": false,
+      "status": 200,
+      "length": 367,
+      "sha256": "cda41c13971f373a7b416907acc5c4938d1f358621eb2f6215a55c86346321b9"
+    },
+    {
+      "at": "2026-11-26T08:13:52.784Z",
+      "name": "host-exited",
+      "pid": 37592
+    },
+    {
+      "at": "2026-11-26T08:13:52.792Z",
+      "name": "sql:stopped",
+      "counts": {
+        "assets": 1,
+        "asset_versions": 1,
+        "blobs": 1
+      },
+      "rows": [
+        {
+          "id": "fcd4d044-4225-42e5-af36-a3ce13df4969",
+          "version_id": "f5a47d98-2f3d-4a21-9170-acad3b690e6a",
+          "version": 1,
+          "parent_version_id": null,
+          "title": "合成讲义 #1%.pdf",
+          "created_by": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "idempotency_key": "61adcd4c-4812-453f-a4da-b109b6a38299",
+          "sha256": "cda41c13971f373a7b416907acc5c4938d1f358621eb2f6215a55c86346321b9",
+          "byte_length": 367,
+          "media_type": "application/pdf",
+          "owner_user_id": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "space_id": "255ba4ea-ffa8-46e6-a327-efc984ea437a",
+          "scope_kind": "personal",
+          "revision": 1
+        }
+      ]
+    },
+    {
+      "at": "2026-11-26T08:14:00.964Z",
+      "name": "host-loaded",
+      "boot": 2,
+      "pid": 48156,
+      "hash": "364bc63833e30730bc053f2893ab5b6fabf3b6f334d52dc5a5dd2673cb633a53"
+    },
+    {
+      "at": "2026-11-26T08:14:00.969Z",
+      "name": "sql:reopened",
+      "counts": {
+        "assets": 1,
+        "asset_versions": 1,
+        "blobs": 1
+      },
+      "rows": [
+        {
+          "id": "fcd4d044-4225-42e5-af36-a3ce13df4969",
+          "version_id": "f5a47d98-2f3d-4a21-9170-acad3b690e6a",
+          "version": 1,
+          "parent_version_id": null,
+          "title": "合成讲义 #1%.pdf",
+          "created_by": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "idempotency_key": "61adcd4c-4812-453f-a4da-b109b6a38299",
+          "sha256": "cda41c13971f373a7b416907acc5c4938d1f358621eb2f6215a55c86346321b9",
+          "byte_length": 367,
+          "media_type": "application/pdf",
+          "owner_user_id": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "space_id": "255ba4ea-ffa8-46e6-a327-efc984ea437a",
+          "scope_kind": "personal",
+          "revision": 1
+        }
+      ]
+    },
+    {
+      "at": "2026-11-26T08:14:01.929Z",
+      "name": "browser:restarted-v1",
+      "file": "restarted-v1.png",
+      "sha256": "b57f2b7a3efe30ae1492100fce983cfe7a06313687430dda16bb5e1417fe60d0"
+    },
+    {
+      "at": "2026-11-26T08:14:01.943Z",
+      "name": "http:original",
+      "version": 1,
+      "download": false,
+      "status": 200,
+      "length": 367,
+      "sha256": "cda41c13971f373a7b416907acc5c4938d1f358621eb2f6215a55c86346321b9"
+    },
+    {
+      "at": "2026-11-26T08:14:01.966Z",
+      "name": "browser:reopened-original",
+      "status": 200,
+      "length": 367,
+      "sha256": "cda41c13971f373a7b416907acc5c4938d1f358621eb2f6215a55c86346321b9"
+    },
+    {
+      "at": "2026-11-26T08:14:02.054Z",
+      "name": "browser:v2-before-submit",
+      "file": "v2-before-submit.png",
+      "sha256": "9b6696f610d064ef8adc74fda58aa56b9ba8eea61d8d1bb2070d5283c3c6b78c"
+    },
+    {
+      "at": "2026-11-26T08:14:02.094Z",
+      "name": "http:browser-import",
+      "status": 201,
+      "receipt": {
+        "id": "fcd4d044-4225-42e5-af36-a3ce13df4969",
+        "title": "合成讲义 #2%.pdf",
+        "version_id": "b3262086-3b5f-443b-b7f8-de6d575f85cf",
+        "version": 2,
+        "sha256": "3727f272b853043ab69b30ef41c571c6b5f161e0eb9eb02da5e46f36a09d4c41",
+        "byte_length": 367
+      }
+    },
+    {
+      "at": "2026-11-26T08:14:02.105Z",
+      "name": "sql:first-read-after-v2",
+      "counts": {
+        "assets": 1,
+        "asset_versions": 2,
+        "blobs": 2
+      },
+      "rows": [
+        {
+          "id": "fcd4d044-4225-42e5-af36-a3ce13df4969",
+          "version_id": "f5a47d98-2f3d-4a21-9170-acad3b690e6a",
+          "version": 1,
+          "parent_version_id": null,
+          "title": "合成讲义 #1%.pdf",
+          "created_by": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "idempotency_key": "61adcd4c-4812-453f-a4da-b109b6a38299",
+          "sha256": "cda41c13971f373a7b416907acc5c4938d1f358621eb2f6215a55c86346321b9",
+          "byte_length": 367,
+          "media_type": "application/pdf",
+          "owner_user_id": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "space_id": "255ba4ea-ffa8-46e6-a327-efc984ea437a",
+          "scope_kind": "personal",
+          "revision": 2
+        },
+        {
+          "id": "fcd4d044-4225-42e5-af36-a3ce13df4969",
+          "version_id": "b3262086-3b5f-443b-b7f8-de6d575f85cf",
+          "version": 2,
+          "parent_version_id": "f5a47d98-2f3d-4a21-9170-acad3b690e6a",
+          "title": "合成讲义 #2%.pdf",
+          "created_by": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "idempotency_key": "6ddc71c3-ff27-4b1e-91de-9664976ef6cb",
+          "sha256": "3727f272b853043ab69b30ef41c571c6b5f161e0eb9eb02da5e46f36a09d4c41",
+          "byte_length": 367,
+          "media_type": "application/pdf",
+          "owner_user_id": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "space_id": "255ba4ea-ffa8-46e6-a327-efc984ea437a",
+          "scope_kind": "personal",
+          "revision": 2
+        }
+      ]
+    },
+    {
+      "at": "2026-11-26T08:14:02.212Z",
+      "name": "browser:v2-receipt",
+      "file": "v2-receipt.png",
+      "sha256": "28bd01e3cdbabd6f0c879856e66e0e271f83bf5f6611d1f55f7e3c48c6f1d011"
+    },
+    {
+      "at": "2026-11-26T08:14:02.216Z",
+      "name": "sql:after-v2",
+      "counts": {
+        "assets": 1,
+        "asset_versions": 2,
+        "blobs": 2
+      },
+      "rows": [
+        {
+          "id": "fcd4d044-4225-42e5-af36-a3ce13df4969",
+          "version_id": "f5a47d98-2f3d-4a21-9170-acad3b690e6a",
+          "version": 1,
+          "parent_version_id": null,
+          "title": "合成讲义 #1%.pdf",
+          "created_by": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "idempotency_key": "61adcd4c-4812-453f-a4da-b109b6a38299",
+          "sha256": "cda41c13971f373a7b416907acc5c4938d1f358621eb2f6215a55c86346321b9",
+          "byte_length": 367,
+          "media_type": "application/pdf",
+          "owner_user_id": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "space_id": "255ba4ea-ffa8-46e6-a327-efc984ea437a",
+          "scope_kind": "personal",
+          "revision": 2
+        },
+        {
+          "id": "fcd4d044-4225-42e5-af36-a3ce13df4969",
+          "version_id": "b3262086-3b5f-443b-b7f8-de6d575f85cf",
+          "version": 2,
+          "parent_version_id": "f5a47d98-2f3d-4a21-9170-acad3b690e6a",
+          "title": "合成讲义 #2%.pdf",
+          "created_by": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "idempotency_key": "6ddc71c3-ff27-4b1e-91de-9664976ef6cb",
+          "sha256": "3727f272b853043ab69b30ef41c571c6b5f161e0eb9eb02da5e46f36a09d4c41",
+          "byte_length": 367,
+          "media_type": "application/pdf",
+          "owner_user_id": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "space_id": "255ba4ea-ffa8-46e6-a327-efc984ea437a",
+          "scope_kind": "personal",
+          "revision": 2
+        }
+      ]
+    },
+    {
+      "at": "2026-11-26T08:14:02.237Z",
+      "name": "http:original",
+      "version": 1,
+      "download": false,
+      "status": 200,
+      "length": 367,
+      "sha256": "cda41c13971f373a7b416907acc5c4938d1f358621eb2f6215a55c86346321b9"
+    },
+    {
+      "at": "2026-11-26T08:14:02.248Z",
+      "name": "http:original",
+      "version": 2,
+      "download": true,
+      "status": 200,
+      "length": 367,
+      "sha256": "3727f272b853043ab69b30ef41c571c6b5f161e0eb9eb02da5e46f36a09d4c41"
+    },
+    {
+      "at": "2026-11-26T08:14:02.461Z",
+      "name": "http:exact-replay",
+      "version": 1,
+      "status": 200
+    },
+    {
+      "at": "2026-11-26T08:14:02.476Z",
+      "name": "http:exact-replay",
+      "version": 2,
+      "status": 200
+    },
+    {
+      "at": "2026-11-26T08:14:02.489Z",
+      "name": "http:same-key-changed-bytes",
+      "status": 409,
+      "code": "IDEMPOTENCY_CONFLICT"
+    },
+    {
+      "at": "2026-11-26T08:14:02.500Z",
+      "name": "http:new-key-stale-parent",
+      "status": 409,
+      "code": "VERSION_CONFLICT"
+    },
+    {
+      "at": "2026-11-26T08:14:02.503Z",
+      "name": "sql:after-replay-and-conflicts",
+      "counts": {
+        "assets": 1,
+        "asset_versions": 2,
+        "blobs": 2
+      },
+      "rows": [
+        {
+          "id": "fcd4d044-4225-42e5-af36-a3ce13df4969",
+          "version_id": "f5a47d98-2f3d-4a21-9170-acad3b690e6a",
+          "version": 1,
+          "parent_version_id": null,
+          "title": "合成讲义 #1%.pdf",
+          "created_by": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "idempotency_key": "61adcd4c-4812-453f-a4da-b109b6a38299",
+          "sha256": "cda41c13971f373a7b416907acc5c4938d1f358621eb2f6215a55c86346321b9",
+          "byte_length": 367,
+          "media_type": "application/pdf",
+          "owner_user_id": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "space_id": "255ba4ea-ffa8-46e6-a327-efc984ea437a",
+          "scope_kind": "personal",
+          "revision": 2
+        },
+        {
+          "id": "fcd4d044-4225-42e5-af36-a3ce13df4969",
+          "version_id": "b3262086-3b5f-443b-b7f8-de6d575f85cf",
+          "version": 2,
+          "parent_version_id": "f5a47d98-2f3d-4a21-9170-acad3b690e6a",
+          "title": "合成讲义 #2%.pdf",
+          "created_by": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "idempotency_key": "6ddc71c3-ff27-4b1e-91de-9664976ef6cb",
+          "sha256": "3727f272b853043ab69b30ef41c571c6b5f161e0eb9eb02da5e46f36a09d4c41",
+          "byte_length": 367,
+          "media_type": "application/pdf",
+          "owner_user_id": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "space_id": "255ba4ea-ffa8-46e6-a327-efc984ea437a",
+          "scope_kind": "personal",
+          "revision": 2
+        }
+      ]
+    },
+    {
+      "at": "2026-11-26T08:14:02.601Z",
+      "name": "browser:invalid-pdf",
+      "file": "invalid-pdf.png",
+      "sha256": "ebbe2a85fa084feaae097d8c396dcc3dc47be07d3a678c2be79c607490c4e85b"
+    },
+    {
+      "at": "2026-11-26T08:14:02.604Z",
+      "name": "http:invalid-pdf",
+      "status": 422,
+      "code": "INVALID_PDF"
+    },
+    {
+      "at": "2026-11-26T08:14:02.610Z",
+      "name": "sql:after-invalid",
+      "counts": {
+        "assets": 1,
+        "asset_versions": 2,
+        "blobs": 2
+      },
+      "rows": [
+        {
+          "id": "fcd4d044-4225-42e5-af36-a3ce13df4969",
+          "version_id": "f5a47d98-2f3d-4a21-9170-acad3b690e6a",
+          "version": 1,
+          "parent_version_id": null,
+          "title": "合成讲义 #1%.pdf",
+          "created_by": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "idempotency_key": "61adcd4c-4812-453f-a4da-b109b6a38299",
+          "sha256": "cda41c13971f373a7b416907acc5c4938d1f358621eb2f6215a55c86346321b9",
+          "byte_length": 367,
+          "media_type": "application/pdf",
+          "owner_user_id": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "space_id": "255ba4ea-ffa8-46e6-a327-efc984ea437a",
+          "scope_kind": "personal",
+          "revision": 2
+        },
+        {
+          "id": "fcd4d044-4225-42e5-af36-a3ce13df4969",
+          "version_id": "b3262086-3b5f-443b-b7f8-de6d575f85cf",
+          "version": 2,
+          "parent_version_id": "f5a47d98-2f3d-4a21-9170-acad3b690e6a",
+          "title": "合成讲义 #2%.pdf",
+          "created_by": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "idempotency_key": "6ddc71c3-ff27-4b1e-91de-9664976ef6cb",
+          "sha256": "3727f272b853043ab69b30ef41c571c6b5f161e0eb9eb02da5e46f36a09d4c41",
+          "byte_length": 367,
+          "media_type": "application/pdf",
+          "owner_user_id": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "space_id": "255ba4ea-ffa8-46e6-a327-efc984ea437a",
+          "scope_kind": "personal",
+          "revision": 2
+        }
+      ]
+    },
+    {
+      "at": "2026-11-26T08:14:02.737Z",
+      "name": "browser:other-user-empty",
+      "file": "other-user-empty.png",
+      "sha256": "551a1fe878b916e6b12b094e6a5c9de4c42fbcba4a654a238181b74e667eb486"
+    },
+    {
+      "at": "2026-11-26T08:14:02.742Z",
+      "name": "http:other-user-original",
+      "status": 404,
+      "code": "ASSET_NOT_FOUND"
+    },
+    {
+      "at": "2026-11-26T08:14:02.749Z",
+      "name": "http:other-user-original?download=1",
+      "status": 404,
+      "code": "ASSET_NOT_FOUND"
+    },
+    {
+      "at": "2026-11-26T08:14:02.768Z",
+      "name": "http:other-user-append",
+      "status": 404,
+      "code": "ASSET_NOT_FOUND"
+    },
+    {
+      "at": "2026-11-26T08:14:02.771Z",
+      "name": "http:anonymous-original",
+      "status": 401,
+      "code": "AUTH_REQUIRED"
+    },
+    {
+      "at": "2026-11-26T08:14:02.781Z",
+      "name": "http:anonymous-original?download=1",
+      "status": 401,
+      "code": "AUTH_REQUIRED"
+    },
+    {
+      "at": "2026-11-26T08:14:02.789Z",
+      "name": "http:anonymous-append",
+      "status": 401,
+      "code": "AUTH_REQUIRED"
+    },
+    {
+      "at": "2026-11-26T08:14:02.798Z",
+      "name": "http:anonymous-list",
+      "status": 401,
+      "code": "AUTH_REQUIRED"
+    },
+    {
+      "at": "2026-11-26T08:14:02.808Z",
+      "name": "http:missing-csrf-marker",
+      "status": 403,
+      "code": "CSRF_REJECTED"
+    },
+    {
+      "at": "2026-11-26T08:14:02.820Z",
+      "name": "http:foreign-origin",
+      "status": 403,
+      "boundary": "pinned-host-admission"
+    },
+    {
+      "at": "2026-11-26T08:14:02.829Z",
+      "name": "sql:after-denials",
+      "counts": {
+        "assets": 1,
+        "asset_versions": 2,
+        "blobs": 2
+      },
+      "rows": [
+        {
+          "id": "fcd4d044-4225-42e5-af36-a3ce13df4969",
+          "version_id": "f5a47d98-2f3d-4a21-9170-acad3b690e6a",
+          "version": 1,
+          "parent_version_id": null,
+          "title": "合成讲义 #1%.pdf",
+          "created_by": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "idempotency_key": "61adcd4c-4812-453f-a4da-b109b6a38299",
+          "sha256": "cda41c13971f373a7b416907acc5c4938d1f358621eb2f6215a55c86346321b9",
+          "byte_length": 367,
+          "media_type": "application/pdf",
+          "owner_user_id": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "space_id": "255ba4ea-ffa8-46e6-a327-efc984ea437a",
+          "scope_kind": "personal",
+          "revision": 2
+        },
+        {
+          "id": "fcd4d044-4225-42e5-af36-a3ce13df4969",
+          "version_id": "b3262086-3b5f-443b-b7f8-de6d575f85cf",
+          "version": 2,
+          "parent_version_id": "f5a47d98-2f3d-4a21-9170-acad3b690e6a",
+          "title": "合成讲义 #2%.pdf",
+          "created_by": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "idempotency_key": "6ddc71c3-ff27-4b1e-91de-9664976ef6cb",
+          "sha256": "3727f272b853043ab69b30ef41c571c6b5f161e0eb9eb02da5e46f36a09d4c41",
+          "byte_length": 367,
+          "media_type": "application/pdf",
+          "owner_user_id": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "space_id": "255ba4ea-ffa8-46e6-a327-efc984ea437a",
+          "scope_kind": "personal",
+          "revision": 2
+        }
+      ]
+    },
+    {
+      "at": "2026-11-26T08:14:02.844Z",
+      "name": "http:original",
+      "version": 1,
+      "download": false,
+      "status": 200,
+      "length": 367,
+      "sha256": "cda41c13971f373a7b416907acc5c4938d1f358621eb2f6215a55c86346321b9"
+    },
+    {
+      "at": "2026-11-26T08:14:02.854Z",
+      "name": "http:original",
+      "version": 2,
+      "download": false,
+      "status": 200,
+      "length": 367,
+      "sha256": "3727f272b853043ab69b30ef41c571c6b5f161e0eb9eb02da5e46f36a09d4c41"
+    },
+    {
+      "at": "2026-11-26T08:14:02.867Z",
+      "name": "http:expired-list",
+      "status": 401,
+      "code": "AUTH_REQUIRED"
+    },
+    {
+      "at": "2026-11-26T08:14:02.874Z",
+      "name": "http:expired-original",
+      "status": 401,
+      "code": "AUTH_REQUIRED"
+    },
+    {
+      "at": "2026-11-26T08:14:02.942Z",
+      "name": "browser:expired",
+      "file": "expired.png",
+      "sha256": "08ab02ce2dfa814fe8697649af990144de6d97d31a0f5b910fcfa051f6d49619"
+    },
+    {
+      "at": "2026-11-26T08:14:02.945Z",
+      "name": "sql:final",
+      "counts": {
+        "assets": 1,
+        "asset_versions": 2,
+        "blobs": 2
+      },
+      "rows": [
+        {
+          "id": "fcd4d044-4225-42e5-af36-a3ce13df4969",
+          "version_id": "f5a47d98-2f3d-4a21-9170-acad3b690e6a",
+          "version": 1,
+          "parent_version_id": null,
+          "title": "合成讲义 #1%.pdf",
+          "created_by": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "idempotency_key": "61adcd4c-4812-453f-a4da-b109b6a38299",
+          "sha256": "cda41c13971f373a7b416907acc5c4938d1f358621eb2f6215a55c86346321b9",
+          "byte_length": 367,
+          "media_type": "application/pdf",
+          "owner_user_id": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "space_id": "255ba4ea-ffa8-46e6-a327-efc984ea437a",
+          "scope_kind": "personal",
+          "revision": 2
+        },
+        {
+          "id": "fcd4d044-4225-42e5-af36-a3ce13df4969",
+          "version_id": "b3262086-3b5f-443b-b7f8-de6d575f85cf",
+          "version": 2,
+          "parent_version_id": "f5a47d98-2f3d-4a21-9170-acad3b690e6a",
+          "title": "合成讲义 #2%.pdf",
+          "created_by": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "idempotency_key": "6ddc71c3-ff27-4b1e-91de-9664976ef6cb",
+          "sha256": "3727f272b853043ab69b30ef41c571c6b5f161e0eb9eb02da5e46f36a09d4c41",
+          "byte_length": 367,
+          "media_type": "application/pdf",
+          "owner_user_id": "6ce17015-c66c-4446-aa95-b05de7824139",
+          "space_id": "255ba4ea-ffa8-46e6-a327-efc984ea437a",
+          "scope_kind": "personal",
+          "revision": 2
+        }
+      ]
+    },
+    {
+      "at": "2026-11-26T08:14:03.351Z",
+      "name": "host-exited",
+      "pid": 48156
+    },
+    {
+      "at": "2026-11-26T08:14:03.351Z",
+      "name": "finished"
+    }
+  ]
+}

@@ -75,7 +75,9 @@
       "implementation_status": "in_progress",
       "evidence_paths": [
         "docs/evidence/LIB-001/acceptance.json",
-        "docs/evidence/NOTE-001/acceptance.json"
+        "docs/evidence/NOTE-001/acceptance.json",
+        "docs/evidence/UI-001/acceptance.json",
+        "docs/evidence/UI-001/P01.json"
       ]
     },
     {
@@ -173,12 +175,14 @@
         "P03",
         "A10"
       ],
-      "implementation_status": "in_progress",
+      "implementation_status": "verified",
       "evidence_paths": [
         "docs/evidence/KNOW-001/acceptance.json",
         "docs/evidence/LEARN-006/acceptance.json",
         "docs/evidence/LEARN-006/P03.json",
-        "docs/evidence/LEARN-006/A10.json"
+        "docs/evidence/LEARN-006/A10.json",
+        "docs/evidence/UI-001/acceptance.json",
+        "docs/evidence/UI-001/P01.json"
       ]
     },
     {
@@ -195,7 +199,9 @@
       "evidence_paths": [
         "docs/evidence/LEARN-004/checkpoint.md",
         "docs/evidence/LEARN-004/acceptance.json",
-        "docs/evidence/LEARN-004/P04.json"
+        "docs/evidence/LEARN-004/P04.json",
+        "docs/evidence/UI-001/acceptance.json",
+        "docs/evidence/UI-001/P01.json"
       ]
     },
     {
@@ -208,12 +214,14 @@
         "P05",
         "A13"
       ],
-      "implementation_status": "in_progress",
+      "implementation_status": "verified",
       "evidence_paths": [
         "docs/evidence/LEARN-002/acceptance.json",
         "docs/evidence/LEARN-002/A13.json",
         "docs/evidence/LEARN-003/acceptance.json",
-        "docs/evidence/LEARN-003/P05.json"
+        "docs/evidence/LEARN-003/P05.json",
+        "docs/evidence/UI-001/acceptance.json",
+        "docs/evidence/UI-001/P01.json"
       ]
     },
     {
@@ -407,7 +415,9 @@
         "docs/evidence/LEARN-003/P05.json",
         "docs/evidence/LEARN-003/A14.json",
         "docs/evidence/LEARN-006/acceptance.json",
-        "docs/evidence/LEARN-006/P03.json"
+        "docs/evidence/LEARN-006/P03.json",
+        "docs/evidence/UI-001/acceptance.json",
+        "docs/evidence/UI-001/P01.json"
       ]
     },
     {
@@ -749,8 +759,11 @@
       "expected": "四个入口直接可见；目标页面可操作；两个入口使用相同对象与个人记录。",
       "level": "e2e",
       "evidence_required": "真实 UI 截图/录屏、对象标识、操作结果",
-      "status": "NOT_RUN",
-      "final_milestone": "M2"
+      "status": "PASS",
+      "final_milestone": "M2",
+      "evidence_paths": [
+        "docs/evidence/UI-001/P01.json"
+      ]
     },
     {
       "id": "P02",

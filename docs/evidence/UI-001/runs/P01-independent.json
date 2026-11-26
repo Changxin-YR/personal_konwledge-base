@@ -1,0 +1,75 @@
+{
+  "unit_id": "UI-001",
+  "candidate_sha": "cb93964b1c513a9458f353de2dc051c771211dbc",
+  "tree": "d3ac3b56675942c0338301327867eb8339f73fd6",
+  "source_tree": "515a71d73118d5f0513434c8d5ce638896662bbf",
+  "entry_sha256": "364bc63833e30730bc053f2893ab5b6fabf3b6f334d52dc5a5dd2673cb633a53",
+  "build_sha256": "e4bc0d03ad1113aa1d809e2c2318b9599bda0256d1c4354904f65734836a9dba",
+  "case_id": "P01",
+  "participants": [
+    {
+      "unit_id": "KNOW-001",
+      "candidate_sha": "4d4275ded7afecc3c4ddec2612ac5006b717308f"
+    },
+    {
+      "unit_id": "LEARN-004",
+      "candidate_sha": "1e567853a5c6fd23330246d4f35990328a96326d"
+    },
+    {
+      "unit_id": "LEARN-002",
+      "candidate_sha": "6929c502c454a6eda41889ee396f14c0ee0705b0"
+    },
+    {
+      "unit_id": "LEARN-003",
+      "candidate_sha": "dc21d5dc1875d848eaff62f24ef26575deac3443"
+    },
+    {
+      "unit_id": "LEARN-006",
+      "candidate_sha": "5b9f50b6d9acb1ecc8ccf7329b2b53aea795685c"
+    },
+    {
+      "unit_id": "UI-001",
+      "candidate_sha": "cb93964b1c513a9458f353de2dc051c771211dbc"
+    }
+  ],
+  "kind": "independent",
+  "status": "PASS",
+  "exit": 0,
+  "run_id": "679c7164-b6b4-4db0-8d29-f3983f881671",
+  "command": "node scripts/ui001/host-navigation.mjs <frozen-checkout> cb93964b1c513a9458f353de2dc051c771211dbc 364bc63833e30730bc053f2893ab5b6fabf3b6f334d52dc5a5dd2673cb633a53 independent",
+  "environment": "Windows, DSH, Chrome 158.0.8127.88, SQLite v43",
+  "inputs": "各自隔离的项目、账号、收藏、遮挡练习与选择题。",
+  "runner": "独立冻结工作树，独立账号并反序穿行两个工作区",
+  "results": [
+    {
+      "id": "FOUR_VISIBLE_ENTRIES",
+      "status": "PASS",
+      "actual": "{\"observations\": [{\"workspace\": \"library\", \"width\": 1280, \"first_view_hit_targets\": 4}, {\"workspace\": \"today\", \"width\": 1280, \"first_view_hit_targets\": 4}, {\"workspace\": \"library\", \"width\": 390, \"first_view_hit_targets\": 4}, {\"workspace\": \"today\", \"width\": 390, \"first_view_hit_targets\": 4}]}"
+    },
+    {
+      "id": "SHARED_PERSONAL_OBJECTS",
+      "status": "PASS",
+      "actual": "{\"readable_common_source\": true, \"shared_question_version_sha256\": \"826555e0982808ca0ac6ecc2f758f5e816afc11927314b814abbe6aa1841111a\", \"same_material_sha256\": \"d948c8fb121153588924b1279fd9ca739f0edb2f66d1c2c476f857455d781f1c\", \"same_favorite_sha256\": \"6cc66a610430134f129d8957f2317851d05077f710511935fa4d4d876c8e1650\", \"same_attempt_sha256\": \"95f2b19c6e8d0112352ca764d2f80527b36ce504e404b85788ea18d51e7a9d96\", \"distinct_sessions\": 2, \"distinct_first_attempts\": 2, \"peer_initially_empty\": [\"terms\", \"history\", \"recall\", \"review\"]}"
+    },
+    {
+      "id": "PERSISTED_LEARNING_STATE",
+      "status": "PASS",
+      "actual": "{\"workspaces\": [\"/knowledgeos/library\", \"/knowledgeos/today\", \"/knowledgeos/library\"], \"recall_revisions\": [1, 2, 3], \"ratings\": [null, 3, 5], \"review_revisions\": [0, 1, 2], \"mastery\": [\"new\", \"reviewing\", \"mastered\"]}"
+    },
+    {
+      "id": "RESPONSIVE_WORKSPACE_NAVIGATION",
+      "status": "PASS",
+      "actual": "{\"tab_enter_activations\": 16, \"workspace_switches\": 4, \"max_nav_depth\": 1, \"max_sidebar_columns\": 1, \"max_horizontal_overflow\": 0}"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/UI-001/runs/independent.json",
+      "sha256": "b7fa36a2bfb1a7b355bb3010971486a648d2f561293baa5285ea7434b298b2ed"
+    },
+    {
+      "path": "docs/evidence/UI-001/runs/independent-wide-library.png",
+      "sha256": "8f994513ed742de09476a9b2494c416a2a454ff1a8c99902310222b824d700cf"
+    }
+  ]
+}
