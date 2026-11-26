@@ -236,11 +236,13 @@
       "acceptance_ids": [
         "A19"
       ],
-      "implementation_status": "in_progress",
+      "implementation_status": "verified",
       "evidence_paths": [
         "docs/evidence/REPO-001/checkpoint.json",
         "docs/evidence/REPO-001/acceptance.json",
-        "docs/evidence/REPO-002/acceptance.json"
+        "docs/evidence/REPO-002/acceptance.json",
+        "docs/evidence/REPO-003/acceptance.json",
+        "docs/evidence/REPO-003/A19.json"
       ]
     },
     {
@@ -1228,8 +1230,11 @@
       "expected": "默认仅分析；仓库/提交记录准确；缺凭据的平台标集成待验证；没有授权不执行写入。",
       "level": "real_environment",
       "evidence_required": "平台/提交清单、适配测试、真实读取证据或可复现阻塞",
-      "status": "NOT_RUN",
-      "final_milestone": "M3"
+      "status": "PASS",
+      "final_milestone": "M3",
+      "evidence_paths": [
+        "docs/evidence/REPO-003/A19.json"
+      ]
     },
     {
       "id": "A20",

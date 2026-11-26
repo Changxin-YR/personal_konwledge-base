@@ -1,0 +1,217 @@
+{
+  "unit_id": "REPO-003",
+  "candidate_sha": "067de230947b8fa44435de544647fddb15c1e4f0",
+  "tree": "871b4782b2c26042ab091e646c99e490a865af73",
+  "source_tree": "0291e4728ec520ed882867b6a86b28934f45abae",
+  "entry_sha256": "e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca",
+  "build_sha256": "5ef94b938c299de1f5d7a1b605f40796fa4417ded8f0f423f4430258ece642df",
+  "runner_sha256": "f39fbdeb7a1f82481f49d8c46935a468c24e9c37d914f48cdc6c7434779e724d",
+  "oracle_sha256": "2df75f2a18ce7fb59a54330b8813d27e0af4250d625f9e1843fddf6395fe8930",
+  "scope": "real public Gitee through isolated Host/Chrome/SQLite, local credential-binding errors",
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "A19": "NOT_RUN",
+  "private_gitee": "NOT_RUN",
+  "other_platform_reruns": {
+    "github": "NOT_RUN",
+    "gitlab": "NOT_RUN"
+  },
+  "checks": [
+    {
+      "id": "two_gitee_commits_and_late_old_blob_pin",
+      "status": "PASS",
+      "fixture": "oschina/repo",
+      "a": {
+        "ref": "fork_flow",
+        "commit": "8217772aa248da974b98148f43856ea19bf8f1a2",
+        "tree": "a82868d0c8324e4812430a4ed44b9f35c463b27d",
+        "blob": "18a7924cd89eae26c759f0cc1b646c2a7fb8caf7",
+        "size": 5598,
+        "sha256": "f6ebfea2e5e7caf9f664651b7d1dddb4a75db9433e6e0a55903365883294a356",
+        "entries": 98,
+        "directories": 8
+      },
+      "b": {
+        "ref": "master",
+        "commit": "1f20776dbb3b87ba39928dc4baba58f9c2d17c80",
+        "tree": "5a5e1711ae9b00d0fc935a3e6b6bfa12c3b11d4f",
+        "blob": "5519e9aa5e9cb1bd9f65465bfbb6d3ab30811e5b",
+        "size": 2090,
+        "sha256": "ac1e9e65ee668663caa84fc82a9aa71c9cda332406e4c1d082b847a205a656e0",
+        "entries": 96,
+        "directories": 8
+      },
+      "browser_external_attempts": 0
+    },
+    {
+      "id": "restart_reads_file_and_tree_with_zero_upstream_calls",
+      "status": "PASS"
+    },
+    {
+      "id": "bounded_rate_limit_and_denial_with_no_retry",
+      "status": "PASS",
+      "rate_attempts": 1,
+      "permission_attempts": 1,
+      "fixture_only": true
+    },
+    {
+      "id": "local_aliases_denied_without_egress_and_real_gitee_ref_404",
+      "status": "PASS",
+      "wrong_alias_status": 404,
+      "raw_token_status": 422,
+      "subsequent_remote_write_route_status": 404,
+      "missing_status": 404
+    }
+  ],
+  "traffic": [
+    {
+      "method": "GET",
+      "outcome": "gitee",
+      "path": "/api/v5/repos/oschina/repo",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitee",
+      "path": "/api/v5/repos/oschina/repo/branches/fork_flow",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitee",
+      "path": "/api/v5/repos/oschina/repo/git/trees/a82868d0c8324e4812430a4ed44b9f35c463b27d?recursive=1",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitee",
+      "path": "/api/v5/repos/oschina/repo",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitee",
+      "path": "/api/v5/repos/oschina/repo",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitee",
+      "path": "/api/v5/repos/oschina/repo/branches/master",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitee",
+      "path": "/api/v5/repos/oschina/repo/git/trees/5a5e1711ae9b00d0fc935a3e6b6bfa12c3b11d4f?recursive=1",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitee",
+      "path": "/api/v5/repos/oschina/repo/git/blobs/5519e9aa5e9cb1bd9f65465bfbb6d3ab30811e5b",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitee",
+      "path": "/api/v5/repos/oschina/repo",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitee",
+      "path": "/api/v5/repos/oschina/repo",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitee",
+      "path": "/api/v5/repos/oschina/repo/git/blobs/18a7924cd89eae26c759f0cc1b646c2a7fb8caf7",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitee",
+      "path": "/api/v5/repos/oschina/repo",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitee",
+      "path": "/api/v5/repos/oschina/repo/commits/8217772aa248da974b98148f43856ea19bf8f1a2",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitee",
+      "path": "/api/v5/repos/oschina/repo/git/trees/a82868d0c8324e4812430a4ed44b9f35c463b27d?recursive=1",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitee",
+      "path": "/api/v5/repos/oschina/repo",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitee",
+      "path": "/api/v5/repos/oschina/repo",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitee",
+      "path": "/api/v5/repos/oschina/repo/branches/knowledgeos-read-only-fixture-not-existing",
+      "status": 404
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/api/v5/repos/synthetic/gitee-rate",
+      "status": 429
+    },
+    {
+      "method": "GET",
+      "outcome": "fixture",
+      "path": "/api/v5/repos/synthetic/gitee-denied",
+      "status": 403
+    }
+  ],
+  "screens": [
+    {
+      "name": "gitee-old-fixed-file.png",
+      "sha256": "3bf0ee3a75dbb61995b2c0d2ca520efdc5d9452d9f66ea1cad3cfcf41d8c4443"
+    },
+    {
+      "name": "gitee-restart-mobile.png",
+      "sha256": "0ca4eebdf181ad30d9f62fd4036f01f01270b67fccaae14df50be1b76dbf18eb"
+    }
+  ],
+  "boots": [
+    95916,
+    69916
+  ],
+  "binding": {
+    "candidate_sha": "067de230947b8fa44435de544647fddb15c1e4f0",
+    "tree": "871b4782b2c26042ab091e646c99e490a865af73",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca",
+    "helpers": {
+      "repository-egress": "0f5c7dc49d64d41cbfd2685d6d3c2ba7ea31ee7352a7a37174eee40353027448",
+      "gitee-oracle": "2df75f2a18ce7fb59a54330b8813d27e0af4250d625f9e1843fddf6395fe8930",
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "5278ebf7cc64773560b3b672c9182c65b4e1d82a20b8f569328cb0765a627f10",
+      "a07-isolated-host": "d0a66cc846abbd105a69e715430ce091a40050940037d246910359098cae7c8c"
+    },
+    "parser": {
+      "pdf-extractor.js": "49fb0588ba0c37486a287a083d9bd2a032d89205d34af615845c4928b1f6745c",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "chrome": "158.0.8127.88"
+}

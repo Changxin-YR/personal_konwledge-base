@@ -1,0 +1,57 @@
+{
+  "unit_id": "REPO-003",
+  "acceptance_slice": "A19_AI_REPOSITORY_WRITE_DENIED",
+  "candidate_sha": "067de230947b8fa44435de544647fddb15c1e4f0",
+  "tree": "871b4782b2c26042ab091e646c99e490a865af73",
+  "source_tree": "0291e4728ec520ed882867b6a86b28934f45abae",
+  "entry_sha256": "e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca",
+  "build_sha256": "5ef94b938c299de1f5d7a1b605f40796fa4417ded8f0f423f4430258ece642df",
+  "runner_sha256": "a61d0fccd34b3a6ed1121017cd54f1af704b5965bc653a3e4e56b2e9389af9d3",
+  "fixture_sha256": "551827a857d865fb8277f5167f7a012063e64b91e6008dc9477589570caf66ac",
+  "test_scope": "Actual product UI, HTTP, DSH tool policy and SQLite with offline model and GitHub setup fixtures",
+  "real_model_inference": false,
+  "real_platform_reads": 0,
+  "status": "PASS",
+  "A19": "NOT_RUN",
+  "screenshots": [
+    {
+      "name": "a19-ai-repository-push-denied.png",
+      "sha256": "420efc8db30875a1abaeadde7b1e1578c749794f01bc545440ab024198d623f6"
+    }
+  ],
+  "checks": [
+    {
+      "id": "A19_AI_AUTHENTICATED_READ_CONTROL",
+      "status": "PASS",
+      "status_http": 200,
+      "tool": "knowledgeos_read_object"
+    },
+    {
+      "id": "A19_AI_REPOSITORY_WRITE_DENIED",
+      "status": "PASS",
+      "status_http": 422,
+      "code": "TOOL_NOT_ALLOWED",
+      "product_ui": true,
+      "prepared": false,
+      "tool_executions": 0,
+      "repo_transport_attempts": 0,
+      "browser_external_attempts": 0,
+      "ai_mutations": 0,
+      "sqlite_before_after_equal": true,
+      "fixed_snapshot_retrieved_after_denial": true,
+      "setup_fixture_reads": 5
+    }
+  ],
+  "binding": {
+    "candidate_sha": "067de230947b8fa44435de544647fddb15c1e4f0",
+    "tree": "871b4782b2c26042ab091e646c99e490a865af73",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca",
+    "helpers": {
+      "candidate-load-proof": "b4a49fa20f056e8d0969b409fee51b56caac35a803636029b072ee576c8b6de1",
+      "repository-egress": "0f5c7dc49d64d41cbfd2685d6d3c2ba7ea31ee7352a7a37174eee40353027448"
+    }
+  },
+  "chrome": "158.0.8127.88"
+}

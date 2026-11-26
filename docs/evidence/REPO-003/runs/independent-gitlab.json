@@ -1,0 +1,190 @@
+{
+  "unit_id": "REPO-002",
+  "candidate_sha": "067de230947b8fa44435de544647fddb15c1e4f0",
+  "tree": "871b4782b2c26042ab091e646c99e490a865af73",
+  "source_tree": "0291e4728ec520ed882867b6a86b28934f45abae",
+  "entry_sha256": "e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca",
+  "build_sha256": "5ef94b938c299de1f5d7a1b605f40796fa4417ded8f0f423f4430258ece642df",
+  "runner_sha256": "e562605d5a7a515d2d18c535b8b6d2b9ed536c14110846bf0d2858940dad0344",
+  "scope": "real public GitLab through isolated Host/Chrome/SQLite, local credential-binding errors",
+  "status": "PASS",
+  "T01": "PASS",
+  "T02": "PASS",
+  "A19": "NOT_RUN",
+  "private_gitlab": "BLOCKED",
+  "checks": [
+    {
+      "id": "two_gitlab_commits_and_late_old_blob_pin",
+      "status": "PASS",
+      "fixture": "gitlab-org/gitlab-test",
+      "a": {
+        "ref": "master",
+        "commit": "ddd0f15ae83993f5cb66a927a28673882e99100b",
+        "tree": "7dc7f517af9a53aa9817a6b8c33dc94371a7cdad",
+        "blob": "ea20973903d3800ac659d503596f9105f0a7423f",
+        "size": 833,
+        "sha256": "471500105a0881cd0208d791494f59e1d5b973a9229c63792208befd91a57e3e",
+        "entries": 59
+      },
+      "b": {
+        "ref": "branch-merged",
+        "commit": "498214de67004b1da3d820901307bed2a68a8ef6",
+        "tree": "06a736b30226509bcb4bae41df06c9be8f93a716",
+        "blob": "faaf198af3a36dbf41961466703cc1d47c61d051",
+        "size": 55,
+        "sha256": "0753d44b11c2fa87069a0b674072fc449f1462decf49aff1bd52e975d44690ef",
+        "entries": 54
+      },
+      "browser_external_attempts": 0
+    },
+    {
+      "id": "restart_reads_file_and_tree_with_zero_upstream_calls",
+      "status": "PASS"
+    },
+    {
+      "id": "local_aliases_denied_without_egress_and_real_gitlab_ref_404",
+      "status": "PASS",
+      "wrong_alias_status": 404,
+      "raw_token_status": 422,
+      "missing_status": 404
+    }
+  ],
+  "traffic": [
+    {
+      "method": "GET",
+      "outcome": "gitlab",
+      "path": "/api/v4/projects/gitlab-org%2Fgitlab-test",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitlab",
+      "path": "/api/v4/projects/72724/repository/branches/master",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitlab",
+      "path": "/api/v4/projects/72724/repository/tree?ref=ddd0f15ae83993f5cb66a927a28673882e99100b&recursive=true&per_page=100&page=1",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitlab",
+      "path": "/api/v4/projects/gitlab-org%2Fgitlab-test",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitlab",
+      "path": "/api/v4/projects/gitlab-org%2Fgitlab-test",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitlab",
+      "path": "/api/v4/projects/72724/repository/branches/branch-merged",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitlab",
+      "path": "/api/v4/projects/72724/repository/tree?ref=498214de67004b1da3d820901307bed2a68a8ef6&recursive=true&per_page=100&page=1",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitlab",
+      "path": "/api/v4/projects/72724/repository/blobs/faaf198af3a36dbf41961466703cc1d47c61d051",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitlab",
+      "path": "/api/v4/projects/gitlab-org%2Fgitlab-test",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitlab",
+      "path": "/api/v4/projects/gitlab-org%2Fgitlab-test",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitlab",
+      "path": "/api/v4/projects/72724/repository/blobs/ea20973903d3800ac659d503596f9105f0a7423f",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitlab",
+      "path": "/api/v4/projects/gitlab-org%2Fgitlab-test",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitlab",
+      "path": "/api/v4/projects/72724/repository/commits/ddd0f15ae83993f5cb66a927a28673882e99100b",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitlab",
+      "path": "/api/v4/projects/72724/repository/tree?ref=ddd0f15ae83993f5cb66a927a28673882e99100b&recursive=true&per_page=100&page=1",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitlab",
+      "path": "/api/v4/projects/gitlab-org%2Fgitlab-test",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitlab",
+      "path": "/api/v4/projects/gitlab-org%2Fgitlab-test",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "outcome": "gitlab",
+      "path": "/api/v4/projects/72724/repository/branches/knowledgeos-repo002-missing-ref",
+      "status": 404
+    }
+  ],
+  "screens": [
+    {
+      "name": "gitlab-old-fixed-file.png",
+      "sha256": "20161b76f8e957aa5c98887aa06ff3d94a6a7bad85cb2d1be85d41836437330a"
+    },
+    {
+      "name": "gitlab-restart-mobile.png",
+      "sha256": "27174fe5c5a77abf24f614938f4e95a7addf6dd5a5bfac4e735d1030786ea095"
+    }
+  ],
+  "boots": [
+    112272,
+    93688
+  ],
+  "binding": {
+    "candidate_sha": "067de230947b8fa44435de544647fddb15c1e4f0",
+    "tree": "871b4782b2c26042ab091e646c99e490a865af73",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca",
+    "helpers": {
+      "repository-egress": "0f5c7dc49d64d41cbfd2685d6d3c2ba7ea31ee7352a7a37174eee40353027448",
+      "gitee-oracle": "2df75f2a18ce7fb59a54330b8813d27e0af4250d625f9e1843fddf6395fe8930",
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "5278ebf7cc64773560b3b672c9182c65b4e1d82a20b8f569328cb0765a627f10",
+      "a07-isolated-host": "d0a66cc846abbd105a69e715430ce091a40050940037d246910359098cae7c8c"
+    },
+    "parser": {
+      "pdf-extractor.js": "49fb0588ba0c37486a287a083d9bd2a032d89205d34af615845c4928b1f6745c",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "chrome": "158.0.8127.88"
+}

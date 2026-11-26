@@ -1,0 +1,87 @@
+{
+  "candidate_sha": "067de230947b8fa44435de544647fddb15c1e4f0",
+  "tree": "871b4782b2c26042ab091e646c99e490a865af73",
+  "source_tree": "0291e4728ec520ed882867b6a86b28934f45abae",
+  "entry_sha256": "e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca",
+  "build_sha256": "5ef94b938c299de1f5d7a1b605f40796fa4417ded8f0f423f4430258ece642df",
+  "unit_id": "REPO-003",
+  "case_id": "A19",
+  "participants": [
+    {
+      "unit_id": "REPO-001",
+      "candidate_sha": "12afff5bc52dee947544e1010da4afdb5ef69819"
+    },
+    {
+      "unit_id": "REPO-002",
+      "candidate_sha": "77eeaaea6546c96827a08db88f9e5927a4b993b4"
+    },
+    {
+      "unit_id": "REPO-003",
+      "candidate_sha": "067de230947b8fa44435de544647fddb15c1e4f0"
+    },
+    {
+      "unit_id": "FND-005",
+      "candidate_sha": "aadf13abcb37aa24010af35543062d0551c58955"
+    }
+  ],
+  "status": "PASS",
+  "kind": "independent",
+  "exit": 0,
+  "runner": "Independent platform and AI acceptance subagents",
+  "run_id": "independent-131820-112272-95916",
+  "command": "node scripts/repo001/host-repository.mjs 067de230947b8fa44435de544647fddb15c1e4f0 e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca; node scripts/repo002/host-gitlab.mjs <frozen-checkout> 067de230947b8fa44435de544647fddb15c1e4f0 e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca; node scripts/repo003/host-gitee.mjs <frozen-checkout> 067de230947b8fa44435de544647fddb15c1e4f0 e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca; node scripts/repo003/a19-browser.mjs <frozen-checkout> 067de230947b8fa44435de544647fddb15c1e4f0 e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca a61d0fccd34b3a6ed1121017cd54f1af704b5965bc653a3e4e56b2e9389af9d3 551827a857d865fb8277f5167f7a012063e64b91e6008dc9477589570caf66ac",
+  "environment": "Windows, pinned DSH, separate Chrome and SQLite runs",
+  "inputs": "Named public repositories and two commits per platform, plus offline controlled model proposal for repository push.",
+  "artifacts": [
+    {
+      "path": "docs/evidence/REPO-003/runs/independent-github.json",
+      "sha256": "6887f77f2290c22864b9e9602cffc2b9a233293dbd3e5b2fb712de7171efe328"
+    },
+    {
+      "path": "docs/evidence/REPO-003/runs/independent-gitlab.json",
+      "sha256": "8eb9478eb84fab8880dfaf3aa95160adb5189e9b16ea85b327e391d7c01955cd"
+    },
+    {
+      "path": "docs/evidence/REPO-003/runs/independent-gitee.json",
+      "sha256": "05a00b7960029351bc5f755140cf44dfcbe1af3d53a6e23a6c7e7d9ef9c122b0"
+    },
+    {
+      "path": "docs/evidence/REPO-003/runs/independent-gitee-old-fixed-file.png",
+      "sha256": "3bf0ee3a75dbb61995b2c0d2ca520efdc5d9452d9f66ea1cad3cfcf41d8c4443"
+    },
+    {
+      "path": "docs/evidence/REPO-003/runs/independent-gitee-restart-mobile.png",
+      "sha256": "0ca4eebdf181ad30d9f62fd4036f01f01270b67fccaae14df50be1b76dbf18eb"
+    },
+    {
+      "path": "docs/evidence/REPO-003/runs/independent-ai.json",
+      "sha256": "2d941da342970eea1ff0443801510f37c31c0088ab5d12b0187ae9b2ca809840"
+    },
+    {
+      "path": "docs/evidence/REPO-003/runs/independent-a19-ai-repository-push-denied.png",
+      "sha256": "7e17aaa55dcc1c39b7de30be5ca1c88ea067b547c5b2a105df4db68713ff6ade"
+    }
+  ],
+  "results": [
+    {
+      "id": "GITHUB_FIXED_REVISION",
+      "status": "PASS",
+      "actual": "Bound Windows Chrome and Host read fixed commits, old blob by immutable ID, and cached data after restart; 11 actual github GET requests."
+    },
+    {
+      "id": "GITLAB_FIXED_REVISION",
+      "status": "PASS",
+      "actual": "Bound Windows Chrome and Host read fixed commits, old blob by immutable ID, and cached data after restart; 17 actual gitlab GET requests."
+    },
+    {
+      "id": "GITEE_FIXED_REVISION",
+      "status": "PASS",
+      "actual": "Bound Windows Chrome and Host read fixed commits, old blob by immutable ID, and cached data after restart; 17 actual gitee GET requests."
+    },
+    {
+      "id": "ACTUAL_HOST_DENIES_AI_REPOSITORY_WRITE",
+      "status": "PASS",
+      "actual": "Actual browser and Host rejected the offline model-proposed push with TOOL_NOT_ALLOWED. Control read returned 200; zero prepared action, execute, repository attempts or mutations."
+    }
+  ]
+}

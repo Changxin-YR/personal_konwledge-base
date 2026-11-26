@@ -1,0 +1,45 @@
+{
+  "candidate_sha": "067de230947b8fa44435de544647fddb15c1e4f0",
+  "tree": "871b4782b2c26042ab091e646c99e490a865af73",
+  "source_tree": "0291e4728ec520ed882867b6a86b28934f45abae",
+  "entry_sha256": "e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca",
+  "build_sha256": "5ef94b938c299de1f5d7a1b605f40796fa4417ded8f0f423f4430258ece642df",
+  "unit_id": "REPO-003",
+  "unit_acceptance": "PASS",
+  "passed_test_ids": [
+    "REPO-003-T01",
+    "REPO-003-T02"
+  ],
+  "main_command": "node scripts/repo001/host-repository.mjs 067de230947b8fa44435de544647fddb15c1e4f0 e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca; node scripts/repo002/host-gitlab.mjs <frozen-checkout> 067de230947b8fa44435de544647fddb15c1e4f0 e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca; node scripts/repo003/host-gitee.mjs <frozen-checkout> 067de230947b8fa44435de544647fddb15c1e4f0 e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca; node scripts/repo003/a19-browser.mjs <frozen-checkout> 067de230947b8fa44435de544647fddb15c1e4f0 e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca a61d0fccd34b3a6ed1121017cd54f1af704b5965bc653a3e4e56b2e9389af9d3 551827a857d865fb8277f5167f7a012063e64b91e6008dc9477589570caf66ac",
+  "main_exit": 0,
+  "main_records": [
+    {
+      "path": "docs/evidence/REPO-003/runs/main-github.json",
+      "sha256": "355f421245df333ba98475dd1ddc9d1963bb0f74ce0b6f24bda2b0a45dd68dca"
+    },
+    {
+      "path": "docs/evidence/REPO-003/runs/main-gitlab.json",
+      "sha256": "5c9b4352dcd5e9389ebc1d086395265d756555e00fed671cb2cf96d647a4eb40"
+    },
+    {
+      "path": "docs/evidence/REPO-003/runs/main-gitee.json",
+      "sha256": "77a8820d4c5ca5f193754c686f170450ac1e936434276d3e698b59acb8f84c3b"
+    },
+    {
+      "path": "docs/evidence/REPO-003/runs/main-ai.json",
+      "sha256": "999e8cda7e7df1cb5c08ce25ff8739dd82659de4cdca9b96a7f7ac6d4f311ac2"
+    }
+  ],
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/REPO-003/independent.json",
+  "technical_results": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "affected_tests": 11,
+    "plan_gates": 148
+  },
+  "final_cases": [
+    "docs/evidence/REPO-003/A19.json"
+  ],
+  "private_platform_auth": "NOT_RUN"
+}

@@ -1,0 +1,48 @@
+{
+  "candidate_sha": "067de230947b8fa44435de544647fddb15c1e4f0",
+  "tree": "871b4782b2c26042ab091e646c99e490a865af73",
+  "source_tree": "0291e4728ec520ed882867b6a86b28934f45abae",
+  "entry_sha256": "e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca",
+  "build_sha256": "5ef94b938c299de1f5d7a1b605f40796fa4417ded8f0f423f4430258ece642df",
+  "unit_id": "REPO-003",
+  "case_id": "A19",
+  "participants": [
+    {
+      "unit_id": "REPO-001",
+      "candidate_sha": "12afff5bc52dee947544e1010da4afdb5ef69819"
+    },
+    {
+      "unit_id": "REPO-002",
+      "candidate_sha": "77eeaaea6546c96827a08db88f9e5927a4b993b4"
+    },
+    {
+      "unit_id": "REPO-003",
+      "candidate_sha": "067de230947b8fa44435de544647fddb15c1e4f0"
+    },
+    {
+      "unit_id": "FND-005",
+      "candidate_sha": "aadf13abcb37aa24010af35543062d0551c58955"
+    }
+  ],
+  "status": "PASS",
+  "kind": "regression",
+  "exit": 0,
+  "runner": "Codex repository storage regression",
+  "run_id": "repository-regression-v35-067de230",
+  "command": "node --experimental-transform-types --test scripts/repo001/repository.test.mjs scripts/repo002/gitlab.test.mjs scripts/repo003/gitee.test.mjs scripts/search001/search-store.test.mjs",
+  "environment": "Windows Node and real SQLite",
+  "inputs": "Populated v33 and v34 database snapshots and controlled adapter responses",
+  "artifacts": [
+    {
+      "path": "docs/evidence/REPO-003/runs/affected-tests.txt",
+      "sha256": "68b3fc688fd21bf84e9aa58bf012b9909ba21aee2554dedb2d9dd0f0832fe4f0"
+    }
+  ],
+  "results": [
+    {
+      "id": "V35_ROLLBACK_AND_ADAPTER_BOUNDARIES",
+      "status": "PASS",
+      "actual": "Eleven affected tests passed; append-only v35 rollback retained files and ledgers, Gitee integrity checks and GitHub/GitLab historical behavior passed."
+    }
+  ]
+}

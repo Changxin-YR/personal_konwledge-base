@@ -1,0 +1,27 @@
+(node:84428) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v28 rolls back atomically, preserves v27 notes and binds immutable files to the owner and commit (1924.2095ms)
+✔ adapter rejects ambiguous paths, verifies body size and digest, and never follows redirects (47.7017ms)
+(node:94996) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ GitLab checks immutable refs, recursive pagination, malformed trees and object bytes (63.5851ms)
+✔ v34 rollback preserves GitHub blobs and platform scopes identical remote IDs and SHAs (1967.4881ms)
+(node:113912) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Gitee uses namespaced tags, canonical identity and exact digests (57.6636ms)
+✔ v35 preserves both providers through rollback and adds scoped Gitee rows (1965.5884ms)
+(node:118436) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ search reaches a known physical page after a real-book-sized authorized corpus and still fails closed above its work bound (3680.8945ms)
+✔ ranker excludes private content, can search separately granted project content, and rejects a cached query after revoke (2217.1171ms)
+✔ PDF partial results ignore pending or failed old text and bind hits to exact versions after replacement (1240.3827ms)
+✔ v18 rollback preserves v17 content and successful upgrade indexes it without rewriting it (1514.0815ms)
+✔ v19 rollback preserves published v18 Word conversion; resumed indexing fences stale tokens and changed sources (1681.9835ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11086.975

@@ -1,0 +1,87 @@
+{
+  "candidate_sha": "067de230947b8fa44435de544647fddb15c1e4f0",
+  "tree": "871b4782b2c26042ab091e646c99e490a865af73",
+  "source_tree": "0291e4728ec520ed882867b6a86b28934f45abae",
+  "entry_sha256": "e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca",
+  "build_sha256": "5ef94b938c299de1f5d7a1b605f40796fa4417ded8f0f423f4430258ece642df",
+  "unit_id": "REPO-003",
+  "case_id": "A19",
+  "participants": [
+    {
+      "unit_id": "REPO-001",
+      "candidate_sha": "12afff5bc52dee947544e1010da4afdb5ef69819"
+    },
+    {
+      "unit_id": "REPO-002",
+      "candidate_sha": "77eeaaea6546c96827a08db88f9e5927a4b993b4"
+    },
+    {
+      "unit_id": "REPO-003",
+      "candidate_sha": "067de230947b8fa44435de544647fddb15c1e4f0"
+    },
+    {
+      "unit_id": "FND-005",
+      "candidate_sha": "aadf13abcb37aa24010af35543062d0551c58955"
+    }
+  ],
+  "status": "PASS",
+  "kind": "main",
+  "exit": 0,
+  "runner": "Codex main acceptance",
+  "run_id": "main-86180-122184-129964",
+  "command": "node scripts/repo001/host-repository.mjs 067de230947b8fa44435de544647fddb15c1e4f0 e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca; node scripts/repo002/host-gitlab.mjs <frozen-checkout> 067de230947b8fa44435de544647fddb15c1e4f0 e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca; node scripts/repo003/host-gitee.mjs <frozen-checkout> 067de230947b8fa44435de544647fddb15c1e4f0 e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca; node scripts/repo003/a19-browser.mjs <frozen-checkout> 067de230947b8fa44435de544647fddb15c1e4f0 e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca a61d0fccd34b3a6ed1121017cd54f1af704b5965bc653a3e4e56b2e9389af9d3 551827a857d865fb8277f5167f7a012063e64b91e6008dc9477589570caf66ac",
+  "environment": "Windows, pinned DSH, separate Chrome and SQLite runs",
+  "inputs": "Named public repositories and two commits per platform, plus offline controlled model proposal for repository push.",
+  "artifacts": [
+    {
+      "path": "docs/evidence/REPO-003/runs/main-github.json",
+      "sha256": "355f421245df333ba98475dd1ddc9d1963bb0f74ce0b6f24bda2b0a45dd68dca"
+    },
+    {
+      "path": "docs/evidence/REPO-003/runs/main-gitlab.json",
+      "sha256": "5c9b4352dcd5e9389ebc1d086395265d756555e00fed671cb2cf96d647a4eb40"
+    },
+    {
+      "path": "docs/evidence/REPO-003/runs/main-gitee.json",
+      "sha256": "77a8820d4c5ca5f193754c686f170450ac1e936434276d3e698b59acb8f84c3b"
+    },
+    {
+      "path": "docs/evidence/REPO-003/runs/main-gitee-old-fixed-file.png",
+      "sha256": "2a0cbdb1855a376ec6f1c37c9d4644cf270e1daeeccd3dad370bf18f58e0766f"
+    },
+    {
+      "path": "docs/evidence/REPO-003/runs/main-gitee-restart-mobile.png",
+      "sha256": "406293d78683a949fa69e59c2aa2f90747c2685bd06eac697c72962f7fb058ec"
+    },
+    {
+      "path": "docs/evidence/REPO-003/runs/main-ai.json",
+      "sha256": "999e8cda7e7df1cb5c08ce25ff8739dd82659de4cdca9b96a7f7ac6d4f311ac2"
+    },
+    {
+      "path": "docs/evidence/REPO-003/runs/main-a19-ai-repository-push-denied.png",
+      "sha256": "420efc8db30875a1abaeadde7b1e1578c749794f01bc545440ab024198d623f6"
+    }
+  ],
+  "results": [
+    {
+      "id": "GITHUB_FIXED_REVISION",
+      "status": "PASS",
+      "actual": "Bound Windows Chrome and Host read fixed commits, old blob by immutable ID, and cached data after restart; 11 actual github GET requests."
+    },
+    {
+      "id": "GITLAB_FIXED_REVISION",
+      "status": "PASS",
+      "actual": "Bound Windows Chrome and Host read fixed commits, old blob by immutable ID, and cached data after restart; 17 actual gitlab GET requests."
+    },
+    {
+      "id": "GITEE_FIXED_REVISION",
+      "status": "PASS",
+      "actual": "Bound Windows Chrome and Host read fixed commits, old blob by immutable ID, and cached data after restart; 17 actual gitee GET requests."
+    },
+    {
+      "id": "ACTUAL_HOST_DENIES_AI_REPOSITORY_WRITE",
+      "status": "PASS",
+      "actual": "Actual browser and Host rejected the offline model-proposed push with TOOL_NOT_ALLOWED. Control read returned 200; zero prepared action, execute, repository attempts or mutations."
+    }
+  ]
+}

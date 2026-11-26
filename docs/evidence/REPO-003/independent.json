@@ -1,0 +1,42 @@
+{
+  "candidate_sha": "067de230947b8fa44435de544647fddb15c1e4f0",
+  "tree": "871b4782b2c26042ab091e646c99e490a865af73",
+  "source_tree": "0291e4728ec520ed882867b6a86b28934f45abae",
+  "entry_sha256": "e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca",
+  "build_sha256": "5ef94b938c299de1f5d7a1b605f40796fa4417ded8f0f423f4430258ece642df",
+  "unit_id": "REPO-003",
+  "status": "PASS",
+  "exit": 0,
+  "reviewer": "Independent Gitee, GitHub, GitLab and AI policy subagents",
+  "command": "node scripts/repo001/host-repository.mjs 067de230947b8fa44435de544647fddb15c1e4f0 e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca; node scripts/repo002/host-gitlab.mjs <frozen-checkout> 067de230947b8fa44435de544647fddb15c1e4f0 e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca; node scripts/repo003/host-gitee.mjs <frozen-checkout> 067de230947b8fa44435de544647fddb15c1e4f0 e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca; node scripts/repo003/a19-browser.mjs <frozen-checkout> 067de230947b8fa44435de544647fddb15c1e4f0 e6036666fcc20e37ccbd2e39109edc6c7552c40824b53a6ae683bd48bc711cca a61d0fccd34b3a6ed1121017cd54f1af704b5965bc653a3e4e56b2e9389af9d3 551827a857d865fb8277f5167f7a012063e64b91e6008dc9477589570caf66ac",
+  "results": [
+    {
+      "id": "REPO-003-T01",
+      "status": "PASS",
+      "actual": "All three real public platforms pinned immutable source and old blobs."
+    },
+    {
+      "id": "REPO-003-T02",
+      "status": "PASS",
+      "actual": "Real no-ref 404, bound missing credential zero egress, deterministic rate and denied response once each, write requests refused without execution."
+    }
+  ],
+  "records": [
+    {
+      "path": "docs/evidence/REPO-003/runs/independent-github.json",
+      "sha256": "6887f77f2290c22864b9e9602cffc2b9a233293dbd3e5b2fb712de7171efe328"
+    },
+    {
+      "path": "docs/evidence/REPO-003/runs/independent-gitlab.json",
+      "sha256": "8eb9478eb84fab8880dfaf3aa95160adb5189e9b16ea85b327e391d7c01955cd"
+    },
+    {
+      "path": "docs/evidence/REPO-003/runs/independent-gitee.json",
+      "sha256": "05a00b7960029351bc5f755140cf44dfcbe1af3d53a6e23a6c7e7d9ef9c122b0"
+    },
+    {
+      "path": "docs/evidence/REPO-003/runs/independent-ai.json",
+      "sha256": "2d941da342970eea1ff0443801510f37c31c0088ab5d12b0187ae9b2ca809840"
+    }
+  ]
+}
