@@ -1,6 +1,6 @@
 {
   "schema_version": "2.0",
-  "updated_at": "2026-11-20",
+  "updated_at": "2026-11-26",
   "timezone": "Asia/Shanghai",
   "mode": "continuous_unit_gated",
   "current_executor": "codex",
@@ -3189,8 +3189,33 @@
         "A31"
       ],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "in_progress",
-      "test_plan_status": "expanded_for_activation"
+      "status": "passed",
+      "test_plan_status": "executed_with_evidence",
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "retest_status": "PASS",
+      "completed_test_ids": [
+        "PROJECT-002-T01",
+        "PROJECT-002-T02"
+      ],
+      "open_review_items": [],
+      "closed_review_items": [
+        "LOGOUT_RESPONSE_EXPECTATION",
+        "STALE_HISTORY_EVICTION_TEST_BARRIER",
+        "HISTORICAL_SEARCH_MIGRATION_EXPECTATION"
+      ],
+      "completed_at": "2026-11-26T02:04:16.862Z",
+      "candidate_commit": "8645b69cc246752b4b44e5404afecb9b582982b7",
+      "acceptance_record": "docs/evidence/PROJECT-002/acceptance.json",
+      "evidence_paths": [
+        "docs/evidence/PROJECT-002/acceptance.json",
+        "docs/evidence/PROJECT-002/independent-20261126.json",
+        "docs/evidence/PROJECT-002/A31.json",
+        "docs/evidence/PROJECT-002/REPORT.md",
+        "docs/evidence/PROJECT-002/runs/a30-regression-20261126.json",
+        "docs/evidence/PROJECT-002/runs/reader-regression-20261126.json",
+        "docs/evidence/PROJECT-002/runs/sharing-regression-20261126.json"
+      ]
     },
     {
       "id": "PROJECT-003",

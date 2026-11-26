@@ -1,0 +1,49 @@
+{
+  "unit_id": "PROJECT-002",
+  "candidate_sha": "8645b69cc246752b4b44e5404afecb9b582982b7",
+  "tree": "1c3611a3e524114afb8a3149068c0261b7a6228c",
+  "source_tree": "366acd291571f6a1b546a59f11a5374b2dba136a",
+  "entry_sha256": "03466e020230561776f218a2d1e5ec8cc1f9a317c9487d72c0695161c15862d0",
+  "build_sha256": "0911952ff543168d5015df690521f555052bf2ebc9e38893f33fd88da2684b15",
+  "runner_sha256": "60abed88a1d56923efbdea9372155a184ebe3aee384a56569920593d631045d1",
+  "unit_acceptance": "PASS",
+  "passed_test_ids": [
+    "PROJECT-002-T01",
+    "PROJECT-002-T02"
+  ],
+  "main_command": "node scripts/project002/host-workflow.mjs 8645b69cc246752b4b44e5404afecb9b582982b7 03466e020230561776f218a2d1e5ec8cc1f9a317c9487d72c0695161c15862d0",
+  "main_exit": 0,
+  "main_records": [
+    {
+      "path": "docs/evidence/PROJECT-002/runs/main-20261126.json",
+      "sha256": "5bd537d0bd5bb52bb8001a1b03c9b5035a26c926415a70fa68a3886720956933"
+    }
+  ],
+  "independent_status": "PASS",
+  "independent_record": "docs/evidence/PROJECT-002/independent-20261126.json",
+  "technical_results": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "affected_tests": 29
+  },
+  "regressions": {
+    "a30": {
+      "path": "docs/evidence/PROJECT-002/runs/a30-regression-20261126.json",
+      "sha256": "ac52500c3231013f1f18423b78ee869f546fa73452a61406bd70330a98dd7147"
+    },
+    "reader": {
+      "path": "docs/evidence/PROJECT-002/runs/reader-regression-20261126.json",
+      "sha256": "800d0ab86973f66d16b59eb2c1cf84ce1957abcdca200e35772601c43f158be8"
+    },
+    "sharing": {
+      "path": "docs/evidence/PROJECT-002/runs/sharing-regression-20261126.json",
+      "sha256": "91724be29c5f2b52eeb62b90a8080f64132170ea4d9fbe6729cf6a06004bf0d4"
+    }
+  },
+  "final_cases": [
+    "docs/evidence/PROJECT-002/A31.json"
+  ],
+  "pending_cases": [
+    "P08"
+  ]
+}

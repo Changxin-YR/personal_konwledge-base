@@ -1,0 +1,51 @@
+{
+  "unit_id": "PROJECT-002",
+  "candidate_sha": "8645b69cc246752b4b44e5404afecb9b582982b7",
+  "tree": "1c3611a3e524114afb8a3149068c0261b7a6228c",
+  "source_tree": "366acd291571f6a1b546a59f11a5374b2dba136a",
+  "entry_sha256": "03466e020230561776f218a2d1e5ec8cc1f9a317c9487d72c0695161c15862d0",
+  "build_sha256": "0911952ff543168d5015df690521f555052bf2ebc9e38893f33fd88da2684b15",
+  "runner_sha256": "60abed88a1d56923efbdea9372155a184ebe3aee384a56569920593d631045d1",
+  "status": "PASS",
+  "exit": 0,
+  "reviewer": "independent Project acceptance subagent",
+  "command": "node scripts/project002/host-workflow.mjs 8645b69cc246752b4b44e5404afecb9b582982b7 03466e020230561776f218a2d1e5ec8cc1f9a317c9487d72c0695161c15862d0",
+  "results": [
+    {
+      "id": "PROJECT-002-T01",
+      "status": "PASS",
+      "actual": "Peer approval did not complete the task before administrator final review."
+    },
+    {
+      "id": "PROJECT-002-T02",
+      "status": "PASS",
+      "actual": "Late return and resubmission kept the original time, evidence and criterion version. Material access, logout, stale response and restart checks passed."
+    }
+  ],
+  "raw": {
+    "path": "docs/evidence/PROJECT-002/runs/independent-20261126.json",
+    "sha256": "9d1575d04d183f65a0bcb6a22b21e36c2034698191bc67cd02f58b23ca1aaae0"
+  },
+  "screens": [
+    {
+      "path": "docs/evidence/PROJECT-002/runs/independent-20261126-peer-awaiting-final.png",
+      "sha256": "bbc696cdbbb4d98b341eda2ae46c67f4570c91c6527578f19961592fec2615ed"
+    },
+    {
+      "path": "docs/evidence/PROJECT-002/runs/independent-20261126-external-block-projection.png",
+      "sha256": "ec04e3cd04bf8edceeb0bd7a68d933b94cecfdeed0c28ef426bd65521c410960"
+    },
+    {
+      "path": "docs/evidence/PROJECT-002/runs/independent-20261126-awaiting-material-access.png",
+      "sha256": "2b094689b363b05d3673d8904283a3085a99e69bcc47b0b7d4c6fb42ff828ff6"
+    },
+    {
+      "path": "docs/evidence/PROJECT-002/runs/independent-20261126-review-history-mobile.png",
+      "sha256": "cd7263a9475bb24ee06d112fba31041efef7cb9ec3a9869e98d81c35c945f394"
+    }
+  ],
+  "independent_sqlite_store_and_migrations": {
+    "status": "PASS",
+    "tests": 3
+  }
+}

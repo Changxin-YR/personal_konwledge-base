@@ -2,6 +2,12 @@
 
 ## 当前阻塞与在制缺口
 
+2026-11-26，PROJECT-002 和 A31 已通过。[冻结候选与验收](../evidence/PROJECT-002/REPORT.md) 包含材料失权等待和恢复、已打开页面清屏及迟到响应处理。P08 等待 SCORE-001。FND-005 改用用户确认的词易 OpenAI-compatible 路由。授权环境变量可读取，精确模型已出现在 [外部目录](../evidence/FND-005/tokease-preflight-20261126.json)。剩余真实读写、独立复跑和候选证据绑定。后续记录只依据本路由的实际运行。
+
+GitLab、Gitee、真实 AI 写入拒绝及 GitHub 私库认证仍待各自验收。Windows 安装、升级、回退、卸载和 CHECK-004 未启动。
+
+## 2026-11-22 检查点
+
 2026-11-22，FND-005 仍为 **BLOCKED**，以[原生 Host 派送预检](../evidence/FND-005/native-host-egress-20261122.json)为准。该运行已验证未配置凭据及目录/Messages/Files 合成拒绝场景的零出站，`configured=false`、`model_count=0`、真实推理 0。原先“profile 未初始化”及“零出站负例尚未验证”的描述属于历史；本次结果没有证明带真实凭据的正向业务链。
 
 剩余条件是：绑定当前候选、实际路由、既有调用授权与额度及请求体范围的一次性 Messages 正向许可；隔离 profile 中原生凭据和可用模型；真实业务 read/update、UI/HTTP/SQLite 核对及独立复跑。先完成可自行处理的派送设施，再核对原生凭据引用；必须由用户绑定时只问隔离 profile/Host 和非秘密 provider/model 等最少信息，凭据在原生安全入口填写。不能借用旧插件证据，不能据零推理判断 API 无效或余额不足，不改变产品既有费用展示/警示语义。

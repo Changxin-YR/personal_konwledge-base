@@ -1,0 +1,85 @@
+{
+  "unit_id": "PROJECT-002",
+  "candidate_sha": "8645b69cc246752b4b44e5404afecb9b582982b7",
+  "tree": "1c3611a3e524114afb8a3149068c0261b7a6228c",
+  "source_tree": "366acd291571f6a1b546a59f11a5374b2dba136a",
+  "entry_sha256": "03466e020230561776f218a2d1e5ec8cc1f9a317c9487d72c0695161c15862d0",
+  "build_sha256": "0911952ff543168d5015df690521f555052bf2ebc9e38893f33fd88da2684b15",
+  "runner_sha256": "60abed88a1d56923efbdea9372155a184ebe3aee384a56569920593d631045d1",
+  "case_id": "A31",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node scripts/project002/host-workflow.mjs 8645b69cc246752b4b44e5404afecb9b582982b7 03466e020230561776f218a2d1e5ec8cc1f9a317c9487d72c0695161c15862d0",
+  "results": [
+    {
+      "id": "cutoff_and_peer_gate",
+      "status": "PASS",
+      "server_submitted_at": "2026-11-22T06:00:20.000Z",
+      "next_state": "awaiting_admin_review"
+    },
+    {
+      "id": "late_review_does_not_rewrite_original_and_resubmission_pins_new_criteria",
+      "status": "PASS"
+    },
+    {
+      "id": "formal_failure_is_not_a_return",
+      "status": "PASS"
+    },
+    {
+      "id": "external_block_projection_is_not_material_wait_or_formal_failure",
+      "status": "PASS",
+      "setup": "isolated_sqlite_acknowledged_state_fixture"
+    },
+    {
+      "id": "fixed_version_scope_and_peer_recovery",
+      "status": "PASS"
+    },
+    {
+      "id": "final_rights_rechecked_after_preparation_and_restored_after_restart",
+      "status": "PASS"
+    },
+    {
+      "id": "delivered_obsolete_history_cannot_repaint_material",
+      "status": "PASS"
+    },
+    {
+      "id": "immutable_material_replacement_and_idempotency",
+      "status": "PASS"
+    },
+    {
+      "id": "foreground_timeout_discards_material_and_stale_access_result",
+      "status": "PASS"
+    },
+    {
+      "id": "revocation_and_durable_restart",
+      "status": "PASS"
+    }
+  ],
+  "main": {
+    "path": "docs/evidence/PROJECT-002/runs/main-20261126.json",
+    "sha256": "5bd537d0bd5bb52bb8001a1b03c9b5035a26c926415a70fa68a3886720956933"
+  },
+  "independent": {
+    "path": "docs/evidence/PROJECT-002/runs/independent-20261126.json",
+    "sha256": "9d1575d04d183f65a0bcb6a22b21e36c2034698191bc67cd02f58b23ca1aaae0"
+  },
+  "screens": [
+    {
+      "path": "docs/evidence/PROJECT-002/runs/main-20261126-peer-awaiting-final.png",
+      "sha256": "bbc696cdbbb4d98b341eda2ae46c67f4570c91c6527578f19961592fec2615ed"
+    },
+    {
+      "path": "docs/evidence/PROJECT-002/runs/main-20261126-external-block-projection.png",
+      "sha256": "ec04e3cd04bf8edceeb0bd7a68d933b94cecfdeed0c28ef426bd65521c410960"
+    },
+    {
+      "path": "docs/evidence/PROJECT-002/runs/main-20261126-awaiting-material-access.png",
+      "sha256": "2b094689b363b05d3673d8904283a3085a99e69bcc47b0b7d4c6fb42ff828ff6"
+    },
+    {
+      "path": "docs/evidence/PROJECT-002/runs/main-20261126-review-history-mobile.png",
+      "sha256": "92d019df27384a4fef26638b49acf9d4869565292dec0d38946928d5132d36b5"
+    }
+  ],
+  "scope": "The already acknowledged external-blocked state uses an isolated SQLite fixture to verify projection. The P08 scoring assertion remains not run."
+}

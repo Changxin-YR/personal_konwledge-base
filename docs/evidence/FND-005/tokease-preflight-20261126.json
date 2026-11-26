@@ -1,0 +1,39 @@
+{
+  "unit_id": "FND-005",
+  "date": "2026-11-26",
+  "timezone": "Asia/Shanghai",
+  "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+  "provider": "tokease",
+  "model": "deepseek-v4.1-flash-1017",
+  "endpoint": "https://tokease.cn/v1",
+  "authorized_credential_source": "environment",
+  "authorized_credential_available": true,
+  "catalog": {
+    "path": "/v1/models",
+    "status": 200,
+    "exact_model_present": true
+  },
+  "public_price_inputs": {
+    "pricing_status": 200,
+    "status_status": 200,
+    "eligible_group": "default",
+    "eligible_channel_count": 5,
+    "group_ratio": 1,
+    "quota_per_unit": 500000,
+    "display_currency": "CNY",
+    "model_ratio": 0.146627565982,
+    "completion_ratio": 4,
+    "published_regular_and_scheduled_token_ratios_checked": true
+  },
+  "isolated_native_fixture": {
+    "status": "PASS",
+    "protocol": "openai-completions",
+    "configured": true,
+    "static_model_count": 1,
+    "max_output_tokens": 512,
+    "max_retries": 0,
+    "external_requests": 0
+  },
+  "real_inference_requests": 0,
+  "live_acceptance": "NOT_RUN"
+}
