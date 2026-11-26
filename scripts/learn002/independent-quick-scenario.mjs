@@ -100,7 +100,7 @@ export async function run(h) {
   const selection={scope:'paragraph',asset_id:doc.id,version_id:doc.version_id,ordinal:block.ordinal,start,end,source_hash:block.anchor,count:1}
   assert(start>paragraph.indexOf('🧪'))
   assert.equal(block.anchor,sha(block.text))
-  const knownOutline=await request(owner,p+'/assets/'+doc.id+'/versions/'+doc.version_id+'/reader-outline?unit='+block.ordinal)
+  const knownOutline=await request(owner,p+'/assets/'+doc.id+'/versions/'+doc.version_id+'/reader-outline')
   assert.deepEqual(knownOutline.items.map(row=>row.title),['快答第一章','快答第二章'])
   const sourceGrant=await grantSource(owner,learner,doc)
   const parsed=await request(learner,at(doc,block.ordinal))
