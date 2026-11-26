@@ -4209,7 +4209,9 @@ var TermStore = class {
   knowledgeSource(db, actor2, id6, now) {
     const row = this.row(db, actor2, id6);
     if (!row) throw new AssetError(404, "SOURCE_NOT_FOUND");
-    return this.view(db, actor2, row, now);
+    const card = this.view(db, actor2, row, now);
+    const { excerpt: _excerpt, ...source2 } = card.source;
+    return { ...card, source: source2 };
   }
   list(session, asset, version, archived = false) {
     return this.tx("read", (db, now) => {
@@ -5487,8 +5489,9 @@ var PracticeStore = class {
       const actor2 = this.actor(prior, now);
       const attempts = db.prepare(`SELECT a.*,v.question_id FROM practice_attempts a JOIN question_versions v ON v.id=a.question_version_id
         WHERE a.service_id=? AND a.user_id=? ORDER BY a.submitted_at,a.rowid`).all(actor2.serviceId, actor2.userId);
-      const linkedSessions = db.prepare(`SELECT DISTINCT a.question_version_id, o.session_id FROM term_practice_origins o
-        JOIN practice_attempts a ON a.session_id=o.session_id WHERE o.service_id=? AND o.user_id=? ORDER BY a.submitted_at DESC,a.rowid DESC`).all(actor2.serviceId, actor2.userId);
+      const linkedSessions = db.prepare(`SELECT a.question_version_id, o.session_id FROM term_practice_origins o
+        JOIN practice_attempts a ON a.session_id=o.session_id WHERE o.service_id=? AND o.user_id=?
+        GROUP BY a.question_version_id,o.session_id ORDER BY max(a.rowid) DESC`).all(actor2.serviceId, actor2.userId);
       const termSessions = /* @__PURE__ */ new Map();
       for (const link of linkedSessions) {
         const versionId = String(link.question_version_id), sessionId = String(link.session_id);
@@ -15920,7 +15923,7 @@ fieldset{border:0;margin:0;padding:0;display:grid;gap:8px;min-width:0}label{disp
 <h3 id="practice-prompt-text"></h3><p id="practice-quality" class="subtle" hidden></p><form id="practice-answer-form"><fieldset id="practice-fields">
 <label id="practice-answer-field">\u6211\u7684\u7B54\u6848</label><label>\u4F5C\u7B54\u628A\u63E1<select id="practice-confidence"><option value="sure">\u786E\u5B9A</option><option value="unsure">\u4E0D\u786E\u5B9A</option></select></label><button type="submit" id="practice-submit">\u63D0\u4EA4\u9996\u6B21\u7B54\u6848</button></fieldset></form>
 <p id="practice-hint-text" aria-live="polite" hidden></p><div class="actions"><button id="practice-hint" type="button">\u67E5\u770B\u63D0\u793A</button><button id="practice-reveal" type="button" hidden>\u67E5\u770B\u6807\u51C6\u7B54\u6848</button><a id="practice-transfer-link" href="/knowledgeos/transfer" hidden>\u5B89\u6392\u8FC1\u79FB\u590D\u6D4B</a></div>
-<section id="practice-feedback" aria-labelledby="practice-feedback-title" hidden><h3 id="practice-feedback-title">\u7B54\u6848\u4E0E\u89E3\u6790</h3><p id="practice-accepted"></p><p id="practice-explanation-text"></p><p id="practice-grading"></p><p id="practice-evaluation"></p><a id="practice-source" href="/knowledgeos/library">\u67E5\u770B\u56FA\u5B9A\u5F15\u7528</a>
+<section id="practice-feedback" aria-labelledby="practice-feedback-title" hidden><h3 id="practice-feedback-title">\u7B54\u6848\u4E0E\u89E3\u6790</h3><p id="practice-accepted"></p><p id="practice-explanation-text"></p><p id="practice-grading"></p><p id="practice-evaluation"></p><a id="practice-source" href="/knowledgeos/library">\u67E5\u770B\u56FA\u5B9A\u5F15\u7528</a> <a id="practice-feedback-return" hidden>\u8FD4\u56DE\u672F\u8BED\u9009\u533A</a>
 <form id="practice-dispute-form"><label>\u4E89\u8BAE\u539F\u56E0<textarea id="practice-dispute-reason" required maxlength="1000"></textarea></label><button id="practice-dispute" type="submit">\u62A5\u544A\u9898\u76EE\u4E89\u8BAE</button></form></section>
 <section id="practice-attempt-panel" hidden><h3>\u6211\u7684\u4F5C\u7B54\u8BB0\u5F55</h3><ol id="practice-attempts"></ol></section>
 </section>
@@ -15978,7 +15981,7 @@ function clearDetail(){
   signature='';version=null;questions=[];practiceMode='standard';$('practice-detail').hidden=true;$('practice-feedback').hidden=true;$('practice-attempt-panel').hidden=true;
   for(const id of ['practice-session-questions','practice-attempts','practice-prompt-text','practice-accepted','practice-explanation-text','practice-grading','practice-quality','quick-session-coverage','practice-hint-text','practice-evaluation'])
     $(id).replaceChildren();
-  $('practice-dispute-reason').value='';
+  $('practice-dispute-reason').value='';$('practice-feedback-return').hidden=true;$('practice-feedback-return').removeAttribute('href');
   $('practice-answer')?.remove();$('practice-source').removeAttribute('href');$('quick-return-reader').removeAttribute('href');
   $('quick-session-coverage').hidden=$('quick-return-reader').hidden=true;
 }
@@ -16103,7 +16106,9 @@ async function load(force=false){
       clearDetail();active=null;receipt=null;status('\u7EC3\u4E60\u3001\u9898\u76EE\u6216\u6765\u6E90\u5DF2\u4E0D\u53EF\u8BBF\u95EE\u3002');return
     }
     const covered=current?.session.quick_coverage;
-    const returnHref=current?.session.term_origin?.origin||covered?.return_href;
+    const termHref=current?.session.term_origin?.origin,returnHref=termHref||covered?.return_href;
+    const feedbackReturn=$('practice-feedback-return');feedbackReturn.hidden=!termHref;
+    if(termHref)feedbackReturn.href=termHref;else feedbackReturn.removeAttribute('href');
     $('quick-session-coverage').hidden=!covered;$('quick-return-reader').hidden=!returnHref;
     $('quick-session-coverage').textContent=covered?coverageText(covered):'';
     if(returnHref)$('quick-return-reader').href=returnHref;else $('quick-return-reader').removeAttribute('href');

@@ -2263,7 +2263,9 @@ var TermStore = class {
   knowledgeSource(db, actor, id, now) {
     const row = this.row(db, actor, id);
     if (!row) throw new AssetError(404, "SOURCE_NOT_FOUND");
-    return this.view(db, actor, row, now);
+    const card = this.view(db, actor, row, now);
+    const { excerpt: _excerpt, ...source } = card.source;
+    return { ...card, source };
   }
   list(session, asset, version, archived = false) {
     return this.tx("read", (db, now) => {
@@ -3539,8 +3541,9 @@ var PracticeStore = class {
       const actor = this.actor(prior, now);
       const attempts = db.prepare(`SELECT a.*,v.question_id FROM practice_attempts a JOIN question_versions v ON v.id=a.question_version_id
         WHERE a.service_id=? AND a.user_id=? ORDER BY a.submitted_at,a.rowid`).all(actor.serviceId, actor.userId);
-      const linkedSessions = db.prepare(`SELECT DISTINCT a.question_version_id, o.session_id FROM term_practice_origins o
-        JOIN practice_attempts a ON a.session_id=o.session_id WHERE o.service_id=? AND o.user_id=? ORDER BY a.submitted_at DESC,a.rowid DESC`).all(actor.serviceId, actor.userId);
+      const linkedSessions = db.prepare(`SELECT a.question_version_id, o.session_id FROM term_practice_origins o
+        JOIN practice_attempts a ON a.session_id=o.session_id WHERE o.service_id=? AND o.user_id=?
+        GROUP BY a.question_version_id,o.session_id ORDER BY max(a.rowid) DESC`).all(actor.serviceId, actor.userId);
       const termSessions = /* @__PURE__ */ new Map();
       for (const link of linkedSessions) {
         const versionId = String(link.question_version_id), sessionId = String(link.session_id);

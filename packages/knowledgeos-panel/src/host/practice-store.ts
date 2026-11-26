@@ -610,8 +610,9 @@ export class PracticeStore {
       const actor=this.actor(prior,now)
       const attempts=db.prepare(`SELECT a.*,v.question_id FROM practice_attempts a JOIN question_versions v ON v.id=a.question_version_id
         WHERE a.service_id=? AND a.user_id=? ORDER BY a.submitted_at,a.rowid`).all(actor.serviceId,actor.userId) as unknown as (Attempt&{question_id:string})[]
-      const linkedSessions = db.prepare(`SELECT DISTINCT a.question_version_id, o.session_id FROM term_practice_origins o
-        JOIN practice_attempts a ON a.session_id=o.session_id WHERE o.service_id=? AND o.user_id=? ORDER BY a.submitted_at DESC,a.rowid DESC`)
+      const linkedSessions = db.prepare(`SELECT a.question_version_id, o.session_id FROM term_practice_origins o
+        JOIN practice_attempts a ON a.session_id=o.session_id WHERE o.service_id=? AND o.user_id=?
+        GROUP BY a.question_version_id,o.session_id ORDER BY max(a.rowid) DESC`)
         .all(actor.serviceId, actor.userId)
       const termSessions = new Map<string, string>()
       for (const link of linkedSessions) {

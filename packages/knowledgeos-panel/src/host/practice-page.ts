@@ -33,7 +33,7 @@ fieldset{border:0;margin:0;padding:0;display:grid;gap:8px;min-width:0}label{disp
 <h3 id="practice-prompt-text"></h3><p id="practice-quality" class="subtle" hidden></p><form id="practice-answer-form"><fieldset id="practice-fields">
 <label id="practice-answer-field">我的答案</label><label>作答把握<select id="practice-confidence"><option value="sure">确定</option><option value="unsure">不确定</option></select></label><button type="submit" id="practice-submit">提交首次答案</button></fieldset></form>
 <p id="practice-hint-text" aria-live="polite" hidden></p><div class="actions"><button id="practice-hint" type="button">查看提示</button><button id="practice-reveal" type="button" hidden>查看标准答案</button><a id="practice-transfer-link" href="/knowledgeos/transfer" hidden>安排迁移复测</a></div>
-<section id="practice-feedback" aria-labelledby="practice-feedback-title" hidden><h3 id="practice-feedback-title">答案与解析</h3><p id="practice-accepted"></p><p id="practice-explanation-text"></p><p id="practice-grading"></p><p id="practice-evaluation"></p><a id="practice-source" href="/knowledgeos/library">查看固定引用</a>
+<section id="practice-feedback" aria-labelledby="practice-feedback-title" hidden><h3 id="practice-feedback-title">答案与解析</h3><p id="practice-accepted"></p><p id="practice-explanation-text"></p><p id="practice-grading"></p><p id="practice-evaluation"></p><a id="practice-source" href="/knowledgeos/library">查看固定引用</a> <a id="practice-feedback-return" hidden>返回术语选区</a>
 <form id="practice-dispute-form"><label>争议原因<textarea id="practice-dispute-reason" required maxlength="1000"></textarea></label><button id="practice-dispute" type="submit">报告题目争议</button></form></section>
 <section id="practice-attempt-panel" hidden><h3>我的作答记录</h3><ol id="practice-attempts"></ol></section>
 </section>
@@ -91,7 +91,7 @@ function clearDetail(){
   signature='';version=null;questions=[];practiceMode='standard';$('practice-detail').hidden=true;$('practice-feedback').hidden=true;$('practice-attempt-panel').hidden=true;
   for(const id of ['practice-session-questions','practice-attempts','practice-prompt-text','practice-accepted','practice-explanation-text','practice-grading','practice-quality','quick-session-coverage','practice-hint-text','practice-evaluation'])
     $(id).replaceChildren();
-  $('practice-dispute-reason').value='';
+  $('practice-dispute-reason').value='';$('practice-feedback-return').hidden=true;$('practice-feedback-return').removeAttribute('href');
   $('practice-answer')?.remove();$('practice-source').removeAttribute('href');$('quick-return-reader').removeAttribute('href');
   $('quick-session-coverage').hidden=$('quick-return-reader').hidden=true;
 }
@@ -216,7 +216,9 @@ async function load(force=false){
       clearDetail();active=null;receipt=null;status('练习、题目或来源已不可访问。');return
     }
     const covered=current?.session.quick_coverage;
-    const returnHref=current?.session.term_origin?.origin||covered?.return_href;
+    const termHref=current?.session.term_origin?.origin,returnHref=termHref||covered?.return_href;
+    const feedbackReturn=$('practice-feedback-return');feedbackReturn.hidden=!termHref;
+    if(termHref)feedbackReturn.href=termHref;else feedbackReturn.removeAttribute('href');
     $('quick-session-coverage').hidden=!covered;$('quick-return-reader').hidden=!returnHref;
     $('quick-session-coverage').textContent=covered?coverageText(covered):'';
     if(returnHref)$('quick-return-reader').href=returnHref;else $('quick-return-reader').removeAttribute('href');
