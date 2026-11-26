@@ -79,8 +79,11 @@ try {
     await host.waitEvent('stream-held', armed)
     assert(!settled)
     assert.equal(host.proof().fixture_dispatches, 1)
+    const currentInvitation = await call(owner, 'GET', '/invitations/' + i.id)
+    assert.equal(currentInvitation.status, 200)
+    assert(currentInvitation.json.data.revision > i.revision)
     const revoked = await call(owner, 'POST', '/invitations/' + i.id + '/revoke',
-      { actor_id: ownerId, expected_revision: i.revision }, { 'idempotency-key': randomUUID() })
+      { actor_id: ownerId, expected_revision: currentInvitation.json.data.revision }, { 'idempotency-key': randomUUID() })
     assert.equal(revoked.status, 200)
     assert.equal((await call(viewer, 'GET', accessPath)).status, 404)
     assert(!settled)

@@ -238,13 +238,18 @@ async function proof() {
   const safe = await host.proof()
   assert.equal(typeof safe.provider, 'string')
   assert.match(safe.model, /^deepseek(?:[-/]|$)/i)
-  const { mode, provider, model, real_inference_requests, fixture_dispatches, wire_calibrations, dispatches } = safe
+  const { mode, provider, model, real_inference_requests, fixture_dispatches, wire_calibrations, requests, endpoint, manifest_sha256 } = safe
   assert(['live','dry','CONTROLLED_FIXTURE'].includes(mode))
   assert.equal(real_inference_requests, mode === 'live' ? 2 : 0)
-  if (mode === 'live') { assert.equal(provider, 'tokease'); assert.equal(model, 'deepseek-v4.1-flash-1017') }
+  if (mode === 'live') {
+    assert.equal(provider, 'tokease'); assert.equal(model, 'deepseek-v4.1-flash-1017'); assert.equal(endpoint, 'https://tokease.cn/v1')
+    assert.match(manifest_sha256, /^[a-f0-9]{64}$/)
+    assert.deepEqual(requests.map(r => r.stage), ['database-index','array-index'])
+    assert(requests.every(r => r.output_token_cap === 512 && /^[a-f0-9]{64}$/.test(r.request_sha256)))
+  }
   if (mode === 'CONTROLLED_FIXTURE') assert.equal(fixture_dispatches, 2)
   if (mode === 'dry') assert.equal(wire_calibrations, 2)
-  return { mode, provider, model, real_inference_requests, fixture_dispatches, wire_calibrations, dispatches }
+  return { mode, provider, model, real_inference_requests, fixture_dispatches, wire_calibrations, requests, endpoint, manifest_sha256 }
 }
 
 try {
@@ -330,6 +335,12 @@ try {
   assert.notEqual(first.result.professional, second.result.professional)
   assert.deepEqual(durable(), savedAt)
   facts.model = await proof()
+  const usage = await call(owner, prefix + '/ai/status')
+  assert.equal(usage.attempts, 2)
+  assert.equal(usage.provider, facts.model.provider)
+  assert.equal(usage.model, facts.model.model)
+  facts.model_usage = { reported_input_tokens: usage.reported_input_tokens, reported_output_tokens: usage.reported_output_tokens,
+    known_estimated_usd: usage.known_estimated_usd, unknown_cost_calls: usage.unknown_cost_calls }
   if (facts.model.mode === 'live') facts.T01 = 'PASS'
   ok('same_term_distinct_contexts_and_utf16_anchors', { sources: [first.spec, second.spec], lookup_created_no_term_rows: true })
 

@@ -35,7 +35,7 @@ function approvedSynthetic(fixture) {
   return stageMarkers.map((marker, index) => {
     const candidates = lines.filter(line => line.includes(marker))
     assert.equal(candidates.length, 1)
-    const [text] = candidates
+    const text = candidates[0] + '\n'
     const start = text.lastIndexOf(term)
     const end = start + term.length
     assert(start > text.indexOf(term))
