@@ -9,8 +9,8 @@
     "path": "CODEX_START.md",
     "sha256": "a2e5986cfa81189aeae0c4b43ebfe4afd074aae9d5674e7ecf5e069c5d6ab530"
   },
-  "active_unit": "LEARN-002",
-  "unit_state": "passed",
+  "active_unit": "LEARN-003",
+  "unit_state": "in_progress",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Reader quick practice and sourced first-answer integration passed against the frozen candidate.",
+  "state_reason": "Build private review states, recorded assistance and append-only grade corrections.",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -154,30 +154,21 @@
     "next_task": "LEARN-003"
   },
   "checkpoint": {
-    "unit_id": "LEARN-002",
-    "candidate_sha": "6929c502c454a6eda41889ee396f14c0ee0705b0",
-    "tree": "6fdb4da85d9ea6bef73497b7a80a310db4b892c6",
-    "source_tree": "5752fec42aa0e6d908d7637f2a4ad0cf1e11c8d7",
-    "entry_sha256": "2c26218889a85351fe6947986f3d5aefe8fac7d983036b303801b72707607663",
-    "build_sha256": "5299f65072768bf9a28aa485a8df75a80f399f7f1a16ee94d939a72b3119f1f4",
-    "base_commit": "6f3e5e1eea5e898b35cb3a1c72645ae1e4c64890",
+    "unit_id": "LEARN-003",
+    "base_commit": "18e65b30a9246c2c488eb289c14cf7e51c6b3984",
     "completed": [
-      "Paragraph, chapter and term quick practice with current source authorization and original reading return.",
-      "Two bounded real model runs plus local adversarial and all three sourced type regression. v40 atomic persistence."
+      "Independent private review, question correction and dispute pause expectations prepared."
     ],
     "test_results": {
-      "unit_acceptance": "PASS",
-      "T01": "PASS",
-      "T02": "PASS",
-      "A13": "PASS",
-      "independent": "PASS",
+      "unit_acceptance": "NOT_RUN",
+      "T01": "NOT_RUN",
+      "T02": "NOT_RUN",
+      "A14": "NOT_RUN",
       "P05": "NOT_RUN"
     },
-    "evidence": "docs/evidence/LEARN-002/acceptance.json",
+    "evidence": "scripts/learn003/acceptance-plan.md",
     "defects": [],
-    "blocked_dependencies": [
-      "P05 requires LEARN-003 dispute and personal review integration."
-    ],
+    "blocked_dependencies": [],
     "next_task": "LEARN-003"
   }
 }
