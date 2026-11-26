@@ -24,7 +24,7 @@ summary{cursor:pointer;font-weight:600}details>div{margin-top:10px}
 <section class="card"><h2>我的后续复习</h2><p class="subtle" id="review-no-queue">暂无已安排的复习。</p><ul id="review-queue"></ul></section>
 </aside><div>
 <section class="card"><h2>学习方向与目标</h2><p id="review-tracks"></p><p id="review-goal"></p><a href="/knowledgeos/account">调整个人目标</a></section>
-<section class="card" id="review-detail" hidden><h2 id="review-title"></h2><p id="review-classification"></p><p id="review-first"></p><p id="review-effective"></p><p><a id="review-attempt-link">查看原作答</a></p>
+<section class="card" id="review-detail" hidden><h2 id="review-title"></h2><p id="review-classification"></p><p id="review-first"></p><p id="review-effective"></p><p><a id="review-attempt-link">查看原作答</a> <a id="review-term-session" hidden>回看术语练习</a></p>
 <form id="review-form"><fieldset id="review-fields"><label>个人错因或复习笔记<textarea id="review-reason" maxlength="1000"></textarea></label>
 <label>复习状态<select id="review-mastery"><option value="new">未开始</option><option value="reviewing">复习中</option><option value="mastered">已掌握</option></select></label>
 <label>下次复习时间<input id="review-date" type="datetime-local"></label><button id="review-save" type="submit">保存个人安排</button></fieldset></form></section>
@@ -59,7 +59,7 @@ async function http(path,init={}){
 function clearOwn(){
   selected=null;$('review-detail').hidden=true;$('review-form').reset();
   for(const id of ['review-title','review-classification','review-first','review-effective'])$(id).textContent='';
-  $('review-attempt-link').removeAttribute('href');
+  $('review-attempt-link').removeAttribute('href');$('review-term-session').removeAttribute('href');$('review-term-session').hidden=true;
 }
 function clearAuthor(){
   managedToken++;managed=null;$('review-correction').hidden=true;$('review-correction').reset();$('review-old-rubric').textContent='';
@@ -80,6 +80,8 @@ function renderItem(reset=true){
   $('review-effective').textContent=item.evaluation_status==='paused'?'当前评价暂停':
     item.evaluation_status==='corrected'?'修订后判定：'+grades[item.effective_grading]:'当前判定：'+grades[item.effective_grading];
   $('review-attempt-link').href='/knowledgeos/practice?'+new URLSearchParams({session:item.session_id});
+  const linked=$('review-term-session');linked.hidden=!item.term_session_id;
+  if(item.term_session_id)linked.href='/knowledgeos/practice?'+new URLSearchParams({session:item.term_session_id});else linked.removeAttribute('href');
   if(reset){
     $('review-reason').value=item.state.wrong_reason;$('review-mastery').value=item.state.mastery_state;$('review-date').value=inputDate(item.state.next_review_at);
   }

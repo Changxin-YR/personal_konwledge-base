@@ -99,10 +99,7 @@ class TermService {
     this.#sweep()
     const actor = current(), draft = this.#drafts.get(id)
     if (!draft || draft.actor.sessionId !== actor.sessionId || draft.actor.userId !== actor.userId || draft.actor.serviceId !== actor.serviceId) {
-      const stored = this.store.find(actor, id)
-      if (!stored) throw new AssetError(404, 'TERM_EXPLANATION_NOT_FOUND')
-      if (stored.supplement !== supplement) throw new AssetError(409, 'IDEMPOTENCY_CONFLICT')
-      return { term: stored, replayed: true }
+      return this.store.replaySave(actor, id, supplement)
     }
     const witness = await this.reader.selectionWitness(current, draft.card.source, signal)
     if (signal.aborted) throw cancelled()
@@ -149,7 +146,7 @@ export function createTermHandler(store: TermStore, reader: ReaderService, ai: (
       if (url.origin !== base) throw new AssetError(403, 'CSRF_REJECTED')
       const initial = actorFor(req)
       if (!initial) throw new AssetError(401, 'AUTH_REQUIRED')
-      if (method === 'POST' && uuid(req.headers['x-knowledgeos-reader-actor']) !== initial.userId) throw new AssetError(409, 'READER_ACTOR_CHANGED')
+      if ((method === 'POST' || method === 'PATCH') && uuid(req.headers['x-knowledgeos-reader-actor']) !== initial.userId) throw new AssetError(409, 'READER_ACTOR_CHANGED')
       const current = () => {
         const actor = actorFor(req)
         if (!actor || actor.sessionId !== initial.sessionId || actor.userId !== initial.userId || actor.serviceId !== initial.serviceId)
@@ -165,10 +162,23 @@ export function createTermHandler(store: TermStore, reader: ReaderService, ai: (
         const result = await service.save(current, uuid(input.explanation_id), 'supplement' in input ? textField(input.supplement, 1000, true) : '', signal)
         return send(result.replayed ? 200 : 201, { data: { actor_id: current().userId, ...result } })
       }
-      if (url.pathname === termApi && method === 'GET' && url.searchParams.size === 2) {
+      if (url.pathname.startsWith(termApi + '/') && method === 'PATCH' && !url.search) {
+        const id = uuid(url.pathname.slice(termApi.length + 1))
+        const change = fields(await jsonBody(req), ['expected_revision', 'favorite', 'supplement'])
+        if (signal.aborted) throw cancelled()
+        if (!('favorite' in change || 'supplement' in change) || ('favorite' in change && typeof change.favorite !== 'boolean')) throw invalid()
+        const actor = current()
+        const term = store.update(actor, id, { expected_revision: integer(change.expected_revision, 0, Number.MAX_SAFE_INTEGER),
+          ...('favorite' in change ? { favorite: change.favorite as boolean } : {}),
+          ...('supplement' in change ? { supplement: textField(change.supplement, 1000, true) } : {}) })
+        return send(200, { data: { actor_id: actor.userId, term } })
+      }
+      if (url.pathname === termApi && method === 'GET') {
+        const archived = url.searchParams.get('archived')
+        if (url.searchParams.size !== (archived === null ? 2 : 3) || (archived !== null && archived !== '1')) throw invalid()
         const asset = uuid(url.searchParams.get('asset')), version = uuid(url.searchParams.get('version'))
         const actor = current()
-        return send(200, { data: { actor_id: actor.userId, terms: store.list(actor, asset, version) } })
+        return send(200, { data: { actor_id: actor.userId, terms: store.list(actor, asset, version, archived === '1') } })
       }
       if (url.pathname.startsWith(termApi + '/') && method === 'GET' && !url.search) {
         const key = uuid(url.pathname.slice(termApi.length + 1)), actor = current()

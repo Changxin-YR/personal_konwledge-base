@@ -4162,15 +4162,18 @@ var TermStore = class {
       ...row.conversion_id ? { conversion_id: row.conversion_id } : {}
     };
     this.citations.checkStoredSelection(db, actor2, { ...spec3, quote_hash: row.quote_hash }, now);
-    const { term, explanation } = JSON.parse(row.explanation_json);
+    const { term, explanation, excerpt } = JSON.parse(row.explanation_json);
+    const preferences = db.prepare("SELECT revision,favorite,supplement FROM term_card_preferences WHERE term_id=?").get(row.id);
     return {
       id: row.id,
       term,
       explanation,
-      supplement: row.supplement,
+      supplement: String(preferences?.supplement ?? row.supplement),
+      favorite: preferences ? preferences.favorite === 1 : true,
+      revision: Number(preferences?.revision ?? 0),
       provider: row.provider,
       model: row.model,
-      source: { ...spec3, quote_hash: row.quote_hash, origin: sourceUrl(spec3) },
+      source: { ...spec3, quote_hash: row.quote_hash, origin: sourceUrl(spec3), ...excerpt ? { excerpt } : {} },
       created_at: row.created_at
     };
   }
@@ -4180,16 +4183,41 @@ var TermStore = class {
       return row ? this.view(db, actor2, row, now) : void 0;
     });
   }
+  replaySave(session, id6, supplement) {
+    return this.tx("read", (db, now) => {
+      const actor2 = this.actor(session, now), row = this.row(db, actor2, id6);
+      if (!row) throw new AssetError(404, "TERM_EXPLANATION_NOT_FOUND");
+      const term = this.view(db, actor2, row, now);
+      if (row.supplement !== supplement) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
+      return { term, replayed: true };
+    });
+  }
+  update(session, id6, change) {
+    return this.tx("write", (db, now) => {
+      const actor2 = this.actor(session, now), row = this.row(db, actor2, id6);
+      if (!row) throw new AssetError(404, "TERM_EXPLANATION_NOT_FOUND");
+      const before = this.view(db, actor2, row, now);
+      if (change.expected_revision !== before.revision) throw new AssetError(409, "TERM_REVISION_CONFLICT");
+      const favorite = change.favorite ?? before.favorite, supplement = change.supplement ?? before.supplement;
+      if (favorite === before.favorite && supplement === before.supplement) return before;
+      db.prepare(`INSERT INTO term_card_preferences(term_id,service_id,owner_id,revision,favorite,supplement)
+        VALUES(?,?,?,?,?,?) ON CONFLICT(term_id) DO UPDATE SET
+        revision=excluded.revision,favorite=excluded.favorite,supplement=excluded.supplement`).run(id6, actor2.serviceId, actor2.userId, before.revision + 1, Number(favorite), supplement);
+      return this.view(db, actor2, row, now);
+    });
+  }
   knowledgeSource(db, actor2, id6, now) {
     const row = this.row(db, actor2, id6);
     if (!row) throw new AssetError(404, "SOURCE_NOT_FOUND");
     return this.view(db, actor2, row, now);
   }
-  list(session, asset, version) {
+  list(session, asset, version, archived = false) {
     return this.tx("read", (db, now) => {
       const actor2 = this.actor(session, now);
       this.citations.validateTaskMaterial(db, actor2, { asset_id: asset, version_id: version, ordinal: 1 }, now);
-      const rows = db.prepare("SELECT * FROM saved_terms WHERE service_id=? AND owner_id=? AND asset_id=? AND version_id=? ORDER BY created_at DESC,id DESC LIMIT 100").all(actor2.serviceId, actor2.userId, asset, version);
+      const rows = db.prepare(`SELECT t.* FROM saved_terms t LEFT JOIN term_card_preferences p ON p.term_id=t.id
+        WHERE t.service_id=? AND t.owner_id=? AND t.asset_id=? AND t.version_id=? AND coalesce(p.favorite,1)=?
+        ORDER BY t.created_at DESC,t.id DESC LIMIT 100`).all(actor2.serviceId, actor2.userId, asset, version, archived ? 0 : 1);
       return rows.flatMap((row) => {
         try {
           return [this.view(db, actor2, row, now)];
@@ -4224,7 +4252,7 @@ var TermStore = class {
         source2.end,
         source2.source_hash,
         source2.quote_hash,
-        JSON.stringify({ term: card.term, explanation: card.explanation }),
+        JSON.stringify({ term: card.term, explanation: card.explanation, excerpt: termWindow(source2, verified).source.excerpt }),
         supplement,
         card.provider,
         card.model,
@@ -4841,6 +4869,25 @@ var hintText = {
   2: "\u9010\u4E00\u6838\u5BF9\u4F60\u7684\u5019\u9009\u7B54\u6848\u662F\u5426\u6EE1\u8DB3\u6240\u6709\u9650\u5236\u3002\u5199\u4E0B\u6BCF\u9879\u80FD\u6210\u7ACB\u6216\u5E94\u6392\u9664\u7684\u7406\u7531\u3002"
 };
 
+// src/host/term-practice.ts
+var TERM_PRACTICE_SCHEMA = `
+CREATE UNIQUE INDEX saved_terms_identity ON saved_terms(id,service_id,owner_id);
+CREATE TABLE term_card_preferences (
+  term_id TEXT PRIMARY KEY, service_id TEXT NOT NULL, owner_id TEXT NOT NULL,
+  revision INTEGER NOT NULL CHECK(revision>=1), favorite INTEGER NOT NULL CHECK(favorite IN (0,1)),
+  supplement TEXT NOT NULL,
+  FOREIGN KEY(term_id,service_id,owner_id) REFERENCES saved_terms(id,service_id,owner_id)
+) STRICT;
+CREATE TABLE term_practice_origins (
+  session_id TEXT PRIMARY KEY, service_id TEXT NOT NULL, user_id TEXT NOT NULL, term_id TEXT NOT NULL,
+  FOREIGN KEY(session_id,service_id,user_id) REFERENCES practice_sessions(id,service_id,user_id),
+  FOREIGN KEY(term_id,service_id,user_id) REFERENCES saved_terms(id,service_id,owner_id)
+) STRICT;
+`;
+function coversTerm(citation, term) {
+  return citation.asset_id === term.asset_id && citation.version_id === term.version_id && citation.ordinal === term.ordinal && (citation.conversion_id ?? null) === (term.conversion_id ?? null) && citation.source_hash === term.source_hash && citation.start <= term.start && citation.end >= term.end;
+}
+
 // src/host/practice-store.ts
 var PRACTICE_SCHEMA = `
 CREATE TABLE questions (
@@ -4911,11 +4958,12 @@ var gradingExplanation = {
   [fillRule]: "\u6309 NFKC \u89C4\u8303\u5316\u3001\u5408\u5E76\u7A7A\u767D\u5E76\u5FFD\u7565\u5927\u5C0F\u5199\u540E\u4E0E\u4FDD\u5B58\u7684\u7B54\u6848\u9010\u4E00\u6BD4\u8F83\uFF0C\u672A\u5339\u914D\u7684\u8868\u8FBE\u7B49\u5F85\u590D\u6838\u3002"
 };
 var PracticeStore = class {
-  constructor(tx, current, canUseProject, citations) {
+  constructor(tx, current, canUseProject, citations, terms) {
     this.tx = tx;
     this.current = current;
     this.canUseProject = canUseProject;
     this.citations = citations;
+    this.terms = terms;
   }
   actor(prior, now) {
     const actor2 = this.current(prior, now);
@@ -4978,13 +5026,20 @@ var PracticeStore = class {
     if (!question || !this.visible(actor2, question, now)) throw missingQuestion();
     return { question, version, citation: this.source(db, actor2, version, now) };
   }
-  catalog(prior) {
+  favoriteTerm(db, actor2, id6, now) {
+    const term = this.terms.knowledgeSource(db, actor2, id6, now);
+    if (!term.favorite) throw new AssetError(409, "TERM_NOT_FAVORITE");
+    return term;
+  }
+  catalog(prior, termId) {
     return this.tx("read", (db, now) => {
       const actor2 = this.actor(prior, now);
+      const term = termId ? this.favoriteTerm(db, actor2, termId, now) : void 0;
       const rows = db.prepare("SELECT * FROM questions WHERE service_id=? AND (author_id=? OR project_id IS NOT NULL) ORDER BY created_at DESC,id").all(actor2.serviceId, actor2.userId);
       const questions = rows.flatMap((question) => {
         if (!this.visible(actor2, question, now)) return [];
         const version = this.version(db, question.current_version_id);
+        if (term && !coversTerm(JSON.parse(version.evidence_json), term.source)) return [];
         try {
           this.source(db, actor2, version, now);
           return [this.learner(db, question, version)];
@@ -4994,7 +5049,7 @@ var PracticeStore = class {
         }
       });
       const projects = db.prepare("SELECT id,name AS title FROM knowledge_projects WHERE service_id=? AND status='active' ORDER BY name,id").all(actor2.serviceId).filter((project) => this.canUseProject(actor2, String(project.id), now));
-      return { questions, projects };
+      return { questions, projects, ...term ? { term_origin: { id: term.id, term: term.term, origin: term.source.origin } } : {} };
     });
   }
   authored(prior, id6) {
@@ -5058,9 +5113,17 @@ var PracticeStore = class {
   inSession(db, actor2, id6, now) {
     return db.prepare("SELECT question_version_id FROM practice_session_questions WHERE session_id=? ORDER BY position").all(id6).map((row) => this.accessVersion(db, actor2, String(row.question_version_id), now));
   }
-  session(db, row) {
+  session(db, row, actor2, now) {
+    const origin4 = db.prepare("SELECT term_id FROM term_practice_origins WHERE session_id=? AND service_id=? AND user_id=?").get(row.id, actor2.serviceId, actor2.userId);
+    const term = origin4 ? this.terms.knowledgeSource(db, actor2, String(origin4.term_id), now) : void 0;
     const quick = db.prepare("SELECT coverage_json FROM quick_practice_runs WHERE session_id=?").get(row.id);
-    return { id: row.id, started_at: row.started_at, mode: row.mode, ...quick ? { quick_coverage: JSON.parse(String(quick.coverage_json)) } : {} };
+    return {
+      id: row.id,
+      started_at: row.started_at,
+      mode: row.mode,
+      ...term ? { term_origin: { id: term.id, term: term.term, origin: term.source.origin } } : {},
+      ...quick ? { quick_coverage: JSON.parse(String(quick.coverage_json)) } : {}
+    };
   }
   listSessions(prior) {
     return this.tx("read", (db, now) => {
@@ -5069,7 +5132,7 @@ var PracticeStore = class {
       return rows.flatMap((row) => {
         try {
           const questions = this.inSession(db, actor2, row.id, now);
-          return [{ ...this.session(db, row), count: questions.length, title: questions[0]?.version.prompt }];
+          return [{ ...this.session(db, row, actor2, now), count: questions.length, title: questions[0]?.version.prompt }];
         } catch (error) {
           if (error instanceof AssetError && error.status === 404) return [];
           throw error;
@@ -5077,19 +5140,26 @@ var PracticeStore = class {
       });
     });
   }
-  createSession(prior, key, versions, mode = "standard") {
+  createSession(prior, key, versions, mode = "standard", termId) {
     return this.tx("write", (db, now) => {
-      const actor2 = this.actor(prior, now), digest5 = hash4(mode === "standard" ? versions : [mode, versions]);
+      const actor2 = this.actor(prior, now);
+      const digest5 = hash4(termId ? ["term", termId, mode, versions] : mode === "standard" ? versions : [mode, versions]);
       const old = db.prepare("SELECT id,started_at,request_digest,mode FROM practice_sessions WHERE service_id=? AND user_id=? AND request_key=?").get(actor2.serviceId, actor2.userId, key);
       if (old) {
         this.inSession(db, actor2, old.id, now);
         if (old.request_digest !== digest5) throw conflict3();
-        return { session: this.session(db, old), replayed: true };
+        return { session: this.session(db, old, actor2, now), replayed: true };
       }
-      for (const id6 of versions) this.accessVersion(db, actor2, id6, now);
+      const term = termId ? this.favoriteTerm(db, actor2, termId, now) : void 0;
+      for (const id6 of versions) {
+        const { question, version, citation } = this.accessVersion(db, actor2, id6, now);
+        if (term && !coversTerm(citation, term.source)) throw missingQuestion();
+        if (term && question.current_version_id !== version.id) throw new AssetError(409, "QUESTION_VERSION_CHANGED");
+      }
       if (mode === "guided" && versions.length !== 1) throw new AssetError(422, "GUIDED_REQUIRES_ONE_QUESTION");
       const row = this.insertSession(db, actor2, now, key, digest5, versions, mode);
-      return { session: this.session(db, row), replayed: false };
+      if (term) db.prepare("INSERT INTO term_practice_origins(session_id,service_id,user_id,term_id) VALUES(?,?,?,?)").run(row.id, actor2.serviceId, actor2.userId, term.id);
+      return { session: this.session(db, row, actor2, now), replayed: false };
     });
   }
   insertSession(db, actor2, now, key, digest5, versions, mode = "standard") {
@@ -5272,11 +5342,11 @@ var PracticeStore = class {
       const reused = db.prepare("SELECT id FROM practice_transfers WHERE service_id=? AND user_id=? AND start_key=?").get(actor2.serviceId, actor2.userId, key);
       if (reused && reused.id !== id6) throw conflict3();
       if (view.limit_reason) throw new AssetError(409, view.limit_reason);
-      if (row.started_session_id) return { session: this.session(db, this.practice(db, actor2, row.started_session_id)), transfer: view, replayed: true };
+      if (row.started_session_id) return { session: this.session(db, this.practice(db, actor2, row.started_session_id), actor2, now), transfer: view, replayed: true };
       if (row.available_at > now) throw new AssetError(409, "TRANSFER_NOT_DUE");
       const session = this.insertSession(db, actor2, now, randomUUID15(), hash4([id6, "transfer"]), [row.target_version_id], "transfer");
       if (Number(db.prepare("UPDATE practice_transfers SET started_session_id=?,start_key=?,started_at=? WHERE id=? AND started_session_id IS NULL").run(session.id, key, now, id6).changes) !== 1) throw new AssetError(409, "REVISION_CONFLICT");
-      return { session: this.session(db, session), transfer: this.transferView(db, actor2, this.transfer(db, actor2, id6), now), replayed: false };
+      return { session: this.session(db, session, actor2, now), transfer: this.transferView(db, actor2, this.transfer(db, actor2, id6), now), replayed: false };
     });
   }
   dispute(prior, key, sessionId, versionId, reason) {
@@ -5417,6 +5487,19 @@ var PracticeStore = class {
       const actor2 = this.actor(prior, now);
       const attempts = db.prepare(`SELECT a.*,v.question_id FROM practice_attempts a JOIN question_versions v ON v.id=a.question_version_id
         WHERE a.service_id=? AND a.user_id=? ORDER BY a.submitted_at,a.rowid`).all(actor2.serviceId, actor2.userId);
+      const linkedSessions = db.prepare(`SELECT DISTINCT a.question_version_id, o.session_id FROM term_practice_origins o
+        JOIN practice_attempts a ON a.session_id=o.session_id WHERE o.service_id=? AND o.user_id=? ORDER BY a.submitted_at DESC,a.rowid DESC`).all(actor2.serviceId, actor2.userId);
+      const termSessions = /* @__PURE__ */ new Map();
+      for (const link of linkedSessions) {
+        const versionId = String(link.question_version_id), sessionId = String(link.session_id);
+        if (termSessions.has(versionId)) continue;
+        try {
+          this.inSession(db, actor2, sessionId, now);
+          termSessions.set(versionId, sessionId);
+        } catch (error) {
+          if (!(error instanceof AssetError && error.status === 404)) throw error;
+        }
+      }
       const seen = /* @__PURE__ */ new Set();
       const items = attempts.flatMap((row) => {
         if (seen.has(row.question_id)) return [];
@@ -5428,6 +5511,7 @@ var PracticeStore = class {
             question: this.learner(db, question, version),
             attempt: { ...this.attempt(row, !!this.quickQuestion(db, version.id)), ...evaluation },
             session_id: row.session_id,
+            ...termSessions.has(version.id) ? { term_session_id: termSessions.get(version.id) } : {},
             ...evaluation,
             state: this.personalState(db, actor2, question.id)
           }];
@@ -5474,7 +5558,7 @@ var PracticeStore = class {
     if (!run.session_id) return { status: "insufficient", coverage, replayed: true };
     const session = this.practice(db, actor2, String(run.session_id));
     this.inSession(db, actor2, session.id, now);
-    return { status: "ready", session: this.session(db, session), coverage, replayed: true };
+    return { status: "ready", session: this.session(db, session, actor2, now), coverage, replayed: true };
   }
   quickReplay(prior, key, pinned) {
     return this.tx("read", (db, now) => {
@@ -5513,7 +5597,7 @@ var PracticeStore = class {
       insertRun(session.id);
       const metadata = db.prepare("INSERT INTO quick_practice_questions VALUES(?,?,?)");
       ids.forEach((id6, i) => metadata.run(id6, session.id, generated[i].quality));
-      return { status: "ready", session: this.session(db, session), coverage, replayed: false };
+      return { status: "ready", session: this.session(db, session, actor2, now), coverage, replayed: false };
     });
   }
   attempt(row, generated) {
@@ -5548,7 +5632,7 @@ var PracticeStore = class {
           feedback: this.visibleFeedback(db, practice, version, citation, attempts)
         };
       });
-      return { session: this.session(db, practice), questions };
+      return { session: this.session(db, practice, actor2, now), questions };
     });
   }
   submit(prior, key, id6, input) {
@@ -7451,7 +7535,8 @@ var InvitationStore = class {
 
 // src/host/storage.ts
 var APPLICATION_ID = 1263489841;
-var SCHEMA_VERSION = 42;
+var SCHEMA_VERSION = 43;
+var MIGRATION_V43_CHECKSUM = createHash19("sha256").update(TERM_PRACTICE_SCHEMA).digest("hex");
 var MIGRATION_V42_CHECKSUM = createHash19("sha256").update(PRACTICE_TRANSFER_SCHEMA).digest("hex");
 var MIGRATION_V41_CHECKSUM = createHash19("sha256").update(PRACTICE_REVIEW_SCHEMA).digest("hex");
 var MIGRATION_V40_CHECKSUM = createHash19("sha256").update(QUICK_PRACTICE_SCHEMA).digest("hex");
@@ -7761,7 +7846,7 @@ var ProbeStorage = class {
   terms = new TermStore(this.#assetTx, (s, now) => this.#currentActor(s, now), this.citations);
   knowledge = new KnowledgeStore(this.#assetTx, (s, now) => this.#currentActor(s, now), this.citations, this.notes, this.terms);
   ontology = new OntologyStore(this.#assetTx, (s, now) => this.#currentActor(s, now), this.knowledge, this.citations);
-  practice = new PracticeStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, p, now) => this.canCreateProjectObject(a, p, now), this.citations);
+  practice = new PracticeStore(this.#assetTx, (s, now) => this.#currentActor(s, now), (a, p, now) => this.canCreateProjectObject(a, p, now), this.citations, this.terms);
   recall = new RecallStore(
     this.#assetTx,
     (s, now) => this.#currentActor(s, now),
@@ -7886,6 +7971,7 @@ var ProbeStorage = class {
       if (priorVersion < 40) this.#migrateV40(db);
       if (priorVersion < 41) this.#migrateV41(db);
       if (priorVersion < 42) this.#migrateV42(db);
+      if (priorVersion < 43) this.#migrateV43(db);
       this.#verify(db, SCHEMA_VERSION);
       const facts = readDatabaseFacts(path2);
       const pragmas = this.#readPragmas(db);
@@ -8622,9 +8708,21 @@ var ProbeStorage = class {
       throw new RecordsError("STORAGE_INCOMPATIBLE", "practice transfer migration failed", false, { cause: e });
     }
   }
+  #migrateV43(db) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(TERM_PRACTICE_SCHEMA);
+      this.#injectFailure("v43:after-schema");
+      db.prepare("INSERT INTO schema_migrations VALUES(43,?,?)").run(MIGRATION_V43_CHECKSUM, (/* @__PURE__ */ new Date()).toISOString());
+      db.exec("PRAGMA user_version=43; COMMIT");
+    } catch (error) {
+      if (!this.#rollback(db)) throw this.#failure;
+      throw new RecordsError("STORAGE_INCOMPATIBLE", "term practice migration failed", false, { cause: error });
+    }
+  }
   #verify(db, version) {
     const facts = readDatabaseFacts(this.databasePath);
-    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM, MIGRATION_V35_CHECKSUM, MIGRATION_V36_CHECKSUM, MIGRATION_V37_CHECKSUM, MIGRATION_V38_CHECKSUM, MIGRATION_V39_CHECKSUM, MIGRATION_V40_CHECKSUM, MIGRATION_V41_CHECKSUM, MIGRATION_V42_CHECKSUM].slice(0, version - 5);
+    const checks = [MIGRATION_V6_CHECKSUM, MIGRATION_V7_CHECKSUM, MIGRATION_V8_CHECKSUM, MIGRATION_V9_CHECKSUM, MIGRATION_V10_CHECKSUM, MIGRATION_V11_CHECKSUM, MIGRATION_V12_CHECKSUM, MIGRATION_V13_CHECKSUM, MIGRATION_V14_CHECKSUM, MIGRATION_V15_CHECKSUM, MIGRATION_V16_CHECKSUM, MIGRATION_V17_CHECKSUM, MIGRATION_V18_CHECKSUM, MIGRATION_V19_CHECKSUM, MIGRATION_V20_CHECKSUM, MIGRATION_V21_CHECKSUM, MIGRATION_V22_CHECKSUM, MIGRATION_V23_CHECKSUM, MIGRATION_V24_CHECKSUM, MIGRATION_V25_CHECKSUM, MIGRATION_V26_CHECKSUM, MIGRATION_V27_CHECKSUM, MIGRATION_V28_CHECKSUM, MIGRATION_V29_CHECKSUM, MIGRATION_V30_CHECKSUM, MIGRATION_V31_CHECKSUM, MIGRATION_V32_CHECKSUM, MIGRATION_V33_CHECKSUM, MIGRATION_V34_CHECKSUM, MIGRATION_V35_CHECKSUM, MIGRATION_V36_CHECKSUM, MIGRATION_V37_CHECKSUM, MIGRATION_V38_CHECKSUM, MIGRATION_V39_CHECKSUM, MIGRATION_V40_CHECKSUM, MIGRATION_V41_CHECKSUM, MIGRATION_V42_CHECKSUM, MIGRATION_V43_CHECKSUM].slice(0, version - 5);
     if (facts.applicationId !== APPLICATION_ID || facts.userVersion !== version || facts.ledger.length !== version || checks.some((hash7, i) => facts.ledger[i + 5]?.version !== i + 6 || facts.ledger[i + 5]?.checksum !== hash7)) throw new RecordsError("STORAGE_INCOMPATIBLE", "database ownership/version verification failed");
     const reference = new DatabaseSync(":memory:");
     try {
@@ -8665,6 +8763,7 @@ var ProbeStorage = class {
       if (version >= 40) reference.exec(QUICK_PRACTICE_SCHEMA);
       if (version >= 41) reference.exec(PRACTICE_REVIEW_SCHEMA);
       if (version >= 42) reference.exec(PRACTICE_TRANSFER_SCHEMA);
+      if (version >= 43) reference.exec(TERM_PRACTICE_SCHEMA);
       const definitions = reference.prepare("SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").all();
       for (const { name: name2, sql } of definitions) {
         if (db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name2)?.sql !== sql) throw new RecordsError("STORAGE_INCOMPATIBLE", "jobs schema definition mismatch");
@@ -13413,7 +13512,9 @@ function buildReaderHtml() {
 <dt>专业定义</dt><dd id="term-professional"></dd><dt>易混概念</dt><dd id="term-confusions"></dd></dl>
 <p id="term-uncertainty" hidden></p><blockquote id="term-evidence" hidden></blockquote><a id="term-origin" hidden>查看原文位置</a><p><a id="term-knowledge" hidden>形成正式知识条目</a></p>
 <div id="term-saving"><label for="term-supplement">个人补充</label><textarea id="term-supplement" maxlength="1000"></textarea>
-<button id="term-save" type="button">保存到我的术语</button></div></div><ul id="term-list" hidden></ul></section><section id="annotations" aria-label="本处批注" hidden><p id="annotation-status" role="status"></p><ul id="annotation-items"></ul><form id="annotation-form" hidden><label for="annotation-body">批注正文</label><textarea id="annotation-body" maxlength="4000" required></textarea><label id="annotation-scope">可见范围 <select id="annotation-visibility"><option value="private">仅本人</option><option value="project">当前项目</option></select></label><div class="annotation-buttons"><button id="annotation-submit">保存批注</button><button type="button" id="annotation-rebase" hidden>读取最新版本并保留草稿</button><button type="button" id="annotation-cancel">取消</button></div></form></section></article></div></main><script>
+<button id="term-save" type="button">保存到我的术语</button><button id="term-edit" type="button" hidden>保存个人补充</button>
+<button id="term-favorite" type="button" hidden></button></div><p><a id="term-practice" hidden>练习这处术语</a></p></div>
+<button id="term-archive-toggle" type="button" hidden></button><ul id="term-list" hidden></ul></section><section id="annotations" aria-label="本处批注" hidden><p id="annotation-status" role="status"></p><ul id="annotation-items"></ul><form id="annotation-form" hidden><label for="annotation-body">批注正文</label><textarea id="annotation-body" maxlength="4000" required></textarea><label id="annotation-scope">可见范围 <select id="annotation-visibility"><option value="private">仅本人</option><option value="project">当前项目</option></select></label><div class="annotation-buttons"><button id="annotation-submit">保存批注</button><button type="button" id="annotation-rebase" hidden>读取最新版本并保留草稿</button><button type="button" id="annotation-cancel">取消</button></div></form></section></article></div></main><script>
 'use strict';
 const $=id=>document.getElementById(id), q=new URLSearchParams(location.search), asset=q.get('asset'), version=q.get('version'), cid=q.get('citation');
 const requestedUnit=q.get('unit')??'1', requestedConversion=q.get('conversion');
@@ -13428,7 +13529,7 @@ const readerPath='assets/'+asset+'/versions/'+version+'/reader';
 let continuity=null, outlineLoaded=false, busy=false;
 let annotationPanel=false, annotationDraft=null, annotationBusy=false, annotationSequence=0, suspendedDraft=null;
 let expirationTimer=null;
-let termSequence=0, termRequest=null, termResult=null, termTrigger=null;
+let termSequence=0, termRequest=null, termResult=null, termTrigger=null, savedTerm=null;
 const readingStatus=s=>{$('reading-status').textContent=s};
 async function api(path,options){
   const r=await fetch('/knowledge/v1/'+path,{credentials:'same-origin',cache:'no-store',redirect:'error',...options});
@@ -13686,10 +13787,10 @@ function capture(){
   $('term-explain').disabled=!selection||end-start>64;quickButtons(page,selection);
 }
 function clearTerms(restore=false){
-  const control=termTrigger;termTrigger=null;termSequence++;termRequest?.abort();termRequest=null;termResult=null;
+  const control=termTrigger;termTrigger=null;termSequence++;termRequest?.abort();termRequest=null;termResult=null;savedTerm=null;
   for(const id of ['term-status','term-context','term-plain','term-professional','term-confusions','term-uncertainty','term-evidence','term-list'])$(id).textContent='';
-  for(const id of ['term-panel','term-result','term-uncertainty','term-evidence','term-list','term-origin','term-knowledge','term-saving'])$(id).hidden=true;
-  $('term-origin').removeAttribute('href');$('term-knowledge').removeAttribute('href');$('term-supplement').value='';$('term-title').textContent='语境术语';$('term-save').disabled=true;
+  for(const id of ['term-panel','term-result','term-uncertainty','term-evidence','term-list','term-origin','term-knowledge','term-practice','term-archive-toggle','term-saving'])$(id).hidden=true;
+  $('term-practice').removeAttribute('href');$('term-origin').removeAttribute('href');$('term-knowledge').removeAttribute('href');$('term-supplement').value='';$('term-title').textContent='语境术语';$('term-save').disabled=true;
   if(restore)(control&&!control.disabled?control:$('text')).focus({preventScroll:true});
 }
 function openTerms(trigger){
@@ -13704,11 +13805,13 @@ function termError(e,run){
     MODEL_NOT_CONFIGURED:'暂未配置术语解释模型。',CREDENTIALS_MISSING:'模型凭据未配置。',MODEL_OUTPUT_INVALID:'模型返回的解释无法核验。',
     MODEL_TIMEOUT:'解释请求超时。',MODEL_OUTPUT_TRUNCATED:'模型未在输出上限内完成解释。',MODEL_OUTPUT_EMPTY:'模型未返回解释。',MODEL_OUTPUT_INCOMPLETE:'模型未完成解释。',
     CITATION_SOURCE_CHANGED:'固定来源已变化，请重新选择。',TERM_EXPLANATION_NOT_FOUND:'临时解释已过期，请重新选择。',
+    TERM_REVISION_CONFLICT:'术语已在其他页面更新。请重新打开，核对后再保存。',
     TERM_QUOTA:'此版本的个人术语已达上限。',PROVIDER_RATE_LIMITED:'模型请求过多，请稍后再试。'};
   $('term-status').textContent=errors[e.code]||'当前无法读取或保存术语。';
 }
 const termHeaders=actor=>({'Content-Type':'application/json','X-KnowledgeOS-Request':'1','X-KnowledgeOS-Reader-Actor':actor});
-function paintTerm(card,temporary){
+function paintTerm(card,temporary,run){
+  savedTerm=temporary?null:{card,run};$('term-archive-toggle').hidden=true;
   const x=card.explanation,s=card.source;if(!x||!s||typeof s.origin!=='string'||!s.origin.startsWith('/knowledgeos/reader?'))throw invalid();
   $('term-title').textContent=card.term;$('term-context').textContent=x.context;$('term-plain').textContent=x.plain;
   $('term-professional').textContent=x.professional;$('term-confusions').textContent=x.confusions.map(v=>v.term+' · '+v.distinction).join('\n')||'暂无已区分的概念。';
@@ -13717,8 +13820,12 @@ function paintTerm(card,temporary){
   $('term-origin').href=s.origin;$('term-origin').hidden=false;$('term-list').hidden=true;$('term-result').hidden=false;
   const knowledge=$('term-knowledge');knowledge.hidden=temporary||!uuid(card.id);
   if(knowledge.hidden)knowledge.removeAttribute('href');else knowledge.href='/knowledgeos/knowledge?'+new URLSearchParams({term:card.id});
-  $('term-saving').hidden=!temporary;$('term-save').disabled=!temporary;$('term-supplement').value=card.supplement||'';
-  $('term-status').textContent=temporary?'解释已生成，可保存为个人术语。':(card.supplement?'个人补充 · '+card.supplement:'已保存到我的术语。');
+  $('term-saving').hidden=false;$('term-save').hidden=!temporary;$('term-save').disabled=!temporary;
+  $('term-edit').hidden=$('term-favorite').hidden=temporary;$('term-edit').disabled=$('term-favorite').disabled=false;
+  $('term-favorite').textContent=card.favorite?'取消收藏':'恢复收藏';$('term-supplement').value=card.supplement||'';
+  const practice=$('term-practice');practice.hidden=temporary||!card.favorite;
+  if(practice.hidden)practice.removeAttribute('href');else practice.href='/knowledgeos/practice?'+new URLSearchParams({term:card.id});
+  $('term-status').textContent=temporary?'解释已生成，可保存为个人术语。':(card.favorite?'已收藏。':'已取消收藏，仍可回看已有练习。');
 }
 async function explainTerms(){
   const range=selection,d=page;
@@ -13733,7 +13840,7 @@ async function explainTerms(){
     const s=card.source;
     if(card.actor_id!==run.actor||!uuid(card.explanation_id)||!s||s.asset_id!==asset||s.version_id!==version||s.ordinal!==d.ordinal||
         s.start!==range.start||s.end!==range.end||s.source_hash!==source_hash||s.quote!==d.text.slice(range.start,range.end)||(s.conversion_id??null)!==(d.conversion_id??null))throw invalid();
-    termResult={run,card};paintTerm(card,true);
+    termResult={run,card};paintTerm(card,true,run);
   }catch(e){termError(e,run)}
 }
 async function saveTerm(){
@@ -13746,18 +13853,35 @@ async function saveTerm(){
       body:JSON.stringify({explanation_id:card.explanation_id,...(supplement?{supplement}:{})})});
     if(!termCurrent(run)||!await access(run.g)||!termCurrent(run))return;
     if(data.actor_id!==run.actor||data.term?.id!==card.explanation_id)throw invalid();
-    termResult=null;paintTerm(data.term,false);
+    termResult=null;paintTerm(data.term,false,run);
   }catch(e){
     if(termCurrent(run))$('term-save').disabled=false;
     termError(e,run);
   }
 }
-async function showTerms(){
-  if(!page||!owner)return;
-  const run=openTerms('terms-open');$('term-title').textContent='我的术语';$('term-status').textContent='正在读取…';
+async function updateTerm(field){
+  const saved=savedTerm;if(!saved||!termCurrent(saved.run)||$('term-edit').disabled)return;
+  const {card,run}=saved, value=field==='supplement'?$('term-supplement').value:!card.favorite;
+  $('term-edit').disabled=$('term-favorite').disabled=true;
   try{
     if(!await access(run.g)||!termCurrent(run))return;
-    const data=await api('terms?'+new URLSearchParams({asset,version}),{signal:run.controller.signal});
+    const result=await api('terms/'+card.id,{method:'PATCH',headers:termHeaders(run.actor),signal:run.controller.signal,
+      body:JSON.stringify({expected_revision:card.revision,[field]:value})});
+    if(!termCurrent(run)||!await access(run.g)||!termCurrent(run)||saved!==savedTerm)return;
+    if(result.actor_id!==run.actor||result.term?.id!==card.id)throw invalid();
+    paintTerm(result.term,false,run);
+    if(field==='supplement')$('term-status').textContent='个人补充已保存。';
+  }catch(error){
+    if(termCurrent(run))$('term-edit').disabled=$('term-favorite').disabled=false;
+    termError(error,run);
+  }
+}
+async function showTerms(archived=false){
+  if(!page||!owner)return;
+  const run=openTerms('terms-open');$('term-title').textContent=archived?'已取消收藏':'我的术语';$('term-status').textContent='正在读取…';
+  try{
+    if(!await access(run.g)||!termCurrent(run))return;
+    const data=await api('terms?'+new URLSearchParams({asset,version,...(archived?{archived:'1'}:{})}),{signal:run.controller.signal});
     if(!termCurrent(run)||!await access(run.g)||!termCurrent(run))return;
     if(data.actor_id!==run.actor||!Array.isArray(data.terms))throw invalid();
     for(const card of data.terms){
@@ -13768,12 +13892,14 @@ async function showTerms(){
           const read=await api('terms/'+card.id,{signal:run.controller.signal});
           if(!termCurrent(run)||!await access(run.g)||!termCurrent(run))return;
           if(read.actor_id!==run.actor||read.term?.id!==card.id)throw invalid();
-          paintTerm(read.term,false);
+          paintTerm(read.term,false,run);
         }catch(e){termError(e,run)}
       };
-      li.append(button);$('term-list').append(li);
+      li.append(button,document.createTextNode(' · 第 '+card.source.ordinal+' 单元 · '+card.explanation.context));$('term-list').append(li);
     }
-    $('term-list').hidden=false;$('term-status').textContent=data.terms.length?'':'这一版本还没有保存的术语。';
+    const toggle=$('term-archive-toggle');toggle.hidden=false;toggle.textContent=archived?'查看已收藏':'查看已取消收藏';
+    toggle.onclick=()=>void showTerms(!archived);
+    $('term-list').hidden=false;$('term-status').textContent=data.terms.length?'':(archived?'这一版本没有已取消收藏的术语。':'这一版本还没有收藏的术语。');
   }catch(e){termError(e,run)}
 }
 async function createCitation(range=selection,announce=true){
@@ -13888,6 +14014,7 @@ for(const scope of ['paragraph','chapter','term']){
 $('cite').onpointerdown=e=>e.preventDefault();$('cite').onclick=()=>createCitation();document.addEventListener('selectionchange',capture);
 $('annotate').onpointerdown=e=>e.preventDefault();$('annotate').onclick=()=>{if(selection)void openAnnotations({...selection})};
 $('term-explain').onpointerdown=e=>e.preventDefault();$('term-explain').onclick=()=>void explainTerms();
+$('term-edit').onclick=()=>void updateTerm('supplement');$('term-favorite').onclick=()=>void updateTerm('favorite');
 $('terms-open').onclick=()=>void showTerms();$('term-save').onclick=()=>void saveTerm();$('term-close').onclick=()=>clearTerms(true);
 $('term-panel').addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();clearTerms(true)}});
 $('annotations-toggle').onclick=()=>{if(annotationPanel){if(!annotationBusy)clearAnnotations()}else void openAnnotations(null)};
@@ -14718,10 +14845,7 @@ var TermService = class {
     this.#sweep();
     const actor2 = current(), draft3 = this.#drafts.get(id6);
     if (!draft3 || draft3.actor.sessionId !== actor2.sessionId || draft3.actor.userId !== actor2.userId || draft3.actor.serviceId !== actor2.serviceId) {
-      const stored = this.store.find(actor2, id6);
-      if (!stored) throw new AssetError(404, "TERM_EXPLANATION_NOT_FOUND");
-      if (stored.supplement !== supplement) throw new AssetError(409, "IDEMPOTENCY_CONFLICT");
-      return { term: stored, replayed: true };
+      return this.store.replaySave(actor2, id6, supplement);
     }
     const witness = await this.reader.selectionWitness(current, draft3.card.source, signal);
     if (signal.aborted) throw cancelled();
@@ -14772,7 +14896,7 @@ function createTermHandler(store, reader, ai, origin4, actorFor, stopping) {
       if (url.origin !== base) throw new AssetError(403, "CSRF_REJECTED");
       const initial = actorFor(req);
       if (!initial) throw new AssetError(401, "AUTH_REQUIRED");
-      if (method === "POST" && uuid8(req.headers["x-knowledgeos-reader-actor"]) !== initial.userId) throw new AssetError(409, "READER_ACTOR_CHANGED");
+      if ((method === "POST" || method === "PATCH") && uuid8(req.headers["x-knowledgeos-reader-actor"]) !== initial.userId) throw new AssetError(409, "READER_ACTOR_CHANGED");
       const current = () => {
         const actor2 = actorFor(req);
         if (!actor2 || actor2.sessionId !== initial.sessionId || actor2.userId !== initial.userId || actor2.serviceId !== initial.serviceId)
@@ -14788,10 +14912,25 @@ function createTermHandler(store, reader, ai, origin4, actorFor, stopping) {
         const result = await service.save(current, uuid8(input.explanation_id), "supplement" in input ? textField(input.supplement, 1e3, true) : "", signal);
         return send(result.replayed ? 200 : 201, { data: { actor_id: current().userId, ...result } });
       }
-      if (url.pathname === termApi && method === "GET" && url.searchParams.size === 2) {
+      if (url.pathname.startsWith(termApi + "/") && method === "PATCH" && !url.search) {
+        const id6 = uuid8(url.pathname.slice(termApi.length + 1));
+        const change = fields3(await jsonBody2(req), ["expected_revision", "favorite", "supplement"]);
+        if (signal.aborted) throw cancelled();
+        if (!("favorite" in change || "supplement" in change) || "favorite" in change && typeof change.favorite !== "boolean") throw invalid12();
+        const actor2 = current();
+        const term = store.update(actor2, id6, {
+          expected_revision: integer2(change.expected_revision, 0, Number.MAX_SAFE_INTEGER),
+          ..."favorite" in change ? { favorite: change.favorite } : {},
+          ..."supplement" in change ? { supplement: textField(change.supplement, 1e3, true) } : {}
+        });
+        return send(200, { data: { actor_id: actor2.userId, term } });
+      }
+      if (url.pathname === termApi && method === "GET") {
+        const archived = url.searchParams.get("archived");
+        if (url.searchParams.size !== (archived === null ? 2 : 3) || archived !== null && archived !== "1") throw invalid12();
         const asset = uuid8(url.searchParams.get("asset")), version = uuid8(url.searchParams.get("version"));
         const actor2 = current();
-        return send(200, { data: { actor_id: actor2.userId, terms: store.list(actor2, asset, version) } });
+        return send(200, { data: { actor_id: actor2.userId, terms: store.list(actor2, asset, version, archived === "1") } });
       }
       if (url.pathname.startsWith(termApi + "/") && method === "GET" && !url.search) {
         const key = uuid8(url.pathname.slice(termApi.length + 1)), actor2 = current();
@@ -15662,7 +15801,8 @@ function createPracticeHandler(store, quick, origin4, actorFor, stopping) {
         throw new AssetError(403, "CSRF_REJECTED");
       const url = new URL(req.url ?? "/", base);
       if (url.origin !== base) throw new AssetError(403, "CSRF_REJECTED");
-      if (url.search) throw invalid15();
+      const termCatalog = method === "GET" && url.pathname === questionApi && url.searchParams.size === 1 && url.searchParams.has("term");
+      if (url.search && !termCatalog) throw invalid15();
       const prior = actorFor(req);
       if (!prior) throw new AssetError(401, "AUTH_REQUIRED");
       const current = () => {
@@ -15679,7 +15819,7 @@ function createPracticeHandler(store, quick, origin4, actorFor, stopping) {
       const state = path2.startsWith(stateApi + "/") && /^\/([a-f0-9-]+)$/.exec(path2.slice(stateApi.length));
       const transferStart = path2.startsWith(transferApi + "/") && /^\/([a-f0-9-]+)\/start$/.exec(path2.slice(transferApi.length));
       if (method === "GET") {
-        if (path2 === questionApi) return success(200, store.catalog(prior));
+        if (path2 === questionApi) return success(200, store.catalog(prior, termCatalog ? uuid11(url.searchParams.get("term")) : void 0));
         if (path2 === practiceApi) return success(200, { sessions: store.listSessions(prior) });
         if (path2 === reviewApi) return success(200, store.review(prior));
         if (path2 === transferApi) return success(200, store.listTransfers(prior));
@@ -15712,9 +15852,9 @@ function createPracticeHandler(store, quick, origin4, actorFor, stopping) {
         }
         if (path2 === questionApi) return recorded(store.createQuestion(actor2, key, questionDraft(body6)));
         if (path2 === practiceApi) {
-          const { question_version_ids, mode } = fields4(body6, ["question_version_ids", "mode"]);
+          const { question_version_ids, mode, term_id } = fields4(body6, ["question_version_ids", "mode", "term_id"]);
           if (mode !== void 0 && mode !== "standard" && mode !== "guided") throw invalid15();
-          return recorded(store.createSession(actor2, key, distinct(question_version_ids, 20, uuid11, (id6) => id6), mode));
+          return recorded(store.createSession(actor2, key, distinct(question_version_ids, 20, uuid11, (id6) => id6), mode, term_id === void 0 ? void 0 : uuid11(term_id)));
         }
         if (session) {
           const id6 = uuid11(session[1]);
@@ -15767,7 +15907,7 @@ fieldset{border:0;margin:0;padding:0;display:grid;gap:8px;min-width:0}label{disp
 </style></head><body><header><nav aria-label="\u4E1A\u52A1\u5BFC\u822A"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">\u77E5\u8BC6\u5E93</a><a href="/knowledgeos/knowledge">\u77E5\u8BC6\u6761\u76EE</a><a href="/knowledgeos/practice" aria-current="page">\u9898\u5E93\u4E0E\u7EC3\u4E60</a><a href="/knowledgeos/review">\u9519\u9898\u4E0E\u590D\u4E60</a><a href="/knowledgeos/transfer">\u8FC1\u79FB\u590D\u6D4B</a><a href="/knowledgeos/account">\u8D26\u53F7</a></nav></header>
 <main><h1>\u9898\u5E93\u4E0E\u7EC3\u4E60</h1><p id="practice-status" role="status">\u6B63\u5728\u8BFB\u53D6\u2026</p><a id="practice-login" href="/knowledgeos/account" hidden>\u767B\u5F55</a>
 <div id="practice-workspace" class="layout" hidden><aside>
-<section class="card"><h2>\u53EF\u7528\u9898\u76EE</h2><p class="subtle" id="practice-empty">\u6682\u65E0\u53EF\u7EC3\u4E60\u9898\u76EE\u3002</p><ul id="practice-questions"></ul><div class="actions"><button id="practice-start" type="button" disabled>\u5F00\u59CB\u7EC3\u4E60</button><button id="practice-start-guided" type="button" disabled>\u5F00\u59CB\u72EC\u7ACB\u4E0E\u63D0\u793A\u7EC3\u4E60</button></div></section>
+<section class="card"><h2 id="practice-catalog-title">\u53EF\u7528\u9898\u76EE</h2><p><a id="practice-term-reader" hidden>\u8FD4\u56DE\u672F\u8BED\u539F\u6587</a></p><p class="subtle" id="practice-empty">\u6682\u65E0\u53EF\u7EC3\u4E60\u9898\u76EE\u3002</p><ul id="practice-questions"></ul><div class="actions"><button id="practice-start" type="button" disabled>\u5F00\u59CB\u7EC3\u4E60</button><button id="practice-start-guided" type="button" disabled>\u5F00\u59CB\u72EC\u7ACB\u4E0E\u63D0\u793A\u7EC3\u4E60</button></div></section>
 <section class="card"><h2>\u6211\u7684\u7EC3\u4E60</h2><p class="subtle" id="practice-no-history">\u6682\u65E0\u7EC3\u4E60\u8BB0\u5F55\u3002</p><ul id="practice-history"></ul></section>
 </aside><div>
 <section class="card" id="quick-practice" hidden><h2>\u9605\u8BFB\u5FEB\u7B54</h2><p id="quick-scope"></p>
@@ -15801,6 +15941,7 @@ const $=id=>document.getElementById(id), bank='/knowledge/v1/questions', api='/k
 const kinds={choice:'\u9009\u62E9',judgment:'\u5224\u65AD',fill:'\u586B\u7A7A'};
 const grades={correct:'\u6B63\u786E',incorrect:'\u9519\u8BEF',disputed:'\u5F85\u590D\u6838'};
 const errors={INVALID_PRACTICE_INPUT:'\u8BF7\u6838\u5BF9\u9898\u578B\u3001\u9898\u5E72\u3001\u7B54\u6848\u548C\u56FA\u5B9A\u5F15\u7528\u3002',INVALID_PRACTICE_ANSWER:'\u8BF7\u6309\u5F53\u524D\u9898\u578B\u586B\u5199\u7B54\u6848\u3002',
+  SOURCE_NOT_FOUND:'\u8FD9\u5F20\u672F\u8BED\u5361\u6216\u539F\u6587\u5F53\u524D\u4E0D\u53EF\u8BBF\u95EE\u3002',TERM_NOT_FAVORITE:'\u8FD9\u5F20\u672F\u8BED\u5361\u5DF2\u53D6\u6D88\u6536\u85CF\uFF0C\u53EF\u4ECE\u9605\u8BFB\u5668\u6062\u590D\u3002',
   PRACTICE_NOT_FOUND:'\u6B64\u7EC3\u4E60\u5F53\u524D\u4E0D\u53EF\u8BBF\u95EE\u3002',QUESTION_NOT_FOUND:'\u6B64\u9898\u76EE\u6216\u5F15\u7528\u5F53\u524D\u4E0D\u53EF\u8BBF\u95EE\u3002',
   ATTEMPT_SEQUENCE_CONFLICT:'\u7B54\u6848\u8BB0\u5F55\u5DF2\u66F4\u65B0\uFF0C\u8BF7\u6838\u5BF9\u6700\u65B0\u4F5C\u7B54\u540E\u518D\u63D0\u4EA4\u3002',IDEMPOTENCY_CONFLICT:'\u540C\u4E00\u6B21\u63D0\u4EA4\u7684\u5185\u5BB9\u5DF2\u53D8\u5316\u3002',
   AUTH_REQUIRED:'\u8BF7\u5148\u767B\u5F55\u3002',ACTOR_CHANGED:'\u767B\u5F55\u8EAB\u4EFD\u5DF2\u53D8\u5316\uFF0C\u8BF7\u5237\u65B0\u3002',
@@ -15813,6 +15954,7 @@ const errors={INVALID_PRACTICE_INPUT:'\u8BF7\u6838\u5BF9\u9898\u578B\u3001\u9898
   FIRST_ANSWER_REQUIRED:'\u8BF7\u5148\u63D0\u4EA4\u72EC\u7ACB\u9996\u7B54\u3002',TRANSFER_HINTS_DISABLED:'\u8FC1\u79FB\u590D\u6D4B\u72EC\u7ACB\u5B8C\u6210\u3002'};
 const address=new URL(location.href), validId=/^[a-f0-9-]{36}$/;let citation=address.searchParams.get('citation');
 let active=address.searchParams.get('session');if(!validId.test(active||''))active=null;
+let termFilter=active?null:address.searchParams.get('term');
 let actor=null, versions=[], sessions=[], questions=[], picked=new Set(), version=null, busy=false, waiting=false;
 let practiceMode='standard';
 let epoch=0, reads=0, receipt=null, signature='', catalogSignature='', controller=null;
@@ -15843,6 +15985,7 @@ function clearDetail(){
 function clearAll(){
   epoch++;reads++;actor=null;catalogSignature='';versions=[];sessions=[];picked.clear();receipt=null;busy=false;waiting=false;
   controller?.abort();controller=null;clearDetail();$('practice-workspace').hidden=true;$('practice-author-form').reset();
+  $('practice-term-reader').hidden=true;$('practice-term-reader').removeAttribute('href');$('practice-catalog-title').textContent='\u53EF\u7528\u9898\u76EE';
   quickPreview=null;$('quick-coverage').textContent='';
   for(const id of ['practice-questions','practice-history','practice-project'])$(id).replaceChildren()
 }
@@ -15937,7 +16080,7 @@ async function load(force=false){
       if(error.status===404||error.status===409)return null;
       throw error;
     }):null;
-    const [catalog,history,current,keepsQuick]=await Promise.all([http(bank),http(api),details,checkedQuick?quickAccess(checkedQuick.input,actor):true]);
+    const [catalog,history,current,keepsQuick]=await Promise.all([http(termFilter===null?bank:bank+'?'+new URLSearchParams({term:termFilter})),http(api),details,checkedQuick?quickAccess(checkedQuick.input,actor):true]);
     if(g!==epoch||turn!==reads)return;
     if(catalog.actor_id!==history.actor_id||current&&current.actor_id!==catalog.actor_id||actor&&actor!==catalog.actor_id){
       clearAll();status(errors.ACTOR_CHANGED);return
@@ -15950,14 +16093,20 @@ async function load(force=false){
     $('quick-practice').hidden=!quickScope;
     if(quickScope){$('quick-scope').textContent=scopeLabels[quickScope];$('quick-units-label').hidden=quickScope!=='chapter'}
     if(citation&&validId.test(citation)){$('practice-citation').value=citation;$('practice-author').open=true;citation=null}
+    const term=catalog.term_origin;
+    $('practice-catalog-title').textContent=term?'\u300C'+term.term+'\u300D\u7684\u76F8\u5173\u9898\u76EE':'\u53EF\u7528\u9898\u76EE';
+    $('practice-term-reader').hidden=!term;
+    if(term)$('practice-term-reader').href=term.origin;else $('practice-term-reader').removeAttribute('href');
+    $('practice-empty').textContent=term?'\u8FD9\u5904\u672F\u8BED\u8FD8\u6CA1\u6709\u53EF\u7EC3\u7684\u9898\u76EE\u3002':'\u6682\u65E0\u53EF\u7EC3\u4E60\u9898\u76EE\u3002';
     renderCatalog(catalog.projects);
     if(id&&!current){
       clearDetail();active=null;receipt=null;status('\u7EC3\u4E60\u3001\u9898\u76EE\u6216\u6765\u6E90\u5DF2\u4E0D\u53EF\u8BBF\u95EE\u3002');return
     }
     const covered=current?.session.quick_coverage;
-    $('quick-session-coverage').hidden=$('quick-return-reader').hidden=!covered;
+    const returnHref=current?.session.term_origin?.origin||covered?.return_href;
+    $('quick-session-coverage').hidden=!covered;$('quick-return-reader').hidden=!returnHref;
     $('quick-session-coverage').textContent=covered?coverageText(covered):'';
-    if(covered)$('quick-return-reader').href=covered.return_href;else $('quick-return-reader').removeAttribute('href');
+    if(returnHref)$('quick-return-reader').href=returnHref;else $('quick-return-reader').removeAttribute('href');
     const next=JSON.stringify(current?.questions||[]);
     if(next!==signature){
       signature=next;questions=current?.questions||[];practiceMode=current?.session.mode||'standard';
@@ -15971,7 +16120,7 @@ async function load(force=false){
 }
 async function open(id){
   if(!validId.test(id))return;
-  reads++;clearDetail();active=id;receipt=null;address.searchParams.delete('citation');address.searchParams.set('session',id);
+  reads++;clearDetail();active=id;receipt=null;termFilter=null;address.searchParams.delete('term');address.searchParams.delete('citation');address.searchParams.set('session',id);
   if(quickScope){
     for(const name of ['quick','asset','version','unit','conversion','start','end','anchor'])address.searchParams.delete(name);
     quickScope=quickPreview=null;
@@ -16071,8 +16220,8 @@ $('practice-author-form').onsubmit=event=>{
   }else payload.answer=lines(raw);
   void write(bank,payload)
 };
-$('practice-start').onclick=()=>{if(picked.size)void write(api,{question_version_ids:[...picked]})};
-$('practice-start-guided').onclick=()=>{if(picked.size===1)void write(api,{question_version_ids:[...picked],mode:'guided'})};
+$('practice-start').onclick=()=>{if(picked.size)void write(api,{question_version_ids:[...picked],...(termFilter!==null?{term_id:termFilter}:{})})};
+$('practice-start-guided').onclick=()=>{if(picked.size===1)void write(api,{question_version_ids:[...picked],mode:'guided',...(termFilter!==null?{term_id:termFilter}:{})})};
 $('practice-hint').onclick=()=>{
   const question=currentQuestion();
   if(question&&active&&!$('practice-hint').hidden&&question.hints.length<2)
@@ -16287,7 +16436,7 @@ summary{cursor:pointer;font-weight:600}details>div{margin-top:10px}
 <section class="card"><h2>\u6211\u7684\u540E\u7EED\u590D\u4E60</h2><p class="subtle" id="review-no-queue">\u6682\u65E0\u5DF2\u5B89\u6392\u7684\u590D\u4E60\u3002</p><ul id="review-queue"></ul></section>
 </aside><div>
 <section class="card"><h2>\u5B66\u4E60\u65B9\u5411\u4E0E\u76EE\u6807</h2><p id="review-tracks"></p><p id="review-goal"></p><a href="/knowledgeos/account">\u8C03\u6574\u4E2A\u4EBA\u76EE\u6807</a></section>
-<section class="card" id="review-detail" hidden><h2 id="review-title"></h2><p id="review-classification"></p><p id="review-first"></p><p id="review-effective"></p><p><a id="review-attempt-link">\u67E5\u770B\u539F\u4F5C\u7B54</a></p>
+<section class="card" id="review-detail" hidden><h2 id="review-title"></h2><p id="review-classification"></p><p id="review-first"></p><p id="review-effective"></p><p><a id="review-attempt-link">\u67E5\u770B\u539F\u4F5C\u7B54</a> <a id="review-term-session" hidden>\u56DE\u770B\u672F\u8BED\u7EC3\u4E60</a></p>
 <form id="review-form"><fieldset id="review-fields"><label>\u4E2A\u4EBA\u9519\u56E0\u6216\u590D\u4E60\u7B14\u8BB0<textarea id="review-reason" maxlength="1000"></textarea></label>
 <label>\u590D\u4E60\u72B6\u6001<select id="review-mastery"><option value="new">\u672A\u5F00\u59CB</option><option value="reviewing">\u590D\u4E60\u4E2D</option><option value="mastered">\u5DF2\u638C\u63E1</option></select></label>
 <label>\u4E0B\u6B21\u590D\u4E60\u65F6\u95F4<input id="review-date" type="datetime-local"></label><button id="review-save" type="submit">\u4FDD\u5B58\u4E2A\u4EBA\u5B89\u6392</button></fieldset></form></section>
@@ -16322,7 +16471,7 @@ async function http(path,init={}){
 function clearOwn(){
   selected=null;$('review-detail').hidden=true;$('review-form').reset();
   for(const id of ['review-title','review-classification','review-first','review-effective'])$(id).textContent='';
-  $('review-attempt-link').removeAttribute('href');
+  $('review-attempt-link').removeAttribute('href');$('review-term-session').removeAttribute('href');$('review-term-session').hidden=true;
 }
 function clearAuthor(){
   managedToken++;managed=null;$('review-correction').hidden=true;$('review-correction').reset();$('review-old-rubric').textContent='';
@@ -16343,6 +16492,8 @@ function renderItem(reset=true){
   $('review-effective').textContent=item.evaluation_status==='paused'?'\u5F53\u524D\u8BC4\u4EF7\u6682\u505C':
     item.evaluation_status==='corrected'?'\u4FEE\u8BA2\u540E\u5224\u5B9A\uFF1A'+grades[item.effective_grading]:'\u5F53\u524D\u5224\u5B9A\uFF1A'+grades[item.effective_grading];
   $('review-attempt-link').href='/knowledgeos/practice?'+new URLSearchParams({session:item.session_id});
+  const linked=$('review-term-session');linked.hidden=!item.term_session_id;
+  if(item.term_session_id)linked.href='/knowledgeos/practice?'+new URLSearchParams({session:item.term_session_id});else linked.removeAttribute('href');
   if(reset){
     $('review-reason').value=item.state.wrong_reason;$('review-mastery').value=item.state.mastery_state;$('review-date').value=inputDate(item.state.next_review_at);
   }

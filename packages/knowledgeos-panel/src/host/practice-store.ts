@@ -7,6 +7,8 @@ import type { ParseTx } from './parse-store.ts'
 import { exactRule, fillRule, normalizeFill, scoreAnswer, type Answer, type Confidence, type GradingState, type QuestionKind } from './practice-policy.ts'
 import type { GeneratedQuestion, QuickCoverage, QuickRange } from './quick-practice.ts'
 import { classifyPractice, hintText, type PersonalState, type ReviewDraft } from './practice-review.ts'
+import { coversTerm } from './term-practice.ts'
+import type { TermStore } from './term-store.ts'
 import type { Difficulty, PracticeMode, TransferDraft } from './practice-transfer.ts'
 
 export const PRACTICE_SCHEMA = `
@@ -105,7 +107,8 @@ const gradingExplanation = {
 
 export class PracticeStore {
   constructor(private readonly tx: ParseTx, private readonly current: (actor: SessionActor, now: string) => SessionActor | undefined,
-    private readonly canUseProject: (actor: SessionActor, id: string, now: string) => boolean, private readonly citations: CitationStore) {}
+    private readonly canUseProject: (actor: SessionActor, id: string, now: string) => boolean, private readonly citations: CitationStore,
+    private readonly terms: TermStore) {}
 
   private actor(prior: SessionActor, now: string) {
     const actor = this.current(prior, now)
@@ -161,20 +164,28 @@ export class PracticeStore {
     return { question, version, citation: this.source(db, actor, version, now) }
   }
 
-  catalog(prior: SessionActor) {
+  private favoriteTerm(db: DatabaseSync, actor: SessionActor, id: string, now: string) {
+    const term = this.terms.knowledgeSource(db, actor, id, now)
+    if (!term.favorite) throw new AssetError(409, 'TERM_NOT_FAVORITE')
+    return term
+  }
+
+  catalog(prior: SessionActor, termId?: string) {
     return this.tx('read', (db, now) => {
       const actor = this.actor(prior, now)
+      const term = termId ? this.favoriteTerm(db, actor, termId, now) : undefined
       const rows = db.prepare('SELECT * FROM questions WHERE service_id=? AND (author_id=? OR project_id IS NOT NULL) ORDER BY created_at DESC,id')
         .all(actor.serviceId, actor.userId) as unknown as Question[]
       const questions = rows.flatMap(question => {
         if (!this.visible(actor, question, now)) return []
         const version = this.version(db, question.current_version_id)
+        if (term && !coversTerm(JSON.parse(version.evidence_json) as Citation, term.source)) return []
         try { this.source(db, actor, version, now); return [this.learner(db,question,version)] }
         catch (error) { if (error instanceof AssetError && error.status === 404) return []; throw error }
       })
       const projects = db.prepare("SELECT id,name AS title FROM knowledge_projects WHERE service_id=? AND status='active' ORDER BY name,id")
         .all(actor.serviceId).filter(project => this.canUseProject(actor, String(project.id), now))
-      return { questions, projects }
+      return { questions, projects, ...(term ? { term_origin: { id: term.id, term: term.term, origin: term.source.origin } } : {}) }
     })
   }
 
@@ -235,9 +246,13 @@ export class PracticeStore {
       .all(id).map(row => this.accessVersion(db, actor, String(row.question_version_id), now))
   }
 
-  private session(db:DatabaseSync,row: Practice) {
+  private session(db: DatabaseSync, row: Practice, actor: SessionActor, now: string) {
+    const origin = db.prepare('SELECT term_id FROM term_practice_origins WHERE session_id=? AND service_id=? AND user_id=?')
+      .get(row.id, actor.serviceId, actor.userId)
+    const term = origin ? this.terms.knowledgeSource(db, actor, String(origin.term_id), now) : undefined
     const quick=db.prepare('SELECT coverage_json FROM quick_practice_runs WHERE session_id=?').get(row.id)
-    return {id:row.id,started_at:row.started_at,mode:row.mode,...(quick?{quick_coverage:JSON.parse(String(quick.coverage_json)) as QuickCoverage}:{})}
+    return {id:row.id,started_at:row.started_at,mode:row.mode,
+      ...(term ? { term_origin: { id: term.id, term: term.term, origin: term.source.origin } } : {}), ...(quick?{quick_coverage:JSON.parse(String(quick.coverage_json)) as QuickCoverage}:{})}
   }
 
   listSessions(prior: SessionActor) {
@@ -248,26 +263,35 @@ export class PracticeStore {
       return rows.flatMap(row => {
         try {
           const questions = this.inSession(db, actor, row.id, now)
-          return [{ ...this.session(db,row), count: questions.length, title: questions[0]?.version.prompt }]
+          return [{ ...this.session(db,row,actor,now), count: questions.length, title: questions[0]?.version.prompt }]
         } catch (error) { if (error instanceof AssetError && error.status === 404) return []; throw error }
       })
     })
   }
 
-  createSession(prior: SessionActor, key: string, versions: string[], mode:'standard'|'guided'='standard') {
+  createSession(prior: SessionActor, key: string, versions: string[], mode:'standard'|'guided'='standard', termId?: string) {
     return this.tx('write', (db, now) => {
-      const actor=this.actor(prior,now),digest=hash(mode==='standard'?versions:[mode,versions])
+      const actor = this.actor(prior, now)
+      // Existing sessions keep their original receipt digest after the upgrade.
+      const digest = hash(termId ? ['term', termId, mode, versions] : mode === 'standard' ? versions : [mode, versions])
       const old = db.prepare('SELECT id,started_at,request_digest,mode FROM practice_sessions WHERE service_id=? AND user_id=? AND request_key=?')
         .get(actor.serviceId, actor.userId, key) as unknown as Practice | undefined
       if (old) {
         this.inSession(db, actor, old.id, now)
         if (old.request_digest !== digest) throw conflict()
-        return { session: this.session(db,old), replayed: true }
+        return { session: this.session(db,old,actor,now), replayed: true }
       }
-      for (const id of versions) this.accessVersion(db, actor, id, now)
+      const term = termId ? this.favoriteTerm(db, actor, termId, now) : undefined
+      for (const id of versions) {
+        const { question, version, citation } = this.accessVersion(db, actor, id, now)
+        if (term && !coversTerm(citation, term.source)) throw missingQuestion()
+        if (term && question.current_version_id !== version.id) throw new AssetError(409, 'QUESTION_VERSION_CHANGED')
+      }
       if(mode==='guided'&&versions.length!==1)throw new AssetError(422,'GUIDED_REQUIRES_ONE_QUESTION')
       const row=this.insertSession(db,actor,now,key,digest,versions,mode)
-      return { session:this.session(db,row),replayed:false }
+      if (term) db.prepare('INSERT INTO term_practice_origins(session_id,service_id,user_id,term_id) VALUES(?,?,?,?)')
+        .run(row.id, actor.serviceId, actor.userId, term.id)
+      return { session:this.session(db,row,actor,now),replayed:false }
     })
   }
 
@@ -463,12 +487,12 @@ export class PracticeStore {
       const reused=db.prepare('SELECT id FROM practice_transfers WHERE service_id=? AND user_id=? AND start_key=?').get(actor.serviceId,actor.userId,key)
       if(reused&&reused.id!==id)throw conflict()
       if(view.limit_reason)throw new AssetError(409,view.limit_reason)
-      if(row.started_session_id)return {session:this.session(db,this.practice(db,actor,row.started_session_id)),transfer:view,replayed:true}
+      if(row.started_session_id)return {session:this.session(db,this.practice(db,actor,row.started_session_id),actor,now),transfer:view,replayed:true}
       if(row.available_at>now)throw new AssetError(409,'TRANSFER_NOT_DUE')
       const session=this.insertSession(db,actor,now,randomUUID(),hash([id,'transfer']),[row.target_version_id],'transfer')
       if(Number(db.prepare('UPDATE practice_transfers SET started_session_id=?,start_key=?,started_at=? WHERE id=? AND started_session_id IS NULL')
         .run(session.id,key,now,id).changes)!==1)throw new AssetError(409,'REVISION_CONFLICT')
-      return {session:this.session(db,session),transfer:this.transferView(db,actor,this.transfer(db,actor,id),now),replayed:false}
+      return {session:this.session(db,session,actor,now),transfer:this.transferView(db,actor,this.transfer(db,actor,id),now),replayed:false}
     })
   }
 
@@ -586,6 +610,18 @@ export class PracticeStore {
       const actor=this.actor(prior,now)
       const attempts=db.prepare(`SELECT a.*,v.question_id FROM practice_attempts a JOIN question_versions v ON v.id=a.question_version_id
         WHERE a.service_id=? AND a.user_id=? ORDER BY a.submitted_at,a.rowid`).all(actor.serviceId,actor.userId) as unknown as (Attempt&{question_id:string})[]
+      const linkedSessions = db.prepare(`SELECT DISTINCT a.question_version_id, o.session_id FROM term_practice_origins o
+        JOIN practice_attempts a ON a.session_id=o.session_id WHERE o.service_id=? AND o.user_id=? ORDER BY a.submitted_at DESC,a.rowid DESC`)
+        .all(actor.serviceId, actor.userId)
+      const termSessions = new Map<string, string>()
+      for (const link of linkedSessions) {
+        const versionId = String(link.question_version_id), sessionId = String(link.session_id)
+        if (termSessions.has(versionId)) continue
+        try {
+          this.inSession(db, actor, sessionId, now)
+          termSessions.set(versionId, sessionId)
+        } catch (error) { if (!(error instanceof AssetError && error.status === 404)) throw error }
+      }
       const seen=new Set<string>()
       const items=attempts.flatMap(row=>{
         if(seen.has(row.question_id))return []
@@ -594,7 +630,8 @@ export class PracticeStore {
           seen.add(question.id)
           const evaluation=this.evaluation(db,actor,question,version,row,now)
           return [{question:this.learner(db,question,version),attempt:{...this.attempt(row,!!this.quickQuestion(db,version.id)),...evaluation},
-            session_id:row.session_id,...evaluation,state:this.personalState(db,actor,question.id)}]
+            session_id:row.session_id,...(termSessions.has(version.id) ? { term_session_id: termSessions.get(version.id) } : {}),
+            ...evaluation,state:this.personalState(db,actor,question.id)}]
         }catch(error){if(error instanceof AssetError&&error.status===404)return [];throw error}
       })
       const review_queue=items.filter(item=>item.state.next_review_at&&item.classification!=='disputed')
@@ -644,7 +681,7 @@ export class PracticeStore {
     if(!run.session_id)return {status:'insufficient',coverage,replayed:true} as const
     const session=this.practice(db,actor,String(run.session_id))
     this.inSession(db,actor,session.id,now)
-    return {status:'ready',session:this.session(db,session),coverage,replayed:true} as const
+    return {status:'ready',session:this.session(db,session,actor,now),coverage,replayed:true} as const
   }
 
   quickReplay(prior:SessionActor,key:string,pinned:QuickRange){
@@ -683,7 +720,7 @@ export class PracticeStore {
       insertRun(session.id)
       const metadata=db.prepare('INSERT INTO quick_practice_questions VALUES(?,?,?)')
       ids.forEach((id,i)=>metadata.run(id,session.id,generated[i]!.quality))
-      return {status:'ready',session:this.session(db,session),coverage,replayed:false} as const
+      return {status:'ready',session:this.session(db,session,actor,now),coverage,replayed:false} as const
     })
   }
 
@@ -709,7 +746,7 @@ export class PracticeStore {
             ...this.evaluation(db,actor,question,version,row,now)})),
           hints:this.hints(db,id,version.id),feedback:this.visibleFeedback(db,practice,version,citation,attempts) }
       })
-      return { session: this.session(db,practice), questions }
+      return { session: this.session(db,practice,actor,now), questions }
     })
   }
 

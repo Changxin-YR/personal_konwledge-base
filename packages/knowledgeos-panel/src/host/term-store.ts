@@ -39,6 +39,12 @@ interface StoredTerm {
   supplement: string; provider: string; model: string; created_at: string
 }
 
+export interface TermUpdate {
+  expected_revision: number
+  favorite?: boolean
+  supplement?: string
+}
+
 const sourceUrl = (spec: CitationSpec) => '/knowledgeos/reader?' + new URLSearchParams({
   asset: spec.asset_id, version: spec.version_id, unit: String(spec.ordinal), match: spec.start + ':' + spec.end + ':' + spec.source_hash,
   ...(spec.conversion_id ? { conversion: spec.conversion_id } : {}),
@@ -81,9 +87,12 @@ export class TermStore {
     const spec = { asset_id: row.asset_id, version_id: row.version_id, ordinal: row.ordinal, start: row.start, end: row.end, source_hash: row.source_hash,
       ...(row.conversion_id ? { conversion_id: row.conversion_id } : {}) }
     this.citations.checkStoredSelection(db, actor, { ...spec, quote_hash: row.quote_hash }, now)
-    const { term, explanation } = JSON.parse(row.explanation_json) as Pick<TermCard, 'term' | 'explanation'>
-    return { id: row.id, term, explanation, supplement: row.supplement, provider: row.provider, model: row.model,
-      source: { ...spec, quote_hash: row.quote_hash, origin: sourceUrl(spec) }, created_at: row.created_at }
+    const { term, explanation, excerpt } = JSON.parse(row.explanation_json) as Pick<TermCard, 'term' | 'explanation'> & { excerpt?: string }
+    const preferences = db.prepare('SELECT revision,favorite,supplement FROM term_card_preferences WHERE term_id=?').get(row.id)
+    return { id: row.id, term, explanation, supplement: String(preferences?.supplement ?? row.supplement),
+      favorite: preferences ? preferences.favorite === 1 : true, revision: Number(preferences?.revision ?? 0),
+      provider: row.provider, model: row.model,
+      source: { ...spec, quote_hash: row.quote_hash, origin: sourceUrl(spec), ...(excerpt ? { excerpt } : {}) }, created_at: row.created_at }
   }
 
   find(session: SessionActor, id: string) {
@@ -92,18 +101,46 @@ export class TermStore {
       return row ? this.view(db, actor, row, now) : undefined
     })
   }
+  replaySave(session: SessionActor, id: string, supplement: string) {
+    return this.tx('read', (db, now) => {
+      const actor = this.actor(session, now), row = this.row(db, actor, id)
+      if (!row) throw new AssetError(404, 'TERM_EXPLANATION_NOT_FOUND')
+      const term = this.view(db, actor, row, now)
+      if (row.supplement !== supplement) throw new AssetError(409, 'IDEMPOTENCY_CONFLICT')
+      return { term, replayed: true }
+    })
+  }
+
+  update(session: SessionActor, id: string, change: TermUpdate) {
+    return this.tx('write', (db, now) => {
+      const actor = this.actor(session, now), row = this.row(db, actor, id)
+      if (!row) throw new AssetError(404, 'TERM_EXPLANATION_NOT_FOUND')
+      const before = this.view(db, actor, row, now)
+      if (change.expected_revision !== before.revision) throw new AssetError(409, 'TERM_REVISION_CONFLICT')
+      const favorite = change.favorite ?? before.favorite, supplement = change.supplement ?? before.supplement
+      if (favorite === before.favorite && supplement === before.supplement) return before
+      db.prepare(`INSERT INTO term_card_preferences(term_id,service_id,owner_id,revision,favorite,supplement)
+        VALUES(?,?,?,?,?,?) ON CONFLICT(term_id) DO UPDATE SET
+        revision=excluded.revision,favorite=excluded.favorite,supplement=excluded.supplement`)
+        .run(id, actor.serviceId, actor.userId, before.revision + 1, Number(favorite), supplement)
+      return this.view(db, actor, row, now)
+    })
+  }
+
   knowledgeSource(db: DatabaseSync, actor: SessionActor, id: string, now: string) {
     const row = this.row(db, actor, id)
     if (!row) throw new AssetError(404, 'SOURCE_NOT_FOUND')
     return this.view(db, actor, row, now)
   }
 
-  list(session: SessionActor, asset: string, version: string) {
+  list(session: SessionActor, asset: string, version: string, archived = false) {
     return this.tx('read', (db, now) => {
       const actor = this.actor(session, now)
       this.citations.validateTaskMaterial(db, actor, { asset_id: asset, version_id: version, ordinal: 1 }, now)
-      const rows = db.prepare('SELECT * FROM saved_terms WHERE service_id=? AND owner_id=? AND asset_id=? AND version_id=? ORDER BY created_at DESC,id DESC LIMIT 100')
-        .all(actor.serviceId, actor.userId, asset, version) as unknown as StoredTerm[]
+      const rows = db.prepare(`SELECT t.* FROM saved_terms t LEFT JOIN term_card_preferences p ON p.term_id=t.id
+        WHERE t.service_id=? AND t.owner_id=? AND t.asset_id=? AND t.version_id=? AND coalesce(p.favorite,1)=?
+        ORDER BY t.created_at DESC,t.id DESC LIMIT 100`)
+        .all(actor.serviceId, actor.userId, asset, version, archived ? 0 : 1) as unknown as StoredTerm[]
       return rows.flatMap(row => {
         try { return [this.view(db, actor, row, now)] }
         catch (error) {
@@ -129,7 +166,7 @@ export class TermStore {
       if (Number(count) >= 100) throw new AssetError(409, 'TERM_QUOTA')
       db.prepare('INSERT INTO saved_terms VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(
         card.explanation_id, actor.serviceId, actor.userId, source.asset_id, source.version_id, source.conversion_id ?? null, source.ordinal,
-        source.start, source.end, source.source_hash, source.quote_hash, JSON.stringify({ term: card.term, explanation: card.explanation }),
+        source.start, source.end, source.source_hash, source.quote_hash, JSON.stringify({ term: card.term, explanation: card.explanation, excerpt: termWindow(source, verified).source.excerpt }),
         supplement, card.provider, card.model, now)
       return { term: this.view(db, actor, this.row(db, actor, card.explanation_id)!, now), replayed: false }
     })

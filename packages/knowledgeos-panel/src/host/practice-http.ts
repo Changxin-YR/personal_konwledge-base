@@ -174,7 +174,8 @@ export function createPracticeHandler(store: PracticeStore, quick: QuickPractice
         throw new AssetError(403, 'CSRF_REJECTED')
       const url = new URL(req.url ?? '/', base)
       if (url.origin !== base) throw new AssetError(403, 'CSRF_REJECTED')
-      if (url.search) throw invalid()
+      const termCatalog = method === 'GET' && url.pathname === questionApi && url.searchParams.size === 1 && url.searchParams.has('term')
+      if (url.search && !termCatalog) throw invalid()
       const prior = actorFor(req)
       if (!prior) throw new AssetError(401, 'AUTH_REQUIRED')
       const current=()=>{
@@ -191,7 +192,7 @@ export function createPracticeHandler(store: PracticeStore, quick: QuickPractice
       const state=path.startsWith(stateApi+'/')&&/^\/([a-f0-9-]+)$/.exec(path.slice(stateApi.length))
       const transferStart=path.startsWith(transferApi+'/')&&/^\/([a-f0-9-]+)\/start$/.exec(path.slice(transferApi.length))
       if (method === 'GET') {
-        if (path === questionApi) return success(200, store.catalog(prior))
+        if (path === questionApi) return success(200, store.catalog(prior, termCatalog ? uuid(url.searchParams.get('term')) : undefined))
         if (path === practiceApi) return success(200, { sessions: store.listSessions(prior) })
         if(path===reviewApi)return success(200,store.review(prior))
         if(path===transferApi)return success(200,store.listTransfers(prior))
@@ -221,9 +222,9 @@ export function createPracticeHandler(store: PracticeStore, quick: QuickPractice
         }
         if (path === questionApi) return recorded(store.createQuestion(actor, key, questionDraft(body)))
         if (path === practiceApi) {
-          const {question_version_ids,mode}=fields(body,['question_version_ids','mode'])
+          const {question_version_ids,mode,term_id}=fields(body,['question_version_ids','mode','term_id'])
           if(mode!==undefined&&mode!=='standard'&&mode!=='guided')throw invalid()
-          return recorded(store.createSession(actor,key,distinct(question_version_ids,20,uuid,id=>id),mode))
+          return recorded(store.createSession(actor,key,distinct(question_version_ids,20,uuid,id=>id),mode,term_id === undefined ? undefined : uuid(term_id)))
         }
         if(session){
           const id=uuid(session[1])

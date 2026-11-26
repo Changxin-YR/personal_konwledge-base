@@ -20,7 +20,7 @@ fieldset{border:0;margin:0;padding:0;display:grid;gap:8px;min-width:0}label{disp
 </style></head><body><header><nav aria-label="业务导航"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">知识库</a><a href="/knowledgeos/knowledge">知识条目</a><a href="/knowledgeos/practice" aria-current="page">题库与练习</a><a href="/knowledgeos/review">错题与复习</a><a href="/knowledgeos/transfer">迁移复测</a><a href="/knowledgeos/account">账号</a></nav></header>
 <main><h1>题库与练习</h1><p id="practice-status" role="status">正在读取…</p><a id="practice-login" href="/knowledgeos/account" hidden>登录</a>
 <div id="practice-workspace" class="layout" hidden><aside>
-<section class="card"><h2>可用题目</h2><p class="subtle" id="practice-empty">暂无可练习题目。</p><ul id="practice-questions"></ul><div class="actions"><button id="practice-start" type="button" disabled>开始练习</button><button id="practice-start-guided" type="button" disabled>开始独立与提示练习</button></div></section>
+<section class="card"><h2 id="practice-catalog-title">可用题目</h2><p><a id="practice-term-reader" hidden>返回术语原文</a></p><p class="subtle" id="practice-empty">暂无可练习题目。</p><ul id="practice-questions"></ul><div class="actions"><button id="practice-start" type="button" disabled>开始练习</button><button id="practice-start-guided" type="button" disabled>开始独立与提示练习</button></div></section>
 <section class="card"><h2>我的练习</h2><p class="subtle" id="practice-no-history">暂无练习记录。</p><ul id="practice-history"></ul></section>
 </aside><div>
 <section class="card" id="quick-practice" hidden><h2>阅读快答</h2><p id="quick-scope"></p>
@@ -54,6 +54,7 @@ const $=id=>document.getElementById(id), bank='/knowledge/v1/questions', api='/k
 const kinds={choice:'选择',judgment:'判断',fill:'填空'};
 const grades={correct:'正确',incorrect:'错误',disputed:'待复核'};
 const errors={INVALID_PRACTICE_INPUT:'请核对题型、题干、答案和固定引用。',INVALID_PRACTICE_ANSWER:'请按当前题型填写答案。',
+  SOURCE_NOT_FOUND:'这张术语卡或原文当前不可访问。',TERM_NOT_FAVORITE:'这张术语卡已取消收藏，可从阅读器恢复。',
   PRACTICE_NOT_FOUND:'此练习当前不可访问。',QUESTION_NOT_FOUND:'此题目或引用当前不可访问。',
   ATTEMPT_SEQUENCE_CONFLICT:'答案记录已更新，请核对最新作答后再提交。',IDEMPOTENCY_CONFLICT:'同一次提交的内容已变化。',
   AUTH_REQUIRED:'请先登录。',ACTOR_CHANGED:'登录身份已变化，请刷新。',
@@ -66,6 +67,7 @@ const errors={INVALID_PRACTICE_INPUT:'请核对题型、题干、答案和固定
   FIRST_ANSWER_REQUIRED:'请先提交独立首答。',TRANSFER_HINTS_DISABLED:'迁移复测独立完成。'};
 const address=new URL(location.href), validId=/^[a-f0-9-]{36}$/;let citation=address.searchParams.get('citation');
 let active=address.searchParams.get('session');if(!validId.test(active||''))active=null;
+let termFilter=active?null:address.searchParams.get('term');
 let actor=null, versions=[], sessions=[], questions=[], picked=new Set(), version=null, busy=false, waiting=false;
 let practiceMode='standard';
 let epoch=0, reads=0, receipt=null, signature='', catalogSignature='', controller=null;
@@ -96,6 +98,7 @@ function clearDetail(){
 function clearAll(){
   epoch++;reads++;actor=null;catalogSignature='';versions=[];sessions=[];picked.clear();receipt=null;busy=false;waiting=false;
   controller?.abort();controller=null;clearDetail();$('practice-workspace').hidden=true;$('practice-author-form').reset();
+  $('practice-term-reader').hidden=true;$('practice-term-reader').removeAttribute('href');$('practice-catalog-title').textContent='可用题目';
   quickPreview=null;$('quick-coverage').textContent='';
   for(const id of ['practice-questions','practice-history','practice-project'])$(id).replaceChildren()
 }
@@ -190,7 +193,7 @@ async function load(force=false){
       if(error.status===404||error.status===409)return null;
       throw error;
     }):null;
-    const [catalog,history,current,keepsQuick]=await Promise.all([http(bank),http(api),details,checkedQuick?quickAccess(checkedQuick.input,actor):true]);
+    const [catalog,history,current,keepsQuick]=await Promise.all([http(termFilter===null?bank:bank+'?'+new URLSearchParams({term:termFilter})),http(api),details,checkedQuick?quickAccess(checkedQuick.input,actor):true]);
     if(g!==epoch||turn!==reads)return;
     if(catalog.actor_id!==history.actor_id||current&&current.actor_id!==catalog.actor_id||actor&&actor!==catalog.actor_id){
       clearAll();status(errors.ACTOR_CHANGED);return
@@ -203,14 +206,20 @@ async function load(force=false){
     $('quick-practice').hidden=!quickScope;
     if(quickScope){$('quick-scope').textContent=scopeLabels[quickScope];$('quick-units-label').hidden=quickScope!=='chapter'}
     if(citation&&validId.test(citation)){$('practice-citation').value=citation;$('practice-author').open=true;citation=null}
+    const term=catalog.term_origin;
+    $('practice-catalog-title').textContent=term?'「'+term.term+'」的相关题目':'可用题目';
+    $('practice-term-reader').hidden=!term;
+    if(term)$('practice-term-reader').href=term.origin;else $('practice-term-reader').removeAttribute('href');
+    $('practice-empty').textContent=term?'这处术语还没有可练的题目。':'暂无可练习题目。';
     renderCatalog(catalog.projects);
     if(id&&!current){
       clearDetail();active=null;receipt=null;status('练习、题目或来源已不可访问。');return
     }
     const covered=current?.session.quick_coverage;
-    $('quick-session-coverage').hidden=$('quick-return-reader').hidden=!covered;
+    const returnHref=current?.session.term_origin?.origin||covered?.return_href;
+    $('quick-session-coverage').hidden=!covered;$('quick-return-reader').hidden=!returnHref;
     $('quick-session-coverage').textContent=covered?coverageText(covered):'';
-    if(covered)$('quick-return-reader').href=covered.return_href;else $('quick-return-reader').removeAttribute('href');
+    if(returnHref)$('quick-return-reader').href=returnHref;else $('quick-return-reader').removeAttribute('href');
     const next=JSON.stringify(current?.questions||[]);
     if(next!==signature){
       signature=next;questions=current?.questions||[];practiceMode=current?.session.mode||'standard';
@@ -224,7 +233,7 @@ async function load(force=false){
 }
 async function open(id){
   if(!validId.test(id))return;
-  reads++;clearDetail();active=id;receipt=null;address.searchParams.delete('citation');address.searchParams.set('session',id);
+  reads++;clearDetail();active=id;receipt=null;termFilter=null;address.searchParams.delete('term');address.searchParams.delete('citation');address.searchParams.set('session',id);
   if(quickScope){
     for(const name of ['quick','asset','version','unit','conversion','start','end','anchor'])address.searchParams.delete(name);
     quickScope=quickPreview=null;
@@ -324,8 +333,8 @@ $('practice-author-form').onsubmit=event=>{
   }else payload.answer=lines(raw);
   void write(bank,payload)
 };
-$('practice-start').onclick=()=>{if(picked.size)void write(api,{question_version_ids:[...picked]})};
-$('practice-start-guided').onclick=()=>{if(picked.size===1)void write(api,{question_version_ids:[...picked],mode:'guided'})};
+$('practice-start').onclick=()=>{if(picked.size)void write(api,{question_version_ids:[...picked],...(termFilter!==null?{term_id:termFilter}:{})})};
+$('practice-start-guided').onclick=()=>{if(picked.size===1)void write(api,{question_version_ids:[...picked],mode:'guided',...(termFilter!==null?{term_id:termFilter}:{})})};
 $('practice-hint').onclick=()=>{
   const question=currentQuestion();
   if(question&&active&&!$('practice-hint').hidden&&question.hints.length<2)

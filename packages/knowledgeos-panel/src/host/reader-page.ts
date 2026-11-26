@@ -15,7 +15,9 @@ export function buildReaderHtml(): string {
 <dt>专业定义</dt><dd id="term-professional"></dd><dt>易混概念</dt><dd id="term-confusions"></dd></dl>
 <p id="term-uncertainty" hidden></p><blockquote id="term-evidence" hidden></blockquote><a id="term-origin" hidden>查看原文位置</a><p><a id="term-knowledge" hidden>形成正式知识条目</a></p>
 <div id="term-saving"><label for="term-supplement">个人补充</label><textarea id="term-supplement" maxlength="1000"></textarea>
-<button id="term-save" type="button">保存到我的术语</button></div></div><ul id="term-list" hidden></ul></section><section id="annotations" aria-label="本处批注" hidden><p id="annotation-status" role="status"></p><ul id="annotation-items"></ul><form id="annotation-form" hidden><label for="annotation-body">批注正文</label><textarea id="annotation-body" maxlength="4000" required></textarea><label id="annotation-scope">可见范围 <select id="annotation-visibility"><option value="private">仅本人</option><option value="project">当前项目</option></select></label><div class="annotation-buttons"><button id="annotation-submit">保存批注</button><button type="button" id="annotation-rebase" hidden>读取最新版本并保留草稿</button><button type="button" id="annotation-cancel">取消</button></div></form></section></article></div></main><script>
+<button id="term-save" type="button">保存到我的术语</button><button id="term-edit" type="button" hidden>保存个人补充</button>
+<button id="term-favorite" type="button" hidden></button></div><p><a id="term-practice" hidden>练习这处术语</a></p></div>
+<button id="term-archive-toggle" type="button" hidden></button><ul id="term-list" hidden></ul></section><section id="annotations" aria-label="本处批注" hidden><p id="annotation-status" role="status"></p><ul id="annotation-items"></ul><form id="annotation-form" hidden><label for="annotation-body">批注正文</label><textarea id="annotation-body" maxlength="4000" required></textarea><label id="annotation-scope">可见范围 <select id="annotation-visibility"><option value="private">仅本人</option><option value="project">当前项目</option></select></label><div class="annotation-buttons"><button id="annotation-submit">保存批注</button><button type="button" id="annotation-rebase" hidden>读取最新版本并保留草稿</button><button type="button" id="annotation-cancel">取消</button></div></form></section></article></div></main><script>
 'use strict';
 const $=id=>document.getElementById(id), q=new URLSearchParams(location.search), asset=q.get('asset'), version=q.get('version'), cid=q.get('citation');
 const requestedUnit=q.get('unit')??'1', requestedConversion=q.get('conversion');
@@ -30,7 +32,7 @@ const readerPath='assets/'+asset+'/versions/'+version+'/reader';
 let continuity=null, outlineLoaded=false, busy=false;
 let annotationPanel=false, annotationDraft=null, annotationBusy=false, annotationSequence=0, suspendedDraft=null;
 let expirationTimer=null;
-let termSequence=0, termRequest=null, termResult=null, termTrigger=null;
+let termSequence=0, termRequest=null, termResult=null, termTrigger=null, savedTerm=null;
 const readingStatus=s=>{$('reading-status').textContent=s};
 async function api(path,options){
   const r=await fetch('/knowledge/v1/'+path,{credentials:'same-origin',cache:'no-store',redirect:'error',...options});
@@ -288,10 +290,10 @@ function capture(){
   $('term-explain').disabled=!selection||end-start>64;quickButtons(page,selection);
 }
 function clearTerms(restore=false){
-  const control=termTrigger;termTrigger=null;termSequence++;termRequest?.abort();termRequest=null;termResult=null;
+  const control=termTrigger;termTrigger=null;termSequence++;termRequest?.abort();termRequest=null;termResult=null;savedTerm=null;
   for(const id of ['term-status','term-context','term-plain','term-professional','term-confusions','term-uncertainty','term-evidence','term-list'])$(id).textContent='';
-  for(const id of ['term-panel','term-result','term-uncertainty','term-evidence','term-list','term-origin','term-knowledge','term-saving'])$(id).hidden=true;
-  $('term-origin').removeAttribute('href');$('term-knowledge').removeAttribute('href');$('term-supplement').value='';$('term-title').textContent='语境术语';$('term-save').disabled=true;
+  for(const id of ['term-panel','term-result','term-uncertainty','term-evidence','term-list','term-origin','term-knowledge','term-practice','term-archive-toggle','term-saving'])$(id).hidden=true;
+  $('term-practice').removeAttribute('href');$('term-origin').removeAttribute('href');$('term-knowledge').removeAttribute('href');$('term-supplement').value='';$('term-title').textContent='语境术语';$('term-save').disabled=true;
   if(restore)(control&&!control.disabled?control:$('text')).focus({preventScroll:true});
 }
 function openTerms(trigger){
@@ -306,11 +308,13 @@ function termError(e,run){
     MODEL_NOT_CONFIGURED:'暂未配置术语解释模型。',CREDENTIALS_MISSING:'模型凭据未配置。',MODEL_OUTPUT_INVALID:'模型返回的解释无法核验。',
     MODEL_TIMEOUT:'解释请求超时。',MODEL_OUTPUT_TRUNCATED:'模型未在输出上限内完成解释。',MODEL_OUTPUT_EMPTY:'模型未返回解释。',MODEL_OUTPUT_INCOMPLETE:'模型未完成解释。',
     CITATION_SOURCE_CHANGED:'固定来源已变化，请重新选择。',TERM_EXPLANATION_NOT_FOUND:'临时解释已过期，请重新选择。',
+    TERM_REVISION_CONFLICT:'术语已在其他页面更新。请重新打开，核对后再保存。',
     TERM_QUOTA:'此版本的个人术语已达上限。',PROVIDER_RATE_LIMITED:'模型请求过多，请稍后再试。'};
   $('term-status').textContent=errors[e.code]||'当前无法读取或保存术语。';
 }
 const termHeaders=actor=>({'Content-Type':'application/json','X-KnowledgeOS-Request':'1','X-KnowledgeOS-Reader-Actor':actor});
-function paintTerm(card,temporary){
+function paintTerm(card,temporary,run){
+  savedTerm=temporary?null:{card,run};$('term-archive-toggle').hidden=true;
   const x=card.explanation,s=card.source;if(!x||!s||typeof s.origin!=='string'||!s.origin.startsWith('/knowledgeos/reader?'))throw invalid();
   $('term-title').textContent=card.term;$('term-context').textContent=x.context;$('term-plain').textContent=x.plain;
   $('term-professional').textContent=x.professional;$('term-confusions').textContent=x.confusions.map(v=>v.term+' · '+v.distinction).join('\n')||'暂无已区分的概念。';
@@ -319,8 +323,12 @@ function paintTerm(card,temporary){
   $('term-origin').href=s.origin;$('term-origin').hidden=false;$('term-list').hidden=true;$('term-result').hidden=false;
   const knowledge=$('term-knowledge');knowledge.hidden=temporary||!uuid(card.id);
   if(knowledge.hidden)knowledge.removeAttribute('href');else knowledge.href='/knowledgeos/knowledge?'+new URLSearchParams({term:card.id});
-  $('term-saving').hidden=!temporary;$('term-save').disabled=!temporary;$('term-supplement').value=card.supplement||'';
-  $('term-status').textContent=temporary?'解释已生成，可保存为个人术语。':(card.supplement?'个人补充 · '+card.supplement:'已保存到我的术语。');
+  $('term-saving').hidden=false;$('term-save').hidden=!temporary;$('term-save').disabled=!temporary;
+  $('term-edit').hidden=$('term-favorite').hidden=temporary;$('term-edit').disabled=$('term-favorite').disabled=false;
+  $('term-favorite').textContent=card.favorite?'取消收藏':'恢复收藏';$('term-supplement').value=card.supplement||'';
+  const practice=$('term-practice');practice.hidden=temporary||!card.favorite;
+  if(practice.hidden)practice.removeAttribute('href');else practice.href='/knowledgeos/practice?'+new URLSearchParams({term:card.id});
+  $('term-status').textContent=temporary?'解释已生成，可保存为个人术语。':(card.favorite?'已收藏。':'已取消收藏，仍可回看已有练习。');
 }
 async function explainTerms(){
   const range=selection,d=page;
@@ -335,7 +343,7 @@ async function explainTerms(){
     const s=card.source;
     if(card.actor_id!==run.actor||!uuid(card.explanation_id)||!s||s.asset_id!==asset||s.version_id!==version||s.ordinal!==d.ordinal||
         s.start!==range.start||s.end!==range.end||s.source_hash!==source_hash||s.quote!==d.text.slice(range.start,range.end)||(s.conversion_id??null)!==(d.conversion_id??null))throw invalid();
-    termResult={run,card};paintTerm(card,true);
+    termResult={run,card};paintTerm(card,true,run);
   }catch(e){termError(e,run)}
 }
 async function saveTerm(){
@@ -348,18 +356,35 @@ async function saveTerm(){
       body:JSON.stringify({explanation_id:card.explanation_id,...(supplement?{supplement}:{})})});
     if(!termCurrent(run)||!await access(run.g)||!termCurrent(run))return;
     if(data.actor_id!==run.actor||data.term?.id!==card.explanation_id)throw invalid();
-    termResult=null;paintTerm(data.term,false);
+    termResult=null;paintTerm(data.term,false,run);
   }catch(e){
     if(termCurrent(run))$('term-save').disabled=false;
     termError(e,run);
   }
 }
-async function showTerms(){
-  if(!page||!owner)return;
-  const run=openTerms('terms-open');$('term-title').textContent='我的术语';$('term-status').textContent='正在读取…';
+async function updateTerm(field){
+  const saved=savedTerm;if(!saved||!termCurrent(saved.run)||$('term-edit').disabled)return;
+  const {card,run}=saved, value=field==='supplement'?$('term-supplement').value:!card.favorite;
+  $('term-edit').disabled=$('term-favorite').disabled=true;
   try{
     if(!await access(run.g)||!termCurrent(run))return;
-    const data=await api('terms?'+new URLSearchParams({asset,version}),{signal:run.controller.signal});
+    const result=await api('terms/'+card.id,{method:'PATCH',headers:termHeaders(run.actor),signal:run.controller.signal,
+      body:JSON.stringify({expected_revision:card.revision,[field]:value})});
+    if(!termCurrent(run)||!await access(run.g)||!termCurrent(run)||saved!==savedTerm)return;
+    if(result.actor_id!==run.actor||result.term?.id!==card.id)throw invalid();
+    paintTerm(result.term,false,run);
+    if(field==='supplement')$('term-status').textContent='个人补充已保存。';
+  }catch(error){
+    if(termCurrent(run))$('term-edit').disabled=$('term-favorite').disabled=false;
+    termError(error,run);
+  }
+}
+async function showTerms(archived=false){
+  if(!page||!owner)return;
+  const run=openTerms('terms-open');$('term-title').textContent=archived?'已取消收藏':'我的术语';$('term-status').textContent='正在读取…';
+  try{
+    if(!await access(run.g)||!termCurrent(run))return;
+    const data=await api('terms?'+new URLSearchParams({asset,version,...(archived?{archived:'1'}:{})}),{signal:run.controller.signal});
     if(!termCurrent(run)||!await access(run.g)||!termCurrent(run))return;
     if(data.actor_id!==run.actor||!Array.isArray(data.terms))throw invalid();
     for(const card of data.terms){
@@ -370,12 +395,14 @@ async function showTerms(){
           const read=await api('terms/'+card.id,{signal:run.controller.signal});
           if(!termCurrent(run)||!await access(run.g)||!termCurrent(run))return;
           if(read.actor_id!==run.actor||read.term?.id!==card.id)throw invalid();
-          paintTerm(read.term,false);
+          paintTerm(read.term,false,run);
         }catch(e){termError(e,run)}
       };
-      li.append(button);$('term-list').append(li);
+      li.append(button,document.createTextNode(' · 第 '+card.source.ordinal+' 单元 · '+card.explanation.context));$('term-list').append(li);
     }
-    $('term-list').hidden=false;$('term-status').textContent=data.terms.length?'':'这一版本还没有保存的术语。';
+    const toggle=$('term-archive-toggle');toggle.hidden=false;toggle.textContent=archived?'查看已收藏':'查看已取消收藏';
+    toggle.onclick=()=>void showTerms(!archived);
+    $('term-list').hidden=false;$('term-status').textContent=data.terms.length?'':(archived?'这一版本没有已取消收藏的术语。':'这一版本还没有收藏的术语。');
   }catch(e){termError(e,run)}
 }
 async function createCitation(range=selection,announce=true){
@@ -490,6 +517,7 @@ for(const scope of ['paragraph','chapter','term']){
 $('cite').onpointerdown=e=>e.preventDefault();$('cite').onclick=()=>createCitation();document.addEventListener('selectionchange',capture);
 $('annotate').onpointerdown=e=>e.preventDefault();$('annotate').onclick=()=>{if(selection)void openAnnotations({...selection})};
 $('term-explain').onpointerdown=e=>e.preventDefault();$('term-explain').onclick=()=>void explainTerms();
+$('term-edit').onclick=()=>void updateTerm('supplement');$('term-favorite').onclick=()=>void updateTerm('favorite');
 $('terms-open').onclick=()=>void showTerms();$('term-save').onclick=()=>void saveTerm();$('term-close').onclick=()=>clearTerms(true);
 $('term-panel').addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();clearTerms(true)}});
 $('annotations-toggle').onclick=()=>{if(annotationPanel){if(!annotationBusy)clearAnnotations()}else void openAnnotations(null)};
