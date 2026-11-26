@@ -170,7 +170,9 @@ export class PracticeStore {
       const id = randomUUID(), versionId = randomUUID()
       db.prepare('INSERT INTO questions VALUES(?,?,?,?,?,?,?,?)')
         .run(id, actor.serviceId, actor.userId, draft.project_id, versionId, now, key, digest)
-      db.prepare('INSERT INTO question_versions VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').run(
+      db.prepare(`INSERT INTO question_versions
+        (id,question_id,version,kind,prompt,options_json,answers_json,explanation,evidence_json,citation_id,grading_rule,created_by,created_at)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
         versionId, id, 1, draft.kind, draft.prompt, JSON.stringify(draft.options), JSON.stringify(draft.accepted), draft.explanation,
         JSON.stringify(citation), citation.id, draft.kind === 'fill' ? fillRule : exactRule, actor.userId, now)
       const question = { id, author_id: actor.userId, project_id: draft.project_id, current_version_id: versionId, request_digest: digest }

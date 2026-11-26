@@ -4939,7 +4939,9 @@ var PracticeStore = class {
       const citation = this.citations.knowledgeSource(db, actor2, draft3.source_citation_id, now);
       const id6 = randomUUID15(), versionId = randomUUID15();
       db.prepare("INSERT INTO questions VALUES(?,?,?,?,?,?,?,?)").run(id6, actor2.serviceId, actor2.userId, draft3.project_id, versionId, now, key, digest4);
-      db.prepare("INSERT INTO question_versions VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run(
+      db.prepare(`INSERT INTO question_versions
+        (id,question_id,version,kind,prompt,options_json,answers_json,explanation,evidence_json,citation_id,grading_rule,created_by,created_at)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
         versionId,
         id6,
         1,
