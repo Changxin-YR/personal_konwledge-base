@@ -9,8 +9,8 @@
     "path": "CODEX_START.md",
     "sha256": "a2e5986cfa81189aeae0c4b43ebfe4afd074aae9d5674e7ecf5e069c5d6ab530"
   },
-  "active_unit": "KNOW-003",
-  "unit_state": "passed",
+  "active_unit": "LEARN-001",
+  "unit_state": "in_progress",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Typed directed relations and evidence-bound proposal review passed on actual isolated Host and Chrome.",
+  "state_reason": "Build versioned practice questions and private first answers with post-commit feedback.",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -155,31 +155,21 @@
     "next_task": "LEARN-001"
   },
   "checkpoint": {
-    "unit_id": "KNOW-003",
-    "candidate_sha": "0c53da25dd4bc4c1cdcd7195053af480cfd0ff73",
-    "tree": "445c7afd12f39df8712d22b1124fdf9551c12225",
-    "source_tree": "dd336a9801280eaa417b26c8a70303cb010b12b6",
-    "entry_sha256": "d0ef059866195178c56e883138208f970ec919cc90ec2786386ac734a947bb12",
-    "build_sha256": "7ee362c3771489c9c563527fd66e279b04052205ee2e9d525f12c689f766552e",
-    "base_commit": "9e4de0a85c2fd21ef7ba8ed54a207d02e12d3a8b",
+    "unit_id": "LEARN-001",
+    "base_commit": "0517de9ab7a3799d3ce8463db9de068257c5c41c",
     "completed": [
-      "Versioned relation rules, manual and scoped model proposals, human confirmation/rejection/correction, immutable evidence and graph/list.",
-      "Native Tokease positive runs, separate native loopback adversarial cases, and SQLite v38 storage verification."
+      "Independent acceptance expectations for shared question versions and private first answers prepared."
     ],
     "test_results": {
-      "unit_acceptance": "PASS",
-      "T01": "PASS",
-      "T02": "PASS",
-      "A11": "PASS",
-      "independent": "PASS",
-      "A12": "NOT_RUN",
-      "A45": "NOT_RUN"
+      "unit_acceptance": "NOT_RUN",
+      "T01": "NOT_RUN",
+      "T02": "NOT_RUN",
+      "A13": "NOT_RUN",
+      "A14": "NOT_RUN"
     },
-    "evidence": "docs/evidence/KNOW-003/acceptance.json",
+    "evidence": "scripts/learn001/acceptance-plan.md",
     "defects": [],
-    "blocked_dependencies": [
-      "A12 still requires LIFE-003 deletion/restore integration; A45 remains the lifecycle integration gate."
-    ],
+    "blocked_dependencies": [],
     "next_task": "LEARN-001"
   }
 }
