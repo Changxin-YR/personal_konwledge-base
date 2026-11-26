@@ -9,8 +9,8 @@
     "path": "CODEX_START.md",
     "sha256": "a2e5986cfa81189aeae0c4b43ebfe4afd074aae9d5674e7ecf5e069c5d6ab530"
   },
-  "active_unit": "LEARN-006",
-  "unit_state": "passed",
+  "active_unit": "UI-001",
+  "unit_state": "in_progress",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Personal term cards, shared question versions, exact source navigation and private review verified.",
+  "state_reason": "Direct learning entry points in the library and today workspace.",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -152,26 +152,18 @@
     "next_task": "UI-001"
   },
   "checkpoint": {
-    "unit_id": "LEARN-006",
-    "candidate_sha": "5b9f50b6d9acb1ecc8ccf7329b2b53aea795685c",
-    "tree": "8debf34a467d1db9676b125514ed8d2e9ccc905f",
-    "source_tree": "a302f1b724089208229dac8af077b74a03689b6d",
-    "entry_sha256": "519d9c3631869782e54af9be588db5487200dfbecad663c41e4751e65741e4ba",
-    "build_sha256": "0ec4db9f0d39d121b9c4185583f098c33fa95e339eb30761244e22cdc2985038",
-    "base_commit": "0649220a90acdbc29b9f0853ba5a1e67a9538e4b",
+    "unit_id": "UI-001",
+    "base_commit": "868cd7c67d184384058465f4d0199833a0934338",
     "completed": [
-      "两名普通成员作答同一题版，甲保存独立首答、提示和辅助重答，乙保留自己的首答和阅读进度。",
-      "取消及恢复收藏、资料撤权、错误请求和服务重启后，原件、固定引用与已有作答均通过 SQLite 回读。"
+      "Recorded same-object and responsive navigation expectations before implementation."
     ],
     "test_results": {
-      "unit_acceptance": "PASS",
-      "T01": "PASS",
-      "T02": "PASS",
-      "P03": "PASS",
-      "A10": "PASS",
-      "independent": "PASS"
+      "unit_acceptance": "NOT_RUN",
+      "T01": "NOT_RUN",
+      "T02": "NOT_RUN",
+      "P01": "NOT_RUN"
     },
-    "evidence": "docs/evidence/LEARN-006/acceptance.json",
+    "evidence": "scripts/ui001/acceptance-plan.md",
     "defects": [],
     "blocked_dependencies": [],
     "next_task": "UI-001"
