@@ -1,4 +1,5 @@
 import { explainHtml, explainScript } from './repository-explanation-page.ts'
+import { moduleExplainHtml, moduleExplainScript } from './repository-module-explanation-page.ts'
 
 export function buildRepositoryHtml(nonce: string): string {
   return `<!doctype html>
@@ -6,7 +7,7 @@ export function buildRepositoryHtml(nonce: string): string {
 <title>仓库与代码 · KnowledgeOS</title>
 <style nonce="${nonce}">
 :root{font:15px/1.55 "Segoe UI","Microsoft YaHei UI",sans-serif;color:#233835;background:#f5f8f7}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}header{background:#fff;border-bottom:1px solid #d5e0dc}nav,main{max-width:1260px;margin:auto;padding:16px 24px}nav{display:flex;flex-wrap:wrap;align-items:center;gap:18px}nav strong{color:#184d44}a{color:#135f51;text-underline-offset:3px}h1{font-size:25px;margin:6px 0 10px}h2{font-size:17px;margin:0 0 8px}h3{font-size:15px;margin:0 0 8px}p{margin:0 0 8px}.badge{font-size:13px;color:#3b635a}#status{min-height:24px;color:#3b514c}.workspace{display:grid;grid-template-columns:minmax(215px,280px) minmax(0,1fr);gap:24px}.side,.content{min-width:0}.side{padding-right:18px;border-right:1px solid #d5e0dc}.section{margin:0 0 18px;padding:12px 0;border-bottom:1px solid #d5e0dc}.fields{border:0;padding:0;margin:0 0 8px;display:grid;grid-template-columns:minmax(0,2fr) minmax(90px,1fr) minmax(0,2fr);gap:10px;min-width:0}label{display:grid;gap:4px}input,select,button{font:inherit;color:inherit;border:1px solid #aabbaf;border-radius:5px;background:#fff;padding:6px 9px;max-width:100%}button{cursor:pointer;text-align:left}button:disabled{cursor:default;color:#63756f}button[type=submit]{background:#215f52;color:white;border-color:#215f52}button[aria-current=true]{background:#ddece7;border-color:#5c867a}summary{cursor:pointer;color:#3b635a}summary+div{display:grid;gap:6px;grid-template-columns:1fr 1fr;margin:8px 0}ul{list-style:none;padding:0;margin:5px 0}li{margin-bottom:4px;overflow-wrap:anywhere}li button{width:100%;white-space:normal}code,pre{font:13px/1.55 ui-monospace,Consolas,monospace;overflow-wrap:anywhere}pre{white-space:pre-wrap;background:#fff;border:1px solid #d5e0dc;border-radius:5px;padding:12px;max-height:520px;overflow:auto;margin:8px 0}.tree{max-height:420px;overflow:auto}.tree li{display:grid;grid-template-columns:minmax(0,1fr) minmax(75px,auto);gap:8px;align-items:center}.tree span:last-child{font-size:12px;color:#3b635a;white-space:nowrap}.snapshot-row small{display:block;overflow-wrap:anywhere}#commit{display:block;margin-bottom:6px}.file-facts{display:flex;flex-wrap:wrap;gap:8px 16px}
-#explain-panel{border-top:1px solid #d5e0dc;margin-top:16px;padding-top:16px}#explain-form{display:grid;gap:8px;justify-items:start}#explain-form>label{width:100%}.code-range{display:flex;gap:12px}.code-range input{width:7em}textarea{font:inherit;resize:vertical;border:1px solid #aabbaf;border-radius:5px;padding:7px}#explain-answer,#citation-box{overflow-wrap:anywhere}#explain-answer h3{margin-top:14px}#explain-facts{padding-left:24px}#explain-facts button{width:auto}#explain-status{margin-top:8px}#citation-box{border-left:3px solid #5c867a;padding-left:12px}
+#explain-panel{border-top:1px solid #d5e0dc;margin-top:16px;padding-top:16px}#explain-form{display:grid;gap:8px;justify-items:start}#explain-form>label{width:100%}.code-range{display:flex;gap:12px}.code-range input{width:7em}textarea{font:inherit;resize:vertical;border:1px solid #aabbaf;border-radius:5px;padding:7px}#explain-answer,#citation-box,#module-answer{overflow-wrap:anywhere}#explain-answer h3,#module-answer h3{margin-top:14px}#explain-facts,#module-facts{padding-left:24px}#explain-facts button,#module-facts button{width:auto}#explain-status,#module-status{margin-top:8px}#citation-box{border-left:3px solid #5c867a;padding-left:12px}#module-panel{border-top:1px solid #d5e0dc;margin-top:16px;padding-top:16px}#module-form{display:grid;gap:8px;justify-items:start}#module-form>label{width:100%}#module-sources{display:grid;gap:6px;padding:0}#module-sources li{display:flex;flex-wrap:wrap;align-items:center;gap:8px}#module-sources code{min-width:220px}.module-range{display:flex;gap:8px;flex-wrap:wrap}.module-range label{display:flex;align-items:center;gap:4px}.module-range input{width:6em}#module-flows section{border-left:3px solid #d5e0dc;padding-left:10px;margin:10px 0}
 @media(max-width:700px){nav,main{padding:12px 16px}.workspace,.fields{grid-template-columns:minmax(0,1fr)}.side{border:0;padding:0}.tree{max-height:280px}}
 </style></head><body>
 <header><nav aria-label="业务导航"><strong>KnowledgeOS</strong><a href="/knowledgeos/library">知识库</a><a href="/knowledgeos/repositories" aria-current="page">仓库与代码</a><a href="/knowledgeos/account">账号</a></nav></header>
@@ -22,7 +23,7 @@ export function buildRepositoryHtml(nonce: string): string {
 <button id="save" type="submit">保存固定快照</button></form></section>
 <section class="section" id="detail" hidden><h2 id="title"></h2><code id="commit"></code><p><a id="tree-link" target="_blank" rel="noopener noreferrer">查看固定提交</a></p><p class="badge" id="ref-facts"></p>
 <label>筛选路径<input id="filter" type="search" maxlength="160"></label><ul class="tree" id="tree" aria-label="仓库文件"></ul></section>
-<section class="section" id="file" hidden><h3 id="file-path"></h3><p class="file-facts"><code id="blob"></code><a id="blob-link" target="_blank" rel="noopener noreferrer">查看固定文件</a></p><pre id="file-text"></pre>${explainHtml}</section>
+<section class="section" id="file" hidden><h3 id="file-path"></h3><p class="file-facts"><code id="blob"></code><a id="blob-link" target="_blank" rel="noopener noreferrer">查看固定文件</a></p><pre id="file-text"></pre><button id="module-toggle" type="button" aria-pressed="false">加入模块讲解</button>${explainHtml}${moduleExplainHtml}</section>
 </div></div></main>
 <script nonce="${nonce}">
 'use strict';
@@ -32,7 +33,7 @@ const kinds={directory:'目录',symlink:'符号链接',submodule:'子模块',fil
 const platforms={github:'GitHub',gitlab:'GitLab',gitee:'Gitee'};
 function platformHints(){const selected=$('platform').value;$('repository').placeholder=selected==='gitlab'?'group/subgroup/project':'owner/repository';$('credential').placeholder=selected+'_example';}
 let actor, rows=[], selected, entries=[], files=[], busy=false, gated=false, generation=0, focusEpoch=0, controller=new AbortController();
-function clear(){closeCode();generation++;focusEpoch++;controller.abort();controller=new AbortController();actor=selected=undefined;rows=[];entries=[];files=[];busy=gated=false;$('connect').reset();platformHints();$('save').disabled=false;$('filter').value='';$('workspace').hidden=$('detail').hidden=$('file').hidden=true;
+function clear(){closeCode();resetModule();generation++;focusEpoch++;controller.abort();controller=new AbortController();actor=selected=undefined;rows=[];entries=[];files=[];busy=gated=false;$('connect').reset();platformHints();$('save').disabled=false;$('filter').value='';$('workspace').hidden=$('detail').hidden=$('file').hidden=true;
  for(const id of ['snapshots','title','commit','ref-facts','tree','file-path','blob','file-text'])$(id).textContent='';for(const id of ['tree-link','blob-link'])$(id).removeAttribute('href');}
 function noAccess(){clear();$('login').hidden=false;status('登录后读取仓库快照。');}
 async function request(url,method='GET',payload){const current=generation, response=await fetch(url,{method,redirect:'error',cache:'no-store',signal:controller.signal,headers:method==='GET'?{}:{'content-type':'application/json','x-knowledgeos-request':'1'},body:payload===undefined?undefined:JSON.stringify(payload)});
@@ -45,23 +46,25 @@ function tree(){const raw=$('filter').value.toLowerCase(), ul=$('tree');ul.repla
  const li=document.createElement('li');if(e.kind==='file'&&(e.size===null||e.size<=524288))button(li,e.path,false,()=>operation(()=>show(e.path)));else{const label=document.createElement('span');label.textContent=e.path;li.append(label);}
  const tag=document.createElement('span');tag.textContent=files.includes(e.path)?'已保存':(e.kind==='file'&&e.size>524288?'超出上限':kinds[e.kind]);li.append(tag);ul.append(li);}}
 async function list(){const data=await request(api);actor=data.actor_id;rows=data.snapshots;$('workspace').hidden=gated;$('login').hidden=true;snapshots();}
-async function open(id){closeCode();const data=await request(api+'/'+id); selected=id;entries=data.entries;files=data.files;const s=data.snapshot;
+async function open(id){closeCode();resetModule();const data=await request(api+'/'+id); selected=id;entries=data.entries;files=data.files;const s=data.snapshot;
  $('detail').hidden=false;$('file').hidden=true;$('file-text').textContent='';$('blob-link').removeAttribute('href');$('title').textContent=s.repository;$('commit').textContent=s.commit;$('tree-link').href=s.source_url;
  $('ref-facts').textContent=platforms[s.platform]+' · '+s.ref_kind+' · '+s.ref_value+(s.credential_ref?' · '+s.credential_ref:' · 匿名读取');$('filter').value='';snapshots();tree();status('已读取固定快照。');}
 async function show(path){closeCode();const base=api+'/'+selected+'/files';const data=files.includes(path)?await request(base+'?path='+encodeURIComponent(path)):await request(base,'POST',{actor_id:actor,path});
  if(!files.includes(path)){files.push(path);const line=[...$('tree').children].find(li=>li.firstElementChild.textContent===path);if(line)line.lastElementChild.textContent='已保存';}
  const f=data.file;$('file-path').textContent=f.path;$('blob').textContent=f.sha+' · '+f.size+' 字节';$('blob-link').href=f.source_url;
- $('file-text').textContent=f.text===null?'二进制文件，不预览。':f.text;$('file').hidden=false;selectCode(f);status('已读取固定文件。');}
+ $('file-text').textContent=f.text===null?'二进制文件，不预览。':f.text;$('file').hidden=false;selectCode(f);moduleCurrentFileButton(f);status('已读取固定文件。');}
 async function operation(work){if(busy)return;busy=true;const current=generation;$('save').disabled=true;
  try{await work();}catch(e){if(current===generation&&e.message!=='STALE')status(codeErrors[e.message]||errors[e.message]||'当前无法读取仓库。');}
  finally{if(current===generation){busy=false;$('save').disabled=false;}}}
 ${explainScript}
+${moduleExplainScript}
 $('platform').addEventListener('change',platformHints);$('filter').addEventListener('input',tree);$('connect').addEventListener('submit',event=>{event.preventDefault();void operation(async()=>{status('正在校验并保存快照…');
  const body={actor_id:actor,platform:$('platform').value,repository:$('repository').value.trim(),ref_kind:$('ref-kind').value,ref_value:$('ref').value.trim()};
  if($('credential').value)body.credential_ref=$('credential').value;if($('initial-path').value)body.path=$('initial-path').value;
  const data=await request(api,'POST',body);await list();await open(data.snapshot.id);if(body.path)await show(body.path);
 });});
 addEventListener('pagehide',clear);addEventListener('pageshow',()=>void operation(async()=>{await list();status('');await restoreCitation();}));
+$('module-toggle').addEventListener('click',()=>toggleModuleFile(openCode && {path:openCode.path,text:$('file-text').textContent,commit:openCode.commit,sha:openCode.blob_sha}));
 document.addEventListener('visibilitychange',async()=>{
  const epoch=++focusEpoch;
  if(document.visibilityState==='hidden'){if(actor){gated=true;$('workspace').hidden=true;}return;}

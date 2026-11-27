@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { CodeExplanationError } from '../domain/code-explanation.ts'
 import type { AiService } from './ai-service.ts'
 import { AiError } from './ai-tools.ts'
-import { codeLocation, explainPinnedCode, readCodeCitation } from './repository-explanation.ts'
+import { codeLocation, explainPinnedCode, explainPinnedModule, readCodeCitation } from './repository-explanation.ts'
 import { AssetError } from './asset-store.ts'
 import { badRepository, isRepositoryPath, repositoryName, repositoryRef } from './github-repository.ts'
 import { gitLabName } from './gitlab-repository.ts'
@@ -79,6 +79,16 @@ export function createRepositoryHandler(service: RepositoryService, origin: () =
             return live
           }
           const explanation = await explainPinnedCode(service.store, ai(), current, id(input.actor_id), snapshot, codeLocation(input), input.question, signal)
+          return result(200, { explanation })
+        }
+        if (parts[2] === 'module-explain' && method === 'POST' && !url.search) {
+          const input = await body(req, ['actor_id', 'sources', 'question'], 32_768)
+          const current = () => {
+            const live = actorFor(req)
+            if (!live || live.sessionId !== actor.sessionId || live.userId !== actor.userId || live.serviceId !== actor.serviceId) throw new AssetError(401, 'AUTH_REQUIRED')
+            return live
+          }
+          const explanation = await explainPinnedModule(service.store, ai(), current, id(input.actor_id), snapshot, input.sources, input.question, signal)
           return result(200, { explanation })
         }
         if (parts[2] === 'citation' && method === 'GET') {
