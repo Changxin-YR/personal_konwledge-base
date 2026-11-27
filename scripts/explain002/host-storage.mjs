@@ -1,21 +1,42 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
-import { COMMIT, FILES, REPOSITORY, SRC_TREE, TREE, TREE_FACTS, UNPINNED_BLOB, UNPINNED_PATH, gitOid, seedSnapshot } from './fixture.mjs'
+import { COMMIT, FILES, REPOSITORY, SRC_TREE, SOURCES, TREE, TREE_FACTS, UNPINNED_BLOB, UNPINNED_PATH, gitOid, seedSnapshot } from './fixture.mjs'
 
-export async function seedOwner(ProbeStorage, host, owner) {
-  const cookies = await owner.ctx.cookies(host.base + '/knowledge/v1/me')
-  const business = cookies.filter(cookie => /^kos_session_[0-9a-f]{16}$/.test(cookie.name) && cookie.path === '/knowledge/v1')
-  assert.equal(business.length, 1, 'one isolated business session expected')
-  const tokenHash = createHash('sha256').update(business[0].value).digest('hex')
-  const storage = new ProbeStorage({ dataDir: host.data })
-  try {
-    assert(storage.available)
+function sessionActor(ProbeStorage, host, owner) {
+  return owner.ctx.cookies(host.base + '/knowledge/v1/me').then(cookies => {
+    const business = cookies.filter(cookie => /^kos_session_[0-9a-f]{16}$/.test(cookie.name) && cookie.path === '/knowledge/v1')
+    assert.equal(business.length, 1, 'one isolated business session expected')
+    const tokenHash = createHash('sha256').update(business[0].value).digest('hex')
+    const storage = new ProbeStorage({ dataDir: host.data })
     const actor = storage.findActor(tokenHash, new Date().toISOString())
     assert(actor && actor.userId === owner.id)
+    return { storage, actor }
+  })
+}
+
+export async function seedOwner(ProbeStorage, host, owner) {
+  const { storage, actor } = await sessionActor(ProbeStorage, host, owner)
+  try {
+    assert(storage.available)
     return seedSnapshot(storage, actor).id
   } finally { storage.close() }
 }
+
+export async function seedFiles(ProbeStorage, host, owner, snapshot) {
+  const { storage, actor } = await sessionActor(ProbeStorage, host, owner)
+  try {
+    assert(storage.available)
+    const signal = new AbortController().signal
+    for (const selected of SOURCES) {
+      const fixture = FILES.find(file => file.path === selected.path)
+      const entry = TREE_FACTS.find(candidate => candidate.path === selected.path)
+      assert(fixture && entry)
+      storage.saveFile(actor, actor.userId, snapshot, { ...entry, sha: fixture.blob }, Buffer.from(fixture.source), signal)
+    }
+  } finally { storage.close() }
+}
+
 export function verifyDatabase(file, version, ownerId, snapshot, expectedFiles = 0) {
   const db = new DatabaseSync(file, { readOnly: true })
   try {

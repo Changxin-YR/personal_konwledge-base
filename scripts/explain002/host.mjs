@@ -8,7 +8,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { COMMIT, SOURCES, TREE_FACTS, QUESTION, modulePacket } from './fixture.mjs'
 import { API, askOnce, citationNegativeCases, clickAllFacts, isolatedContext, negativeCases, refusePage, restoreLink, savedRangeNegativeCases, selectFiles, signIn } from './host-browser.mjs'
-import { seedOwner, verifyDatabase } from './host-storage.mjs'
+import { seedFiles, seedOwner, verifyDatabase } from './host-storage.mjs'
 
 // Run from the candidate checkout itself. No provider credentials are handled by this runner.
 const root = realpathSync(fileURLToPath(new URL('../../', import.meta.url)))
@@ -142,6 +142,8 @@ try {
   mark('unauthorized identities, mismatched versions, unsaved file and line ranges')
   await negativeCases({ base: host.base, snapshot, owner, outsider, anonymous, pass })
   dispatchCount(await host.proof(), 0); pass('denials-before-arm', { dispatches: 0, ...storage() })
+  await seedFiles(ProbeStorage, host, owner, snapshot)
+  pass('fixture-files-seeded', storage(3))
   mark('UI file selection, one combined question, checked facts and business answer')
   await selectFiles(owner, host.base, snapshot); await capture(owner.page, 'selected-source')
   await savedRangeNegativeCases({ base: host.base, snapshot, owner, pass })
