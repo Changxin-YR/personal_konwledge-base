@@ -119,7 +119,6 @@ export async function negativeCases({ base, snapshot, owner, outsider, anonymous
     ['one-source', owner.ctx, owner.id, valid.slice(0, 1), 422, 'MODULE_SOURCES_INVALID'],
     ['unlisted-file', owner.ctx, owner.id, [...valid.slice(0, 2), { path: UNPINNED_PATH, start_line: 1, end_line: 1 }], 404, 'NOT_FOUND'],
     ['reversed-range', owner.ctx, owner.id, [...valid.slice(0, 2), { path: valid[2].path, start_line: 3, end_line: 1 }], 422, 'MODULE_RANGE_INVALID'],
-    ['past-end', owner.ctx, owner.id, [...valid.slice(0, 2), { path: valid[2].path, start_line: 1, end_line: 8 }], 422, 'MODULE_RANGE_INVALID'],
   ]
   for (const [name, ctx, actor, sources, status, code] of cases) {
     const post = await ctx.request.post(resource + '/module-explain', { headers: writeHeaders, data: { actor_id: actor, sources, question: QUESTION }, maxRedirects: 0 })
@@ -141,6 +140,19 @@ export async function citationNegativeCases({ base, snapshot, owner, pass }) {
   ]
   for (const [name, location, status, code] of cases) {
     const response = await owner.ctx.request.get(base + endpoint + '?' + new URLSearchParams(location), { maxRedirects: 0 })
+    verifyDenial(response.status(), await response.json(), status, code); pass(name, { status: response.status(), code })
+  }
+}
+
+export async function savedRangeNegativeCases({ base, snapshot, owner, pass }) {
+  const resource = base + REPOS + '/' + snapshot + '/module-explain'
+  const valid = SOURCES.map(item => ({ path: item.path, start_line: item.first, end_line: item.last }))
+  const cases = [
+    ['reversed-range-after-save', [...valid.slice(0, 2), { path: valid[2].path, start_line: 3, end_line: 1 }], 422, 'MODULE_RANGE_INVALID'],
+    ['past-end-after-save', [...valid.slice(0, 2), { path: valid[2].path, start_line: 1, end_line: 8 }], 422, 'MODULE_RANGE_INVALID'],
+  ]
+  for (const [name, sources, status, code] of cases) {
+    const response = await owner.ctx.request.post(resource, { headers: writeHeaders, data: { actor_id: owner.id, sources, question: QUESTION }, maxRedirects: 0 })
     verifyDenial(response.status(), await response.json(), status, code); pass(name, { status: response.status(), code })
   }
 }

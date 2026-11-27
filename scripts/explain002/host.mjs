@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { COMMIT, SOURCES, TREE_FACTS, QUESTION, modulePacket } from './fixture.mjs'
-import { API, askOnce, citationNegativeCases, clickAllFacts, isolatedContext, negativeCases, refusePage, restoreLink, selectFiles, signIn } from './host-browser.mjs'
+import { API, askOnce, citationNegativeCases, clickAllFacts, isolatedContext, negativeCases, refusePage, restoreLink, savedRangeNegativeCases, selectFiles, signIn } from './host-browser.mjs'
 import { seedOwner, verifyDatabase } from './host-storage.mjs'
 
 // Run from the candidate checkout itself. No provider credentials are handled by this runner.
@@ -145,6 +145,7 @@ try {
   dispatchCount(await host.proof(), 0); pass('denials-before-arm', { dispatches: 0, ...storage() })
   mark('UI file selection, one combined question, checked facts and business answer')
   await selectFiles(owner, host.base, snapshot); await capture(owner.page, 'selected-source')
+  await savedRangeNegativeCases({ base: host.base, snapshot, owner, pass })
   await host.arm({ stage: controller.stage, user: packet })
   const answer = await askOnce(owner, host.base, snapshot, actual => write('actual-answer.json', actual))
   await capture(owner.page, 'answer-groups')
