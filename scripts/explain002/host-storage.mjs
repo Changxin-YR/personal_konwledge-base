@@ -32,7 +32,7 @@ export async function seedFiles(ProbeStorage, host, owner, snapshot) {
       const fixture = FILES.find(file => file.path === selected.path)
       const entry = TREE_FACTS.find(candidate => candidate.path === selected.path)
       assert(fixture && entry)
-      storage.saveFile(actor, actor.userId, snapshot, { ...entry, sha: fixture.blob }, Buffer.from(fixture.source), signal)
+      storage.repositories.saveFile(actor, actor.userId, snapshot, { ...entry, sha: fixture.blob }, Buffer.from(fixture.source), signal)
     }
   } finally { storage.close() }
 }
