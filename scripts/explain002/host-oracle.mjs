@@ -80,7 +80,7 @@ export function verifyModuleAnswer(answer, snapshot) {
   assert(answer && typeof answer === 'object')
   assert.equal(answer.snapshot_id, snapshot)
   assert.equal(answer.commit, COMMIT)
-  assert.equal(answer.tree && JSON.stringify(answer.tree), JSON.stringify(TREE_FACTS), 'tree facts')
+  assert.equal(answer.tree, TREE, 'tree binding')
   for (const name of ['provider', 'model']) assert.equal(typeof answer[name] === 'string' && !!answer[name].trim(), true, 'missing ' + name)
   const expectedSources = SOURCES.map(item => ({ path: item.path, commit: COMMIT, blob_sha: item.blob, start_line: item.first, end_line: item.last, total_lines: FILES.find(file => file.path === item.path).lines.length }))
   assert.deepEqual(answer.sources, expectedSources, 'fixed module sources')
