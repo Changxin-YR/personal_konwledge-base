@@ -32,7 +32,7 @@ export function verifyDenial(status, payload, expected, code) {
     assert(!raw.includes('"' + key + '"'), 'denial returned ' + key)
   }
   for (const marker of [COMMIT, TREE, ...SOURCES.map(item => item.blob), ...FILES.slice(0, 3).flatMap(item => item.lines), UNPINNED_PATH, UNPINNED_BLOB]) {
-    assert(!raw.includes(marker), 'denial disclosed fixture bytes or location')
+    assert(!raw.includes(marker), 'denial disclosed fixture bytes or location: ' + marker)
   }
 }
 
