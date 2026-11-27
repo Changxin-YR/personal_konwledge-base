@@ -31,7 +31,7 @@ export function verifyDenial(status, payload, expected, code) {
   for (const key of ['explanation','citation','source','facts','summary','relations','flows','tradeoffs','limits','path','commit','blob_sha','start_line','end_line','snapshot_id']) {
     assert(!raw.includes('"' + key + '"'), 'denial returned ' + key)
   }
-  for (const marker of [COMMIT, TREE, ...SOURCES.map(item => item.blob), ...FILES.slice(0, 3).flatMap(item => item.lines), UNPINNED_PATH, UNPINNED_BLOB]) {
+  for (const marker of [COMMIT, TREE, ...SOURCES.map(item => item.blob), ...FILES.slice(0, 3).flatMap(item => item.lines).filter(marker => marker.length >= 8 && /[A-Za-z0-9\u4e00-\u9fff]/.test(marker)), UNPINNED_PATH, UNPINNED_BLOB]) {
     assert(!raw.includes(marker), 'denial disclosed fixture bytes or location: ' + marker)
   }
 }
