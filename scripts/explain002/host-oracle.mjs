@@ -24,7 +24,7 @@ export function verifyUrl(url, origin, pathname, expected) {
   for (const [key, value] of Object.entries(expected)) assert.deepEqual(target.searchParams.getAll(key), [String(value)], 'URL: ' + key)
 }
 export function verifyDenial(status, payload, expected, code) {
-  assert.equal(status, expected, 'denial HTTP status for ' + code)
+  assert.equal(status, expected, 'denial HTTP status for ' + code + ' actual=' + status + ' expected=' + expected)
   assert.equal(payload.code, code, 'business denial code')
   assert.equal(payload.data, undefined, 'denial returned business data')
   const raw = JSON.stringify(payload)
