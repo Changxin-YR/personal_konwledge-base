@@ -39,9 +39,9 @@ export async function selectFiles(owner, base, snapshot) {
   await page.bringToFront(); await page.goto(base + PAGE)
   const prefix = REPOS + '/' + snapshot
   const [detail] = await Promise.all([page.waitForResponse(isResponse(base, prefix, 'GET')), page.locator('#snapshots').getByRole('button', { name: new RegExp(REPOSITORY) }).click()])
-  const opened = await okData(detail, owner.id); assert.equal(opened.snapshot.id, snapshot); assert.deepEqual(opened.files, [])
+  const opened = await okData(detail, owner.id); assert.equal(opened.snapshot.id, snapshot); assert.deepEqual(opened.files, SOURCES.map(item => item.path))
   for (const file of FILES.slice(0, 3)) {
-    const [saved] = await Promise.all([page.waitForResponse(isResponse(base, prefix + '/files', 'POST')), page.locator('#tree').getByRole('button', { name: file.path, exact: true }).click()])
+    const [saved] = await Promise.all([page.waitForResponse(isResponse(base, prefix + '/files', 'GET')), page.locator('#tree').getByRole('button', { name: file.path, exact: true }).click()])
     const data = await okData(saved, owner.id); assert.equal(data.file.commit, COMMIT); assert.equal(data.file.text, source(file.path))
     await page.locator('#module-toggle').click()
     assert.equal(await page.locator('#module-sources li').count(), FILES.slice(0, FILES.indexOf(file) + 1).length)
