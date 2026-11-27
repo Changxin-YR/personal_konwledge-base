@@ -47,9 +47,11 @@ function verifyCallers(readings, limits) {
   }
 }
 function expectFee(readings, subtotal, expected) {
-  const pattern = new RegExp('(?<![0-9])' + subtotal + '(?![0-9])\\s*(?:→|⟶|->|=>|⇒|[:：]|(?:\\s*时[，,]?\\s*)?(?:的)?(?:实际)?(?:运费|返回值|费用|收费|返回)(?:\\s*(?:为|是|等于|=))?)\\s*([0-9]+(?:\\.[0-9]+)?)', 'gi')
+  // The acceptance question requires an explicit mapping. Do not treat prose such as
+  // "50 时返回 0" as the requested "50→0" result.
+  const pattern = new RegExp('(?<![0-9])' + subtotal + '(?![0-9])\\s*(?:→|⟶|->|=>|⇒)\\s*([0-9]+(?:\\.[0-9]+)?)', 'gi')
   const prices = Array.from(readings.matchAll(pattern), match => Number(match[1]))
-  assert(prices.includes(expected), 'interpretations must answer subtotal ' + subtotal + ' with fee ' + expected)
+  assert(prices.includes(expected), 'interpretations must answer subtotal ' + subtotal + ' with an explicit fee mapping')
   assert(prices.every(value => value === expected), 'contradictory fee for subtotal ' + subtotal)
 }
 export function verifyAnswer(answer, snapshot) {
@@ -65,6 +67,11 @@ export function verifyAnswer(answer, snapshot) {
     const id = fact.start_line + ':' + fact.end_line
     assert(!seen.has(id), 'duplicate fact'); seen.add(id)
   }
+  const factLines = new Set()
+  for (const fact of answer.facts) {
+    for (let line = fact.start_line; line <= fact.end_line; line++) factLines.add(line)
+  }
+  for (const line of [2, 4, 5]) assert(factLines.has(line), 'facts need coverage for fixture line ' + line)
   const referenced = new Set()
   for (const interpretation of answer.interpretations) {
     assert(typeof interpretation.text === 'string' && interpretation.text.trim())
@@ -76,7 +83,7 @@ export function verifyAnswer(answer, snapshot) {
       for (let line = start_line; line <= end_line; line++) referenced.add(line)
     }
   }
-  for (const line of [2, 4, 5]) assert(referenced.has(line), 'readings need evidence for fixture line ' + line)
+  for (const line of [4, 5]) assert(referenced.has(line), 'readings need implementation evidence for fixture line ' + line)
   assert(answer.limits.every(text => typeof text === 'string' && text.trim()))
   const readings = answer.interpretations.map(item => clean(item.text))
   const text = readings.join('。')
