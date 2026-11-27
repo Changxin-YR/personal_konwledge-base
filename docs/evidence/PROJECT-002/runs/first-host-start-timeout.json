@@ -1,0 +1,38 @@
+{
+  "unit_id": "PROJECT-002",
+  "candidate_sha": "d341741b805d66e0c24fd3fc2953af8d7918b006",
+  "tree": "5da013721148ad9208420752389a42118285de7e",
+  "source_tree": "9aca779ddfc182deb851067ac43193f3843af627",
+  "entry_sha256": "3dbd9d0e39babc71e0f7ac691a1e117a2e4bcf2d85a384e9ceaa90a592884480",
+  "build_sha256": "9e0dd74a3aa354e5ec49a670e1788d4d84368ba3d01d7c314a40ccee53ac76e3",
+  "runner_sha256": "a2b893cee8c72b76f0dba432894f4487d175fb2352fbe95dfc3c2470a233a8f1",
+  "status": "FAIL",
+  "scope": "Host checks for inline and fixed-material review workflow; scoring not covered",
+  "checks": [],
+  "boots": [],
+  "screens": [],
+  "P08": "NOT_RUN",
+  "A31": "NOT_RUN",
+  "binding": {
+    "candidate_sha": "d341741b805d66e0c24fd3fc2953af8d7918b006",
+    "tree": "5da013721148ad9208420752389a42118285de7e",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "3dbd9d0e39babc71e0f7ac691a1e117a2e4bcf2d85a384e9ceaa90a592884480",
+    "helpers": {
+      "business-clock": "e038a837ce4a56ef366fe809e8594c4eab79b602f9efd23fb2ec0e69ae866709",
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "5278ebf7cc64773560b3b672c9182c65b4e1d82a20b8f569328cb0765a627f10",
+      "a07-isolated-host": "f3afd20f020fb86ed245c78d246143cd687c4c4e08d954489f32249811a8cf10"
+    },
+    "parser": {
+      "pdf-extractor.js": "49fb0588ba0c37486a287a083d9bd2a032d89205d34af615845c4928b1f6745c",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "failure": {
+    "phase": "isolated Host and business accounts",
+    "message": "timeout: bound Host boot"
+  }
+}

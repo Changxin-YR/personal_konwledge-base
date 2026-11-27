@@ -1,0 +1,53 @@
+{
+  "unit_id": "PROJECT-002",
+  "candidate_sha": "4496de36d316f7b0734f9da8746e754c4b28ae5f",
+  "tree": "097db7f914a291398ef744cc913620a298786e32",
+  "source_tree": "9aca779ddfc182deb851067ac43193f3843af627",
+  "entry_sha256": "3dbd9d0e39babc71e0f7ac691a1e117a2e4bcf2d85a384e9ceaa90a592884480",
+  "build_sha256": "9e0dd74a3aa354e5ec49a670e1788d4d84368ba3d01d7c314a40ccee53ac76e3",
+  "runner_sha256": "a2b893cee8c72b76f0dba432894f4487d175fb2352fbe95dfc3c2470a233a8f1",
+  "status": "FAIL",
+  "scope": "Host checks for inline and fixed-material review workflow; scoring not covered",
+  "checks": [
+    {
+      "id": "cutoff_and_peer_gate",
+      "status": "PASS",
+      "server_submitted_at": "2026-11-22T06:00:20.000Z",
+      "next_state": "awaiting_admin_review"
+    }
+  ],
+  "boots": [
+    123044
+  ],
+  "screens": [
+    {
+      "name": "peer-awaiting-final.png",
+      "sha256": "bbc696cdbbb4d98b341eda2ae46c67f4570c91c6527578f19961592fec2615ed"
+    }
+  ],
+  "P08": "NOT_RUN",
+  "A31": "NOT_RUN",
+  "binding": {
+    "candidate_sha": "4496de36d316f7b0734f9da8746e754c4b28ae5f",
+    "tree": "097db7f914a291398ef744cc913620a298786e32",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "3dbd9d0e39babc71e0f7ac691a1e117a2e4bcf2d85a384e9ceaa90a592884480",
+    "helpers": {
+      "business-clock": "e038a837ce4a56ef366fe809e8594c4eab79b602f9efd23fb2ec0e69ae866709",
+      "host-acceptance": "8020b448469a33a792558fccdd7b5fff0db5e15fd87478584dc12b16d97950b5",
+      "a07-known-pdf": "fb0cc71569c20320ec215f8981fe370efaaac96f1f9094a3d78bc36129691f97",
+      "a07-extractor-preload": "5278ebf7cc64773560b3b672c9182c65b4e1d82a20b8f569328cb0765a627f10",
+      "a07-isolated-host": "a2a4613f8e0f937bc5f2dd688a23a3087a888deb2f43925617750dcfb053b42f"
+    },
+    "parser": {
+      "pdf-extractor.js": "49fb0588ba0c37486a287a083d9bd2a032d89205d34af615845c4928b1f6745c",
+      "pdfium.wasm": "5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa"
+    }
+  },
+  "chrome": "158.0.8127.36",
+  "failure": {
+    "phase": "late final return and resubmission",
+    "message": "locator.waitFor: Timeout 12000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('终审已保存。', { exact: true }) to be visible\u001b[22m\n"
+  }
+}
