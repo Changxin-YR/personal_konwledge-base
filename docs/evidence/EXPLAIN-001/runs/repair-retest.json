@@ -1,0 +1,16 @@
+{
+  "unit_id": "EXPLAIN-001",
+  "status": "PASS",
+  "repair": {
+    "file": "scripts/explain001/host-oracle.mjs",
+    "changes": [
+      "Separate source fact coverage from interpretation implementation-line coverage.",
+      "Require explicit arrow mappings for fee assertions.",
+      "Keep contradictory explicit mappings rejected."
+    ]
+  },
+  "retest": "docs/evidence/EXPLAIN-001/runs/offline-revalidation.json",
+  "initial_failures": "docs/evidence/EXPLAIN-001/runs/initial-failures.json",
+  "real_model_requests": 0,
+  "note": "The two live model runs were not repeated. Retest consumed only saved actual-answer.json files."
+}

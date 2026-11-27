@@ -1,0 +1,46 @@
+{
+  "unit_id": "EXPLAIN-001",
+  "candidate_sha": "40ac5bdfbe628ec7ef486b69ba6cdf778fc6fa2d",
+  "preserved_runs": [
+    {
+      "role": "main",
+      "summary": "docs/evidence/EXPLAIN-001/runs/main-live-initial-summary.json",
+      "actual_answer": "docs/evidence/EXPLAIN-001/runs/main-live-actual-answer.json",
+      "status": "FAIL",
+      "failure": {
+        "phase": "UI file selection, one combined question, checked facts and business answer",
+        "category": "AssertionError",
+        "message": "readings need evidence for fixture line 2"
+      }
+    },
+    {
+      "role": "independent",
+      "summary": "docs/evidence/EXPLAIN-001/runs/independent-live-initial-summary.json",
+      "actual_answer": "docs/evidence/EXPLAIN-001/runs/independent-live-actual-answer.json",
+      "status": "FAIL",
+      "failure": {
+        "phase": "UI file selection, one combined question, checked facts and business answer",
+        "category": "AssertionError",
+        "message": "contradictory fee for subtotal 50"
+      }
+    }
+  ],
+  "diagnosis": [
+    {
+      "issue": "main line 2 coverage",
+      "cause": "The oracle required interpretation references to cover the comment line, even though the answer returned that line as a verified fact. The business implementation lines 4 and 5 still require interpretation evidence.",
+      "corrected_in": "scripts/explain001/host-oracle.mjs"
+    },
+    {
+      "issue": "fee mapping false positive",
+      "cause": "The old pattern accepted generic prose after a subtotal, so “50 时返回 0” was treated as an explicit 50→0 mapping.",
+      "corrected_in": "scripts/explain001/host-oracle.mjs"
+    }
+  ],
+  "real_model_requests": {
+    "main": 1,
+    "independent": 1,
+    "total": 2,
+    "additional_after_saved_runs": 0
+  }
+}

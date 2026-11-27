@@ -3017,8 +3017,32 @@
       ],
       "final_acceptance_ids": [],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "in_progress",
-      "test_plan_status": "expanded_for_activation"
+      "status": "passed",
+      "test_plan_status": "executed_with_evidence",
+      "test_result_status": "PASS",
+      "independent_review_status": "PASS",
+      "retest_status": "PASS",
+      "completed_test_ids": [
+        "EXPLAIN-001-T01",
+        "EXPLAIN-001-T02"
+      ],
+      "open_review_items": [],
+      "closed_review_items": [
+        "Initial live runs failed only at the offline answer oracle."
+      ],
+      "completed_at": "2026-11-27T00:00:00.000Z",
+      "acceptance_record": "docs/evidence/EXPLAIN-001/acceptance.json",
+      "evidence_paths": [
+        "docs/evidence/EXPLAIN-001/REPORT.md",
+        "docs/evidence/EXPLAIN-001/acceptance.json",
+        "docs/evidence/EXPLAIN-001/independent.json",
+        "docs/evidence/EXPLAIN-001/summary.json",
+        "docs/evidence/EXPLAIN-001/runs/initial-failures.json",
+        "docs/evidence/EXPLAIN-001/runs/offline-revalidation.json",
+        "docs/evidence/EXPLAIN-001/runs/repair-retest.json",
+        "docs/evidence/EXPLAIN-001/runs/plan-gate-regression.json"
+      ],
+      "candidate_commit": "1a93562b68417bc31af568206c96dc7b367b6b68"
     },
     {
       "id": "EXPLAIN-002",

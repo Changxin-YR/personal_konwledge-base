@@ -1,0 +1,31 @@
+{
+  "unit_id": "EXPLAIN-001",
+  "status": "PASS",
+  "candidate_sha": "1a93562b68417bc31af568206c96dc7b367b6b68",
+  "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "real_model_calls": {
+    "main": 1,
+    "independent": 1,
+    "total": 2,
+    "after_saved_runs": 0
+  },
+  "initial_live_status": {
+    "main": "FAIL",
+    "independent": "FAIL"
+  },
+  "offline_retest": "PASS",
+  "technical_checks": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "source_test": "PASS",
+    "verify_plan": "PASS",
+    "test_verify_plan": "PASS",
+    "plan_gate_regressions": 148
+  },
+  "evidence": {
+    "report": "docs/evidence/EXPLAIN-001/REPORT.md",
+    "acceptance": "docs/evidence/EXPLAIN-001/acceptance.json",
+    "independent": "docs/evidence/EXPLAIN-001/independent.json"
+  },
+  "tree": "52624ca3419b880d2ae008374a78b49b64c39997"
+}

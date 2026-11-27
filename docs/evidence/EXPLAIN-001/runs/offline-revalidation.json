@@ -1,0 +1,54 @@
+{
+  "unit_id": "EXPLAIN-001",
+  "candidate_under_test": "1a93562b68417bc31af568206c96dc7b367b6b68",
+  "command": "node --input-type=module <offline verifyAnswer script>",
+  "source": "scripts/explain001/host-oracle.mjs",
+  "saved_answers": [
+    {
+      "role": "main",
+      "path": "docs/evidence/EXPLAIN-001/runs/main-live-actual-answer.json",
+      "snapshot_id": "d4cef767-c652-4313-9aaa-de460e6955e5",
+      "status": "PASS"
+    },
+    {
+      "role": "independent",
+      "path": "docs/evidence/EXPLAIN-001/runs/independent-live-actual-answer.json",
+      "snapshot_id": "4224836b-a478-4d93-bad8-e9faa97e2f7b",
+      "status": "PASS"
+    }
+  ],
+  "assertions": [
+    {
+      "id": "fact coverage",
+      "expected": "selected source lines 2, 4 and 5 occur in returned facts",
+      "status": "PASS"
+    },
+    {
+      "id": "interpretation implementation coverage",
+      "expected": "implementation lines 4 and 5 are referenced by interpretations",
+      "status": "PASS"
+    },
+    {
+      "id": "explicit fee mapping",
+      "expected": "50→8 and 51→0",
+      "status": "PASS"
+    },
+    {
+      "id": "false-positive guard",
+      "input": "50 时返回 0",
+      "treated_as_explicit_mapping": false,
+      "status": "PASS"
+    },
+    {
+      "id": "comment conflict and unknown caller",
+      "expected": "reported with evidence and limitation",
+      "status": "PASS"
+    },
+    {
+      "id": "out-of-scope disclosure",
+      "expected": "no unpinned or sentinel bytes",
+      "status": "PASS"
+    }
+  ],
+  "real_model_requests": 0
+}

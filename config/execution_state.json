@@ -1,7 +1,7 @@
 {
   "schema_version": "2.0",
   "instruction_revision": "4.0.0",
-  "updated_at": "2026-11-26",
+  "updated_at": "2026-11-27",
   "timezone": "Asia/Shanghai",
   "execution_phase": "codex_continuous",
   "executor": "codex",
@@ -10,7 +10,7 @@
     "sha256": "a2e5986cfa81189aeae0c4b43ebfe4afd074aae9d5674e7ecf5e069c5d6ab530"
   },
   "active_unit": "EXPLAIN-001",
-  "unit_state": "in_progress",
+  "unit_state": "passed",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -151,18 +151,35 @@
   },
   "checkpoint": {
     "unit_id": "EXPLAIN-001",
+    "candidate_sha": "1a93562b68417bc31af568206c96dc7b367b6b68",
     "base_commit": "bf2dd1bdc33940e553a42cf617a4d843289d5ade",
     "completed": [
-      "Selected EXPLAIN-001 after UI-001. Independent expectations cover a fixed source range, conflicting comment and unknown caller."
+      "Fixed the offline explanation oracle for fact coverage and explicit fee mappings.",
+      "Revalidated both saved live answers without issuing another model request.",
+      "Completed EXPLAIN-001-T01 and EXPLAIN-001-T02 with main and independent evidence."
     ],
     "test_results": {
-      "unit_acceptance": "NOT_RUN",
-      "T01": "NOT_RUN",
-      "T02": "NOT_RUN"
+      "unit_acceptance": "PASS",
+      "T01": "PASS",
+      "T02": "PASS",
+      "independent": "PASS",
+      "typecheck": "PASS",
+      "build": "PASS",
+      "source_test": "PASS",
+      "verify_plan": "PASS",
+      "test_verify_plan": "PASS"
     },
-    "defects": [],
+    "defects": [
+      {
+        "status": "PASS",
+        "description": "Offline oracle misclassified comment-line coverage and generic fee prose.",
+        "fix": "scripts/explain001/host-oracle.mjs",
+        "retest": "docs/evidence/EXPLAIN-001/runs/offline-revalidation.json"
+      }
+    ],
     "blocked_dependencies": [],
-    "evidence": "scripts/explain001/acceptance-plan.md",
-    "next_task": "EXPLAIN-001"
+    "evidence": "docs/evidence/EXPLAIN-001/acceptance.json",
+    "next_task": "EXPLAIN-002",
+    "tree": "52624ca3419b880d2ae008374a78b49b64c39997"
   }
 }

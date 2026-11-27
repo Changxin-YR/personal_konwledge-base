@@ -1,0 +1,68 @@
+{
+  "source": {
+    "snapshot_id": "d4cef767-c652-4313-9aaa-de460e6955e5",
+    "path": "src/shipping-fee.js",
+    "commit": "61e02f2598f627b21a5d31d0bd3dc1ed6f82216f",
+    "blob_sha": "a52c5e085ef41dcdcbf82660105276048bcaefd3",
+    "start_line": 2,
+    "end_line": 6,
+    "total_lines": 7
+  },
+  "facts": [
+    {
+      "start_line": 2,
+      "end_line": 2,
+      "quote": "// Free shipping at subtotal >= 50."
+    },
+    {
+      "start_line": 3,
+      "end_line": 3,
+      "quote": "export function shippingFee(subtotal) {"
+    },
+    {
+      "start_line": 4,
+      "end_line": 4,
+      "quote": "  if (subtotal > 50) return 0;"
+    },
+    {
+      "start_line": 5,
+      "end_line": 5,
+      "quote": "  return 8;"
+    },
+    {
+      "start_line": 6,
+      "end_line": 6,
+      "quote": "}"
+    }
+  ],
+  "interpretations": [
+    {
+      "text": "从这段代码来看，shippingFee 根据订单小计 subtotal 计算运费：小计大于 50 时返回 0（免运费），其余情况返回 8，因此它只负责按小计这一个条件确定固定运费金额。",
+      "facts": [
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "text": "实际运费：50→8，51→0。因为第 4 行的判断条件是 subtotal > 50 的严格大于；subtotal 为 50 时不成立，落到第 5 行返回 8；subtotal 为 51 时成立，返回 0。",
+      "facts": [
+        4,
+        5
+      ]
+    },
+    {
+      "text": "注释与实现的边界不一致：注释称小计大于等于 50 即可免运费，意图包含 subtotal=50 就免运费；但实现用的是严格大于 50，只有超过 50 才免运费，所以小计等于 50 时实际仍收取 8。",
+      "facts": [
+        2,
+        4
+      ]
+    }
+  ],
+  "limits": [
+    "第 3 行只有 export，当前给出的行中没有 import 或调用语句，因此无法从所选代码判断哪些外部模块调用了 shippingFee；需要查看其他文件中的导入语句，或项目内的调用检索结果。",
+    "subtotal 为负数、非数字或 undefined 时的行为，所选代码没有额外校验或注释说明，无法确定边界值之外的处理。"
+  ],
+  "provider": "tokease",
+  "model": "deepseek-v4.1-flash-1017"
+}

@@ -1,0 +1,94 @@
+{
+  "unit_id": "EXPLAIN-001",
+  "candidate_sha": "1a93562b68417bc31af568206c96dc7b367b6b68",
+  "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "entry_sha256": "e13659019b9900fb8d2b4c5dd3f8a07ea359a0f17a6cf04a859f08478fc81213",
+  "source_tree": "423084dc433be842fe12b3436cfd79e1c13fbeb9",
+  "build_sha256": "e53ef37bca33b91879fd35b244dbc2c29dac0be78f8d282b2bd7d1179e786c72",
+  "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+  "provider": "tokease",
+  "model": "deepseek-v4.1-flash-1017",
+  "real_model_calls": {
+    "main": 1,
+    "independent": 1,
+    "total": 2,
+    "after_saved_runs": 0
+  },
+  "test_obligations": {
+    "EXPLAIN-001-T01": "PASS",
+    "EXPLAIN-001-T02": "PASS"
+  },
+  "initial_live_runs": "docs/evidence/EXPLAIN-001/runs/initial-failures.json",
+  "offline_retest": "docs/evidence/EXPLAIN-001/runs/offline-revalidation.json",
+  "screenshots": [
+    {
+      "role": "main",
+      "path": "docs/evidence/EXPLAIN-001/runs/main-live-selected-source.png",
+      "sha256": "4a5af2622378bf37ebdb3b3a4d1b57d556249d49103504238a15985315d99c7b"
+    },
+    {
+      "role": "independent",
+      "path": "docs/evidence/EXPLAIN-001/runs/independent-live-selected-source.png",
+      "sha256": "4a5af2622378bf37ebdb3b3a4d1b57d556249d49103504238a15985315d99c7b"
+    }
+  ],
+  "command_results": [
+    {
+      "command": "npm run typecheck",
+      "cwd": "packages/knowledgeos-panel",
+      "status": "PASS"
+    },
+    {
+      "command": "npm run build",
+      "cwd": "packages/knowledgeos-panel",
+      "status": "PASS"
+    },
+    {
+      "command": "node --experimental-transform-types --test scripts/explain001/source.test.mjs",
+      "status": "PASS",
+      "tests": 9
+    },
+    {
+      "command": "node scripts/verify-plan.mjs",
+      "status": "PASS"
+    },
+    {
+      "command": "node scripts/test-verify-plan.mjs",
+      "status": "PASS",
+      "checks": 148
+    }
+  ],
+  "role": "independent-review",
+  "independent_review": "PASS",
+  "evidence": "docs/evidence/EXPLAIN-001/runs/offline-revalidation.json",
+  "tree": "52624ca3419b880d2ae008374a78b49b64c39997",
+  "status": "PASS",
+  "exit": 0,
+  "command": "node --input-type=module <offline verifyAnswer script>",
+  "results": [
+    {
+      "id": "EXPLAIN-001-T01",
+      "status": "PASS",
+      "actual": "Saved main live answer passed the repaired offline oracle."
+    },
+    {
+      "id": "EXPLAIN-001-T02",
+      "status": "PASS",
+      "actual": "Saved independent live answer passed the repaired offline oracle and explicit fee mapping guard."
+    }
+  ],
+  "records": [
+    {
+      "path": "docs/evidence/EXPLAIN-001/runs/main-live-actual-answer.json",
+      "sha256": "3633378140a14e8a736823dd0b02ee041ac35092bcb5faee464afa68e0f64253"
+    },
+    {
+      "path": "docs/evidence/EXPLAIN-001/runs/independent-live-actual-answer.json",
+      "sha256": "a1138dbd2e86b458756fe4449cc2227e35eabd6bc2a67152ed7957d17d4a5d16"
+    },
+    {
+      "path": "docs/evidence/EXPLAIN-001/runs/offline-revalidation.json",
+      "sha256": "e9275b15805d494e615871db18f1360f6edd3c3a1ab6fa3b8fc75ac14c121671"
+    }
+  ]
+}

@@ -282,8 +282,12 @@
         "P07",
         "A20"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "implemented_unverified",
+      "evidence_paths": [
+        "docs/evidence/EXPLAIN-001/acceptance.json",
+        "docs/evidence/EXPLAIN-001/independent.json",
+        "docs/evidence/EXPLAIN-001/REPORT.md"
+      ]
     },
     {
       "id": "F17",
@@ -294,8 +298,12 @@
         "P07",
         "A20"
       ],
-      "implementation_status": "planned",
-      "evidence_paths": []
+      "implementation_status": "implemented_unverified",
+      "evidence_paths": [
+        "docs/evidence/EXPLAIN-001/acceptance.json",
+        "docs/evidence/EXPLAIN-001/independent.json",
+        "docs/evidence/EXPLAIN-001/REPORT.md"
+      ]
     },
     {
       "id": "F18",

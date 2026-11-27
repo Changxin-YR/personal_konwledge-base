@@ -1,0 +1,207 @@
+{
+  "unit_id": "EXPLAIN-001",
+  "candidate_sha": "40ac5bdfbe628ec7ef486b69ba6cdf778fc6fa2d",
+  "entry_sha256": "e13659019b9900fb8d2b4c5dd3f8a07ea359a0f17a6cf04a859f08478fc81213",
+  "role": "main",
+  "mode": "live",
+  "checkout": "C:\\Users\\27363\\Desktop\\personal base\\personal_konwledge-base",
+  "started_at": "2026-11-27T01:24:37.153Z",
+  "status": "FAIL",
+  "T01": "NOT_RUN",
+  "T02": "NOT_RUN",
+  "unit_acceptance": "NOT_RUN",
+  "source": {
+    "path": "src/shipping-fee.js",
+    "commit": "61e02f2598f627b21a5d31d0bd3dc1ed6f82216f",
+    "blob_sha": "a52c5e085ef41dcdcbf82660105276048bcaefd3",
+    "start_line": 2,
+    "end_line": 6
+  },
+  "question": "只根据选中行，shippingFee 负责什么？请在解读中分别写出 subtotal=50 和 subtotal=51 的实际运费（请用‘50→数值，51→数值’），说明注释与实现的边界是否一致。哪些外部模块调用它？请在局限中说明依据。",
+  "checks": [
+    {
+      "id": "repository-store-seed",
+      "status": "PASS",
+      "schema": 43,
+      "integrity": "ok",
+      "foreign_key_errors": 0,
+      "fixed_files": 1,
+      "listed_unpinned": "src/unpinned.js",
+      "commit": "61e02f2598f627b21a5d31d0bd3dc1ed6f82216f",
+      "tree": "67638d78c235e6faf932bcb8d9b754353b6ed5d9",
+      "path": "src/shipping-fee.js",
+      "blob": "a52c5e085ef41dcdcbf82660105276048bcaefd3",
+      "bytes": 188
+    },
+    {
+      "id": "anonymous",
+      "status": "PASS",
+      "explain_status": 401,
+      "citation_status": 401,
+      "code": "AUTH_REQUIRED"
+    },
+    {
+      "id": "other-business-user",
+      "status": "PASS",
+      "explain_status": 404,
+      "citation_status": 404,
+      "code": "NOT_FOUND"
+    },
+    {
+      "id": "wrong-commit",
+      "status": "PASS",
+      "explain_status": 409,
+      "citation_status": 409,
+      "code": "CODE_SOURCE_CHANGED"
+    },
+    {
+      "id": "wrong-blob",
+      "status": "PASS",
+      "explain_status": 409,
+      "citation_status": 409,
+      "code": "CODE_SOURCE_CHANGED"
+    },
+    {
+      "id": "listed-unpinned",
+      "status": "PASS",
+      "explain_status": 404,
+      "citation_status": 404,
+      "code": "NOT_FOUND"
+    },
+    {
+      "id": "reversed-range",
+      "status": "PASS",
+      "explain_status": 422,
+      "citation_status": 422,
+      "code": "CODE_RANGE_INVALID"
+    },
+    {
+      "id": "past-end",
+      "status": "PASS",
+      "explain_status": 422,
+      "citation_status": 422,
+      "code": "CODE_RANGE_INVALID"
+    },
+    {
+      "id": "actor-mismatch",
+      "status": "PASS",
+      "explain_status": 409,
+      "code": "ACTOR_MISMATCH"
+    },
+    {
+      "id": "denials-before-arm",
+      "status": "PASS",
+      "dispatches": 0,
+      "schema": 43,
+      "integrity": "ok",
+      "foreign_key_errors": 0,
+      "fixed_files": 1,
+      "listed_unpinned": "src/unpinned.js",
+      "commit": "61e02f2598f627b21a5d31d0bd3dc1ed6f82216f",
+      "tree": "67638d78c235e6faf932bcb8d9b754353b6ed5d9",
+      "path": "src/shipping-fee.js",
+      "blob": "a52c5e085ef41dcdcbf82660105276048bcaefd3",
+      "bytes": 188
+    },
+    {
+      "id": "UI file selection, one combined question, checked facts and business answer",
+      "status": "FAIL"
+    }
+  ],
+  "boots": [
+    {
+      "pid": 14808
+    }
+  ],
+  "screens": [
+    {
+      "file": "selected-source.png",
+      "sha256": "4a5af2622378bf37ebdb3b3a4d1b57d556249d49103504238a15985315d99c7b"
+    }
+  ],
+  "traffic": {
+    "page_explain_posts": 1,
+    "external": 0
+  },
+  "phase": "UI file selection, one combined question, checked facts and business answer",
+  "helpers": {
+    "scripts/explain001/acceptance-plan.md": "8564cb6cdec580c7e58e01209e42e97d61eedab2eabd386c4f0c9b9be235a0d9",
+    "scripts/explain001/fixture.mjs": "1329901abe28be9c28af4fe81f223ad2de8ec977577f8a938e92e5cd3d7c14b6",
+    "scripts/explain001/host-browser.mjs": "5319a4a44289fb607a9a23ef7b3fb7907ca0a6a837c58e641208bc7de79e4d15",
+    "scripts/explain001/host-oracle.mjs": "447236c3de368f35131fc2616944264cfb5040a7ac01561cb335b8462c8330fb",
+    "scripts/explain001/host-storage.mjs": "1a46cc6a1c7012f90ac7e228599557f0d5778fa2736fce1e0d8750e77b84109d",
+    "scripts/explain001/host.mjs": "e1ed42898000278ddeedeeff9e78b95a89cbdc8f0542b4910f1543d3840618ed",
+    "scripts/explain001/source.test.mjs": "703e40877d7e97f487e305df08ff5cde628efc7bf79d0427030ec9394bfacf86",
+    "scripts/explain001/tokease/budget.mjs": "9a8d27113c58aec10064ab6dd0ccb866c7d6bdd30d56cabaf07549b3ceb67d10",
+    "scripts/explain001/tokease/controller.mjs": "a220c7244ba767261699c003563159c92a8607786913cef80cc698c0ec0a6f8a",
+    "scripts/explain001/tokease/guard.mjs": "2aa1d436ee1371b87423462a1b1185ae18c1f5ea0b23a32f8d063060a9969c75",
+    "scripts/explain001/tokease/inputs.mjs": "ac4d053381a3919e506c623b6831e9b3188e902affcd5903e8de1cf9a29117c5",
+    "scripts/explain001/tokease/native.mjs": "15ad734bc277a8c75d2c1ebcdbd77abf1e76625230d14f043dd40a0f3dc8896e",
+    "scripts/explain001/tokease/preload.mjs": "fe947fc203f91b360ce136fe84ce3b21a9e16f6fe8f84ef4c46b773eb3ec9258",
+    "scripts/explain001/tokease/seal.mjs": "0dd3999bc2684997071d07679d75800176e6699f13b905131d3c11c4197583a7",
+    "scripts/fnd003/harness.mjs": "19dec0129d2ad31cbfe15050c78b351632daf3291a47b5de88ec8efdf909dbd6",
+    "scripts/fnd004/harness.mjs": "856136698eb2db4457e63e96477dd9df2da4e22f22283de064cc85a3d5f0557d",
+    "scripts/integrated-case-proof.mjs": "a5652a185545810e4769db75ed4e39fc0b920845d6421125fa9e2c0bb0306f2f"
+  },
+  "tree": "da91dcd2ee700ae969fbf8391ecef3facdfd53a7",
+  "source_tree": "423084dc433be842fe12b3436cfd79e1c13fbeb9",
+  "build_sha256": "e53ef37bca33b91879fd35b244dbc2c29dac0be78f8d282b2bd7d1179e786c72",
+  "chrome": "158.0.8127.88",
+  "failure": {
+    "phase": "UI file selection, one combined question, checked facts and business answer",
+    "category": "AssertionError",
+    "message": "readings need evidence for fixture line 2"
+  },
+  "model": {
+    "mode": "live",
+    "candidate_sha": "40ac5bdfbe628ec7ef486b69ba6cdf778fc6fa2d",
+    "tree": "da91dcd2ee700ae969fbf8391ecef3facdfd53a7",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "e13659019b9900fb8d2b4c5dd3f8a07ea359a0f17a6cf04a859f08478fc81213",
+    "provider": "tokease",
+    "model": "deepseek-v4.1-flash-1017",
+    "manifest_sha256": "5e2537098404db8162aeb1606d6e89d9c1bec317ed6848d4315787548d4cfe5a",
+    "real_inference_requests": 1,
+    "wire_calibrations": 0,
+    "outbound_tls_connect_attempts": 1,
+    "native_denials": 0,
+    "permit_consumed": true,
+    "expectations_armed": 1,
+    "requests": [
+      {
+        "stage": "valid-code-explanation",
+        "request_sha256": "9ce9d9aff668e1d535fe845c8773afaf78d8717ca8174ac94cabe651203187bb",
+        "tools": 0,
+        "output_token_cap": 1536,
+        "system_sha256": "1013d53efacee6ed36d7c158186240abac4be19b1efe4174cdb484f5599863f8",
+        "user_sha256": "061190629ed6092fd77b91bab3bb0c3dfe161c827ffdb0b684884ee95524b597"
+      }
+    ],
+    "response_usage": [
+      {
+        "http_status": 200,
+        "finish": "stop",
+        "content_chars": 903,
+        "input_tokens": 405,
+        "output_tokens": 404,
+        "total_tokens": 809
+      }
+    ]
+  },
+  "cleanup": [
+    {
+      "name": "chrome",
+      "status": "PASS"
+    },
+    {
+      "name": "host",
+      "status": "PASS"
+    },
+    {
+      "name": "run-slot",
+      "status": "PASS"
+    }
+  ],
+  "completed_at": "2026-11-27T01:24:51.381Z"
+}

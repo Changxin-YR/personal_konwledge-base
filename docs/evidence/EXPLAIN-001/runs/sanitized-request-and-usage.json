@@ -1,0 +1,60 @@
+{
+  "unit_id": "EXPLAIN-001",
+  "candidate_sha": "40ac5bdfbe628ec7ef486b69ba6cdf778fc6fa2d",
+  "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "route": {
+    "provider": "tokease",
+    "model": "deepseek-v4.1-flash-1017",
+    "endpoint": "https://tokease.cn/v1"
+  },
+  "request_payload": {
+    "stage": "valid-code-explanation",
+    "tools": 0,
+    "output_token_cap": 1536,
+    "system_sha256": "1013d53efacee6ed36d7c158186240abac4be19b1efe4174cdb484f5599863f8",
+    "user_sha256": "061190629ed6092fd77b91bab3bb0c3dfe161c827ffdb0b684884ee95524b597",
+    "request_sha256": "9ce9d9aff668e1d535fe845c8773afaf78d8717ca8174ac94cabe651203187bb",
+    "credentials": "omitted"
+  },
+  "runs": [
+    {
+      "role": "main",
+      "mode": "live",
+      "real_inference_requests": 1,
+      "outbound_tls_connect_attempts": 1,
+      "response_usage": [
+        {
+          "http_status": 200,
+          "finish": "stop",
+          "content_chars": 903,
+          "input_tokens": 405,
+          "output_tokens": 404,
+          "total_tokens": 809
+        }
+      ]
+    },
+    {
+      "role": "independent",
+      "mode": "live",
+      "real_inference_requests": 1,
+      "outbound_tls_connect_attempts": 1,
+      "response_usage": [
+        {
+          "http_status": 200,
+          "finish": "stop",
+          "content_chars": 662,
+          "input_tokens": 405,
+          "output_tokens": 279,
+          "total_tokens": 684
+        }
+      ]
+    }
+  ],
+  "price_approval": {
+    "path": "docs/evidence/EXPLAIN-001/runs/price-approval.json",
+    "sha256": "fb5c78d92bd43029eae2b3fb14db3f3d31b88d04b1fa25b0645e9a241806f33e",
+    "input_usd_per_million_tokens": 1,
+    "output_usd_per_million_tokens": 3,
+    "reviewed_source": "docs/evidence/FND-005/tokease-20261126/price-approval.json"
+  }
+}
