@@ -9,8 +9,8 @@
     "path": "CODEX_START.md",
     "sha256": "a2e5986cfa81189aeae0c4b43ebfe4afd074aae9d5674e7ecf5e069c5d6ab530"
   },
-  "active_unit": "EXPLAIN-002",
-  "unit_state": "blocked",
+  "active_unit": "PLAN-001",
+  "unit_state": "ready",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "主跑和独立复跑各一次，模型均只返回推理片段，正文为零。两份一次性名额均已消耗。",
+  "state_reason": "Selected after EXPLAIN-002: BLOCKED",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -127,27 +127,37 @@
     }
   },
   "last_accepted_checkpoint": {
-    "unit_id": "UI-001",
-    "candidate_sha": "cb93964b1c513a9458f353de2dc051c771211dbc",
-    "tree": "d3ac3b56675942c0338301327867eb8339f73fd6",
-    "source_tree": "515a71d73118d5f0513434c8d5ce638896662bbf",
-    "entry_sha256": "364bc63833e30730bc053f2893ab5b6fabf3b6f334d52dc5a5dd2673cb633a53",
-    "build_sha256": "e4bc0d03ad1113aa1d809e2c2318b9599bda0256d1c4354904f65734836a9dba",
-    "base_commit": "868cd7c67d184384058465f4d0199833a0934338",
+    "unit_id": "EXPLAIN-001",
+    "candidate_sha": "1a93562b68417bc31af568206c96dc7b367b6b68",
+    "base_commit": "bf2dd1bdc33940e553a42cf617a4d843289d5ade",
     "completed": [
-      "四个学习入口使用相同的个人对象，宽窄屏及键盘导航独立复跑通过。"
+      "Fixed the offline explanation oracle for fact coverage and explicit fee mappings.",
+      "Revalidated both saved live answers without issuing another model request.",
+      "Completed EXPLAIN-001-T01 and EXPLAIN-001-T02 with main and independent evidence."
     ],
     "test_results": {
       "unit_acceptance": "PASS",
       "T01": "PASS",
       "T02": "PASS",
-      "P01": "PASS",
-      "independent": "PASS"
+      "independent": "PASS",
+      "typecheck": "PASS",
+      "build": "PASS",
+      "source_test": "PASS",
+      "verify_plan": "PASS",
+      "test_verify_plan": "PASS"
     },
-    "defects": [],
+    "defects": [
+      {
+        "status": "PASS",
+        "description": "Offline oracle misclassified comment-line coverage and generic fee prose.",
+        "fix": "scripts/explain001/host-oracle.mjs",
+        "retest": "docs/evidence/EXPLAIN-001/runs/offline-revalidation.json"
+      }
+    ],
     "blocked_dependencies": [],
-    "evidence": "docs/evidence/UI-001/acceptance.json",
-    "next_task": "EXPLAIN-001"
+    "evidence": "docs/evidence/EXPLAIN-001/acceptance.json",
+    "next_task": "EXPLAIN-002",
+    "tree": "52624ca3419b880d2ae008374a78b49b64c39997"
   },
   "checkpoint": {
     "unit_id": "EXPLAIN-002",
