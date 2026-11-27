@@ -1,0 +1,15 @@
+{
+  "unit": "EXPLAIN-002",
+  "candidate": "1d22a7f5b8d6393c01a7f7b248c950d48255fe2e",
+  "entry_sha256": "9fac44aa8ecc4b53547c5555f924dacb39f151a0bdbec10a220b805b4984abee",
+  "route": {
+    "provider": "tokease",
+    "model": "deepseek-v4.1-flash-1017",
+    "endpoint": "https://tokease.cn/v1"
+  },
+  "stage": "valid-module-explanation",
+  "fixture_sha256": "6e9ad3e1fa0441761f68a98494c94cd1576a9c81ec919e774f788a81cf07fe04",
+  "system_sha256": "799676f8ed61e90af6e8c8e242de0466f3361eec9e56f40b7c446b678e2e9468",
+  "user_sha256": "bc43081bb2079fb8aa1311d1b1767eddf881c422f2bae6a78a3436b67953472e",
+  "wire_sha256": "b091e7f5c6539f4859bfa267ed43ecfcd17ab7d7cd462931d49531258134cdaf"
+}

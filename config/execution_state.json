@@ -10,7 +10,7 @@
     "sha256": "a2e5986cfa81189aeae0c4b43ebfe4afd074aae9d5674e7ecf5e069c5d6ab530"
   },
   "active_unit": "EXPLAIN-002",
-  "unit_state": "in_progress",
+  "unit_state": "blocked",
   "execution_mode": "continuous_unit_gated",
   "max_active_units": 1,
   "max_product_code_writers": 1,
@@ -38,7 +38,7 @@
     "failed": "repair and retest required"
   },
   "verification_note": "This file declares execution scope; it is not proof of product implementation or a runtime permission system.",
-  "state_reason": "Module and business-flow explanations from a fixed repository snapshot.",
+  "state_reason": "主跑和独立复跑各一次，模型均只返回推理片段，正文为零。两份一次性名额均已消耗。",
   "working_branch": "codex/knowledgeos-autonomous-20261119",
   "activation_basis": "continuous_authorization_20261119",
   "base_commit": "2329f9d8f37aa985c51efe8365889ff2934bb5f1",
@@ -153,17 +153,32 @@
     "unit_id": "EXPLAIN-002",
     "base_commit": "250cc489fcbf147fd85bef38c1f0076ce26103ea",
     "completed": [
-      "Activated EXPLAIN-002 after the accepted EXPLAIN-001 checkpoint.",
-      "Recorded independent expectations for module paths, normal and exception flows, and unsupported evidence."
+      "实现固定快照的模块讲解、跨文件事实和引用回读。",
+      "在主工作树与独立 detached checkout 完成隔离 dry 主跑、刷新、跨用户拒绝和重启回读。",
+      "在同一候选和清单完成两次真实推理尝试并归档流计数。"
     ],
     "test_results": {
-      "unit_acceptance": "NOT_RUN",
+      "unit_acceptance": "BLOCKED",
+      "main_live": "FAIL",
+      "independent_live": "FAIL",
       "T01": "NOT_RUN",
-      "T02": "NOT_RUN"
+      "T02": "NOT_RUN",
+      "A20": "NOT_RUN",
+      "main_dry": "PASS",
+      "independent_dry": "PASS"
     },
-    "defects": [],
-    "blocked_dependencies": [],
-    "evidence": "scripts/explain002/acceptance-plan.md",
-    "next_task": "EXPLAIN-002"
+    "defects": [
+      "两次授权派送均返回 HTTP 200、finish=stop 和 0 字符正文，Host 返回 502 MODEL_OUTPUT_EMPTY。"
+    ],
+    "blocked_dependencies": [
+      "待指定模型提供正文，并取得新一轮受控真实验收额度。"
+    ],
+    "evidence": "docs/evidence/EXPLAIN-002/summary.json",
+    "next_task": "PLAN-001",
+    "candidate_sha": "1d22a7f5b8d6393c01a7f7b248c950d48255fe2e",
+    "tree": "c7ecbbd5df7694da738d008d1b8c11c3e254792f",
+    "source_tree": "391aa21eef8b165d72cb2fb805a750d6d7d8818f",
+    "entry_sha256": "9fac44aa8ecc4b53547c5555f924dacb39f151a0bdbec10a220b805b4984abee",
+    "build_sha256": "4023a50e7bab36ba7fbafef227b5d89678884b4c4acd606b93256b14de3bf581"
   }
 }

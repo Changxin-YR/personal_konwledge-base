@@ -1,0 +1,30 @@
+{
+  "unit_id": "EXPLAIN-002",
+  "role": "main",
+  "candidate_sha": "1d22a7f5b8d6393c01a7f7b248c950d48255fe2e",
+  "tree": "c7ecbbd5df7694da738d008d1b8c11c3e254792f",
+  "source_tree": "391aa21eef8b165d72cb2fb805a750d6d7d8818f",
+  "entry_sha256": "9fac44aa8ecc4b53547c5555f924dacb39f151a0bdbec10a220b805b4984abee",
+  "build_sha256": "4023a50e7bab36ba7fbafef227b5d89678884b4c4acd606b93256b14de3bf581",
+  "upstream_commit": "39163dd30f703a79079e2d2446545cff3c453738",
+  "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+  "command": "node scripts/explain002/host.mjs 1d22a7f5b8d6393c01a7f7b248c950d48255fe2e 9fac44aa8ecc4b53547c5555f924dacb39f151a0bdbec10a220b805b4984abee main live",
+  "exit_code": 1,
+  "run_status": "FAIL",
+  "unit_acceptance": "BLOCKED",
+  "test_obligations": {
+    "EXPLAIN-002-T01": "NOT_RUN",
+    "EXPLAIN-002-T02": "NOT_RUN"
+  },
+  "real_model_calls": 1,
+  "provider": "tokease",
+  "model": "deepseek-v4.1-flash-1017",
+  "observed": "HTTP 502 MODEL_OUTPUT_EMPTY",
+  "started_at": "2026-11-27T07:31:58.619Z",
+  "finished_at": "2026-11-27T07:32:32.426Z",
+  "evidence_paths": [
+    "docs/evidence/EXPLAIN-002/runs/main-live/summary.json",
+    "docs/evidence/EXPLAIN-002/runs/main-live/stream-metadata.json",
+    "docs/evidence/EXPLAIN-002/runs/main-live/selected-source.png"
+  ]
+}

@@ -1,0 +1,122 @@
+{
+  "snapshot_id": "abefa4fe-1e1e-4b52-978d-390fa88ddbe5",
+  "commit": "83c5a621124483652f058955a2ed1812f686f61d",
+  "tree": "f3a62a8bcd61b41a9f85e943860beb9febf42b17",
+  "sources": [
+    {
+      "path": "src/order-entry.js",
+      "commit": "83c5a621124483652f058955a2ed1812f686f61d",
+      "blob_sha": "f7b010bc5f4fa2f0d2aea43fe15d2b2f4f2024d6",
+      "start_line": 1,
+      "end_line": 5,
+      "total_lines": 5
+    },
+    {
+      "path": "src/order-service.js",
+      "commit": "83c5a621124483652f058955a2ed1812f686f61d",
+      "blob_sha": "f12924c515a37cc59d58f55f540352617655f452",
+      "start_line": 1,
+      "end_line": 4,
+      "total_lines": 4
+    },
+    {
+      "path": "src/order-store.js",
+      "commit": "83c5a621124483652f058955a2ed1812f686f61d",
+      "blob_sha": "2e411652f7dcfd2e2ef3a6e81283961db17f84ae",
+      "start_line": 1,
+      "end_line": 3,
+      "total_lines": 3
+    }
+  ],
+  "facts": [
+    {
+      "path": "src/order-entry.js",
+      "start_line": 1,
+      "end_line": 4,
+      "quote": "export async function submit(order, actor) {\n  assertActor(actor);\n  const draft = normalize(order);\n  return service.save(draft);"
+    },
+    {
+      "path": "src/order-service.js",
+      "start_line": 1,
+      "end_line": 3,
+      "quote": "export function save(order) {\n  if (!order.id) throw new Error('INVALID_ORDER');\n  return store.insert(order);"
+    },
+    {
+      "path": "src/order-store.js",
+      "start_line": 1,
+      "end_line": 2,
+      "quote": "export function insert(order) {\n  return database.run('insert', order);"
+    }
+  ],
+  "summary": [
+    {
+      "text": "入口负责身份检查和规范化，再把订单交给服务，服务把有效订单交给存储边界。",
+      "facts": [
+        1,
+        2,
+        3
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "text": "submit 调用 service.save，save 调用 store.insert，insert 调用 database.run。",
+      "facts": [
+        1,
+        2,
+        3
+      ]
+    }
+  ],
+  "flows": [
+    {
+      "name": "正常提交",
+      "steps": [
+        {
+          "text": "入口先检查 actor，再规范化订单。",
+          "facts": [
+            1
+          ]
+        },
+        {
+          "text": "服务检查订单 id 后调用存储。",
+          "facts": [
+            2
+          ]
+        },
+        {
+          "text": "存储边界把订单交给数据库适配器。",
+          "facts": [
+            3
+          ]
+        }
+      ]
+    },
+    {
+      "name": "订单校验失败",
+      "steps": [
+        {
+          "text": "缺少订单 id 时服务直接抛出 INVALID_ORDER。",
+          "facts": [
+            2
+          ]
+        }
+      ]
+    }
+  ],
+  "tradeoffs": [
+    {
+      "text": "入口、业务校验和持久化被拆到不同文件，便于分别约束边界，但当前片段没有展示事务和重试策略。",
+      "facts": [
+        1,
+        2,
+        3
+      ]
+    }
+  ],
+  "limits": [
+    "当前固定提交没有提供 assertActor、normalize、database 适配器或外部调用者的实现，不能确认它们的权限、事务和重试行为。"
+  ],
+  "provider": "tokease",
+  "model": "deepseek-v4.1-flash-1017"
+}

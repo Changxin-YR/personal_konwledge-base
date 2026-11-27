@@ -1,6 +1,6 @@
 {
   "schema_version": "2.0",
-  "updated_at": "2026-11-26",
+  "updated_at": "2026-11-27",
   "timezone": "Asia/Shanghai",
   "mode": "continuous_unit_gated",
   "current_executor": "codex",
@@ -3082,8 +3082,27 @@
         "A20"
       ],
       "completion_gate": "当前单元范围完成；对应测试实际通过并由独立角色复核；提交证据和差异；记录检查点，按依赖选择下一单元。",
-      "status": "in_progress",
-      "test_plan_status": "expanded_for_activation"
+      "status": "blocked",
+      "test_plan_status": "expanded_for_activation",
+      "test_result_status": "FAIL",
+      "independent_review_status": "FAIL",
+      "retest_status": "NOT_RUN",
+      "completed_test_ids": [],
+      "blocked_test_ids": [
+        "EXPLAIN-002-T01",
+        "EXPLAIN-002-T02"
+      ],
+      "open_review_items": [
+        "主跑和独立复跑各一次，模型均只返回推理片段，正文为零。两份一次性名额均已消耗。"
+      ],
+      "candidate_commit": "1d22a7f5b8d6393c01a7f7b248c950d48255fe2e",
+      "acceptance_record": "docs/evidence/EXPLAIN-002/acceptance.json",
+      "evidence_paths": [
+        "docs/evidence/EXPLAIN-002/REPORT.md",
+        "docs/evidence/EXPLAIN-002/acceptance.json",
+        "docs/evidence/EXPLAIN-002/independent.json",
+        "docs/evidence/EXPLAIN-002/summary.json"
+      ]
     },
     {
       "id": "ENGINEER-001",

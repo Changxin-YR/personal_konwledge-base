@@ -1,0 +1,10 @@
+{
+  "http_status": 200,
+  "finish": "stop",
+  "content_chars": 0,
+  "reasoning_chars": 3973,
+  "input_tokens": 950,
+  "output_tokens": 1536,
+  "total_tokens": 2486,
+  "response_sha256": "35ce5ce45d86c1d98d0c99d68b7f1d2acb490b466ceea9e98784e16ac19def01"
+}

@@ -1,0 +1,34 @@
+{
+  "unit_id": "EXPLAIN-002",
+  "status": "BLOCKED",
+  "candidate_sha": "1d22a7f5b8d6393c01a7f7b248c950d48255fe2e",
+  "tree": "c7ecbbd5df7694da738d008d1b8c11c3e254792f",
+  "entry_sha256": "9fac44aa8ecc4b53547c5555f924dacb39f151a0bdbec10a220b805b4984abee",
+  "dry": {
+    "main": "PASS",
+    "independent": "PASS",
+    "calibration_sha256": "001999f0a64c212f19bb86d29b5ca7ad5175d73b055ddedf3d8a5625cec9c900"
+  },
+  "live": {
+    "main": "FAIL",
+    "independent": "FAIL",
+    "error": "MODEL_OUTPUT_EMPTY",
+    "manifest_sha256": "2f5b1652f73eda65992b7141b1994d2549a9055e436a1a495db777d9bd84551b",
+    "wire_sha256": "b091e7f5c6539f4859bfa267ed43ecfcd17ab7d7cd462931d49531258134cdaf",
+    "calls": 2,
+    "input_tokens": 1900,
+    "output_tokens": 3072,
+    "content_chars": 0
+  },
+  "obligations": {
+    "T01": "NOT_RUN",
+    "T02": "NOT_RUN",
+    "A20": "NOT_RUN"
+  },
+  "evidence_paths": [
+    "docs/evidence/EXPLAIN-002/acceptance.json",
+    "docs/evidence/EXPLAIN-002/independent.json",
+    "docs/evidence/EXPLAIN-002/REPORT.md",
+    "docs/evidence/EXPLAIN-002/runs/technical.json"
+  ]
+}

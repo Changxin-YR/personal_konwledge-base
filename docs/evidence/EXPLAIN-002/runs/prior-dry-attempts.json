@@ -1,0 +1,50 @@
+[
+  {
+    "candidate_sha": "7d64c38d2da404a076ffb210d91e60ede2f53e4f",
+    "status": "FAIL",
+    "mode": "dry",
+    "role": "main",
+    "started_at": "2026-11-27T06:06:47.253Z",
+    "completed_at": "2026-11-27T06:07:01.468Z",
+    "phase": "UI file selection, one combined question, checked facts and business answer",
+    "cause": "详情实际返回三个已保存的路径，点击文件时应等待读取响应。",
+    "source_summary_sha256": "2220159594f91aaae544b702a291395e5888610a75f7064d83ac65bc023c141f",
+    "real_model_calls": 0
+  },
+  {
+    "candidate_sha": "25d9124d9d031fed5657120233f30258c518eff8",
+    "status": "FAIL",
+    "mode": "dry",
+    "role": "main",
+    "started_at": "2026-11-27T06:30:44.459Z",
+    "completed_at": "2026-11-27T06:31:00.980Z",
+    "phase": "UI file selection, one combined question, checked facts and business answer",
+    "cause": "答复绑定 Git 树哈希，树条目位于模型请求中。",
+    "source_summary_sha256": "c02c387e6f178234f1b7a432e6d0dc19a86b6d4df029ae132d5f7ecc9116caeb",
+    "real_model_calls": 0
+  },
+  {
+    "candidate_sha": "1d22a7f5b8d6393c01a7f7b248c950d48255fe2e",
+    "status": "BLOCKED",
+    "mode": "dry",
+    "role": "independent",
+    "started_at": "2026-11-27T06:50:25.122Z",
+    "completed_at": "2026-11-27T06:50:25.191Z",
+    "phase": "frozen inputs and controller",
+    "cause": "独立运行要求 detached checkout。",
+    "source_summary_sha256": "9265d4eccde916b249b229cc22654348365e5f6fba8204c02e3b1c8396da9ac5",
+    "real_model_calls": 0
+  },
+  {
+    "candidate_sha": "1d22a7f5b8d6393c01a7f7b248c950d48255fe2e",
+    "status": "BLOCKED",
+    "mode": "dry",
+    "role": "independent",
+    "started_at": "2026-11-27T06:55:50.060Z",
+    "completed_at": "2026-11-27T06:55:54.230Z",
+    "phase": "frozen inputs and controller",
+    "cause": "独立 checkout 需要显式绑定固定 Host 和浏览器依赖缓存。",
+    "source_summary_sha256": "09ec99c0e3d4b0715d3c09b351504f5462392739088410b942521840db11adb7",
+    "real_model_calls": 0
+  }
+]

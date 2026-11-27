@@ -1,0 +1,50 @@
+{
+  "unit_id": "EXPLAIN-002",
+  "candidate_sha": "1d22a7f5b8d6393c01a7f7b248c950d48255fe2e",
+  "checks": [
+    {
+      "command": "npm run typecheck",
+      "cwd": "packages/knowledgeos-panel",
+      "exit": 0,
+      "status": "PASS"
+    },
+    {
+      "command": "npm run build",
+      "cwd": "packages/knowledgeos-panel",
+      "exit": 0,
+      "status": "PASS"
+    },
+    {
+      "command": "source tests",
+      "cwd": ".",
+      "exit": 0,
+      "status": "PASS",
+      "tests_passed": 14,
+      "tests_failed": 0
+    },
+    {
+      "command": "git diff --check",
+      "cwd": ".",
+      "exit": 0,
+      "status": "PASS"
+    },
+    {
+      "command": "verify-plan",
+      "cwd": ".",
+      "exit": 0,
+      "status": "PASS",
+      "scope": "plan_structure_traceability_and_execution_consistency_only",
+      "requirements": 44,
+      "acceptanceCases": 66,
+      "workUnits": 76
+    },
+    {
+      "command": "plan-regression",
+      "cwd": ".",
+      "exit": 0,
+      "status": "PASS",
+      "scope": "plan_gate_regressions_only",
+      "checks": 148
+    }
+  ]
+}

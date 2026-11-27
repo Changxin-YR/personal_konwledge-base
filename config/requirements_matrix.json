@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "date": "2026-11-26",
+  "date": "2026-11-27",
   "timezone": "Asia/Shanghai",
   "design_coverage": "44/44 requirements mapped; implementation not verified",
   "status_vocabulary": [
@@ -286,7 +286,10 @@
       "evidence_paths": [
         "docs/evidence/EXPLAIN-001/acceptance.json",
         "docs/evidence/EXPLAIN-001/independent.json",
-        "docs/evidence/EXPLAIN-001/REPORT.md"
+        "docs/evidence/EXPLAIN-001/REPORT.md",
+        "docs/evidence/EXPLAIN-002/REPORT.md",
+        "docs/evidence/EXPLAIN-002/acceptance.json",
+        "docs/evidence/EXPLAIN-002/independent.json"
       ]
     },
     {
@@ -302,7 +305,10 @@
       "evidence_paths": [
         "docs/evidence/EXPLAIN-001/acceptance.json",
         "docs/evidence/EXPLAIN-001/independent.json",
-        "docs/evidence/EXPLAIN-001/REPORT.md"
+        "docs/evidence/EXPLAIN-001/REPORT.md",
+        "docs/evidence/EXPLAIN-002/REPORT.md",
+        "docs/evidence/EXPLAIN-002/acceptance.json",
+        "docs/evidence/EXPLAIN-002/independent.json"
       ]
     },
     {
@@ -1340,7 +1346,13 @@
       "level": "real_fixture",
       "evidence_required": "测试记录、关键状态与操作证据",
       "status": "NOT_RUN",
-      "final_milestone": "M3"
+      "final_milestone": "M3",
+      "evidence_paths": [
+        "docs/evidence/EXPLAIN-002/REPORT.md",
+        "docs/evidence/EXPLAIN-002/acceptance.json",
+        "docs/evidence/EXPLAIN-002/independent.json",
+        "docs/evidence/EXPLAIN-002/summary.json"
+      ]
     },
     {
       "id": "A21",

@@ -1,0 +1,344 @@
+{
+  "unit_id": "EXPLAIN-002",
+  "candidate_sha": "1d22a7f5b8d6393c01a7f7b248c950d48255fe2e",
+  "entry_sha256": "9fac44aa8ecc4b53547c5555f924dacb39f151a0bdbec10a220b805b4984abee",
+  "role": "main",
+  "mode": "dry",
+  "checkout": "working branch",
+  "started_at": "2026-11-27T06:46:19.516Z",
+  "status": "PASS",
+  "T01": "NOT_RUN",
+  "T02": "NOT_RUN",
+  "unit_acceptance": "NOT_RUN",
+  "sources": [
+    {
+      "path": "src/order-entry.js",
+      "first": 1,
+      "last": 5,
+      "blob": "f7b010bc5f4fa2f0d2aea43fe15d2b2f4f2024d6"
+    },
+    {
+      "path": "src/order-service.js",
+      "first": 1,
+      "last": 4,
+      "blob": "f12924c515a37cc59d58f55f540352617655f452"
+    },
+    {
+      "path": "src/order-store.js",
+      "first": 1,
+      "last": 3,
+      "blob": "2e411652f7dcfd2e2ef3a6e81283961db17f84ae"
+    }
+  ],
+  "tree": "c7ecbbd5df7694da738d008d1b8c11c3e254792f",
+  "question": "请说明入口、服务和存储文件之间的实际调用与数据路径，分别说明正常提交、订单校验失败和缺少外部调用者时的边界，并指出当前代码能支持的设计取舍。",
+  "checks": [
+    {
+      "id": "repository-store-seed",
+      "status": "PASS",
+      "schema": 43,
+      "integrity": "ok",
+      "foreign_key_errors": 0,
+      "fixed_files": 0,
+      "listed_unpinned": "README.md",
+      "commit": "83c5a621124483652f058955a2ed1812f686f61d",
+      "tree": "f3a62a8bcd61b41a9f85e943860beb9febf42b17",
+      "paths": [],
+      "bytes": 0
+    },
+    {
+      "id": "anonymous",
+      "code": "AUTH_REQUIRED",
+      "http_status": 401,
+      "status": "PASS"
+    },
+    {
+      "id": "other-business-user",
+      "code": "NOT_FOUND",
+      "http_status": 404,
+      "status": "PASS"
+    },
+    {
+      "id": "one-source",
+      "code": "MODULE_SOURCES_INVALID",
+      "http_status": 422,
+      "status": "PASS"
+    },
+    {
+      "id": "unlisted-file",
+      "code": "NOT_FOUND",
+      "http_status": 404,
+      "status": "PASS"
+    },
+    {
+      "id": "reversed-range",
+      "code": "MODULE_RANGE_INVALID",
+      "http_status": 422,
+      "status": "PASS"
+    },
+    {
+      "id": "actor-mismatch",
+      "code": "ACTOR_MISMATCH",
+      "http_status": 409,
+      "status": "PASS"
+    },
+    {
+      "id": "denials-before-arm",
+      "status": "PASS",
+      "dispatches": 0,
+      "schema": 43,
+      "integrity": "ok",
+      "foreign_key_errors": 0,
+      "fixed_files": 0,
+      "listed_unpinned": "README.md",
+      "commit": "83c5a621124483652f058955a2ed1812f686f61d",
+      "tree": "f3a62a8bcd61b41a9f85e943860beb9febf42b17",
+      "paths": [],
+      "bytes": 0
+    },
+    {
+      "id": "fixture-files-seeded",
+      "status": "PASS",
+      "schema": 43,
+      "integrity": "ok",
+      "foreign_key_errors": 0,
+      "fixed_files": 3,
+      "listed_unpinned": "README.md",
+      "commit": "83c5a621124483652f058955a2ed1812f686f61d",
+      "tree": "f3a62a8bcd61b41a9f85e943860beb9febf42b17",
+      "paths": [
+        "src/order-entry.js",
+        "src/order-service.js",
+        "src/order-store.js"
+      ],
+      "bytes": 320
+    },
+    {
+      "id": "reversed-range-after-save",
+      "code": "MODULE_RANGE_INVALID",
+      "http_status": 422,
+      "status": "PASS"
+    },
+    {
+      "id": "past-end-after-save",
+      "code": "MODULE_RANGE_INVALID",
+      "http_status": 422,
+      "status": "PASS"
+    },
+    {
+      "id": "wrong-commit",
+      "code": "CODE_SOURCE_CHANGED",
+      "http_status": 409,
+      "status": "PASS"
+    },
+    {
+      "id": "wrong-blob",
+      "code": "CODE_SOURCE_CHANGED",
+      "http_status": 409,
+      "status": "PASS"
+    },
+    {
+      "id": "citation-past-end",
+      "code": "CODE_RANGE_INVALID",
+      "http_status": 422,
+      "status": "PASS"
+    },
+    {
+      "id": "unpinned-citation",
+      "code": "NOT_FOUND",
+      "http_status": 404,
+      "status": "PASS"
+    },
+    {
+      "id": "T02-business-and-unknown-callers",
+      "status": "PASS",
+      "evidence": "actual-answer.json",
+      "fact_ranges": [
+        {
+          "path": "src/order-entry.js",
+          "start_line": 1,
+          "end_line": 4
+        },
+        {
+          "path": "src/order-service.js",
+          "start_line": 1,
+          "end_line": 3
+        },
+        {
+          "path": "src/order-store.js",
+          "start_line": 1,
+          "end_line": 2
+        }
+      ],
+      "schema": 43,
+      "integrity": "ok",
+      "foreign_key_errors": 0,
+      "fixed_files": 3,
+      "listed_unpinned": "README.md",
+      "commit": "83c5a621124483652f058955a2ed1812f686f61d",
+      "tree": "f3a62a8bcd61b41a9f85e943860beb9febf42b17",
+      "paths": [
+        "src/order-entry.js",
+        "src/order-service.js",
+        "src/order-store.js"
+      ],
+      "bytes": 320
+    },
+    {
+      "id": "all-clicks-refresh-and-denial",
+      "status": "PASS",
+      "facts_clicked": 3,
+      "extra_model_requests": 0
+    },
+    {
+      "id": "T01-restart-immutable-readback",
+      "status": "PASS",
+      "schema": 43,
+      "integrity": "ok",
+      "foreign_key_errors": 0,
+      "fixed_files": 3,
+      "listed_unpinned": "README.md",
+      "commit": "83c5a621124483652f058955a2ed1812f686f61d",
+      "tree": "f3a62a8bcd61b41a9f85e943860beb9febf42b17",
+      "paths": [
+        "src/order-entry.js",
+        "src/order-service.js",
+        "src/order-store.js"
+      ],
+      "bytes": 320
+    },
+    {
+      "id": "readback-without-inference",
+      "status": "PASS",
+      "extra_model_requests": 0,
+      "page_module_posts": 1
+    }
+  ],
+  "boots": [
+    {
+      "pid": 42172
+    },
+    {
+      "pid": 24664
+    }
+  ],
+  "screens": [
+    {
+      "file": "selected-source.png",
+      "sha256": "2bfdc0cf86cf809a96bc110d6008007c010794380ecbbc08fb69f5a236fb3b88"
+    },
+    {
+      "file": "answer-groups.png",
+      "sha256": "5c783fe2f5748028711070daf85f531e33569e09d8175a9a7e14eda6995878bd"
+    },
+    {
+      "file": "citation-click.png",
+      "sha256": "096ee05240159c804e4e186a5c948c89df22c16fdfa8b04855a67a873ee5f0c4"
+    },
+    {
+      "file": "other-user-refused.png",
+      "sha256": "3a0580c961dfba32753acd09ca6191a89c28699d12b107317602d345df158ac0"
+    },
+    {
+      "file": "restart-readback.png",
+      "sha256": "8057e468e3057e4f91ed23a97d458d359c4ae9c8b7350e1e90a017ac7258effb"
+    }
+  ],
+  "traffic": {
+    "page_module_posts": 1,
+    "external": 0
+  },
+  "phase": "sequential restart and original fixed link in a fresh Chrome session",
+  "helpers": {
+    "scripts/explain002/acceptance-plan.md": "399faf45cae79336e2cf37be4587b9437aaa90cb879326b01cf5692abb424ea0",
+    "scripts/explain002/fixture.mjs": "6e9ad3e1fa0441761f68a98494c94cd1576a9c81ec919e774f788a81cf07fe04",
+    "scripts/explain002/host-browser.mjs": "4e882766f7307c681ace6a764cd5aa01233c760c600be136a3e1eaea61431569",
+    "scripts/explain002/host-oracle.mjs": "6b931b242890c3e94ed5c565d48283daaa3b9485154e90a960416351e2b78fa9",
+    "scripts/explain002/host-storage.mjs": "6f11d0e31c8d76f21e6de3df8167e9184e4bbc03cac64913b1a342e00126b827",
+    "scripts/explain002/host.mjs": "82e38422a8ddb563130686b345c266000311c2e0ef8d747cbc6c03215b401043",
+    "scripts/explain002/source.test.mjs": "9844c0262e1404af42d85f017efa42a0604536c08302e922efc6161b3e7aa41c",
+    "scripts/explain002/tokease/budget.mjs": "9a8d27113c58aec10064ab6dd0ccb866c7d6bdd30d56cabaf07549b3ceb67d10",
+    "scripts/explain002/tokease/controller.mjs": "44e06611676eb83add0d2ed6e2695899ed20acdc87477c0076ea8ef44f244236",
+    "scripts/explain002/tokease/guard.mjs": "1b09c282217a3e8264058f1b51667ad3720fe69e030ecd931ec4a1386debbb30",
+    "scripts/explain002/tokease/inputs.mjs": "c8e0a506d4809e19ee66dc8005a1666a639a60efdde946d60170483ee6bd41a4",
+    "scripts/explain002/tokease/native.mjs": "efc2e792defe1367e73eab6dede13db7880353656ba2ff7102d92c49ad3bb32f",
+    "scripts/explain002/tokease/preload.mjs": "fd80455e0e67db044170ff500edafc874fe82b95227ae3f3d6c30827c55b3eb2",
+    "scripts/explain002/tokease/seal.mjs": "0dd3999bc2684997071d07679d75800176e6699f13b905131d3c11c4197583a7",
+    "scripts/fnd003/harness.mjs": "19dec0129d2ad31cbfe15050c78b351632daf3291a47b5de88ec8efdf909dbd6",
+    "scripts/fnd004/harness.mjs": "856136698eb2db4457e63e96477dd9df2da4e22f22283de064cc85a3d5f0557d",
+    "scripts/integrated-case-proof.mjs": "a5652a185545810e4769db75ed4e39fc0b920845d6421125fa9e2c0bb0306f2f"
+  },
+  "source_tree": "391aa21eef8b165d72cb2fb805a750d6d7d8818f",
+  "build_sha256": "4023a50e7bab36ba7fbafef227b5d89678884b4c4acd606b93256b14de3bf581",
+  "chrome": "158.0.8127.88",
+  "model": {
+    "mode": "dry",
+    "candidate_sha": "1d22a7f5b8d6393c01a7f7b248c950d48255fe2e",
+    "tree": "c7ecbbd5df7694da738d008d1b8c11c3e254792f",
+    "upstream": "39163dd30f703a79079e2d2446545cff3c453738",
+    "runtime_sha256": "2b4fa95a8c03bd36c5a898cba846f437a316179e9dd356ff914729da37a34f73",
+    "entry_sha256": "9fac44aa8ecc4b53547c5555f924dacb39f151a0bdbec10a220b805b4984abee",
+    "provider": "tokease",
+    "model": "deepseek-v4.1-flash-1017",
+    "manifest_sha256": "e2828c259af7bc1d2aa6aa16740e7561dfce65c550b0b7ad42b1bcc4249067c1",
+    "real_inference_requests": 0,
+    "wire_calibrations": 1,
+    "outbound_tls_connect_attempts": 0,
+    "native_denials": 0,
+    "permit_consumed": true,
+    "expectations_armed": 1,
+    "requests": [
+      {
+        "stage": "valid-module-explanation",
+        "request_sha256": "b091e7f5c6539f4859bfa267ed43ecfcd17ab7d7cd462931d49531258134cdaf",
+        "tools": 0,
+        "output_token_cap": 1536,
+        "system_sha256": "799676f8ed61e90af6e8c8e242de0466f3361eec9e56f40b7c446b678e2e9468",
+        "user_sha256": "bc43081bb2079fb8aa1311d1b1767eddf881c422f2bae6a78a3436b67953472e"
+      }
+    ],
+    "response_usage": []
+  },
+  "citations": [
+    {
+      "path": "src/order-entry.js",
+      "commit": "83c5a621124483652f058955a2ed1812f686f61d",
+      "blob_sha": "f7b010bc5f4fa2f0d2aea43fe15d2b2f4f2024d6",
+      "start_line": 1,
+      "end_line": 4,
+      "link": "/knowledgeos/repositories?snapshot=abefa4fe-1e1e-4b52-978d-390fa88ddbe5&path=src%2Forder-entry.js&commit=83c5a621124483652f058955a2ed1812f686f61d&blob_sha=f7b010bc5f4fa2f0d2aea43fe15d2b2f4f2024d6&start_line=1&end_line=4"
+    },
+    {
+      "path": "src/order-service.js",
+      "commit": "83c5a621124483652f058955a2ed1812f686f61d",
+      "blob_sha": "f12924c515a37cc59d58f55f540352617655f452",
+      "start_line": 1,
+      "end_line": 3,
+      "link": "/knowledgeos/repositories?snapshot=abefa4fe-1e1e-4b52-978d-390fa88ddbe5&path=src%2Forder-service.js&commit=83c5a621124483652f058955a2ed1812f686f61d&blob_sha=f12924c515a37cc59d58f55f540352617655f452&start_line=1&end_line=3"
+    },
+    {
+      "path": "src/order-store.js",
+      "commit": "83c5a621124483652f058955a2ed1812f686f61d",
+      "blob_sha": "2e411652f7dcfd2e2ef3a6e81283961db17f84ae",
+      "start_line": 1,
+      "end_line": 2,
+      "link": "/knowledgeos/repositories?snapshot=abefa4fe-1e1e-4b52-978d-390fa88ddbe5&path=src%2Forder-store.js&commit=83c5a621124483652f058955a2ed1812f686f61d&blob_sha=2e411652f7dcfd2e2ef3a6e81283961db17f84ae&start_line=1&end_line=2"
+    }
+  ],
+  "cleanup": [
+    {
+      "name": "chrome",
+      "status": "PASS"
+    },
+    {
+      "name": "host",
+      "status": "PASS"
+    },
+    {
+      "name": "run-slot",
+      "status": "PASS"
+    }
+  ],
+  "completed_at": "2026-11-27T06:46:43.502Z",
+  "original_summary_sha256": "f26c699d77776cfe8646691f462847b6775e8a7541487ff170217a3dfb8005b9"
+}

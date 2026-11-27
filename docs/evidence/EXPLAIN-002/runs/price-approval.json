@@ -1,0 +1,10 @@
+{
+  "provider": "tokease",
+  "model": "deepseek-v4.1-flash-1017",
+  "endpoint": "https://tokease.cn/v1",
+  "currency": "USD_PER_MILLION_TOKENS",
+  "input": 1,
+  "output": 3,
+  "billing_group": "default",
+  "reviewed_at": "2026-11-27T07:21:32.874Z"
+}

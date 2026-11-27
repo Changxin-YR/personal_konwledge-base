@@ -1,0 +1,26 @@
+{
+  "source": [
+    "https://tokease.cn/api/pricing",
+    "https://tokease.cn/api/status"
+  ],
+  "reviewed_at": "2026-11-27T07:21:32.874Z",
+  "model": "deepseek-v4.1-flash-1017",
+  "provider": "tokease",
+  "billing_group": "default",
+  "quota_per_unit": 500000,
+  "group_ratio": 1,
+  "eligible_model_rows": 5,
+  "eligible_channels": [
+    "ds1",
+    "hs14",
+    "yj2",
+    "bd2",
+    "cs"
+  ],
+  "maximum_observed_input": 0.293255131964,
+  "maximum_observed_output": 1.173020527856,
+  "reservation_caps": {
+    "input": 1,
+    "output": 3
+  }
+}
